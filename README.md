@@ -21,20 +21,22 @@ Base inicial do portal brasileiro focado no **Gundam Card Game**, com direção 
 - pnpm
 - Prisma
 - PostgreSQL local via Docker
-- store persistente local no navegador para operação do front atual
+- Express para API/backend local
+- JWT para autenticação inicial
 
 ## Status atual
 
 - landing page inicial criada com identidade **Hangar Tático Neo-Militar**
 - portal interno com rotas modulares
 - páginas de catálogo, regras, torneios, deckbuilder e admin
-- persistência local nas páginas atuais, alinhada à modelagem Prisma
-- CRUD administrativo com formulários para cartas, rulings e eventos
-- schema inicial do Prisma criado
+- backend/API local criado para uso do Prisma em runtime
+- autenticação inicial com papéis (`USER`, `EDITOR`, `ADMIN`)
+- admin conectado à API
+- persistência de múltiplos decks por usuário
+- schema Prisma evoluído
 - seed inicial do Prisma criado
-- configuração de Postgres local via Docker criada
+- estratégia de imagens documentada
 - banco remoto ainda não conectado
-- backend/API ainda não implementado
 
 ## Documentos
 
@@ -43,6 +45,8 @@ Base inicial do portal brasileiro focado no **Gundam Card Game**, com direção 
 - `docs/02-setup-local.md`
 - `docs/03-git-workflow.md`
 - `docs/04-patch-v0.3.0.md`
+- `docs/05-image-strategy.md`
+- `docs/06-patch-v0.4.0.md`
 
 ## Como rodar localmente
 
@@ -51,12 +55,19 @@ cp .env.example .env
 pnpm install
 pnpm db:up
 pnpm prisma:generate
-pnpm prisma:migrate --name init
+pnpm prisma:migrate --name api-auth-and-multidecks
 pnpm prisma:seed
+pnpm dev:api
 pnpm dev
 ```
 
-## Build
+## Rodar frontend e API juntos
+
+```bash
+pnpm dev:full
+```
+
+## Build do frontend
 
 ```bash
 pnpm build
@@ -69,48 +80,64 @@ pnpm db:up
 pnpm db:down
 pnpm db:logs
 pnpm prisma:generate
-pnpm prisma:migrate --name init
+pnpm prisma:migrate --name api-auth-and-multidecks
 pnpm prisma:seed
 pnpm prisma:studio
+pnpm dev:api
+pnpm dev
+pnpm dev:full
+```
+
+## Credenciais seed padrão
+
+```text
+Email: admin@gundambr.local
+Senha: admin123
 ```
 
 ## Arquitetura desta fase
 
-Nesta etapa, o projeto usa duas camadas complementares:
+Nesta etapa, o projeto passa a ter duas camadas reais:
 
-### 1. Prisma + PostgreSQL local
+### 1. Frontend
 Responsável por:
-- modelagem
-- migrações
-- seed
-- base para futura API/backend
+- landing
+- portal interno
+- admin UI
+- deckbuilder UI
+- consumo da API local
 
-### 2. Persistência local no navegador
+### 2. Backend/API local
 Responsável por:
-- manter o front atual funcional sem backend
-- salvar estado das páginas atuais
-- permitir CRUD no admin
-- testar navegação e regras de interface antes da conexão com API real
+- autenticação inicial
+- papéis de acesso
+- CRUD de cards, rulings e tournaments
+- persistência de decks por usuário
+- uso do Prisma em runtime
+
+## Estratégia de imagens
+
+A decisão atual é **não embutir todas as imagens no repositório**.
+
+A abordagem recomendada nesta fase é:
+- preparar o banco para `imageUrl` e `imageSourceUrl`
+- manter seed de metadados/textos
+- criar pipeline/importador separado para imagens e assets depois
+- otimizar miniaturas e versões maiores para deckbuilder e simulador
+
+Veja o documento:
+
+- `docs/05-image-strategy.md`
 
 ## Importante
 
-Como o projeto atual ainda é entregue como **website estático**, o Prisma **não roda diretamente em runtime no navegador**.
+No ambiente local do usuário, o fluxo completo deve funcionar com Postgres local.
 
-Ou seja:
-- o Prisma já está pronto para banco local
-- o front atual usa persistência local real no navegador
-- a próxima etapa ideal é conectar uma API/backend usando Prisma em runtime
-
-## Direção visual adotada
-
-**Hangar Tático Neo-Militar**
-
-Princípios:
-
-- visual tecnológico e militar sci-fi
-- leitura clara para conteúdo e analytics
-- painéis angulares e clima de terminal tático
-- identidade forte sem perder simplicidade operacional
+No sandbox desta tarefa:
+- a tipagem do backend foi validada
+- o Prisma Client foi gerado com sucesso
+- o build do frontend foi validado
+- a migration com Docker/Postgres não pôde ser rodada aqui porque o binário `docker` não está disponível no sandbox
 
 ## Estratégia de IA no produto
 
@@ -119,15 +146,15 @@ Princípios:
 - apoio editorial para notícias, previews e reviews
 - enriquecimento de analytics e contexto competitivo
 - geração de peças visuais com AnyGen
-- apoio futuro ao admin e à curadoria de dados
+- apoio futuro ao admin, curadoria e importação de dados
 
 ## Próximos passos sugeridos
 
-1. criar backend/API para uso real do Prisma em runtime
-2. persistir múltiplos decks por usuário
-3. adicionar autenticação e papéis
-4. criar páginas de detalhe para carta, ruling e evento
-5. preparar importação em lote de cartas e resultados
+1. migrar páginas públicas para leitura prioritária da API
+2. criar importadores de sets/cartas/rulings
+3. preparar upload/storage de imagens
+4. adicionar cadastro completo de usuários
+5. evoluir deckbuilder para share link e detalhes por deck
 
 ## Observação importante
 
