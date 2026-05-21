@@ -1,17 +1,24 @@
-/* Service layer inicial — pronto para trocar mock por API/Prisma depois. */
-import { adminQueue, cards, dashboardMetrics, rules, starterDeck, tournaments } from "@/data/mock-data";
+/* Service layer aligned to the persistent local store and ready for future Prisma/API adapters. */
 import type { CardRecord, DeckEntry, DeckRecord } from "@/modules/core/types";
+import {
+  getDashboardMetrics,
+  getDeck,
+  listCards,
+  listRules,
+  listTournaments,
+  saveDeck,
+} from "@/lib/portal-db";
 
 type ExpandedDeckEntry = CardRecord & { quantity: number };
 
 export const catalogService = {
   listCards(): CardRecord[] {
-    return cards;
+    return listCards();
   },
   searchCards(query: string): CardRecord[] {
     const q = query.trim().toLowerCase();
-    if (!q) return cards;
-    return cards.filter((card) =>
+    if (!q) return listCards();
+    return listCards().filter((card) =>
       [card.name, card.namePt, card.code, card.series, card.trait, ...card.keywords]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q)),
@@ -21,34 +28,35 @@ export const catalogService = {
 
 export const rulesService = {
   list() {
-    return rules;
+    return listRules();
   },
 };
 
 export const tournamentService = {
   list() {
-    return tournaments;
+    return listTournaments();
   },
 };
 
 export const dashboardService = {
   metrics() {
-    return dashboardMetrics;
-  },
-  adminQueue() {
-    return adminQueue;
+    return getDashboardMetrics();
   },
 };
 
 export const deckService = {
   getStarterDeck(): DeckRecord {
-    return starterDeck;
+    return getDeck();
+  },
+
+  persistDeck(deck: DeckRecord) {
+    saveDeck(deck);
   },
 
   expandEntries(entries: DeckEntry[]): ExpandedDeckEntry[] {
     return entries
       .map((entry) => {
-        const card = cards.find((item) => item.id === entry.cardId);
+        const card = listCards().find((item) => item.id === entry.cardId);
         if (!card) return null;
         return { ...card, quantity: entry.quantity };
       })
@@ -58,7 +66,7 @@ export const deckService = {
   calculateStats(entries: DeckEntry[]) {
     const expanded = entries
       .map((entry) => {
-        const card = cards.find((item) => item.id === entry.cardId);
+        const card = listCards().find((item) => item.id === entry.cardId);
         return card ? { ...card, quantity: entry.quantity } : null;
       })
       .filter(Boolean) as (CardRecord & { quantity: number })[];

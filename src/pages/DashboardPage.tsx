@@ -1,16 +1,20 @@
-/* Internal route page — painel principal do sistema. */
 import { Link } from "wouter";
 import { ArrowRight, Bot, Database, LayoutDashboard, Swords } from "lucide-react";
 
+import { usePortalDb } from "@/hooks/use-portal-db";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { dashboardService } from "@/services/portal-service";
 
 export default function DashboardPage() {
-  const metrics = dashboardService.metrics();
-  const queue = dashboardService.adminQueue().slice(0, 3);
+  const { metrics, cards, rules, tournaments, deck } = usePortalDb();
+
+  const queue = [
+    { id: "q1", type: "Carta", title: `${cards.length} cartas persistidas`, status: "Ativo" },
+    { id: "q2", type: "Ruling", title: `${rules.length} rulings e FAQs prontos para revisão`, status: "Ativo" },
+    { id: "q3", type: "Evento", title: `${tournaments.length} eventos no snapshot competitivo`, status: "Ativo" },
+  ];
 
   return (
     <PortalShell>
@@ -34,11 +38,11 @@ export default function DashboardPage() {
                 Centro de comando
               </Badge>
               <h2 className="mt-5 font-heading text-6xl uppercase leading-[0.9]">
-                A landing virou <span className="text-primary">portal navegável</span>.
+                Dados persistidos e <span className="text-primary">admin operável</span>.
               </h2>
               <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300">
-                Já existe uma espinha dorsal interna para navegar pelos módulos, consultar mocks estruturados, operar a fila
-                administrativa e iniciar o deckbuilder. O próximo salto natural é trocar os serviços mockados por API e Prisma.
+                O portal agora grava estado persistente no navegador e já segue uma estrutura alinhada à modelagem Prisma. Isso
+                permite testar fluxo de CRUD, deckbuilder e navegação antes de encaixar a API real por cima.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -46,7 +50,7 @@ export default function DashboardPage() {
                   <Link href="/deckbuilder">Abrir deckbuilder <ArrowRight className="ml-2 size-4" /></Link>
                 </Button>
                 <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-                  <Link href="/admin">Ir para admin</Link>
+                  <Link href="/admin">Operar admin</Link>
                 </Button>
               </div>
             </CardContent>
@@ -54,10 +58,10 @@ export default function DashboardPage() {
 
           <div className="grid gap-4">
             {[
-              { icon: LayoutDashboard, label: "Rotas", text: "Sidebar, breadcrumbs e páginas separadas por domínio." },
-              { icon: Database, label: "Serviços", text: "Camada isolada para trocar mock por backend com mínimo retrabalho." },
-              { icon: Bot, label: "IA", text: "Pontos definidos para FAQ contextual, tradução assistida e apoio editorial." },
-              { icon: Swords, label: "Build", text: "Deckbuilder MVP já mede curva, custo baixo, tipos e cores." },
+              { icon: LayoutDashboard, label: "Rotas", text: "Portal interno segue organizado por domínio com shell compartilhado." },
+              { icon: Database, label: "Persistência", text: `Deck atual: ${deck.name}. Cards, rulings e eventos sobrevivem a refresh no navegador.` },
+              { icon: Bot, label: "IA", text: "A camada de dados ficou pronta para depois receber geração assistida e curadoria com revisão." },
+              { icon: Swords, label: "Build", text: "Deckbuilder agora pode editar e salvar seu estado no store persistente atual." },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -80,15 +84,13 @@ export default function DashboardPage() {
         <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
           <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Fila operacional</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Fila operacional derivada</p>
               <div className="mt-5 space-y-4">
                 {queue.map((item) => (
                   <div key={item.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.type}</p>
                     <p className="mt-2 text-lg text-white">{item.title}</p>
-                    <p className="mt-2 text-sm text-slate-400">
-                      {item.status} · {item.owner} · {item.updatedAt}
-                    </p>
+                    <p className="mt-2 text-sm text-slate-400">Status: {item.status}</p>
                   </div>
                 ))}
               </div>
@@ -97,13 +99,13 @@ export default function DashboardPage() {
 
           <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Ordem recomendada dos próximos módulos</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Próximo encaixe recomendado</p>
               <ol className="mt-5 space-y-4 text-sm leading-7 text-slate-300">
-                <li>1. ligar persistência real para cartas, decks, rulings e eventos</li>
-                <li>2. criar CRUD administrativo com formulários e validação</li>
-                <li>3. salvar decks localmente/no banco e permitir edição</li>
-                <li>4. publicar páginas de detalhe para carta, ruling e torneio</li>
-                <li>5. encaixar IA nos fluxos com supervisão humana</li>
+                <li>1. trocar o store local por API real ligada ao Prisma</li>
+                <li>2. adicionar autenticação e papéis admin/editor/user</li>
+                <li>3. publicar página de detalhe para carta, ruling e torneio</li>
+                <li>4. salvar múltiplos decks por usuário</li>
+                <li>5. criar importadores para cartas, rulings e resultados de eventos</li>
               </ol>
             </CardContent>
           </Card>

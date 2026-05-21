@@ -1,10 +1,10 @@
+import { usePortalDb } from "@/hooks/use-portal-db";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { rulesService } from "@/services/portal-service";
 
 export default function RulesPage() {
-  const items = rulesService.list();
+  const { rules: items } = usePortalDb();
 
   return (
     <PortalShell>
@@ -14,8 +14,8 @@ export default function RulesPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Knowledge base</p>
             <h2 className="mt-2 font-heading text-4xl uppercase">Regras, FAQ e explicações em pt-BR</h2>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              Aqui já existe a separação por categoria, fonte e assunto. Quando a camada de IA entrar com revisão humana,
-              esse módulo pode oferecer busca contextual, exemplos de jogada e comparação entre original e tradução.
+              Este módulo agora lê de um store persistente no navegador, alinhado à estrutura de entidades do portal. O próximo
+              passo será ligar a API real sobre o Prisma, mantendo esta camada como fallback de prototipação.
             </p>
           </CardContent>
         </Card>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { usePortalDb } from "@/hooks/use-portal-db";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,8 @@ import { catalogService } from "@/services/portal-service";
 
 export default function CardsPage() {
   const [query, setQuery] = useState("");
-  const allCards = catalogService.listCards();
-  const filtered = useMemo(() => catalogService.searchCards(query), [query]);
+  const { cards: currentCards } = usePortalDb();
+  const filtered = useMemo(() => catalogService.searchCards(query), [query, currentCards]);
 
   return (
     <PortalShell>
@@ -17,7 +18,7 @@ export default function CardsPage() {
         <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
           <CardContent className="grid gap-4 p-6 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Busca inicial</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Busca persistente</p>
               <h2 className="mt-2 font-heading text-4xl uppercase">Catálogo navegável de cartas</h2>
             </div>
             <div className="w-full max-w-md">
@@ -69,7 +70,7 @@ export default function CardsPage() {
           ))}
         </div>
 
-        <p className="text-sm text-slate-400">Exibindo {filtered.length} de {allCards.length} cartas mockadas.</p>
+        <p className="text-sm text-slate-400">Exibindo {filtered.length} de {currentCards.length} cartas persistidas.</p>
       </div>
     </PortalShell>
   );

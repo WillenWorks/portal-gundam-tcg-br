@@ -1,10 +1,10 @@
+import { usePortalDb } from "@/hooks/use-portal-db";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { tournamentService } from "@/services/portal-service";
 
 export default function TournamentsPage() {
-  const tournaments = tournamentService.list();
+  const { tournaments } = usePortalDb();
 
   return (
     <PortalShell>
@@ -23,7 +23,7 @@ export default function TournamentsPage() {
                   </p>
                 </div>
                 <div className="panel-cut border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">
-                  Meta snapshot pronto para evoluir para dashboards e filtros.
+                  Snapshot persistido localmente e pronto para sincronização futura.
                 </div>
               </div>
 
