@@ -7,6 +7,9 @@ type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (payload: { email: string; password: string; displayName: string }) => Promise<void>;
+  refreshMe: () => Promise<void>;
+  setCurrentUser: (user: AuthUser | null) => void;
   logout: () => void;
 };
 
@@ -16,9 +19,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const stored = useMemo(() => getStoredAuth(), []);
   const [user, setUser] = useState<AuthUser | null>(stored.user);
 
+  const refreshMe = async () => {
+    const me = await api.me();
+    const token = getStoredAuth().token;
+    if (token) storeAuth(token, me);
+    setUser(me);
+  };
+
   useEffect(() => {
     if (!stored.token) return;
-    api.me().then(setUser).catch(() => {
+    refreshMe().catch(() => {
       clearAuth();
       setUser(null);
     });
@@ -32,6 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Login realizado como ${result.user.displayName}.`);
+    },
+    async register(payload) {
+      const result = await api.register(payload);
+      storeAuth(result.token, result.user);
+      setUser(result.user);
+      toast.success(`Conta criada para ${result.user.displayName}.`);
+    },
+    async refreshMe() {
+      await refreshMe();
+    },
+    setCurrentUser(nextUser) {
+      const token = getStoredAuth().token;
+      if (token && nextUser) storeAuth(token, nextUser);
+      setUser(nextUser);
     },
     logout() {
       clearAuth();

@@ -9,6 +9,7 @@ import {
   LibraryBig,
   ShieldCheck,
   Swords,
+  UserCircle2,
 } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
@@ -31,8 +32,9 @@ const nav = [
   { href: "/rules", label: "Regras", icon: BookOpenText },
   { href: "/tournaments", label: "Torneios", icon: Gauge },
   { href: "/deckbuilder", label: "Deckbuilder", icon: Swords },
+  { href: "/profile", label: "Perfil", icon: UserCircle2 },
   { href: "/admin", label: "Admin", icon: ShieldCheck },
-] satisfies { href: AppRoute; label: string; icon: typeof Home }[];
+] satisfies { href: AppRoute | "/profile"; label: string; icon: typeof Home }[];
 
 const titles: Record<string, string> = {
   "/portal": "Painel do portal",
@@ -40,12 +42,17 @@ const titles: Record<string, string> = {
   "/rules": "Base de regras e rulings",
   "/tournaments": "Hub competitivo",
   "/deckbuilder": "Deckbuilder MVP",
+  "/profile": "Perfil do usuário",
   "/admin": "Centro administrativo",
 };
 
 export function PortalShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  const currentTitle = titles[location] ?? "Portal";
+  const currentTitle = location.startsWith("/u/")
+    ? "Perfil público"
+    : location.startsWith("/deck/")
+      ? "Deck compartilhado"
+      : titles[location] ?? "Portal";
 
   return (
     <div className="min-h-screen bg-transparent text-white">
@@ -94,9 +101,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
             </div>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
               <li>• rotas internas organizadas</li>
-              <li>• serviços mockados para troca futura por API</li>
-              <li>• admin inicial para operação manual</li>
-              <li>• deckbuilder MVP com estatísticas</li>
+              <li>• leitura pública via API filtrada</li>
+              <li>• perfil e share link de decks</li>
+              <li>• admin para operação manual e importação</li>
             </ul>
           </div>
         </aside>

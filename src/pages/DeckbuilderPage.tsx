@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Save, Share2, Trash2 } from "lucide-react";
+import { Copy, Plus, Save, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
+
+type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 
 function calculateStats(cards: CardRecord[], entries: DeckEntry[]) {
   const expanded = entries
@@ -36,18 +38,28 @@ function calculateStats(cards: CardRecord[], entries: DeckEntry[]) {
 
 export default function DeckbuilderPage() {
   const { user, isAuthenticated, login } = useAuth();
-  const [email, setEmail] = useState(import.meta.env.DEV ? "admin@gundambr.local" : "");
-  const [password, setPassword] = useState(import.meta.env.DEV ? "admin123" : "");
+  const [email, setEmail] = useState(import.meta.env.DEV ? "pilot@gundambr.local" : "");
+  const [password, setPassword] = useState(import.meta.env.DEV ? "pilot123" : "");
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [decks, setDecks] = useState<ApiDeck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
+  const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
 
   const loadCards = async () => {
     const result = await api.listCards();
     setCards(result.map(mapApiCard));
+  };
+
+  const applyDeck = (deck: ApiDeck) => {
+    setSelectedDeckId(deck.id);
+    setSelectedShareId(deck.shareId);
+    setDeckName(deck.name);
+    setVisibility(deck.visibility);
+    setEntries(deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity })));
   };
 
   const loadDecks = async () => {
@@ -55,11 +67,7 @@ export default function DeckbuilderPage() {
     const result = await api.listMyDecks();
     setDecks(result);
     const primary = result.find((deck) => deck.isPrimary) ?? result[0];
-    if (primary) {
-      setSelectedDeckId(primary.id);
-      setDeckName(primary.name);
-      setEntries(primary.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity })));
-    }
+    if (primary) applyDeck(primary);
   };
 
   useEffect(() => {
@@ -110,15 +118,18 @@ export default function DeckbuilderPage() {
     const payload = {
       name: deckName,
       format: "constructed",
-      visibility: "PRIVATE",
+      visibility,
       isPrimary: true,
       items: entries.map((item) => ({ ...item, section: "main" })),
     };
 
-    if (selectedDeckId) await api.updateMyDeck(selectedDeckId, payload);
-    else {
+    if (selectedDeckId) {
+      const updated = await api.updateMyDeck(selectedDeckId, payload);
+      setSelectedShareId(updated.shareId);
+    } else {
       const created = await api.createMyDeck(payload);
       setSelectedDeckId(created.id);
+      setSelectedShareId(created.shareId);
     }
     await loadDecks();
     toast.success("Deck salvo no backend.");
@@ -126,7 +137,9 @@ export default function DeckbuilderPage() {
 
   const createNewDeck = () => {
     setSelectedDeckId(null);
+    setSelectedShareId(null);
     setDeckName(`Novo Deck ${decks.length + 1}`);
+    setVisibility("PRIVATE");
     setEntries([]);
   };
 
@@ -134,6 +147,16 @@ export default function DeckbuilderPage() {
     await api.deleteMyDeck(id);
     await loadDecks();
     toast.success("Deck removido.");
+  };
+
+  const copyShareLink = async () => {
+    if (!selectedShareId) {
+      toast.error("Salve o deck primeiro para gerar o share link.");
+      return;
+    }
+    const url = `${window.location.origin}${window.location.pathname}#/deck/${selectedShareId}`;
+    await navigator.clipboard.writeText(url);
+    toast.success("Share link copiado.");
   };
 
   return (
@@ -187,10 +210,19 @@ export default function DeckbuilderPage() {
                 <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.mainDeckCount} cartas</Badge>
               </div>
 
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(["PRIVATE", "UNLISTED", "PUBLIC"] as DeckVisibility[]).map((mode) => (
+                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"}`}>
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar deck</Button>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={createNewDeck}><Plus className="mr-2 size-4" />Novo deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"><Share2 className="mr-2 size-4" />Compartilhar</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
+                {selectedShareId ? <Button variant="ghost" className="rounded-none text-slate-300 hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Copy className="mr-2 size-4" />{selectedShareId}</Button> : null}
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -209,10 +241,10 @@ export default function DeckbuilderPage() {
                   <div key={deck.id} className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4">
                     <div>
                       <p className="text-lg text-white">{deck.name}</p>
-                      <p className="text-sm text-slate-400">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas · {deck.isPrimary ? "primário" : "secundário"}</p>
+                      <p className="text-sm text-slate-400">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas · {deck.visibility.toLowerCase()} · {deck.isPrimary ? "primário" : "secundário"}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => { setSelectedDeckId(deck.id); setDeckName(deck.name); setEntries(deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity }))); }}>Carregar</Button>
+                      <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => applyDeck(deck)}>Carregar</Button>
                       <Button variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={() => removeDeck(deck.id)}><Trash2 className="size-4" /></Button>
                     </div>
                   </div>
