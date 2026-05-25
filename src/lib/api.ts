@@ -27,6 +27,24 @@ export type ApiDeck = {
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
 };
 
+export type CardFilters = {
+  q?: string;
+  color?: string;
+  cardType?: string;
+  series?: string;
+  trait?: string;
+  keyword?: string;
+  setCode?: string;
+  sort?: string;
+};
+
+export type RulingFilters = {
+  q?: string;
+  sourceType?: string;
+  relatedKeyword?: string;
+  sort?: string;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_KEY) : null;
   const headers = new Headers(init?.headers);
@@ -39,6 +57,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+function toQuery(params: Record<string, string | undefined>) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) search.set(key, value);
+  });
+  const text = search.toString();
+  return text ? `?${text}` : "";
 }
 
 export function getStoredAuth() {
@@ -65,16 +92,19 @@ export const api = {
   me: () => request<AuthUser>("/auth/me"),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string }) => request<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[] }>(`/users/${username}`),
-  listSets: () => request<any[]>("/sets"),
+  listSets: () => request<Array<{ id: string; code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null; _count?: { cards: number } }>>("/sets"),
+  getSet: (code: string) => request<any>(`/sets/${code}`),
   createSet: (payload: any) => request<any>("/sets", { method: "POST", body: JSON.stringify(payload) }),
-  listCards: (search = "") => request<any[]>(`/cards${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+  listCards: (filters: CardFilters = {}) => request<any[]>(`/cards${toQuery(filters)}`),
+  getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }> }>("/cards/filters"),
   getCard: (id: string) => request<any>(`/cards/${id}`),
   createCard: (payload: any) => request<any>("/cards", { method: "POST", body: JSON.stringify(payload) }),
   updateCard: (id: string, payload: any) => request<any>(`/cards/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteCard: (id: string) => request<void>(`/cards/${id}`, { method: "DELETE" }),
   uploadCardImage: (formData: FormData) => request<{ imageUrl: string; imageSourceUrl: string }>("/cards/upload-image", { method: "POST", body: formData }),
   importCards: (payload: any) => request<{ imported: number; setId: string | null }>("/import/cards", { method: "POST", body: JSON.stringify(payload) }),
-  listRulings: () => request<any[]>("/rulings"),
+  listRulings: (filters: RulingFilters = {}) => request<any[]>(`/rulings${toQuery(filters)}`),
+  getRulingFilters: () => request<{ sourceTypes: string[]; relatedKeywords: string[] }>("/rulings/filters"),
   getRuling: (id: string) => request<any>(`/rulings/${id}`),
   createRuling: (payload: any) => request<any>("/rulings", { method: "POST", body: JSON.stringify(payload) }),
   updateRuling: (id: string, payload: any) => request<any>(`/rulings/${id}`, { method: "PUT", body: JSON.stringify(payload) }),

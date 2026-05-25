@@ -54,12 +54,12 @@ Base inicial do portal brasileiro focado no **Gundam Card Game**, com direção 
 cp .env.example .env
 pnpm install
 pnpm db:up
-pnpm prisma:generate
-pnpm prisma:migrate --name api-auth-and-multidecks
-pnpm prisma:seed
 pnpm dev:api
+pnpm prisma:seed
 pnpm dev
 ```
+
+> `pnpm dev:api` agora faz o bootstrap do Prisma automaticamente (`prisma generate` + `prisma db push`) antes de subir a API, evitando erro de schema desatualizado no banco local.
 
 ## Rodar frontend e API juntos
 
@@ -87,6 +87,8 @@ pnpm dev:api
 pnpm dev
 pnpm dev:full
 ```
+
+> Em ambiente local, prefira iniciar a API com `pnpm dev:api`, porque esse comando sincroniza o schema Prisma automaticamente antes de subir o servidor.
 
 ## Credenciais seed padrão
 

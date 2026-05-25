@@ -1,39 +1,126 @@
-import { useMemo, useState } from "react";
+/* Catálogo tático — consumo 100% via API com filtros compostos, leitura rápida e ordenação útil. */
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Copy } from "lucide-react";
+import { toast } from "sonner";
 
-import { usePortalDb } from "@/hooks/use-portal-db";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { catalogService } from "@/services/portal-service";
+import { api, mapApiCard, type CardFilters } from "@/lib/api";
+import type { CardRecord } from "@/modules/core/types";
+
+const defaultFilters: CardFilters = {
+  q: "",
+  color: "",
+  cardType: "",
+  series: "",
+  trait: "",
+  keyword: "",
+  setCode: "",
+  sort: "code_asc",
+};
+
+function readFiltersFromHash(): CardFilters {
+  const hash = window.location.hash || "#/cards";
+  const [, query = ""] = hash.split("?");
+  const params = new URLSearchParams(query);
+  return {
+    q: params.get("q") ?? "",
+    color: params.get("color") ?? "",
+    cardType: params.get("cardType") ?? "",
+    series: params.get("series") ?? "",
+    trait: params.get("trait") ?? "",
+    keyword: params.get("keyword") ?? "",
+    setCode: params.get("setCode") ?? "",
+    sort: params.get("sort") ?? "code_asc",
+  };
+}
+
+function buildHash(filters: CardFilters) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  const query = params.toString();
+  return query ? `/cards?${query}` : "/cards";
+}
 
 export default function CardsPage() {
-  const [query, setQuery] = useState("");
-  const { cards: currentCards } = usePortalDb();
-  const filtered = useMemo(() => catalogService.searchCards(query), [query, currentCards]);
+  const [, navigate] = useLocation();
+  const [filters, setFilters] = useState<CardFilters>(() => readFiltersFromHash());
+  const [cards, setCards] = useState<CardRecord[]>([]);
+  const [meta, setMeta] = useState<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> }>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getCardFilters().then(setMeta).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    api.listCards(filters)
+      .then((result) => setCards(result.map(mapApiCard)))
+      .finally(() => setLoading(false));
+  }, [filters]);
+
+  useEffect(() => {
+    navigate(buildHash(filters), { replace: true });
+  }, [filters, navigate]);
+
+  const activeFilters = useMemo(
+    () => Object.entries(filters).filter(([, value]) => value).length - (filters.sort ? 1 : 0),
+    [filters],
+  );
+
+  const setFilter = (key: keyof CardFilters, value: string) => setFilters((state) => ({ ...state, [key]: value }));
+  const resetFilters = () => setFilters(defaultFilters);
+
+  const copySearchLink = async () => {
+    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(filters)}`);
+    toast.success("Link da busca copiado.");
+  };
 
   return (
     <PortalShell>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
-          <CardContent className="grid gap-4 p-6 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Busca persistente</p>
-              <h2 className="mt-2 font-heading text-4xl uppercase">Catálogo navegável de cartas</h2>
+          <CardContent className="space-y-5 p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Busca avançada via API</p>
+                <h2 className="mt-2 font-heading text-4xl uppercase">Catálogo filtrado de cartas</h2>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">Agora o catálogo consulta o backend diretamente e mantém os filtros na URL para compartilhar buscas prontas.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{cards.length} resultados</Badge>
+                <button type="button" onClick={copySearchLink} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white transition hover:bg-white/10"><Copy className="mr-2 size-4" />Copiar busca</button>
+              </div>
             </div>
-            <div className="w-full max-w-md">
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por nome, código, série, trait ou keyword"
-                className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500"
-              />
+
+            <div className="grid gap-4 xl:grid-cols-4">
+              <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Nome, código, trait, efeito ou série" className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500 xl:col-span-2" />
+              <select value={filters.color ?? ""} onChange={(event) => setFilter("color", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as cores</option>{meta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.trait ?? ""} onChange={(event) => setFilter("trait", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as traits</option>{meta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option><option value="updated_desc">Mais recentes</option></select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
+              <button type="button" onClick={resetFilters} className="rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Limpar filtros</button>
             </div>
           </CardContent>
         </Card>
 
+        {loading ? <p className="text-sm text-slate-400">Carregando catálogo da API...</p> : null}
+
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((card) => (
+          {cards.map((card) => (
             <Card key={card.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-4">
@@ -53,24 +140,23 @@ export default function CardsPage() {
 
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Trait / Série</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">{card.trait} · {card.series}</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-300">{card.trait || "—"} · {card.series || "—"}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {card.keywords.map((keyword) => (
-                    <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">
-                      {keyword}
-                    </Badge>
-                  ))}
+                  {card.keywords.length ? card.keywords.map((keyword) => (
+                    <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>
+                  )) : <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">sem keyword</Badge>}
                 </div>
 
-                <p className="text-sm leading-7 text-slate-300">{card.effect}</p>
+                <p className="text-sm leading-7 text-slate-300">{card.effect || "Sem texto cadastrado."}</p>
+                <div>
+                  <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe</Link>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
-
-        <p className="text-sm text-slate-400">Exibindo {filtered.length} de {currentCards.length} cartas persistidas.</p>
       </div>
     </PortalShell>
   );

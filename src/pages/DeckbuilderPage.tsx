@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Plus, Save, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { api, mapApiCard, type ApiDeck } from "@/lib/api";
@@ -8,6 +9,7 @@ import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 
@@ -35,6 +37,13 @@ function calculateStats(cards: CardRecord[], entries: DeckEntry[]) {
     }, {}),
   };
 }
+
+const chartConfig = {
+  quantity: { label: "Quantidade", color: "#47a0ff" },
+  value: { label: "Quantidade", color: "#47a0ff" },
+} satisfies ChartConfig;
+
+const pieColors = ["#47a0ff", "#4fd1c5", "#f59e0b", "#ef4444", "#a78bfa", "#94a3b8"];
 
 export default function DeckbuilderPage() {
   const { user, isAuthenticated, login } = useAuth();
@@ -96,6 +105,20 @@ export default function DeckbuilderPage() {
   );
 
   const stats = useMemo(() => calculateStats(cards, entries), [cards, entries]);
+
+  const curveData = useMemo(() => {
+    const map = new Map<number, number>();
+    deckRows.forEach((row) => map.set(row.cost, (map.get(row.cost) ?? 0) + row.quantity));
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([cost, quantity]) => ({ cost: String(cost), quantity }));
+  }, [deckRows]);
+
+  const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
+
+  const typeData = useMemo(() => {
+    const map = new Map<string, number>();
+    deckRows.forEach((row) => map.set(row.type, (map.get(row.type) ?? 0) + row.quantity));
+    return Array.from(map.entries()).map(([name, quantity]) => ({ name, quantity }));
+  }, [deckRows]);
 
   const increment = (cardId: string) => {
     setEntries((current) => {
@@ -229,6 +252,66 @@ export default function DeckbuilderPage() {
                 <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Curva média</p><p className="mt-2 font-heading text-4xl text-white">{stats.avgCost}</p></div>
                 <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Custo baixo</p><p className="mt-2 font-heading text-4xl text-white">{stats.lowCostRate}%</p></div>
                 <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cores</p><p className="mt-2 text-sm leading-7 text-slate-300">{Object.entries(stats.colorMap).map(([color, qty]) => `${color} ${qty}`).join(" · ") || "—"}</p></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 01</p>
+                    <h3 className="mt-2 font-heading text-3xl uppercase">Curva de custo</h3>
+                  </div>
+                </div>
+                <div className="mt-6 h-[260px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={curveData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="cost" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 02</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase">Distribuição por cor</h3>
+                <div className="mt-6 h-[260px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <PieChart>
+                      <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                      <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2}>
+                        {colorData.map((entry, index) => <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />)}
+                      </Pie>
+                      <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                    </PieChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 03</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase">Composição por tipo</h3>
+              <div className="mt-6 h-[250px]">
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <BarChart layout="vertical" data={typeData} margin={{ left: 12, right: 12 }}>
+                    <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
+                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={90} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                  </BarChart>
+                </ChartContainer>
               </div>
             </CardContent>
           </Card>

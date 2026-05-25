@@ -1,5 +1,5 @@
 /* Design system reminder: Hangar Tático Neo-Militar — layout assimétrico, painéis de comando, estética de hangar e ênfase em utilidade competitiva. */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowRight,
@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HomeProps {
   targetSection?: string;
@@ -91,11 +93,12 @@ const aiUseCases = [
 ];
 
 const navItems = [
-  { label: "Visão", href: "/visao" },
-  { label: "Módulos", href: "/modulos" },
-  { label: "Arquitetura", href: "/arquitetura" },
-  { label: "IA", href: "/ia" },
-  { label: "Roadmap", href: "/roadmap" },
+  { label: "Decks Públicos", href: "/decks" },
+  { label: "Coleções", href: "/sets" },
+  { label: "Estatísticas", href: "/stats" },
+  { label: "Campeonatos", href: "/tournaments" },
+  { label: "Cartas", href: "/cards" },
+  { label: "Regras", href: "/rules" },
 ];
 
 function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -113,11 +116,21 @@ function SectionHeading({ eyebrow, title, description }: { eyebrow: string; titl
 }
 
 export default function Home({ targetSection }: HomeProps) {
+  const { register, isAuthenticated, user } = useAuth();
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   useEffect(() => {
     if (targetSection) {
       document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [targetSection]);
+
+  const submitRegister = async () => {
+    await register({ displayName, email, password });
+    setPassword("");
+  };
 
   return (
     <div className="relative overflow-x-hidden">
@@ -148,9 +161,9 @@ export default function Home({ targetSection }: HomeProps) {
 
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-              <Link href="/arquitetura">Arquitetura</Link>
+              <Link href="/decks">Decks Públicos</Link>
             </Button>
-            <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/portal">Iniciar portal</Link></Button>
+            <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href={isAuthenticated ? "/portal" : "/sets"}>{isAuthenticated ? "Minha área" : "Explorar coleções"}</Link></Button>
           </div>
         </div>
       </header>
@@ -174,7 +187,7 @@ export default function Home({ targetSection }: HomeProps) {
 
               <div className="flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="rounded-none bg-primary px-8 text-primary-foreground hover:bg-primary/90">
-                  <Link href="/roadmap">Abrir plano de execução <ArrowRight className="ml-2 size-4" /></Link>
+                  <Link href="/decks">Ver decks públicos <ArrowRight className="ml-2 size-4" /></Link>
                 </Button>
                 <Button
                   asChild
@@ -182,7 +195,7 @@ export default function Home({ targetSection }: HomeProps) {
                   variant="outline"
                   className="rounded-none border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
                 >
-                  <Link href="/modulos">Ver módulos do portal</Link>
+                  <Link href="/stats">Ver estatísticas públicas</Link>
                 </Button>
               </div>
 
@@ -366,6 +379,53 @@ export default function Home({ targetSection }: HomeProps) {
           </div>
         </section>
 
+        <section id="cadastro" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+          <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+            <div className="panel-cut border border-primary/30 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 p-8 shadow-[0_20px_80px_rgba(7,12,24,0.45)] lg:p-10">
+              <p className="text-xs uppercase tracking-[0.26em] text-primary">Cadastro público</p>
+              <h2 className="mt-3 text-5xl uppercase leading-none text-white">Entrar no portal sem passar pelo admin.</h2>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+                A v6 abre o onboarding direto na interface pública. O usuário cria conta, cai no perfil e já pode começar a salvar decks e publicar share links.
+              </p>
+              {isAuthenticated ? (
+                <div className="mt-6 panel-cut border border-white/10 bg-white/5 p-5 text-white">
+                  <p className="text-sm leading-7 text-slate-300">Sessão ativa como <span className="text-white">{user?.displayName}</span>.</p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/profile">Abrir meu perfil</Link></Button>
+                    <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"><Link href="/deckbuilder">Criar deck</Link></Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <Input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Nome de exibição" className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500 md:col-span-2" />
+                  <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Seu melhor email" className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500" />
+                  <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" placeholder="Criar senha" className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500" />
+                  <div className="md:col-span-2 flex flex-wrap gap-3">
+                    <Button className="rounded-none bg-accent text-accent-foreground hover:bg-accent/90" onClick={submitRegister}>Criar conta agora</Button>
+                    <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"><Link href="/decks">Explorar antes</Link></Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-4">
+              {[
+                ["Perfil público", "Username único, bio editável e vitrine de decks publicados."],
+                ["Deck sharing", "Links públicos por shareId para divulgar listas e versões de teste."],
+                ["Fluxo simples", "Cadastro na landing, edição no perfil e publicação no deckbuilder."],
+              ].map(([title, text], index) => (
+                <Card key={title} className={cn("panel-cut rounded-none border text-white", index === 0 ? "border-primary/30 bg-primary/8" : "border-white/10 bg-white/5")}>
+                  <CardContent className="p-6">
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Acesso {String(index + 1).padStart(2, "0")}</p>
+                    <h3 className="mt-3 text-3xl uppercase leading-none">{title}</h3>
+                    <p className="mt-4 text-sm leading-7 text-slate-300">{text}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24">
           <div className="panel-cut border border-primary/30 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 p-8 shadow-[0_20px_80px_rgba(7,12,24,0.45)] lg:p-10">
             <div className="grid gap-6 lg:grid-cols-[1.1fr_auto] lg:items-center">
@@ -379,10 +439,10 @@ export default function Home({ targetSection }: HomeProps) {
 
               <div className="flex flex-col gap-3">
                 <Button asChild className="rounded-none bg-accent text-accent-foreground hover:bg-accent/90">
-                  <Link href="/modulos">Avançar para os módulos</Link>
+                  <Link href="/decks">Ver decks públicos</Link>
                 </Button>
                 <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-                  <Link href="/arquitetura">Preparar ambiente local</Link>
+                  <Link href="/sets">Explorar coleções</Link>
                 </Button>
               </div>
             </div>

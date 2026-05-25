@@ -49,16 +49,23 @@ pnpm install
 pnpm db:up
 ```
 
-### 5. Gerar o client do Prisma
+### 5. Subir a API com bootstrap automático do Prisma
 
 ```bash
-pnpm prisma:generate
+pnpm dev:api
 ```
 
-### 6. Criar a primeira migration
+Esse comando já executa o bootstrap do Prisma antes de iniciar a API local:
+
+- `prisma generate`
+- `prisma db push`
+
+Assim, o banco local acompanha o schema atual e evita erros como coluna ausente durante o desenvolvimento.
+
+### 6. Popular dados iniciais (opcional, mas recomendado)
 
 ```bash
-pnpm prisma:migrate --name init
+pnpm prisma:seed
 ```
 
 ### 7. Rodar o front
@@ -92,6 +99,8 @@ pnpm prisma:generate
 pnpm prisma:migrate --name nome-da-migration
 pnpm prisma:studio
 ```
+
+> No dia a dia, `pnpm dev:api` já cobre a sincronização básica do schema local via `db push`. Use migrations quando quiser versionar mudanças de estrutura de forma explícita.
 
 ## Estratégia de IA recomendada
 

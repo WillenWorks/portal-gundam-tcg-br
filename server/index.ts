@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -51,6 +51,7 @@ type CardInput = {
   imageSourceUrl?: string | null;
   thumbUrl?: string | null;
   officialUrl?: string | null;
+  setId?: string | null;
 };
 
 function signToken(payload: AuthPayload) {
@@ -84,6 +85,10 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 40);
+}
+
+function normalizeQueryValue(input: unknown) {
+  return String(input ?? "").trim();
 }
 
 async function ensureAdminSeed() {
@@ -174,8 +179,24 @@ app.get("/api/users/:username", async (req, res) => {
 });
 
 app.get("/api/sets", async (_req, res) => {
-  const sets = await prisma.cardSet.findMany({ orderBy: { code: "asc" } });
+  const sets = await prisma.cardSet.findMany({ include: { _count: { select: { cards: true } } }, orderBy: { code: "asc" } });
   res.json(sets);
+});
+
+app.get("/api/sets/:code", async (req, res) => {
+  const code = String(req.params.code);
+  const set = await prisma.cardSet.findUnique({
+    where: { code },
+    include: {
+      cards: {
+        include: { rulings: true },
+        orderBy: [{ code: "asc" }],
+      },
+      _count: { select: { cards: true } },
+    },
+  });
+  if (!set) return res.status(404).json({ error: "Coleção não encontrada." });
+  res.json(set);
 });
 
 app.post("/api/sets", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
@@ -184,22 +205,77 @@ app.post("/api/sets", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITO
 });
 
 app.get("/api/cards", async (req, res) => {
-  const search = String(req.query.search ?? "").trim();
+  const q = normalizeQueryValue(req.query.q ?? req.query.search);
+  const color = normalizeQueryValue(req.query.color);
+  const cardType = normalizeQueryValue(req.query.cardType);
+  const series = normalizeQueryValue(req.query.series);
+  const trait = normalizeQueryValue(req.query.trait);
+  const keyword = normalizeQueryValue(req.query.keyword);
+  const setCode = normalizeQueryValue(req.query.setCode);
+  const sort = normalizeQueryValue(req.query.sort) || "code_asc";
+
+  const where: Prisma.CardWhereInput = {
+    AND: [
+      q
+        ? {
+            OR: [
+              { code: { contains: q, mode: "insensitive" } },
+              { nameEn: { contains: q, mode: "insensitive" } },
+              { namePt: { contains: q, mode: "insensitive" } },
+              { series: { contains: q, mode: "insensitive" } },
+              { trait: { contains: q, mode: "insensitive" } },
+              { effectEn: { contains: q, mode: "insensitive" } },
+              { effectPt: { contains: q, mode: "insensitive" } },
+              { keywordTags: { has: q } },
+            ],
+          }
+        : {},
+      color ? { color: { equals: color, mode: "insensitive" } } : {},
+      cardType ? { cardType: { equals: cardType, mode: "insensitive" } } : {},
+      series ? { series: { contains: series, mode: "insensitive" } } : {},
+      trait ? { trait: { contains: trait, mode: "insensitive" } } : {},
+      keyword ? { keywordTags: { has: keyword } } : {},
+      setCode ? { set: { is: { code: { equals: setCode, mode: "insensitive" } } } } : {},
+    ],
+  };
+
+  const orderBy: Prisma.CardOrderByWithRelationInput[] =
+    sort === "cost_asc"
+      ? [{ cost: "asc" }, { code: "asc" }]
+      : sort === "cost_desc"
+        ? [{ cost: "desc" }, { code: "asc" }]
+        : sort === "name_asc"
+          ? [{ namePt: "asc" }, { nameEn: "asc" }]
+          : sort === "updated_desc"
+            ? [{ updatedAt: "desc" }]
+            : [{ code: "asc" }];
+
   const cards = await prisma.card.findMany({
-    where: search
-      ? {
-          OR: [
-            { code: { contains: search, mode: "insensitive" } },
-            { nameEn: { contains: search, mode: "insensitive" } },
-            { namePt: { contains: search, mode: "insensitive" } },
-            { series: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where,
     include: { set: true, rulings: true },
-    orderBy: [{ code: "asc" }],
+    orderBy,
   });
   res.json(cards);
+});
+
+app.get("/api/cards/filters", async (_req, res) => {
+  const [colorsRaw, typesRaw, seriesRaw, traitsRaw, sets] = await Promise.all([
+    prisma.card.findMany({ select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
+    prisma.card.findMany({ select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
+    prisma.card.findMany({ select: { series: true }, distinct: ["series"], where: { series: { not: null } }, orderBy: { series: "asc" } }),
+    prisma.card.findMany({ select: { trait: true }, distinct: ["trait"], where: { trait: { not: null } }, orderBy: { trait: "asc" } }),
+    prisma.cardSet.findMany({ select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
+  ]);
+
+  const colors = colorsRaw.map((item) => item.color).filter(Boolean);
+  const cardTypes = typesRaw.map((item) => item.cardType).filter(Boolean);
+  const series = seriesRaw.map((item) => item.series).filter(Boolean);
+  const traits = traitsRaw.map((item) => item.trait).filter(Boolean);
+  const keywordSet = new Set<string>();
+  const keywordRows = await prisma.card.findMany({ select: { keywordTags: true } });
+  keywordRows.forEach((row) => row.keywordTags.forEach((tag) => keywordSet.add(tag)));
+
+  res.json({ colors, cardTypes, series, traits, keywords: Array.from(keywordSet).sort(), sets });
 });
 
 app.get("/api/cards/:id", async (req, res) => {
@@ -266,9 +342,42 @@ app.post("/api/import/rulings", authRequired, roleRequired([UserRole.ADMIN]), as
   res.json({ imported: payload.rulings.length });
 });
 
-app.get("/api/rulings", async (_req, res) => {
-  const rulings = await prisma.ruling.findMany({ include: { card: true }, orderBy: [{ updatedAt: "desc" }] });
+app.get("/api/rulings", async (req, res) => {
+  const q = normalizeQueryValue(req.query.q);
+  const sourceType = normalizeQueryValue(req.query.sourceType);
+  const relatedKeyword = normalizeQueryValue(req.query.relatedKeyword);
+  const sort = normalizeQueryValue(req.query.sort) || "updated_desc";
+
+  const rulings = await prisma.ruling.findMany({
+    where: {
+      AND: [
+        q
+          ? {
+              OR: [
+                { title: { contains: q, mode: "insensitive" } },
+                { questionPt: { contains: q, mode: "insensitive" } },
+                { answerPt: { contains: q, mode: "insensitive" } },
+                { questionEn: { contains: q, mode: "insensitive" } },
+                { answerEn: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {},
+        sourceType ? { sourceType: { equals: sourceType as any } } : {},
+        relatedKeyword ? { relatedKeyword: { contains: relatedKeyword, mode: "insensitive" } } : {},
+      ],
+    },
+    include: { card: true },
+    orderBy: sort === "title_asc" ? [{ title: "asc" }] : [{ updatedAt: "desc" }],
+  });
   res.json(rulings);
+});
+
+app.get("/api/rulings/filters", async (_req, res) => {
+  const [sourceRows, keywordRows] = await Promise.all([
+    prisma.ruling.findMany({ select: { sourceType: true }, distinct: ["sourceType"], orderBy: { sourceType: "asc" } }),
+    prisma.ruling.findMany({ select: { relatedKeyword: true }, distinct: ["relatedKeyword"], where: { relatedKeyword: { not: null } }, orderBy: { relatedKeyword: "asc" } }),
+  ]);
+  res.json({ sourceTypes: sourceRows.map((item) => item.sourceType), relatedKeywords: keywordRows.map((item) => item.relatedKeyword).filter(Boolean) });
 });
 
 app.get("/api/rulings/:id", async (req, res) => {
@@ -420,12 +529,18 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: "Erro interno da API." });
 });
 
-async function start() {
-  await ensureAdminSeed();
-  app.listen(PORT, () => console.log(`API online na porta ${PORT}`));
-}
-
-start().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+ensureAdminSeed()
+  .then(async () => {
+    app.listen(PORT, () => {
+      console.log(`API pronta em http://localhost:${PORT}`);
+    });
+  })
+  .catch(async (error: any) => {
+    if (error?.code === "P2022" || error?.code === "P2021") {
+      console.error("Falha ao iniciar API: o schema do banco está defasado em relação ao prisma/schema.prisma.");
+      console.error("Use `pnpm dev:api` para sincronizar automaticamente ou rode `pnpm prisma:push` antes do modo raw.");
+    }
+    console.error("Falha ao iniciar API", error);
+    await prisma.$disconnect();
+    process.exit(1);
+  });

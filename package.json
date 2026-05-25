@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:api": "tsx server/index.ts",
+    "dev:api": "node scripts/dev-api.mjs",
+    "dev:api:raw": "tsx server/index.ts",
     "dev:full": "pnpm run dev:api & pnpm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -15,6 +16,7 @@
     "db:logs": "docker compose logs -f postgres",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prisma:seed": "node prisma/seed.cjs"
   },
