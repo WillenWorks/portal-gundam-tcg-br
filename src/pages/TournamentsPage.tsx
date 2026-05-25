@@ -1,5 +1,5 @@
 import { usePortalDb } from "@/hooks/use-portal-db";
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
@@ -7,7 +7,7 @@ export default function TournamentsPage() {
   const { tournaments } = usePortalDb();
 
   return (
-    <PortalShell>
+    <PublicShell>
       <div className="space-y-6">
         {tournaments.map((tournament) => (
           <Card key={tournament.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
@@ -45,6 +45,6 @@ export default function TournamentsPage() {
           </Card>
         ))}
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

@@ -91,6 +91,26 @@ function normalizeQueryValue(input: unknown) {
   return String(input ?? "").trim();
 }
 
+function parsePositiveInt(input: unknown, fallback: number, max = 100) {
+  const value = Number.parseInt(String(input ?? ""), 10);
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.min(value, max);
+}
+
+function getPagination(query: Request["query"], defaults: { pageSize?: number; maxPageSize?: number } = {}) {
+  const page = parsePositiveInt(query.page, 1, 10_000);
+  const pageSize = parsePositiveInt(query.pageSize, defaults.pageSize ?? 24, defaults.maxPageSize ?? 100);
+  return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize, enabled: Boolean(query.page || query.pageSize) };
+}
+
+function setPublicCache(res: Response, maxAgeSeconds = 30, staleSeconds = 120) {
+  res.setHeader("Cache-Control", `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
+}
+
+function setPrivateCache(res: Response, maxAgeSeconds = 10, staleSeconds = 30) {
+  res.setHeader("Cache-Control", `private, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
+}
+
 async function ensureAdminSeed() {
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@gundambr.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
@@ -110,6 +130,7 @@ async function ensureAdminSeed() {
 }
 
 app.get("/api/health", async (_req, res) => {
+  setPublicCache(res, 15, 60);
   const [userCount, cardCount, deckCount] = await Promise.all([
     prisma.user.count(),
     prisma.card.count(),
@@ -167,6 +188,7 @@ app.put("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
 });
 
 app.get("/api/users/:username", async (req, res) => {
+  setPublicCache(res, 20, 60);
   const username = String(req.params.username);
   const user = await prisma.user.findUnique({ where: { username } });
   if (!user) return res.status(404).json({ error: "Perfil não encontrado." });
@@ -178,12 +200,114 @@ app.get("/api/users/:username", async (req, res) => {
   res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks });
 });
 
+app.get("/api/posts", async (req, res) => {
+  setPublicCache(res, 20, 90);
+  const status = normalizeQueryValue(req.query.status);
+  const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
+  const where = status ? { status: status as any } : undefined;
+
+  if (pagination.enabled) {
+    const [items, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        include: { author: true },
+        orderBy: [{ updatedAt: "desc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.post.count({ where }),
+    ]);
+    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+  }
+
+  const posts = await prisma.post.findMany({
+    where,
+    include: { author: true },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+  res.json(posts);
+});
+
+app.post("/api/posts", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req: RequestWithUser, res) => {
+  const payload = req.body as Record<string, unknown>;
+  const title = String(payload.title ?? "").trim();
+  if (!title) return res.status(400).json({ error: "Título é obrigatório." });
+
+  const baseSlug = slugify(String(payload.slug || title));
+  let slug = baseSlug;
+  let suffix = 1;
+  while (await prisma.post.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${suffix++}`;
+  }
+
+  const post = await prisma.post.create({
+    data: {
+      authorId: req.user!.userId,
+      title,
+      slug,
+      excerpt: payload.excerpt ? String(payload.excerpt) : null,
+      contentMd: String(payload.contentMd ?? ""),
+      coverImage: payload.coverImage ? String(payload.coverImage) : null,
+      youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
+      postType: (payload.postType as any) || "NEWS",
+      status: (payload.status as any) || "DRAFT",
+      publishedAt: payload.status === "PUBLISHED" ? new Date() : null,
+    },
+    include: { author: true },
+  });
+  res.status(201).json(post);
+});
+
+app.put("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const id = String(req.params.id);
+  const payload = req.body as Record<string, unknown>;
+  const title = String(payload.title ?? "").trim();
+  if (!title) return res.status(400).json({ error: "Título é obrigatório." });
+
+  const current = await prisma.post.findUnique({ where: { id } });
+  if (!current) return res.status(404).json({ error: "Post não encontrado." });
+
+  const desiredSlug = slugify(String(payload.slug || title));
+  let slug = desiredSlug;
+  let suffix = 1;
+  while (true) {
+    const found = await prisma.post.findUnique({ where: { slug } });
+    if (!found || found.id === id) break;
+    slug = `${desiredSlug}-${suffix++}`;
+  }
+
+  const post = await prisma.post.update({
+    where: { id },
+    data: {
+      title,
+      slug,
+      excerpt: payload.excerpt ? String(payload.excerpt) : null,
+      contentMd: String(payload.contentMd ?? ""),
+      coverImage: payload.coverImage ? String(payload.coverImage) : null,
+      youtubeUrl: payload.youtubeUrl ? String(payload.youtubeUrl) : null,
+      postType: (payload.postType as any) || current.postType,
+      status: (payload.status as any) || current.status,
+      publishedAt: payload.status === "PUBLISHED" ? current.publishedAt ?? new Date() : payload.status === "DRAFT" ? null : current.publishedAt,
+    },
+    include: { author: true },
+  });
+  res.json(post);
+});
+
+app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  await prisma.post.delete({ where: { id } });
+  res.status(204).send();
+});
+
 app.get("/api/sets", async (_req, res) => {
+  setPublicCache(res, 60, 300);
   const sets = await prisma.cardSet.findMany({ include: { _count: { select: { cards: true } } }, orderBy: { code: "asc" } });
   res.json(sets);
 });
 
 app.get("/api/sets/:code", async (req, res) => {
+  setPublicCache(res, 30, 120);
   const code = String(req.params.code);
   const set = await prisma.cardSet.findUnique({
     where: { code },
@@ -205,6 +329,7 @@ app.post("/api/sets", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITO
 });
 
 app.get("/api/cards", async (req, res) => {
+  setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q ?? req.query.search);
   const color = normalizeQueryValue(req.query.color);
   const cardType = normalizeQueryValue(req.query.cardType);
@@ -213,6 +338,7 @@ app.get("/api/cards", async (req, res) => {
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
   const sort = normalizeQueryValue(req.query.sort) || "code_asc";
+  const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 80 });
 
   const where: Prisma.CardWhereInput = {
     AND: [
@@ -250,6 +376,20 @@ app.get("/api/cards", async (req, res) => {
             ? [{ updatedAt: "desc" }]
             : [{ code: "asc" }];
 
+  if (pagination.enabled) {
+    const [items, total] = await Promise.all([
+      prisma.card.findMany({
+        where,
+        include: { set: true, rulings: true },
+        orderBy,
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.card.count({ where }),
+    ]);
+    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+  }
+
   const cards = await prisma.card.findMany({
     where,
     include: { set: true, rulings: true },
@@ -259,6 +399,7 @@ app.get("/api/cards", async (req, res) => {
 });
 
 app.get("/api/cards/filters", async (_req, res) => {
+  setPublicCache(res, 300, 900);
   const [colorsRaw, typesRaw, seriesRaw, traitsRaw, sets] = await Promise.all([
     prisma.card.findMany({ select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
@@ -279,6 +420,7 @@ app.get("/api/cards/filters", async (_req, res) => {
 });
 
 app.get("/api/cards/:id", async (req, res) => {
+  setPublicCache(res, 30, 120);
   const id = String(req.params.id);
   const card = await prisma.card.findUnique({ where: { id }, include: { set: true, rulings: true } });
   if (!card) return res.status(404).json({ error: "Carta não encontrada." });
@@ -343,6 +485,7 @@ app.post("/api/import/rulings", authRequired, roleRequired([UserRole.ADMIN]), as
 });
 
 app.get("/api/rulings", async (req, res) => {
+  setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q);
   const sourceType = normalizeQueryValue(req.query.sourceType);
   const relatedKeyword = normalizeQueryValue(req.query.relatedKeyword);
@@ -373,6 +516,7 @@ app.get("/api/rulings", async (req, res) => {
 });
 
 app.get("/api/rulings/filters", async (_req, res) => {
+  setPublicCache(res, 60, 300);
   const [sourceRows, keywordRows] = await Promise.all([
     prisma.ruling.findMany({ select: { sourceType: true }, distinct: ["sourceType"], orderBy: { sourceType: "asc" } }),
     prisma.ruling.findMany({ select: { relatedKeyword: true }, distinct: ["relatedKeyword"], where: { relatedKeyword: { not: null } }, orderBy: { relatedKeyword: "asc" } }),
@@ -381,8 +525,9 @@ app.get("/api/rulings/filters", async (_req, res) => {
 });
 
 app.get("/api/rulings/:id", async (req, res) => {
+  setPublicCache(res, 30, 120);
   const id = String(req.params.id);
-  const ruling = await prisma.ruling.findUnique({ where: { id }, include: { card: true } });
+  const ruling = await prisma.ruling.findUnique({ where: { id }, include: { card: { include: { set: true } } } });
   if (!ruling) return res.status(404).json({ error: "Ruling não encontrada." });
   res.json(ruling);
 });
@@ -405,11 +550,13 @@ app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), asy
 });
 
 app.get("/api/tournaments", async (_req, res) => {
+  setPublicCache(res, 20, 90);
   const events = await prisma.tournament.findMany({ include: { entries: true }, orderBy: [{ dateStart: "desc" }] });
   res.json(events);
 });
 
 app.get("/api/tournaments/:id", async (req, res) => {
+  setPublicCache(res, 20, 90);
   const id = String(req.params.id);
   const event = await prisma.tournament.findUnique({ where: { id }, include: { entries: true } });
   if (!event) return res.status(404).json({ error: "Evento não encontrado." });
@@ -433,9 +580,27 @@ app.delete("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN]),
   res.status(204).send();
 });
 
-app.get("/api/decks/public", async (_req, res) => {
+app.get("/api/decks/public", async (req, res) => {
+  setPublicCache(res, 15, 60);
+  const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
+  const where = { visibility: "PUBLIC" as const };
+
+  if (pagination.enabled) {
+    const [items, total] = await Promise.all([
+      prisma.deck.findMany({
+        where,
+        include: { user: true, items: { include: { card: true } } },
+        orderBy: { updatedAt: "desc" },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.deck.count({ where }),
+    ]);
+    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+  }
+
   const decks = await prisma.deck.findMany({
-    where: { visibility: "PUBLIC" },
+    where,
     include: { user: true, items: { include: { card: true } } },
     orderBy: { updatedAt: "desc" },
   });
@@ -443,6 +608,7 @@ app.get("/api/decks/public", async (_req, res) => {
 });
 
 app.get("/api/decks/share/:shareId", async (req, res) => {
+  setPublicCache(res, 20, 90);
   const shareId = String(req.params.shareId);
   const deck = await prisma.deck.findUnique({
     where: { shareId },
@@ -453,8 +619,26 @@ app.get("/api/decks/share/:shareId", async (req, res) => {
 });
 
 app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
+  setPrivateCache(res, 10, 30);
+  const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
+  const where = { userId: req.user!.userId };
+
+  if (pagination.enabled) {
+    const [items, total] = await Promise.all([
+      prisma.deck.findMany({
+        where,
+        include: { items: true },
+        orderBy: [{ updatedAt: "desc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      prisma.deck.count({ where }),
+    ]);
+    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+  }
+
   const decks = await prisma.deck.findMany({
-    where: { userId: req.user!.userId },
+    where,
     include: { items: true },
     orderBy: [{ updatedAt: "desc" }],
   });

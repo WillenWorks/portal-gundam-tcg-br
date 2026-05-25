@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [cards, setCards] = useState<any[]>([]);
   const [rules, setRules] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [cardsImportText, setCardsImportText] = useState(sampleCardsImport);
   const [rulingsImportText, setRulingsImportText] = useState(sampleRulingsImport);
   const [uploading, setUploading] = useState(false);
@@ -45,13 +46,15 @@ export default function AdminPage() {
   const [cardForm, setCardForm] = useState({ id: "", code: "", nameEn: "", namePt: "", cardType: "Unit", color: "Blue", cost: 1, level: 1, ap: 1, hp: 1, trait: "", series: "", effectPt: "", keywordTags: "", imageUrl: "", setId: "" });
   const [ruleForm, setRuleForm] = useState({ id: "", title: "", sourceType: "OFFICIAL_RULES", answerPt: "", relatedKeyword: "", originalUrl: "", cardId: "" });
   const [eventForm, setEventForm] = useState({ id: "", name: "", season: "GD02", format: "constructed", participantCount: 16, dateStart: new Date().toISOString().slice(0, 10) });
+  const [postForm, setPostForm] = useState({ id: "", title: "", slug: "", excerpt: "", contentMd: "", coverImage: "", youtubeUrl: "", postType: "NEWS", status: "DRAFT" });
 
   const loadAll = async () => {
-    const [setsRes, cardsRes, rulesRes, eventsRes] = await Promise.all([api.listSets(), api.listCards(), api.listRulings(), api.listTournaments()]);
+    const [setsRes, cardsRes, rulesRes, eventsRes, postsRes] = await Promise.all([api.listSets(), api.listCards(), api.listRulings(), api.listTournaments(), api.listPosts()]);
     setSets(setsRes);
     setCards(cardsRes);
     setRules(rulesRes);
     setTournaments(eventsRes);
+    setPosts(postsRes);
   };
 
   useEffect(() => {
@@ -71,16 +74,23 @@ export default function AdminPage() {
       ...cards.map((item) => ({ type: "Carta", title: item.namePt || item.nameEn, updatedAt: item.updatedAt })),
       ...rules.map((item) => ({ type: "Ruling", title: item.title, updatedAt: item.updatedAt })),
       ...tournaments.map((item) => ({ type: "Evento", title: item.name, updatedAt: item.updatedAt })),
+      ...posts.map((item) => ({ type: "Post", title: item.title, updatedAt: item.updatedAt })),
     ];
-    return rows.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 6);
-  }, [cards, rules, tournaments]);
+    return rows.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 8);
+  }, [cards, rules, tournaments, posts]);
 
   const overviewChart = [
     { name: "Sets", value: sets.length },
     { name: "Cartas", value: cards.length },
     { name: "Rulings", value: rules.length },
     { name: "Eventos", value: tournaments.length },
+    { name: "Posts", value: posts.length },
   ];
+
+  const editorialSuggestions = useMemo(() => ({
+    keywords: Array.from(new Set(rules.map((item) => item.relatedKeyword).filter(Boolean))).slice(0, 5),
+    series: Array.from(new Set(cards.map((item) => item.series).filter(Boolean))).slice(0, 5),
+  }), [cards, rules]);
 
   const handleImageUpload = async (file?: File) => {
     if (!ensureAdmin() || !file) return;
@@ -164,6 +174,24 @@ export default function AdminPage() {
     toast.success(eventForm.id ? "Evento atualizado." : "Evento criado.");
   };
 
+  const savePost = async () => {
+    if (!ensureAdmin()) return;
+    const payload = {
+      title: postForm.title,
+      slug: postForm.slug || undefined,
+      excerpt: postForm.excerpt || null,
+      contentMd: postForm.contentMd,
+      coverImage: postForm.coverImage || null,
+      youtubeUrl: postForm.youtubeUrl || null,
+      postType: postForm.postType,
+      status: postForm.status,
+    };
+    if (postForm.id) await api.updatePost(postForm.id, payload); else await api.createPost(payload);
+    setPostForm({ id: "", title: "", slug: "", excerpt: "", contentMd: "", coverImage: "", youtubeUrl: "", postType: "NEWS", status: "DRAFT" });
+    await loadAll();
+    toast.success(postForm.id ? "Post atualizado." : "Post criado.");
+  };
+
   const importCardsJson = async () => {
     if (!ensureAdmin()) return;
     const payload = JSON.parse(cardsImportText);
@@ -214,12 +242,13 @@ export default function AdminPage() {
             <TabsTrigger value="cards" className="rounded-none uppercase tracking-[0.18em]">Cartas</TabsTrigger>
             <TabsTrigger value="rules" className="rounded-none uppercase tracking-[0.18em]">Rulings</TabsTrigger>
             <TabsTrigger value="events" className="rounded-none uppercase tracking-[0.18em]">Eventos</TabsTrigger>
+            <TabsTrigger value="editorial" className="rounded-none uppercase tracking-[0.18em]">Editorial</TabsTrigger>
             <TabsTrigger value="imports" className="rounded-none uppercase tracking-[0.18em]">Importador</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
             <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="p-6"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[["Sets", sets.length],["Cartas", cards.length],["Rulings", rules.length],["Eventos", tournaments.length]].map(([label, value]) => <div key={String(label)} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p><p className="mt-2 font-heading text-4xl text-white">{String(value)}</p></div>)}</div><div className="mt-6 h-[320px]"><ChartContainer config={chartConfig} className="h-full w-full"><BarChart data={overviewChart}><CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" /><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis allowDecimals={false} tickLine={false} axisLine={false} /><ChartTooltip content={<ChartTooltipContent />} /><Bar dataKey="value" fill="var(--color-value)" radius={0} /></BarChart></ChartContainer></div></CardContent></Card>
+              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="p-6"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">{[["Sets", sets.length],["Cartas", cards.length],["Rulings", rules.length],["Eventos", tournaments.length],["Posts", posts.length]].map(([label, value]) => <div key={String(label)} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p><p className="mt-2 font-heading text-4xl text-white">{String(value)}</p></div>)}</div><div className="mt-6 h-[320px]"><ChartContainer config={chartConfig} className="h-full w-full"><BarChart data={overviewChart}><CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" /><XAxis dataKey="name" tickLine={false} axisLine={false} /><YAxis allowDecimals={false} tickLine={false} axisLine={false} /><ChartTooltip content={<ChartTooltipContent />} /><Bar dataKey="value" fill="var(--color-value)" radius={0} /></BarChart></ChartContainer></div><div className="mt-6 grid gap-4 md:grid-cols-2">{[["Cartas com ruling", `${cards.filter((item) => (item.rulings?.length ?? 0) > 0).length}/${cards.length}`],["Rulings sem carta", String(rules.filter((item) => !item.cardId).length)],["Posts publicados", String(posts.filter((item) => item.status === "PUBLISHED").length)],["Coleções com cartas", String(sets.filter((item) => (item._count?.cards ?? 0) > 0).length)]].map(([label, value]) => <div key={String(label)} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p><p className="mt-2 text-lg text-white">{String(value)}</p></div>)}</div></CardContent></Card>
               <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="p-6"><p className="text-xs uppercase tracking-[0.24em] text-slate-400">Logs operacionais</p><div className="mt-5 space-y-4">{operations.map((item, index) => <div key={`${item.type}-${item.title}-${index}`} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.type}</p><p className="mt-2 text-lg text-white">{item.title}</p><p className="mt-2 text-sm text-slate-400">Atualizado em {new Date(item.updatedAt).toLocaleString("pt-BR")}</p></div>)}</div></CardContent></Card>
             </div>
           </TabsContent>
@@ -249,6 +278,13 @@ export default function AdminPage() {
             <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
               <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="space-y-4 p-5"><h3 className="font-heading text-3xl uppercase">Formulário de evento</h3><Input value={eventForm.name} onChange={(e) => setEventForm((s) => ({ ...s, name: e.target.value }))} placeholder="Nome do evento" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><div className="grid gap-4 md:grid-cols-2"><Input value={eventForm.season} onChange={(e) => setEventForm((s) => ({ ...s, season: e.target.value }))} placeholder="Season" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><Input value={eventForm.format} onChange={(e) => setEventForm((s) => ({ ...s, format: e.target.value }))} placeholder="Formato" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><Input type="date" value={eventForm.dateStart} onChange={(e) => setEventForm((s) => ({ ...s, dateStart: e.target.value }))} className="rounded-none border-white/15 bg-slate-950/70 text-white" /><Input type="number" value={eventForm.participantCount} onChange={(e) => setEventForm((s) => ({ ...s, participantCount: Number(e.target.value) }))} placeholder="Participantes" className="rounded-none border-white/15 bg-slate-950/70 text-white" /></div><div className="flex flex-wrap gap-3"><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveEvent}>{eventForm.id ? "Salvar evento" : "Criar evento"}</Button><Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => setEventForm({ id: "", name: "", season: "GD02", format: "constructed", participantCount: 16, dateStart: new Date().toISOString().slice(0, 10) })}>Novo</Button></div></CardContent></Card>
               <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="space-y-3 p-5"><h3 className="font-heading text-3xl uppercase">Eventos do banco</h3>{tournaments.map((event) => <div key={event.id} className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4"><div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{event.season} · {event.format}</p><p className="mt-1 text-lg text-white">{event.name}</p><p className="text-sm text-slate-400">{event.participantCount || 0} jogadores</p></div><div className="flex gap-2"><Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => setEventForm({ id: event.id, name: event.name, season: event.season || "", format: event.format || "constructed", participantCount: event.participantCount || 16, dateStart: event.dateStart ? new Date(event.dateStart).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10) })}>Editar</Button><Button variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={async () => { if (!ensureAdmin()) return; await api.deleteTournament(event.id); await loadAll(); toast.success("Evento removido."); }}><Trash2 className="size-4" /></Button></div></div>)}</CardContent></Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="editorial">
+            <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="space-y-4 p-5"><h3 className="font-heading text-3xl uppercase">Fluxo editorial</h3><Input value={postForm.title} onChange={(e) => setPostForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título do post" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><div className="grid gap-4 md:grid-cols-2"><Input value={postForm.slug} onChange={(e) => setPostForm((s) => ({ ...s, slug: e.target.value }))} placeholder="Slug opcional" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><Input value={postForm.coverImage} onChange={(e) => setPostForm((s) => ({ ...s, coverImage: e.target.value }))} placeholder="Capa / URL" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><select value={postForm.postType} onChange={(e) => setPostForm((s) => ({ ...s, postType: e.target.value }))} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="NEWS">News</option><option value="PREVIEW">Preview</option><option value="REVIEW">Review</option><option value="GUIDE">Guide</option></select><select value={postForm.status} onChange={(e) => setPostForm((s) => ({ ...s, status: e.target.value }))} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="DRAFT">Draft</option><option value="REVIEW">Review</option><option value="PUBLISHED">Published</option></select></div><Input value={postForm.youtubeUrl} onChange={(e) => setPostForm((s) => ({ ...s, youtubeUrl: e.target.value }))} placeholder="URL do YouTube" className="rounded-none border-white/15 bg-slate-950/70 text-white" /><Textarea value={postForm.excerpt} onChange={(e) => setPostForm((s) => ({ ...s, excerpt: e.target.value }))} placeholder="Resumo curto" className="min-h-24 rounded-none border-white/15 bg-slate-950/70 text-white" /><Textarea value={postForm.contentMd} onChange={(e) => setPostForm((s) => ({ ...s, contentMd: e.target.value }))} placeholder="Conteúdo em markdown" className="min-h-52 rounded-none border-white/15 bg-slate-950/70 text-white" /><div className="grid gap-4 md:grid-cols-2">{[["Keywords sugeridas", editorialSuggestions.keywords.join(" · ") || "Sem keywords ainda"],["Séries sugeridas", editorialSuggestions.series.join(" · ") || "Sem séries ainda"]].map(([label, value]) => <div key={String(label)} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{label}</p><p className="mt-2 text-sm text-white">{String(value)}</p></div>)}</div><div className="flex flex-wrap gap-3"><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={savePost}>{postForm.id ? "Salvar post" : "Criar post"}</Button><Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => setPostForm({ id: "", title: "", slug: "", excerpt: "", contentMd: "", coverImage: "", youtubeUrl: "", postType: "NEWS", status: "DRAFT" })}>Novo</Button></div></CardContent></Card>
+              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="space-y-3 p-5"><h3 className="font-heading text-3xl uppercase">Posts do backoffice</h3>{posts.map((post) => <div key={post.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4"><div className="flex items-center justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{post.postType} · {post.status}</p><p className="mt-2 text-lg text-white">{post.title}</p><p className="mt-2 text-sm text-slate-400">Slug: {post.slug} · Autor: {post.author?.displayName || "—"}</p></div><div className="flex gap-2"><Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => setPostForm({ id: post.id, title: post.title, slug: post.slug || "", excerpt: post.excerpt || "", contentMd: post.contentMd || "", coverImage: post.coverImage || "", youtubeUrl: post.youtubeUrl || "", postType: post.postType, status: post.status })}>Editar</Button><Button variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={async () => { if (!ensureAdmin()) return; await api.deletePost(post.id); await loadAll(); toast.success("Post removido."); }}><Trash2 className="size-4" /></Button></div></div></div>)}</CardContent></Card>
             </div>
           </TabsContent>
 

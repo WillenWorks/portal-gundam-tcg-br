@@ -160,10 +160,23 @@ export default function Home({ targetSection }: HomeProps) {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-              <Link href="/decks">Decks Públicos</Link>
-            </Button>
-            <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href={isAuthenticated ? "/portal" : "/sets"}>{isAuthenticated ? "Minha área" : "Explorar coleções"}</Link></Button>
+            {isAuthenticated ? (
+              <>
+                {user?.role === "ADMIN" ? (
+                  <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+                    <Link href="/admin">Admin</Link>
+                  </Button>
+                ) : null}
+                <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/portal">Minha área</Link></Button>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+                  <Link href="/portal">Entrar</Link>
+                </Button>
+                <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/cadastro">Criar conta</Link></Button>
+              </>
+            )}
           </div>
         </div>
       </header>

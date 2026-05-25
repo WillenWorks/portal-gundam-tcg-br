@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
@@ -18,7 +18,7 @@ export default function SetDetailPage() {
   }, [params?.code]);
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
+    <PublicShell breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
           <CardContent className="p-6">
@@ -66,6 +66,6 @@ export default function SetDetailPage() {
           </>
         ) : null}
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

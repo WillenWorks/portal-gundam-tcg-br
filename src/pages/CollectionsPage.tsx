@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
@@ -15,7 +15,7 @@ export default function CollectionsPage() {
   }, []);
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Coleções" }]}>
+    <PublicShell breadcrumbs={[{ label: "Coleções" }]}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
           <CardContent className="p-6">
@@ -50,6 +50,6 @@ export default function CollectionsPage() {
           ))}
         </div>
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

@@ -4,7 +4,7 @@ import { Link, useLocation } from "wouter";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +83,7 @@ export default function CardsPage() {
   };
 
   return (
-    <PortalShell>
+    <PublicShell>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
           <CardContent className="space-y-5 p-6">
@@ -158,6 +158,6 @@ export default function CardsPage() {
           ))}
         </div>
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

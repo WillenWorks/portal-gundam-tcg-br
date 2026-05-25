@@ -1,8 +1,8 @@
-/* Detalhe de ruling — leitura individual via API com pergunta, resposta, fonte e carta relacionada. */
-import { useEffect, useState } from "react";
+/* Detalhe de ruling — leitura individual via API com breadcrumbs, contexto e atalhos para carta e keyword relacionada. */
+import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
@@ -16,15 +16,51 @@ const sourceLabels: Record<string, string> = {
 export default function RulingDetailPage() {
   const [, params] = useRoute<{ id: string }>("/rules/:id");
   const [rule, setRule] = useState<any | null>(null);
+  const [moreRules, setMoreRules] = useState<any[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!params?.id) return;
-    api.getRuling(params.id).then(setRule).catch((err) => setError(err.message));
+    let active = true;
+
+    async function load() {
+      if (!params?.id) return;
+      setError("");
+      setRule(null);
+      setMoreRules([]);
+
+      try {
+        const detail = await api.getRuling(params.id);
+        if (!active) return;
+        setRule(detail);
+
+        const relatedKeyword = detail.relatedKeyword || "";
+        if (!relatedKeyword) return;
+
+        const result = await api.listRulings({ relatedKeyword, sort: "updated_desc" });
+        if (!active) return;
+        setMoreRules(result.filter((item) => item.id !== detail.id).slice(0, 5));
+      } catch (err: any) {
+        if (!active) return;
+        setError(err.message || "Falha ao carregar a ruling.");
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+    };
   }, [params?.id]);
 
+  const breadcrumbs = useMemo<Array<{ label: string; href?: string }>>(() => {
+    if (!rule) return [{ label: "Regras", href: "/rules" }, { label: params?.id || "Detalhe" }];
+    const trail: Array<{ label: string; href?: string }> = [{ label: "Regras", href: "/rules" }];
+    if (rule.card) trail.push({ label: rule.card.code || rule.card.namePt || rule.card.nameEn, href: `/cards/${rule.card.id}` });
+    trail.push({ label: rule.title || "Ruling" });
+    return trail;
+  }, [rule, params?.id]);
+
   return (
-    <PortalShell>
+    <PublicShell breadcrumbs={breadcrumbs}>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
           <CardContent className="p-6">
@@ -49,55 +85,88 @@ export default function RulingDetailPage() {
         </Card>
 
         {rule ? (
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
-              <CardContent className="space-y-5 p-5">
-                <h3 className="font-heading text-3xl uppercase">Pergunta e resposta</h3>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Pergunta PT-BR</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">{rule.questionPt || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Resposta PT-BR</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">{rule.answerPt || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Exemplo de uso</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">{rule.examplePlayPt || "—"}</p>
-                </div>
-              </CardContent>
-            </Card>
+          <>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/rules" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Voltar para regras</Link>
+              {rule.card ? <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Ir para a carta</Link> : null}
+              {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir trilha da keyword</Link> : null}
+              {rule.card?.namePt || rule.card?.nameEn ? <Link href={`/rules?q=${encodeURIComponent(rule.card.namePt || rule.card.nameEn)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Buscar pelo nome da carta</Link> : null}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+                <CardContent className="space-y-5 p-5">
+                  <h3 className="font-heading text-3xl uppercase">Pergunta e resposta</h3>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Pergunta PT-BR</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.questionPt || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Resposta PT-BR</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.answerPt || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Exemplo de uso</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">{rule.examplePlayPt || "—"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+                <CardContent className="space-y-5 p-5">
+                  <h3 className="font-heading text-3xl uppercase">Metadados</h3>
+                  <div className="space-y-3 text-sm leading-7 text-slate-300">
+                    <p><span className="text-slate-500">Fonte:</span> {sourceLabels[rule.sourceType] || rule.sourceType}</p>
+                    <p><span className="text-slate-500">Keyword:</span> {rule.relatedKeyword || "—"}</p>
+                    <p><span className="text-slate-500">Status da tradução:</span> {rule.translationStatus || "—"}</p>
+                    <p><span className="text-slate-500">Referência original:</span> {rule.originalUrl ? <a href={rule.originalUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">Abrir fonte</a> : "—"}</p>
+                  </div>
+
+                  <div className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Carta relacionada</p>
+                    {rule.card ? (
+                      <>
+                        <p className="mt-2 text-lg text-white">{rule.card.namePt || rule.card.nameEn}</p>
+                        <p className="mt-2 text-sm text-slate-400">{rule.card.code} · {rule.card.cardType} · {rule.card.color || "sem cor"}</p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe da carta</Link>
+                          {rule.card.set?.code ? <Link href={`/sets/${rule.card.set.code}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir coleção</Link> : null}
+                        </div>
+                      </>
+                    ) : <p className="mt-2 text-sm text-slate-400">Nenhuma carta vinculada.</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
-              <CardContent className="space-y-5 p-5">
-                <h3 className="font-heading text-3xl uppercase">Metadados</h3>
-                <div className="space-y-3 text-sm leading-7 text-slate-300">
-                  <p><span className="text-slate-500">Fonte:</span> {sourceLabels[rule.sourceType] || rule.sourceType}</p>
-                  <p><span className="text-slate-500">Keyword:</span> {rule.relatedKeyword || "—"}</p>
-                  <p><span className="text-slate-500">Status da tradução:</span> {rule.translationStatus || "—"}</p>
-                  <p><span className="text-slate-500">Referência original:</span> {rule.originalUrl ? <a href={rule.originalUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">Abrir fonte</a> : "—"}</p>
-                </div>
-
-                <div className="panel-cut border border-white/10 bg-slate-950/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Carta relacionada</p>
-                  {rule.card ? (
-                    <>
-                      <p className="mt-2 text-lg text-white">{rule.card.namePt || rule.card.nameEn}</p>
-                      <div className="mt-4">
-                        <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe da carta</Link>
+              <CardContent className="space-y-4 p-5">
+                <h3 className="font-heading text-3xl uppercase">Mais rulings relacionadas</h3>
+                {moreRules.length ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {moreRules.map((item) => (
+                      <div key={item.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[item.sourceType] || item.sourceType}</Badge>
+                          {item.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{item.relatedKeyword}</Badge> : null}
+                        </div>
+                        <h4 className="mt-3 text-2xl uppercase text-white">{item.title}</h4>
+                        <p className="mt-3 text-sm leading-7 text-slate-300">{item.answerPt || item.questionPt || "Sem resumo cadastrado."}</p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Link href={`/rules/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe</Link>
+                          {item.card ? <Link href={`/cards/${item.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Ir para carta</Link> : null}
+                        </div>
                       </div>
-                    </>
-                  ) : <p className="mt-2 text-sm text-slate-400">Nenhuma carta vinculada.</p>}
-                </div>
-
-                <div>
-                  <Link href="/rules" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Voltar para regras</Link>
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">Não encontrei outras rulings com a mesma keyword ainda.</p>
+                )}
               </CardContent>
             </Card>
-          </div>
+          </>
         ) : null}
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

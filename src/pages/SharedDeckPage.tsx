@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 
 import { api, mapApiCard, type ApiDeck } from "@/lib/api";
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -26,7 +26,7 @@ export default function SharedDeckPage() {
   }, [deck]);
 
   return (
-    <PortalShell>
+    <PublicShell>
       <div className="space-y-6">
         <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
           <CardContent className="p-6">
@@ -69,6 +69,6 @@ export default function SharedDeckPage() {
           </CardContent>
         </Card>
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }
