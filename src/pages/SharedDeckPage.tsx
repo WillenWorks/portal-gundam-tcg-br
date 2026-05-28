@@ -1,4 +1,4 @@
-/* Deck compartilhado — leitura pública via shareId com owner e lista principal. */
+/* Deck compartilhado v8 — leitura pública com estatísticas rápidas e lista estruturada. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useRoute } from "wouter";
 
@@ -25,44 +25,49 @@ export default function SharedDeckPage() {
     }).filter(Boolean) as Array<ReturnType<typeof mapApiCard> & { quantity: number; section: string }>;
   }, [deck]);
 
+  const stats = useMemo(() => {
+    const total = rows.reduce((sum, item) => sum + item.quantity, 0);
+    const avgCost = total ? rows.reduce((sum, item) => sum + item.cost * item.quantity, 0) / total : 0;
+    return { total, avgCost: avgCost.toFixed(2), unique: rows.length };
+  }, [rows]);
+
   return (
-    <PublicShell>
+    <PublicShell title={deck?.name || "Deck compartilhado"} description="Versão pública estática para estudo da lista, sem abrir o modo de edição do dashboard.">
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white dark:text-white light:text-slate-900">
           <CardContent className="p-6">
-            {error ? (
-              <p className="text-sm text-red-300">{error}</p>
-            ) : !deck ? (
-              <p className="text-sm text-slate-300">Carregando deck compartilhado...</p>
-            ) : (
+            {error ? <p className="text-sm text-red-300">{error}</p> : !deck ? <p className="text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">Carregando deck compartilhado...</p> : (
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Share link público</p>
-                  <h2 className="mt-2 font-heading text-5xl uppercase">{deck.name}</h2>
-                  <p className="mt-3 text-sm text-slate-300">Owner: {deck.user?.displayName || "Usuário"}{deck.user?.username ? <> · <Link href={`/u/${deck.user.username}`} className="text-primary underline-offset-4 hover:underline">@{deck.user.username}</Link></> : null}</p>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{deck.notes || "Sem notas públicas."}</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Share link público</p>
+                  <p className="mt-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">Owner: {deck.user?.displayName || "Usuário"}</p>
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{deck.notes || "Sem notas públicas."}</p>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{rows.reduce((sum, item) => sum + item.quantity, 0)} cartas</Badge>
-                  <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-200">{deck.format}</Badge>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.total} cartas</Badge>
+                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{stats.unique} únicas</Badge>
+                  <Badge className="rounded-none border border-white/15 bg-white/5 dark:text-slate-200 light:text-slate-700">curva {stats.avgCost}</Badge>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
           <CardContent className="p-6">
             <h3 className="font-heading text-3xl uppercase">Lista pública</h3>
             <div className="mt-6 space-y-3">
               {rows.map((row) => (
-                <div key={`${row.id}-${row.section}`} className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4">
+                <div key={`${row.id}-${row.section}`} className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50">
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{row.code} · {row.section}</p>
-                    <p className="mt-1 text-lg text-white">{row.namePt || row.name}</p>
-                    <p className="text-sm text-slate-400">{row.color} · {row.type} · custo {row.cost}</p>
+                    <p className="mt-1 text-lg">{row.namePt || row.name}</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{row.color} · {row.type} · custo {row.cost}</p>
                   </div>
-                  <div className="text-2xl font-heading text-primary">x{row.quantity}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl font-heading text-primary">x{row.quantity}</div>
+                    <Link href={`/cards/${row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Abrir carta</Link>
+                  </div>
                 </div>
               ))}
             </div>

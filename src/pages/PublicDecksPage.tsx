@@ -1,4 +1,4 @@
-/* Decks públicos — vitrine aberta com owners, quantidade de cartas e atalho para os links compartilhados. */
+/* Decks públicos v8 — cards compactos, autor, data e navegação para leitura pública. */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 
@@ -11,46 +11,37 @@ export default function PublicDecksPage() {
   const [decks, setDecks] = useState<ApiDeck[]>([]);
 
   useEffect(() => {
-    api.listPublicDecks().then(setDecks).catch(() => undefined);
+    api.listPublicDecksPage({ page: 1, pageSize: 24 }).then((result) => setDecks(result.items)).catch(() => undefined);
   }, []);
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Decks Públicos" }]}>
-      <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Área pública</p>
-                <h2 className="mt-2 font-heading text-5xl uppercase">Decks compartilhados pela comunidade</h2>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">Mesmo sem login, o usuário já consegue navegar nas listas públicas, abrir perfis e estudar construções abertas do meta.</p>
-              </div>
-              <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{decks.length} decks</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {decks.map((deck) => (
-            <Card key={deck.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
-              <CardContent className="space-y-4 p-5">
+    <PublicShell breadcrumbs={[{ label: "Decks Públicos" }]} title="Decks públicos" description="Listas compartilhadas pela comunidade para estudo, referência e comparação de build.">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {decks.map((deck) => {
+          const cover = deck.items[0]?.card?.imageUrl || deck.coverImage || null;
+          const quantity = deck.items.reduce((sum, item) => sum + item.quantity, 0);
+          return (
+            <Card key={deck.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+              <CardContent className="space-y-4 p-4">
+                <Link href={`/deck/${deck.shareId}`} className="block overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/7] dark:bg-slate-950/60 light:bg-slate-100">
+                  {cover ? <img src={cover} alt={deck.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.24em] text-slate-500">Deck público</div>}
+                </Link>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Deck público</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase leading-none">{deck.name}</h3>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{deck.user?.displayName || "Usuário"}</p>
+                    <h3 className="mt-2 font-heading text-2xl uppercase leading-none">{deck.name}</h3>
+                    <p className="mt-2 text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{deck.createdAt ? new Date(deck.createdAt).toLocaleDateString("pt-BR") : "sem data"}</p>
                   </div>
-                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas</Badge>
+                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{quantity} cartas</Badge>
                 </div>
-                <p className="text-sm leading-7 text-slate-300">Owner: {deck.user?.displayName || "Usuário"}{deck.user?.username ? ` · @${deck.user.username}` : ""}</p>
-                <p className="text-sm leading-7 text-slate-300">{deck.notes || "Sem notas públicas."}</p>
                 <div className="flex flex-wrap gap-3">
-                  <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir deck</Link>
-                  {deck.user?.username ? <Link href={`/u/${deck.user.username}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir perfil</Link> : null}
+                  <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Abrir deck</Link>
+                  <span className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-slate-400 dark:text-slate-400 light:text-slate-500">Perfil social em breve</span>
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </PublicShell>
   );

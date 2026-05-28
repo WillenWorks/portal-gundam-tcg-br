@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 import { api, clearAuth, getStoredAuth, storeAuth, type AuthUser } from "@/lib/api";
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const stored = useMemo(() => getStoredAuth(), []);
+  const [, navigate] = useLocation();
   const [user, setUser] = useState<AuthUser | null>(stored.user);
 
   const refreshMe = async () => {
@@ -42,12 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Login realizado como ${result.user.displayName}.`);
+      navigate(result.user.role === "ADMIN" ? "/admin" : "/portal");
     },
     async register(payload) {
       const result = await api.register(payload);
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Conta criada para ${result.user.displayName}.`);
+      navigate("/portal");
     },
     async refreshMe() {
       await refreshMe();
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuth();
       setUser(null);
       toast.success("Sessão encerrada.");
+      navigate("/");
     },
   };
 

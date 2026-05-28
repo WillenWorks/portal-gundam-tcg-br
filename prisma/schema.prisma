@@ -38,64 +38,89 @@ enum RuleSourceType {
   COMMUNITY_EXPLAINER
 }
 
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  displayName  String
-  username     String   @unique
-  passwordHash String
-  role         UserRole @default(USER)
-  bio          String?  @db.Text
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum CardLanguage {
+  PT_BR
+  EN
+}
 
-  decks Deck[]
-  posts Post[]
+enum BinderKind {
+  WISHLIST
+  OWNED
+}
+
+enum SetKind {
+  BOOSTER
+  STARTER
+  PROMO
+  OTHER
+}
+
+model User {
+  id                    String       @id @default(cuid())
+  email                 String       @unique
+  displayName           String
+  username              String       @unique
+  passwordHash          String
+  role                  UserRole     @default(USER)
+  isActive              Boolean      @default(true)
+  preferredCardLanguage CardLanguage @default(PT_BR)
+  bio                   String?      @db.Text
+  avatarUrl             String?
+  preferredTheme        String?      @default("dark")
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  decks   Deck[]
+  posts   Post[]
+  binders CardBinder[]
 }
 
 model CardSet {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  nameEn      String
-  namePt      String?
-  releaseDate DateTime?
-  officialUrl String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String    @id @default(cuid())
+  code             String    @unique
+  nameEn           String
+  namePt           String?
+  releaseDate      DateTime?
+  officialUrl      String?
+  coverImage       String?
+  shortDescription String?   @db.Text
+  setType          SetKind   @default(BOOSTER)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   cards Card[]
 }
 
 model Card {
-  id            String   @id @default(cuid())
-  code          String   @unique
-  nameEn        String
-  namePt        String?
-  cardType      String
-  color         String?
-  level         Int?
-  cost          Int?
-  ap            Int?
-  hp            Int?
-  rarity        String?
-  trait         String?
-  series        String?
-  effectEn      String?  @db.Text
-  effectPt      String?  @db.Text
-  keywordTags   String[]
+  id             String   @id @default(cuid())
+  code           String   @unique
+  nameEn         String
+  namePt         String?
+  cardType       String
+  color          String?
+  level          Int?
+  cost           Int?
+  ap             Int?
+  hp             Int?
+  rarity         String?
+  trait          String?
+  series         String?
+  effectEn       String?  @db.Text
+  effectPt       String?  @db.Text
+  keywordTags    String[]
   imageUrl       String?
   thumbUrl       String?
   imageSourceUrl String?
   officialUrl    String?
-  legalityStatus String? @default("legal")
+  legalityStatus String?  @default("legal")
   setId          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  set       CardSet?      @relation(fields: [setId], references: [id])
-  deckItems DeckItem[]
-  rulings   Ruling[]
+  set         CardSet?         @relation(fields: [setId], references: [id])
+  deckItems   DeckItem[]
+  rulings     Ruling[]
+  binderItems CardBinderItem[]
 }
 
 model Deck {
@@ -127,6 +152,36 @@ model DeckItem {
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([deckId, cardId, section])
+}
+
+model CardBinder {
+  id          String     @id @default(cuid())
+  userId      String
+  kind        BinderKind
+  name        String
+  description String?    @db.Text
+  shareId     String     @unique @default(cuid())
+  isPublic    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CardBinderItem[]
+
+  @@unique([userId, kind])
+}
+
+model CardBinderItem {
+  id       String @id @default(cuid())
+  binderId String
+  cardId   String
+  quantity Int    @default(1)
+  note     String? @db.Text
+
+  binder CardBinder @relation(fields: [binderId], references: [id], onDelete: Cascade)
+  card   Card       @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([binderId, cardId])
 }
 
 model Ruling {
@@ -171,15 +226,15 @@ model Tournament {
 }
 
 model TournamentEntry {
-  id          String  @id @default(cuid())
+  id           String  @id @default(cuid())
   tournamentId String
-  playerName  String
-  placement   Int?
-  wins        Int?
-  losses      Int?
-  draws       Int?
-  archetype   String?
-  deckId      String?
+  playerName   String
+  placement    Int?
+  wins         Int?
+  losses       Int?
+  draws        Int?
+  archetype    String?
+  deckId       String?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   deck       Deck?      @relation(fields: [deckId], references: [id])

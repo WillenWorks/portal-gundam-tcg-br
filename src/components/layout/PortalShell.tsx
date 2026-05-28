@@ -1,21 +1,9 @@
-/* Layout shell — navegação pública + área do usuário + admin, com breadcrumbs clicáveis. */
+/* Portal shell v8 — topo global compartilhado e sidebar apenas para navegação privada/admin. */
 import { type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import {
-  BarChart3,
-  BookOpenText,
-  Boxes,
-  FolderKanban,
-  Gauge,
-  Home,
-  LibraryBig,
-  ShieldCheck,
-  Swords,
-  UserCircle2,
-  Users,
-} from "lucide-react";
+import { BookMarked, Heart, Home, LibraryBig, Settings, ShieldCheck, Swords, UserCircle2, Users } from "lucide-react";
 
-import logoWhite from "@/assets/gundam-logo-white.png";
+import { AppTopNav } from "@/components/layout/AppTopNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -31,79 +19,52 @@ import { cn } from "@/lib/utils";
 
 type Crumb = { label: string; href?: string };
 
-const publicNav = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/decks", label: "Decks Públicos", icon: Users },
-  { href: "/sets", label: "Coleções", icon: FolderKanban },
-  { href: "/stats", label: "Estatísticas", icon: BarChart3 },
-  { href: "/tournaments", label: "Campeonatos", icon: Gauge },
-  { href: "/cards", label: "Cartas", icon: LibraryBig },
-  { href: "/rules", label: "Regras", icon: BookOpenText },
-] as const;
-
 const userNav = [
   { href: "/portal", label: "Minha Área", icon: Home },
-  { href: "/deckbuilder", label: "Criar Deck", icon: Swords },
-  { href: "/profile", label: "Meu Perfil", icon: UserCircle2 },
+  { href: "/deckbuilder", label: "Decks", icon: Swords },
+  { href: "/profile", label: "Configurações", icon: Settings },
+  { href: "/wishlist", label: "Lista de Desejos", icon: Heart },
+  { href: "/owned", label: "Cartas Possuídas", icon: BookMarked },
 ] as const;
 
-const adminNav = [{ href: "/admin", label: "Admin", icon: ShieldCheck }] as const;
+const adminNav = [
+  { href: "/admin", label: "Admin", icon: ShieldCheck },
+  { href: "/admin?tab=cards", label: "Cartas", icon: LibraryBig },
+  { href: "/admin?tab=users", label: "Usuários", icon: Users },
+  { href: "/admin?tab=sets", label: "Coleções", icon: BookMarked },
+] as const;
 
 const titles: Record<string, string> = {
-  "/": "Home pública",
   "/portal": "Minha área",
-  "/decks": "Decks públicos",
-  "/sets": "Coleções",
-  "/stats": "Estatísticas",
-  "/cards": "Catálogo de cartas",
-  "/rules": "Base de regras e rulings",
-  "/tournaments": "Campeonatos",
-  "/deckbuilder": "Criar deck",
-  "/profile": "Perfil do usuário",
+  "/deckbuilder": "Decks",
+  "/profile": "Configurações",
+  "/wishlist": "Lista de desejos",
+  "/owned": "Cartas possuídas",
   "/admin": "Centro administrativo",
 };
 
 export function PortalShell({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: Crumb[] }) {
   const [location] = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
 
-  const currentTitle = location.startsWith("/u/")
-    ? "Perfil público"
-    : location.startsWith("/deck/")
-      ? "Deck compartilhado"
-      : location.startsWith("/cards/")
-        ? "Detalhe da carta"
-        : location.startsWith("/rules/")
-          ? "Detalhe da ruling"
-          : location.startsWith("/sets/")
-            ? "Coleção"
-            : titles[location] ?? "Portal";
-
+  const currentPath = location.split("?")[0];
+  const currentTitle = titles[currentPath] ?? "Portal";
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: currentTitle }];
 
   return (
-    <div className="min-h-screen bg-transparent text-white">
-      <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[300px_1fr]">
-        <aside className="border-r border-white/10 bg-slate-950/70 px-4 py-6 backdrop-blur-xl sm:px-6 lg:sticky lg:top-0 lg:h-screen lg:px-5">
-          <div className="flex items-center gap-3">
-            <img src={logoWhite} alt="Gundam Card Game" className="h-10 w-auto opacity-90" />
-            <div>
-              <p className="font-heading text-lg uppercase tracking-[0.18em]">Portal BR</p>
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Ecossistema público + pessoal</p>
-            </div>
-          </div>
-
-          <Badge className="mt-5 rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">
-            Arquitetura vNext
-          </Badge>
+    <div className="min-h-screen text-white dark:text-white light:text-slate-900">
+      <AppTopNav />
+      <div className="mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl lg:grid-cols-[300px_1fr]">
+        <aside className="border-r border-white/10 bg-slate-950/70 px-4 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/70 light:bg-white/85 sm:px-6 lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:px-5">
+          <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge>
 
           <div className="mt-8 space-y-2">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Acesso público</p>
-            {publicNav.map((item) => {
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Painel do usuário</p>
+            {userNav.map((item) => {
               const Icon = item.icon;
-              const active = location === item.href || (item.href !== "/" && location.startsWith(`${item.href}/`));
+              const active = location === item.href || currentPath === item.href;
               return (
-                <Link key={item.href} href={item.href} className={cn("panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition", active ? "border-primary/40 bg-primary/12 text-white" : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white")}>
+                <Link key={item.href} href={item.href} className={cn("panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition", active ? "border-primary/40 bg-primary/12 text-white dark:text-white light:text-slate-900" : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white light:text-slate-700 light:hover:bg-slate-100") }>
                   <Icon className={cn("size-4", active ? "text-primary" : "text-slate-400")} />
                   <span>{item.label}</span>
                 </Link>
@@ -111,52 +72,24 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             })}
           </div>
 
-          {isAuthenticated ? (
-            <div className="mt-8 space-y-2">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Área do usuário</p>
-              {userNav.map((item) => {
-                const Icon = item.icon;
-                const active = location === item.href;
-                return (
-                  <Link key={item.href} href={item.href} className={cn("panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition", active ? "border-primary/40 bg-primary/12 text-white" : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white")}>
-                    <Icon className={cn("size-4", active ? "text-primary" : "text-slate-400")} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : null}
-
           {user?.role === "ADMIN" ? (
-            <div className="mt-8 space-y-2">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Gestão</p>
-              {adminNav.map((item) => {
-                const Icon = item.icon;
-                const active = location === item.href;
-                return (
-                  <Link key={item.href} href={item.href} className={cn("panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition", active ? "border-primary/40 bg-primary/12 text-white" : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white")}>
-                    <Icon className={cn("size-4", active ? "text-primary" : "text-slate-400")} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
+            <>
+              <Separator className="my-6 bg-white/10 dark:bg-white/10 light:bg-slate-300/70" />
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Gestão</p>
+                {adminNav.map((item) => {
+                  const Icon = item.icon;
+                  const active = location === item.href || (item.href.startsWith("/admin") && currentPath === "/admin" && location.includes(item.href.split("?")[1] || ""));
+                  return (
+                    <Link key={item.href} href={item.href} className={cn("panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition", active ? "border-primary/40 bg-primary/12 text-white dark:text-white light:text-slate-900" : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white light:text-slate-700 light:hover:bg-slate-100") }>
+                      <Icon className={cn("size-4", active ? "text-primary" : "text-slate-400")} />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
           ) : null}
-
-          <Separator className="my-6 bg-white/10" />
-
-          <div className="panel-cut border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center gap-3">
-              <Boxes className="size-5 text-accent" />
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Resumo do modo atual</p>
-            </div>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-              <li>• descoberta pública sem login</li>
-              <li>• recursos pessoais só para usuários autenticados</li>
-              <li>• gestão isolada para admins</li>
-              <li>• detalhes e coleções navegáveis</li>
-            </ul>
-          </div>
         </aside>
 
         <div className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -176,12 +109,6 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
                         <BreadcrumbLink asChild>
                           <Link href={crumb.href}>{crumb.label}</Link>
                         </BreadcrumbLink>
-                      ) : index < trail.length - 1 && crumb.href ? (
-                        <BreadcrumbLink asChild>
-                          <Link href={crumb.href}>{crumb.label}</Link>
-                        </BreadcrumbLink>
-                      ) : index < trail.length - 1 ? (
-                        <BreadcrumbLink>{crumb.label}</BreadcrumbLink>
                       ) : (
                         <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                       )}
@@ -191,9 +118,9 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               </BreadcrumbList>
             </Breadcrumb>
 
-            <div className="panel-cut border border-white/10 bg-slate-950/55 px-5 py-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Núcleo operacional</p>
-              <h1 className="mt-2 font-heading text-5xl uppercase leading-none text-white">{currentTitle}</h1>
+            <div className="panel-cut border border-white/10 bg-slate-950/55 px-5 py-5 dark:border-white/10 dark:bg-slate-950/55 light:border-slate-300/70 light:bg-white/90">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Núcleo operacional</p>
+              <h1 className="mt-2 font-heading text-5xl uppercase leading-none">{currentTitle}</h1>
             </div>
           </header>
 

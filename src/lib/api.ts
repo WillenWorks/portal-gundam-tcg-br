@@ -14,7 +14,10 @@ export type AuthUser = {
   role: "USER" | "EDITOR" | "ADMIN";
   bio?: string | null;
   avatarUrl?: string | null;
-  stats?: { deckCount: number; publicDeckCount: number };
+  isActive?: boolean;
+  preferredCardLanguage?: "PT_BR" | "EN";
+  preferredTheme?: string | null;
+  stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number };
 };
 
 export type ApiDeck = {
@@ -24,9 +27,26 @@ export type ApiDeck = {
   format: string;
   visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
   notes?: string | null;
+  coverImage?: string | null;
   isPrimary: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   user?: AuthUser;
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
+};
+
+export type ApiBinder = {
+  id: string;
+  shareId: string;
+  kind: "WISHLIST" | "OWNED";
+  name: string;
+  description?: string | null;
+  isPublic: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: AuthUser;
+  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; card: any }>;
+  _count?: { items: number };
 };
 
 export type CardFilters = {
@@ -186,8 +206,11 @@ export const api = {
   register: (payload: { email: string; password: string; displayName: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: (email: string, password: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
-  updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me"]),
-  getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
+  updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
+  updatePassword: (payload: { currentPassword: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
+  listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
+  updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
   listPosts: (status?: string) => request<any[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
   listPostsPage: (status?: string, pagination: PaginationParams = {}) =>
     request<PaginatedResponse<any>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
@@ -229,6 +252,9 @@ export const api = {
   createMyDeck: (payload: any) => mutate<ApiDeck>("/decks/me", { method: "POST", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/users/"]),
   updateMyDeck: (id: string, payload: any) => mutate<ApiDeck>(`/decks/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/decks/share", "/users/"]),
   deleteMyDeck: (id: string) => mutate<void>(`/decks/me/${id}`, { method: "DELETE" }, ["/decks/me", "/decks/public", "/users/"]),
+  listMyBinders: () => request<ApiBinder[]>("/binders/me", undefined, { ttlMs: 10_000 }),
+  updateMyBinder: (kind: "WISHLIST" | "OWNED", payload: any) => mutate<ApiBinder>(`/binders/me/${kind}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
+  getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
 };
 
 export function mapApiCard(card: any): CardRecord {

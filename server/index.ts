@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -111,13 +111,53 @@ function setPrivateCache(res: Response, maxAgeSeconds = 10, staleSeconds = 30) {
   res.setHeader("Cache-Control", `private, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
 }
 
+function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number }) {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    username: user.username,
+    role: user.role,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl,
+    isActive: user.isActive,
+    preferredCardLanguage: user.preferredCardLanguage,
+    preferredTheme: user.preferredTheme,
+    stats,
+  };
+}
+
+async function ensureUserBinders(userId: string) {
+  await Promise.all([
+    prisma.cardBinder.upsert({
+      where: { userId_kind: { userId, kind: BinderKind.WISHLIST } },
+      update: {},
+      create: { userId, kind: BinderKind.WISHLIST, name: "Lista de Desejos", description: "Cartas que quero adquirir." },
+    }),
+    prisma.cardBinder.upsert({
+      where: { userId_kind: { userId, kind: BinderKind.OWNED } },
+      update: {},
+      create: { userId, kind: BinderKind.OWNED, name: "Cartas Possuídas", description: "Cartas que já tenho." },
+    }),
+  ]);
+}
+
+async function requireActiveUser(req: RequestWithUser, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+  if (!user || !user.isActive) {
+    res.status(403).json({ error: "Usuário sem acesso ativo." });
+    return null;
+  }
+  return user;
+}
+
 async function ensureAdminSeed() {
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@gundambr.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { email },
-    update: { passwordHash },
+    update: { passwordHash, isActive: true, preferredCardLanguage: CardLanguage.PT_BR, preferredTheme: "dark" },
     create: {
       email,
       username: "admin-portal",
@@ -125,18 +165,23 @@ async function ensureAdminSeed() {
       passwordHash,
       role: UserRole.ADMIN,
       bio: "Conta seed administrativa do portal.",
+      isActive: true,
+      preferredCardLanguage: CardLanguage.PT_BR,
+      preferredTheme: "dark",
     },
   });
+  await ensureUserBinders(user.id);
 }
 
 app.get("/api/health", async (_req, res) => {
   setPublicCache(res, 15, 60);
-  const [userCount, cardCount, deckCount] = await Promise.all([
-    prisma.user.count(),
+  const [userCount, cardCount, deckCount, binderCount] = await Promise.all([
+    prisma.user.count({ where: { isActive: true } }),
     prisma.card.count(),
     prisma.deck.count(),
+    prisma.cardBinder.count(),
   ]);
-  res.json({ ok: true, runtime: "prisma", userCount, cardCount, deckCount });
+  res.json({ ok: true, runtime: "prisma", userCount, cardCount, deckCount, binderCount });
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -156,48 +201,162 @@ app.post("/api/auth/register", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { email, displayName, username, passwordHash, role: UserRole.USER },
+    data: {
+      email,
+      displayName,
+      username,
+      passwordHash,
+      role: UserRole.USER,
+      isActive: true,
+      preferredCardLanguage: CardLanguage.PT_BR,
+      preferredTheme: "dark",
+    },
   });
+  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
-  res.status(201).json({ token, user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl } });
+  res.status(201).json({ token, user: serializeUser(user) });
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
   if (!email || !password) return res.status(400).json({ error: "Email e senha são obrigatórios." });
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas." });
+  if (!user || !user.isActive || !(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
+  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
-  res.json({ token, user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl } });
+  res.json({ token, user: serializeUser(user) });
 });
 
 app.get("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-  if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
-  const [deckCount, publicDeckCount] = await Promise.all([
+  const user = await requireActiveUser(req, res);
+  if (!user) return;
+  await ensureUserBinders(user.id);
+  const [deckCount, publicDeckCount, wishlistCount, ownedCount] = await Promise.all([
     prisma.deck.count({ where: { userId: user.id } }),
     prisma.deck.count({ where: { userId: user.id, visibility: "PUBLIC" } }),
+    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.WISHLIST } } }),
+    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.OWNED } } }),
   ]);
-  res.json({ id: user.id, email: user.email, displayName: user.displayName, username: user.username, role: user.role, bio: user.bio, avatarUrl: user.avatarUrl, stats: { deckCount, publicDeckCount } });
+  res.json(serializeUser(user, { deckCount, publicDeckCount, wishlistCount, ownedCount }));
 });
 
 app.put("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
-  const { displayName, bio, avatarUrl } = req.body as { displayName?: string; bio?: string; avatarUrl?: string };
-  const user = await prisma.user.update({ where: { id: req.user!.userId }, data: { displayName, bio, avatarUrl } });
-  res.json({ id: user.id, email: user.email, displayName: user.displayName, username: user.username, role: user.role, bio: user.bio, avatarUrl: user.avatarUrl });
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const { displayName, bio, avatarUrl, preferredCardLanguage, preferredTheme } = req.body as { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: CardLanguage; preferredTheme?: string };
+  const user = await prisma.user.update({
+    where: { id: req.user!.userId },
+    data: {
+      displayName: displayName ?? current.displayName,
+      bio: bio ?? current.bio,
+      avatarUrl: avatarUrl ?? current.avatarUrl,
+      preferredCardLanguage: preferredCardLanguage ?? current.preferredCardLanguage,
+      preferredTheme: preferredTheme ?? current.preferredTheme,
+    },
+  });
+  res.json(serializeUser(user));
+});
+
+app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: "Senha atual e nova senha são obrigatórias." });
+  if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
+  res.json({ ok: true });
+});
+
+app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
+  setPrivateCache(res, 5, 20);
+  const users = await prisma.user.findMany({ orderBy: [{ createdAt: "desc" }], include: { _count: { select: { decks: true, binders: true } } } });
+  res.json(users);
+});
+
+app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string };
+  const user = await prisma.user.update({
+    where: { id },
+    data: {
+      displayName: payload.displayName,
+      role: payload.role,
+      isActive: payload.isActive,
+      bio: payload.bio,
+    },
+  });
+  res.json(serializeUser(user));
 });
 
 app.get("/api/users/:username", async (req, res) => {
   setPublicCache(res, 20, 60);
   const username = String(req.params.username);
   const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) return res.status(404).json({ error: "Perfil não encontrado." });
-  const decks = await prisma.deck.findMany({
-    where: { userId: user.id, visibility: "PUBLIC" },
-    include: { items: true },
-    orderBy: { updatedAt: "desc" },
+  if (!user || !user.isActive) return res.status(404).json({ error: "Perfil não encontrado." });
+  const [decks, binders] = await Promise.all([
+    prisma.deck.findMany({
+      where: { userId: user.id, visibility: "PUBLIC" },
+      include: { items: { include: { card: true } } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.cardBinder.findMany({
+      where: { userId: user.id, isPublic: true },
+      include: { _count: { select: { items: true } } },
+      orderBy: [{ kind: "asc" }],
+    }),
+  ]);
+  res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks, binders });
+});
+
+app.get("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  await ensureUserBinders(current.id);
+  const binders = await prisma.cardBinder.findMany({ where: { userId: current.id }, include: { items: { include: { card: { include: { set: true } } } } }, orderBy: [{ kind: "asc" }] });
+  res.json(binders);
+});
+
+app.put("/api/binders/me/:kind", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const kind = String(req.params.kind).toUpperCase() as BinderKind;
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null }> };
+  const binder = await prisma.cardBinder.upsert({
+    where: { userId_kind: { userId: current.id, kind } },
+    update: {
+      name: payload.name,
+      description: payload.description,
+      isPublic: payload.isPublic,
+    },
+    create: {
+      userId: current.id,
+      kind,
+      name: payload.name || (kind === BinderKind.WISHLIST ? "Lista de Desejos" : "Cartas Possuídas"),
+      description: payload.description,
+      isPublic: payload.isPublic ?? true,
+    },
   });
-  res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks });
+  if (payload.items) {
+    await prisma.cardBinderItem.deleteMany({ where: { binderId: binder.id } });
+    if (payload.items.length) {
+      await prisma.cardBinderItem.createMany({
+        data: payload.items.map((item) => ({ binderId: binder.id, cardId: item.cardId, quantity: item.quantity, note: item.note || null })),
+      });
+    }
+  }
+  const full = await prisma.cardBinder.findUnique({ where: { id: binder.id }, include: { items: { include: { card: { include: { set: true } } } } } });
+  res.json(full);
+});
+
+app.get("/api/binders/share/:shareId", async (req, res) => {
+  setPublicCache(res, 20, 60);
+  const binder = await prisma.cardBinder.findUnique({
+    where: { shareId: String(req.params.shareId) },
+    include: { user: true, items: { include: { card: { include: { set: true } } } } },
+  });
+  if (!binder || !binder.isPublic || !binder.user.isActive) return res.status(404).json({ error: "Lista não encontrada." });
+  res.json(binder);
 });
 
 app.get("/api/posts", async (req, res) => {

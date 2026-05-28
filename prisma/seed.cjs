@@ -1,11 +1,39 @@
-const { PrismaClient, UserRole } = require("@prisma/client");
+const { PrismaClient, UserRole, CardLanguage, BinderKind, SetKind } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
 const setSeeds = [
-  { code: "GD01", nameEn: "Newtype Rising", namePt: "Newtype Rising", officialUrl: "https://www.gundam-gcg.com/en/cards/" },
-  { code: "ST01", nameEn: "Heroic Beginnings", namePt: "Heroic Beginnings", officialUrl: "https://www.gundam-gcg.com/en/cards/" },
+  {
+    code: "GD01",
+    nameEn: "Newtype Rising",
+    namePt: "Newtype Rising",
+    officialUrl: "https://www.gundam-gcg.com/en/cards/",
+    releaseDate: new Date("2025-07-12T00:00:00.000Z"),
+    coverImage: null,
+    shortDescription: "Primeira coleção base para testes do portal.",
+    setType: SetKind.BOOSTER,
+  },
+  {
+    code: "ST01",
+    nameEn: "Heroic Beginnings",
+    namePt: "Heroic Beginnings",
+    officialUrl: "https://www.gundam-gcg.com/en/cards/",
+    releaseDate: new Date("2025-07-12T00:00:00.000Z"),
+    coverImage: null,
+    shortDescription: "Starter deck introdutório com lista fixa.",
+    setType: SetKind.STARTER,
+  },
+  {
+    code: "ST02",
+    nameEn: "Zeon Assault",
+    namePt: "Zeon Assault",
+    officialUrl: "https://www.gundam-gcg.com/en/cards/",
+    releaseDate: new Date("2026-08-20T00:00:00.000Z"),
+    coverImage: null,
+    shortDescription: "Starter futuro para validar comunicação de lançamento.",
+    setType: SetKind.STARTER,
+  },
 ];
 
 const cards = [
@@ -54,26 +82,26 @@ const cards = [
     setCode: "GD01",
   },
   {
-    code: "GD02-004",
-    nameEn: "Wing Gundam Zero",
-    namePt: "Wing Gundam Zero",
+    code: "ST01-001",
+    nameEn: "Gundam RX-78-2",
+    namePt: "Gundam RX-78-2",
     cardType: "Unit",
-    color: "Green",
-    level: 6,
-    cost: 5,
-    ap: 5,
+    color: "White",
+    level: 4,
+    cost: 3,
+    ap: 4,
     hp: 4,
-    rarity: "LR",
-    trait: "Operation Meteor",
-    series: "Gundam Wing",
-    effectEn: "Can attack immediately if deployed from an effect.",
-    effectPt: "Pode atacar imediatamente se entrar em jogo por efeito.",
-    keywordTags: ["High-Maneuver"],
+    rarity: "SR",
+    trait: "Federation",
+    series: "Mobile Suit Gundam",
+    effectEn: "When linked, this unit gains +1 HP.",
+    effectPt: "Quando linkada, esta unidade recebe +1 HP.",
+    keywordTags: ["Link"],
     imageUrl: null,
     thumbUrl: null,
     imageSourceUrl: null,
     officialUrl: "https://www.gundam-gcg.com/en/cards/",
-    setCode: "GD01",
+    setCode: "ST01",
   },
 ];
 
@@ -106,32 +134,46 @@ const rulings = [
   },
 ];
 
-const tournaments = [
-  {
-    name: "Operation Jaburo Cup",
-    season: "GD02",
-    format: "constructed",
-    participantCount: 48,
-    sourceUrl: "https://egmanevents.com/gundam",
-    dateStart: new Date("2026-04-20T00:00:00.000Z"),
-  },
-  {
-    name: "Luna II Local Showdown",
-    season: "GD02",
-    format: "constructed",
-    participantCount: 24,
-    sourceUrl: "https://egmanevents.com/gundam",
-    dateStart: new Date("2026-05-04T00:00:00.000Z"),
-  },
-];
-
 async function seedUser({ email, displayName, username, password, role, bio }) {
   const passwordHash = await bcrypt.hash(password, 10);
-  return prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { email },
-    update: { passwordHash, displayName, username, role, bio },
-    create: { email, displayName, username, passwordHash, role, bio },
+    update: {
+      passwordHash,
+      displayName,
+      username,
+      role,
+      bio,
+      isActive: true,
+      preferredCardLanguage: CardLanguage.PT_BR,
+      preferredTheme: "dark",
+    },
+    create: {
+      email,
+      displayName,
+      username,
+      passwordHash,
+      role,
+      bio,
+      isActive: true,
+      preferredCardLanguage: CardLanguage.PT_BR,
+      preferredTheme: "dark",
+    },
   });
+
+  await prisma.cardBinder.upsert({
+    where: { userId_kind: { userId: user.id, kind: BinderKind.WISHLIST } },
+    update: { name: "Lista de Desejos", isPublic: true },
+    create: { userId: user.id, kind: BinderKind.WISHLIST, name: "Lista de Desejos", description: "Cartas que quero adquirir.", isPublic: true },
+  });
+
+  await prisma.cardBinder.upsert({
+    where: { userId_kind: { userId: user.id, kind: BinderKind.OWNED } },
+    update: { name: "Cartas Possuídas", isPublic: true },
+    create: { userId: user.id, kind: BinderKind.OWNED, name: "Cartas Possuídas", description: "Cartas que já tenho.", isPublic: true },
+  });
+
+  return user;
 }
 
 async function main() {
@@ -145,12 +187,12 @@ async function main() {
   });
 
   const user = await seedUser({
-    email: "pilot@gundambr.local",
-    password: "pilot123",
+    email: process.env.SEED_USER_EMAIL || "pilot@gundambr.local",
+    password: process.env.SEED_USER_PASSWORD || "pilot123",
     displayName: "Usuário Exemplo",
     username: "pilot-example",
     role: UserRole.USER,
-    bio: "Perfil seed para testar área do usuário e decks públicos.",
+    bio: "Perfil seed para testar área do usuário, decks e binders compartilháveis.",
   });
 
   const setMap = {};
@@ -173,12 +215,9 @@ async function main() {
     if (!exists) await prisma.ruling.create({ data: ruling });
   }
 
-  for (const tournament of tournaments) {
-    const exists = await prisma.tournament.findFirst({ where: { name: tournament.name } });
-    if (!exists) await prisma.tournament.create({ data: tournament });
-  }
-
   const starterCard = await prisma.card.findUnique({ where: { code: "GD01-001" } });
+  const starterCard2 = await prisma.card.findUnique({ where: { code: "ST01-001" } });
+
   if (starterCard) {
     const adminDeck = await prisma.deck.findFirst({ where: { userId: admin.id, name: "Aile Strike Midrange" } });
     if (!adminDeck) {
@@ -205,10 +244,32 @@ async function main() {
           visibility: "PUBLIC",
           isPrimary: true,
           notes: "Deck seed público para validar share link e área pública.",
-          items: { create: [{ cardId: starterCard.id, quantity: 4, section: "main" }] },
+          items: {
+            create: [
+              { cardId: starterCard.id, quantity: 4, section: "main" },
+              ...(starterCard2 ? [{ cardId: starterCard2.id, quantity: 2, section: "main" }] : []),
+            ],
+          },
         },
       });
     }
+  }
+
+  const wishlist = await prisma.cardBinder.findUnique({ where: { userId_kind: { userId: user.id, kind: BinderKind.WISHLIST } } });
+  const owned = await prisma.cardBinder.findUnique({ where: { userId_kind: { userId: user.id, kind: BinderKind.OWNED } } });
+  if (wishlist && starterCard2) {
+    await prisma.cardBinderItem.upsert({
+      where: { binderId_cardId: { binderId: wishlist.id, cardId: starterCard2.id } },
+      update: { quantity: 1 },
+      create: { binderId: wishlist.id, cardId: starterCard2.id, quantity: 1 },
+    });
+  }
+  if (owned && starterCard) {
+    await prisma.cardBinderItem.upsert({
+      where: { binderId_cardId: { binderId: owned.id, cardId: starterCard.id } },
+      update: { quantity: 2 },
+      create: { binderId: owned.id, cardId: starterCard.id, quantity: 2 },
+    });
   }
 
   console.log("Seed concluído.");
