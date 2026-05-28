@@ -20,7 +20,7 @@ export default function SharedBinderPage() {
   return (
     <PublicShell breadcrumbs={[{ label: binder?.name || "Pasta compartilhada" }]}>
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             {error ? <p className="text-sm text-red-300">{error}</p> : !binder ? <p className="text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">Carregando pasta...</p> : (
               <>
@@ -34,7 +34,7 @@ export default function SharedBinderPage() {
         </Card>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {binder?.items.map((item) => (
-            <Card key={item.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+            <Card key={item.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>

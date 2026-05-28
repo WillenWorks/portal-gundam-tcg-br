@@ -29,7 +29,7 @@ export default function PublicProfilePage() {
   return (
     <PublicShell>
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             {error ? (
               <p className="text-sm text-red-300">{error}</p>
@@ -52,7 +52,7 @@ export default function PublicProfilePage() {
         {profile ? (
           <div className="grid gap-6 lg:grid-cols-2">
             {profile.decks.map((deck) => (
-              <Card key={deck.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <Card key={deck.id} className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div>
@@ -62,7 +62,7 @@ export default function PublicProfilePage() {
                     <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-200">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas</Badge>
                   </div>
                   <p className="text-sm leading-7 text-slate-300">{deck.notes || "Sem observações públicas."}</p>
-                  <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir deck compartilhado</Link>
+                  <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir deck compartilhado</Link>
                 </CardContent>
               </Card>
             ))}

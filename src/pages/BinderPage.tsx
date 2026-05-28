@@ -64,7 +64,7 @@ export default function BinderPage({ kind }: { kind: "WISHLIST" | "OWNED" }) {
   return (
     <PortalShell breadcrumbs={[{ label: pageTitle }]}>
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="space-y-4 p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Pasta compartilhável</p>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-none" />
@@ -77,14 +77,14 @@ export default function BinderPage({ kind }: { kind: "WISHLIST" | "OWNED" }) {
               <Button variant="outline" className="rounded-none" onClick={copyShareLink} disabled={!binder?.shareId}><Copy className="mr-2 size-4" />Copiar link</Button>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="panel-cut border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Itens</p><p className="mt-2 font-heading text-4xl">{Object.values(quantityMap).filter((value) => value > 0).length}</p></div>
-              <div className="panel-cut border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Quantidade</p><p className="mt-2 font-heading text-4xl">{Object.values(quantityMap).reduce((sum, value) => sum + value, 0)}</p></div>
-              <div className="panel-cut border border-white/10 bg-slate-950/60 p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Visibilidade</p><p className="mt-2 font-heading text-4xl">{isPublic ? "ON" : "OFF"}</p></div>
+              <div className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Itens</p><p className="mt-2 font-heading text-4xl">{Object.values(quantityMap).filter((value) => value > 0).length}</p></div>
+              <div className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Quantidade</p><p className="mt-2 font-heading text-4xl">{Object.values(quantityMap).reduce((sum, value) => sum + value, 0)}</p></div>
+              <div className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Visibilidade</p><p className="mt-2 font-heading text-4xl">{isPublic ? "ON" : "OFF"}</p></div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center justify-between gap-4">
               <div>

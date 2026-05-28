@@ -27,14 +27,18 @@ Base inicial do portal brasileiro focado no **Gundam Card Game**, com direção 
 ## Status atual
 
 - landing page inicial criada com identidade **Hangar Tático Neo-Militar**
-- portal interno com rotas modulares
-- páginas de catálogo, regras, torneios, deckbuilder e admin
-- backend/API local criado para uso do Prisma em runtime
-- autenticação inicial com papéis (`USER`, `EDITOR`, `ADMIN`)
-- admin conectado à API
-- persistência de múltiplos decks por usuário
-- schema Prisma evoluído
-- seed inicial do Prisma criado
+- topo global padronizado para páginas públicas e privadas
+- sidebar isolada para dashboard do usuário e admin
+- modo **escuro/claro** com persistência local
+- loading global técnico entre módulos lazy
+- páginas públicas de decks, coleções, cartas e regras conectadas à API
+- deckbuilder em módulo separado com paginação de pool e cache de API
+- dashboard do usuário com decks, configurações e binders compartilháveis
+- binders de **Lista de Desejos** e **Cartas Possuídas** com links públicos
+- admin focado em cartas, usuários, coleções e regras
+- autenticação com papéis (`USER`, `EDITOR`, `ADMIN`) e bloqueio lógico de usuário
+- schema Prisma evoluído para preferências de usuário, binders e coleções mais ricas
+- seed com dois logins padrão (admin + usuário regular)
 - estratégia de imagens documentada
 - banco remoto ainda não conectado
 
@@ -93,8 +97,13 @@ pnpm dev:full
 ## Credenciais seed padrão
 
 ```text
+Admin
 Email: admin@gundambr.local
 Senha: admin123
+
+Usuário regular
+Email: pilot@gundambr.local
+Senha: pilot123
 ```
 
 ## Arquitetura desta fase
@@ -152,11 +161,25 @@ No sandbox desta tarefa:
 
 ## Próximos passos sugeridos
 
-1. migrar páginas públicas para leitura prioritária da API
-2. criar importadores de sets/cartas/rulings
-3. preparar upload/storage de imagens
-4. adicionar cadastro completo de usuários
-5. evoluir deckbuilder para share link e detalhes por deck
+1. tratar imagens reais de coleções, decks e cartas
+2. conectar e validar fluxo completo com Postgres local do usuário
+3. evoluir social/perfis públicos e links de binders/decks
+4. esconder definitivamente estatísticas/campeonatos até a próxima fase pública
+5. preparar importadores mais completos de sets/cartas/rulings e assets
+
+## Patch v8
+
+- menu superior padronizado em todo o portal
+- botão de sair ao lado da área do usuário/admin
+- sidebar somente em páginas do dashboard
+- tema claro/escuro mantendo a linguagem visual do hangar
+- loading global entre módulos lazy
+- cards de decks públicos mais compactos
+- coleções com data e leitura para lançamento futuro
+- regras preparadas para PT-BR + EN + fonte original
+- configurações com idioma preferido das cartas e troca de senha
+- wishlists e cartas possuídas em formato de pasta compartilhável
+- admin com usuários, cartas, coleções e regras como foco do MVP de testes
 
 ## Observação importante
 

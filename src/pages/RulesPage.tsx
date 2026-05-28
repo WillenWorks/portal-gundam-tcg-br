@@ -53,7 +53,7 @@ export default function RulesPage() {
   return (
     <PublicShell title="Regras" description="Base pensada para inclusão simples em PT-BR e EN, mantendo o vínculo com a fonte oficial e futura área de exemplos visuais.">
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="space-y-5 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -80,7 +80,7 @@ export default function RulesPage() {
         {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando base da API...</p> : null}
         <div className="space-y-4">
           {rules.map((item) => (
-            <Card key={item.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+            <Card key={item.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{item.category}</Badge>

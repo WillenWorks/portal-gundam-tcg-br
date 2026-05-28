@@ -21,7 +21,7 @@ export default function PublicDecksPage() {
           const cover = deck.items[0]?.card?.imageUrl || deck.coverImage || null;
           const quantity = deck.items.reduce((sum, item) => sum + item.quantity, 0);
           return (
-            <Card key={deck.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+            <Card key={deck.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-4 p-4">
                 <Link href={`/deck/${deck.shareId}`} className="block overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/7] dark:bg-slate-950/60 light:bg-slate-100">
                   {cover ? <img src={cover} alt={deck.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.24em] text-slate-500">Deck público</div>}

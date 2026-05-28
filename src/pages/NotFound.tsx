@@ -18,7 +18,7 @@ export default function NotFound() {
               <Link href="/">Landing</Link>
             </Button>
             <Button asChild variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-              <Link href="/portal">Portal</Link>
+              <Link href="/login">Login</Link>
             </Button>
           </div>
         </CardContent>

@@ -85,7 +85,7 @@ export default function CardDetailPage() {
   return (
     <PublicShell breadcrumbs={breadcrumbs}>
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             {error ? (
               <p className="text-sm text-red-300">{error}</p>
@@ -111,27 +111,27 @@ export default function CardDetailPage() {
         {card ? (
           <>
             <div className="flex flex-wrap gap-3">
-              <Link href="/cards" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Voltar ao catálogo</Link>
+              <Link href="/cards" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Voltar ao catálogo</Link>
               {contextualLinks.map((item) => (
-                <Link key={item.href} href={item.href} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">
+                <Link key={item.href} href={item.href} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">
                   {item.label}
                 </Link>
               ))}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
                   <h3 className="font-heading text-3xl uppercase">Ficha técnica</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm text-slate-300">
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Custo: {card.cost ?? "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Level: {card.level ?? "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">AP: {card.ap ?? "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">HP: {card.hp ?? "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Trait: {card.trait || "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Série: {card.series || "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Raridade: {card.rarity || "—"}</div>
-                    <div className="panel-cut border border-white/10 bg-slate-950/60 p-3">Set: {card.set?.code || "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Custo: {card.cost ?? "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Level: {card.level ?? "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">AP: {card.ap ?? "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">HP: {card.hp ?? "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Trait: {card.trait || "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Série: {card.series || "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Raridade: {card.rarity || "—"}</div>
+                    <div className="panel-cut border surface-strong p-3">Set: {card.set?.code || "—"}</div>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2">
                     {card.keywordTags?.length ? (
@@ -149,7 +149,7 @@ export default function CardDetailPage() {
                 </CardContent>
               </Card>
 
-              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
                   <h3 className="font-heading text-3xl uppercase">Contexto e fontes</h3>
                   <div className="space-y-3 text-sm leading-7 text-slate-300">
@@ -165,12 +165,12 @@ export default function CardDetailPage() {
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
                   <h3 className="font-heading text-3xl uppercase">Rulings relacionadas</h3>
                   {card.rulings?.length ? (
                     card.rulings.map((rule: any) => (
-                      <div key={rule.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                      <div key={rule.id} className="panel-cut border surface-strong p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{rule.sourceType}</Badge>
                           {rule.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{rule.relatedKeyword}</Badge> : null}
@@ -178,8 +178,8 @@ export default function CardDetailPage() {
                         <h4 className="mt-3 text-2xl uppercase text-white">{rule.title}</h4>
                         <p className="mt-3 text-sm leading-7 text-slate-300">{rule.answerPt || rule.questionPt || "Sem resumo cadastrado."}</p>
                         <div className="mt-4 flex flex-wrap gap-3">
-                          <Link href={`/rules/${rule.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe da ruling</Link>
-                          {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Ver mais dessa keyword</Link> : null}
+                          <Link href={`/rules/${rule.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe da ruling</Link>
+                          {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver mais dessa keyword</Link> : null}
                         </div>
                       </div>
                     ))
@@ -189,12 +189,12 @@ export default function CardDetailPage() {
                 </CardContent>
               </Card>
 
-              <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+              <Card className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
                   <h3 className="font-heading text-3xl uppercase">Cartas relacionadas</h3>
                   {relatedCards.length ? (
                     relatedCards.map((item) => (
-                      <div key={item.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                      <div key={item.id} className="panel-cut border surface-strong p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.code}</p>
@@ -204,7 +204,7 @@ export default function CardDetailPage() {
                         </div>
                         <p className="mt-3 text-sm leading-7 text-slate-300">{item.cardType} · trait {item.trait || "—"} · série {item.series || "—"}</p>
                         <div className="mt-4">
-                          <Link href={`/cards/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe</Link>
+                          <Link href={`/cards/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                         </div>
                       </div>
                     ))

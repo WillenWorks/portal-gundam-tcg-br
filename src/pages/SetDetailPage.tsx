@@ -20,7 +20,7 @@ export default function SetDetailPage() {
   return (
     <PublicShell breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             {error ? <p className="text-sm text-red-300">{error}</p> : !setData ? <p className="text-sm text-slate-300">Carregando coleção...</p> : (
               <div className="flex items-center justify-between gap-4">
@@ -39,13 +39,13 @@ export default function SetDetailPage() {
         {setData ? (
           <>
             <div className="flex flex-wrap gap-3">
-              <Link href={`/cards?setCode=${setData.code}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir no catálogo filtrado</Link>
-              {setData.officialUrl ? <a href={setData.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Fonte oficial</a> : null}
+              <Link href={`/cards?setCode=${setData.code}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir no catálogo filtrado</Link>
+              {setData.officialUrl ? <a href={setData.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Fonte oficial</a> : null}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {setData.cards.map((card: any) => (
-                <Card key={card.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+                <Card key={card.id} className="panel-cut rounded-none surface-panel">
                   <CardContent className="space-y-4 p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -58,7 +58,7 @@ export default function SetDetailPage() {
                     <div className="flex flex-wrap gap-2">
                       {card.keywordTags?.slice(0, 4).map((keyword: string) => <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>)}
                     </div>
-                    <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir detalhe</Link>
+                    <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                   </CardContent>
                 </Card>
               ))}

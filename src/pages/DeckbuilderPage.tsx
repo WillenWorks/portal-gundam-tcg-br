@@ -343,60 +343,60 @@ export default function DeckbuilderPage() {
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Deckbuilder" }]}>
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+        <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Deckbuilder via API</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Deckbuilder via API</p>
                 <h2 className="mt-2 font-heading text-4xl uppercase">Pool filtrada para montar o deck</h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">A pool agora pode ser refinada por cor, tipo, série e trait antes de entrar na lista. Isso acelera montagem, revisão e testes por arquétipo.</p>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-soft">A pool agora pode ser refinada por cor, tipo, série e trait antes de entrar na lista. Isso acelera montagem, revisão e testes por arquétipo.</p>
               </div>
             </div>
 
             {!isAuthenticated ? (
-              <div className="mt-6 panel-cut border border-white/10 bg-slate-950/60 p-5">
-                <p className="text-sm leading-7 text-slate-300">Faça login para salvar múltiplos decks por usuário no backend Prisma.</p>
+              <div className="mt-6 panel-cut border surface-strong p-5">
+                <p className="text-sm leading-7 text-soft">Faça login para salvar múltiplos decks por usuário no backend Prisma.</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="rounded-none border-white/15 bg-slate-950/70 text-white" />
-                  <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Senha" className="rounded-none border-white/15 bg-slate-950/70 text-white" />
+                  <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="field-shell" />
+                  <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Senha" className="field-shell" />
                 </div>
                 <Button className="mt-4 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => login(email, password)}>Entrar</Button>
               </div>
             ) : null}
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
-              <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="rounded-none border-white/15 bg-slate-950/70 text-white placeholder:text-slate-500 xl:col-span-2" />
-              <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as cores</option>{poolMeta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.series} onChange={(e) => setPoolFilter("series", e.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as séries</option>{poolMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.trait} onChange={(e) => setPoolFilter("trait", e.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white"><option value="">Todas as traits</option>{poolMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell xl:col-span-2" />
+              <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{poolMeta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={poolFilters.series} onChange={(e) => setPoolFilter("series", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as séries</option>{poolMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={poolFilters.trait} onChange={(e) => setPoolFilter("trait", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{poolMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{poolTotal} cartas encontradas</Badge>
-              <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">{poolActiveFilters} filtros ativos</Badge>
-              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={resetPoolFilters}>Limpar filtros</Button>
+              <Badge variant="outline" className="rounded-none border-white/20 text-soft">{poolActiveFilters} filtros ativos</Badge>
+              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
             <div className="mt-6 space-y-3 max-h-[760px] overflow-auto pr-1">
-              {loadingPool ? <p className="text-sm text-slate-400">Carregando pool filtrada...</p> : null}
-              {!loadingPool && !cards.length ? <p className="text-sm text-slate-400">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
+              {loadingPool ? <p className="text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
+              {!loadingPool && !cards.length ? <p className="text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
                 const qtyInDeck = entries.find((item) => item.cardId === card.id)?.quantity ?? 0;
                 return (
-                  <div key={card.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                  <div key={card.id} className="panel-cut border surface-strong p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                        <p className="mt-1 text-lg text-white">{card.namePt || card.name}</p>
-                        <p className="text-sm text-slate-400">{card.color} · {card.type} · custo {card.cost} · {card.trait || "sem trait"}</p>
+                        <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
+                        <p className="text-sm text-muted-portal">{card.color} · {card.type} · custo {card.cost} · {card.trait || "sem trait"}</p>
                       </div>
-                      <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">no deck: {qtyInDeck}</Badge>
+                      <Badge variant="outline" className="rounded-none border-white/20 text-soft">no deck: {qtyInDeck}</Badge>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card.id)}>Adicionar</Button>
-                      <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir carta</Link>
-                      {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Ver rulings</Link> : null}
+                      <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
+                      {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver rulings</Link> : null}
                     </div>
                   </div>
                 );
@@ -406,28 +406,28 @@ export default function DeckbuilderPage() {
             <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Página {poolPage} de {poolTotalPages} · exibindo {cards.length} de {poolTotal} resultados</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white disabled:opacity-40" disabled={poolPage <= 1 || loadingPool} onClick={() => setPoolPage((current) => Math.max(1, current - 1))}>Anterior</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white disabled:opacity-40" disabled={poolPage >= poolTotalPages || loadingPool} onClick={() => setPoolPage((current) => Math.min(poolTotalPages, current + 1))}>Próxima</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage <= 1 || loadingPool} onClick={() => setPoolPage((current) => Math.max(1, current - 1))}>Anterior</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage >= poolTotalPages || loadingPool} onClick={() => setPoolPage((current) => Math.min(poolTotalPages, current + 1))}>Próxima</Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+          <Card className="panel-cut rounded-none border-primary/30 hero-surface">
             <CardContent className="p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Sessão atual</p>
-                  <p className="mt-2 text-sm text-slate-300">{user ? `${user.displayName} · ${user.role}` : "Visitante"}</p>
-                  <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="mt-4 rounded-none border-white/15 bg-slate-950/70 font-heading text-3xl uppercase text-white" />
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sessão atual</p>
+                  <p className="mt-2 text-sm text-soft">{user ? `${user.displayName} · ${user.role}` : "Visitante"}</p>
+                  <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="field-shell mt-4 font-heading text-3xl uppercase heading-portal heading-portal" />
                 </div>
                 <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.mainDeckCount} cartas</Badge>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {(["PRIVATE", "UNLISTED", "PUBLIC"] as DeckVisibility[]).map((mode) => (
-                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"}`}>
+                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10 hover:text-white"}`}>
                     {mode}
                   </button>
                 ))}
@@ -435,38 +435,38 @@ export default function DeckbuilderPage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={createNewDeck}><Plus className="mr-2 size-4" />Novo deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar decklist</Button>
-                {selectedShareId ? <Button variant="ghost" className="rounded-none text-slate-300 hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Copy className="mr-2 size-4" />{selectedShareId}</Button> : null}
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={createNewDeck}><Plus className="mr-2 size-4" />Novo deck</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar decklist</Button>
+                {selectedShareId ? <Button variant="ghost" className="rounded-none text-soft hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Copy className="mr-2 size-4" />{selectedShareId}</Button> : null}
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Curva média</p><p className="mt-2 font-heading text-4xl text-white">{stats.avgCost}</p></div>
-                <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Custo baixo</p><p className="mt-2 font-heading text-4xl text-white">{stats.lowCostRate}%</p></div>
-                <div className="panel-cut border border-white/10 bg-slate-950/60 p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Traço dominante</p><p className="mt-2 text-sm leading-7 text-slate-300">{topTraits[0] ? `${topTraits[0][0]} · ${topTraits[0][1]}` : "—"}</p></div>
+                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Curva média</p><p className="mt-2 font-heading text-4xl heading-portal">{stats.avgCost}</p></div>
+                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Custo baixo</p><p className="mt-2 font-heading text-4xl heading-portal">{stats.lowCostRate}%</p></div>
+                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Traço dominante</p><p className="mt-2 text-sm leading-7 text-soft">{topTraits[0] ? `${topTraits[0][0]} · ${topTraits[0][1]}` : "—"}</p></div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Diagnóstico operacional</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase">Leitura rápida do deck</h3>
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico operacional</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Leitura rápida do deck</h3>
                 </div>
                 <div className="panel-cut border border-primary/30 bg-primary/10 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Sinergia estimada</p>
-                  <p className="mt-2 font-heading text-4xl text-white">{synergyScore}</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Sinergia estimada</p>
+                  <p className="mt-2 font-heading text-4xl heading-portal">{synergyScore}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.18em] text-primary">{synergyLabel}</p>
                 </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {diagnostics.map((item) => (
                   <div key={item.label} className={`panel-cut border p-4 ${item.kind === "ok" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-500/10"}`}>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{item.label}</p>
-                    <p className="mt-2 text-sm leading-7 text-white">{item.value}</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">{item.label}</p>
+                    <p className="mt-2 text-sm leading-7 heading-portal">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -474,58 +474,58 @@ export default function DeckbuilderPage() {
           </Card>
 
           <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Blocos por arquétipo</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase">Identidade atual da lista</h3>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {archetypeBlocks.length ? archetypeBlocks.map((block) => (
-                    <div key={block.label} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                    <div key={block.label} className="panel-cut border surface-strong p-4">
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
-                      <p className="mt-2 text-lg text-white">{block.value}</p>
-                      <p className="mt-2 text-sm text-slate-400">{block.hint}</p>
+                      <p className="mt-2 text-lg heading-portal">{block.value}</p>
+                      <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
                     </div>
-                  )) : <p className="text-sm text-slate-400">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
+                  )) : <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Sugestões de contexto</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase">Recomendações por carta</h3>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
                 <div className="mt-6 space-y-4">
                   {recommendationCards.length ? recommendationCards.map((card) => (
-                    <div key={card.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                    <div key={card.id} className="panel-cut border surface-strong p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                          <p className="mt-1 text-lg text-white">{card.namePt || card.name}</p>
-                          <p className="text-sm text-slate-400">score {card.score} · {card.color} · custo {card.cost}</p>
+                          <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
+                          <p className="text-sm text-muted-portal">score {card.score} · {card.color} · custo {card.cost}</p>
                         </div>
                         <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card.id)}>Adicionar</Button>
                       </div>
-                      <ul className="mt-3 space-y-1 text-sm text-slate-300">
+                      <ul className="mt-3 space-y-1 text-sm text-soft">
                         {card.reasons.map((reason: string) => <li key={reason}>• {reason}</li>)}
                       </ul>
                       <div className="mt-4 flex flex-wrap gap-3">
-                        <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir carta</Link>
-                        {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Ver rulings</Link> : null}
+                        <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
+                        {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver rulings</Link> : null}
                       </div>
                     </div>
-                  )) : <p className="text-sm text-slate-400">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
+                  )) : <p className="text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 01</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase">Curva de custo</h3>
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo</h3>
                   </div>
                 </div>
                 <div className="mt-6 h-[260px]">
@@ -542,10 +542,10 @@ export default function DeckbuilderPage() {
               </CardContent>
             </Card>
 
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 02</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase">Distribuição por cor</h3>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 02</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor</h3>
                 <div className="mt-6 h-[260px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
@@ -561,10 +561,10 @@ export default function DeckbuilderPage() {
             </Card>
           </div>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Gráfico 03</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase">Composição por tipo</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 03</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo</h3>
               <div className="mt-6 h-[250px]">
                 <ChartContainer config={chartConfig} className="h-full w-full">
                   <BarChart layout="vertical" data={typeData} margin={{ left: 12, right: 12 }}>
@@ -580,21 +580,21 @@ export default function DeckbuilderPage() {
           </Card>
 
           {isAuthenticated ? (
-            <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+            <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center justify-between gap-4">
-                  <h3 className="font-heading text-3xl uppercase">Meus decks persistidos</h3>
-                  {loadingDecks ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">Atualizando</Badge> : null}
+                  <h3 className="font-heading text-3xl uppercase heading-portal">Meus decks persistidos</h3>
+                  {loadingDecks ? <Badge variant="outline" className="rounded-none border-white/20 text-soft">Atualizando</Badge> : null}
                 </div>
                 {decks.map((deck) => (
-                  <div key={deck.id} className="panel-cut flex items-center justify-between gap-4 border border-white/10 bg-slate-950/60 p-4">
+                  <div key={deck.id} className="panel-cut flex items-center justify-between gap-4 border surface-strong p-4">
                     <div>
-                      <p className="text-lg text-white">{deck.name}</p>
-                      <p className="text-sm text-slate-400">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas · {deck.visibility.toLowerCase()} · {deck.isPrimary ? "primário" : "secundário"}</p>
+                      <p className="text-lg heading-portal">{deck.name}</p>
+                      <p className="text-sm text-muted-portal">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas · {deck.visibility.toLowerCase()} · {deck.isPrimary ? "primário" : "secundário"}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => applyDeck(deck)}>Carregar</Button>
-                      {deck.shareId ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir</Link> : null}
+                      <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => applyDeck(deck)}>Carregar</Button>
+                      {deck.shareId ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir</Link> : null}
                       <Button variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={() => removeDeck(deck.id)}><Trash2 className="size-4" /></Button>
                     </div>
                   </div>
@@ -603,30 +603,30 @@ export default function DeckbuilderPage() {
             </Card>
           ) : null}
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <h3 className="font-heading text-3xl uppercase">Decklist atual</h3>
+              <h3 className="font-heading text-3xl uppercase heading-portal">Decklist atual</h3>
               <div className="mt-6 space-y-3 max-h-[520px] overflow-auto pr-1">
                 {deckRows.length ? deckRows.map((row) => (
-                  <div key={row.id} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                  <div key={row.id} className="panel-cut border surface-strong p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{row.code}</p>
-                        <p className="mt-1 text-lg text-white">{row.namePt || row.name}</p>
-                        <p className="text-sm text-slate-400">{row.color} · {row.type} · custo {row.cost} · {row.trait || "sem trait"}</p>
+                        <p className="mt-1 text-lg heading-portal">{row.namePt || row.name}</p>
+                        <p className="text-sm text-muted-portal">{row.color} · {row.type} · custo {row.cost} · {row.trait || "sem trait"}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white" onClick={() => decrement(row.id)}>-</Button>
-                        <div className="min-w-10 text-center text-lg text-white">{row.quantity}</div>
+                        <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => decrement(row.id)}>-</Button>
+                        <div className="min-w-10 text-center text-lg heading-portal">{row.quantity}</div>
                         <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(row.id)}>+</Button>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Link href={`/cards/${row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Abrir carta</Link>
-                      {row.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(row.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white transition hover:bg-white/10">Rulings</Link> : null}
+                      <Link href={`/cards/${row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
+                      {row.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(row.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Rulings</Link> : null}
                     </div>
                   </div>
-                )) : <p className="text-sm text-slate-400">Sua decklist ainda está vazia. Use a pool filtrada à esquerda para começar.</p>}
+                )) : <p className="text-sm text-muted-portal">Sua decklist ainda está vazia. Use a pool filtrada à esquerda para começar.</p>}
               </div>
             </CardContent>
           </Card>

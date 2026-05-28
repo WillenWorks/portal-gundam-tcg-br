@@ -60,7 +60,7 @@ export default function ProfilePage() {
   return (
     <PortalShell breadcrumbs={[{ label: "Configurações" }]}>
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="space-y-5 p-6">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Configurações da conta</p>
@@ -72,11 +72,11 @@ export default function ProfilePage() {
             </div>
             <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio pública" className="min-h-28 rounded-none" />
             <div className="grid gap-4 md:grid-cols-2">
-              <select value={preferredCardLanguage} onChange={(e) => setPreferredCardLanguage(e.target.value as "PT_BR" | "EN")} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900">
+              <select value={preferredCardLanguage} onChange={(e) => setPreferredCardLanguage(e.target.value as "PT_BR" | "EN")} className="field-shell h-10 px-3 text-sm">
                 <option value="PT_BR">Textos das cartas em PT-BR</option>
                 <option value="EN">Textos das cartas em EN</option>
               </select>
-              <select value={theme} onChange={(e) => setTheme(e.target.value as "light" | "dark")} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900">
+              <select value={theme} onChange={(e) => setTheme(e.target.value as "light" | "dark")} className="field-shell h-10 px-3 text-sm">
                 <option value="dark">Tema escuro</option>
                 <option value="light">Tema claro</option>
               </select>
@@ -90,7 +90,7 @@ export default function ProfilePage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+          <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="space-y-4 p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Senha</p>
               <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Senha atual" className="rounded-none" />
@@ -99,7 +99,7 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+          <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>

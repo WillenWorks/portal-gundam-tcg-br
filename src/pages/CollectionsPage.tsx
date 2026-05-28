@@ -22,7 +22,7 @@ export default function CollectionsPage() {
           const release = set.releaseDate ? new Date(set.releaseDate) : null;
           const isFuture = release ? release.getTime() > today.getTime() : false;
           return (
-            <Card key={set.id} className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+            <Card key={set.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-4 p-4">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/8] dark:bg-slate-950/60 light:bg-slate-100">
                   {set.coverImage ? <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.24em] text-slate-500">{set.code}</div>}

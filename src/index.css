@@ -55,24 +55,24 @@
 }
 
 .light {
-  --background: oklch(0.98 0.004 240);
+  --background: oklch(0.93 0.008 240);
   --foreground: oklch(0.22 0.02 248);
-  --card: oklch(1 0 0 / 0.92);
+  --card: oklch(0.985 0.004 240 / 0.88);
   --card-foreground: oklch(0.22 0.02 248);
-  --popover: oklch(1 0 0 / 0.96);
+  --popover: oklch(0.99 0.004 240 / 0.96);
   --popover-foreground: oklch(0.22 0.02 248);
-  --primary: oklch(0.61 0.16 229);
+  --primary: oklch(0.58 0.16 229);
   --primary-foreground: oklch(0.98 0.004 240);
-  --secondary: oklch(0.94 0.01 240);
+  --secondary: oklch(0.9 0.012 240);
   --secondary-foreground: oklch(0.24 0.02 248);
-  --muted: oklch(0.95 0.01 240);
-  --muted-foreground: oklch(0.5 0.02 240);
-  --accent: oklch(0.79 0.15 92);
+  --muted: oklch(0.9 0.01 240);
+  --muted-foreground: oklch(0.42 0.02 240);
+  --accent: oklch(0.76 0.14 92);
   --accent-foreground: oklch(0.2 0.02 248);
   --destructive: oklch(0.62 0.22 25);
-  --border: oklch(0.84 0.02 240 / 0.9);
-  --input: oklch(0.99 0.003 240);
-  --ring: oklch(0.61 0.16 229);
+  --border: oklch(0.78 0.02 240 / 0.92);
+  --input: oklch(0.985 0.004 240);
+  --ring: oklch(0.58 0.16 229);
 }
 
 @layer base {
@@ -89,15 +89,71 @@
   }
   .light body {
     background-image:
-      radial-gradient(circle at 20% 20%, oklch(0.88 0.03 220 / 0.5), transparent 24%),
-      radial-gradient(circle at 80% 0%, oklch(0.9 0.04 80 / 0.34), transparent 20%),
-      linear-gradient(180deg, oklch(0.99 0.004 240), oklch(0.94 0.008 240));
+      radial-gradient(circle at 20% 20%, oklch(0.84 0.035 220 / 0.32), transparent 24%),
+      radial-gradient(circle at 80% 0%, oklch(0.86 0.03 80 / 0.22), transparent 20%),
+      linear-gradient(180deg, oklch(0.94 0.008 240), oklch(0.88 0.012 240));
   }
   h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); letter-spacing: 0.04em; }
   ::selection { background: oklch(0.73 0.13 215 / 0.35); color: oklch(0.97 0.01 240); }
 }
 
 @layer utilities {
+  .surface-panel {
+    @apply border-white/10 bg-white/5 text-white transition-colors duration-200 dark:border-white/10 dark:bg-white/5 dark:text-white light:border-slate-300/80 light:bg-white/90 light:text-slate-950 light:shadow-[0_16px_44px_rgba(15,23,42,0.08)];
+  }
+  .surface-strong {
+    @apply border-white/10 bg-slate-950/60 text-white transition-colors duration-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white light:border-slate-300/80 light:bg-slate-50 light:text-slate-950;
+  }
+  .hero-surface {
+    @apply text-white shadow-[0_18px_60px_rgba(2,8,23,0.28)] transition-colors duration-200;
+    background-image: linear-gradient(135deg, oklch(0.18 0.03 252), oklch(0.24 0.05 236), oklch(0.34 0.03 245));
+  }
+  .light .hero-surface {
+    color: oklch(0.17 0.03 248);
+    background-image: linear-gradient(135deg, oklch(0.96 0.01 240), oklch(0.9 0.02 232), oklch(0.84 0.03 232));
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.12);
+  }
+  .light .hero-surface .text-white,
+  .light .surface-panel .text-white,
+  .light .surface-strong .text-white {
+    color: oklch(0.16 0.03 248);
+  }
+  .light .hero-surface .text-slate-300,
+  .light .surface-panel .text-slate-300,
+  .light .surface-strong .text-slate-300 {
+    color: oklch(0.34 0.02 240);
+  }
+  .light .hero-surface .text-slate-400,
+  .light .surface-panel .text-slate-400,
+  .light .surface-strong .text-slate-400,
+  .light .hero-surface .text-slate-500,
+  .light .surface-panel .text-slate-500,
+  .light .surface-strong .text-slate-500 {
+    color: oklch(0.45 0.02 240);
+  }
+  .nav-hover-soft {
+    @apply transition-all duration-200;
+  }
+  .dark .nav-hover-soft:hover {
+    background-color: color-mix(in oklab, white 8%, transparent);
+    border-color: color-mix(in oklab, white 18%, transparent);
+  }
+  .light .nav-hover-soft:hover {
+    background-color: oklch(0.95 0.012 235);
+    border-color: oklch(0.72 0.025 235 / 0.9);
+  }
+  .field-shell {
+    @apply rounded-none border border-white/15 bg-slate-950/70 text-white transition-colors duration-200 placeholder:text-slate-500 dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 light:placeholder:text-slate-500;
+  }
+  .text-soft {
+    @apply text-slate-300 dark:text-slate-300 light:text-slate-700;
+  }
+  .text-muted-portal {
+    @apply text-slate-400 dark:text-slate-400 light:text-slate-600;
+  }
+  .heading-portal {
+    @apply dark:text-white light:text-slate-950;
+  }
   .bg-grid-tech {
     background-image:
       linear-gradient(to right, oklch(0.62 0.06 220 / 0.08) 1px, transparent 1px),

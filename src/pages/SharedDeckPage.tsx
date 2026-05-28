@@ -34,7 +34,7 @@ export default function SharedDeckPage() {
   return (
     <PublicShell title={deck?.name || "Deck compartilhado"} description="Versão pública estática para estudo da lista, sem abrir o modo de edição do dashboard.">
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             {error ? <p className="text-sm text-red-300">{error}</p> : !deck ? <p className="text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">Carregando deck compartilhado...</p> : (
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -53,7 +53,7 @@ export default function SharedDeckPage() {
           </CardContent>
         </Card>
 
-        <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white dark:text-white light:text-slate-900">
+        <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="p-6">
             <h3 className="font-heading text-3xl uppercase">Lista pública</h3>
             <div className="mt-6 space-y-3">

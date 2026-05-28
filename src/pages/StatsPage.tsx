@@ -84,7 +84,7 @@ export default function StatsPage() {
   return (
     <PublicShell breadcrumbs={[{ label: "Estatísticas" }]}>
       <div className="space-y-6">
-        <Card className="panel-cut rounded-none border-primary/30 bg-gradient-to-br from-slate-900 to-cyan-950/20 text-white">
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -105,12 +105,12 @@ export default function StatsPage() {
             ["Campeonatos", String(events.length)],
             ["Coleções", String(sets.length)],
           ].map(([label, value]) => (
-            <Card key={label} className="panel-cut rounded-none border-white/10 bg-white/5 text-white"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</p><p className="mt-4 font-heading text-5xl leading-none text-white">{value}</p></CardContent></Card>
+            <Card key={label} className="panel-cut rounded-none surface-panel"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</p><p className="mt-4 font-heading text-5xl leading-none text-white">{value}</p></CardContent></Card>
           ))}
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Cobertura por coleção</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Cartas cadastradas por expansão</h3>
@@ -128,7 +128,7 @@ export default function StatsPage() {
             </CardContent>
           </Card>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Banco por cor</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Distribuição de cartas por cor</h3>
@@ -148,7 +148,7 @@ export default function StatsPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Pool por tipo</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Tipos mais presentes</h3>
@@ -166,13 +166,13 @@ export default function StatsPage() {
             </CardContent>
           </Card>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Leitura rápida</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Intel pública</h3>
               <div className="mt-6 space-y-4">
                 {intelligenceNotes.map((item) => (
-                  <div key={item.label} className="panel-cut border border-white/10 bg-slate-950/60 p-4">
+                  <div key={item.label} className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
                     <p className="mt-2 text-sm leading-7 text-white">{item.value}</p>
                   </div>
@@ -183,7 +183,7 @@ export default function StatsPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Meta público</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Cores que aparecem nos decks públicos</h3>
@@ -201,7 +201,7 @@ export default function StatsPage() {
             </CardContent>
           </Card>
 
-          <Card className="panel-cut rounded-none border-white/10 bg-white/5 text-white">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Atividade competitiva</p>
               <h3 className="mt-2 font-heading text-3xl uppercase">Participantes por campeonato</h3>
