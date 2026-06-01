@@ -8,8 +8,8 @@ export type AppRoute =
   | "/deckbuilder"
   | "/admin";
 
-export type CardColor = "Blue" | "Green" | "Red" | "White" | "Black";
-export type CardType = "Unit" | "Pilot" | "Command" | "Base" | "Resource";
+export type CardColor = "Blue" | "Green" | "Red" | "White" | "Purple" | "Black";
+export type CardType = "Unit" | "Pilot" | "Command" | "Base" | "Resource" | "UNIT" | "PILOT" | "COMMAND" | "COMMAND_PILOT" | "BASE" | "RESOURCE" | "EX_BASE" | "EX_RESOURCE" | "UNIT_TOKEN";
 
 export interface CardRecord {
   id: string;

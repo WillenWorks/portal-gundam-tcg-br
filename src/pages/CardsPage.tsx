@@ -8,8 +8,7 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { api, mapApiCard, type CardFilters } from "@/lib/api";
-import type { CardRecord } from "@/modules/core/types";
+import { api, type CardFilters } from "@/lib/api";
 
 const defaultFilters: CardFilters = {
   q: "",
@@ -50,7 +49,7 @@ function buildHash(filters: CardFilters) {
 export default function CardsPage() {
   const [, navigate] = useLocation();
   const [filters, setFilters] = useState<CardFilters>(() => readFiltersFromHash());
-  const [cards, setCards] = useState<CardRecord[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
   const [meta, setMeta] = useState<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> }>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +60,7 @@ export default function CardsPage() {
   useEffect(() => {
     setLoading(true);
     api.listCards(filters)
-      .then((result) => setCards(result.map(mapApiCard)))
+      .then((result) => setCards(result))
       .finally(() => setLoading(false));
   }, [filters]);
 
@@ -76,6 +75,12 @@ export default function CardsPage() {
 
   const setFilter = (key: keyof CardFilters, value: string) => setFilters((state) => ({ ...state, [key]: value }));
   const resetFilters = () => setFilters(defaultFilters);
+  const readPrimaryEffect = (card: any) => {
+    const sections = Array.isArray(card.textSectionsJson) ? card.textSectionsJson : [];
+    const section = sections.find((item: any) => item?.textPt || item?.textEn);
+    return section?.textPt || section?.textEn || card.effectPt || card.effectEn || "Sem texto cadastrado.";
+  };
+  const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
     await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(filters)}`);
@@ -127,13 +132,13 @@ export default function CardsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.name}</h3>
+                    <h3 className="mt-2 font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
                   </div>
-                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color}</Badge>
+                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">
-                  <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Tipo: {card.type}</div>
+                  <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Tipo: {card.cardType || "—"}</div>
                   <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Custo: {card.cost}</div>
                   <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">AP: {card.ap ?? "—"}</div>
                   <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">HP: {card.hp ?? "—"}</div>
@@ -141,18 +146,18 @@ export default function CardsPage() {
 
                 <div>
                   <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Trait / Série</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{card.trait || "—"} · {card.series || "—"}</p>
+                  <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{(card.traits || []).join(", ") || card.trait || "—"} · {card.series || card.sourceTitle || "—"}</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {card.keywords.length ? card.keywords.map((keyword) => (
+                  {[...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...readFlags(card)].length ? [...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...readFlags(card)].map((keyword: string) => (
                     <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>
                   )) : <Badge variant="outline" className="rounded-none border-white/20 text-slate-400 dark:text-slate-400 light:border-slate-300/80 light:text-slate-500">sem keyword</Badge>}
                 </div>
 
-                <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{card.effect || "Sem texto cadastrado."}</p>
+                <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{readPrimaryEffect(card)}</p>
                 <div>
-                  <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
+                  <div className="flex flex-wrap gap-2 pb-1">{card.set?.code ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{card.set.code}</Badge> : null}{(card.cardSubtypes || []).slice(0,2).map((item: string) => <Badge key={item} variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{item}</Badge>)}</div><Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                 </div>
               </CardContent>
             </Card>

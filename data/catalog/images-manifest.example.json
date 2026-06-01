@@ -1,0 +1,13 @@
+[
+  {
+    "entity": "set",
+    "code": "GD01",
+    "coverImage": "gd01-cover.webp"
+  },
+  {
+    "entity": "card",
+    "code": "GD01-001",
+    "imageUrl": "GD01-001.webp",
+    "thumbUrl": "GD01-001-thumb.webp"
+  }
+]

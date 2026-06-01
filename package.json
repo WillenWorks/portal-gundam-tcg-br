@@ -17,8 +17,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
+    "prisma:reset": "prisma db push --force-reset",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "node prisma/seed.cjs"
+    "prisma:seed": "node prisma/seed.cjs",
+    "prisma:reset:seed": "pnpm run prisma:reset && pnpm run prisma:seed",
+    "catalog:import": "node scripts/catalog-import.mjs",
+    "catalog:import:local": "node scripts/catalog-import.mjs ./data/catalog"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

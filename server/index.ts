@@ -7,7 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind } from "@prisma/client";
+import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -36,6 +37,7 @@ type CardInput = {
   nameEn: string;
   namePt?: string;
   cardType: string;
+  cardSubtypes?: string[];
   color?: string;
   cost?: number;
   level?: number;
@@ -43,16 +45,87 @@ type CardInput = {
   hp?: number;
   rarity?: string;
   trait?: string;
+  traits?: string[];
   series?: string;
+  sourceTitle?: string;
+  zone?: string | null;
+  linkText?: string | null;
+  pilotName?: string | null;
   effectEn?: string;
   effectPt?: string;
+  burstEffectPt?: string;
+  burstEffectEn?: string;
+  triggerKeywords?: string[];
   keywordTags?: string[];
+  effectKeywords?: string[];
+  textSectionsJson?: unknown;
+  hasBurst?: boolean;
+  hasMain?: boolean;
+  hasAction?: boolean;
+  oncePerTurn?: boolean;
   imageUrl?: string | null;
   imageSourceUrl?: string | null;
   thumbUrl?: string | null;
   officialUrl?: string | null;
   setId?: string | null;
+  setCode?: string;
+  legalityStatus?: string;
 };
+
+type SetInput = {
+  code: string;
+  nameEn: string;
+  namePt?: string;
+  officialUrl?: string | null;
+  releaseDate?: string | Date | null;
+  coverImage?: string | null;
+  shortDescription?: string | null;
+  setType?: string;
+  productCodeAlt?: string | null;
+  msrpUsd?: number | null;
+  contentSummaryEn?: string | null;
+  contentSummaryPt?: string | null;
+  raritySummary?: string | null;
+  productNotes?: string | null;
+  sourceTitles?: string[];
+  starterDeckVariantOf?: string | null;
+  metadataJson?: unknown;
+};
+
+type RulingImportInput = {
+  cardCode?: string;
+  sourceType: Prisma.RulingCreateInput["sourceType"];
+  title: string;
+  questionEn?: string | null;
+  answerEn?: string | null;
+  questionPt?: string | null;
+  answerPt?: string | null;
+  examplePlayPt?: string | null;
+  originalUrl?: string | null;
+  relatedKeyword?: string | null;
+  relatedPhase?: string | null;
+  officialUpdatedAt?: string | Date | null;
+  translationStatus?: string | null;
+};
+
+type TournamentImportInput = {
+  name: string;
+  organizer?: string | null;
+  country?: string | null;
+  city?: string | null;
+  format?: string | null;
+  season?: string | null;
+  sourceUrl?: string | null;
+  participantCount?: number | null;
+  roundCount?: number | null;
+  topCutSize?: number | null;
+  dateStart?: string | Date | null;
+  dateEnd?: string | Date | null;
+};
+
+type ImageManifestInput =
+  | { entity: "card"; code: string; imageUrl?: string | null; thumbUrl?: string | null; imageSourceUrl?: string | null }
+  | { entity: "set"; code: string; coverImage?: string | null; imageUrl?: string | null };
 
 function signToken(payload: AuthPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
@@ -95,6 +168,285 @@ function parsePositiveInt(input: unknown, fallback: number, max = 100) {
   const value = Number.parseInt(String(input ?? ""), 10);
   if (!Number.isFinite(value) || value <= 0) return fallback;
   return Math.min(value, max);
+}
+
+function normalizeAssetUrl(input: unknown, folder: string) {
+  const value = String(input ?? "").trim().replace(/\\/g, "/");
+  if (!value) return null;
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) return value;
+  return `/${folder}/${value.replace(/^\/+/, "")}`;
+}
+
+function toDateOrNull(input: unknown) {
+  if (!input) return null;
+  const date = input instanceof Date ? input : new Date(String(input));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeSetType(value: unknown): SetKind {
+  const raw = String(value || "BOOSTER_PACK").trim().toUpperCase();
+  if (raw === "STARTER_DECK") return SetKind.STARTER_DECK;
+  if (raw === "ACCESSORIES") return SetKind.ACCESSORIES;
+  if (raw === "PREMIUM_BANDAI") return SetKind.PREMIUM_BANDAI;
+  if (raw === "OTHER") return SetKind.OTHER;
+  return SetKind.BOOSTER_PACK;
+}
+
+function normalizeCardType(value: unknown): CardType {
+  const raw = String(value || "UNIT").trim().toUpperCase().replace(/[^A-Z]+/g, "_");
+  if (raw === "PILOT") return CardType.PILOT;
+  if (raw === "COMMAND") return CardType.COMMAND;
+  if (raw === "COMMAND_PILOT") return CardType.COMMAND_PILOT;
+  if (raw === "BASE") return CardType.BASE;
+  if (raw === "RESOURCE") return CardType.RESOURCE;
+  if (raw === "EX_BASE") return CardType.EX_BASE;
+  if (raw === "EX_RESOURCE") return CardType.EX_RESOURCE;
+  if (raw === "UNIT_TOKEN") return CardType.UNIT_TOKEN;
+  return CardType.UNIT;
+}
+
+function buildEffectText(card: CardInput) {
+  const sections = Array.isArray(card.textSectionsJson) ? card.textSectionsJson as Array<any> : [];
+  if (!sections.length) return { effectPt: card.effectPt || null, effectEn: card.effectEn || null };
+  const pt = sections.map((section) => (section?.textPt ? `[${section.label || section.kind || "effect"}] ${section.textPt}` : null)).filter(Boolean).join("\n");
+  const en = sections.map((section) => (section?.textEn ? `[${section.label || section.kind || "effect"}] ${section.textEn}` : null)).filter(Boolean).join("\n");
+  return { effectPt: pt || card.effectPt || null, effectEn: en || card.effectEn || null };
+}
+
+function normalizeCardEffectPayload(card: CardInput) {
+  const parsed = parseCardEffects(card.effectPt || "", card.burstEffectPt || "");
+  const mergedSections = Array.isArray(card.textSectionsJson) && card.textSectionsJson.length
+    ? card.textSectionsJson
+    : parsed.sections;
+
+  return {
+    triggerKeywords: Array.from(new Set([...(Array.isArray(card.triggerKeywords) ? card.triggerKeywords : []), ...parsed.triggerKeywords])),
+    effectKeywords: Array.from(new Set([...(Array.isArray(card.effectKeywords) ? card.effectKeywords : []), ...parsed.effectKeywords])),
+    keywordTags: Array.from(new Set([...(Array.isArray(card.keywordTags) ? card.keywordTags : []), ...parsed.keywordTags])),
+    textSectionsJson: (mergedSections as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+    hasBurst: Boolean(card.hasBurst || parsed.hasBurst),
+    hasMain: Boolean(card.hasMain || parsed.hasMain),
+    hasAction: Boolean(card.hasAction || parsed.hasAction),
+    oncePerTurn: Boolean(card.oncePerTurn || parsed.oncePerTurn),
+  };
+}
+
+async function upsertSets(items: SetInput[]) {
+  const setMap = new Map<string, string>();
+  for (const set of items) {
+    const saved = await prisma.cardSet.upsert({
+      where: { code: set.code },
+      update: {
+        code: set.code,
+        nameEn: set.nameEn,
+        namePt: set.namePt || null,
+        officialUrl: set.officialUrl || null,
+        releaseDate: toDateOrNull(set.releaseDate),
+        coverImage: normalizeAssetUrl(set.coverImage, "images/sets"),
+        shortDescription: set.shortDescription || null,
+        setType: normalizeSetType(set.setType),
+        productCodeAlt: set.productCodeAlt || null,
+        msrpUsd: set.msrpUsd ?? null,
+        contentSummaryEn: set.contentSummaryEn || null,
+        contentSummaryPt: set.contentSummaryPt || null,
+        raritySummary: set.raritySummary || null,
+        productNotes: set.productNotes || null,
+        sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
+        starterDeckVariantOf: set.starterDeckVariantOf || null,
+        metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      },
+      create: {
+        code: set.code,
+        nameEn: set.nameEn,
+        namePt: set.namePt || null,
+        officialUrl: set.officialUrl || null,
+        releaseDate: toDateOrNull(set.releaseDate),
+        coverImage: normalizeAssetUrl(set.coverImage, "images/sets"),
+        shortDescription: set.shortDescription || null,
+        setType: normalizeSetType(set.setType),
+        productCodeAlt: set.productCodeAlt || null,
+        msrpUsd: set.msrpUsd ?? null,
+        contentSummaryEn: set.contentSummaryEn || null,
+        contentSummaryPt: set.contentSummaryPt || null,
+        raritySummary: set.raritySummary || null,
+        productNotes: set.productNotes || null,
+        sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
+        starterDeckVariantOf: set.starterDeckVariantOf || null,
+        metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      },
+    });
+    setMap.set(set.code, saved.id);
+  }
+  return setMap;
+}
+
+async function upsertCards(items: CardInput[], setMap = new Map<string, string>(), fallbackSetId?: string) {
+  for (const card of items) {
+    const setId = card.setId ?? (card.setCode ? setMap.get(card.setCode) || null : fallbackSetId || null);
+    const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
+    const normalizedEffects = normalizeCardEffectPayload(card);
+    const { effectPt, effectEn } = buildEffectText({ ...card, textSectionsJson: normalizedEffects.textSectionsJson });
+    await prisma.card.upsert({
+      where: { code: card.code },
+      update: {
+        code: card.code,
+        nameEn: card.nameEn,
+        namePt: card.namePt || null,
+        cardType: normalizeCardType(card.cardType),
+        cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
+        color: card.color || null,
+        cost: card.cost ?? null,
+        level: card.level ?? null,
+        ap: card.ap ?? null,
+        hp: card.hp ?? null,
+        rarity: card.rarity || null,
+        trait: card.trait || traits.join(" | ") || null,
+        traits,
+        series: card.series || null,
+        sourceTitle: card.sourceTitle || card.series || null,
+        zone: card.zone || null,
+        linkText: card.linkText || null,
+        pilotName: card.pilotName || null,
+        effectEn,
+        effectPt,
+        triggerKeywords: normalizedEffects.triggerKeywords,
+        keywordTags: normalizedEffects.keywordTags,
+        effectKeywords: normalizedEffects.effectKeywords,
+        textSectionsJson: normalizedEffects.textSectionsJson,
+        hasBurst: normalizedEffects.hasBurst,
+        hasMain: normalizedEffects.hasMain,
+        hasAction: normalizedEffects.hasAction,
+        oncePerTurn: normalizedEffects.oncePerTurn,
+        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
+        imageSourceUrl: card.imageSourceUrl || null,
+        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
+        officialUrl: card.officialUrl || null,
+        legalityStatus: card.legalityStatus || "legal",
+        setId,
+      },
+      create: {
+        code: card.code,
+        nameEn: card.nameEn,
+        namePt: card.namePt || null,
+        cardType: normalizeCardType(card.cardType),
+        cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
+        color: card.color || null,
+        cost: card.cost ?? null,
+        level: card.level ?? null,
+        ap: card.ap ?? null,
+        hp: card.hp ?? null,
+        rarity: card.rarity || null,
+        trait: card.trait || traits.join(" | ") || null,
+        traits,
+        series: card.series || null,
+        sourceTitle: card.sourceTitle || card.series || null,
+        zone: card.zone || null,
+        linkText: card.linkText || null,
+        pilotName: card.pilotName || null,
+        effectEn,
+        effectPt,
+        triggerKeywords: normalizedEffects.triggerKeywords,
+        keywordTags: normalizedEffects.keywordTags,
+        effectKeywords: normalizedEffects.effectKeywords,
+        textSectionsJson: normalizedEffects.textSectionsJson,
+        hasBurst: normalizedEffects.hasBurst,
+        hasMain: normalizedEffects.hasMain,
+        hasAction: normalizedEffects.hasAction,
+        oncePerTurn: normalizedEffects.oncePerTurn,
+        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
+        imageSourceUrl: card.imageSourceUrl || null,
+        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
+        officialUrl: card.officialUrl || null,
+        legalityStatus: card.legalityStatus || "legal",
+        setId,
+      },
+    });
+  }
+}
+
+async function upsertRulings(items: RulingImportInput[]) {
+  for (const ruling of items) {
+    const card = ruling.cardCode ? await prisma.card.findUnique({ where: { code: ruling.cardCode } }) : null;
+    const existing = await prisma.ruling.findFirst({
+      where: {
+        sourceType: ruling.sourceType,
+        title: ruling.title,
+        originalUrl: ruling.originalUrl || null,
+        cardId: card?.id || null,
+      },
+    });
+
+    const data = {
+      sourceType: ruling.sourceType,
+      title: ruling.title,
+      questionEn: ruling.questionEn || null,
+      answerEn: ruling.answerEn || null,
+      questionPt: ruling.questionPt || null,
+      answerPt: ruling.answerPt || null,
+      examplePlayPt: ruling.examplePlayPt || null,
+      originalUrl: ruling.originalUrl || null,
+      relatedKeyword: ruling.relatedKeyword || null,
+      relatedPhase: ruling.relatedPhase || null,
+      officialUpdatedAt: toDateOrNull(ruling.officialUpdatedAt),
+      translationStatus: ruling.translationStatus || "reviewed",
+      cardId: card?.id || null,
+    };
+
+    if (existing) await prisma.ruling.update({ where: { id: existing.id }, data });
+    else await prisma.ruling.create({ data });
+  }
+}
+
+async function upsertTournaments(items: TournamentImportInput[]) {
+  for (const tournament of items) {
+    const existing = await prisma.tournament.findFirst({
+      where: {
+        name: tournament.name,
+        dateStart: toDateOrNull(tournament.dateStart),
+      },
+    });
+
+    const data = {
+      name: tournament.name,
+      organizer: tournament.organizer || null,
+      country: tournament.country || null,
+      city: tournament.city || null,
+      format: tournament.format || "constructed",
+      season: tournament.season || null,
+      sourceUrl: tournament.sourceUrl || null,
+      participantCount: tournament.participantCount ?? null,
+      roundCount: tournament.roundCount ?? null,
+      topCutSize: tournament.topCutSize ?? null,
+      dateStart: toDateOrNull(tournament.dateStart),
+      dateEnd: toDateOrNull(tournament.dateEnd),
+    };
+
+    if (existing) await prisma.tournament.update({ where: { id: existing.id }, data });
+    else await prisma.tournament.create({ data });
+  }
+}
+
+async function applyImageManifest(items: ImageManifestInput[]) {
+  for (const item of items) {
+    if (item.entity === "card") {
+      await prisma.card.update({
+        where: { code: item.code },
+        data: {
+          imageUrl: normalizeAssetUrl(item.imageUrl, "images/cards"),
+          thumbUrl: normalizeAssetUrl(item.thumbUrl, "images/cards/thumbs"),
+          imageSourceUrl: item.imageSourceUrl || null,
+        },
+      });
+      continue;
+    }
+
+    await prisma.cardSet.update({
+      where: { code: item.code },
+      data: {
+        coverImage: normalizeAssetUrl(item.coverImage || item.imageUrl, "images/sets"),
+      },
+    });
+  }
 }
 
 function getPagination(query: Request["query"], defaults: { pageSize?: number; maxPageSize?: number } = {}) {
@@ -483,8 +835,29 @@ app.get("/api/sets/:code", async (req, res) => {
 });
 
 app.post("/api/sets", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
-  const set = await prisma.cardSet.create({ data: req.body });
-  res.status(201).json(set);
+  const payload = req.body as SetInput;
+  const setMap = await upsertSets([payload]);
+  const created = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
+  res.status(201).json(created);
+});
+
+app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.cardSet.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
+  const payload = { ...req.body, code: req.body.code || existing.code } as SetInput;
+  const setMap = await upsertSets([payload]);
+  const updated = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
+  res.json(updated);
+});
+
+app.delete("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.cardSet.findUnique({ where: { id }, include: { _count: { select: { cards: true } } } });
+  if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
+  if (existing._count.cards > 0) return res.status(400).json({ error: "Remova ou mova as cartas desta coleção antes de excluir." });
+  await prisma.cardSet.delete({ where: { id } });
+  res.status(204).send();
 });
 
 app.get("/api/cards", async (req, res) => {
@@ -587,13 +960,19 @@ app.get("/api/cards/:id", async (req, res) => {
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
-  const card = await prisma.card.create({ data: req.body as CardInput });
+  const payload = req.body as CardInput;
+  await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
+  const card = await prisma.card.findUnique({ where: { code: payload.code }, include: { set: true, rulings: true } });
   res.status(201).json(card);
 });
 
 app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const id = String(req.params.id);
-  const card = await prisma.card.update({ where: { id }, data: req.body as CardInput });
+  const existing = await prisma.card.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Carta não encontrada." });
+  const payload = { ...req.body, code: req.body.code || existing.code } as CardInput;
+  await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
+  const card = await prisma.card.findUnique({ where: { code: payload.code }, include: { set: true, rulings: true } });
   res.json(card);
 });
 
@@ -609,38 +988,73 @@ app.post("/api/cards/upload-image", authRequired, roleRequired([UserRole.ADMIN, 
 });
 
 app.post("/api/import/cards", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
-  const payload = req.body as { cards?: CardInput[]; set?: { code: string; nameEn: string; namePt?: string; officialUrl?: string } };
+  const payload = req.body as { cards?: CardInput[]; set?: SetInput };
   if (!payload.cards?.length) return res.status(400).json({ error: "Nenhuma carta enviada para importar." });
 
   let setId: string | undefined;
+  let setMap = new Map<string, string>();
   if (payload.set) {
-    const set = await prisma.cardSet.upsert({
-      where: { code: payload.set.code },
-      update: payload.set,
-      create: payload.set,
-    });
-    setId = set.id;
+    setMap = await upsertSets([payload.set]);
+    setId = setMap.get(payload.set.code);
   }
 
-  for (const card of payload.cards) {
-    await prisma.card.upsert({
-      where: { code: card.code },
-      update: { ...card, setId },
-      create: { ...card, setId },
-    });
-  }
-
+  await upsertCards(payload.cards, setMap, setId);
   res.json({ imported: payload.cards.length, setId: setId ?? null });
 });
 
 app.post("/api/import/rulings", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
-  const payload = req.body as { rulings?: Array<Record<string, unknown>> };
+  const payload = req.body as { rulings?: RulingImportInput[] };
   if (!payload.rulings?.length) return res.status(400).json({ error: "Nenhuma ruling enviada para importar." });
-
-  for (const ruling of payload.rulings) {
-    await prisma.ruling.create({ data: ruling as any });
-  }
+  await upsertRulings(payload.rulings);
   res.json({ imported: payload.rulings.length });
+});
+
+app.post("/api/import/catalog", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const payload = req.body as {
+    clearExisting?: boolean;
+    sets?: SetInput[];
+    cards?: CardInput[];
+    rulings?: RulingImportInput[];
+    tournaments?: TournamentImportInput[];
+    images?: ImageManifestInput[];
+  };
+
+  if (payload.clearExisting) {
+    await prisma.$transaction([
+      prisma.deckItem.deleteMany(),
+      prisma.deck.deleteMany(),
+      prisma.cardBinderItem.deleteMany(),
+      prisma.tournamentEntry.deleteMany(),
+      prisma.ruling.deleteMany(),
+      prisma.card.deleteMany(),
+      prisma.cardSet.deleteMany(),
+      prisma.tournament.deleteMany(),
+    ]);
+  }
+
+  const setMap = payload.sets?.length ? await upsertSets(payload.sets) : new Map<string, string>();
+  if (payload.cards?.length) await upsertCards(payload.cards, setMap);
+  if (payload.rulings?.length) await upsertRulings(payload.rulings);
+  if (payload.tournaments?.length) await upsertTournaments(payload.tournaments);
+  if (payload.images?.length) await applyImageManifest(payload.images);
+
+  res.json({
+    imported: {
+      sets: payload.sets?.length ?? 0,
+      cards: payload.cards?.length ?? 0,
+      rulings: payload.rulings?.length ?? 0,
+      tournaments: payload.tournaments?.length ?? 0,
+      images: payload.images?.length ?? 0,
+    },
+    clearedExisting: Boolean(payload.clearExisting),
+  });
+});
+
+app.post("/api/import/images-manifest", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const payload = req.body as { items?: ImageManifestInput[] };
+  if (!payload.items?.length) return res.status(400).json({ error: "Nenhuma imagem enviada para aplicar." });
+  await applyImageManifest(payload.items);
+  res.json({ imported: payload.items.length });
 });
 
 app.get("/api/rulings", async (req, res) => {

@@ -49,10 +49,23 @@ enum BinderKind {
 }
 
 enum SetKind {
-  BOOSTER
-  STARTER
-  PROMO
+  BOOSTER_PACK
+  STARTER_DECK
+  ACCESSORIES
+  PREMIUM_BANDAI
   OTHER
+}
+
+enum CardType {
+  UNIT
+  PILOT
+  COMMAND
+  COMMAND_PILOT
+  BASE
+  RESOURCE
+  EX_BASE
+  EX_RESOURCE
+  UNIT_TOKEN
 }
 
 model User {
@@ -76,46 +89,68 @@ model User {
 }
 
 model CardSet {
-  id               String    @id @default(cuid())
-  code             String    @unique
-  nameEn           String
-  namePt           String?
-  releaseDate      DateTime?
-  officialUrl      String?
-  coverImage       String?
-  shortDescription String?   @db.Text
-  setType          SetKind   @default(BOOSTER)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  code                  String    @unique
+  nameEn                String
+  namePt                String?
+  releaseDate           DateTime?
+  officialUrl           String?
+  coverImage            String?
+  shortDescription      String?   @db.Text
+  setType               SetKind   @default(BOOSTER_PACK)
+  productCodeAlt        String?
+  msrpUsd               Float?
+  contentSummaryEn      String?   @db.Text
+  contentSummaryPt      String?   @db.Text
+  raritySummary         String?   @db.Text
+  productNotes          String?   @db.Text
+  sourceTitles          String[]
+  starterDeckVariantOf  String?
+  metadataJson          Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   cards Card[]
 }
 
 model Card {
-  id             String   @id @default(cuid())
-  code           String   @unique
-  nameEn         String
-  namePt         String?
-  cardType       String
-  color          String?
-  level          Int?
-  cost           Int?
-  ap             Int?
-  hp             Int?
-  rarity         String?
-  trait          String?
-  series         String?
-  effectEn       String?  @db.Text
-  effectPt       String?  @db.Text
-  keywordTags    String[]
-  imageUrl       String?
-  thumbUrl       String?
-  imageSourceUrl String?
-  officialUrl    String?
-  legalityStatus String?  @default("legal")
-  setId          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default(cuid())
+  code              String   @unique
+  nameEn            String
+  namePt            String?
+  cardType          CardType
+  cardSubtypes      String[]
+  color             String?
+  level             Int?
+  cost              Int?
+  ap                Int?
+  hp                Int?
+  rarity            String?
+  trait             String?
+  traits            String[]
+  series            String?
+  sourceTitle       String?
+  zone              String?
+  linkText          String?
+  pilotName         String?
+  effectEn          String?  @db.Text
+  effectPt          String?  @db.Text
+  triggerKeywords   String[]
+  keywordTags       String[]
+  effectKeywords    String[]
+  textSectionsJson  Json?
+  hasBurst          Boolean  @default(false)
+  hasMain           Boolean  @default(false)
+  hasAction         Boolean  @default(false)
+  oncePerTurn       Boolean  @default(false)
+  imageUrl          String?
+  thumbUrl          String?
+  imageSourceUrl    String?
+  officialUrl       String?
+  legalityStatus    String?  @default("legal")
+  setId             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   set         CardSet?         @relation(fields: [setId], references: [id])
   deckItems   DeckItem[]

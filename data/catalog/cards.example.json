@@ -1,0 +1,25 @@
+[
+  {
+    "code": "GD01-001",
+    "setCode": "GD01",
+    "nameEn": "Aile Strike Gundam",
+    "namePt": "Aile Strike Gundam",
+    "cardType": "Unit",
+    "color": "Blue",
+    "level": 4,
+    "cost": 3,
+    "ap": 4,
+    "hp": 3,
+    "rarity": "R",
+    "trait": "Earth Alliance",
+    "series": "Mobile Suit Gundam SEED",
+    "effectEn": "When deployed, draw 1 card if you control another blue card.",
+    "effectPt": "Ao entrar em jogo, compre 1 carta se você controla outra carta azul.",
+    "keywordTags": ["Breach", "Deploy"],
+    "imageUrl": "GD01-001.webp",
+    "thumbUrl": "GD01-001-thumb.webp",
+    "imageSourceUrl": "https://www.gundam-gcg.com/en/cards/",
+    "officialUrl": "https://www.gundam-gcg.com/en/cards/",
+    "legalityStatus": "legal"
+  }
+]

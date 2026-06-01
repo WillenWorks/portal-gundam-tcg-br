@@ -1,0 +1,17 @@
+[
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "cardCode": "GD01-001",
+    "title": "Janela de deploy do Aile Strike",
+    "questionEn": "When does the deploy effect trigger?",
+    "answerEn": "It resolves when the unit enters play and its condition is met.",
+    "questionPt": "Quando o efeito de deploy dispara?",
+    "answerPt": "Ele resolve quando a unidade entra em jogo e a condição é atendida.",
+    "examplePlayPt": "Baixe a unidade controlando outra carta azul para comprar 1 carta.",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/",
+    "relatedKeyword": "Deploy",
+    "relatedPhase": "Main",
+    "officialUpdatedAt": "2026-05-28T00:00:00.000Z",
+    "translationStatus": "reviewed"
+  }
+]
