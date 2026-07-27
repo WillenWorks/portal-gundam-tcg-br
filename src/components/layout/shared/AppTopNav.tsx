@@ -29,7 +29,7 @@ export function AppTopNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const currentPath = useMemo(() => location.split("?")[0], [location]);
-  const dashboardHref = user?.role === "ADMIN" ? "/admin" : "/portal";
+  const dashboardHref = "/profile";
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/92 text-white backdrop-blur-xl">
@@ -72,7 +72,7 @@ export function AppTopNav() {
           {isAuthenticated ? (
             <>
               <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">
-                <Link href={dashboardHref}><PanelsTopLeft className="mr-2 size-4" />Painel</Link>
+                <Link href={dashboardHref}><PanelsTopLeft className="mr-2 size-4" />Perfil</Link>
               </Button>
               <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={logout}>
                 <LogOut className="mr-2 size-4" />Sair
@@ -133,7 +133,7 @@ export function AppTopNav() {
               {isAuthenticated ? (
                 <>
                   <Link href={dashboardHref} className="panel-cut border border-white/10 bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.18em] text-slate-200 nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-800" onClick={() => setMobileOpen(false)}>
-                    Painel
+                    Perfil
                   </Link>
                   <button type="button" className="panel-cut border border-white/10 bg-white/5 px-4 py-3 text-left text-sm uppercase tracking-[0.18em] text-slate-200 nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-800" onClick={() => { setMobileOpen(false); logout(); }}>
                     Sair

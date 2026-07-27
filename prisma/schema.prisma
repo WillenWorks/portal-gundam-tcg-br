@@ -68,6 +68,11 @@ enum CardType {
   UNIT_TOKEN
 }
 
+enum TaxonomyKind {
+  TRAIT
+  SOURCE_TITLE
+}
+
 model User {
   id                    String       @id @default(cuid())
   email                 String       @unique
@@ -107,10 +112,28 @@ model CardSet {
   sourceTitles          String[]
   starterDeckVariantOf  String?
   metadataJson          Json?
+  isActive              Boolean   @default(true)
+  deletedAt             DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
   cards Card[]
+}
+
+model TaxonomyEntry {
+  id           String       @id @default(cuid())
+  kind         TaxonomyKind
+  name         String
+  slug         String
+  description  String?      @db.Text
+  metadataJson Json?
+  isActive     Boolean      @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([kind, name])
+  @@unique([kind, slug])
 }
 
 model Card {
@@ -147,7 +170,10 @@ model Card {
   thumbUrl          String?
   imageSourceUrl    String?
   officialUrl       String?
+  metadataJson      Json?
   legalityStatus    String?  @default("legal")
+  isActive          Boolean  @default(true)
+  deletedAt         DateTime?
   setId             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -168,6 +194,7 @@ model Deck {
   coverImage        String?
   shareId           String         @unique @default(cuid())
   isPrimary         Boolean        @default(false)
+  featuredCardIds   String[]       @default([])
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -234,6 +261,8 @@ model Ruling {
   officialUpdatedAt DateTime?
   translationStatus String?        @default("pending")
   cardId            String?
+  isActive          Boolean        @default(true)
+  deletedAt         DateTime?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -254,6 +283,8 @@ model Tournament {
   topCutSize       Int?
   dateStart        DateTime?
   dateEnd          DateTime?
+  isActive         Boolean           @default(true)
+  deletedAt        DateTime?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 

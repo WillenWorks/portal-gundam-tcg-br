@@ -1,5 +1,5 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Plus, Save, Share2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -88,6 +88,10 @@ export default function DeckbuilderPage() {
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
+  const [coverImage, setCoverImage] = useState("");
+  const [featuredCardIds, setFeaturedCardIds] = useState<string[]>([]);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverUploadInputRef = useRef<HTMLInputElement | null>(null);
   const [poolFilters, setPoolFilters] = useState<PoolFilters>(defaultPoolFilters);
   const [poolQueryDraft, setPoolQueryDraft] = useState("");
   const [poolMeta, setPoolMeta] = useState<PoolMeta>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
@@ -120,6 +124,8 @@ export default function DeckbuilderPage() {
     setSelectedShareId(deck.shareId);
     setDeckName(deck.name);
     setVisibility(deck.visibility);
+    setCoverImage(deck.coverImage || "");
+    setFeaturedCardIds((deck.featuredCardIds || []).slice(0, 2));
     setEntries(deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity })));
   };
 
@@ -291,6 +297,8 @@ export default function DeckbuilderPage() {
       format: "constructed",
       visibility,
       isPrimary: true,
+      coverImage: coverImage || null,
+      featuredCardIds: featuredCardIds.slice(0, 2),
       items: entries.map((item) => ({ ...item, section: "main" })),
     };
 
@@ -311,7 +319,38 @@ export default function DeckbuilderPage() {
     setSelectedShareId(null);
     setDeckName(`Novo Deck ${decks.length + 1}`);
     setVisibility("PRIVATE");
+    setCoverImage("");
+    setFeaturedCardIds([]);
     setEntries([]);
+  };
+
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("entity", "decks");
+      formData.append("referenceCode", deckName || "deck");
+      formData.append("label", "cover");
+      const uploaded = await api.uploadAssetImage(formData);
+      setCoverImage(uploaded.imageUrl);
+      toast.success("Capa do deck enviada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao enviar a capa do deck.");
+    } finally {
+      if (event.target) event.target.value = "";
+      setUploadingCover(false);
+    }
+  };
+
+  const toggleFeaturedCard = (cardId: string) => {
+    setFeaturedCardIds((current) => {
+      if (current.includes(cardId)) return current.filter((id) => id !== cardId);
+      if (current.length >= 2) { toast.error("Escolha no máximo duas cartas de destaque."); return current; }
+      return [...current, cardId];
+    });
   };
 
   const removeDeck = async (id: string) => {
@@ -431,6 +470,18 @@ export default function DeckbuilderPage() {
                     {mode}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-6 grid gap-4 border-y border-white/10 py-5 lg:grid-cols-[180px_1fr]">
+                <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
+                  {coverImage ? <img src={coverImage} alt="Capa do deck" className="h-full w-full object-cover" /> : <div className="flex h-full min-h-28 items-center justify-center px-4 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}
+                  <input ref={coverUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+                </div>
+                <div className="space-y-3">
+                  <div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial</p><p className="mt-1 text-sm text-soft">Envie uma imagem do computador para representar o deck.</p></div>
+                  <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" disabled={uploadingCover} onClick={() => coverUploadInputRef.current?.click()}>{uploadingCover ? "Enviando…" : "Enviar capa"}</Button>{coverImage ? <Button type="button" variant="ghost" className="rounded-none text-slate-400 hover:text-white" onClick={() => setCoverImage("")}>Remover</Button> : null}</div>
+                  <div className="pt-2"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de destaque · até 2</p><p className="mt-1 text-sm text-soft">Escolha cartas já cadastradas na pool carregada.</p><div className="mt-3 grid max-h-40 gap-2 overflow-auto pr-1 sm:grid-cols-2">{cards.map((card) => { const active = featuredCardIds.includes(card.id); return <button key={card.id} type="button" onClick={() => toggleFeaturedCard(card.id)} className={`flex items-center gap-2 border p-2 text-left text-xs transition ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}><span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span><span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span></button>; })}</div></div>
+                </div>
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">

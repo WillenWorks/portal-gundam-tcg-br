@@ -83,7 +83,8 @@ function AppRouter() {
         <Route path="/deckbuilder">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/u/:username" component={PublicProfilePage} />
-        <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Admin"><AdminPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>
         <Route path="/:section">{(params) => <Home targetSection={params.section} />}</Route>
         <Route component={NotFound} />

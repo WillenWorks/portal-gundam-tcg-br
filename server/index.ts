@@ -3,25 +3,45 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind } from "@prisma/client";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 
 const prisma = new PrismaClient();
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 8787);
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
-const uploadDir = path.resolve(process.cwd(), "public/uploads/cards");
-fs.mkdirSync(uploadDir, { recursive: true });
+const uploadRootDir = path.resolve(process.cwd(), process.env.LOCAL_UPLOAD_DIR || "public/uploads");
+const cardUploadDir = path.join(uploadRootDir, "cards");
+fs.mkdirSync(cardUploadDir, { recursive: true });
+
+const STORAGE_DRIVER = (process.env.STORAGE_DRIVER || "local").toLowerCase();
+const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || process.env.VITE_PUBLIC_APP_URL || "").replace(/\/$/, "");
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "card-images";
+const SUPABASE_STORAGE_PUBLIC_BASE_URL = (process.env.SUPABASE_STORAGE_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+const MAX_IMAGE_UPLOAD_MB = Number(process.env.MAX_IMAGE_UPLOAD_MB || 8);
 
 app.use(cors());
 app.use(express.json({ limit: "4mb" }));
-app.use("/uploads", express.static(path.resolve(process.cwd(), "public/uploads")));
+app.use("/uploads", express.static(uploadRootDir, {
+  maxAge: STORAGE_DRIVER === "local" ? "1d" : 0,
+  immutable: false,
+}));
 
-const upload = multer({ dest: uploadDir });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_IMAGE_UPLOAD_MB * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype?.startsWith("image/")) return cb(new Error("Apenas imagens são aceitas."));
+    cb(null, true);
+  },
+});
 
 type AuthPayload = {
   userId: string;
@@ -36,6 +56,7 @@ type CardInput = {
   code: string;
   nameEn: string;
   namePt?: string;
+  metadataJson?: unknown;
   cardType: string;
   cardSubtypes?: string[];
   color?: string;
@@ -160,6 +181,90 @@ function slugify(value: string) {
     .slice(0, 40);
 }
 
+function getImageExtension(file: Express.Multer.File) {
+  const fromOriginal = path.extname(file.originalname || "").toLowerCase().replace(/[^.a-z0-9]/g, "");
+  if ([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"].includes(fromOriginal)) return fromOriginal === ".jpeg" ? ".jpg" : fromOriginal;
+  if (file.mimetype === "image/png") return ".png";
+  if (file.mimetype === "image/webp") return ".webp";
+  if (file.mimetype === "image/gif") return ".gif";
+  if (file.mimetype === "image/avif") return ".avif";
+  return ".jpg";
+}
+
+function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+  const now = new Date();
+  const yyyy = String(now.getUTCFullYear());
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const card = slugify(input?.cardCode || "uncataloged") || "uncataloged";
+  const art = slugify(input?.artId || input?.label || "art") || "art";
+  const suffix = crypto.randomUUID().slice(0, 8);
+  const entity = input?.entity || "cards";
+  return `${entity}/${yyyy}/${mm}/${card}/${art}-${suffix}${getImageExtension(file)}`;
+}
+
+function toAbsolutePublicUrl(relativeUrl: string) {
+  if (relativeUrl.startsWith("http://") || relativeUrl.startsWith("https://")) return relativeUrl;
+  return PUBLIC_APP_URL ? `${PUBLIC_APP_URL}${relativeUrl.startsWith("/") ? "" : "/"}${relativeUrl}` : relativeUrl;
+}
+
+async function saveImageLocally(file: Express.Multer.File, objectKey: string) {
+  const absolutePath = path.join(uploadRootDir, objectKey);
+  await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.promises.writeFile(absolutePath, file.buffer);
+  const relativeUrl = `/uploads/${objectKey}`;
+  return {
+    imageUrl: relativeUrl,
+    publicUrl: toAbsolutePublicUrl(relativeUrl),
+    storageDriver: "local",
+    storageBucket: "local",
+    storageKey: objectKey,
+  };
+}
+
+async function saveImageToSupabase(file: Express.Multer.File, objectKey: string) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Storage Supabase não configurado. Defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY ou use STORAGE_DRIVER=local.");
+  }
+
+  const uploadUrl = `${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(SUPABASE_STORAGE_BUCKET)}/${objectKey}`;
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      "Content-Type": file.mimetype || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "x-upsert": "true",
+    },
+    body: file.buffer,
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Falha no upload para Supabase Storage: ${response.status} ${text}`.trim());
+  }
+
+  const publicUrl = SUPABASE_STORAGE_PUBLIC_BASE_URL
+    ? `${SUPABASE_STORAGE_PUBLIC_BASE_URL}/${objectKey}`
+    : `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_STORAGE_BUCKET}/${objectKey}`;
+
+  return {
+    imageUrl: publicUrl,
+    publicUrl,
+    storageDriver: "supabase",
+    storageBucket: SUPABASE_STORAGE_BUCKET,
+    storageKey: objectKey,
+  };
+}
+
+async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+  if (!file.buffer?.length) throw new Error("Arquivo de imagem vazio.");
+  const objectKey = buildStorageObjectKey(file, input);
+  if (STORAGE_DRIVER === "supabase") return saveImageToSupabase(file, objectKey);
+  if (STORAGE_DRIVER !== "local") throw new Error(`STORAGE_DRIVER inválido: ${STORAGE_DRIVER}. Use local ou supabase.`);
+  return saveImageLocally(file, objectKey);
+}
+
 function normalizeQueryValue(input: unknown) {
   return String(input ?? "").trim();
 }
@@ -181,6 +286,15 @@ function toDateOrNull(input: unknown) {
   if (!input) return null;
   const date = input instanceof Date ? input : new Date(String(input));
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseOptionalFloat(input: unknown) {
+  if (input === null || input === undefined) return null;
+  const raw = String(input).trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/\$/g, "").replace(/\s+/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(/,/g, ".");
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
 }
 
 function normalizeSetType(value: unknown): SetKind {
@@ -205,6 +319,53 @@ function normalizeCardType(value: unknown): CardType {
   return CardType.UNIT;
 }
 
+function normalizeTaxonomyKind(value: unknown): TaxonomyKind {
+  const raw = String(value || "TRAIT").trim().toUpperCase();
+  return raw === "SOURCE_TITLE" ? TaxonomyKind.SOURCE_TITLE : TaxonomyKind.TRAIT;
+}
+
+function normalizeArtVariants(card: CardInput) {
+  const incomingMetadata = card.metadataJson && typeof card.metadataJson === "object" && !Array.isArray(card.metadataJson)
+    ? (card.metadataJson as Record<string, unknown>)
+    : {};
+  const rawVariants = Array.isArray(incomingMetadata.artVariants) ? incomingMetadata.artVariants as Array<any> : [];
+  const fallbackVariant = card.imageUrl || card.thumbUrl || card.imageSourceUrl
+    ? [{
+        id: "art-1",
+        label: "Arte 1",
+        url: card.imageUrl,
+        thumbUrl: card.thumbUrl,
+        sourceUrl: card.imageSourceUrl,
+        rarity: card.rarity || null,
+        isPrimary: true,
+        position: 0,
+      }]
+    : [];
+
+  const seeded = (rawVariants.length ? rawVariants : fallbackVariant)
+    .map((item: any, index: number) => ({
+      id: String(item?.id || `art-${index + 1}`),
+      label: String(item?.label || `Arte ${index + 1}`),
+      url: normalizeAssetUrl(item?.url || item?.imageUrl, "images/cards"),
+      thumbUrl: normalizeAssetUrl(item?.thumbUrl, "images/cards/thumbs"),
+      sourceUrl: String(item?.sourceUrl || item?.imageSourceUrl || "").trim() || null,
+      rarity: String(item?.rarity || card.rarity || "").trim() || null,
+      isPrimary: Boolean(item?.isPrimary),
+      position: Number.isFinite(Number(item?.position)) ? Number(item.position) : index,
+    }))
+    .filter((item) => item.url || item.thumbUrl || item.sourceUrl || item.label || item.isPrimary);
+
+  if (!seeded.length) return { artVariants: [], primary: null as null | { url: string | null; thumbUrl: string | null; sourceUrl: string | null } };
+
+  let primaryIndex = seeded.findIndex((item) => item.isPrimary);
+  if (primaryIndex < 0) primaryIndex = seeded.findIndex((item) => Boolean(item.url));
+  if (primaryIndex < 0) primaryIndex = 0;
+
+  const artVariants = seeded.map((item, index) => ({ ...item, isPrimary: index === primaryIndex, position: index }));
+  const primary = artVariants[primaryIndex] || null;
+  return { artVariants, primary };
+}
+
 function buildEffectText(card: CardInput) {
   const sections = Array.isArray(card.textSectionsJson) ? card.textSectionsJson as Array<any> : [];
   if (!sections.length) return { effectPt: card.effectPt || null, effectEn: card.effectEn || null };
@@ -219,11 +380,25 @@ function normalizeCardEffectPayload(card: CardInput) {
     ? card.textSectionsJson
     : parsed.sections;
 
+  const incomingMetadata = card.metadataJson && typeof card.metadataJson === "object" && !Array.isArray(card.metadataJson)
+    ? (card.metadataJson as Record<string, unknown>)
+    : {};
+
+  const metadataJson = {
+    ...incomingMetadata,
+    nativeKeywordTags: parsed.nativeKeywordTags,
+    conditionalKeywordTags: parsed.conditionalKeywordTags,
+    keywordMeta: parsed.keywordMeta,
+    sectionMeta: parsed.sectionMeta,
+    linkRequirements: parsed.linkRequirements,
+  };
+
   return {
     triggerKeywords: Array.from(new Set([...(Array.isArray(card.triggerKeywords) ? card.triggerKeywords : []), ...parsed.triggerKeywords])),
     effectKeywords: Array.from(new Set([...(Array.isArray(card.effectKeywords) ? card.effectKeywords : []), ...parsed.effectKeywords])),
     keywordTags: Array.from(new Set([...(Array.isArray(card.keywordTags) ? card.keywordTags : []), ...parsed.keywordTags])),
     textSectionsJson: (mergedSections as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+    metadataJson: (metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
     hasBurst: Boolean(card.hasBurst || parsed.hasBurst),
     hasMain: Boolean(card.hasMain || parsed.hasMain),
     hasAction: Boolean(card.hasAction || parsed.hasAction),
@@ -246,7 +421,7 @@ async function upsertSets(items: SetInput[]) {
         shortDescription: set.shortDescription || null,
         setType: normalizeSetType(set.setType),
         productCodeAlt: set.productCodeAlt || null,
-        msrpUsd: set.msrpUsd ?? null,
+        msrpUsd: parseOptionalFloat(set.msrpUsd),
         contentSummaryEn: set.contentSummaryEn || null,
         contentSummaryPt: set.contentSummaryPt || null,
         raritySummary: set.raritySummary || null,
@@ -254,6 +429,8 @@ async function upsertSets(items: SetInput[]) {
         sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
         starterDeckVariantOf: set.starterDeckVariantOf || null,
         metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        isActive: true,
+        deletedAt: null,
       },
       create: {
         code: set.code,
@@ -265,7 +442,7 @@ async function upsertSets(items: SetInput[]) {
         shortDescription: set.shortDescription || null,
         setType: normalizeSetType(set.setType),
         productCodeAlt: set.productCodeAlt || null,
-        msrpUsd: set.msrpUsd ?? null,
+        msrpUsd: parseOptionalFloat(set.msrpUsd),
         contentSummaryEn: set.contentSummaryEn || null,
         contentSummaryPt: set.contentSummaryPt || null,
         raritySummary: set.raritySummary || null,
@@ -286,6 +463,19 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
     const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
     const normalizedEffects = normalizeCardEffectPayload(card);
     const { effectPt, effectEn } = buildEffectText({ ...card, textSectionsJson: normalizedEffects.textSectionsJson });
+    const metadata = normalizedEffects.metadataJson && typeof normalizedEffects.metadataJson === "object" && !Array.isArray(normalizedEffects.metadataJson)
+      ? { ...(normalizedEffects.metadataJson as Record<string, unknown>) }
+      : {};
+    const artState = normalizeArtVariants(card);
+    if (artState.artVariants.length) metadata.artVariants = artState.artVariants as unknown as Prisma.InputJsonValue;
+    else delete metadata.artVariants;
+    const inferredLinkText = Array.isArray(metadata.linkRequirements)
+      ? metadata.linkRequirements.map((item: any) => item.qualifier).filter(Boolean).join(" | ")
+      : null;
+    const primaryImageUrl = artState.primary?.url || normalizeAssetUrl(card.imageUrl, "images/cards");
+    const primaryThumbUrl = artState.primary?.thumbUrl || normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs");
+    const primarySourceUrl = artState.primary?.sourceUrl || card.imageSourceUrl || null;
+    const finalMetadataJson = Object.keys(metadata).length ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull;
     await prisma.card.upsert({
       where: { code: card.code },
       update: {
@@ -305,7 +495,7 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
         series: card.series || null,
         sourceTitle: card.sourceTitle || card.series || null,
         zone: card.zone || null,
-        linkText: card.linkText || null,
+        linkText: card.linkText || inferredLinkText || null,
         pilotName: card.pilotName || null,
         effectEn,
         effectPt,
@@ -317,11 +507,14 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
         hasMain: normalizedEffects.hasMain,
         hasAction: normalizedEffects.hasAction,
         oncePerTurn: normalizedEffects.oncePerTurn,
-        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
-        imageSourceUrl: card.imageSourceUrl || null,
-        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
+        imageUrl: primaryImageUrl,
+        imageSourceUrl: primarySourceUrl,
+        thumbUrl: primaryThumbUrl,
         officialUrl: card.officialUrl || null,
+        metadataJson: finalMetadataJson,
         legalityStatus: card.legalityStatus || "legal",
+        isActive: true,
+        deletedAt: null,
         setId,
       },
       create: {
@@ -341,7 +534,7 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
         series: card.series || null,
         sourceTitle: card.sourceTitle || card.series || null,
         zone: card.zone || null,
-        linkText: card.linkText || null,
+        linkText: card.linkText || inferredLinkText || null,
         pilotName: card.pilotName || null,
         effectEn,
         effectPt,
@@ -353,10 +546,11 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
         hasMain: normalizedEffects.hasMain,
         hasAction: normalizedEffects.hasAction,
         oncePerTurn: normalizedEffects.oncePerTurn,
-        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
-        imageSourceUrl: card.imageSourceUrl || null,
-        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
+        imageUrl: primaryImageUrl,
+        imageSourceUrl: primarySourceUrl,
+        thumbUrl: primaryThumbUrl,
         officialUrl: card.officialUrl || null,
+        metadataJson: finalMetadataJson,
         legalityStatus: card.legalityStatus || "legal",
         setId,
       },
@@ -571,9 +765,11 @@ app.post("/api/auth/register", async (req, res) => {
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) return res.status(400).json({ error: "Email e senha são obrigatórios." });
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.isActive || !(await bcrypt.compare(password, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedPassword = String(password || "");
+  if (!normalizedEmail || !normalizedPassword) return res.status(400).json({ error: "Email e senha são obrigatórios." });
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (!user || !user.isActive || !(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
@@ -813,15 +1009,15 @@ app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async
 
 app.get("/api/sets", async (_req, res) => {
   setPublicCache(res, 60, 300);
-  const sets = await prisma.cardSet.findMany({ include: { _count: { select: { cards: true } } }, orderBy: { code: "asc" } });
+  const sets = await prisma.cardSet.findMany({ where: { isActive: true }, include: { _count: { select: { cards: true } } }, orderBy: { code: "asc" } });
   res.json(sets);
 });
 
 app.get("/api/sets/:code", async (req, res) => {
   setPublicCache(res, 30, 120);
   const code = String(req.params.code);
-  const set = await prisma.cardSet.findUnique({
-    where: { code },
+  const set = await prisma.cardSet.findFirst({
+    where: { code, isActive: true },
     include: {
       cards: {
         include: { rulings: true },
@@ -853,10 +1049,49 @@ app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.ED
 
 app.delete("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  const existing = await prisma.cardSet.findUnique({ where: { id }, include: { _count: { select: { cards: true } } } });
+  const existing = await prisma.cardSet.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
-  if (existing._count.cards > 0) return res.status(400).json({ error: "Remova ou mova as cartas desta coleção antes de excluir." });
-  await prisma.cardSet.delete({ where: { id } });
+  await prisma.cardSet.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+  res.status(204).send();
+});
+
+app.get("/api/taxonomies", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const kind = req.query.kind ? normalizeTaxonomyKind(req.query.kind) : undefined;
+  const items = await prisma.taxonomyEntry.findMany({
+    where: { isActive: true, ...(kind ? { kind } : {}) },
+    orderBy: [{ kind: "asc" }, { name: "asc" }],
+  });
+  res.json(items);
+});
+
+app.post("/api/taxonomies", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const kind = normalizeTaxonomyKind(req.body.kind);
+  const name = String(req.body.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Nome é obrigatório." });
+  const item = await prisma.taxonomyEntry.upsert({
+    where: { kind_name: { kind, name } },
+    update: { description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
+    create: { kind, name, slug: slugify(name), description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
+  });
+  res.status(201).json(item);
+});
+
+app.put("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.taxonomyEntry.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Registro não encontrado." });
+  const name = String(req.body.name || existing.name).trim();
+  const updated = await prisma.taxonomyEntry.update({
+    where: { id },
+    data: { kind: req.body.kind ? normalizeTaxonomyKind(req.body.kind) : existing.kind, name, slug: slugify(name), description: req.body.description ?? existing.description, metadataJson: req.body.metadataJson ?? existing.metadataJson ?? Prisma.JsonNull },
+  });
+  res.json(updated);
+});
+
+app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  await prisma.taxonomyEntry.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
 
@@ -874,6 +1109,7 @@ app.get("/api/cards", async (req, res) => {
 
   const where: Prisma.CardWhereInput = {
     AND: [
+      { isActive: true },
       q
         ? {
             OR: [
@@ -978,13 +1214,49 @@ app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
 
 app.delete("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  await prisma.card.delete({ where: { id } });
+  await prisma.card.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
 
 app.post("/api/cards/upload-image", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), upload.single("image"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
-  res.status(201).json({ imageUrl: `/uploads/cards/${req.file.filename}`, imageSourceUrl: "manual_upload" });
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
+    const saved = await saveUploadedCardImage(req.file, {
+      cardCode: req.body?.cardCode ? String(req.body.cardCode) : undefined,
+      artId: req.body?.artId ? String(req.body.artId) : undefined,
+      label: req.body?.label ? String(req.body.label) : undefined,
+    });
+    res.status(201).json({
+      imageUrl: saved.imageUrl,
+      publicUrl: saved.publicUrl,
+      imageSourceUrl: saved.storageDriver === "local" ? "local_upload" : "supabase_storage",
+      storageDriver: saved.storageDriver,
+      storageBucket: saved.storageBucket,
+      storageKey: saved.storageKey,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || "Erro ao armazenar imagem." });
+  }
+});
+
+app.post("/api/uploads/image", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
+    const entityRaw = String(req.body?.entity || "cards");
+    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" : "cards";
+    const saved = await saveUploadedCardImage(req.file, {
+      entity,
+      cardCode: req.body?.referenceCode ? String(req.body.referenceCode) : undefined,
+      artId: req.body?.assetId ? String(req.body.assetId) : undefined,
+      label: req.body?.label ? String(req.body.label) : undefined,
+    });
+    res.status(201).json({ imageUrl: saved.imageUrl, publicUrl: saved.publicUrl, imageSourceUrl: saved.storageDriver === "local" ? "local_upload" : "supabase_storage", storageDriver: saved.storageDriver, storageBucket: saved.storageBucket, storageKey: saved.storageKey, originalName: req.file.originalname, mimeType: req.file.mimetype, size: req.file.size });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || "Erro ao armazenar imagem." });
+  }
 });
 
 app.post("/api/import/cards", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
@@ -1067,6 +1339,7 @@ app.get("/api/rulings", async (req, res) => {
   const rulings = await prisma.ruling.findMany({
     where: {
       AND: [
+        { isActive: true },
         q
           ? {
               OR: [
@@ -1118,13 +1391,13 @@ app.put("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole
 
 app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  await prisma.ruling.delete({ where: { id } });
+  await prisma.ruling.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
 
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);
-  const events = await prisma.tournament.findMany({ include: { entries: true }, orderBy: [{ dateStart: "desc" }] });
+  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: { entries: true }, orderBy: [{ dateStart: "desc" }] });
   res.json(events);
 });
 
@@ -1149,7 +1422,7 @@ app.put("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN, User
 
 app.delete("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  await prisma.tournament.delete({ where: { id } });
+  await prisma.tournament.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
 
@@ -1219,11 +1492,13 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
 });
 
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
-  const { name, format, visibility, notes, isPrimary, items } = req.body as {
+  const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
     format: string;
     visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
     notes?: string;
+    coverImage?: string | null;
+    featuredCardIds?: string[];
     isPrimary?: boolean;
     items: Array<{ cardId: string; quantity: number; section?: string }>;
   };
@@ -1236,6 +1511,8 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       format,
       visibility,
       notes,
+      coverImage: coverImage || null,
+      featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
       items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
@@ -1246,11 +1523,13 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
 
 app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => {
   const deckId = String(req.params.id);
-  const { name, format, visibility, notes, isPrimary, items } = req.body as {
+  const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
     format: string;
     visibility: "PRIVATE" | "UNLISTED" | "PUBLIC";
     notes?: string;
+    coverImage?: string | null;
+    featuredCardIds?: string[];
     isPrimary?: boolean;
     items: Array<{ cardId: string; quantity: number; section?: string }>;
   };
@@ -1265,6 +1544,8 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
       format,
       visibility,
       notes,
+      coverImage: coverImage || null,
+      featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
       items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },

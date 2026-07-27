@@ -80,7 +80,7 @@ export default function AuthPage() {
                   <h3 className="mt-3 font-heading text-3xl uppercase">Você já está autenticado</h3>
                   <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Sessão ativa como <span className="font-semibold dark:text-white light:text-slate-900">{user?.displayName}</span>.</p>
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href={user?.role === "ADMIN" ? "/admin" : "/portal"}>Abrir painel</Link></Button>
+                    <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/profile">Abrir perfil</Link></Button>
                   </div>
                 </>
               ) : (

@@ -44,14 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Login realizado como ${result.user.displayName}.`);
-      navigate(result.user.role === "ADMIN" ? "/admin" : "/portal");
+      navigate("/profile", { replace: true });
     },
     async register(payload) {
       const result = await api.register(payload);
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Conta criada para ${result.user.displayName}.`);
-      navigate("/portal");
+      navigate("/profile", { replace: true });
     },
     async refreshMe() {
       await refreshMe();

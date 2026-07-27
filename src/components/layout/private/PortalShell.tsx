@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, Heart, Home, LogOut, Menu, Moon, Settings, ShieldCheck, Sun, Swords, Users } from "lucide-react";
+import { BookMarked, Boxes, CalendarDays, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,9 +31,15 @@ const userNav = [
 ] as const;
 
 const adminNav = [
-  { href: "/admin", label: "Admin", icon: ShieldCheck },
-  { href: "/admin?tab=users", label: "Usuários", icon: Users },
-  { href: "/admin?tab=sets", label: "Coleções", icon: BookMarked },
+  { href: "/admin", label: "Visão geral", icon: ShieldCheck },
+  { href: "/admin/users", label: "Usuários", icon: Users },
+  { href: "/admin/cards", label: "Cartas", icon: PanelsTopLeft },
+  { href: "/admin/collections", label: "Coleções", icon: BookMarked },
+  { href: "/admin/media", label: "Mídias", icon: Image },
+  { href: "/admin/traits", label: "Traits", icon: Tags },
+  { href: "/admin/rulings", label: "Rulings", icon: ScrollText },
+  { href: "/admin/decks", label: "Decks", icon: Boxes },
+  { href: "/admin/events", label: "Eventos", icon: CalendarDays },
 ] as const;
 
 const titles: Record<string, string> = {
@@ -42,7 +48,15 @@ const titles: Record<string, string> = {
   "/profile": "Configurações",
   "/wishlist": "Lista de desejos",
   "/owned": "Cartas possuídas",
-  "/admin": "Centro administrativo",
+  "/admin": "Gestão",
+  "/admin/users": "Gestão de usuários",
+  "/admin/cards": "Cadastro de cartas",
+  "/admin/collections": "Coleções",
+  "/admin/media": "Mídias",
+  "/admin/traits": "Traits",
+  "/admin/rulings": "Rulings",
+  "/admin/decks": "Decks registrados",
+  "/admin/events": "Eventos",
 };
 
 function SidebarLinks({ location, isAdmin, onNavigate }: { location: string; isAdmin: boolean; onNavigate?: () => void }) {
@@ -158,7 +172,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             </Breadcrumb>
 
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/88 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Núcleo operacional</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{isAdmin && currentPath.startsWith("/admin") ? "Gestão administrativa" : "Núcleo operacional"}</p>
               <h1 className="mt-2 font-heading text-5xl uppercase leading-none dark:text-white light:text-slate-900">{currentTitle}</h1>
             </div>
           </header>

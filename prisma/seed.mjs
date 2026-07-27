@@ -150,6 +150,28 @@ async function upsertSets(setSeeds) {
   return setMap;
 }
 
+async function upsertTaxonomies() {
+  const items = [
+    ...[
+      "Earth Federation", "White Base Team", "Zeon", "Zeon Remnants", "Operation Meteor", "OZ", "Preventer", "Civilian", "Earth Alliance", "ZAFT", "Triple Ship Alliance", "Academy", "Benerit Group", "Peil Technologies", "Jeturk Heavy Machinery", "Shin Sei Development Corporation", "Celestial Being", "AEUG", "Titans", "Militia", "Warship"
+    ].map((name) => ({ kind: "TRAIT", name })),
+    ...[
+      "Mobile Suit Gundam", "Mobile Suit Gundam Wing", "Mobile Suit Gundam UC", "Mobile Suit Gundam SEED", "Mobile Suit Gundam: The Witch from Mercury", "∀ Gundam", "Mobile Suit Gundam 00", "Mobile Suit Zeta Gundam"
+    ].map((name) => ({ kind: "SOURCE_TITLE", name })),
+  ];
+  for (const item of items) {
+    await prisma.taxonomyEntry.upsert({
+      where: { kind_name: { kind: item.kind, name: item.name } },
+      update: {},
+      create: {
+        kind: item.kind,
+        name: item.name,
+        slug: item.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      },
+    });
+  }
+}
+
 async function upsertCards(cards, setMap) {
   for (const card of cards) {
     const setId = card.setCode ? setMap.get(card.setCode) || null : null;
@@ -654,6 +676,7 @@ async function main() {
     bio: "Perfil seed para testar área do usuário, decks e binders compartilháveis.",
   });
 
+  await upsertTaxonomies();
   const setMap = await upsertSets(sets);
   await upsertCards(cards, setMap);
   await upsertRulings(rulings);
