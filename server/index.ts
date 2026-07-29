@@ -54,6 +54,8 @@ type RequestWithUser = Request & { user?: AuthPayload };
 
 type CardInput = {
   code: string;
+  externalId?: string | null;
+  recordId?: string;
   nameEn: string;
   namePt?: string;
   metadataJson?: unknown;
@@ -85,8 +87,11 @@ type CardInput = {
   hasAction?: boolean;
   oncePerTurn?: boolean;
   imageUrl?: string | null;
-  imageSourceUrl?: string | null;
   thumbUrl?: string | null;
+  imageSmallUrl?: string | null;
+  imageMediumUrl?: string | null;
+  imageLargeUrl?: string | null;
+  imageSourceUrl?: string | null;
   officialUrl?: string | null;
   setId?: string | null;
   setCode?: string;
@@ -333,8 +338,11 @@ function normalizeArtVariants(card: CardInput) {
     ? [{
         id: "art-1",
         label: "Arte 1",
-        url: card.imageUrl,
-        thumbUrl: card.thumbUrl,
+        smallUrl: card.imageSmallUrl || card.thumbUrl,
+        mediumUrl: card.imageMediumUrl || card.imageUrl,
+        largeUrl: card.imageLargeUrl || card.imageUrl,
+        url: card.imageMediumUrl || card.imageUrl,
+        thumbUrl: card.imageSmallUrl || card.thumbUrl,
         sourceUrl: card.imageSourceUrl,
         rarity: card.rarity || null,
         isPrimary: true,
@@ -346,8 +354,11 @@ function normalizeArtVariants(card: CardInput) {
     .map((item: any, index: number) => ({
       id: String(item?.id || `art-${index + 1}`),
       label: String(item?.label || `Arte ${index + 1}`),
-      url: normalizeAssetUrl(item?.url || item?.imageUrl, "images/cards"),
-      thumbUrl: normalizeAssetUrl(item?.thumbUrl, "images/cards/thumbs"),
+      smallUrl: normalizeAssetUrl(item?.smallUrl || item?.thumbUrl, "images/cards/thumbs"),
+      mediumUrl: normalizeAssetUrl(item?.mediumUrl || item?.url || item?.imageUrl, "images/cards"),
+      largeUrl: normalizeAssetUrl(item?.largeUrl, "images/cards"),
+      url: normalizeAssetUrl(item?.mediumUrl || item?.url || item?.imageUrl, "images/cards"),
+      thumbUrl: normalizeAssetUrl(item?.smallUrl || item?.thumbUrl, "images/cards/thumbs"),
       sourceUrl: String(item?.sourceUrl || item?.imageSourceUrl || "").trim() || null,
       rarity: String(item?.rarity || card.rarity || "").trim() || null,
       isPrimary: Boolean(item?.isPrimary),
@@ -472,14 +483,14 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
     const inferredLinkText = Array.isArray(metadata.linkRequirements)
       ? metadata.linkRequirements.map((item: any) => item.qualifier).filter(Boolean).join(" | ")
       : null;
-    const primaryImageUrl = artState.primary?.url || normalizeAssetUrl(card.imageUrl, "images/cards");
-    const primaryThumbUrl = artState.primary?.thumbUrl || normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs");
+    const primaryImageUrl = artState.primary?.mediumUrl || artState.primary?.url || normalizeAssetUrl(card.imageMediumUrl || card.imageUrl, "images/cards");
+    const primaryThumbUrl = artState.primary?.smallUrl || artState.primary?.thumbUrl || normalizeAssetUrl(card.imageSmallUrl || card.thumbUrl, "images/cards/thumbs");
+    const primaryLargeUrl = artState.primary?.largeUrl || normalizeAssetUrl(card.imageLargeUrl || card.imageUrl, "images/cards");
     const primarySourceUrl = artState.primary?.sourceUrl || card.imageSourceUrl || null;
     const finalMetadataJson = Object.keys(metadata).length ? (metadata as Prisma.InputJsonValue) : Prisma.JsonNull;
-    await prisma.card.upsert({
-      where: { code: card.code },
-      update: {
+    const data = {
         code: card.code,
+        externalId: card.externalId || null,
         nameEn: card.nameEn,
         namePt: card.namePt || null,
         cardType: normalizeCardType(card.cardType),
@@ -510,57 +521,31 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
         imageUrl: primaryImageUrl,
         imageSourceUrl: primarySourceUrl,
         thumbUrl: primaryThumbUrl,
+        imageSmallUrl: primaryThumbUrl,
+        imageMediumUrl: primaryImageUrl,
+        imageLargeUrl: primaryLargeUrl,
         officialUrl: card.officialUrl || null,
         metadataJson: finalMetadataJson,
         legalityStatus: card.legalityStatus || "legal",
         isActive: true,
         deletedAt: null,
         setId,
-      },
-      create: {
-        code: card.code,
-        nameEn: card.nameEn,
-        namePt: card.namePt || null,
-        cardType: normalizeCardType(card.cardType),
-        cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
-        color: card.color || null,
-        cost: card.cost ?? null,
-        level: card.level ?? null,
-        ap: card.ap ?? null,
-        hp: card.hp ?? null,
-        rarity: card.rarity || null,
-        trait: card.trait || traits.join(" | ") || null,
-        traits,
-        series: card.series || null,
-        sourceTitle: card.sourceTitle || card.series || null,
-        zone: card.zone || null,
-        linkText: card.linkText || inferredLinkText || null,
-        pilotName: card.pilotName || null,
-        effectEn,
-        effectPt,
-        triggerKeywords: normalizedEffects.triggerKeywords,
-        keywordTags: normalizedEffects.keywordTags,
-        effectKeywords: normalizedEffects.effectKeywords,
-        textSectionsJson: normalizedEffects.textSectionsJson,
-        hasBurst: normalizedEffects.hasBurst,
-        hasMain: normalizedEffects.hasMain,
-        hasAction: normalizedEffects.hasAction,
-        oncePerTurn: normalizedEffects.oncePerTurn,
-        imageUrl: primaryImageUrl,
-        imageSourceUrl: primarySourceUrl,
-        thumbUrl: primaryThumbUrl,
-        officialUrl: card.officialUrl || null,
-        metadataJson: finalMetadataJson,
-        legalityStatus: card.legalityStatus || "legal",
-        setId,
-      },
-    });
+    };
+    if (card.recordId) {
+      await prisma.card.update({ where: { id: card.recordId }, data });
+    } else if (card.externalId) {
+      await prisma.card.upsert({ where: { externalId: card.externalId }, update: data, create: data });
+    } else {
+      const existing = await prisma.card.findFirst({ where: { code: card.code, setId } });
+      if (existing) await prisma.card.update({ where: { id: existing.id }, data });
+      else await prisma.card.create({ data });
+    }
   }
 }
 
 async function upsertRulings(items: RulingImportInput[]) {
   for (const ruling of items) {
-    const card = ruling.cardCode ? await prisma.card.findUnique({ where: { code: ruling.cardCode } }) : null;
+    const card = ruling.cardCode ? await prisma.card.findFirst({ where: { code: ruling.cardCode } }) : null;
     const existing = await prisma.ruling.findFirst({
       where: {
         sourceType: ruling.sourceType,
@@ -1198,7 +1183,9 @@ app.get("/api/cards/:id", async (req, res) => {
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const payload = req.body as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
-  const card = await prisma.card.findUnique({ where: { code: payload.code }, include: { set: true, rulings: true } });
+  const card = payload.externalId
+    ? await prisma.card.findUnique({ where: { externalId: payload.externalId }, include: { set: true, rulings: true } })
+    : await prisma.card.findFirst({ where: { code: payload.code, setId: payload.setId || null }, include: { set: true, rulings: true }, orderBy: { updatedAt: "desc" } });
   res.status(201).json(card);
 });
 
@@ -1206,9 +1193,9 @@ app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
   const id = String(req.params.id);
   const existing = await prisma.card.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Carta não encontrada." });
-  const payload = { ...req.body, code: req.body.code || existing.code } as CardInput;
+  const payload = { ...req.body, code: req.body.code || existing.code, recordId: id, externalId: req.body.externalId ?? existing.externalId } as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
-  const card = await prisma.card.findUnique({ where: { code: payload.code }, include: { set: true, rulings: true } });
+  const card = await prisma.card.findUnique({ where: { id }, include: { set: true, rulings: true } });
   res.json(card);
 });
 
@@ -1293,10 +1280,11 @@ app.post("/api/import/catalog", authRequired, roleRequired([UserRole.ADMIN]), as
 
   if (payload.clearExisting) {
     await prisma.$transaction([
+      prisma.tournamentEntry.deleteMany(),
       prisma.deckItem.deleteMany(),
       prisma.deck.deleteMany(),
       prisma.cardBinderItem.deleteMany(),
-      prisma.tournamentEntry.deleteMany(),
+      prisma.cardBinder.deleteMany(),
       prisma.ruling.deleteMany(),
       prisma.card.deleteMany(),
       prisma.cardSet.deleteMany(),

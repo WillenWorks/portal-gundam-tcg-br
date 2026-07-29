@@ -104,86 +104,58 @@ async function importCards(items, setMap) {
   for (const card of items) {
     const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
     const { effectPt, effectEn } = buildEffectText(card);
-    await prisma.card.upsert({
-      where: { code: card.code },
-      update: {
-        nameEn: card.nameEn,
-        namePt: card.namePt || null,
-        cardType: normalizeCardType(card.cardType),
-        cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
-        color: card.color || null,
-        level: card.level ?? null,
-        cost: card.cost ?? null,
-        ap: card.ap ?? null,
-        hp: card.hp ?? null,
-        rarity: card.rarity || null,
-        trait: card.trait || traits.join(" | ") || null,
-        traits,
-        series: card.series || null,
-        sourceTitle: card.sourceTitle || card.series || null,
-        zone: card.zone || null,
-        linkText: card.linkText || null,
-        pilotName: card.pilotName || null,
-        effectEn,
-        effectPt,
-        triggerKeywords: Array.isArray(card.triggerKeywords) ? card.triggerKeywords.filter(Boolean) : [],
-        keywordTags: Array.isArray(card.keywordTags) ? card.keywordTags.filter(Boolean) : [],
-        effectKeywords: Array.isArray(card.effectKeywords) ? card.effectKeywords.filter(Boolean) : [],
-        textSectionsJson: card.textSectionsJson || null,
-        hasBurst: Boolean(card.hasBurst),
-        hasMain: Boolean(card.hasMain),
-        hasAction: Boolean(card.hasAction),
-        oncePerTurn: Boolean(card.oncePerTurn),
-        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
-        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
-        imageSourceUrl: card.imageSourceUrl || null,
-        officialUrl: card.officialUrl || null,
-        legalityStatus: card.legalityStatus || "legal",
-        setId: card.setCode ? setMap.get(card.setCode) || null : null,
-      },
-      create: {
-        code: card.code,
-        nameEn: card.nameEn,
-        namePt: card.namePt || null,
-        cardType: normalizeCardType(card.cardType),
-        cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
-        color: card.color || null,
-        level: card.level ?? null,
-        cost: card.cost ?? null,
-        ap: card.ap ?? null,
-        hp: card.hp ?? null,
-        rarity: card.rarity || null,
-        trait: card.trait || traits.join(" | ") || null,
-        traits,
-        series: card.series || null,
-        sourceTitle: card.sourceTitle || card.series || null,
-        zone: card.zone || null,
-        linkText: card.linkText || null,
-        pilotName: card.pilotName || null,
-        effectEn,
-        effectPt,
-        triggerKeywords: Array.isArray(card.triggerKeywords) ? card.triggerKeywords.filter(Boolean) : [],
-        keywordTags: Array.isArray(card.keywordTags) ? card.keywordTags.filter(Boolean) : [],
-        effectKeywords: Array.isArray(card.effectKeywords) ? card.effectKeywords.filter(Boolean) : [],
-        textSectionsJson: card.textSectionsJson || null,
-        hasBurst: Boolean(card.hasBurst),
-        hasMain: Boolean(card.hasMain),
-        hasAction: Boolean(card.hasAction),
-        oncePerTurn: Boolean(card.oncePerTurn),
-        imageUrl: normalizeAssetUrl(card.imageUrl, "images/cards"),
-        thumbUrl: normalizeAssetUrl(card.thumbUrl, "images/cards/thumbs"),
-        imageSourceUrl: card.imageSourceUrl || null,
-        officialUrl: card.officialUrl || null,
-        legalityStatus: card.legalityStatus || "legal",
-        setId: card.setCode ? setMap.get(card.setCode) || null : null,
-      },
-    });
+    const setId = card.setCode ? setMap.get(card.setCode) || null : null;
+    const externalId = card.externalId || `catalog:${card.setCode || "no-set"}:${card.code}:${card.nameEn}`;
+    const small = normalizeAssetUrl(card.imageSmallUrl || card.thumbUrl, "images/cards/thumbs");
+    const medium = normalizeAssetUrl(card.imageMediumUrl || card.imageUrl, "images/cards");
+    const large = normalizeAssetUrl(card.imageLargeUrl || card.imageUrl, "images/cards");
+    const data = {
+      code: card.code,
+      externalId,
+      nameEn: card.nameEn,
+      namePt: card.namePt || null,
+      cardType: normalizeCardType(card.cardType),
+      cardSubtypes: Array.isArray(card.cardSubtypes) ? card.cardSubtypes.filter(Boolean) : [],
+      color: card.color || null,
+      level: card.level ?? null,
+      cost: card.cost ?? null,
+      ap: card.ap ?? null,
+      hp: card.hp ?? null,
+      rarity: card.rarity || null,
+      trait: card.trait || traits.join(" | ") || null,
+      traits,
+      series: card.series || null,
+      sourceTitle: card.sourceTitle || card.series || null,
+      zone: card.zone || null,
+      linkText: card.linkText || null,
+      pilotName: card.pilotName || null,
+      effectEn,
+      effectPt,
+      triggerKeywords: Array.isArray(card.triggerKeywords) ? card.triggerKeywords.filter(Boolean) : [],
+      keywordTags: Array.isArray(card.keywordTags) ? card.keywordTags.filter(Boolean) : [],
+      effectKeywords: Array.isArray(card.effectKeywords) ? card.effectKeywords.filter(Boolean) : [],
+      textSectionsJson: card.textSectionsJson || null,
+      hasBurst: Boolean(card.hasBurst),
+      hasMain: Boolean(card.hasMain),
+      hasAction: Boolean(card.hasAction),
+      oncePerTurn: Boolean(card.oncePerTurn),
+      imageUrl: medium,
+      thumbUrl: small,
+      imageSmallUrl: small,
+      imageMediumUrl: medium,
+      imageLargeUrl: large,
+      imageSourceUrl: card.imageSourceUrl || null,
+      officialUrl: card.officialUrl || null,
+      legalityStatus: card.legalityStatus || "legal",
+      setId,
+    };
+    await prisma.card.upsert({ where: { externalId }, update: data, create: data });
   }
 }
 
 async function importRulings(items) {
   for (const ruling of items) {
-    const card = ruling.cardCode ? await prisma.card.findUnique({ where: { code: ruling.cardCode } }) : null;
+    const card = ruling.cardCode ? await prisma.card.findFirst({ where: { code: ruling.cardCode } }) : null;
     const existing = await prisma.ruling.findFirst({
       where: {
         sourceType: ruling.sourceType,
@@ -217,13 +189,16 @@ async function importRulings(items) {
 async function importImages(items) {
   for (const item of items) {
     if (item.entity === "card") {
+      const card = item.externalId
+        ? await prisma.card.findUnique({ where: { externalId: item.externalId } })
+        : await prisma.card.findFirst({ where: { code: item.code, setId: item.setId || undefined } });
+      if (!card) continue;
+      const small = normalizeAssetUrl(item.imageSmallUrl || item.thumbUrl, "images/cards/thumbs");
+      const medium = normalizeAssetUrl(item.imageMediumUrl || item.imageUrl, "images/cards");
+      const large = normalizeAssetUrl(item.imageLargeUrl || item.imageUrl, "images/cards");
       await prisma.card.update({
-        where: { code: item.code },
-        data: {
-          imageUrl: normalizeAssetUrl(item.imageUrl, "images/cards"),
-          thumbUrl: normalizeAssetUrl(item.thumbUrl, "images/cards/thumbs"),
-          imageSourceUrl: item.imageSourceUrl || null,
-        },
+        where: { id: card.id },
+        data: { imageUrl: medium, thumbUrl: small, imageSmallUrl: small, imageMediumUrl: medium, imageLargeUrl: large, imageSourceUrl: item.imageSourceUrl || null },
       });
     }
     if (item.entity === "set") {

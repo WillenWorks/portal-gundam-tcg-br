@@ -239,6 +239,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sets, setSets] = useState<AdminSet[]>([]);
   const [cards, setCards] = useState<AdminCard[]>([]);
+  const [cardTotal, setCardTotal] = useState(0);
   const [rules, setRules] = useState<AdminRuling[]>([]);
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [setForm, setSetForm] = useState(emptySetForm);
@@ -256,15 +257,40 @@ export default function AdminPage() {
   const artUploadInputRef = useRef<HTMLInputElement | null>(null);
   const setGalleryUploadInputRef = useRef<HTMLInputElement | null>(null);
  
+  const loadAdminCards = async (query = "") => {
+    const result = await api.listCardsPage({ q: query.trim(), sort: "code_asc" }, { page: 1, pageSize: 80 });
+    setCards(result.items);
+    setCardTotal(result.total);
+  };
+
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [userRows, setRows, cardRows, ruleRows, taxonomyRows] = await Promise.all([api.listAdminUsers(), api.listSets(), api.listCards(), api.listRulings(), api.listTaxonomies()]);
-      setUsers(userRows); setSets(setRows); setCards(cardRows); setRules(ruleRows); setTaxonomies(taxonomyRows);
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), loadAdminCards(), api.listRulings(), api.listTaxonomies()]);
+      const [usersResult, setsResult, cardsResult, rulesResult, taxonomiesResult] = results;
+      if (usersResult.status === "fulfilled") setUsers(usersResult.value);
+      if (setsResult.status === "fulfilled") setSets(setsResult.value);
+      if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
+      if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
+
+      const failedResources = results
+        .map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "cartas", "rulings", "taxonomias"][index] : null)
+        .filter(Boolean);
+      if (failedResources.length) {
+        const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
+        toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
+      }
     } finally { setLoading(false); }
   };
  
-  useEffect(() => { if (user?.role === "ADMIN") loadAll().catch(() => undefined); }, [user?.role]);
+  useEffect(() => { if (user?.role === "ADMIN") loadAll().catch((error) => toast.error(error?.message || "Erro ao carregar a área administrativa.")); }, [user?.role]);
+  useEffect(() => {
+    if (user?.role !== "ADMIN") return;
+    const timer = window.setTimeout(() => {
+      loadAdminCards(cardSearch).catch((error) => toast.error(error?.message || "Erro ao buscar cartas."));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [cardSearch, user?.role]);
  
   const visibleSets = useMemo(() => { const term = setSearch.trim().toLowerCase(); return term ? sets.filter((set) => [set.code, set.namePt, set.nameEn, set.setType].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : sets; }, [setSearch, sets]);
   const visibleCards = useMemo(() => { const term = cardSearch.trim().toLowerCase(); return term ? cards.filter((card) => [card.code, card.namePt, card.nameEn, card.cardType, card.set?.code, card.linkText].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : cards; }, [cardSearch, cards]);
@@ -506,7 +532,7 @@ export default function AdminPage() {
         <Tabs value={adminSection} className="space-y-6">
  
           <TabsContent value="dashboard">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[["Usuários", users.length], ["Coleções", sets.length], ["Cartas", cards.length], ["Rulings", rules.length]].map(([label, value]) => <Card key={String(label)} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{String(label)}</p><p className="mt-4 font-heading text-5xl leading-none">{String(value)}</p></CardContent></Card>)}</div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[["Usuários", users.length], ["Coleções", sets.length], ["Cartas", cardTotal], ["Rulings", rules.length]].map(([label, value]) => <Card key={String(label)} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{String(label)}</p><p className="mt-4 font-heading text-5xl leading-none">{String(value)}</p></CardContent></Card>)}</div>
           </TabsContent>
  
           <TabsContent value="cards">
@@ -515,6 +541,7 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <SectionTitle title="Catálogo de cartas" description="Busca rápida, tabela operacional e um modal focado no fluxo real de cadastro." />
                   <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{cardTotal} cartas · exibindo até 80</Badge>
                     <div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={cardSearch} onChange={(e) => setCardSearch(e.target.value)} placeholder="Buscar por código, nome, tipo, link ou coleção" className="rounded-none pl-9" /></div>
                     <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openCardModal()}><Plus className="mr-2 size-4" />Nova carta</Button>
                   </div>

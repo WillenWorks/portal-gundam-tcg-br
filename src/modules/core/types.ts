@@ -27,6 +27,9 @@ export interface CardRecord {
   keywords: string[];
   effect: string;
   imageUrl?: string;
+  imageSmallUrl?: string;
+  imageMediumUrl?: string;
+  imageLargeUrl?: string;
 }
 
 export interface DeckEntry {

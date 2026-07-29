@@ -168,6 +168,18 @@ CREATE TABLE "Post" (
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "TaxonomyEntry" (
+    "id"           TEXT NOT NULL,
+    "kind"         TEXT NOT NULL,
+    "name"         TEXT NOT NULL,
+    "slug"         TEXT NOT NULL,
+    "description"  TEXT,
+    "metadataJson" JSONB,
+
+    "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"    TIMESTAMP(3) NOT NULL
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 

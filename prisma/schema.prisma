@@ -138,7 +138,8 @@ model TaxonomyEntry {
 
 model Card {
   id                String   @id @default(cuid())
-  code              String   @unique
+  code              String
+  externalId        String?  @unique
   nameEn            String
   namePt            String?
   cardType          CardType
@@ -168,6 +169,9 @@ model Card {
   oncePerTurn       Boolean  @default(false)
   imageUrl          String?
   thumbUrl          String?
+  imageSmallUrl     String?
+  imageMediumUrl    String?
+  imageLargeUrl     String?
   imageSourceUrl    String?
   officialUrl       String?
   metadataJson      Json?
@@ -182,6 +186,9 @@ model Card {
   deckItems   DeckItem[]
   rulings     Ruling[]
   binderItems CardBinderItem[]
+
+  @@index([code])
+  @@index([setId, code])
 }
 
 model Deck {

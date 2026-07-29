@@ -98,8 +98,8 @@ export default function CardDetailPage() {
             ) : (
               <div className="grid gap-6 lg:grid-cols-[0.68fr_1.32fr] lg:items-start">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[3/4] dark:bg-slate-950/60 light:bg-slate-100">
-                  {card.imageUrl ? (
-                    <img src={card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" />
+                  {(card.imageLargeUrl || card.imageMediumUrl || card.imageUrl) ? (
+                    <img src={card.imageLargeUrl || card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem arte vinculada</span>
@@ -211,7 +211,7 @@ export default function CardDetailPage() {
                       <div key={item.id} className="panel-cut border surface-strong p-4">
                         <div className="grid gap-4 md:grid-cols-[72px_1fr] md:items-start">
                           <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60 dark:bg-slate-950/60 light:bg-slate-100">
-                            {item.imageUrl ? <img src={item.imageUrl} alt={item.namePt || item.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem arte</div>}
+                            {(item.imageSmallUrl || item.thumbUrl || item.imageUrl) ? <img src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={item.namePt || item.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem arte</div>}
                           </div>
                           <div>
                             <div className="flex items-start justify-between gap-3">

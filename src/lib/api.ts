@@ -283,7 +283,10 @@ export function mapApiCard(card: any): CardRecord {
     trait: card.trait ?? "",
     keywords: card.keywordTags ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
-    imageUrl: card.imageUrl ?? undefined,
+    imageUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,
+    imageSmallUrl: card.imageSmallUrl ?? card.thumbUrl ?? undefined,
+    imageMediumUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,
+    imageLargeUrl: card.imageLargeUrl ?? card.imageUrl ?? undefined,
   };
 }
 

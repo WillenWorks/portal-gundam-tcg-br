@@ -175,14 +175,16 @@ async function upsertTaxonomies() {
 async function upsertCards(cards, setMap) {
   for (const card of cards) {
     const setId = card.setCode ? setMap.get(card.setCode) || null : null;
+    const externalId = card.externalId || `seed:${card.code}`;
     const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
     const textSectionsJson = Array.isArray(card.textSectionsJson) ? card.textSectionsJson : null;
     const effectPt = buildFlattenedText({ ...card, textSectionsJson });
     const effectEn = card.effectEn || effectPt;
 
     await prisma.card.upsert({
-      where: { code: card.code },
+      where: { externalId },
       update: {
+        externalId,
         nameEn: card.nameEn,
         namePt: card.namePt || null,
         cardType: normalizeCardType(card.cardType),
@@ -219,6 +221,7 @@ async function upsertCards(cards, setMap) {
       },
       create: {
         code: card.code,
+        externalId,
         nameEn: card.nameEn,
         namePt: card.namePt || null,
         cardType: normalizeCardType(card.cardType),
@@ -259,7 +262,7 @@ async function upsertCards(cards, setMap) {
 
 async function upsertRulings(rulings) {
   for (const ruling of rulings) {
-    const card = ruling.cardCode ? await prisma.card.findUnique({ where: { code: ruling.cardCode } }) : null;
+    const card = ruling.cardCode ? await prisma.card.findFirst({ where: { code: ruling.cardCode } }) : null;
     const existing = await prisma.ruling.findFirst({
       where: {
         sourceType: ruling.sourceType,
@@ -291,8 +294,8 @@ async function upsertRulings(rulings) {
 }
 
 async function seedSampleDecks(admin, user) {
-  const starterCard = await prisma.card.findUnique({ where: { code: "GD01-001" } });
-  const starterCard2 = await prisma.card.findUnique({ where: { code: "GD01-090" } });
+  const starterCard = await prisma.card.findFirst({ where: { code: "GD01-001" } });
+  const starterCard2 = await prisma.card.findFirst({ where: { code: "GD01-090" } });
 
   if (starterCard) {
     const adminDeck = await prisma.deck.findFirst({ where: { userId: admin.id, name: "Aile Strike Midrange" } });

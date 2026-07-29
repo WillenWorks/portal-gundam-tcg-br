@@ -20,7 +20,12 @@
     "prisma:reset": "prisma db push --force-reset",
     "prisma:studio": "prisma studio",
     "prisma:seed": "node prisma/seed.mjs",
+    "prisma:seed:apitcg": "node prisma/seed-apitcg.mjs",
+    "prisma:clear:catalog": "node prisma/clear-catalog.mjs",
+    "prisma:rebuild:apitcg": "pnpm run prisma:clear:catalog && pnpm run prisma:seed:apitcg",
+    "catalog:apitcg:check": "node scripts/check-apitcg-dataset.mjs",
     "prisma:reset:seed": "pnpm run prisma:reset && pnpm run prisma:seed",
+    "prisma:reset:seed:apitcg": "pnpm run prisma:reset && pnpm run prisma:seed:apitcg",
     "catalog:import": "node scripts/catalog-import.mjs",
     "catalog:import:local": "node scripts/catalog-import.mjs ./data/catalog"
   },
