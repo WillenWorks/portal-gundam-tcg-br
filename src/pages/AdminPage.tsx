@@ -83,6 +83,16 @@ const LEGALITY_OPTIONS = [
   { value: "banned",       label: "Banida",          color: "text-red-400 border-red-400/40 bg-red-400/10" },
   { value: "not_in_format",label: "Fora do formato", color: "text-slate-400 border-white/20 bg-white/5" },
 ];
+
+/* Convenção de direção por tipo de relação editorial — ver docs/10-convencoes-relacoes-cartas.md.
+   "origem" é a carta sendo editada agora; "destino" é a carta buscada no campo acima. */
+const RELATION_TYPE_HINTS: Record<string, string> = {
+  PILOT_OF: "Origem = Piloto → destino = Unidade que ele pilota. Use só quando a ligação vier de fonte oficial (Link Condition do jogo) ou de continuidade confirmada do anime/mangá — não para \"combina bem com\".",
+  SUPPORTS: "Origem = carta que dá suporte → destino = carta apoiada. Típico de Command que cita um Piloto/Unidade específico no efeito. Não use para sinergia genérica de arquétipo — isso é SAME_ARCHETYPE.",
+  UPGRADE_OF: "Origem = Upgrade/Command de equipamento → destino = Unidade/carta base que ele modifica. Exige que o efeito da origem altere diretamente a carta de destino (ex.: Striker Pack em um Strike Gundam).",
+  SAME_ARCHETYPE: "Sem direção fixa. Cartas do mesmo grupo temático/mecânico (mesma facção, mesmo time, mesma sinergia de trait) sem vínculo de piloto, upgrade ou suporte direto entre elas.",
+  STORY_RELATED: "Sem direção fixa. Aparecem juntas na narrativa do anime/mangá (rivais, aliados, família) mas sem nenhuma mecânica de jogo em comum. Última opção — prefira um tipo mais específico se ele se aplicar.",
+};
  
 const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" }; 
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
@@ -845,7 +855,7 @@ export default function AdminPage() {
                 {!cardForm.id ? <p className="text-sm text-slate-500">Salve a carta primeiro para vincular relações editoriais a esta impressão específica.</p> : <>
                   <div className="grid gap-3 lg:grid-cols-[1.25fr_0.8fr_0.8fr]">
                     <FieldBlock label="Buscar carta relacionada"><Input id="relation-search" name="relation-search" value={relationSearch} onChange={(e) => { setRelationSearch(e.target.value); setRelationDraft((current) => ({ ...current, targetCardId: "" })); }} placeholder="Nome ou código (mínimo 2 caracteres)" className="rounded-none" /></FieldBlock>
-                    <FieldBlock label="Tipo de relação"><select id="relation-type" name="relation-type" value={relationDraft.relationType} onChange={(e) => setRelationDraft((current) => ({ ...current, relationType: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="PILOT_OF">Piloto de</option><option value="SUPPORTS">Dá suporte a</option><option value="UPGRADE_OF">Upgrade de</option><option value="SAME_ARCHETYPE">Mesmo arquétipo</option><option value="STORY_RELATED">Relacionado na história</option></select></FieldBlock>
+                    <FieldBlock label="Tipo de relação" hint={RELATION_TYPE_HINTS[relationDraft.relationType]}><select id="relation-type" name="relation-type" value={relationDraft.relationType} onChange={(e) => setRelationDraft((current) => ({ ...current, relationType: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="PILOT_OF">Piloto de</option><option value="SUPPORTS">Dá suporte a</option><option value="UPGRADE_OF">Upgrade de</option><option value="SAME_ARCHETYPE">Mesmo arquétipo</option><option value="STORY_RELATED">Relacionado na história</option></select></FieldBlock>
                     <div className="self-end"><Button type="button" className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveCardRelation} disabled={saving || !relationDraft.targetCardId}>Salvar relação</Button></div>
                   </div>
                   {relationCandidates.length ? <div className="grid gap-2 md:grid-cols-2">{relationCandidates.map((candidate) => <button key={candidate.id} type="button" onClick={() => { setRelationDraft((current) => ({ ...current, targetCardId: candidate.id })); setRelationSearch(`${candidate.code} · ${candidate.namePt || candidate.nameEn}`); setRelationCandidates([]); }} className={`border p-3 text-left transition ${relationDraft.targetCardId === candidate.id ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/25"}`}><p className="text-xs uppercase tracking-[0.16em] text-slate-500">{candidate.code} · {candidate.cardType}</p><p className="mt-1 text-sm text-slate-100">{candidate.namePt || candidate.nameEn}</p></button>)}</div> : null}
