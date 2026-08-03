@@ -54,10 +54,18 @@ export type CardFilters = {
   q?: string;
   color?: string;
   cardType?: string;
+  media?: string;
   series?: string;
   trait?: string;
   keyword?: string;
   setCode?: string;
+  rarity?: string;
+  ap?: string;
+  hp?: string;
+  cost?: string;
+  level?: string;
+  link?: string;
+  status?: string;
   sort?: string;
 };
 
@@ -230,8 +238,11 @@ export const api = {
   listCards: (filters: CardFilters = {}) => request<any[]>(`/cards${toQuery(filters)}`, undefined, { ttlMs: 20_000 }),
   listCardsPage: (filters: CardFilters = {}, pagination: PaginationParams = {}) =>
     request<PaginatedResponse<any>>(`/cards${toQuery({ ...filters, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 24) })}`, undefined, { ttlMs: 20_000 }),
-  getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }> }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
+  getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }> }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
   getCard: (id: string) => request<any>(`/cards/${id}`, undefined, { ttlMs: 30_000 }),
+  getCardRelations: (id: string) => request<{ outgoing: any[]; incoming: any[] }>(`/cards/${id}/relations`, undefined, { ttlMs: 20_000 }),
+  createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),
+  deleteCardRelation: (id: string, relationId: string) => mutate<void>(`/cards/${id}/relations/${relationId}`, { method: "DELETE" }, ["/cards"]),
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
   updateCard: (id: string, payload: any) => mutate<any>(`/cards/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
   deleteCard: (id: string) => mutate<void>(`/cards/${id}`, { method: "DELETE" }, ["/cards", "/cards/filters", "/sets", "/stats"]),

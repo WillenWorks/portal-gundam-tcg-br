@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { seedApiTcgTaxonomies } from "./apitcg-taxonomies.mjs";
 
 const prisma = new PrismaClient();
 const datasetPath = fileURLToPath(new URL("../data/apitcg-gundam.json", import.meta.url));
@@ -254,7 +255,8 @@ async function main() {
     });
   }
 
-  console.log(`API TCG seed concluído: ${dataset.sets.length} sets, ${gameplayCards.length} cartas jogáveis e ${dataset.cards.length - gameplayCards.length} produtos vinculados aos sets.`);
+  const taxonomySummary = await seedApiTcgTaxonomies(prisma, dataset);
+  console.log(`API TCG seed concluído: ${dataset.sets.length} sets, ${gameplayCards.length} cartas jogáveis, ${dataset.cards.length - gameplayCards.length} produtos vinculados aos sets, ${taxonomySummary.traits} traits e ${taxonomySummary.sourceTitles} mídias.`);
 }
 
 main().catch((error) => {

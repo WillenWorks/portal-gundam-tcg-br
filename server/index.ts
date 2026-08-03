@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 
 const prisma = new PrismaClient();
@@ -278,6 +278,13 @@ function parsePositiveInt(input: unknown, fallback: number, max = 100) {
   const value = Number.parseInt(String(input ?? ""), 10);
   if (!Number.isFinite(value) || value <= 0) return fallback;
   return Math.min(value, max);
+}
+
+function parseIntegerFilter(input: unknown) {
+  const raw = normalizeQueryValue(input);
+  if (!raw) return undefined;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) ? value : undefined;
 }
 
 function normalizeAssetUrl(input: unknown, folder: string) {
@@ -1080,17 +1087,61 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
   res.status(204).send();
 });
 
+app.get("/api/cards/:id/relations", async (req, res) => {
+  setPublicCache(res, 30, 120);
+  const cardId = String(req.params.id);
+  const card = await prisma.card.findUnique({ where: { id: cardId }, select: { id: true } });
+  if (!card) return res.status(404).json({ error: "Carta não encontrada." });
+  const [outgoing, incoming] = await Promise.all([
+    prisma.cardRelation.findMany({ where: { sourceCardId: cardId, isActive: true }, include: { targetCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+    prisma.cardRelation.findMany({ where: { targetCardId: cardId, isActive: true }, include: { sourceCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+  ]);
+  res.json({ outgoing, incoming });
+});
+
+app.post("/api/cards/:id/relations", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const sourceCardId = String(req.params.id);
+  const { targetCardId, relationType, notePt, sourceUrl } = req.body as { targetCardId?: string; relationType?: string; notePt?: string; sourceUrl?: string };
+  if (!targetCardId || !relationType) return res.status(400).json({ error: "Carta de destino e tipo de relação são obrigatórios." });
+  if (sourceCardId === targetCardId) return res.status(400).json({ error: "Uma carta não pode se relacionar consigo mesma." });
+  if (!Object.values(CardRelationType).includes(relationType as CardRelationType)) return res.status(400).json({ error: "Tipo de relação inválido." });
+  const [sourceCard, targetCard] = await Promise.all([prisma.card.findUnique({ where: { id: sourceCardId } }), prisma.card.findUnique({ where: { id: targetCardId } })]);
+  if (!sourceCard || !targetCard) return res.status(404).json({ error: "Uma das impressões selecionadas não foi encontrada." });
+  const relation = await prisma.cardRelation.upsert({
+    where: { sourceCardId_targetCardId_relationType: { sourceCardId, targetCardId, relationType: relationType as CardRelationType } },
+    update: { notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null, isActive: true, deletedAt: null },
+    create: { sourceCardId, targetCardId, relationType: relationType as CardRelationType, notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null },
+    include: { targetCard: { include: { set: true } } },
+  });
+  res.status(201).json(relation);
+});
+
+app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const sourceCardId = String(req.params.id);
+  const relation = await prisma.cardRelation.findFirst({ where: { id: String(req.params.relationId), sourceCardId } });
+  if (!relation) return res.status(404).json({ error: "Relação não encontrada." });
+  await prisma.cardRelation.update({ where: { id: relation.id }, data: { isActive: false, deletedAt: new Date() } });
+  res.status(204).send();
+});
+
 app.get("/api/cards", async (req, res) => {
   setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q ?? req.query.search);
   const color = normalizeQueryValue(req.query.color);
   const cardType = normalizeQueryValue(req.query.cardType);
-  const series = normalizeQueryValue(req.query.series);
+  const media = normalizeQueryValue(req.query.media ?? req.query.series);
   const trait = normalizeQueryValue(req.query.trait);
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
+  const rarity = normalizeQueryValue(req.query.rarity);
+  const status = normalizeQueryValue(req.query.status ?? req.query.legalityStatus);
+  const link = normalizeQueryValue(req.query.link);
+  const ap = parseIntegerFilter(req.query.ap);
+  const hp = parseIntegerFilter(req.query.hp);
+  const cost = parseIntegerFilter(req.query.cost);
+  const level = parseIntegerFilter(req.query.level);
   const sort = normalizeQueryValue(req.query.sort) || "code_asc";
-  const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 80 });
+  const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 100 });
 
   const where: Prisma.CardWhereInput = {
     AND: [
@@ -1102,74 +1153,98 @@ app.get("/api/cards", async (req, res) => {
               { nameEn: { contains: q, mode: "insensitive" } },
               { namePt: { contains: q, mode: "insensitive" } },
               { series: { contains: q, mode: "insensitive" } },
+              { sourceTitle: { contains: q, mode: "insensitive" } },
               { trait: { contains: q, mode: "insensitive" } },
+              { linkText: { contains: q, mode: "insensitive" } },
+              { pilotName: { contains: q, mode: "insensitive" } },
               { effectEn: { contains: q, mode: "insensitive" } },
               { effectPt: { contains: q, mode: "insensitive" } },
               { keywordTags: { has: q } },
             ],
           }
         : {},
-      color ? { color: { equals: color, mode: "insensitive" } } : {},
-      cardType ? { cardType: { equals: cardType, mode: "insensitive" } } : {},
-      series ? { series: { contains: series, mode: "insensitive" } } : {},
-      trait ? { trait: { contains: trait, mode: "insensitive" } } : {},
+      color ? { color } : {},
+      cardType ? (cardType === "COMMAND" || cardType === "COMMAND_PILOT" ? { cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } } : { cardType: cardType as CardType }) : {},
+      media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
+      trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
       keyword ? { keywordTags: { has: keyword } } : {},
-      setCode ? { set: { is: { code: { equals: setCode, mode: "insensitive" } } } } : {},
+      setCode ? { set: { is: { code: setCode } } } : {},
+      rarity ? { rarity } : {},
+      status ? { legalityStatus: status } : {},
+      ap !== undefined ? { ap } : {},
+      hp !== undefined ? { hp } : {},
+      cost !== undefined ? { cost } : {},
+      level !== undefined ? { level } : {},
+      link === "has" ? { OR: [{ linkText: { not: null } }, { pilotName: { not: null } }] } : {},
+      link === "pilot-card" ? { cardType: CardType.PILOT } : {},
+      link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
+      link === "none" ? { linkText: null, pilotName: null } : {},
     ],
   };
 
-  const orderBy: Prisma.CardOrderByWithRelationInput[] =
-    sort === "cost_asc"
-      ? [{ cost: "asc" }, { code: "asc" }]
-      : sort === "cost_desc"
-        ? [{ cost: "desc" }, { code: "asc" }]
-        : sort === "name_asc"
-          ? [{ namePt: "asc" }, { nameEn: "asc" }]
-          : sort === "updated_desc"
-            ? [{ updatedAt: "desc" }]
-            : [{ code: "asc" }];
+  const orderByMap: Record<string, Prisma.CardOrderByWithRelationInput[]> = {
+    code_asc: [{ code: "asc" }, { nameEn: "asc" }],
+    code_desc: [{ code: "desc" }, { nameEn: "asc" }],
+    name_asc: [{ nameEn: "asc" }, { code: "asc" }],
+    name_desc: [{ nameEn: "desc" }, { code: "asc" }],
+    ap_asc: [{ ap: "asc" }, { code: "asc" }],
+    ap_desc: [{ ap: "desc" }, { code: "asc" }],
+    hp_asc: [{ hp: "asc" }, { code: "asc" }],
+    hp_desc: [{ hp: "desc" }, { code: "asc" }],
+    cost_asc: [{ cost: "asc" }, { code: "asc" }],
+    cost_desc: [{ cost: "desc" }, { code: "asc" }],
+    level_asc: [{ level: "asc" }, { code: "asc" }],
+    level_desc: [{ level: "desc" }, { code: "asc" }],
+    rarity_asc: [{ rarity: "asc" }, { code: "asc" }],
+    rarity_desc: [{ rarity: "desc" }, { code: "asc" }],
+    updated_desc: [{ updatedAt: "desc" }, { code: "asc" }],
+    updated_asc: [{ updatedAt: "asc" }, { code: "asc" }],
+  };
+  const orderBy = orderByMap[sort] || orderByMap.code_asc;
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
-      prisma.card.findMany({
-        where,
-        include: { set: true, rulings: true },
-        orderBy,
-        skip: pagination.skip,
-        take: pagination.take,
-      }),
+      prisma.card.findMany({ where, include: { set: true, rulings: true }, orderBy, skip: pagination.skip, take: pagination.take }),
       prisma.card.count({ where }),
     ]);
     return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
-  const cards = await prisma.card.findMany({
-    where,
-    include: { set: true, rulings: true },
-    orderBy,
-  });
+  const cards = await prisma.card.findMany({ where, include: { set: true, rulings: true }, orderBy });
   res.json(cards);
 });
 
 app.get("/api/cards/filters", async (_req, res) => {
   setPublicCache(res, 300, 900);
-  const [colorsRaw, typesRaw, seriesRaw, traitsRaw, sets] = await Promise.all([
-    prisma.card.findMany({ select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
-    prisma.card.findMany({ select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
-    prisma.card.findMany({ select: { series: true }, distinct: ["series"], where: { series: { not: null } }, orderBy: { series: "asc" } }),
-    prisma.card.findMany({ select: { trait: true }, distinct: ["trait"], where: { trait: { not: null } }, orderBy: { trait: "asc" } }),
-    prisma.cardSet.findMany({ select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
+  const activeCards: Prisma.CardWhereInput = { isActive: true };
+  const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows] = await Promise.all([
+    prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
+    prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
+    prisma.card.findMany({ where: { ...activeCards, rarity: { not: null } }, select: { rarity: true }, distinct: ["rarity"], orderBy: { rarity: "asc" } }),
+    prisma.card.findMany({ where: { ...activeCards, legalityStatus: { not: null } }, select: { legalityStatus: true }, distinct: ["legalityStatus"], orderBy: { legalityStatus: "asc" } }),
+    prisma.card.findMany({ where: activeCards, select: { sourceTitle: true, series: true } }),
+    prisma.card.findMany({ where: activeCards, select: { traits: true } }),
+    prisma.taxonomyEntry.findMany({ where: { isActive: true, kind: TaxonomyKind.TRAIT }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.taxonomyEntry.findMany({ where: { isActive: true, kind: TaxonomyKind.SOURCE_TITLE }, select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.cardSet.findMany({ where: { isActive: true }, select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
+    prisma.card.findMany({ where: activeCards, select: { keywordTags: true } }),
   ]);
 
-  const colors = colorsRaw.map((item) => item.color).filter(Boolean);
-  const cardTypes = typesRaw.map((item) => item.cardType).filter(Boolean);
-  const series = seriesRaw.map((item) => item.series).filter(Boolean);
-  const traits = traitsRaw.map((item) => item.trait).filter(Boolean);
+  const media = Array.from(new Set([...mediaTaxonomies.map((item) => item.name), ...mediaRows.flatMap((item) => [item.sourceTitle, item.series]).filter(Boolean) as string[]])).sort();
   const keywordSet = new Set<string>();
-  const keywordRows = await prisma.card.findMany({ select: { keywordTags: true } });
   keywordRows.forEach((row) => row.keywordTags.forEach((tag) => keywordSet.add(tag)));
 
-  res.json({ colors, cardTypes, series, traits, keywords: Array.from(keywordSet).sort(), sets });
+  res.json({
+    colors: colorsRaw.map((item) => item.color).filter(Boolean),
+    cardTypes: Array.from(new Set(typesRaw.map((item) => item.cardType === CardType.COMMAND_PILOT ? CardType.COMMAND : item.cardType))).sort(),
+    rarities: raritiesRaw.map((item) => item.rarity).filter(Boolean),
+    statuses: statusesRaw.map((item) => item.legalityStatus).filter(Boolean),
+    media,
+    series: media,
+    traits: Array.from(new Set([...traitTaxonomies.map((item) => item.name), ...traitRows.flatMap((item) => item.traits)])).sort(),
+    keywords: Array.from(keywordSet).sort(),
+    sets,
+  });
 });
 
 app.get("/api/cards/:id", async (req, res) => {

@@ -8,14 +8,13 @@ export const PRODUCT_TYPE_OPTIONS = [
 ] as const;
 
 export const CARD_TYPE_OPTIONS = [
-  { value: "UNIT", label: "Unit" },
-  { value: "PILOT", label: "Pilot" },
-  { value: "COMMAND", label: "Command" },
-  { value: "COMMAND_PILOT", label: "Command / Pilot" },
+  { value: "UNIT", label: "Unidade" },
+  { value: "PILOT", label: "Piloto" },
+  { value: "COMMAND", label: "Comando" },
   { value: "BASE", label: "Base" },
-  { value: "RESOURCE", label: "Resource" },
-  { value: "EX_BASE", label: "EX Base" },
-  { value: "EX_RESOURCE", label: "EX Resource" },
+  { value: "RESOURCE", label: "Recurso" },
+  { value: "EX_BASE", label: "Base EX" },
+  { value: "EX_RESOURCE", label: "Recurso EX" },
 ] as const;
 
 export const COLOR_OPTIONS = ["Blue", "Green", "Red", "Purple", "White"] as const;

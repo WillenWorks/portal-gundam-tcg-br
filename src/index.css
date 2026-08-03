@@ -143,7 +143,14 @@
     border-color: oklch(0.72 0.025 235 / 0.9);
   }
   .field-shell {
-    @apply rounded-none border border-white/15 bg-slate-950/70 text-white transition-colors duration-200 placeholder:text-slate-500 dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 light:placeholder:text-slate-500;
+    @apply appearance-auto cursor-pointer rounded-none border border-white/15 bg-slate-950/70 text-white transition-colors duration-200 placeholder:text-slate-500 dark:border-white/15 dark:bg-slate-950/70 dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 light:placeholder:text-slate-500;
+  }
+  .field-shell:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+  .field-shell option {
+    color: oklch(0.18 0.02 240);
+    background: oklch(0.98 0.005 240);
   }
   .text-soft {
     @apply text-slate-300 dark:text-slate-300 light:text-slate-700;

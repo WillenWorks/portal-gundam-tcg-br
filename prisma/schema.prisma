@@ -73,6 +73,14 @@ enum TaxonomyKind {
   SOURCE_TITLE
 }
 
+enum CardRelationType {
+  PILOT_OF
+  SUPPORTS
+  UPGRADE_OF
+  SAME_ARCHETYPE
+  STORY_RELATED
+}
+
 model User {
   id                    String       @id @default(cuid())
   email                 String       @unique
@@ -186,9 +194,42 @@ model Card {
   deckItems   DeckItem[]
   rulings     Ruling[]
   binderItems CardBinderItem[]
+  outgoingRelations CardRelation[] @relation("CardRelationSource")
+  incomingRelations CardRelation[] @relation("CardRelationTarget")
 
   @@index([code])
   @@index([setId, code])
+  @@index([isActive, code])
+  @@index([isActive, updatedAt, code])
+  @@index([isActive, nameEn, code])
+  @@index([isActive, cardType, color])
+  @@index([isActive, setId])
+  @@index([isActive, rarity, code])
+  @@index([isActive, legalityStatus])
+  @@index([isActive, ap, code])
+  @@index([isActive, hp, code])
+  @@index([isActive, cost, code])
+  @@index([isActive, level, code])
+}
+
+model CardRelation {
+  id             String           @id @default(cuid())
+  sourceCardId   String
+  targetCardId   String
+  relationType   CardRelationType
+  notePt         String?          @db.Text
+  sourceUrl      String?
+  isActive       Boolean          @default(true)
+  deletedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  sourceCard Card @relation("CardRelationSource", fields: [sourceCardId], references: [id], onDelete: Cascade)
+  targetCard Card @relation("CardRelationTarget", fields: [targetCardId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceCardId, targetCardId, relationType])
+  @@index([sourceCardId, isActive])
+  @@index([targetCardId, isActive])
 }
 
 model Deck {

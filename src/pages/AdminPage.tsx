@@ -1,6 +1,6 @@
 /* Admin v9.4 — parserização semântica + validação robusta + modal redesenhada. */
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, Search, Star, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, Search, Star, Trash2, Upload, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
  
@@ -24,6 +24,20 @@ type AdminSet = any;
 type AdminCard = any;
 type AdminRuling = any;
 type AdminTaxonomy = { id: string; kind: "TRAIT" | "SOURCE_TITLE"; name: string; description?: string | null };
+type CardFilterOptions = { colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; traits: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> };
+type ActiveCardFilter = { key: keyof CardCatalogQuery; label: string; value: string };
+type CardCatalogQuery = { q: string; color: string; cardType: string; setCode: string; rarity: string; ap: string; hp: string; cost: string; level: string; trait: string; media: string; link: string; status: string; sort: string; page: number; pageSize: number };
+const EMPTY_CARD_FILTERS: CardFilterOptions = { colors: [], cardTypes: [], rarities: [], statuses: [], media: [], traits: [], sets: [] };
+const CATALOG_CARD_TYPE_FILTERS = [
+  { value: "UNIT", label: "Unidade" },
+  { value: "PILOT", label: "Piloto" },
+  { value: "COMMAND", label: "Comando (inclui comandos com piloto)" },
+  { value: "BASE", label: "Base" },
+  { value: "RESOURCE", label: "Recurso" },
+  { value: "EX_BASE", label: "Base EX" },
+  { value: "EX_RESOURCE", label: "Recurso EX" },
+] as const;
+const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
 type ArtVariantForm = {
   id: string;
@@ -153,7 +167,7 @@ function mapCardToForm(card?: AdminCard): CardForm {
   const effectSection = sections.find((item: any) => String(item?.kind || "").toLowerCase() === "effect") || sections.find((item: any) => item?.textPt || item?.textEn);
   const arts = mapCardArts(card);
   const activeArtId = arts.find((item) => item.isPrimary)?.id || arts[0]?.id || "";
-  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType || "UNIT", nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal" };
+  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType === "COMMAND_PILOT" ? "COMMAND" : (card.cardType || "UNIT"), nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal" };
 }
  
 /* ── Componentes internos ─────────────────────────────────────────────── */
@@ -226,7 +240,7 @@ function typeUsesEffects(type: string) {
  
 export default function AdminPage() {
   const { user } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const adminSection = useMemo(() => {
     const path = location.split("?")[0];
     const value = path.replace(/^\/admin\/?/, "").split("/")[0];
@@ -235,11 +249,41 @@ export default function AdminPage() {
   }, [location]);
   const sectionLabel = useMemo(() => ({ dashboard: "Visão geral", users: "Usuários", cards: "Cartas", sets: "Coleções", taxonomies: location.includes("/admin/media") ? "Mídias" : "Traits", rules: "Rulings", decks: "Decks", events: "Eventos" }[adminSection] || "Gestão"), [adminSection, location]);
   const isMediaManagement = location.split("?")[0] === "/admin/media";
+  const urlCardQuery = useMemo<CardCatalogQuery>(() => {
+    const params = new URLSearchParams(location.split("?")[1] || "");
+    const intParam = (key: string, fallback: number) => {
+      const value = Number.parseInt(params.get(key) || "", 10);
+      return Number.isFinite(value) && value > 0 ? value : fallback;
+    };
+    return {
+      q: params.get("q") || "", color: params.get("color") || "", cardType: params.get("cardType") || "", setCode: params.get("setCode") || "",
+      rarity: params.get("rarity") || "", ap: params.get("ap") || "", hp: params.get("hp") || "", cost: params.get("cost") || "", level: params.get("level") || "",
+      trait: params.get("trait") || "", media: params.get("media") || "", link: params.get("link") || "", status: params.get("status") || "",
+      sort: params.get("sort") || "code_asc", page: intParam("page", 1), pageSize: [25, 50, 80, 100].includes(intParam("pageSize", 50)) ? intParam("pageSize", 50) : 50,
+    };
+  }, [location]);
+  const [cardQuery, setCardQuery] = useState<CardCatalogQuery>(() => urlCardQuery);
+  useEffect(() => { setCardQuery(urlCardQuery); }, [urlCardQuery]);
+
+  const updateCardQuery = (patch: Partial<CardCatalogQuery>) => {
+    const next = { ...cardQuery, ...patch };
+    setCardQuery(next);
+    const params = new URLSearchParams();
+    (Object.entries(next) as Array<[keyof CardCatalogQuery, string | number]>).forEach(([key, value]) => {
+      const defaults: Partial<CardCatalogQuery> = { q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 };
+      if (value !== defaults[key]) params.set(key, String(value));
+    });
+    setLocation(`/admin/cards${params.size ? `?${params.toString()}` : ""}`);
+  };
  
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sets, setSets] = useState<AdminSet[]>([]);
   const [cards, setCards] = useState<AdminCard[]>([]);
   const [cardTotal, setCardTotal] = useState(0);
+  const [cardTotalPages, setCardTotalPages] = useState(1);
+  const [cardFilterOptions, setCardFilterOptions] = useState<CardFilterOptions>(EMPTY_CARD_FILTERS);
+  const [cardFiltersLoading, setCardFiltersLoading] = useState(false);
+  const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [setForm, setSetForm] = useState(emptySetForm);
@@ -249,33 +293,53 @@ export default function AdminPage() {
   const [setModalOpen, setSetModalOpen] = useState(false);
   const [cardModalOpen, setCardModalOpen] = useState(false);
   const [setSearch, setSetSearch] = useState("");
-  const [cardSearch, setCardSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [quickPilotOpen, setQuickPilotOpen] = useState(false);
   const [quickPilotForm, setQuickPilotForm] = useState({ code: "", nameEn: "", trait: "", sourceTitle: "" });
+  const [cardRelations, setCardRelations] = useState<any[]>([]);
+  const [relationSearch, setRelationSearch] = useState("");
+  const [relationCandidates, setRelationCandidates] = useState<AdminCard[]>([]);
+  const [relationDraft, setRelationDraft] = useState({ targetCardId: "", relationType: "PILOT_OF", notePt: "", sourceUrl: "" });
   const artUploadInputRef = useRef<HTMLInputElement | null>(null);
   const setGalleryUploadInputRef = useRef<HTMLInputElement | null>(null);
  
-  const loadAdminCards = async (query = "") => {
-    const result = await api.listCardsPage({ q: query.trim(), sort: "code_asc" }, { page: 1, pageSize: 80 });
+  const loadAdminCards = async () => {
+    const { page, pageSize, ...filters } = cardQuery;
+    const result = await api.listCardsPage(filters, { page, pageSize });
+    if (result.total > 0 && cardQuery.page > result.totalPages) {
+      updateCardQuery({ page: result.totalPages });
+      return;
+    }
     setCards(result.items);
     setCardTotal(result.total);
+    setCardTotalPages(result.totalPages);
+  };
+
+  const loadCardFilterOptions = async () => {
+    setCardFiltersLoading(true);
+    try {
+      const result = await api.getCardFilters();
+      setCardFilterOptions(result);
+      setCardFiltersError(null);
+    } catch (error: any) {
+      setCardFiltersError(error?.message || "Não foi possível atualizar as opções dinâmicas.");
+    } finally {
+      setCardFiltersLoading(false);
+    }
   };
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), loadAdminCards(), api.listRulings(), api.listTaxonomies()]);
-      const [usersResult, setsResult, cardsResult, rulesResult, taxonomiesResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies()]);
+      const [usersResult, setsResult, rulesResult, taxonomiesResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
 
-      const failedResources = results
-        .map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "cartas", "rulings", "taxonomias"][index] : null)
-        .filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -283,17 +347,43 @@ export default function AdminPage() {
     } finally { setLoading(false); }
   };
  
-  useEffect(() => { if (user?.role === "ADMIN") loadAll().catch((error) => toast.error(error?.message || "Erro ao carregar a área administrativa.")); }, [user?.role]);
+  useEffect(() => {
+    if (user?.role !== "ADMIN") return;
+    loadAll().catch((error) => toast.error(error?.message || "Erro ao carregar a área administrativa."));
+    loadCardFilterOptions();
+  }, [user?.role]);
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
     const timer = window.setTimeout(() => {
-      loadAdminCards(cardSearch).catch((error) => toast.error(error?.message || "Erro ao buscar cartas."));
-    }, 250);
+      loadAdminCards().catch((error) => toast.error(error?.message || "Erro ao buscar cartas."));
+    }, 180);
     return () => window.clearTimeout(timer);
-  }, [cardSearch, user?.role]);
+  }, [cardQuery, user?.role]);
+
  
   const visibleSets = useMemo(() => { const term = setSearch.trim().toLowerCase(); return term ? sets.filter((set) => [set.code, set.namePt, set.nameEn, set.setType].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : sets; }, [setSearch, sets]);
-  const visibleCards = useMemo(() => { const term = cardSearch.trim().toLowerCase(); return term ? cards.filter((card) => [card.code, card.namePt, card.nameEn, card.cardType, card.set?.code, card.linkText].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : cards; }, [cardSearch, cards]);
+  const availableCardFilters = useMemo<CardFilterOptions>(() => ({
+    colors: Array.from(new Set([...COLOR_OPTIONS, ...cardFilterOptions.colors])).filter(Boolean).sort(),
+    cardTypes: CATALOG_CARD_TYPE_FILTERS.map((item) => item.value),
+    rarities: Array.from(new Set([...RARITY_OPTIONS, ...cardFilterOptions.rarities])).filter(Boolean).sort(),
+    statuses: Array.from(new Set([...LEGALITY_OPTIONS.map((item) => item.value), ...cardFilterOptions.statuses])).filter(Boolean).sort(),
+    media: Array.from(new Set([...taxonomies.filter((item) => item.kind === "SOURCE_TITLE").map((item) => item.name), ...cardFilterOptions.media])).filter(Boolean).sort(),
+    traits: Array.from(new Set([...taxonomies.filter((item) => item.kind === "TRAIT").map((item) => item.name), ...cardFilterOptions.traits])).filter(Boolean).sort(),
+    sets: cardFilterOptions.sets.length ? cardFilterOptions.sets : sets.map((set) => ({ code: set.code, namePt: set.namePt, nameEn: set.nameEn })),
+  }), [cardFilterOptions, sets, taxonomies]);
+  const activeCardFilters = useMemo<ActiveCardFilter[]>(() => {
+    const labels: Partial<Record<keyof CardCatalogQuery, string>> = { q: "Busca", color: "Cor", cardType: "Tipo", setCode: "Coleção", rarity: "Raridade", ap: "AP", hp: "HP", cost: "Custo", level: "Level", trait: "Trait", media: "Mídia", link: "Link/piloto", status: "Status" };
+    return (Object.entries(labels) as Array<[keyof CardCatalogQuery, string]>).flatMap(([key, label]) => {
+      const value = cardQuery[key];
+      if (!value) return [];
+      const text = key === "link" ? ({ has: "Com Link/requisito", "pilot-card": "Cartas Piloto", "pilot-reference": "Comandos com referência a piloto", none: "Sem Link/requisito" }[String(value)] || String(value)) : key === "status" ? (LEGALITY_OPTIONS.find((item) => item.value === value)?.label || String(value)) : String(value);
+      return [{ key, label, value: text }];
+    });
+  }, [cardQuery]);
+  const cardPageNumbers = useMemo(() => {
+    const start = Math.max(1, Math.min(cardQuery.page - 2, Math.max(1, cardTotalPages - 4)));
+    return Array.from({ length: Math.min(5, cardTotalPages) }, (_, index) => start + index);
+  }, [cardQuery.page, cardTotalPages]);
  
   const effectPreview = useMemo(() => parseCardEffects(cardForm.effectText, cardForm.burstEnabled ? cardForm.burstEffect : ""), [cardForm.effectText, cardForm.burstEffect, cardForm.burstEnabled]);
   const showStats = typeUsesStats(cardForm.cardType);
@@ -319,7 +409,46 @@ export default function AdminPage() {
   }, [cards, taxonomyTraits]);
  
   const openSetModal = (set?: AdminSet) => { setSetForm(mapSetToForm(set)); setSetModalOpen(true); };
-  const openCardModal = (card?: AdminCard) => { setCardForm(mapCardToForm(card)); setCardModalOpen(true); };
+  const openCardModal = (card?: AdminCard) => {
+    setCardForm(mapCardToForm(card));
+    setCardRelations([]);
+    setRelationSearch("");
+    setRelationCandidates([]);
+    setRelationDraft({ targetCardId: "", relationType: "PILOT_OF", notePt: "", sourceUrl: "" });
+    setCardModalOpen(true);
+    if (card?.id) api.getCardRelations(card.id).then((result) => setCardRelations([...result.outgoing.map((item) => ({ ...item, direction: "outgoing", relatedCard: item.targetCard })), ...result.incoming.map((item) => ({ ...item, direction: "incoming", relatedCard: item.sourceCard }))])).catch(() => toast.error("Não foi possível carregar as relações editoriais."));
+  };
+
+  useEffect(() => {
+    if (!cardModalOpen || !cardForm.id || relationSearch.trim().length < 2) { setRelationCandidates([]); return; }
+    const timer = window.setTimeout(() => {
+      api.listCardsPage({ q: relationSearch.trim(), sort: "code_asc" }, { page: 1, pageSize: 12 })
+        .then((result) => setRelationCandidates(result.items.filter((item) => item.id !== cardForm.id)))
+        .catch(() => setRelationCandidates([]));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [cardModalOpen, cardForm.id, relationSearch]);
+
+  const saveCardRelation = async () => {
+    if (!cardForm.id) { toast.error("Salve a carta antes de criar relações."); return; }
+    if (!relationDraft.targetCardId) { toast.error("Selecione a carta relacionada."); return; }
+    setSaving(true);
+    try {
+      await api.createCardRelation(cardForm.id, { ...relationDraft, notePt: relationDraft.notePt || null, sourceUrl: relationDraft.sourceUrl || null });
+      const result = await api.getCardRelations(cardForm.id);
+      setCardRelations([...result.outgoing.map((item) => ({ ...item, direction: "outgoing", relatedCard: item.targetCard })), ...result.incoming.map((item) => ({ ...item, direction: "incoming", relatedCard: item.sourceCard }))]);
+      setRelationSearch(""); setRelationCandidates([]); setRelationDraft({ targetCardId: "", relationType: "PILOT_OF", notePt: "", sourceUrl: "" });
+      toast.success("Relação editorial salva.");
+    } catch (error: any) { toast.error(error?.message || "Erro ao salvar relação."); }
+    finally { setSaving(false); }
+  };
+
+  const deleteCardRelation = async (relation: any) => {
+    if (!cardForm.id || relation.direction !== "outgoing") { toast.error("Relações recebidas são gerenciadas na carta de origem."); return; }
+    await api.deleteCardRelation(cardForm.id, relation.id);
+    setCardRelations((current) => current.filter((item) => item.id !== relation.id));
+    toast.success("Relação editorial ocultada.");
+  };
 
   const syncArtState = (arts: ArtVariantForm[], activeArtId?: string, fallbackRarity?: string) => normalizeArtState(arts, activeArtId, fallbackRarity || cardForm.rarity || "C");
   const setArtState = (updater: (current: ArtVariantForm[]) => ArtVariantForm[], preferredActiveId?: string) => {
@@ -421,7 +550,7 @@ export default function AdminPage() {
     try {
       const payload = { code: setForm.code.trim(), nameEn: setForm.nameEn.trim(), namePt: setForm.namePt.trim() || null, officialUrl: setForm.officialUrl.trim() || null, coverImage: setForm.coverImage.trim() || setForm.galleryImages[0] || null, metadataJson: { galleryImages: setForm.galleryImages.filter(Boolean) }, releaseDate: setForm.releaseDate ? new Date(`${setForm.releaseDate}T00:00:00.000Z`).toISOString() : null, shortDescription: setForm.shortDescription.trim() || null, setType: setForm.setType, productCodeAlt: setForm.productCodeAlt.trim() || null, msrpUsd: setForm.msrpUsd ? Number(setForm.msrpUsd) : null, contentSummaryPt: setForm.contentSummaryPt.trim() || null, contentSummaryEn: setForm.contentSummaryEn.trim() || null, raritySummary: setForm.raritySummary.trim() || null, productNotes: setForm.productNotes.trim() || null, sourceTitles: csvToArray(setForm.sourceTitles) };
       if (setForm.id) await api.updateSet(setForm.id, payload); else await api.createSet(payload);
-      setSetModalOpen(false); setSetForm(emptySetForm); await loadAll();
+      setSetModalOpen(false); setSetForm(emptySetForm); await loadAll(); await loadAdminCards();
       toast.success(setForm.id ? "Coleção atualizada." : "Coleção criada.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar coleção.");
@@ -450,7 +579,7 @@ export default function AdminPage() {
       const primaryArt = persistedArts.find((art) => art.isPrimary) || persistedArts[0] || null;
       const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, imageUrl: primaryArt?.url || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, thumbUrl: primaryArt?.thumbUrl || null, imageSourceUrl: primaryArt?.sourceUrl || cardForm.officialUrl.trim() || null, metadataJson: { artVariants: persistedArts }, legalityStatus: cardForm.legalityStatus || "legal", triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
       if (cardForm.id) await api.updateCard(cardForm.id, payload); else await api.createCard(payload);
-      setCardModalOpen(false); setCardForm(emptyCardForm); await loadAll();
+      setCardModalOpen(false); setCardForm(emptyCardForm); await loadAll(); await loadAdminCards();
       toast.success(cardForm.id ? "Carta atualizada." : "Carta criada.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar carta.");
@@ -481,7 +610,7 @@ export default function AdminPage() {
       setCardForm((current) => ({ ...current, linkText: quickPilotForm.nameEn.trim() }));
       setQuickPilotOpen(false);
       setQuickPilotForm({ code: "", nameEn: "", trait: "", sourceTitle: "" });
-      await loadAll();
+      await loadAll(); await loadAdminCards();
       toast.success("Piloto criado e vinculado no campo Link.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao criar piloto rápido.");
@@ -490,25 +619,25 @@ export default function AdminPage() {
 
   const deleteSet = async (set: AdminSet) => {
     if (!window.confirm(`Excluir ${set.code}?`)) return;
-    await api.deleteSet(set.id); await loadAll(); toast.success("Coleção ocultada. O registro foi preservado.");
+    await api.deleteSet(set.id); await loadAll(); await loadAdminCards(); toast.success("Coleção ocultada. O registro foi preservado.");
   };
  
   const deleteCard = async (card: AdminCard) => {
     if (!window.confirm(`Excluir ${card.code}?`)) return;
-    await api.deleteCard(card.id); await loadAll(); toast.success("Carta ocultada. O registro foi preservado.");
+    await api.deleteCard(card.id); await loadAll(); await loadAdminCards(); toast.success("Carta ocultada. O registro foi preservado.");
   };
   const saveTaxonomy = async () => {
     if (!taxonomyForm.name.trim()) { toast.error("Nome é obrigatório."); return; }
     await api.createTaxonomy({ kind: taxonomyForm.kind, name: taxonomyForm.name.trim(), description: taxonomyForm.description.trim() || null });
     setTaxonomyForm({ kind: taxonomyForm.kind, name: "", description: "" });
-    await loadAll();
+    await loadAll(); await loadAdminCards();
     toast.success(taxonomyForm.kind === "TRAIT" ? "Trait cadastrada." : "Mídia cadastrada.");
   };
 
   const deleteTaxonomy = async (entry: AdminTaxonomy) => {
     if (!window.confirm(`Excluir ${entry.name}?`)) return;
     await api.deleteTaxonomy(entry.id);
-    await loadAll();
+    await loadAll(); await loadAdminCards();
     toast.success("Registro ocultado. O dado foi preservado.");
   };
 
@@ -538,15 +667,38 @@ export default function AdminPage() {
           <TabsContent value="cards">
             <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-5 p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                  <SectionTitle title="Catálogo de cartas" description="Busca rápida, tabela operacional e um modal focado no fluxo real de cadastro." />
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <SectionTitle title="Catálogo de cartas" description="Filtros reais no servidor, ordenação e paginação persistida na URL para operação confiável do catálogo." />
                   <div className="flex flex-wrap items-center gap-3">
-                    <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{cardTotal} cartas · exibindo até 80</Badge>
-                    <div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={cardSearch} onChange={(e) => setCardSearch(e.target.value)} placeholder="Buscar por código, nome, tipo, link ou coleção" className="rounded-none pl-9" /></div>
+                    <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{cardTotal} cartas · página {cardQuery.page} de {cardTotalPages}</Badge>
                     <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openCardModal()}><Plus className="mr-2 size-4" />Nova carta</Button>
                   </div>
                 </div>
-                <div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Carta</th><th className="px-4 py-3">Tipo</th><th className="px-4 py-3">Coleção</th><th className="px-4 py-3">Stats</th><th className="px-4 py-3">Keywords</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{visibleCards.map((card) => { const keywordMeta = Array.isArray(card.metadataJson?.keywordMeta) ? card.metadataJson.keywordMeta : []; const visibleKeywordMeta = keywordMeta.slice(0, 6); const fallbackKeywords = [...(card.triggerKeywords || []), ...(card.effectKeywords || [])].slice(0, 6); return <tr key={card.id} className="border-t border-white/10 align-top"><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-12 overflow-hidden border border-white/10 bg-slate-950/60">{card.imageUrl ? <img src={card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem arte</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p><p className="mt-1 font-medium">{card.namePt || card.nameEn}</p><p className="text-xs text-slate-500">{card.linkText || card.sourceTitle || "sem link"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.cardType}</Badge>{card.pilotName ? <p className="mt-2 text-xs text-slate-500">Piloto: {card.pilotName}</p> : null}</td><td className="px-4 py-4">{card.set?.code || "—"}</td><td className="px-4 py-4 text-xs text-slate-400">Lv {card.level ?? "-"} · Cost {card.cost ?? "-"} · AP {card.ap ?? "-"} · HP {card.hp ?? "-"}</td><td className="px-4 py-4"><div className="flex max-w-[340px] flex-wrap gap-2">{visibleKeywordMeta.length ? visibleKeywordMeta.map((item: any, index: number) => <Badge key={`${card.id}-${item.keyword}-${index}`} variant="outline" className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em] ${getKeywordStyleClass(item)}`}><span className="mr-1 opacity-90">{getKeywordIcon(item)}</span>{item.keyword}{item.qualifier ? ` · ${item.qualifier}` : ""}{item.native ? "" : " *"}</Badge>) : fallbackKeywords.map((keyword: string) => <Badge key={keyword} variant="outline" className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.02em] ${getKeywordStyleClass(keyword)}`}><span className="mr-1 opacity-90">{getKeywordIcon(keyword)}</span>{keyword}</Badge>)}</div></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openCardModal(card)}><Pencil className="size-4" /></Button><Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteCard(card)}><Trash2 className="size-4" /></Button></div></td></tr>;})}</tbody></table></div>
+
+                <div className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                  <div className="relative sm:col-span-2"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input id="catalog-q" name="catalog-q" autoComplete="off" value={cardQuery.q} onChange={(e) => updateCardQuery({ q: e.target.value, page: 1 })} placeholder="Nome ou código" className="rounded-none pl-9" /></div>
+                  <select id="catalog-card-type" name="catalog-card-type" value={cardQuery.cardType} onChange={(e) => updateCardQuery({ cardType: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{CATALOG_CARD_TYPE_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+                  <select id="catalog-color" name="catalog-color" value={cardQuery.color} onChange={(e) => updateCardQuery({ color: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{availableCardFilters.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  <select id="catalog-set-code" name="catalog-set-code" value={cardQuery.setCode} onChange={(e) => updateCardQuery({ setCode: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as coleções</option>{availableCardFilters.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+                  <select id="catalog-rarity" name="catalog-rarity" value={cardQuery.rarity} onChange={(e) => updateCardQuery({ rarity: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as raridades</option>{availableCardFilters.rarities.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  <select id="catalog-ap" name="catalog-ap" value={cardQuery.ap} onChange={(e) => updateCardQuery({ ap: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">AP</option>{AP_HP_OPTIONS.filter((item) => item !== "-").map((item) => <option key={item} value={item}>AP {item}</option>)}</select>
+                  <select id="catalog-hp" name="catalog-hp" value={cardQuery.hp} onChange={(e) => updateCardQuery({ hp: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">HP</option>{AP_HP_OPTIONS.filter((item) => item !== "-").map((item) => <option key={item} value={item}>HP {item}</option>)}</select>
+                  <select id="catalog-cost" name="catalog-cost" value={cardQuery.cost} onChange={(e) => updateCardQuery({ cost: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Custo</option>{COST_LEVEL_OPTIONS.map((item) => <option key={item} value={item}>Custo {item}</option>)}</select>
+                  <select id="catalog-level" name="catalog-level" value={cardQuery.level} onChange={(e) => updateCardQuery({ level: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Level</option>{COST_LEVEL_OPTIONS.map((item) => <option key={item} value={item}>Level {item}</option>)}</select>
+                  <select id="catalog-trait" name="catalog-trait" value={cardQuery.trait} onChange={(e) => updateCardQuery({ trait: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{availableCardFilters.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  <select id="catalog-media" name="catalog-media" value={cardQuery.media} onChange={(e) => updateCardQuery({ media: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as mídias</option>{availableCardFilters.media.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  <select id="catalog-link" name="catalog-link" value={cardQuery.link} onChange={(e) => updateCardQuery({ link: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Link / piloto</option><option value="has">Com Link/requisito</option><option value="pilot-card">Cartas do tipo Piloto</option><option value="pilot-reference">Comandos com referência a piloto</option><option value="none">Sem Link/requisito</option></select>
+                  <select id="catalog-status" name="catalog-status" value={cardQuery.status} onChange={(e) => updateCardQuery({ status: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todos os status</option>{availableCardFilters.statuses.map((item) => <option key={item} value={item}>{LEGALITY_OPTIONS.find((option) => option.value === item)?.label || item}</option>)}</select>
+                  <select id="catalog-sort" name="catalog-sort" value={cardQuery.sort} onChange={(e) => updateCardQuery({ sort: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="code_asc">Código A–Z</option><option value="code_desc">Código Z–A</option><option value="name_asc">Nome A–Z</option><option value="name_desc">Nome Z–A</option><option value="ap_desc">AP maior</option><option value="ap_asc">AP menor</option><option value="hp_desc">HP maior</option><option value="hp_asc">HP menor</option><option value="cost_asc">Custo menor</option><option value="cost_desc">Custo maior</option><option value="level_asc">Level menor</option><option value="level_desc">Level maior</option><option value="rarity_asc">Raridade A–Z</option><option value="rarity_desc">Raridade Z–A</option><option value="updated_desc">Atualização recente</option><option value="updated_asc">Atualização antiga</option></select>
+                  <Button type="button" variant="outline" className="rounded-none" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })}>Limpar filtros</Button>
+                </div>
+
+                {cardFiltersError ? <div className="flex flex-wrap items-center justify-between gap-3 border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"><span>Opções dinâmicas indisponíveis: {cardFiltersError}. As opções-base continuam disponíveis.</span><Button type="button" variant="outline" className="h-8 rounded-none border-amber-300/40 text-amber-100" onClick={loadCardFilterOptions} disabled={cardFiltersLoading}>{cardFiltersLoading ? "Atualizando…" : "Tentar novamente"}</Button></div> : null}
+                {activeCardFilters.length ? <div className="flex flex-wrap items-center gap-2 border border-white/10 bg-slate-950/30 p-3"><span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros ativos</span>{activeCardFilters.map((filter) => <button key={filter.key} type="button" onClick={() => updateCardQuery({ [filter.key]: "", page: 1 } as Partial<CardCatalogQuery>)} className="inline-flex items-center gap-1 border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-primary transition hover:bg-primary/20"><span>{filter.label}: {filter.value}</span><X className="size-3" /></button>)}<button type="button" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })} className="ml-1 text-xs text-slate-400 underline-offset-4 hover:text-white hover:underline">Limpar tudo</button></div> : null}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400"><span>{cardTotal ? `Exibindo ${(cardQuery.page - 1) * cardQuery.pageSize + 1}–${Math.min(cardQuery.page * cardQuery.pageSize, cardTotal)} de ${cardTotal}` : "Nenhuma carta encontrada"}</span><label className="flex items-center gap-2">Por página <select id="catalog-page-size" name="catalog-page-size" value={String(cardQuery.pageSize)} onChange={(e) => updateCardQuery({ pageSize: Number(e.target.value), page: 1 })} className="field-shell h-8 px-2 text-xs"><option value="25">25</option><option value="50">50</option><option value="80">80</option><option value="100">100</option></select></label></div>
+
+                <div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Carta</th><th className="px-4 py-3">Tipo / status</th><th className="px-4 py-3">Coleção</th><th className="px-4 py-3">Stats</th><th className="px-4 py-3">Vínculos</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{cards.map((card) => <tr key={card.id} className="border-t border-white/10 align-top"><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-12 overflow-hidden border border-white/10 bg-slate-950/60">{card.imageUrl ? <img src={card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem arte</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{card.code} · {card.rarity || "—"}</p><p className="mt-1 font-medium">{card.namePt || card.nameEn}</p><p className="text-xs text-slate-500">{card.sourceTitle || card.series || "sem mídia"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{cardTypeLabel(card.cardType)}</Badge><p className="mt-2 text-xs text-slate-500">{LEGALITY_OPTIONS.find((option) => option.value === card.legalityStatus)?.label || card.legalityStatus || "Legal"}</p></td><td className="px-4 py-4">{card.set?.code || "—"}</td><td className="px-4 py-4 text-xs text-slate-400">Lv {card.level ?? "-"} · Cost {card.cost ?? "-"} · AP {card.ap ?? "-"} · HP {card.hp ?? "-"}</td><td className="px-4 py-4 text-xs text-slate-400"><p>{card.linkText || "sem link"}</p><p className="mt-1">{card.pilotName ? `Piloto: ${card.pilotName}` : (card.traits || []).join(" · ") || "sem trait"}</p></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openCardModal(card)}><Pencil className="size-4" /></Button><Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteCard(card)}><Trash2 className="size-4" /></Button></div></td></tr>)}</tbody></table></div>
+                <nav aria-label="Paginação do catálogo" className="flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" className="rounded-none" disabled={cardQuery.page <= 1} onClick={() => updateCardQuery({ page: cardQuery.page - 1 })}><ChevronLeft className="mr-1 size-4" />Anterior</Button><div className="flex flex-wrap items-center justify-center gap-1">{cardPageNumbers[0] > 1 ? <><Button type="button" variant="outline" className="h-8 min-w-8 rounded-none px-2 text-xs" onClick={() => updateCardQuery({ page: 1 })}>1</Button>{cardPageNumbers[0] > 2 ? <span className="px-1 text-xs text-slate-500">…</span> : null}</> : null}{cardPageNumbers.map((page) => <Button key={page} type="button" variant={page === cardQuery.page ? "default" : "outline"} aria-current={page === cardQuery.page ? "page" : undefined} className="h-8 min-w-8 rounded-none px-2 text-xs" onClick={() => updateCardQuery({ page })}>{page}</Button>)}{cardPageNumbers[cardPageNumbers.length - 1] < cardTotalPages ? <>{cardPageNumbers[cardPageNumbers.length - 1] < cardTotalPages - 1 ? <span className="px-1 text-xs text-slate-500">…</span> : null}<Button type="button" variant="outline" className="h-8 min-w-8 rounded-none px-2 text-xs" onClick={() => updateCardQuery({ page: cardTotalPages })}>{cardTotalPages}</Button></> : null}</div><Button type="button" variant="outline" className="rounded-none" disabled={cardQuery.page >= cardTotalPages || cardTotal === 0} onClick={() => updateCardQuery({ page: cardQuery.page + 1 })}>Próxima<ChevronRight className="ml-1 size-4" /></Button></nav>
               </CardContent>
             </Card>
           </TabsContent>
@@ -555,7 +707,7 @@ export default function AdminPage() {
             <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><SectionTitle title="Coleções e produtos" description="Produtos cadastrados como booster, starter deck, promo pack ou evento com campos próprios." /><div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={setSearch} onChange={(e) => setSetSearch(e.target.value)} placeholder="Buscar por código, nome ou categoria" className="rounded-none pl-9" /></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openSetModal()}><Plus className="mr-2 size-4" />Nova coleção</Button></div></div><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Lançamento</th><th className="px-4 py-3">MSRP</th><th className="px-4 py-3">Cartas</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{visibleSets.map((set) => <tr key={set.id} className="border-t border-white/10 align-top"><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-24 overflow-hidden border border-white/10 bg-slate-950/60">{set.coverImage ? <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{set.code}{set.productCodeAlt ? ` · ${set.productCodeAlt}` : ""}</p><p className="mt-1 font-medium">{set.namePt || set.nameEn}</p><p className="text-xs text-slate-500">{set.sourceTitles?.join(", ") || "sem obras vinculadas"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{set.setType || "OTHER"}</Badge></td><td className="px-4 py-4">{set.releaseDate ? new Date(set.releaseDate).toLocaleDateString("pt-BR") : "—"}</td><td className="px-4 py-4">{set.msrpUsd != null ? `US$ ${set.msrpUsd.toFixed(2)}` : "—"}</td><td className="px-4 py-4">{set._count?.cards ?? 0}</td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openSetModal(set)}><Pencil className="size-4" /></Button><Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteSet(set)}><Trash2 className="size-4" /></Button></div></td></tr>)}</tbody></table></div></CardContent></Card>
           </TabsContent>
  
-          <TabsContent value="users"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-6"><SectionTitle title="Usuários" description="Listagem operacional de contas, função e permissão de acesso. Bloqueios são lógicos: nenhuma conta é apagada." /><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Função</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{users.map((entry) => <tr key={entry.id} className="border-t border-white/10"><td className="px-4 py-4"><p className="font-medium">{entry.displayName}</p><p className="text-xs text-slate-500">{entry.email}</p></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{entry.role}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${entry.isActive ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border border-red-400/40 bg-red-400/10 text-red-300"}`}>{entry.isActive ? "Ativo" : "Bloqueado"}</Badge></td><td className="px-4 py-4 text-right"><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isActive: !entry.isActive }); await loadAll(); toast.success(entry.isActive ? "Usuário bloqueado logicamente." : "Usuário reativado."); }}>{entry.isActive ? "Bloquear" : "Reativar"}</Button></td></tr>)}</tbody></table></div></CardContent></Card></TabsContent>
+          <TabsContent value="users"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-6"><SectionTitle title="Usuários" description="Listagem operacional de contas, função e permissão de acesso. Bloqueios são lógicos: nenhuma conta é apagada." /><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Função</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{users.map((entry) => <tr key={entry.id} className="border-t border-white/10"><td className="px-4 py-4"><p className="font-medium">{entry.displayName}</p><p className="text-xs text-slate-500">{entry.email}</p></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{entry.role}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${entry.isActive ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border border-red-400/40 bg-red-400/10 text-red-300"}`}>{entry.isActive ? "Ativo" : "Bloqueado"}</Badge></td><td className="px-4 py-4 text-right"><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isActive: !entry.isActive }); await loadAll(); await loadAdminCards(); toast.success(entry.isActive ? "Usuário bloqueado logicamente." : "Usuário reativado."); }}>{entry.isActive ? "Bloquear" : "Reativar"}</Button></td></tr>)}</tbody></table></div></CardContent></Card></TabsContent>
 
           <TabsContent value="taxonomies"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title={isMediaManagement ? "Mídias e séries" : "Traits"} description={isMediaManagement ? "Cadastre as séries/fontes usadas pelas cartas. A próxima expansão adiciona sinopse, capa e galeria por mídia." : "Cadastre traits e facções como referência controlada para o catálogo de cartas."} /><div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"><Input value={taxonomyForm.name} onChange={(e) => setTaxonomyForm((s) => ({ ...s, kind: isMediaManagement ? "SOURCE_TITLE" : "TRAIT", name: e.target.value }))} placeholder={isMediaManagement ? "Nome da mídia ou série" : "Nome da trait"} className="rounded-none" /><Input value={taxonomyForm.description} onChange={(e) => setTaxonomyForm((s) => ({ ...s, description: e.target.value }))} placeholder="Descrição opcional" className="rounded-none" /><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTaxonomy}>Adicionar</Button></div><div className="space-y-2"><h3 className="text-xs uppercase tracking-[0.22em] text-slate-500">{isMediaManagement ? "Mídias cadastradas" : "Traits cadastradas"}</h3>{taxonomies.filter((item) => item.kind === (isMediaManagement ? "SOURCE_TITLE" : "TRAIT")).map((item) => <div key={item.id} className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 px-4 py-3"><div><p>{item.name}</p>{item.description ? <p className="mt-1 text-xs text-slate-500">{item.description}</p> : null}</div><Button variant="outline" className="h-8 rounded-none text-red-300" onClick={() => deleteTaxonomy(item)}>Ocultar</Button></div>)}</div></CardContent></Card></TabsContent>
  
@@ -563,7 +715,7 @@ export default function AdminPage() {
 
           <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title="Eventos" description="Cadastros de torneios, estatísticas e listas associadas ficam isolados do catálogo de cartas." /><div className="flex flex-wrap gap-3"><Button asChild className="rounded-none bg-primary text-primary-foreground"><Link href="/eventos">Abrir gestão de eventos</Link></Button><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div><p className="border border-dashed border-white/10 bg-white/[0.025] p-5 text-sm leading-7 text-slate-400">A API de torneios já está disponível; a próxima iteração desta área adiciona a grade administrativa com participantes, decks, placements e exclusão lógica.</p></CardContent></Card></TabsContent>
 
-          <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova ruling" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); toast.success("Ruling criada."); }}>Salvar ruling</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
+          <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova ruling" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); await loadAdminCards(); toast.success("Ruling criada."); }}>Salvar ruling</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
         </Tabs>
       </div>
  
@@ -686,6 +838,20 @@ export default function AdminPage() {
                 </div>
                 <FieldBlock label="Mídia / anime"><Input list="source-title-suggestions" value={cardForm.sourceTitle} onChange={(e) => setCardForm((s) => ({ ...s, sourceTitle: e.target.value }))} placeholder="Mobile Suit Gundam" className="rounded-none" /></FieldBlock>
                 <FieldBlock label="URL oficial"><Input value={cardForm.officialUrl} onChange={(e) => setCardForm((s) => ({ ...s, officialUrl: e.target.value }))} placeholder="https://..." className="rounded-none" /></FieldBlock>
+              </div>
+
+              <ModalSection label="Relações editoriais" />
+              <div className="space-y-4 rounded-none border border-white/10 bg-white/[0.025] p-4">
+                {!cardForm.id ? <p className="text-sm text-slate-500">Salve a carta primeiro para vincular relações editoriais a esta impressão específica.</p> : <>
+                  <div className="grid gap-3 lg:grid-cols-[1.25fr_0.8fr_0.8fr]">
+                    <FieldBlock label="Buscar carta relacionada"><Input id="relation-search" name="relation-search" value={relationSearch} onChange={(e) => { setRelationSearch(e.target.value); setRelationDraft((current) => ({ ...current, targetCardId: "" })); }} placeholder="Nome ou código (mínimo 2 caracteres)" className="rounded-none" /></FieldBlock>
+                    <FieldBlock label="Tipo de relação"><select id="relation-type" name="relation-type" value={relationDraft.relationType} onChange={(e) => setRelationDraft((current) => ({ ...current, relationType: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="PILOT_OF">Piloto de</option><option value="SUPPORTS">Dá suporte a</option><option value="UPGRADE_OF">Upgrade de</option><option value="SAME_ARCHETYPE">Mesmo arquétipo</option><option value="STORY_RELATED">Relacionado na história</option></select></FieldBlock>
+                    <div className="self-end"><Button type="button" className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveCardRelation} disabled={saving || !relationDraft.targetCardId}>Salvar relação</Button></div>
+                  </div>
+                  {relationCandidates.length ? <div className="grid gap-2 md:grid-cols-2">{relationCandidates.map((candidate) => <button key={candidate.id} type="button" onClick={() => { setRelationDraft((current) => ({ ...current, targetCardId: candidate.id })); setRelationSearch(`${candidate.code} · ${candidate.namePt || candidate.nameEn}`); setRelationCandidates([]); }} className={`border p-3 text-left transition ${relationDraft.targetCardId === candidate.id ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/25"}`}><p className="text-xs uppercase tracking-[0.16em] text-slate-500">{candidate.code} · {candidate.cardType}</p><p className="mt-1 text-sm text-slate-100">{candidate.namePt || candidate.nameEn}</p></button>)}</div> : null}
+                  <div className="grid gap-3 lg:grid-cols-2"><FieldBlock label="Nota editorial"><Input id="relation-note" name="relation-note" value={relationDraft.notePt} onChange={(e) => setRelationDraft((current) => ({ ...current, notePt: e.target.value }))} placeholder="Justificativa opcional" className="rounded-none" /></FieldBlock><FieldBlock label="Fonte"><Input id="relation-source" name="relation-source" value={relationDraft.sourceUrl} onChange={(e) => setRelationDraft((current) => ({ ...current, sourceUrl: e.target.value }))} placeholder="URL oficial ou editorial (opcional)" className="rounded-none" /></FieldBlock></div>
+                  <div className="space-y-2 border-t border-white/10 pt-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Relações confirmadas desta impressão</p>{cardRelations.length ? cardRelations.map((relation) => <div key={`${relation.direction}-${relation.id}`} className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-slate-950/30 p-3"><div><p className="text-xs uppercase tracking-[0.16em] text-primary">{relation.relationType} · {relation.direction === "outgoing" ? "origem" : "recebida"}</p><p className="mt-1 text-sm text-slate-100">{relation.relatedCard?.code} · {relation.relatedCard?.namePt || relation.relatedCard?.nameEn}</p>{relation.notePt ? <p className="mt-1 text-xs text-slate-400">{relation.notePt}</p> : null}</div>{relation.direction === "outgoing" ? <Button type="button" variant="outline" className="h-8 rounded-none text-red-300" onClick={() => deleteCardRelation(relation)}>Ocultar</Button> : <span className="text-xs text-slate-500">Edite na carta de origem</span>}</div>) : <p className="text-sm text-slate-500">Nenhuma relação editorial confirmada ainda.</p>}</div>
+                </>}
               </div>
 
               {/* ARTES */}
