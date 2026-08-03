@@ -92,6 +92,26 @@ pnpm dev
 pnpm dev:full
 ```
 
+## Curadoria oficial (série + relações Piloto → Unidade)
+
+`data/gcg-official-cards.json` é um espelho enxuto do site oficial `gundam-gcg.com`
+(via [gcg-api](https://github.com/yzRobo/gcg-api), scrape semanal). Ele traz o `Source Title`
+oficial de cada carta e o `Link Condition` das unidades, o que permite curar série e relações
+Piloto → Unidade sem depender de curadoria manual ou inferência.
+
+```bash
+pnpm run curation:gcg:dry-run   # não grava nada, mostra o que seria feito (roda sem banco)
+pnpm run curation:gcg:apply     # aplica de verdade via Prisma (idempotente, pode rodar de novo)
+```
+
+Só cria `CardRelation` para vínculo **direto por nome**: Unidades com `Link Condition`
+= `[Nome do Piloto]` (→ `PILOT_OF`) e Commands que citam um Piloto/Unidade específico entre
+colchetes no texto do efeito (→ `SUPPORTS`). Vínculo por trait (`(Trait) Trait`, qualquer
+piloto daquele trait pode linkar) é deixado para a descoberta automática que a página de
+detalhe da carta já calcula, para não misturar curadoria confirmada com sugestão automática.
+Os Commands sem referência nomeada no efeito (a maioria, 135 de 145) ficam de fora — precisam
+de curadoria manual/híbrida, não têm padrão estrutural extraível com segurança.
+
 > Em ambiente local, prefira iniciar a API com `pnpm dev:api`, porque esse comando sincroniza o schema Prisma automaticamente antes de subir o servidor.
 
 ## Credenciais seed padrão

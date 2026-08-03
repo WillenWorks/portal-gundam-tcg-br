@@ -29,7 +29,9 @@
     "prisma:reset:seed": "pnpm run prisma:reset && pnpm run prisma:seed",
     "prisma:reset:seed:apitcg": "pnpm run prisma:reset && pnpm run prisma:seed:apitcg",
     "catalog:import": "node scripts/catalog-import.mjs",
-    "catalog:import:local": "node scripts/catalog-import.mjs ./data/catalog"
+    "catalog:import:local": "node scripts/catalog-import.mjs ./data/catalog",
+    "curation:gcg:dry-run": "node prisma/apply-gcg-official-curation.mjs",
+    "curation:gcg:apply": "node prisma/apply-gcg-official-curation.mjs --apply"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,6 +1,18 @@
 /* Taxonomias derivadas do catálogo API TCG e mídias curadas pelo projeto. */
 import { TaxonomyKind } from "@prisma/client";
 
+/*
+ * Lista revisada em 2026-08-03 contra o "Source Title" oficial do site gundam-gcg.com
+ * (via espelho https://github.com/yzRobo/gcg-api). Duas mudanças em relação à lista anterior:
+ *  - REMOVIDO "Mobile Suit Gundam: Iron-Blooded Orphans Urdr-Hunt": não existe nenhuma carta
+ *    real com esse Source Title no catálogo oficial (0 ocorrências em 1072 cartas verificadas).
+ *    Se esse registro já existir na sua base, ele não é apagado automaticamente — desative-o
+ *    manualmente pelo admin (soft delete) se confirmar que é mesmo um registro incorreto.
+ *  - ADICIONADAS 4 séries que têm cartas reais no catálogo mas não estavam cadastradas:
+ *    Mobile Suit Zeta Gundam, After War Gundam X, Mobile Suit Gundam AGE e
+ *    SD Gundam G Generation ETERNAL (essa última é um jogo, não um anime, mas a Bandai trata
+ *    como Source Title oficial mesmo assim — mantido para bater com a fonte oficial).
+ */
 export const CURATED_SOURCE_TITLES = [
   { name: "Mobile Suit Gundam SEED" },
   { name: "Mobile Suit Gundam Unicorn" },
@@ -11,14 +23,17 @@ export const CURATED_SOURCE_TITLES = [
   { name: "Mobile Suit Gundam GQuuuuuuX" },
   { name: "Mobile Suit Gundam: Hathaway's Flash" },
   { name: "Mobile Suit Gundam 00" },
-  { name: "Mobile Suit Gundam: Iron-Blooded Orphans Urdr-Hunt" },
   { name: "Mobile Suit Gundam 0080: War in the Pocket" },
-  { name: "Mobile Suit Victory Gundam" },
-  { name: "Turn A Gundam" },
+  { name: "Mobile Suit Victory Gundam", aliases: ["Mobile Suit V Gundam"] },
+  { name: "Turn A Gundam", aliases: ["∀ Gundam"] },
   { name: "Mobile Fighter G Gundam" },
-  { name: "Mobile Suit Gundam SEED Destiny" },
+  { name: "Mobile Suit Gundam SEED Destiny", aliases: ["Mobile Suit Gundam SEED DESTINY"] },
   { name: "Mobile Suit Gundam Wing: Endless Waltz" },
   { name: "Mobile Suit Gundam Char's Counterattack" },
+  { name: "Mobile Suit Zeta Gundam", aliases: ["Mobile Suit Z Gundam"] },
+  { name: "After War Gundam X" },
+  { name: "Mobile Suit Gundam AGE" },
+  { name: "SD Gundam G Generation ETERNAL" },
 ];
 
 const TRAIT_ALIASES = new Map([
