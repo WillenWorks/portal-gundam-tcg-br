@@ -24,10 +24,10 @@ type AdminSet = any;
 type AdminCard = any;
 type AdminRuling = any;
 type AdminTaxonomy = { id: string; kind: "TRAIT" | "SOURCE_TITLE"; name: string; description?: string | null };
-type CardFilterOptions = { colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; traits: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> };
+type CardFilterOptions = { colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; traits: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }>; missingRelationCounts: { PILOT: number; UNIT: number; COMMAND: number } };
 type ActiveCardFilter = { key: keyof CardCatalogQuery; label: string; value: string };
-type CardCatalogQuery = { q: string; color: string; cardType: string; setCode: string; rarity: string; ap: string; hp: string; cost: string; level: string; trait: string; media: string; link: string; status: string; sort: string; page: number; pageSize: number };
-const EMPTY_CARD_FILTERS: CardFilterOptions = { colors: [], cardTypes: [], rarities: [], statuses: [], media: [], traits: [], sets: [] };
+type CardCatalogQuery = { q: string; color: string; cardType: string; setCode: string; rarity: string; ap: string; hp: string; cost: string; level: string; trait: string; media: string; link: string; relation: string; status: string; sort: string; page: number; pageSize: number };
+const EMPTY_CARD_FILTERS: CardFilterOptions = { colors: [], cardTypes: [], rarities: [], statuses: [], media: [], traits: [], sets: [], missingRelationCounts: { PILOT: 0, UNIT: 0, COMMAND: 0 } };
 const CATALOG_CARD_TYPE_FILTERS = [
   { value: "UNIT", label: "Unidade" },
   { value: "PILOT", label: "Piloto" },
@@ -268,7 +268,7 @@ export default function AdminPage() {
     return {
       q: params.get("q") || "", color: params.get("color") || "", cardType: params.get("cardType") || "", setCode: params.get("setCode") || "",
       rarity: params.get("rarity") || "", ap: params.get("ap") || "", hp: params.get("hp") || "", cost: params.get("cost") || "", level: params.get("level") || "",
-      trait: params.get("trait") || "", media: params.get("media") || "", link: params.get("link") || "", status: params.get("status") || "",
+      trait: params.get("trait") || "", media: params.get("media") || "", link: params.get("link") || "", relation: params.get("relation") || "", status: params.get("status") || "",
       sort: params.get("sort") || "code_asc", page: intParam("page", 1), pageSize: [25, 50, 80, 100].includes(intParam("pageSize", 50)) ? intParam("pageSize", 50) : 50,
     };
   }, [location]);
@@ -280,7 +280,7 @@ export default function AdminPage() {
     setCardQuery(next);
     const params = new URLSearchParams();
     (Object.entries(next) as Array<[keyof CardCatalogQuery, string | number]>).forEach(([key, value]) => {
-      const defaults: Partial<CardCatalogQuery> = { q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 };
+      const defaults: Partial<CardCatalogQuery> = { q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", relation: "", status: "", sort: "code_asc", page: 1, pageSize: 50 };
       if (value !== defaults[key]) params.set(key, String(value));
     });
     setLocation(`/admin/cards${params.size ? `?${params.toString()}` : ""}`);
@@ -380,13 +380,14 @@ export default function AdminPage() {
     media: Array.from(new Set([...taxonomies.filter((item) => item.kind === "SOURCE_TITLE").map((item) => item.name), ...cardFilterOptions.media])).filter(Boolean).sort(),
     traits: Array.from(new Set([...taxonomies.filter((item) => item.kind === "TRAIT").map((item) => item.name), ...cardFilterOptions.traits])).filter(Boolean).sort(),
     sets: cardFilterOptions.sets.length ? cardFilterOptions.sets : sets.map((set) => ({ code: set.code, namePt: set.namePt, nameEn: set.nameEn })),
+    missingRelationCounts: cardFilterOptions.missingRelationCounts,
   }), [cardFilterOptions, sets, taxonomies]);
   const activeCardFilters = useMemo<ActiveCardFilter[]>(() => {
-    const labels: Partial<Record<keyof CardCatalogQuery, string>> = { q: "Busca", color: "Cor", cardType: "Tipo", setCode: "Coleção", rarity: "Raridade", ap: "AP", hp: "HP", cost: "Custo", level: "Level", trait: "Trait", media: "Mídia", link: "Link/piloto", status: "Status" };
+    const labels: Partial<Record<keyof CardCatalogQuery, string>> = { q: "Busca", color: "Cor", cardType: "Tipo", setCode: "Coleção", rarity: "Raridade", ap: "AP", hp: "HP", cost: "Custo", level: "Level", trait: "Trait", media: "Mídia", link: "Link/piloto", relation: "Relação", status: "Status" };
     return (Object.entries(labels) as Array<[keyof CardCatalogQuery, string]>).flatMap(([key, label]) => {
       const value = cardQuery[key];
       if (!value) return [];
-      const text = key === "link" ? ({ has: "Com Link/requisito", "pilot-card": "Cartas Piloto", "pilot-reference": "Comandos com referência a piloto", none: "Sem Link/requisito" }[String(value)] || String(value)) : key === "status" ? (LEGALITY_OPTIONS.find((item) => item.value === value)?.label || String(value)) : String(value);
+      const text = key === "link" ? ({ has: "Com Link/requisito", "pilot-card": "Cartas Piloto", "pilot-reference": "Comandos com referência a piloto", none: "Sem Link/requisito" }[String(value)] || String(value)) : key === "relation" ? ({ missing: "Sem relação confirmada", confirmed: "Com relação confirmada" }[String(value)] || String(value)) : key === "status" ? (LEGALITY_OPTIONS.find((item) => item.value === value)?.label || String(value)) : String(value);
       return [{ key, label, value: text }];
     });
   }, [cardQuery]);
@@ -685,6 +686,23 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2 border border-amber-400/20 bg-amber-400/[0.04] p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-300/80">Fila de curadoria · cartas sem relação editorial confirmada</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([["PILOT", "Pilotos"], ["UNIT", "Unidades"], ["COMMAND", "Commands"]] as const).map(([type, label]) => {
+                      const count = availableCardFilters.missingRelationCounts[type];
+                      return (
+                        <button key={type} type="button" onClick={() => updateCardQuery({ cardType: type, relation: "missing", page: 1 })}
+                          className={`flex items-center gap-2 border px-3 py-2 text-left text-sm transition ${count > 0 ? "border-amber-400/40 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20" : "border-white/10 bg-white/5 text-slate-500"}`}>
+                          <span className="text-lg font-semibold tabular-nums">{count}</span>
+                          <span className="text-xs uppercase tracking-[0.14em]">{label} sem relação</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] leading-4 text-amber-200/60">Clique num card acima pra filtrar direto a fila. Critério e convenção de cada tipo de relação: docs/10-convencoes-relacoes-cartas.md.</p>
+                </div>
+
                 <div className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                   <div className="relative sm:col-span-2"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input id="catalog-q" name="catalog-q" autoComplete="off" value={cardQuery.q} onChange={(e) => updateCardQuery({ q: e.target.value, page: 1 })} placeholder="Nome ou código" className="rounded-none pl-9" /></div>
                   <select id="catalog-card-type" name="catalog-card-type" value={cardQuery.cardType} onChange={(e) => updateCardQuery({ cardType: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{CATALOG_CARD_TYPE_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
@@ -698,13 +716,14 @@ export default function AdminPage() {
                   <select id="catalog-trait" name="catalog-trait" value={cardQuery.trait} onChange={(e) => updateCardQuery({ trait: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{availableCardFilters.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
                   <select id="catalog-media" name="catalog-media" value={cardQuery.media} onChange={(e) => updateCardQuery({ media: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todas as mídias</option>{availableCardFilters.media.map((item) => <option key={item} value={item}>{item}</option>)}</select>
                   <select id="catalog-link" name="catalog-link" value={cardQuery.link} onChange={(e) => updateCardQuery({ link: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Link / piloto</option><option value="has">Com Link/requisito</option><option value="pilot-card">Cartas do tipo Piloto</option><option value="pilot-reference">Comandos com referência a piloto</option><option value="none">Sem Link/requisito</option></select>
+                  <select id="catalog-relation" name="catalog-relation" value={cardQuery.relation} onChange={(e) => updateCardQuery({ relation: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Relação editorial</option><option value="missing">Sem relação confirmada</option><option value="confirmed">Com relação confirmada</option></select>
                   <select id="catalog-status" name="catalog-status" value={cardQuery.status} onChange={(e) => updateCardQuery({ status: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="">Todos os status</option>{availableCardFilters.statuses.map((item) => <option key={item} value={item}>{LEGALITY_OPTIONS.find((option) => option.value === item)?.label || item}</option>)}</select>
                   <select id="catalog-sort" name="catalog-sort" value={cardQuery.sort} onChange={(e) => updateCardQuery({ sort: e.target.value, page: 1 })} className="field-shell h-10 px-3 text-sm"><option value="code_asc">Código A–Z</option><option value="code_desc">Código Z–A</option><option value="name_asc">Nome A–Z</option><option value="name_desc">Nome Z–A</option><option value="ap_desc">AP maior</option><option value="ap_asc">AP menor</option><option value="hp_desc">HP maior</option><option value="hp_asc">HP menor</option><option value="cost_asc">Custo menor</option><option value="cost_desc">Custo maior</option><option value="level_asc">Level menor</option><option value="level_desc">Level maior</option><option value="rarity_asc">Raridade A–Z</option><option value="rarity_desc">Raridade Z–A</option><option value="updated_desc">Atualização recente</option><option value="updated_asc">Atualização antiga</option></select>
-                  <Button type="button" variant="outline" className="rounded-none" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })}>Limpar filtros</Button>
+                  <Button type="button" variant="outline" className="rounded-none" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", relation: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })}>Limpar filtros</Button>
                 </div>
 
                 {cardFiltersError ? <div className="flex flex-wrap items-center justify-between gap-3 border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200"><span>Opções dinâmicas indisponíveis: {cardFiltersError}. As opções-base continuam disponíveis.</span><Button type="button" variant="outline" className="h-8 rounded-none border-amber-300/40 text-amber-100" onClick={loadCardFilterOptions} disabled={cardFiltersLoading}>{cardFiltersLoading ? "Atualizando…" : "Tentar novamente"}</Button></div> : null}
-                {activeCardFilters.length ? <div className="flex flex-wrap items-center gap-2 border border-white/10 bg-slate-950/30 p-3"><span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros ativos</span>{activeCardFilters.map((filter) => <button key={filter.key} type="button" onClick={() => updateCardQuery({ [filter.key]: "", page: 1 } as Partial<CardCatalogQuery>)} className="inline-flex items-center gap-1 border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-primary transition hover:bg-primary/20"><span>{filter.label}: {filter.value}</span><X className="size-3" /></button>)}<button type="button" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })} className="ml-1 text-xs text-slate-400 underline-offset-4 hover:text-white hover:underline">Limpar tudo</button></div> : null}
+                {activeCardFilters.length ? <div className="flex flex-wrap items-center gap-2 border border-white/10 bg-slate-950/30 p-3"><span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Filtros ativos</span>{activeCardFilters.map((filter) => <button key={filter.key} type="button" onClick={() => updateCardQuery({ [filter.key]: "", page: 1 } as Partial<CardCatalogQuery>)} className="inline-flex items-center gap-1 border border-primary/40 bg-primary/10 px-2 py-1 text-xs text-primary transition hover:bg-primary/20"><span>{filter.label}: {filter.value}</span><X className="size-3" /></button>)}<button type="button" onClick={() => updateCardQuery({ q: "", color: "", cardType: "", setCode: "", rarity: "", ap: "", hp: "", cost: "", level: "", trait: "", media: "", link: "", relation: "", status: "", sort: "code_asc", page: 1, pageSize: 50 })} className="ml-1 text-xs text-slate-400 underline-offset-4 hover:text-white hover:underline">Limpar tudo</button></div> : null}
                 <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400"><span>{cardTotal ? `Exibindo ${(cardQuery.page - 1) * cardQuery.pageSize + 1}–${Math.min(cardQuery.page * cardQuery.pageSize, cardTotal)} de ${cardTotal}` : "Nenhuma carta encontrada"}</span><label className="flex items-center gap-2">Por página <select id="catalog-page-size" name="catalog-page-size" value={String(cardQuery.pageSize)} onChange={(e) => updateCardQuery({ pageSize: Number(e.target.value), page: 1 })} className="field-shell h-8 px-2 text-xs"><option value="25">25</option><option value="50">50</option><option value="80">80</option><option value="100">100</option></select></label></div>
 
                 <div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Carta</th><th className="px-4 py-3">Tipo / status</th><th className="px-4 py-3">Coleção</th><th className="px-4 py-3">Stats</th><th className="px-4 py-3">Vínculos</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{cards.map((card) => <tr key={card.id} className="border-t border-white/10 align-top"><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-12 overflow-hidden border border-white/10 bg-slate-950/60">{card.imageUrl ? <img src={card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem arte</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{card.code} · {card.rarity || "—"}</p><p className="mt-1 font-medium">{card.namePt || card.nameEn}</p><p className="text-xs text-slate-500">{card.sourceTitle || card.series || "sem mídia"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{cardTypeLabel(card.cardType)}</Badge><p className="mt-2 text-xs text-slate-500">{LEGALITY_OPTIONS.find((option) => option.value === card.legalityStatus)?.label || card.legalityStatus || "Legal"}</p></td><td className="px-4 py-4">{card.set?.code || "—"}</td><td className="px-4 py-4 text-xs text-slate-400">Lv {card.level ?? "-"} · Cost {card.cost ?? "-"} · AP {card.ap ?? "-"} · HP {card.hp ?? "-"}</td><td className="px-4 py-4 text-xs text-slate-400"><p>{card.linkText || "sem link"}</p><p className="mt-1">{card.pilotName ? `Piloto: ${card.pilotName}` : (card.traits || []).join(" · ") || "sem trait"}</p></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openCardModal(card)}><Pencil className="size-4" /></Button><Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteCard(card)}><Trash2 className="size-4" /></Button></div></td></tr>)}</tbody></table></div>

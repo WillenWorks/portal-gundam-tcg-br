@@ -1136,6 +1136,7 @@ app.get("/api/cards", async (req, res) => {
   const rarity = normalizeQueryValue(req.query.rarity);
   const status = normalizeQueryValue(req.query.status ?? req.query.legalityStatus);
   const link = normalizeQueryValue(req.query.link);
+  const relation = normalizeQueryValue(req.query.relation);
   const ap = parseIntegerFilter(req.query.ap);
   const hp = parseIntegerFilter(req.query.hp);
   const cost = parseIntegerFilter(req.query.cost);
@@ -1179,6 +1180,8 @@ app.get("/api/cards", async (req, res) => {
       link === "pilot-card" ? { cardType: CardType.PILOT } : {},
       link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
       link === "none" ? { linkText: null, pilotName: null } : {},
+      relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
+      relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
     ],
   };
 
@@ -1217,7 +1220,12 @@ app.get("/api/cards", async (req, res) => {
 app.get("/api/cards/filters", async (_req, res) => {
   setPublicCache(res, 300, 900);
   const activeCards: Prisma.CardWhereInput = { isActive: true };
-  const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows] = await Promise.all([
+  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardWhereInput => ({
+    isActive: true,
+    cardType: Array.isArray(cardType) ? { in: cardType } : cardType,
+    AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }],
+  });
+  const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows, pilotsMissing, unitsMissing, commandsMissing] = await Promise.all([
     prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
     prisma.card.findMany({ where: { ...activeCards, rarity: { not: null } }, select: { rarity: true }, distinct: ["rarity"], orderBy: { rarity: "asc" } }),
@@ -1228,6 +1236,9 @@ app.get("/api/cards/filters", async (_req, res) => {
     prisma.taxonomyEntry.findMany({ where: { isActive: true, kind: TaxonomyKind.SOURCE_TITLE }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.cardSet.findMany({ where: { isActive: true }, select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { keywordTags: true } }),
+    prisma.card.count({ where: missingRelationWhere(CardType.PILOT) }),
+    prisma.card.count({ where: missingRelationWhere(CardType.UNIT) }),
+    prisma.card.count({ where: missingRelationWhere([CardType.COMMAND, CardType.COMMAND_PILOT]) }),
   ]);
 
   const media = Array.from(new Set([...mediaTaxonomies.map((item) => item.name), ...mediaRows.flatMap((item) => [item.sourceTitle, item.series]).filter(Boolean) as string[]])).sort();
@@ -1244,6 +1255,7 @@ app.get("/api/cards/filters", async (_req, res) => {
     traits: Array.from(new Set([...traitTaxonomies.map((item) => item.name), ...traitRows.flatMap((item) => item.traits)])).sort(),
     keywords: Array.from(keywordSet).sort(),
     sets,
+    missingRelationCounts: { PILOT: pilotsMissing, UNIT: unitsMissing, COMMAND: commandsMissing },
   });
 });
 
