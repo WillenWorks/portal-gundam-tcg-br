@@ -59,7 +59,7 @@ export function PublicShell({ children, breadcrumbs, title, description }: { chi
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Núcleo público</p>
-                  {title ? <h1 className="mt-2 font-heading text-5xl uppercase leading-none dark:text-white light:text-slate-900">{title}</h1> : null}
+                  {title ? <h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl dark:text-white light:text-slate-900">{title}</h1> : null}
                   {description ? <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{description}</p> : null}
                 </div>
                 <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Hangar público</Badge>
