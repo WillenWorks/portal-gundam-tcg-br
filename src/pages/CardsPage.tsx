@@ -1,4 +1,4 @@
-/* Database pública v8.1 — catálogo via API com filtros compostos, leitura rápida e largura útil maior. */
+/* Catálogo público de cartas — filtros compostos via /api/cards, estado sincronizado com a URL. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Copy } from "lucide-react";
@@ -88,15 +88,15 @@ export default function CardsPage() {
   };
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Database" }]} title="Database" description="Catálogo central de cartas com filtros, links compartilháveis e atalhos para coleções. No futuro, esta área também recebe estatísticas avançadas por carta.">
+    <PublicShell breadcrumbs={[{ label: "Catálogo" }]} title="Catálogo de Cartas" description="Catálogo completo de cartas com filtros combinados e link de busca pra compartilhar. Estatísticas avançadas por carta chegam nas próximas atualizações.">
       <div className="space-y-6">
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="space-y-5 p-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Busca avançada via API</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Busca avançada</p>
                 <h2 className="mt-2 font-heading text-4xl uppercase dark:text-white light:text-slate-900">Catálogo filtrado de cartas</h2>
-                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Database pública para cartas, séries, traits, keywords e sets. Os filtros ficam na URL para compartilhar buscas prontas e também servem como base para futuras views por coleção.</p>
+                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Filtre por cor, tipo, série, trait, keyword ou coleção. Os filtros ficam salvos no link, então dá pra compartilhar uma busca pronta com qualquer pessoa.</p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{cards.length} resultados</Badge>
@@ -104,15 +104,15 @@ export default function CardsPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-12">
-              <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Nome, código, trait, efeito ou série" className="field-shell xl:col-span-6 light:border-slate-300/80 light:bg-white light:text-slate-900" />
-              <select value={filters.color ?? ""} onChange={(event) => setFilter("color", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as cores</option>{meta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.trait ?? ""} onChange={(event) => setFilter("trait", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as traits</option>{meta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
-              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white xl:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option><option value="updated_desc">Mais recentes</option></select>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
+              <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Nome, código, trait, efeito ou série" className="field-shell sm:col-span-2 lg:col-span-6 light:border-slate-300/80 light:bg-white light:text-slate-900" />
+              <select value={filters.color ?? ""} onChange={(event) => setFilter("color", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as cores</option>{meta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.trait ?? ""} onChange={(event) => setFilter("trait", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as traits</option>{meta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option><option value="updated_desc">Mais recentes</option></select>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -123,14 +123,14 @@ export default function CardsPage() {
           </CardContent>
         </Card>
 
-        {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo da API...</p> : null}
+        {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo...</p> : null}
 
-        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {cards.map((card) => (
             <Card key={card.id} className="panel-cut rounded-none surface-panel">
               <CardContent className="space-y-4 p-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
                     <h3 className="mt-2 font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
                   </div>
