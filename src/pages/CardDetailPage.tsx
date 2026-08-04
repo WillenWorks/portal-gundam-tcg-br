@@ -1,6 +1,6 @@
 /* Detalhe de carta v10 — relações editoriais confirmadas separadas de recomendações automáticas. */
 import { useEffect, useMemo, useState } from "react";
-import { Expand, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, ExternalLink } from "lucide-react";
 import { Link, useRoute } from "wouter";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -18,13 +18,6 @@ const RELATION_LABELS: Record<string, string> = {
   STORY_RELATED: "Relacionado na história",
 };
 const TYPE_LABELS: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", COMMAND_PILOT: "Comando", BASE: "Base", RESOURCE: "Recurso", EX_BASE: "Base EX", EX_RESOURCE: "Recurso EX" };
-
-// Heurística temporária: entre impressões do mesmo code, prefere a de raridade "base"
-// (sem +, ++ ou rótulo especial) como representante — ainda não existe no schema um
-// campo que marque explicitamente qual impressão é a "arte regular" de um code
-// (fica pro redesenho de dedup + galeria de arte).
-const ALT_ART_RARITY_PATTERN = /\+|Promo|Winner|Judge|SP/i;
-const isAltArtRarity = (rarity?: string | null) => ALT_ART_RARITY_PATTERN.test(rarity || "");
 
 type CardDetail = any;
 
@@ -44,16 +37,18 @@ export default function CardDetailPage() {
   const [recommendations, setRecommendations] = useState<CardDetail[]>([]);
   const [error, setError] = useState("");
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     async function load() {
       if (!params?.id) return;
-      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError("");
+      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError(""); setSelectedPrintId(null);
       try {
         const detail = await api.getCard(params.id);
         if (!active) return;
         setCard(detail);
+        setSelectedPrintId(detail.printId ?? null);
         const relationRequest = api.getCardRelations(params.id).catch(() => ({ outgoing: [], incoming: [] }));
         const primaryTrait = detail.traits?.[0] || detail.trait;
         const suggestionRequests: Promise<any[]>[] = [];
@@ -63,39 +58,36 @@ export default function CardDetailPage() {
         const [relationData, ...suggestionData] = await Promise.all([relationRequest, ...suggestionRequests]);
         if (!active) return;
         setRelations(relationData as { outgoing: any[]; incoming: any[] });
-        const byCode = new Map<string, any>();
-        for (const item of (suggestionData as any[][]).flat()) {
-          if (item.id === detail.id || !item.code) continue;
-          const current = byCode.get(item.code);
-          if (!current || (isAltArtRarity(current.rarity) && !isAltArtRarity(item.rarity))) byCode.set(item.code, item);
-        }
-        setRecommendations(Array.from(byCode.values()).slice(0, 6));
+        const seen = new Set<string>([detail.id]);
+        const uniqueRecs = (suggestionData as any[][]).flat().filter((item) => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        });
+        setRecommendations(uniqueRecs.slice(0, 6));
       } catch (err: any) { if (active) setError(err.message || "Falha ao carregar a carta."); }
     }
     load(); return () => { active = false; };
   }, [params?.id]);
 
-  const artUrl = card?.imageLargeUrl || card?.imageMediumUrl || card?.imageUrl || "";
-  const editorialRelations = useMemo(() => {
-    const all = [
-      ...relations.outgoing.map((relation) => ({ ...relation, relatedCard: relation.targetCard })),
-      ...relations.incoming.map((relation) => ({ ...relation, relatedCard: relation.sourceCard })),
-    ];
-    // Agrupa por code da carta relacionada, não por impressão — um piloto com 3 reimpressões
-    // deve aparecer uma vez só aqui, não 3 vezes com artes diferentes. Entre elas, prefere a
-    // impressão de raridade base (ver preferRegularPrint).
-    const byCode = new Map<string, typeof all[number]>();
-    for (const relation of all) {
-      const code = relation.relatedCard?.code;
-      if (!code) continue;
-      const current = byCode.get(code);
-      if (!current || (isAltArtRarity(current.relatedCard?.rarity) && !isAltArtRarity(relation.relatedCard?.rarity))) {
-        byCode.set(code, relation);
-      }
-    }
-    return Array.from(byCode.values()).slice(0, 8);
-  }, [relations]);
-  const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(card?.set?.code ? [{ label: card.set.code, href: `/sets/${card.set.code}` }] : []), { label: card?.code || "Detalhe" }], [card]);
+  const prints: any[] = card?.prints || [];
+  const selectedPrint = prints.find((p) => p.id === selectedPrintId) || prints[0] || card;
+  const artUrl = selectedPrint?.imageLargeUrl || selectedPrint?.imageMediumUrl || selectedPrint?.imageUrl || "";
+  const selectedPrintIndex = Math.max(0, prints.findIndex((p) => p.id === selectedPrint?.id));
+  const goToPrint = (offset: number) => {
+    if (!prints.length) return;
+    const next = (selectedPrintIndex + offset + prints.length) % prints.length;
+    setSelectedPrintId(prints[next].id);
+  };
+
+  // Relação agora é 1 linha por par de CardModel (sem broadcast por impressão) e o
+  // back-end já devolve a impressão primária de cada carta relacionada — não precisa
+  // mais dedup no front, só juntar as duas direções.
+  const editorialRelations = useMemo(() => [
+    ...relations.outgoing.map((relation) => ({ ...relation, relatedCard: relation.targetCard })),
+    ...relations.incoming.map((relation) => ({ ...relation, relatedCard: relation.sourceCard })),
+  ].slice(0, 8), [relations]);
+  const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(selectedPrint?.set?.code ? [{ label: selectedPrint.set.code, href: `/sets/${selectedPrint.set.code}` }] : []), { label: selectedPrint?.code || "Detalhe" }], [selectedPrint]);
   const textSections = useMemo(() => Array.isArray(card?.textSectionsJson) ? card.textSectionsJson.filter((item: any) => item?.textPt || item?.textEn) : [], [card]);
 
   return <PublicShell breadcrumbs={breadcrumbs}>
@@ -104,15 +96,30 @@ export default function CardDetailPage() {
       {!card && !error ? <Card className="panel-cut surface-panel"><CardContent className="p-6 text-slate-400">Carregando detalhe da carta…</CardContent></Card> : null}
       {card ? <>
         <section className="grid gap-6 lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
-          <div className="relative mx-auto w-full max-w-[460px]">
+          <div className="mx-auto w-full max-w-[460px] space-y-3">
             <button type="button" onClick={() => artUrl && setZoomOpen(true)} className="group relative block w-full overflow-hidden border border-primary/30 bg-slate-950/60 text-left" aria-label="Ampliar imagem da carta">
               <div className="aspect-[63/88]">{artUrl ? <img src={artUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sem arte vinculada</div>}</div>
               {artUrl ? <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 border border-white/20 bg-slate-950/85 px-3 py-2 text-xs uppercase tracking-[0.14em] text-white"><Expand className="size-4" />Ampliar</span> : null}
             </button>
+            {prints.length > 1 ? (
+              <div className="grid grid-cols-5 gap-2">
+                {prints.map((print) => {
+                  const thumb = print.imageSmallUrl || print.thumbUrl || print.imageUrl;
+                  const active = print.id === selectedPrint?.id;
+                  return (
+                    <button key={print.id} type="button" onClick={() => setSelectedPrintId(print.id)}
+                      className={`aspect-[63/88] overflow-hidden border transition ${active ? "border-primary ring-2 ring-primary/50" : "border-white/15 opacity-70 hover:opacity-100"}`}
+                      aria-label={`Ver arte: ${print.printLabel || print.rarity || "impressão"}`} title={print.printLabel || print.rarity || undefined}>
+                      {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[9px] text-slate-500">?</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
           <Card className="panel-cut rounded-none border-primary/30 hero-surface"><CardContent className="space-y-5 p-6">
-            <div className="flex flex-wrap gap-2"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge><Badge variant="outline" className="rounded-none border-white/20 text-slate-300">{card.color || "Sem cor"}</Badge>{card.rarity ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{card.rarity}</Badge> : null}{card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}</div>
-            <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{card.set?.code || "Impressão sem coleção"} · {card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
+            <div className="flex flex-wrap gap-2"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge><Badge variant="outline" className="rounded-none border-white/20 text-slate-300">{card.color || "Sem cor"}</Badge>{selectedPrint?.rarity ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{selectedPrint.rarity}</Badge> : null}{card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}{prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}</div>
+            <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code || "Sem coleção"} · {selectedPrint?.code || card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
             <div className="space-y-2 text-sm leading-7 text-slate-300"><p><span className="text-slate-500">Traits:</span> {(card.traits || []).join(" · ") || card.trait || "—"}</p><p><span className="text-slate-500">Mídia:</span> {card.sourceTitle || card.series || "—"}</p><p><span className="text-slate-500">Link/requisito:</span> {card.linkText || "—"}</p></div>
             <div className="border-t border-white/10 pt-4"><p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">{formatCardText(textSections[0]?.textPt || textSections[0]?.textEn || card.effectPt || card.effectEn) || "Sem texto cadastrado."}</p></div>
@@ -129,6 +136,15 @@ export default function CardDetailPage() {
         </section>
       </> : null}
     </div>
-    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">{artUrl ? <img src={artUrl} alt={card?.namePt || card?.nameEn || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}</DialogContent></Dialog>
+    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
+      <div className="relative">
+        {artUrl ? <img src={artUrl} alt={card?.namePt || card?.nameEn || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
+        {prints.length > 1 ? <>
+          <button type="button" onClick={() => goToPrint(-1)} aria-label="Arte anterior" className="absolute left-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronLeft className="size-5" /></button>
+          <button type="button" onClick={() => goToPrint(1)} aria-label="Próxima arte" className="absolute right-2 top-1/2 -translate-y-1/2 border border-white/20 bg-slate-950/80 p-2 hover:bg-slate-900"><ChevronRight className="size-5" /></button>
+          <p className="mt-2 text-center text-xs uppercase tracking-[0.18em] text-slate-400">{selectedPrint?.printLabel || selectedPrint?.rarity || "—"} · {selectedPrintIndex + 1}/{prints.length}</p>
+        </> : null}
+      </div>
+    </DialogContent></Dialog>
   </PublicShell>;
 }
