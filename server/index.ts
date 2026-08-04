@@ -1090,12 +1090,24 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
 app.get("/api/cards/:id/relations", async (req, res) => {
   setPublicCache(res, 30, 120);
   const cardId = String(req.params.id);
-  const card = await prisma.card.findUnique({ where: { id: cardId }, select: { id: true } });
+  const card = await prisma.card.findUnique({ where: { id: cardId }, select: { id: true, cardModelId: true } });
   if (!card) return res.status(404).json({ error: "Carta não encontrada." });
-  const [outgoing, incoming] = await Promise.all([
-    prisma.cardRelation.findMany({ where: { sourceCardId: cardId, isActive: true }, include: { targetCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
-    prisma.cardRelation.findMany({ where: { targetCardId: cardId, isActive: true }, include: { sourceCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+  if (!card.cardModelId) return res.json({ outgoing: [], incoming: [] });
+
+  const primaryPrintInclude = { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" as const }, { createdAt: "asc" as const }], take: 1 } };
+  const flattenModel = (relation: any, key: "sourceModel" | "targetModel") => {
+    const model = relation[key];
+    const print = model?.prints?.[0];
+    const { prints: _prints, ...modelFields } = model || {};
+    return { ...relation, relatedCard: print ? { ...print, ...modelFields, id: print.id } : null };
+  };
+
+  const [outgoingRaw, incomingRaw] = await Promise.all([
+    prisma.cardRelation.findMany({ where: { sourceModelId: card.cardModelId, isActive: true }, include: { targetModel: { include: primaryPrintInclude } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+    prisma.cardRelation.findMany({ where: { targetModelId: card.cardModelId, isActive: true }, include: { sourceModel: { include: primaryPrintInclude } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
   ]);
+  const outgoing = outgoingRaw.map((relation) => flattenModel(relation, "targetModel")).filter((relation) => relation.relatedCard);
+  const incoming = incomingRaw.map((relation) => flattenModel(relation, "sourceModel")).filter((relation) => relation.relatedCard);
   res.json({ outgoing, incoming });
 });
 
@@ -1105,20 +1117,22 @@ app.post("/api/cards/:id/relations", authRequired, roleRequired([UserRole.ADMIN,
   if (!targetCardId || !relationType) return res.status(400).json({ error: "Carta de destino e tipo de relação são obrigatórios." });
   if (sourceCardId === targetCardId) return res.status(400).json({ error: "Uma carta não pode se relacionar consigo mesma." });
   if (!Object.values(CardRelationType).includes(relationType as CardRelationType)) return res.status(400).json({ error: "Tipo de relação inválido." });
-  const [sourceCard, targetCard] = await Promise.all([prisma.card.findUnique({ where: { id: sourceCardId } }), prisma.card.findUnique({ where: { id: targetCardId } })]);
-  if (!sourceCard || !targetCard) return res.status(404).json({ error: "Uma das impressões selecionadas não foi encontrada." });
+  const [sourceCard, targetCard] = await Promise.all([prisma.card.findUnique({ where: { id: sourceCardId }, select: { cardModelId: true } }), prisma.card.findUnique({ where: { id: targetCardId }, select: { cardModelId: true } })]);
+  if (!sourceCard?.cardModelId || !targetCard?.cardModelId) return res.status(404).json({ error: "Uma das impressões selecionadas não tem carta-modelo associada (rode a migração de dado antes)." });
+  if (sourceCard.cardModelId === targetCard.cardModelId) return res.status(400).json({ error: "Essas impressões pertencem à mesma carta — não é possível criar relação consigo mesma." });
   const relation = await prisma.cardRelation.upsert({
-    where: { sourceCardId_targetCardId_relationType: { sourceCardId, targetCardId, relationType: relationType as CardRelationType } },
+    where: { sourceModelId_targetModelId_relationType: { sourceModelId: sourceCard.cardModelId, targetModelId: targetCard.cardModelId, relationType: relationType as CardRelationType } },
     update: { notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null, isActive: true, deletedAt: null },
-    create: { sourceCardId, targetCardId, relationType: relationType as CardRelationType, notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null },
-    include: { targetCard: { include: { set: true } } },
+    create: { sourceModelId: sourceCard.cardModelId, targetModelId: targetCard.cardModelId, relationType: relationType as CardRelationType, notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null },
   });
   res.status(201).json(relation);
 });
 
 app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const sourceCardId = String(req.params.id);
-  const relation = await prisma.cardRelation.findFirst({ where: { id: String(req.params.relationId), sourceCardId } });
+  const sourceCard = await prisma.card.findUnique({ where: { id: sourceCardId }, select: { cardModelId: true } });
+  if (!sourceCard?.cardModelId) return res.status(404).json({ error: "Carta não encontrada." });
+  const relation = await prisma.cardRelation.findFirst({ where: { id: String(req.params.relationId), sourceModelId: sourceCard.cardModelId } });
   if (!relation) return res.status(404).json({ error: "Relação não encontrada." });
   await prisma.cardRelation.update({ where: { id: relation.id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();

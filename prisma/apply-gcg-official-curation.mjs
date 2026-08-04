@@ -76,17 +76,6 @@ async function loadOurCodes() {
   return new Set(cards.map((c) => c.code));
 }
 
-/** Quantas impressões (linhas) cada code tem no nosso dataset — usado só pra estimar,
- *  no dry-run, quantas linhas de CardRelation o --apply de fato vai criar (broadcast
- *  entre todas as impressões que compartilham o mesmo code). */
-async function countPrintsByCode() {
-  const raw = JSON.parse(await readFile(ourDatasetPath, "utf8"));
-  const cards = (raw.cards || []).filter((c) => c.attributes?.CardType);
-  const counts = new Map();
-  for (const c of cards) counts.set(c.code, (counts.get(c.code) || 0) + 1);
-  return counts;
-}
-
 /** Monta as duas listas de trabalho a partir do dataset oficial: atualizações de série
  *  e candidatos a relação PILOT_OF (só vínculo direto por nome). */
 function buildPlan(officialCards) {
@@ -160,20 +149,10 @@ async function dryRun() {
   const [officialCards, ourCodes] = await Promise.all([loadOfficialCards(), loadOurCodes()]);
   const { seriesUpdates, seriesSkipped, pilotUnitRelations, traitLinkedSkipped, commandSupportRelations } = buildPlan(officialCards);
 
-  const codeCounts = await countPrintsByCode();
-
   const matchedSeries = seriesUpdates.filter((u) => ourCodes.has(u.code));
   const matchedRelations = pilotUnitRelations.filter((r) => ourCodes.has(r.pilotCode) && ourCodes.has(r.unitCode));
   const unmatchedRelations = pilotUnitRelations.filter((r) => !(ourCodes.has(r.pilotCode) && ourCodes.has(r.unitCode)));
   const matchedCommandRelations = commandSupportRelations.filter((r) => ourCodes.has(r.commandCode) && ourCodes.has(r.targetCode));
-
-  // cada par (pilotCode, unitCode) vira N linhas de CardRelation — uma por combinação de
-  // impressões que compartilham o mesmo code (reprint/promo/variante). O número de PARES
-  // é sempre bem menor que o número de LINHAS que efetivamente entram no banco.
-  const relationRowCount = (pairs, codeA, codeB) =>
-    pairs.reduce((sum, r) => sum + (codeCounts.get(r[codeA]) || 0) * (codeCounts.get(r[codeB]) || 0), 0);
-  const pilotUnitRowCount = relationRowCount(matchedRelations, "pilotCode", "unitCode");
-  const commandRowCount = relationRowCount(matchedCommandRelations, "commandCode", "targetCode");
 
   console.log("=== DRY-RUN — nada foi gravado no banco ===\n");
   console.log(`Cartas no dataset oficial: ${officialCards.length}`);
@@ -185,7 +164,7 @@ async function dryRun() {
     for (const s of seriesSkipped) console.log(`   - ${s.code} ${s.name} | valor bruto: "${s.rawSourceTitle}"`);
   }
 
-  console.log(`\nRelações PILOT_OF: ${matchedRelations.length} pares piloto↔unidade únicos → ${pilotUnitRowCount} linhas de CardRelation seriam criadas (broadcast entre impressões que compartilham o mesmo code).`);
+  console.log(`\nRelações PILOT_OF: ${matchedRelations.length} linhas de CardRelation seriam criadas (uma por par de CardModel — sem broadcast, já que a relação agora é por carta, não por impressão).`);
   if (unmatchedRelations.length) {
     console.log(`Relações PILOT_OF: ${unmatchedRelations.length} candidatas não bateram com nosso dataset (code de piloto ou unidade não encontrado) — amostra:`);
     for (const r of unmatchedRelations.slice(0, 10)) console.log(`   - ${r.pilotCode} (${r.pilotName}) -> ${r.unitCode} (${r.unitName})`);
@@ -193,7 +172,7 @@ async function dryRun() {
 
   console.log(`\nVínculos por trait (não viram CardRelation, ficam pra descoberta automática): ${traitLinkedSkipped.length}`);
 
-  console.log(`\nRelações SUPPORTS (Command -> Piloto/Unidade citado no efeito): ${matchedCommandRelations.length} pares únicos → ${commandRowCount} linhas de CardRelation seriam criadas.`);
+  console.log(`\nRelações SUPPORTS (Command -> Piloto/Unidade citado no efeito): ${matchedCommandRelations.length} linhas de CardRelation seriam criadas.`);
   for (const r of matchedCommandRelations) {
     console.log(`   ${r.commandCode} (${r.commandName}) -> SUPPORTS -> ${r.targetCode} (${r.targetName})`);
   }
@@ -232,70 +211,54 @@ async function apply() {
       for (const s of seriesSkipped) console.log(`   - ${s.code} ${s.name} | valor bruto: "${s.rawSourceTitle}"`);
     }
 
-    // --- 2. relações PILOT_OF ---
+    // --- 2. relações PILOT_OF (agora por CardModel — uma linha por par, sem broadcast) ---
     let relationsCreated = 0;
     let relationsFailed = 0;
     for (const r of pilotUnitRelations) {
-      const [sourceCards, targetCards] = await Promise.all([
-        prisma.card.findMany({ where: { code: r.pilotCode, isActive: true }, select: { id: true } }),
-        prisma.card.findMany({ where: { code: r.unitCode, isActive: true }, select: { id: true } }),
+      const [sourceModel, targetModel] = await Promise.all([
+        prisma.cardModel.findUnique({ where: { code: r.pilotCode }, select: { id: true } }),
+        prisma.cardModel.findUnique({ where: { code: r.unitCode }, select: { id: true } }),
       ]);
-      if (!sourceCards.length || !targetCards.length) {
-        relationsFailed += 1;
-        continue;
-      }
-      for (const source of sourceCards) {
-        for (const target of targetCards) {
-          if (source.id === target.id) continue;
-          await prisma.cardRelation.upsert({
-            where: { sourceCardId_targetCardId_relationType: { sourceCardId: source.id, targetCardId: target.id, relationType: CardRelationType.PILOT_OF } },
-            update: { isActive: true, deletedAt: null, sourceUrl: r.sourceUrl },
-            create: {
-              sourceCardId: source.id,
-              targetCardId: target.id,
-              relationType: CardRelationType.PILOT_OF,
-              notePt: "Vínculo oficial (Link Condition do jogo — gundam-gcg.com)",
-              sourceUrl: r.sourceUrl,
-            },
-          });
-          relationsCreated += 1;
-        }
-      }
+      if (!sourceModel || !targetModel) { relationsFailed += 1; continue; }
+      await prisma.cardRelation.upsert({
+        where: { sourceModelId_targetModelId_relationType: { sourceModelId: sourceModel.id, targetModelId: targetModel.id, relationType: CardRelationType.PILOT_OF } },
+        update: { isActive: true, deletedAt: null, sourceUrl: r.sourceUrl },
+        create: {
+          sourceModelId: sourceModel.id,
+          targetModelId: targetModel.id,
+          relationType: CardRelationType.PILOT_OF,
+          notePt: "Vínculo oficial (Link Condition do jogo — gundam-gcg.com)",
+          sourceUrl: r.sourceUrl,
+        },
+      });
+      relationsCreated += 1;
     }
-    console.log(`Relações PILOT_OF: ${relationsCreated} criadas/atualizadas. ${relationsFailed} candidatas não encontraram carta correspondente no banco.`);
+    console.log(`Relações PILOT_OF: ${relationsCreated} criadas/atualizadas. ${relationsFailed} candidatas sem CardModel correspondente (rode a migração de dado — prisma/migrate-card-model-data.mjs — antes de aplicar).`);
     console.log(`Vínculos por trait (deixados pra descoberta automática, não viraram relação): ${traitLinkedSkipped.length}`);
 
     // --- 3. relações SUPPORTS (Command -> Piloto/Unidade citado no efeito) ---
     let supportsCreated = 0;
     let supportsFailed = 0;
     for (const r of commandSupportRelations) {
-      const [sourceCards, targetCards] = await Promise.all([
-        prisma.card.findMany({ where: { code: r.commandCode, isActive: true }, select: { id: true } }),
-        prisma.card.findMany({ where: { code: r.targetCode, isActive: true }, select: { id: true } }),
+      const [sourceModel, targetModel] = await Promise.all([
+        prisma.cardModel.findUnique({ where: { code: r.commandCode }, select: { id: true } }),
+        prisma.cardModel.findUnique({ where: { code: r.targetCode }, select: { id: true } }),
       ]);
-      if (!sourceCards.length || !targetCards.length) {
-        supportsFailed += 1;
-        continue;
-      }
-      for (const source of sourceCards) {
-        for (const target of targetCards) {
-          if (source.id === target.id) continue;
-          await prisma.cardRelation.upsert({
-            where: { sourceCardId_targetCardId_relationType: { sourceCardId: source.id, targetCardId: target.id, relationType: CardRelationType.SUPPORTS } },
-            update: { isActive: true, deletedAt: null, sourceUrl: r.sourceUrl },
-            create: {
-              sourceCardId: source.id,
-              targetCardId: target.id,
-              relationType: CardRelationType.SUPPORTS,
-              notePt: "Vínculo oficial (carta citada no texto do efeito — gundam-gcg.com)",
-              sourceUrl: r.sourceUrl,
-            },
-          });
-          supportsCreated += 1;
-        }
-      }
+      if (!sourceModel || !targetModel) { supportsFailed += 1; continue; }
+      await prisma.cardRelation.upsert({
+        where: { sourceModelId_targetModelId_relationType: { sourceModelId: sourceModel.id, targetModelId: targetModel.id, relationType: CardRelationType.SUPPORTS } },
+        update: { isActive: true, deletedAt: null, sourceUrl: r.sourceUrl },
+        create: {
+          sourceModelId: sourceModel.id,
+          targetModelId: targetModel.id,
+          relationType: CardRelationType.SUPPORTS,
+          notePt: "Vínculo oficial (carta citada no texto do efeito — gundam-gcg.com)",
+          sourceUrl: r.sourceUrl,
+        },
+      });
+      supportsCreated += 1;
     }
-    console.log(`Relações SUPPORTS (Command): ${supportsCreated} criadas/atualizadas. ${supportsFailed} candidatas não encontraram carta correspondente no banco.`);
+    console.log(`Relações SUPPORTS (Command): ${supportsCreated} criadas/atualizadas. ${supportsFailed} candidatas sem CardModel correspondente.`);
   } finally {
     await prisma.$disconnect();
   }
