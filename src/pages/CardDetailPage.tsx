@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { formatCardText } from "@/lib/utils";
 
 const RELATION_LABELS: Record<string, string> = {
-  PILOT_OF: "Piloto de",
+  PILOT_OF: "Piloto",
   SUPPORTS: "Dá suporte a",
   UPGRADE_OF: "Upgrade de",
   SAME_ARCHETYPE: "Mesmo arquétipo",
@@ -19,13 +19,20 @@ const RELATION_LABELS: Record<string, string> = {
 };
 const TYPE_LABELS: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", COMMAND: "Comando", COMMAND_PILOT: "Comando", BASE: "Base", RESOURCE: "Recurso", EX_BASE: "Base EX", EX_RESOURCE: "Recurso EX" };
 
+// Heurística temporária: entre impressões do mesmo code, prefere a de raridade "base"
+// (sem +, ++ ou rótulo especial) como representante — ainda não existe no schema um
+// campo que marque explicitamente qual impressão é a "arte regular" de um code
+// (fica pro redesenho de dedup + galeria de arte).
+const ALT_ART_RARITY_PATTERN = /\+|Promo|Winner|Judge|SP/i;
+const isAltArtRarity = (rarity?: string | null) => ALT_ART_RARITY_PATTERN.test(rarity || "");
+
 type CardDetail = any;
 
-function MiniCard({ item, eyebrow, detail }: { item: any; eyebrow: string; detail?: string }) {
+function MiniCard({ item, eyebrow, detail }: { item: any; eyebrow?: string; detail?: string }) {
   return <Link href={`/cards/${item.id}`} className="group block panel-cut border surface-strong p-3 transition hover:border-primary/60 hover:bg-primary/[0.06]">
     <div className="grid grid-cols-[58px_1fr] gap-3">
       <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={item.namePt || item.nameEn} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
-      <div className="min-w-0"><p className="text-[10px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p><p className="mt-1 truncate text-xs uppercase tracking-[0.14em] text-slate-500">{item.code}</p><p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{item.namePt || item.nameEn}</p>{detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : <p className="mt-1 text-xs text-slate-400">{TYPE_LABELS[item.cardType] || item.cardType} · {item.set?.code || "sem coleção"}</p>}</div>
+      <div className="min-w-0">{eyebrow ? <p className="text-[10px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p> : null}<p className="mt-1 truncate text-xs uppercase tracking-[0.14em] text-slate-500">{item.code}</p><p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{item.namePt || item.nameEn}</p>{detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : <p className="mt-1 text-xs text-slate-400">{TYPE_LABELS[item.cardType] || item.cardType} · {item.set?.code || "sem coleção"}</p>}</div>
     </div>
   </Link>;
 }
@@ -56,8 +63,13 @@ export default function CardDetailPage() {
         const [relationData, ...suggestionData] = await Promise.all([relationRequest, ...suggestionRequests]);
         if (!active) return;
         setRelations(relationData as { outgoing: any[]; incoming: any[] });
-        const seen = new Set<string>();
-        setRecommendations((suggestionData as any[][]).flat().filter((item) => item.id !== detail.id && !seen.has(item.id) && Boolean(seen.add(item.id))).slice(0, 6));
+        const byCode = new Map<string, any>();
+        for (const item of (suggestionData as any[][]).flat()) {
+          if (item.id === detail.id || !item.code) continue;
+          const current = byCode.get(item.code);
+          if (!current || (isAltArtRarity(current.rarity) && !isAltArtRarity(item.rarity))) byCode.set(item.code, item);
+        }
+        setRecommendations(Array.from(byCode.values()).slice(0, 6));
       } catch (err: any) { if (active) setError(err.message || "Falha ao carregar a carta."); }
     }
     load(); return () => { active = false; };
@@ -70,11 +82,16 @@ export default function CardDetailPage() {
       ...relations.incoming.map((relation) => ({ ...relation, relatedCard: relation.sourceCard })),
     ];
     // Agrupa por code da carta relacionada, não por impressão — um piloto com 3 reimpressões
-    // deve aparecer uma vez só aqui, não 3 vezes com artes diferentes.
+    // deve aparecer uma vez só aqui, não 3 vezes com artes diferentes. Entre elas, prefere a
+    // impressão de raridade base (ver preferRegularPrint).
     const byCode = new Map<string, typeof all[number]>();
     for (const relation of all) {
       const code = relation.relatedCard?.code;
-      if (code && !byCode.has(code)) byCode.set(code, relation);
+      if (!code) continue;
+      const current = byCode.get(code);
+      if (!current || (isAltArtRarity(current.relatedCard?.rarity) && !isAltArtRarity(relation.relatedCard?.rarity))) {
+        byCode.set(code, relation);
+      }
     }
     return Array.from(byCode.values()).slice(0, 8);
   }, [relations]);
@@ -98,17 +115,17 @@ export default function CardDetailPage() {
             <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{card.set?.code || "Impressão sem coleção"} · {card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
             <div className="space-y-2 text-sm leading-7 text-slate-300"><p><span className="text-slate-500">Traits:</span> {(card.traits || []).join(" · ") || card.trait || "—"}</p><p><span className="text-slate-500">Mídia:</span> {card.sourceTitle || card.series || "—"}</p><p><span className="text-slate-500">Link/requisito:</span> {card.linkText || "—"}</p></div>
-            <div className="border-t border-white/10 pt-4"><p className="whitespace-pre-line text-sm leading-7 text-slate-200">{formatCardText(textSections[0]?.textPt || textSections[0]?.textEn || card.effectPt || card.effectEn) || "Sem texto cadastrado."}</p></div>
+            <div className="border-t border-white/10 pt-4"><p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">{formatCardText(textSections[0]?.textPt || textSections[0]?.textEn || card.effectPt || card.effectEn) || "Sem texto cadastrado."}</p></div>
           </CardContent></Card>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Relações</h2>{editorialRelations.length ? <div className="grid gap-3">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] || relation.relationType} detail={relation.notePt || (relation.sourceUrl ? "Possui fonte editorial" : undefined)} />)}</div> : <p className="text-sm leading-7 text-slate-400">Nenhuma relação confirmada para esta carta ainda.</p>}</CardContent></Card>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Mais para explorar</h2><p className="text-xs leading-5 text-slate-500">Sugestões por trait, mídia ou coleção — não são uma relação confirmada.</p>{recommendations.length ? <div className="grid gap-3">{recommendations.map((item) => <MiniCard key={item.id} item={item} eyebrow="Mesmo contexto de catálogo" />)}</div> : <p className="text-sm text-slate-400">Ainda não há recomendações suficientes.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Relações</h2>{editorialRelations.length ? <div className="grid gap-3">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] || relation.relationType} />)}</div> : <p className="text-sm leading-7 text-slate-400">Nenhuma relação confirmada para esta carta ainda.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Mais para explorar</h2><p className="text-xs leading-5 text-slate-500">Sugestões por trait, mídia ou coleção.</p>{recommendations.length ? <div className="grid gap-3">{recommendations.map((item) => <MiniCard key={item.id} item={item} />)}</div> : <p className="text-sm text-slate-400">Ainda não há recomendações suficientes.</p>}</CardContent></Card>
         </section>
 
         <section>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Fontes e rulings</h2><p className="text-sm text-slate-400">Rulings vinculadas a esta impressão: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">Abrir referência oficial <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => <Link key={rule.id} href={`/rules/${rule.id}`} className="block border border-white/10 p-3 text-sm text-slate-200 hover:border-primary/50">{rule.title}</Link>)}</div> : <p className="text-sm text-slate-500">Nenhuma ruling vinculada.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Fontes e rulings</h2><p className="text-sm text-slate-400">Rulings vinculadas a esta impressão: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">Abrir referência oficial <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => <Link key={rule.id} href={`/rules/${rule.id}`} className="block border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700">{rule.title}</Link>)}</div> : <p className="text-sm text-slate-500">Nenhuma ruling vinculada.</p>}</CardContent></Card>
         </section>
       </> : null}
     </div>
