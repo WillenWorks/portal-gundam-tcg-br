@@ -144,9 +144,55 @@ model TaxonomyEntry {
   @@unique([kind, slug])
 }
 
+/// Modelo da carta (identidade de jogo — nome, efeito, stats, traits). Compartilhado por
+/// todas as impressões (reprint/promo/variante) do mesmo `code`. Ver docs/13-migracao-cardmodel.md.
+model CardModel {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  nameEn            String
+  namePt            String?
+  cardType          CardType
+  cardSubtypes      String[]
+  color             String?
+  level             Int?
+  cost              Int?
+  ap                Int?
+  hp                Int?
+  trait             String?
+  traits            String[]
+  series            String?
+  sourceTitle       String?
+  zone              String?
+  linkText          String?
+  pilotName         String?
+  effectEn          String?  @db.Text
+  effectPt          String?  @db.Text
+  triggerKeywords   String[]
+  keywordTags       String[]
+  effectKeywords    String[]
+  textSectionsJson  Json?
+  hasBurst          Boolean  @default(false)
+  hasMain           Boolean  @default(false)
+  hasAction         Boolean  @default(false)
+  oncePerTurn       Boolean  @default(false)
+  legalityStatus    String?  @default("legal")
+  isActive          Boolean  @default(true)
+  deletedAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  prints            Card[]
+  outgoingRelations CardRelation[] @relation("CardRelationSourceModel")
+  incomingRelations CardRelation[] @relation("CardRelationTargetModel")
+  rulings           Ruling[]
+
+  @@index([isActive, code])
+}
+
 model Card {
   id                String   @id @default(cuid())
   code              String
+  cardModelId       String?
   externalId        String?  @unique
   nameEn            String
   namePt            String?
@@ -158,6 +204,8 @@ model Card {
   ap                Int?
   hp                Int?
   rarity            String?
+  isPrimaryPrint    Boolean  @default(false)
+  printLabel        String?
   trait             String?
   traits            String[]
   series            String?
@@ -190,14 +238,14 @@ model Card {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  cardModel   CardModel?       @relation(fields: [cardModelId], references: [id])
   set         CardSet?         @relation(fields: [setId], references: [id])
   deckItems   DeckItem[]
   rulings     Ruling[]
   binderItems CardBinderItem[]
-  outgoingRelations CardRelation[] @relation("CardRelationSource")
-  incomingRelations CardRelation[] @relation("CardRelationTarget")
 
   @@index([code])
+  @@index([cardModelId])
   @@index([setId, code])
   @@index([isActive, code])
   @@index([isActive, updatedAt, code])
@@ -214,8 +262,8 @@ model Card {
 
 model CardRelation {
   id             String           @id @default(cuid())
-  sourceCardId   String
-  targetCardId   String
+  sourceModelId  String
+  targetModelId  String
   relationType   CardRelationType
   notePt         String?          @db.Text
   sourceUrl      String?
@@ -224,12 +272,12 @@ model CardRelation {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  sourceCard Card @relation("CardRelationSource", fields: [sourceCardId], references: [id], onDelete: Cascade)
-  targetCard Card @relation("CardRelationTarget", fields: [targetCardId], references: [id], onDelete: Cascade)
+  sourceModel CardModel @relation("CardRelationSourceModel", fields: [sourceModelId], references: [id], onDelete: Cascade)
+  targetModel CardModel @relation("CardRelationTargetModel", fields: [targetModelId], references: [id], onDelete: Cascade)
 
-  @@unique([sourceCardId, targetCardId, relationType])
-  @@index([sourceCardId, isActive])
-  @@index([targetCardId, isActive])
+  @@unique([sourceModelId, targetModelId, relationType])
+  @@index([sourceModelId, isActive])
+  @@index([targetModelId, isActive])
 }
 
 model Deck {
@@ -309,12 +357,14 @@ model Ruling {
   officialUpdatedAt DateTime?
   translationStatus String?        @default("pending")
   cardId            String?
+  cardModelId       String?
   isActive          Boolean        @default(true)
   deletedAt         DateTime?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  card Card? @relation(fields: [cardId], references: [id])
+  card      Card?      @relation(fields: [cardId], references: [id])
+  cardModel CardModel? @relation(fields: [cardModelId], references: [id])
 }
 
 model Tournament {
