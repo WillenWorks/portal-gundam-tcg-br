@@ -155,7 +155,7 @@ export default function Home({ targetSection }: HomeProps) {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="rounded-none border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
+                  className="rounded-none border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
                 >
                   <Link href="/stats">Ver estatísticas públicas</Link>
                 </Button>
