@@ -1,5 +1,23 @@
 # Setup local — Portal Gundam TCG BR
 
+## Resumo rápido (ambiente novo, do zero)
+
+```bash
+git clone <url-do-repo>
+cd portal-gundam-tcg-br
+pnpm install
+cp .env.example .env
+pnpm run db:up
+pnpm run setup:fresh-env
+pnpm dev:full
+```
+
+`setup:fresh-env` encadeia `prisma generate` + `prisma migrate deploy` +
+`catalog:bootstrap` (usuário admin + registros de exemplo, catálogo completo
+de 1.812 cartas, sincroniza o `CardModel` de cada carta, roda a curadoria
+oficial de série + relações). `dev:full` sobe API e frontend juntos.
+Se algo travar em algum passo, os detalhes de cada um estão nas seções abaixo.
+
 ## Objetivo
 
 Rodar o projeto localmente com:
@@ -49,20 +67,37 @@ pnpm install
 pnpm db:up
 ```
 
-### 5. Subir a API com bootstrap automático do Prisma
+### 5. Aplicar as migrations (só na primeira vez, em ambiente novo)
+
+```bash
+pnpm exec prisma generate
+pnpm exec prisma migrate deploy
+```
+
+`migrate deploy` aplica as migrations de `prisma/migrations/` direto, sem precisar
+de banco sombra — diferente de `migrate dev`, que só serve pro dia a dia de
+desenvolvimento (cria migration nova comparando com um banco temporário) e é mais
+sensível a problema de conexão. Rodar `migrate deploy` uma vez, logo depois do
+clone, garante que o histórico de migrations e o banco ficam alinhados desde o
+início — evita o problema de *drift* documentado em `docs/11-checklist-migration.md`.
+
+### 6. Subir a API com bootstrap automático do Prisma
 
 ```bash
 pnpm dev:api
 ```
 
-Esse comando já executa o bootstrap do Prisma antes de iniciar a API local:
+Esse comando já executa antes de iniciar a API local:
 
 - `prisma generate`
 - `prisma db push`
 
-Assim, o banco local acompanha o schema atual e evita erros como coluna ausente durante o desenvolvimento.
+No dia a dia, isso é o suficiente pra manter o banco sincronizado com pequenas
+mudanças de schema. Mas a *primeira* sincronização de um ambiente novo deve vir
+do `migrate deploy` do passo 5 — `db push` sozinho não usa nem atualiza o
+histórico de migrations, só sincroniza a estrutura.
 
-### 6. Popular dados iniciais (opcional, mas recomendado)
+### 7. Popular dados iniciais (opcional, mas recomendado)
 
 ```bash
 pnpm prisma:seed
@@ -70,14 +105,14 @@ pnpm prisma:seed
 
 Isso cria um usuário admin e alguns registros de exemplo — suficiente pra navegar
 no admin, mas **não** é o catálogo real. Pra subir o catálogo completo (1.812 cartas,
-22 sets, série e relações oficiais), veja `INSTRUCOES_APITCG.md` na raiz do projeto —
-o comando único é:
+22 sets, série e relações oficiais, e o CardModel de cada carta — ver
+`docs/13-migracao-cardmodel.md`), o comando único é:
 
 ```bash
 pnpm run catalog:bootstrap
 ```
 
-### 7. Rodar o front
+### 8. Rodar o front
 
 ```bash
 pnpm dev
