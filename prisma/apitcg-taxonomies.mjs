@@ -51,7 +51,7 @@ function slugify(value) {
     .slice(0, 40);
 }
 
-function traitsFrom(value) {
+export function traitsFrom(value) {
   const raw = String(value || "").trim();
   const parenthesized = Array.from(raw.matchAll(/\(([^)]+)\)/g), (match) => match[1].trim()).filter(Boolean);
   return parenthesized.length ? parenthesized : raw ? [raw] : [];

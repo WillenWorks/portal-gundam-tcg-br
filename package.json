@@ -10,6 +10,8 @@
     "dev:full": "pnpm run dev:api & pnpm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",

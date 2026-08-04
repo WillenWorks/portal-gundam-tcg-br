@@ -34,7 +34,7 @@
  *      vezes quiser sem duplicar relações nem sujar dado.
  */
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -52,9 +52,9 @@ const TITLE_FIXES = {
   "Mobile Suit Z Gundam": "Mobile Suit Zeta Gundam",
 };
 
-function normalizeSourceTitle(raw) {
+export function normalizeSourceTitle(raw) {
   if (!raw || raw === "-") return null;
-  let clean = raw.replace(/[\u201c\u201d]/g, "'").replace(/"/g, "'").trim();
+  let clean = raw.replace(/[\u2018\u2019\u201c\u201d]/g, "'").replace(/"/g, "'").trim();
   // linhas com bug de concatenação no scrape (vários títulos grudados numa carta genérica
   // tipo EX Resource/EX Base) — não dá pra confiar num valor ambíguo, melhor deixar nulo
   // e revisar manualmente do que gravar errado.
@@ -309,7 +309,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// Só roda main() quando o arquivo é executado direto (node prisma/apply-...mjs),
+// não quando é importado por outro módulo — como os testes, que só querem
+// normalizeSourceTitle/buildPlan sem disparar o dry-run inteiro como efeito colateral.
+// Usa pathToFileURL (não comparação de string manual) pra funcionar igual no Windows,
+// onde import.meta.url vem como "file:///C:/..." e process.argv[1] como "C:\\...".
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
