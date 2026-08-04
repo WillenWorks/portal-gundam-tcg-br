@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
+import { formatCardText } from "@/lib/utils";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
@@ -108,6 +109,7 @@ export default function CardsPage() {
     const section = sections.find((item: any) => item?.textPt || item?.textEn);
     return section?.textPt || section?.textEn || card.effectPt || card.effectEn || "Sem texto cadastrado.";
   };
+  const formatEffect = (card: any) => formatCardText(readPrimaryEffect(card));
   const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
@@ -172,7 +174,7 @@ export default function CardsPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                      <h3 className="mt-2 font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
+                      <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
                     </div>
                     <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
                   </div>
@@ -199,7 +201,7 @@ export default function CardsPage() {
                     </div>
                   ) : null}
 
-                  <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{readPrimaryEffect(card)}</p>
+                  <p className="whitespace-pre-line text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{formatEffect(card)}</p>
                   <div>
                     <div className="flex flex-wrap gap-2 pb-1">{card.set?.code ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{card.set.code}</Badge> : null}{(card.cardSubtypes || []).slice(0,2).map((item: string) => <Badge key={item} variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{item}</Badge>)}</div><Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                   </div>

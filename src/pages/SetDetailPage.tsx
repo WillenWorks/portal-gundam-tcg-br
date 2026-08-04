@@ -85,7 +85,7 @@ export default function SetDetailPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                        <h3 className="mt-2 font-heading text-3xl uppercase leading-none">{card.namePt || card.nameEn}</h3>
+                        <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none">{card.namePt || card.nameEn}</h3>
                       </div>
                       <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
                     </div>
