@@ -101,7 +101,9 @@ Ou, equivalente e mais direto: `pnpm run catalog:bootstrap:fresh`.
 
 ## Ambiente compartilhado ou produção
 
-Faça backup antes da alteração. Depois execute:
+Faça backup antes da alteração. Veja o checklist completo em
+`docs/11-checklist-migration.md` antes de rodar `migrate deploy` — cobre backup,
+teste em cópia restaurada e validação pós-deploy. Depois execute:
 
 ```bash
 pnpm install

@@ -111,6 +111,10 @@ pnpm prisma:studio
 
 > No dia a dia, `pnpm dev:api` já cobre a sincronização básica do schema local via `db push`. Use migrations quando quiser versionar mudanças de estrutura de forma explícita.
 
+Antes de mudar o schema, veja o checklist de segurança em `docs/11-checklist-migration.md`
+— cobre o risco de drift entre `db push` e `migrate`, casos que perdem dado (rename,
+drop, mudança de tipo) e o que fazer se uma migration precisar ser revertida.
+
 ## Estratégia de IA recomendada
 
 ### LLM / AnyGen no produto
