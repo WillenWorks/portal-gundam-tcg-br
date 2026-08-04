@@ -60,8 +60,8 @@ O Prisma Migrate (na versão deste projeto) **não gera migration de reversão
 automática** — não existe um `prisma migrate down`. As duas formas reais de reverter
 uma migration problemática são:
 
-1. **Restaurar de um backup** anterior à migration (ver frente de Backup do roadmap —
-   ainda não implementada neste projeto no momento em que este doc foi escrito).
+1. **Restaurar de um backup** anterior à migration (ver `docs/12-backup-restaurar-banco.md`
+   pro comando de backup e restore).
 2. **Rollforward**: escrever uma migration *nova* que desfaz a anterior (ex: se a
    migration problemática criou uma coluna, a de correção remove essa coluna).
    Nunca edite ou apague uma migration já commitada/aplicada em qualquer ambiente
@@ -77,7 +77,8 @@ existir. `INSTRUCOES_APITCG.md` já cobre o comando (`prisma migrate deploy`); a
 vai o checklist de decisão em volta dele:
 
 1. A migration já está commitada e revisada (idealmente por outra pessoa) no `main`.
-2. **Backup do banco de destino tirado e confirmado íntegro** antes de qualquer coisa.
+2. **Backup do banco de destino tirado e confirmado íntegro** antes de qualquer coisa
+   (`pnpm run db:backup`, ver `docs/12-backup-restaurar-banco.md`).
 3. Rode a migration primeiro contra uma cópia restaurada desse backup, não direto em
    produção — se houver ambiente de staging, use-o; se não houver, uma cópia local
    restaurada do backup já reduz muito o risco.
