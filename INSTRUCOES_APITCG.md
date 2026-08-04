@@ -35,6 +35,28 @@ O comando de reconstrução do catálogo remove, nesta ordem:
 
 Ele **preserva** usuários, posts, taxonomias e os registros principais de torneio. Os binders padrão são recriados automaticamente quando o usuário acessar a área autenticada novamente.
 
+## Comando único (recomendado)
+
+Depois do primeiro `pnpm install` + `pnpm prisma:generate` + schema sincronizado
+(`prisma db push` ou `prisma migrate`), o fluxo completo — usuário admin, catálogo
+real e curadoria oficial (série + relações) — roda em um comando só:
+
+```bash
+pnpm run catalog:bootstrap
+```
+
+Equivale a, em ordem: `prisma:seed` (usuário admin + binders padrão) →
+`prisma:seed:apitcg` (catálogo completo) → `curation:gcg:apply` (série e relações
+via dataset oficial, ver `docs/10-convencoes-relacoes-cartas.md`) →
+`catalog:apitcg:check` (validação). Todo o fluxo é idempotente — pode rodar de novo
+sem duplicar nada.
+
+Pra recomeçar absolutamente do zero (apaga tudo, inclusive usuários):
+
+```bash
+pnpm run catalog:bootstrap:fresh
+```
+
 ## Atualização local recomendada
 
 Use este fluxo para aplicar a migration, limpar apenas o catálogo atual e recadastrar os dados completos:
@@ -45,6 +67,7 @@ pnpm prisma:generate
 pnpm exec prisma migrate dev
 pnpm run catalog:apitcg:check
 pnpm run prisma:rebuild:apitcg
+pnpm run curation:gcg:apply
 pnpm run build
 ```
 
@@ -55,6 +78,10 @@ pnpm run prisma:clear:catalog
 pnpm run prisma:seed:apitcg
 ```
 
+> `prisma:rebuild:apitcg` limpa e recadastra só o catálogo — não roda a curadoria oficial
+> sozinho. Depois dele, sempre rode `pnpm run curation:gcg:apply` pra série e relações
+> voltarem a ficar preenchidas (ou use `pnpm run catalog:bootstrap`, que já inclui os dois).
+
 ## Reset total do banco local
 
 Se quiser zerar absolutamente toda a base local, inclusive usuários e demais dados, use:
@@ -63,9 +90,12 @@ Se quiser zerar absolutamente toda a base local, inclusive usuários e demais da
 pnpm install
 pnpm prisma:generate
 pnpm run prisma:reset:seed:apitcg
+pnpm run curation:gcg:apply
 pnpm run catalog:apitcg:check
 pnpm run build
 ```
+
+Ou, equivalente e mais direto: `pnpm run catalog:bootstrap:fresh`.
 
 > O reset total é mais destrutivo. Para o pedido de limpar cards, sets, decks e box, prefira `pnpm run prisma:rebuild:apitcg`.
 
@@ -79,8 +109,14 @@ pnpm prisma:generate
 pnpm exec prisma migrate deploy
 pnpm run catalog:apitcg:check
 pnpm run prisma:rebuild:apitcg
+pnpm run curation:gcg:dry-run
+pnpm run curation:gcg:apply
 pnpm run build
 ```
+
+> Em ambiente compartilhado, rode sempre `curation:gcg:dry-run` antes do `--apply` pra
+> conferir os números esperados (veja `docs/10-convencoes-relacoes-cartas.md` pro
+> critério do que cada tipo de relação representa) antes de gravar de verdade.
 
 ## Validações disponíveis
 

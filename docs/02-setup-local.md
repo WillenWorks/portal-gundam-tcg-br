@@ -68,6 +68,15 @@ Assim, o banco local acompanha o schema atual e evita erros como coluna ausente 
 pnpm prisma:seed
 ```
 
+Isso cria um usuário admin e alguns registros de exemplo — suficiente pra navegar
+no admin, mas **não** é o catálogo real. Pra subir o catálogo completo (1.812 cartas,
+22 sets, série e relações oficiais), veja `INSTRUCOES_APITCG.md` na raiz do projeto —
+o comando único é:
+
+```bash
+pnpm run catalog:bootstrap
+```
+
 ### 7. Rodar o front
 
 ```bash

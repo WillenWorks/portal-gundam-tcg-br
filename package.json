@@ -31,7 +31,9 @@
     "catalog:import": "node scripts/catalog-import.mjs",
     "catalog:import:local": "node scripts/catalog-import.mjs ./data/catalog",
     "curation:gcg:dry-run": "node prisma/apply-gcg-official-curation.mjs",
-    "curation:gcg:apply": "node prisma/apply-gcg-official-curation.mjs --apply"
+    "curation:gcg:apply": "node prisma/apply-gcg-official-curation.mjs --apply",
+    "catalog:bootstrap": "pnpm run prisma:seed && pnpm run prisma:seed:apitcg && pnpm run curation:gcg:apply && pnpm run catalog:apitcg:check",
+    "catalog:bootstrap:fresh": "pnpm run prisma:reset && pnpm run catalog:bootstrap"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
