@@ -22,6 +22,7 @@ const TYPE_LABELS: Record<string, string> = { UNIT: "Unidade", PILOT: "Piloto", 
 type CardDetail = any;
 
 function MiniCard({ item, eyebrow, detail }: { item: any; eyebrow?: string; detail?: string }) {
+  if (!item) return null;
   return <Link href={`/cards/${item.id}`} className="group block panel-cut border surface-strong p-3 transition hover:border-primary/60 hover:bg-primary/[0.06]">
     <div className="grid grid-cols-[58px_1fr] gap-3">
       <div className="aspect-[3/4] overflow-hidden border border-white/10 bg-slate-950/60">{item.imageSmallUrl || item.thumbUrl || item.imageUrl ? <img src={item.imageSmallUrl || item.thumbUrl || item.imageUrl} alt={item.namePt || item.nameEn} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : null}</div>
@@ -81,12 +82,9 @@ export default function CardDetailPage() {
   };
 
   // Relação agora é 1 linha por par de CardModel (sem broadcast por impressão) e o
-  // back-end já devolve a impressão primária de cada carta relacionada — não precisa
-  // mais dedup no front, só juntar as duas direções.
-  const editorialRelations = useMemo(() => [
-    ...relations.outgoing.map((relation) => ({ ...relation, relatedCard: relation.targetCard })),
-    ...relations.incoming.map((relation) => ({ ...relation, relatedCard: relation.sourceCard })),
-  ].slice(0, 8), [relations]);
+  // back-end já devolve `relatedCard` pronto (a impressão primária da carta relacionada)
+  // — só precisa juntar as duas direções, sem remapear nada.
+  const editorialRelations = useMemo(() => [...relations.outgoing, ...relations.incoming].filter((relation) => relation.relatedCard).slice(0, 8), [relations]);
   const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(selectedPrint?.set?.code ? [{ label: selectedPrint.set.code, href: `/sets/${selectedPrint.set.code}` }] : []), { label: selectedPrint?.code || "Detalhe" }], [selectedPrint]);
   const textSections = useMemo(() => Array.isArray(card?.textSectionsJson) ? card.textSectionsJson.filter((item: any) => item?.textPt || item?.textEn) : [], [card]);
 
