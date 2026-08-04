@@ -1202,6 +1202,8 @@ app.get("/api/cards", async (req, res) => {
     rarity_desc: [{ rarity: "desc" }, { code: "asc" }],
     updated_desc: [{ updatedAt: "desc" }, { code: "asc" }],
     updated_asc: [{ updatedAt: "asc" }, { code: "asc" }],
+    created_desc: [{ createdAt: "desc" }, { code: "asc" }],
+    created_asc: [{ createdAt: "asc" }, { code: "asc" }],
   };
   const orderBy = orderByMap[sort] || orderByMap.code_asc;
 

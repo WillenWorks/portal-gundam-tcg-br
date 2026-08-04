@@ -36,6 +36,7 @@ const CATALOG_CARD_TYPE_FILTERS = [
   { value: "RESOURCE", label: "Recurso" },
   { value: "EX_BASE", label: "Base EX" },
   { value: "EX_RESOURCE", label: "Recurso EX" },
+  { value: "UNIT_TOKEN", label: "Token de Unidade" },
 ] as const;
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
