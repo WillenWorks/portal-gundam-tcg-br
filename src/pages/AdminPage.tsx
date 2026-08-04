@@ -700,7 +700,7 @@ export default function AdminPage() {
                       );
                     })}
                   </div>
-                  <p className="text-[11px] leading-4 text-amber-200/60">Clique num card acima pra filtrar direto a fila. Critério e convenção de cada tipo de relação: docs/10-convencoes-relacoes-cartas.md.</p>
+                  <p className="text-[11px] leading-4 text-amber-200/60">Conta por code único (não por reimpressão) e cobre os 5 tipos de relação juntos — não é "sem piloto", é "sem nenhum vínculo confirmado a outra carta". Em Unidades, boa parte do número é esperado: unidades com Link Condition por trait (qualquer piloto daquele trait linka) ficam de propósito sem CardRelation, já cobertas pela descoberta automática. Clique num card acima pra filtrar direto a fila. Critério de cada tipo: docs/10-convencoes-relacoes-cartas.md.</p>
                 </div>
 
                 <div className="grid gap-3 border border-white/10 bg-white/[0.025] p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">

@@ -1225,6 +1225,14 @@ app.get("/api/cards/filters", async (_req, res) => {
     cardType: Array.isArray(cardType) ? { in: cardType } : cardType,
     AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }],
   });
+  // Conta por `code` único, não por impressão/reprint — uma unidade com 3 reimpressões sem
+  // relação é 1 pendência de curadoria, não 3. Bate com a forma como o resto do projeto
+  // (scripts de curadoria, documentação) já fala em "quantas cartas faltam", evitando o
+  // número inflado que a contagem por linha causaria.
+  const countMissingByCode = async (cardType: CardType | CardType[]) => {
+    const rows = await prisma.card.findMany({ where: missingRelationWhere(cardType), select: { code: true }, distinct: ["code"] });
+    return rows.length;
+  };
   const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows, pilotsMissing, unitsMissing, commandsMissing] = await Promise.all([
     prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
@@ -1236,9 +1244,9 @@ app.get("/api/cards/filters", async (_req, res) => {
     prisma.taxonomyEntry.findMany({ where: { isActive: true, kind: TaxonomyKind.SOURCE_TITLE }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.cardSet.findMany({ where: { isActive: true }, select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { keywordTags: true } }),
-    prisma.card.count({ where: missingRelationWhere(CardType.PILOT) }),
-    prisma.card.count({ where: missingRelationWhere(CardType.UNIT) }),
-    prisma.card.count({ where: missingRelationWhere([CardType.COMMAND, CardType.COMMAND_PILOT]) }),
+    countMissingByCode(CardType.PILOT),
+    countMissingByCode(CardType.UNIT),
+    countMissingByCode([CardType.COMMAND, CardType.COMMAND_PILOT]),
   ]);
 
   const media = Array.from(new Set([...mediaTaxonomies.map((item) => item.name), ...mediaRows.flatMap((item) => [item.sourceTitle, item.series]).filter(Boolean) as string[]])).sort();
