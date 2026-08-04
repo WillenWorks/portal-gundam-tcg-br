@@ -1,11 +1,10 @@
 /* Detalhe de carta v10 — relações editoriais confirmadas separadas de recomendações automáticas. */
 import { useEffect, useMemo, useState } from "react";
-import { Expand, ExternalLink, X } from "lucide-react";
+import { Expand, ExternalLink } from "lucide-react";
 import { Link, useRoute } from "wouter";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
@@ -103,6 +102,6 @@ export default function CardDetailPage() {
         </section>
       </> : null}
     </div>
-    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3"><div className="flex justify-end"><Button type="button" variant="outline" className="rounded-none" onClick={() => setZoomOpen(false)}><X className="size-4" /></Button></div>{artUrl ? <img src={artUrl} alt={card?.namePt || card?.nameEn || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}</DialogContent></Dialog>
+    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3">{artUrl ? <img src={artUrl} alt={card?.namePt || card?.nameEn || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}</DialogContent></Dialog>
   </PublicShell>;
 }

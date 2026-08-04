@@ -20,13 +20,13 @@ export function PublicShell({ children, breadcrumbs, title, description }: { chi
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: title || "Página pública" }];
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-white dark:text-white light:text-slate-900">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden text-white dark:text-white light:text-slate-900">
       <div className="pointer-events-none absolute inset-0 bg-grid-tech opacity-30 dark:opacity-30 light:opacity-12" />
       <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-15 dark:opacity-15 light:opacity-0" />
 
       <AppTopNav />
 
-      <main id="topo" className="relative mx-auto w-full max-w-[1760px] px-4 py-8 sm:px-6 xl:px-8 2xl:px-10 lg:py-10">
+      <main id="topo" className="relative mx-auto w-full max-w-[1760px] flex-1 px-4 py-8 sm:px-6 xl:px-8 2xl:px-10 lg:py-10">
         <div className="space-y-6">
           <Breadcrumb>
             <BreadcrumbList>
@@ -75,12 +75,12 @@ export function PublicShell({ children, breadcrumbs, title, description }: { chi
         <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-6 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-10 dark:text-slate-400 light:text-slate-600">
           <div>
             <p className="font-heading text-xl uppercase tracking-[0.16em] text-white dark:text-white light:text-slate-900">Portal Gundam TCG BR</p>
-            <p className="mt-2 max-w-2xl leading-7">Base pública contínua para descoberta, estudo e navegação. Área pessoal e admin ficam isoladas em dashboards próprios.</p>
+            <p className="mt-2 max-w-2xl leading-7">Projeto de comunidade voltado ao público brasileiro. Regras, nomes e materiais oficiais devem sempre manter referência clara às fontes originais.</p>
           </div>
           <div className="min-w-[280px]">
             <Separator className="mb-4 bg-white/10 lg:hidden dark:bg-white/10 light:bg-slate-300/70" />
-            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Estrutura atual</p>
-            <p className="mt-2 text-white dark:text-white light:text-slate-900">Site público · Auth pública · Dashboard do usuário · Dashboard admin</p>
+            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Feito pela comunidade</p>
+            <p className="mt-2 text-white dark:text-white light:text-slate-900">Catálogo oficial · Regras em pt-BR · Deckbuilder</p>
           </div>
         </div>
       </footer>

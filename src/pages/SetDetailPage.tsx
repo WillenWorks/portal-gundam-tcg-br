@@ -71,7 +71,7 @@ export default function SetDetailPage() {
               {setData.officialUrl ? <a href={setData.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Fonte oficial</a> : null}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {setData.cards.map((card: any) => (
                 <Card key={card.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
                   <CardContent className="space-y-4 p-5">
@@ -83,16 +83,18 @@ export default function SetDetailPage() {
                       )}
                     </div>
                     <div className="flex items-start justify-between gap-4">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
                         <h3 className="mt-2 font-heading text-3xl uppercase leading-none">{card.namePt || card.nameEn}</h3>
                       </div>
                       <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
                     </div>
-                    <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{card.cardType} · custo {card.cost ?? "—"} · trait {card.trait || "—"}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {card.keywordTags?.length ? card.keywordTags.slice(0, 4).map((keyword: string) => <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>) : <Badge variant="outline" className="rounded-none border-white/15 bg-white/5 text-slate-400">sem keyword</Badge>}
-                    </div>
+                    <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{card.cardType}{card.cost != null ? ` · custo ${card.cost}` : ""}{card.trait ? ` · trait ${card.trait}` : ""}</p>
+                    {card.keywordTags?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {card.keywordTags.slice(0, 4).map((keyword: string) => <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>)}
+                      </div>
+                    ) : null}
                     <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                   </CardContent>
                 </Card>
