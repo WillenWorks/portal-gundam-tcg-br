@@ -68,6 +68,15 @@ Assim, o banco local acompanha o schema atual e evita erros como coluna ausente 
 pnpm prisma:seed
 ```
 
+Isso cria um usuário admin e alguns registros de exemplo — suficiente pra navegar
+no admin, mas **não** é o catálogo real. Pra subir o catálogo completo (1.812 cartas,
+22 sets, série e relações oficiais), veja `INSTRUCOES_APITCG.md` na raiz do projeto —
+o comando único é:
+
+```bash
+pnpm run catalog:bootstrap
+```
+
 ### 7. Rodar o front
 
 ```bash
@@ -101,6 +110,10 @@ pnpm prisma:studio
 ```
 
 > No dia a dia, `pnpm dev:api` já cobre a sincronização básica do schema local via `db push`. Use migrations quando quiser versionar mudanças de estrutura de forma explícita.
+
+Antes de mudar o schema, veja o checklist de segurança em `docs/11-checklist-migration.md`
+— cobre o risco de drift entre `db push` e `migrate`, casos que perdem dado (rename,
+drop, mudança de tipo) e o que fazer se uma migration precisar ser revertida.
 
 ## Estratégia de IA recomendada
 

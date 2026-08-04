@@ -15,6 +15,7 @@ export const CARD_TYPE_OPTIONS = [
   { value: "RESOURCE", label: "Recurso" },
   { value: "EX_BASE", label: "Base EX" },
   { value: "EX_RESOURCE", label: "Recurso EX" },
+  { value: "UNIT_TOKEN", label: "Token de Unidade" },
 ] as const;
 
 export const COLOR_OPTIONS = ["Blue", "Green", "Red", "Purple", "White"] as const;

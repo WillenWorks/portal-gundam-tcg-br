@@ -54,7 +54,7 @@ export default function CollectionsPage() {
                 </div>
 
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{set.code} · {set.setType || "BOOSTER"}</p>
                     <h3 className="mt-2 font-heading text-2xl uppercase leading-none">{set.namePt || set.nameEn}</h3>
                   </div>

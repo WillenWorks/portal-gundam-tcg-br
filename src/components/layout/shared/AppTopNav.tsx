@@ -51,7 +51,7 @@ export function AppTopNav() {
                 href={item.href}
                 className={cn(
                   "inline-flex items-center px-3 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft",
-                  active ? "text-primary" : "text-slate-300 hover:text-white light:text-slate-700",
+                  active ? "text-primary" : "text-slate-300 hover:text-white",
                 )}
               >
                 {item.label}

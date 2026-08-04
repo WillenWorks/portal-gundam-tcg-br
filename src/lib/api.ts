@@ -65,6 +65,7 @@ export type CardFilters = {
   cost?: string;
   level?: string;
   link?: string;
+  relation?: string;
   status?: string;
   sort?: string;
 };
@@ -105,7 +106,12 @@ function readCachedValue<T>(key: string): T | null {
   if (memoized) apiMemoryCache.delete(key);
 
   if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem(getCacheStorageKey(key));
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(getCacheStorageKey(key));
+  } catch {
+    return null;
+  }
   if (!raw) return null;
 
   try {
@@ -126,9 +132,34 @@ function writeCachedValue<T>(key: string, data: T, ttlMs: number) {
   if (ttlMs <= 0) return;
   const payload = { expiresAt: Date.now() + ttlMs, data };
   apiMemoryCache.set(key, payload);
-  if (typeof window !== "undefined") {
+  if (typeof window === "undefined") return;
+  // Escrita em sessionStorage é best-effort: se estourar a quota (catálogo grande
+  // cacheado ao longo da sessão), NUNCA pode derrubar a resposta da API que já
+  // chegou com sucesso — o cache é só uma otimização, não pode virar ponto de
+  // falha do app inteiro. Se estourar, limpa o cache antigo e tenta de novo uma
+  // vez; se ainda assim falhar, segue sem cachear essa entrada.
+  try {
     window.sessionStorage.setItem(getCacheStorageKey(key), JSON.stringify(payload));
+  } catch {
+    try {
+      clearApiCacheStorage();
+      window.sessionStorage.setItem(getCacheStorageKey(key), JSON.stringify(payload));
+    } catch {
+      // Ainda estourando mesmo depois de limpar — provavelmente essa entrada é
+      // grande demais pra guardar (ex: catálogo inteiro sem paginação). Segue
+      // sem cache pra essa chamada específica; a próxima requisição busca de novo.
+    }
   }
+}
+
+function clearApiCacheStorage() {
+  if (typeof window === "undefined") return;
+  const storageKeys: string[] = [];
+  for (let index = 0; index < window.sessionStorage.length; index += 1) {
+    const key = window.sessionStorage.key(index);
+    if (key?.startsWith(API_CACHE_PREFIX)) storageKeys.push(key);
+  }
+  storageKeys.forEach((storageKey) => window.sessionStorage.removeItem(storageKey));
 }
 
 export function invalidateApiCache(prefixes: string[]) {
@@ -238,7 +269,7 @@ export const api = {
   listCards: (filters: CardFilters = {}) => request<any[]>(`/cards${toQuery(filters)}`, undefined, { ttlMs: 20_000 }),
   listCardsPage: (filters: CardFilters = {}, pagination: PaginationParams = {}) =>
     request<PaginatedResponse<any>>(`/cards${toQuery({ ...filters, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 24) })}`, undefined, { ttlMs: 20_000 }),
-  getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }> }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
+  getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }>; missingRelationCounts: { PILOT: number; UNIT: number; COMMAND: number } }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
   getCard: (id: string) => request<any>(`/cards/${id}`, undefined, { ttlMs: 30_000 }),
   getCardRelations: (id: string) => request<{ outgoing: any[]; incoming: any[] }>(`/cards/${id}/relations`, undefined, { ttlMs: 20_000 }),
   createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),

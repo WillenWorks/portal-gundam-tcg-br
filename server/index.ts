@@ -547,7 +547,33 @@ async function upsertCards(items: CardInput[], setMap = new Map<string, string>(
       if (existing) await prisma.card.update({ where: { id: existing.id }, data });
       else await prisma.card.create({ data });
     }
+    await syncCardModelForCode(card.code);
   }
+}
+
+const MODEL_FIELDS_FROM_CARD = [
+  "nameEn", "namePt", "cardType", "cardSubtypes", "color", "level", "cost", "ap", "hp",
+  "trait", "traits", "series", "sourceTitle", "zone", "linkText", "pilotName",
+  "effectEn", "effectPt", "triggerKeywords", "keywordTags", "effectKeywords",
+  "textSectionsJson", "hasBurst", "hasMain", "hasAction", "oncePerTurn", "legalityStatus",
+] as const;
+const ALT_ART_RARITY_PATTERN = /\+|Promo|Winner|Judge|SP/i;
+
+/** Mantém CardModel em dia depois que upsertCards mexe num code — cria o modelo se não
+ *  existir ainda, escolhe a impressão "regular" (raridade sem +/++/especial, senão a mais
+ *  antiga) como fonte dos campos de identidade, e reaponta cardModelId em toda impressão
+ *  do code. Mesma heurística usada em prisma/migrate-card-model-data.mjs e
+ *  CardDetailPage.tsx — enquanto o admin ainda edita por impressão (fase 2 completa do
+ *  redesenho de cadastro fica pra depois), isso evita que uma carta cadastrada/editada
+ *  pelo admin suma das páginas públicas, que agora consultam CardModel. */
+async function syncCardModelForCode(code: string) {
+  const prints = await prisma.card.findMany({ where: { code, isActive: true } });
+  if (!prints.length) return;
+  const representative = prints.find((p) => !ALT_ART_RARITY_PATTERN.test(p.rarity || "")) || prints.slice().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+  const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, (representative as any)[field]]));
+  const model = await prisma.cardModel.upsert({ where: { code }, update: modelData, create: { code, ...modelData } as any });
+  await prisma.card.updateMany({ where: { code }, data: { cardModelId: model.id, isPrimaryPrint: false } });
+  await prisma.card.update({ where: { id: representative.id }, data: { isPrimaryPrint: true } });
 }
 
 async function upsertRulings(items: RulingImportInput[]) {
@@ -1089,13 +1115,31 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
 
 app.get("/api/cards/:id/relations", async (req, res) => {
   setPublicCache(res, 30, 120);
-  const cardId = String(req.params.id);
-  const card = await prisma.card.findUnique({ where: { id: cardId }, select: { id: true } });
-  if (!card) return res.status(404).json({ error: "Carta não encontrada." });
-  const [outgoing, incoming] = await Promise.all([
-    prisma.cardRelation.findMany({ where: { sourceCardId: cardId, isActive: true }, include: { targetCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
-    prisma.cardRelation.findMany({ where: { targetCardId: cardId, isActive: true }, include: { sourceCard: { include: { set: true } } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+  const id = String(req.params.id);
+  let cardModelId: string | null = null;
+  const model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
+  if (model) {
+    cardModelId = model.id;
+  } else {
+    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    cardModelId = print?.cardModelId ?? null;
+  }
+  if (!cardModelId) return res.status(404).json({ error: "Carta não encontrada." });
+
+  const primaryPrintInclude = { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" as const }, { createdAt: "asc" as const }], take: 1 } };
+  const flattenModel = (relation: any, key: "sourceModel" | "targetModel") => {
+    const model = relation[key];
+    const print = model?.prints?.[0];
+    const { prints: _prints, ...modelFields } = model || {};
+    return { ...relation, relatedCard: print ? { ...print, ...modelFields, id: print.id } : null };
+  };
+
+  const [outgoingRaw, incomingRaw] = await Promise.all([
+    prisma.cardRelation.findMany({ where: { sourceModelId: cardModelId, isActive: true }, include: { targetModel: { include: primaryPrintInclude } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
+    prisma.cardRelation.findMany({ where: { targetModelId: cardModelId, isActive: true }, include: { sourceModel: { include: primaryPrintInclude } }, orderBy: [{ relationType: "asc" }, { createdAt: "desc" }] }),
   ]);
+  const outgoing = outgoingRaw.map((relation) => flattenModel(relation, "targetModel")).filter((relation) => relation.relatedCard);
+  const incoming = incomingRaw.map((relation) => flattenModel(relation, "sourceModel")).filter((relation) => relation.relatedCard);
   res.json({ outgoing, incoming });
 });
 
@@ -1105,20 +1149,22 @@ app.post("/api/cards/:id/relations", authRequired, roleRequired([UserRole.ADMIN,
   if (!targetCardId || !relationType) return res.status(400).json({ error: "Carta de destino e tipo de relação são obrigatórios." });
   if (sourceCardId === targetCardId) return res.status(400).json({ error: "Uma carta não pode se relacionar consigo mesma." });
   if (!Object.values(CardRelationType).includes(relationType as CardRelationType)) return res.status(400).json({ error: "Tipo de relação inválido." });
-  const [sourceCard, targetCard] = await Promise.all([prisma.card.findUnique({ where: { id: sourceCardId } }), prisma.card.findUnique({ where: { id: targetCardId } })]);
-  if (!sourceCard || !targetCard) return res.status(404).json({ error: "Uma das impressões selecionadas não foi encontrada." });
+  const [sourceCard, targetCard] = await Promise.all([prisma.card.findUnique({ where: { id: sourceCardId }, select: { cardModelId: true } }), prisma.card.findUnique({ where: { id: targetCardId }, select: { cardModelId: true } })]);
+  if (!sourceCard?.cardModelId || !targetCard?.cardModelId) return res.status(404).json({ error: "Uma das impressões selecionadas não tem carta-modelo associada (rode a migração de dado antes)." });
+  if (sourceCard.cardModelId === targetCard.cardModelId) return res.status(400).json({ error: "Essas impressões pertencem à mesma carta — não é possível criar relação consigo mesma." });
   const relation = await prisma.cardRelation.upsert({
-    where: { sourceCardId_targetCardId_relationType: { sourceCardId, targetCardId, relationType: relationType as CardRelationType } },
+    where: { sourceModelId_targetModelId_relationType: { sourceModelId: sourceCard.cardModelId, targetModelId: targetCard.cardModelId, relationType: relationType as CardRelationType } },
     update: { notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null, isActive: true, deletedAt: null },
-    create: { sourceCardId, targetCardId, relationType: relationType as CardRelationType, notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null },
-    include: { targetCard: { include: { set: true } } },
+    create: { sourceModelId: sourceCard.cardModelId, targetModelId: targetCard.cardModelId, relationType: relationType as CardRelationType, notePt: notePt?.trim() || null, sourceUrl: sourceUrl?.trim() || null },
   });
   res.status(201).json(relation);
 });
 
 app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const sourceCardId = String(req.params.id);
-  const relation = await prisma.cardRelation.findFirst({ where: { id: String(req.params.relationId), sourceCardId } });
+  const sourceCard = await prisma.card.findUnique({ where: { id: sourceCardId }, select: { cardModelId: true } });
+  if (!sourceCard?.cardModelId) return res.status(404).json({ error: "Carta não encontrada." });
+  const relation = await prisma.cardRelation.findFirst({ where: { id: String(req.params.relationId), sourceModelId: sourceCard.cardModelId } });
   if (!relation) return res.status(404).json({ error: "Relação não encontrada." });
   await prisma.cardRelation.update({ where: { id: relation.id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
@@ -1136,6 +1182,7 @@ app.get("/api/cards", async (req, res) => {
   const rarity = normalizeQueryValue(req.query.rarity);
   const status = normalizeQueryValue(req.query.status ?? req.query.legalityStatus);
   const link = normalizeQueryValue(req.query.link);
+  const relation = normalizeQueryValue(req.query.relation);
   const ap = parseIntegerFilter(req.query.ap);
   const hp = parseIntegerFilter(req.query.hp);
   const cost = parseIntegerFilter(req.query.cost);
@@ -1143,7 +1190,14 @@ app.get("/api/cards", async (req, res) => {
   const sort = normalizeQueryValue(req.query.sort) || "code_asc";
   const pagination = getPagination(req.query, { pageSize: 24, maxPageSize: 100 });
 
-  const where: Prisma.CardWhereInput = {
+  const printWhere: Prisma.CardWhereInput = {
+    isActive: true,
+    ...(rarity ? { rarity } : {}),
+    ...(setCode ? { set: { is: { code: setCode } } } : {}),
+  };
+  const hasPrintFilter = Boolean(rarity || setCode);
+
+  const where: Prisma.CardModelWhereInput = {
     AND: [
       { isActive: true },
       q
@@ -1168,8 +1222,6 @@ app.get("/api/cards", async (req, res) => {
       media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
       trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
       keyword ? { keywordTags: { has: keyword } } : {},
-      setCode ? { set: { is: { code: setCode } } } : {},
-      rarity ? { rarity } : {},
       status ? { legalityStatus: status } : {},
       ap !== undefined ? { ap } : {},
       hp !== undefined ? { hp } : {},
@@ -1179,10 +1231,13 @@ app.get("/api/cards", async (req, res) => {
       link === "pilot-card" ? { cardType: CardType.PILOT } : {},
       link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
       link === "none" ? { linkText: null, pilotName: null } : {},
+      relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
+      relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
+      hasPrintFilter ? { prints: { some: printWhere } } : {},
     ],
   };
 
-  const orderByMap: Record<string, Prisma.CardOrderByWithRelationInput[]> = {
+  const orderByMap: Record<string, Prisma.CardModelOrderByWithRelationInput[]> = {
     code_asc: [{ code: "asc" }, { nameEn: "asc" }],
     code_desc: [{ code: "desc" }, { nameEn: "asc" }],
     name_asc: [{ nameEn: "asc" }, { code: "asc" }],
@@ -1195,29 +1250,63 @@ app.get("/api/cards", async (req, res) => {
     cost_desc: [{ cost: "desc" }, { code: "asc" }],
     level_asc: [{ level: "asc" }, { code: "asc" }],
     level_desc: [{ level: "desc" }, { code: "asc" }],
-    rarity_asc: [{ rarity: "asc" }, { code: "asc" }],
-    rarity_desc: [{ rarity: "desc" }, { code: "asc" }],
     updated_desc: [{ updatedAt: "desc" }, { code: "asc" }],
     updated_asc: [{ updatedAt: "asc" }, { code: "asc" }],
+    created_desc: [{ createdAt: "desc" }, { code: "asc" }],
+    created_asc: [{ createdAt: "asc" }, { code: "asc" }],
+    // rarity_* não existe mais em CardModel (raridade é por impressão) — cai no default.
   };
   const orderBy = orderByMap[sort] || orderByMap.code_asc;
 
+  const printInclude = {
+    prints: {
+      where: hasPrintFilter ? printWhere : { isActive: true },
+      include: { set: true },
+      orderBy: [{ isPrimaryPrint: "desc" as const }, { createdAt: "asc" as const }],
+      take: 1,
+    },
+    _count: { select: { prints: { where: { isActive: true } } } },
+  };
+
+  // "Achata" CardModel + a impressão representativa (a que bate com o filtro de raridade/
+  // coleção quando houver, senão a impressão primária) num objeto só, no mesmo formato que
+  // o front-end já espera de uma "carta" — evita reescrever CardsPage/CardDetailPage juntos
+  // nesta mesma resposta. `id` é sempre o id do CardModel; `printId` é a impressão exibida.
+  const flattenModel = (model: any) => {
+    const print = model.prints[0];
+    const { prints: _prints, _count, ...modelFields } = model;
+    return { ...modelFields, ...print, id: model.id, printId: print?.id ?? null, printCount: _count?.prints ?? 0 };
+  };
+
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
-      prisma.card.findMany({ where, include: { set: true, rulings: true }, orderBy, skip: pagination.skip, take: pagination.take }),
-      prisma.card.count({ where }),
+      prisma.cardModel.findMany({ where, include: printInclude, orderBy, skip: pagination.skip, take: pagination.take }),
+      prisma.cardModel.count({ where }),
     ]);
-    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
-  const cards = await prisma.card.findMany({ where, include: { set: true, rulings: true }, orderBy });
-  res.json(cards);
+  const models = await prisma.cardModel.findMany({ where, include: printInclude, orderBy });
+  res.json(models.map(flattenModel));
 });
 
 app.get("/api/cards/filters", async (_req, res) => {
   setPublicCache(res, 300, 900);
   const activeCards: Prisma.CardWhereInput = { isActive: true };
-  const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows] = await Promise.all([
+  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardWhereInput => ({
+    isActive: true,
+    cardType: Array.isArray(cardType) ? { in: cardType } : cardType,
+    AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }],
+  });
+  // Conta por `code` único, não por impressão/reprint — uma unidade com 3 reimpressões sem
+  // relação é 1 pendência de curadoria, não 3. Bate com a forma como o resto do projeto
+  // (scripts de curadoria, documentação) já fala em "quantas cartas faltam", evitando o
+  // número inflado que a contagem por linha causaria.
+  const countMissingByCode = async (cardType: CardType | CardType[]) => {
+    const rows = await prisma.card.findMany({ where: missingRelationWhere(cardType), select: { code: true }, distinct: ["code"] });
+    return rows.length;
+  };
+  const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows, pilotsMissing, unitsMissing, commandsMissing] = await Promise.all([
     prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
     prisma.card.findMany({ where: { ...activeCards, rarity: { not: null } }, select: { rarity: true }, distinct: ["rarity"], orderBy: { rarity: "asc" } }),
@@ -1228,6 +1317,9 @@ app.get("/api/cards/filters", async (_req, res) => {
     prisma.taxonomyEntry.findMany({ where: { isActive: true, kind: TaxonomyKind.SOURCE_TITLE }, select: { name: true }, orderBy: { name: "asc" } }),
     prisma.cardSet.findMany({ where: { isActive: true }, select: { code: true, namePt: true, nameEn: true, releaseDate: true }, orderBy: { code: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { keywordTags: true } }),
+    countMissingByCode(CardType.PILOT),
+    countMissingByCode(CardType.UNIT),
+    countMissingByCode([CardType.COMMAND, CardType.COMMAND_PILOT]),
   ]);
 
   const media = Array.from(new Set([...mediaTaxonomies.map((item) => item.name), ...mediaRows.flatMap((item) => [item.sourceTitle, item.series]).filter(Boolean) as string[]])).sort();
@@ -1244,15 +1336,37 @@ app.get("/api/cards/filters", async (_req, res) => {
     traits: Array.from(new Set([...traitTaxonomies.map((item) => item.name), ...traitRows.flatMap((item) => item.traits)])).sort(),
     keywords: Array.from(keywordSet).sort(),
     sets,
+    missingRelationCounts: { PILOT: pilotsMissing, UNIT: unitsMissing, COMMAND: commandsMissing },
   });
 });
 
 app.get("/api/cards/:id", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
-  const card = await prisma.card.findUnique({ where: { id }, include: { set: true, rulings: true } });
-  if (!card) return res.status(404).json({ error: "Carta não encontrada." });
-  res.json(card);
+  const requestedPrintId = normalizeQueryValue(req.query.print);
+
+  let model = await prisma.cardModel.findUnique({
+    where: { id },
+    include: { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
+  });
+
+  // Compatibilidade: se o :id passado for de uma impressão específica (ex: link salvo de
+  // binder/deck, de antes desse redesenho), resolve pro CardModel dela.
+  if (!model) {
+    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    if (print?.cardModelId) {
+      model = await prisma.cardModel.findUnique({
+        where: { id: print.cardModelId },
+        include: { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
+      });
+    }
+  }
+
+  if (!model) return res.status(404).json({ error: "Carta não encontrada." });
+
+  const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
+  const { prints, ...modelFields } = model;
+  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints });
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {

@@ -64,32 +64,32 @@ const pillars = [
   },
   {
     code: "02",
-    title: "Base modular para crescer sem retrabalho",
-    text: "Frontend em React, organização por domínio, Prisma para modelagem e Postgres local enquanto o Supabase não entra em produção.",
+    title: "Uma base que não para de crescer",
+    text: "O portal está em desenvolvimento contínuo — catálogo, deckbuilder e torneios evoluem juntos, e cada atualização soma sem derrubar o que você já usa.",
   },
   {
     code: "03",
-    title: "IA como ferramenta operacional e de produto",
-    text: "LLMs e APIs AnyGen para tradução assistida, enriquecimento editorial, busca contextual, automações admin e experiências guiadas ao usuário.",
+    title: "Tecnologia a favor de quem joga",
+    text: "IA aplicada em tradução cuidada, busca que entende contexto e curadoria de conteúdo mais rápida — pra você gastar menos tempo procurando e mais tempo jogando.",
   },
 ];
 
 const roadmap = [
-  "Landing e navegação base do portal",
-  "Modelos de cartas, decks, FAQ e torneios",
-  "Prisma + Postgres local + Docker de desenvolvimento",
-  "Deckbuilder MVP com estatísticas iniciais",
+  "Portal no ar com navegação completa",
+  "Catálogo de cartas, deckbuilder, FAQ e torneios",
+  "Catálogo oficial completo: série, traduções e relações entre cartas mapeadas",
+  "Deckbuilder com estatísticas de curva e consistência",
   "Analytics de torneios e conteúdo editorial",
-  "Camada futura para simulador, IA e premium",
+  "Simulador de partidas e novos recursos avançados",
 ];
 
 const aiUseCases = [
-  "Tradução assistida de regras e efeitos com revisão humana",
-  "Resumo de mudanças entre documentos oficiais",
-  "FAQ semântica com exemplos de jogada em pt-BR",
-  "Assistente de deckbuilding com análise de curva e consistência",
-  "Geração de imagens e peças visuais com AnyGen para posts e campanhas",
-  "Backoffice editorial com sugestões de tags, arquétipos e relacionamento entre cartas",
+  "Tradução assistida de regras e efeitos, sempre com revisão humana antes de publicar",
+  "Resumo das mudanças entre versões oficiais das regras, pra você não perder nada",
+  "FAQ com exemplos reais de jogada em pt-BR, não só tradução literal do termo",
+  "Assistente de deckbuilding com leitura de curva de custo e consistência",
+  "Busca que entende contexto — sinônimo, apelido de carta ou termo em inglês acham a carta certa",
+  "Curadoria de relações entre cartas (piloto, upgrade, arquétipo) mais rápida e mais completa",
 ];
 
 function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
@@ -136,14 +136,14 @@ export default function Home({ targetSection }: HomeProps) {
             <div className="relative z-10 space-y-8">
               <div className="space-y-5">
                 <Badge className="rounded-none border border-accent/50 bg-accent/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-accent">
-                  Layout A · Hangar Tático Neo-Militar
+                  Base tática da comunidade BR
                 </Badge>
                 <h1 className="title-glow heading-portal max-w-4xl text-6xl uppercase leading-[0.88] md:text-7xl xl:text-8xl">
                   Portal brasileiro para <span className="text-primary">jogar</span>, <span className="text-accent">estudar</span> e <span className="text-red-400">analisar</span> o Gundam TCG.
                 </h1>
                 <p className="text-soft max-w-2xl text-base leading-8 md:text-lg">
-                  Um ecossistema unificado para regras em pt-BR, deckbuilder com estatísticas, cobertura competitiva,
-                  conteúdo com vídeo e uma base técnica pronta para crescer com IA, Prisma e Postgres local.
+                  Um ecossistema unificado para regras em pt-BR, deckbuilder com estatísticas, cobertura competitiva
+                  e conteúdo com vídeo — tudo num só lugar, sem precisar garimpar em cinco fóruns diferentes.
                 </p>
               </div>
 
@@ -155,7 +155,7 @@ export default function Home({ targetSection }: HomeProps) {
                   asChild
                   size="lg"
                   variant="outline"
-                  className="rounded-none border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white"
+                  className="rounded-none border-white/20 bg-white/5 px-8 text-white hover:bg-white/10 hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
                 >
                   <Link href="/stats">Ver estatísticas públicas</Link>
                 </Button>
@@ -181,16 +181,16 @@ export default function Home({ targetSection }: HomeProps) {
                 <div className="mb-6 flex items-center justify-between border-b border-white/10 pb-3">
                   <div>
                     <p className="text-muted-portal text-xs uppercase tracking-[0.28em]">Combat Operations Board</p>
-                    <h3 className="heading-portal mt-2 text-3xl uppercase">Escopo inicial</h3>
+                    <h3 className="heading-portal mt-2 text-3xl uppercase">Frentes em operação</h3>
                   </div>
                   <Shield className="size-8 text-primary" />
                 </div>
 
                 <div className="grid gap-4">
                   {[
-                    ["Database", "Prisma + PostgreSQL local enquanto o Supabase não sobe"],
+                    ["Database", "Catálogo completo, sempre atualizado e com backup regular"],
                     ["Editorial", "Notícias, previews, reviews e embeds de YouTube"],
-                    ["Rules", "Original + tradução + exemplos + busca semântica futura"],
+                    ["Rules", "Original + tradução + exemplos práticos de jogada"],
                     ["Analytics", "Presença por cor, uso por carta, top cut e curva"],
                   ].map(([title, text], index) => (
                     <div key={title} className="panel-cut surface-strong p-4">
@@ -242,7 +242,7 @@ export default function Home({ targetSection }: HomeProps) {
             <SectionHeading
               eyebrow="Módulos"
               title="A fundação do ecossistema"
-              description="A landing já aponta para a estrutura que vai sustentar o portal inteiro: aprendizado, deckbuilding, competitivo, editorial e camadas futuras de automação."
+              description="Cada frente do portal já tem seu espaço: aprendizado, deckbuilding, competitivo e conteúdo editorial — com mais recursos chegando a cada atualização."
             />
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -267,17 +267,17 @@ export default function Home({ targetSection }: HomeProps) {
         <section id="arquitetura" className="mx-auto max-w-[1760px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid gap-10 xl:grid-cols-[0.95fr_1.05fr]">
             <SectionHeading
-              eyebrow="Arquitetura"
-              title="Base técnica preparada para crescer"
-              description="Como você quer usar esse projeto como treino de gestão de um produto sério, a fundação já considera modularidade, banco local, futuras integrações e esteira limpa de desenvolvimento."
+              eyebrow="Confiabilidade"
+              title="Uma base pensada pra não te deixar na mão"
+              description="Cara profissional com processo por trás: cada atualização é testada antes de ir pro ar, o catálogo tem cópia de segurança regular, e toda curadoria de dado passa por revisão antes de virar informação confirmada no site."
             />
 
             <div className="grid gap-4">
               {[
-                { icon: Database, label: "Dados", text: "PostgreSQL local + Prisma para modelagem, migrations e versionamento enquanto o Supabase fica para a próxima fase." },
-                { icon: Globe, label: "Frontend", text: "React + TypeScript + Vite + pnpm, com estrutura por domínio para cartas, decks, FAQ, torneios, posts e admin." },
-                { icon: BrainCircuit, label: "Inteligência", text: "LLM e AnyGen como camada de apoio: tradução, resumo de updates, busca inteligente, apoio editorial e UX guiada." },
-                { icon: Swords, label: "Evolução", text: "A mesma fundação suporta deckbuilder, analytics competitivos, monetização e o futuro simulador com IA e PVP." },
+                { icon: Database, label: "Dados", text: "Catálogo com histórico de mudanças e backup regular — nada some de uma hora pra outra." },
+                { icon: Globe, label: "Experiência", text: "Interface rápida, com a mesma qualidade em celular, tablet ou computador." },
+                { icon: BrainCircuit, label: "Inteligência", text: "Tradução, resumo de novidades e busca inteligente — sempre com revisão humana antes de publicar." },
+                { icon: Swords, label: "Evolução", text: "A mesma base já sustenta deckbuilder e torneios, e vai sustentar o simulador de partidas quando chegar." },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
@@ -300,9 +300,9 @@ export default function Home({ targetSection }: HomeProps) {
           <div className="mx-auto max-w-[1760px] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
               <SectionHeading
-                eyebrow="Camada IA"
-                title="LLM e AnyGen como multiplicadores de operação"
-                description="A IA aqui não entra como enfeite. Ela entra para acelerar curadoria, reduzir trabalho manual e melhorar a experiência de quem consulta regras, monta deck e acompanha o meta."
+                eyebrow="Curadoria com IA"
+                title="IA a serviço de quem joga"
+                description="A IA aqui não é enfeite: ela ajuda a manter regras e cartas traduzidas com mais precisão, conteúdo publicado mais rápido e busca que realmente entende o que você quer encontrar."
               />
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -345,9 +345,9 @@ export default function Home({ targetSection }: HomeProps) {
           <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
             <div className="panel-cut hero-surface border border-primary/30 p-8 lg:p-10">
               <p className="text-xs uppercase tracking-[0.26em] text-primary">Cadastro público</p>
-              <h2 className="heading-portal mt-3 text-5xl uppercase leading-none">Entrar no portal sem passar pelo admin.</h2>
+              <h2 className="heading-portal mt-3 text-5xl uppercase leading-none">Crie sua conta e comece agora.</h2>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-                A v6 abre o onboarding direto na interface pública. O usuário cria conta, cai no perfil e já pode começar a salvar decks e publicar share links.
+                Cadastro rápido, sem enrolação. Você cria a conta, cai direto no seu perfil e já pode começar a salvar decks e publicar links pra compartilhar suas listas.
               </p>
               {isAuthenticated ? (
                 <div className="mt-6 panel-cut surface-panel p-5">
@@ -373,8 +373,8 @@ export default function Home({ targetSection }: HomeProps) {
             <div className="grid gap-4">
               {[
                 ["Perfil público", "Username único, bio editável e vitrine de decks publicados."],
-                ["Deck sharing", "Links públicos por shareId para divulgar listas e versões de teste."],
-                ["Fluxo simples", "Cadastro na landing, edição no perfil e publicação no deckbuilder."],
+                ["Compartilhar decks", "Gere um link público pra divulgar sua lista — quem só quer ver não precisa nem criar conta."],
+                ["Fluxo simples", "Crie a conta, ajuste seu perfil e publique direto pelo deckbuilder."],
               ].map(([title, text], index) => (
                 <Card key={title} className={cn("panel-cut rounded-none border", index === 0 ? "border-primary/30 bg-primary/8 light:bg-primary/10" : "surface-panel")}>
                   <CardContent className="p-6">
@@ -392,10 +392,10 @@ export default function Home({ targetSection }: HomeProps) {
           <div className="panel-cut hero-surface border border-primary/30 p-8 lg:p-10">
             <div className="grid gap-6 lg:grid-cols-[1.1fr_auto] lg:items-center">
               <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-primary">Próximo passo</p>
-                <h2 className="heading-portal mt-3 text-5xl uppercase leading-none">Seguir com navegação, modelos de dados e setup local profissional.</h2>
+                <p className="text-xs uppercase tracking-[0.26em] text-primary">Já dá pra jogar</p>
+                <h2 className="heading-portal mt-3 text-5xl uppercase leading-none">Catálogo, regras e deckbuilder de pé pra você usar hoje.</h2>
                 <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-                  Esta landing já serve como porta de entrada do projeto e também como demonstração do tom visual que vai guiar o portal. Na sequência, o ideal é encaixar os domínios de cartas, decks, FAQ e torneios por cima dessa estrutura.
+                  Enquanto novas frentes chegam — analytics de torneio, conteúdo em vídeo, simulador de partidas — o essencial já está pronto: consulte cartas, monte seu deck e acompanhe as regras em pt-BR sem sair do portal.
                 </p>
               </div>
 
@@ -422,8 +422,8 @@ export default function Home({ targetSection }: HomeProps) {
           </div>
           <div className="min-w-[280px]">
             <Separator className="mb-4 bg-white/10 lg:hidden" />
-            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Direção adotada</p>
-            <p className="heading-portal mt-2">Hangar Tático Neo-Militar · Reatividade alta · Visual operacional</p>
+            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Feito pela comunidade</p>
+            <p className="heading-portal mt-2">Catálogo oficial · Regras em pt-BR · Deckbuilder</p>
           </div>
         </div>
       </footer>
