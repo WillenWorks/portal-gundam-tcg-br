@@ -106,7 +106,12 @@ function readCachedValue<T>(key: string): T | null {
   if (memoized) apiMemoryCache.delete(key);
 
   if (typeof window === "undefined") return null;
-  const raw = window.sessionStorage.getItem(getCacheStorageKey(key));
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(getCacheStorageKey(key));
+  } catch {
+    return null;
+  }
   if (!raw) return null;
 
   try {
@@ -127,9 +132,34 @@ function writeCachedValue<T>(key: string, data: T, ttlMs: number) {
   if (ttlMs <= 0) return;
   const payload = { expiresAt: Date.now() + ttlMs, data };
   apiMemoryCache.set(key, payload);
-  if (typeof window !== "undefined") {
+  if (typeof window === "undefined") return;
+  // Escrita em sessionStorage é best-effort: se estourar a quota (catálogo grande
+  // cacheado ao longo da sessão), NUNCA pode derrubar a resposta da API que já
+  // chegou com sucesso — o cache é só uma otimização, não pode virar ponto de
+  // falha do app inteiro. Se estourar, limpa o cache antigo e tenta de novo uma
+  // vez; se ainda assim falhar, segue sem cachear essa entrada.
+  try {
     window.sessionStorage.setItem(getCacheStorageKey(key), JSON.stringify(payload));
+  } catch {
+    try {
+      clearApiCacheStorage();
+      window.sessionStorage.setItem(getCacheStorageKey(key), JSON.stringify(payload));
+    } catch {
+      // Ainda estourando mesmo depois de limpar — provavelmente essa entrada é
+      // grande demais pra guardar (ex: catálogo inteiro sem paginação). Segue
+      // sem cache pra essa chamada específica; a próxima requisição busca de novo.
+    }
   }
+}
+
+function clearApiCacheStorage() {
+  if (typeof window === "undefined") return;
+  const storageKeys: string[] = [];
+  for (let index = 0; index < window.sessionStorage.length; index += 1) {
+    const key = window.sessionStorage.key(index);
+    if (key?.startsWith(API_CACHE_PREFIX)) storageKeys.push(key);
+  }
+  storageKeys.forEach((storageKey) => window.sessionStorage.removeItem(storageKey));
 }
 
 export function invalidateApiCache(prefixes: string[]) {
