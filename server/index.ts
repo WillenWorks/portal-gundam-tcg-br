@@ -1712,6 +1712,58 @@ app.delete("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN]),
   res.status(204).send();
 });
 
+app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const tournamentId = String(req.params.id);
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) return res.status(404).json({ error: "Evento não encontrado." });
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  if (!body.playerName?.trim()) return res.status(400).json({ error: "Nome do jogador é obrigatório." });
+  const entry = await prisma.tournamentEntry.create({
+    data: {
+      tournamentId,
+      playerName: body.playerName.trim(),
+      placement: body.placement ?? null,
+      wins: body.wins ?? null,
+      losses: body.losses ?? null,
+      draws: body.draws ?? null,
+      archetype: body.archetype?.trim() || null,
+      deckId: body.deckId || null,
+    },
+  });
+  res.status(201).json(entry);
+});
+
+app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const entry = await prisma.tournamentEntry.update({
+    where: { id: entryId },
+    data: {
+      playerName: body.playerName?.trim() || existing.playerName,
+      placement: body.placement === undefined ? existing.placement : body.placement,
+      wins: body.wins === undefined ? existing.wins : body.wins,
+      losses: body.losses === undefined ? existing.losses : body.losses,
+      draws: body.draws === undefined ? existing.draws : body.draws,
+      archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
+      deckId: body.deckId === undefined ? existing.deckId : (body.deckId || null),
+    },
+  });
+  res.json(entry);
+});
+
+app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  // TournamentEntry não tem isActive/deletedAt no schema (ao contrário do resto do
+  // projeto) — participante de torneio é registro de resultado histórico, não algo
+  // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
+  await prisma.tournamentEntry.delete({ where: { id: entryId } });
+  res.status(204).send();
+});
+
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });

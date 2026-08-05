@@ -97,6 +97,8 @@ const RELATION_TYPE_HINTS: Record<string, string> = {
  
 const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" }; 
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
+const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
+const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
 const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal" };
  
@@ -279,6 +281,11 @@ export default function AdminPage() {
   const [cardFiltersLoading, setCardFiltersLoading] = useState(false);
   const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
+  const [selectedTournamentId, setSelectedTournamentId] = useState("");
+  const [entryForm, setEntryForm] = useState(emptyEntryForm);
+  const [editingEntryId, setEditingEntryId] = useState("");
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [setForm, setSetForm] = useState(emptySetForm);
   const [cardForm, setCardForm] = useState<CardForm>(emptyCardForm);
@@ -326,14 +333,15 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies()]);
-      const [usersResult, setsResult, rulesResult, taxonomiesResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments()]);
+      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
+      if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -631,6 +639,80 @@ export default function AdminPage() {
     if (!window.confirm(`Excluir ${card.code}?`)) return;
     await api.deleteCard(card.id); await loadAll(); await loadAdminCards(); toast.success("Carta ocultada. O registro foi preservado.");
   };
+
+  const openTournamentForm = (tournament?: any) => {
+    setTournamentForm(tournament ? {
+      id: tournament.id, name: tournament.name || "", organizer: tournament.organizer || "", country: tournament.country || "", city: tournament.city || "",
+      format: tournament.format || "constructed", season: tournament.season || "", sourceUrl: tournament.sourceUrl || "",
+      participantCount: tournament.participantCount != null ? String(tournament.participantCount) : "",
+      roundCount: tournament.roundCount != null ? String(tournament.roundCount) : "",
+      topCutSize: tournament.topCutSize != null ? String(tournament.topCutSize) : "",
+      dateStart: tournament.dateStart ? new Date(tournament.dateStart).toISOString().slice(0, 10) : "",
+      dateEnd: tournament.dateEnd ? new Date(tournament.dateEnd).toISOString().slice(0, 10) : "",
+    } : emptyTournamentForm);
+  };
+  const saveTournament = async () => {
+    if (!tournamentForm.name.trim()) { toast.error("Nome do evento é obrigatório."); return; }
+    const payload = {
+      name: tournamentForm.name.trim(), organizer: tournamentForm.organizer.trim() || null, country: tournamentForm.country.trim() || null, city: tournamentForm.city.trim() || null,
+      format: tournamentForm.format || "constructed", season: tournamentForm.season.trim() || null, sourceUrl: tournamentForm.sourceUrl.trim() || null,
+      participantCount: tournamentForm.participantCount ? Number(tournamentForm.participantCount) : null,
+      roundCount: tournamentForm.roundCount ? Number(tournamentForm.roundCount) : null,
+      topCutSize: tournamentForm.topCutSize ? Number(tournamentForm.topCutSize) : null,
+      dateStart: tournamentForm.dateStart ? new Date(tournamentForm.dateStart).toISOString() : null,
+      dateEnd: tournamentForm.dateEnd ? new Date(tournamentForm.dateEnd).toISOString() : null,
+    };
+    try {
+      if (tournamentForm.id) await api.updateTournament(tournamentForm.id, payload); else await api.createTournament(payload);
+      setTournamentForm(emptyTournamentForm);
+      await loadAll();
+      toast.success(tournamentForm.id ? "Evento atualizado." : "Evento criado.");
+    } catch (err: any) { toast.error(err?.message || "Erro ao salvar evento."); }
+  };
+  const deleteTournament = async (tournament: any) => {
+    if (!window.confirm(`Excluir "${tournament.name}"? Os participantes cadastrados também somem.`)) return;
+    await api.deleteTournament(tournament.id);
+    if (selectedTournamentId === tournament.id) setSelectedTournamentId("");
+    await loadAll();
+    toast.success("Evento ocultado.");
+  };
+
+  const openEntryForm = (entry?: any) => {
+    setEditingEntryId(entry?.id || "");
+    setEntryForm(entry ? {
+      playerName: entry.playerName || "", placement: entry.placement != null ? String(entry.placement) : "",
+      wins: entry.wins != null ? String(entry.wins) : "", losses: entry.losses != null ? String(entry.losses) : "", draws: entry.draws != null ? String(entry.draws) : "",
+      archetype: entry.archetype || "", deckId: entry.deckId || "",
+    } : emptyEntryForm);
+  };
+  const saveEntry = async () => {
+    if (!selectedTournamentId) return;
+    if (!entryForm.playerName.trim()) { toast.error("Nome do jogador é obrigatório."); return; }
+    const payload = {
+      playerName: entryForm.playerName.trim(),
+      placement: entryForm.placement ? Number(entryForm.placement) : null,
+      wins: entryForm.wins ? Number(entryForm.wins) : null,
+      losses: entryForm.losses ? Number(entryForm.losses) : null,
+      draws: entryForm.draws ? Number(entryForm.draws) : null,
+      archetype: entryForm.archetype.trim() || null,
+      deckId: entryForm.deckId || null,
+    };
+    try {
+      if (editingEntryId) await api.updateTournamentEntry(selectedTournamentId, editingEntryId, payload);
+      else await api.createTournamentEntry(selectedTournamentId, payload);
+      openEntryForm();
+      await loadAll();
+      toast.success(editingEntryId ? "Participante atualizado." : "Participante adicionado.");
+    } catch (err: any) { toast.error(err?.message || "Erro ao salvar participante."); }
+  };
+  const deleteEntry = async (entry: any) => {
+    if (!selectedTournamentId) return;
+    if (!window.confirm(`Remover "${entry.playerName}" deste evento?`)) return;
+    await api.deleteTournamentEntry(selectedTournamentId, entry.id);
+    await loadAll();
+    toast.success("Participante removido.");
+  };
+
   const saveTaxonomy = async () => {
     if (!taxonomyForm.name.trim()) { toast.error("Nome é obrigatório."); return; }
     await api.createTaxonomy({ kind: taxonomyForm.kind, name: taxonomyForm.name.trim(), description: taxonomyForm.description.trim() || null });
@@ -736,7 +818,99 @@ export default function AdminPage() {
  
           <TabsContent value="decks"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title="Decks registrados" description="Área administrativa para revisar e montar decks destinados ao blog, a eventos e às páginas públicas." /><div className="grid gap-4 md:grid-cols-2"><Card className="rounded-none border border-white/10 bg-slate-950/50"><CardContent className="space-y-4 p-5"><p className="text-xs uppercase tracking-[0.2em] text-slate-500">Editor</p><p className="text-sm leading-6 text-slate-400">Use o editor de decks existente para criar e revisar listas antes de promovê-las para conteúdo editorial ou eventos.</p><Button asChild className="rounded-none bg-primary text-primary-foreground"><Link href="/deckbuilder">Abrir editor de decks</Link></Button></CardContent></Card><Card className="rounded-none border border-white/10 bg-slate-950/50"><CardContent className="space-y-4 p-5"><p className="text-xs uppercase tracking-[0.2em] text-slate-500">Revisão pública</p><p className="text-sm leading-6 text-slate-400">A listagem pública continua separada do cadastro, evitando que o fluxo de curadoria atrapalhe o uso normal do portal.</p><Button asChild variant="outline" className="rounded-none"><Link href="/decks">Ver decks publicados</Link></Button></CardContent></Card></div></CardContent></Card></TabsContent>
 
-          <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title="Eventos" description="Cadastros de torneios, estatísticas e listas associadas ficam isolados do catálogo de cartas." /><div className="flex flex-wrap gap-3"><Button asChild className="rounded-none bg-primary text-primary-foreground"><Link href="/eventos">Abrir gestão de eventos</Link></Button><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div><p className="border border-dashed border-white/10 bg-white/[0.025] p-5 text-sm leading-7 text-slate-400">A API de torneios já está disponível; a próxima iteração desta área adiciona a grade administrativa com participantes, decks, placements e exclusão lógica.</p></CardContent></Card></TabsContent>
+          <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6">
+            <SectionTitle title="Eventos" description="Cadastro de torneios e resultados de participantes — alimenta o calendário público e as estatísticas competitivas." />
+            <div className="flex flex-wrap gap-3"><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div>
+
+            <ModalSection label={tournamentForm.id ? "Editar evento" : "Novo evento"} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Nome do evento"><Input value={tournamentForm.name} onChange={(e) => setTournamentForm((s) => ({ ...s, name: e.target.value }))} placeholder="Copa BR de Verão 2026" className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Organizador"><Input value={tournamentForm.organizer} onChange={(e) => setTournamentForm((s) => ({ ...s, organizer: e.target.value }))} placeholder="Loja/comunidade organizadora" className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <FieldBlock label="Formato"><select value={tournamentForm.format} onChange={(e) => setTournamentForm((s) => ({ ...s, format: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="constructed">Constructed</option><option value="team_battle">Team Battle</option><option value="battle_royale">Battle Royale</option></select></FieldBlock>
+              <FieldBlock label="Temporada"><Input value={tournamentForm.season} onChange={(e) => setTournamentForm((s) => ({ ...s, season: e.target.value }))} placeholder="2026 S1" className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Fonte (URL)"><Input value={tournamentForm.sourceUrl} onChange={(e) => setTournamentForm((s) => ({ ...s, sourceUrl: e.target.value }))} placeholder="Link da cobertura/resultados oficiais" className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Cidade"><Input value={tournamentForm.city} onChange={(e) => setTournamentForm((s) => ({ ...s, city: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="País"><Input value={tournamentForm.country} onChange={(e) => setTournamentForm((s) => ({ ...s, country: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Início"><Input type="date" value={tournamentForm.dateStart} onChange={(e) => setTournamentForm((s) => ({ ...s, dateStart: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Fim"><Input type="date" value={tournamentForm.dateEnd} onChange={(e) => setTournamentForm((s) => ({ ...s, dateEnd: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <FieldBlock label="Participantes"><Input type="number" min={0} value={tournamentForm.participantCount} onChange={(e) => setTournamentForm((s) => ({ ...s, participantCount: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Rodadas"><Input type="number" min={0} value={tournamentForm.roundCount} onChange={(e) => setTournamentForm((s) => ({ ...s, roundCount: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Tamanho do top cut"><Input type="number" min={0} value={tournamentForm.topCutSize} onChange={(e) => setTournamentForm((s) => ({ ...s, topCutSize: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTournament}>{tournamentForm.id ? "Salvar alterações" : "Criar evento"}</Button>
+              {tournamentForm.id ? <Button variant="outline" className="rounded-none" onClick={() => openTournamentForm()}>Cancelar edição</Button> : null}
+            </div>
+
+            <ModalSection label="Eventos cadastrados" />
+            <div className="grid gap-3">
+              {tournaments.length ? tournaments.map((tournament) => (
+                <div key={tournament.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{tournament.format} · {tournament.season || "sem temporada"} · {tournament.dateStart ? new Date(tournament.dateStart).toLocaleDateString("pt-BR") : "sem data"}</p>
+                      <p className="mt-1 text-lg">{tournament.name}</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{(tournament.entries || []).length} participante(s) cadastrado(s){tournament.participantCount ? ` de ${tournament.participantCount} declarados` : ""}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="rounded-none" onClick={() => { setSelectedTournamentId(tournament.id === selectedTournamentId ? "" : tournament.id); openEntryForm(); }}>{selectedTournamentId === tournament.id ? "Fechar participantes" : "Gerenciar participantes"}</Button>
+                      <Button variant="outline" size="icon" className="rounded-none" onClick={() => openTournamentForm(tournament)}><Pencil className="size-4" /></Button>
+                      <Button variant="outline" size="icon" className="rounded-none text-red-300 hover:text-red-200" onClick={() => deleteTournament(tournament)}><Trash2 className="size-4" /></Button>
+                    </div>
+                  </div>
+
+                  {selectedTournamentId === tournament.id ? (
+                    <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {(tournament.entries || []).map((entry: any) => (
+                          <div key={entry.id} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-white">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium">{entry.playerName}</p>
+                                <p className="text-xs text-slate-500">{entry.placement ? `${entry.placement}º lugar` : "sem colocação"} · {entry.archetype || "sem arquétipo"}</p>
+                                <p className="text-xs text-slate-500">{entry.wins ?? 0}V / {entry.losses ?? 0}D / {entry.draws ?? 0}E</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="icon" className="size-7 rounded-none" onClick={() => openEntryForm(entry)}><Pencil className="size-3" /></Button>
+                                <Button variant="outline" size="icon" className="size-7 rounded-none text-red-300 hover:text-red-200" onClick={() => deleteEntry(entry)}><Trash2 className="size-3" /></Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {!(tournament.entries || []).length ? <p className="text-sm text-slate-500">Nenhum participante cadastrado ainda.</p> : null}
+                      </div>
+
+                      <div className="border border-white/10 bg-white/[0.025] p-4">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{editingEntryId ? "Editar participante" : "Novo participante"}</p>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <Input value={entryForm.playerName} onChange={(e) => setEntryForm((s) => ({ ...s, playerName: e.target.value }))} placeholder="Nome do jogador" className="rounded-none" />
+                          <Input value={entryForm.archetype} onChange={(e) => setEntryForm((s) => ({ ...s, archetype: e.target.value }))} placeholder="Arquétipo do deck" className="rounded-none" />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-4">
+                          <Input type="number" min={1} value={entryForm.placement} onChange={(e) => setEntryForm((s) => ({ ...s, placement: e.target.value }))} placeholder="Colocação" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.wins} onChange={(e) => setEntryForm((s) => ({ ...s, wins: e.target.value }))} placeholder="Vitórias" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.losses} onChange={(e) => setEntryForm((s) => ({ ...s, losses: e.target.value }))} placeholder="Derrotas" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.draws} onChange={(e) => setEntryForm((s) => ({ ...s, draws: e.target.value }))} placeholder="Empates" className="rounded-none" />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveEntry}>{editingEntryId ? "Salvar participante" : "Adicionar participante"}</Button>
+                          {editingEntryId ? <Button variant="outline" className="rounded-none" onClick={() => openEntryForm()}>Cancelar edição</Button> : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )) : <p className="text-sm text-slate-500">Nenhum evento cadastrado ainda.</p>}
+            </div>
+          </CardContent></Card></TabsContent>
 
           <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova ruling" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); await loadAdminCards(); toast.success("Ruling criada."); }}>Salvar ruling</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
         </Tabs>
