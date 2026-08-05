@@ -1884,6 +1884,17 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
 
+app.get("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  setPrivateCache(res, 10, 30);
+  const deck = await prisma.deck.findFirst({
+    where: { id: String(req.params.id), userId: req.user!.userId },
+    include: { items: { include: { card: true } } },
+  });
+  if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
+  const legality = await loadDeckLegalityData();
+  res.json(attachDeckLegality(deck, legality));
+});
+
 /** Confere que todo cardId do payload é uma impressão (Card) de verdade antes de
  *  tentar gravar — sem isso, um id inválido (ex: id de CardModel por engano, como
  *  o deckbuilder mandava antes da correção da Fase B1) só aparecia como erro 500

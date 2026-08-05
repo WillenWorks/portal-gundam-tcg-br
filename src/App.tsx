@@ -27,6 +27,7 @@ import AuthPage from "@/pages/AuthPage";
 import TournamentsPage from "@/pages/TournamentsPage";
 
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
+const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 
@@ -80,7 +81,8 @@ function AppRouter() {
         <Route path="/cards" component={CardsPage} />
         <Route path="/rules/:id" component={RulingDetailPage} />
         <Route path="/rules" component={RulesPage} />
-        <Route path="/deckbuilder">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/deckbuilder">{() => <RequireAuth><LazyRoute label="Decks"><DeckListPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

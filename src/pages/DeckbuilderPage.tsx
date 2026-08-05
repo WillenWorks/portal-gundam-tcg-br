@@ -1,7 +1,7 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Plus, Save, Share2, Trash2 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
@@ -110,13 +110,15 @@ function DeckRowCard({ row, onIncrement, onDecrement }: { row: DeckRow; onIncrem
 }
 
 export default function DeckbuilderPage() {
-  const { user, isAuthenticated, login } = useAuth();
-  const [email, setEmail] = useState(import.meta.env.DEV ? "pilot@gundambr.local" : "");
-  const [password, setPassword] = useState(import.meta.env.DEV ? "pilot123" : "");
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
+  const deckId = params?.id && params.id !== "new" ? params.id : null;
+
   const [cards, setCards] = useState<CardRecord[]>([]);
-  const [decks, setDecks] = useState<ApiDeck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
+  const [isPrimary, setIsPrimary] = useState(false);
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -128,7 +130,7 @@ export default function DeckbuilderPage() {
   const [poolQueryDraft, setPoolQueryDraft] = useState("");
   const [poolMeta, setPoolMeta] = useState<PoolMeta>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
   const [loadingPool, setLoadingPool] = useState(true);
-  const [loadingDecks, setLoadingDecks] = useState(false);
+  const [loadingDeck, setLoadingDeck] = useState(Boolean(deckId));
   const [poolPage, setPoolPage] = useState(1);
   const [poolPageSize] = useState(24);
   const [poolTotal, setPoolTotal] = useState(0);
@@ -197,6 +199,7 @@ export default function DeckbuilderPage() {
   const applyDeck = (deck: ApiDeck) => {
     setSelectedDeckId(deck.id);
     setSelectedShareId(deck.shareId);
+    setIsPrimary(deck.isPrimary);
     setDeckName(deck.name);
     setVisibility(deck.visibility);
     setCoverImage(deck.coverImage || "");
@@ -208,18 +211,22 @@ export default function DeckbuilderPage() {
     setEntries(deck.items.map((item: any) => ({ cardId: item.card?.id ?? item.cardId, quantity: item.quantity, section: (item.section as "main" | "resource") || "main" })));
   };
 
-  const loadDecks = async () => {
-    if (!isAuthenticated) return;
-    setLoadingDecks(true);
+  const loadDeck = async (id: string) => {
+    setLoadingDeck(true);
     try {
-      const result = await api.listMyDecks();
-      setDecks(result);
-      const primary = result.find((deck) => deck.isPrimary) ?? result[0];
-      if (primary) applyDeck(primary);
+      const deck = await api.getMyDeck(id);
+      applyDeck(deck);
+    } catch {
+      toast.error("Deck não encontrado.");
+      navigate("/deckbuilder");
     } finally {
-      setLoadingDecks(false);
+      setLoadingDeck(false);
     }
   };
+
+  useEffect(() => {
+    if (deckId) loadDeck(deckId).catch(() => undefined);
+  }, [deckId]);
 
   useEffect(() => {
     loadPoolMeta().catch(() => undefined);
@@ -237,10 +244,6 @@ export default function DeckbuilderPage() {
   useEffect(() => {
     loadCards(poolFilters, poolPage).catch(() => undefined);
   }, [poolFilters, poolPage, poolPageSize]);
-
-  useEffect(() => {
-    loadDecks().catch(() => undefined);
-  }, [isAuthenticated]);
 
   const deckRows = useMemo(
     () =>
@@ -395,16 +398,11 @@ export default function DeckbuilderPage() {
   };
 
   const saveDeck = async () => {
-    if (!isAuthenticated) {
-      toast.error("Faça login para persistir múltiplos decks.");
-      return;
-    }
-
     const payload = {
       name: deckName,
       format: "constructed",
       visibility,
-      isPrimary: true,
+      isPrimary,
       coverImage: coverImage || null,
       featuredCardIds: featuredCardIds.slice(0, 2),
       items: entries.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section || "main" })),
@@ -417,19 +415,11 @@ export default function DeckbuilderPage() {
       const created = await api.createMyDeck(payload);
       setSelectedDeckId(created.id);
       setSelectedShareId(created.shareId);
+      // Troca a URL de /deckbuilder/new pra /deckbuilder/:id — assim um F5 ou
+      // "voltar" do navegador não tenta criar outro deck do zero por engano.
+      navigate(`/deckbuilder/${created.id}`, { replace: true });
     }
-    await loadDecks();
     toast.success("Deck salvo no backend.");
-  };
-
-  const createNewDeck = () => {
-    setSelectedDeckId(null);
-    setSelectedShareId(null);
-    setDeckName(`Novo Deck ${decks.length + 1}`);
-    setVisibility("PRIVATE");
-    setCoverImage("");
-    setFeaturedCardIds([]);
-    setEntries([]);
   };
 
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -461,12 +451,6 @@ export default function DeckbuilderPage() {
     });
   };
 
-  const removeDeck = async (id: string) => {
-    await api.deleteMyDeck(id);
-    await loadDecks();
-    toast.success("Deck removido.");
-  };
-
   const copyShareLink = async () => {
     if (!selectedShareId) {
       toast.error("Salve o deck primeiro para gerar o share link.");
@@ -490,7 +474,10 @@ export default function DeckbuilderPage() {
   };
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Deckbuilder" }]}>
+    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Decks", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo deck" }]}>
+      {loadingDeck ? (
+        <p className="text-sm text-muted-portal">Carregando deck...</p>
+      ) : (
       <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="p-6">
@@ -501,17 +488,6 @@ export default function DeckbuilderPage() {
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-soft">A pool agora pode ser refinada por cor, tipo, série e trait antes de entrar na lista. Isso acelera montagem, revisão e testes por arquétipo.</p>
               </div>
             </div>
-
-            {!isAuthenticated ? (
-              <div className="mt-6 panel-cut border surface-strong p-5">
-                <p className="text-sm leading-7 text-soft">Faça login para salvar múltiplos decks por usuário no backend Prisma.</p>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="field-shell" />
-                  <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Senha" className="field-shell" />
-                </div>
-                <Button className="mt-4 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => login(email, password)}>Entrar</Button>
-              </div>
-            ) : null}
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell xl:col-span-2" />
@@ -610,7 +586,7 @@ export default function DeckbuilderPage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={createNewDeck}><Plus className="mr-2 size-4" />Novo deck</Button>
+                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo deck</Button>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar decklist</Button>
                 {selectedShareId ? <Button variant="ghost" className="rounded-none text-soft hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Copy className="mr-2 size-4" />{selectedShareId}</Button> : null}
@@ -754,30 +730,6 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
-          {isAuthenticated ? (
-            <Card className="panel-cut rounded-none surface-panel">
-              <CardContent className="space-y-3 p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="font-heading text-3xl uppercase heading-portal">Meus decks persistidos</h3>
-                  {loadingDecks ? <Badge variant="outline" className="rounded-none border-white/20 text-soft">Atualizando</Badge> : null}
-                </div>
-                {decks.map((deck) => (
-                  <div key={deck.id} className="panel-cut flex items-center justify-between gap-4 border surface-strong p-4">
-                    <div>
-                      <p className="text-lg heading-portal">{deck.name}</p>
-                      <p className="text-sm text-muted-portal">{deck.items.reduce((sum, item) => sum + item.quantity, 0)} cartas · {deck.visibility.toLowerCase()} · {deck.isPrimary ? "primário" : "secundário"}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => applyDeck(deck)}>Carregar</Button>
-                      {deck.shareId ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir</Link> : null}
-                      <Button variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={() => removeDeck(deck.id)}><Trash2 className="size-4" /></Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
-
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <div className="flex items-center justify-between gap-4">
@@ -804,6 +756,7 @@ export default function DeckbuilderPage() {
           </Card>
         </div>
       </div>
+      )}
     </PortalShell>
   );
 }
