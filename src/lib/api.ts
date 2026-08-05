@@ -1,4 +1,4 @@
-import type { CardRecord, RuleEntry, TournamentRecord } from "@/modules/core/types";
+import type { CardRecord, RuleEntry } from "@/modules/core/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
@@ -348,18 +348,5 @@ export function mapApiRule(rule: any): RuleEntry {
     originalRef: rule.originalUrl ?? rule.title,
     relatedCards: rule.card ? [rule.card.id] : [],
     relatedKeyword: rule.relatedKeyword ?? undefined,
-  };
-}
-
-export function mapApiTournament(event: any): TournamentRecord {
-  return {
-    id: event.id,
-    name: event.name,
-    season: event.season ?? "Unknown",
-    format: (event.format === "team_battle" ? "Team Battle" : event.format === "battle_royale" ? "Battle Royale" : "Constructed") as TournamentRecord["format"],
-    date: event.dateStart ? new Date(event.dateStart).toISOString().slice(0, 10) : "",
-    players: event.participantCount ?? 0,
-    winner: event.winner ?? "TBD",
-    decks: [],
   };
 }
