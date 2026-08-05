@@ -3,9 +3,10 @@
  * Fonte: regras oficiais (comprehensive rules + lista de banido/restrito,
  * gundam-gcg.com/en/rules e /en/news/01_279.html), conferidas em ago/2026.
  *
- * Módulo separado (sem depender do Prisma Client) especificamente pra dar pra
- * testar com vitest sem precisar importar server/index.ts inteiro — esse
- * arquivo sobe um servidor Express só de ser importado.
+ * Fica em src/lib/ (não em server/) de propósito — é lógica pura, sem depender
+ * do Prisma Client, usada tanto pelo servidor (server/index.ts importa daqui,
+ * mesmo padrão de src/lib/gundam-card-effects.ts) quanto pelo deckbuilder no
+ * navegador (Pacote B3 — validação em tempo real sem round-trip por clique).
  * ------------------------------------------------------------------------- */
 export const DECK_MAIN_SIZE = 50;
 export const DECK_RESOURCE_SIZE = 10;
