@@ -74,6 +74,8 @@ type CardForm = {
   arts: ArtVariantForm[];
   activeArtId: string;
   legalityStatus: string;
+  restrictedCopies: string;
+  banGroupId: string;
 };
  
 /* ── Constantes ─────────────────────────────────────────────────────────── */
@@ -100,7 +102,7 @@ const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "",
 const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
 const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
-const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal" };
+const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
  
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
  
@@ -163,7 +165,7 @@ function mapCardToForm(card?: AdminCard): CardForm {
   const effectSection = sections.find((item: any) => String(item?.kind || "").toLowerCase() === "effect") || sections.find((item: any) => item?.textPt || item?.textEn);
   const arts = mapCardArts(card);
   const activeArtId = arts.find((item) => item.isPrimary)?.id || arts[0]?.id || "";
-  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType === "COMMAND_PILOT" ? "COMMAND" : (card.cardType || "UNIT"), nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal" };
+  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType === "COMMAND_PILOT" ? "COMMAND" : (card.cardType || "UNIT"), nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal", restrictedCopies: card.restrictedCopies != null ? String(card.restrictedCopies) : "", banGroupId: card.banGroupId || "" };
 }
  
 /* ── Componentes internos ─────────────────────────────────────────────── */
@@ -282,6 +284,7 @@ export default function AdminPage() {
   const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [banGroups, setBanGroups] = useState<Array<{ id: string; label: string; maxDistinct: number }>>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
@@ -333,15 +336,16 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments()]);
-      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments(), api.getDeckLegalityData()]);
+      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult, legalityResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
       if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
+      if (legalityResult.status === "fulfilled") setBanGroups(legalityResult.value.banGroups);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos", "grupos de banimento"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -590,7 +594,7 @@ export default function AdminPage() {
       // criar uma carta nova, code/rarity/imagem ainda seguem juntos, porque a primeira
       // impressão precisa nascer junto com o modelo (ver server/index.ts: upsertCards +
       // syncCardModelForCode já cuidam disso automaticamente).
-      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, legalityStatus: cardForm.legalityStatus || "legal", triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
+      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, legalityStatus: cardForm.legalityStatus || "legal", restrictedCopies: cardForm.legalityStatus === "restricted" && cardForm.restrictedCopies ? Number(cardForm.restrictedCopies) : null, banGroupId: cardForm.banGroupId || null, triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
       if (cardForm.id) await api.updateCard(cardForm.id, payload); else await api.createCard(payload);
       setCardModalOpen(false); setCardForm(emptyCardForm); await loadAll(); await loadAdminCards();
       toast.success(cardForm.id ? "Carta atualizada." : "Carta criada — reabra ela na lista pra adicionar mais impressões ou relações.");
@@ -1008,6 +1012,8 @@ export default function AdminPage() {
                 {showStats ? <FieldBlock label="HP"><select value={cardForm.hp} onChange={(e) => setCardForm((s) => ({ ...s, hp: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm">{AP_HP_OPTIONS.map((item) => <option key={item} value={item}>HP {item}</option>)}</select></FieldBlock> : null}
                 <FieldBlock label="Cor"><select value={cardForm.color} onChange={(e) => setCardForm((s) => ({ ...s, color: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="">Cor</option>{COLOR_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
                 <FieldBlock label="Legalidade"><select value={cardForm.legalityStatus} onChange={(e) => setCardForm((s) => ({ ...s, legalityStatus: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm">{LEGALITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FieldBlock>
+                {cardForm.legalityStatus === "restricted" ? <FieldBlock label="Cópias permitidas" hint="Ex: 2, conforme a lista oficial de restrição"><Input type="number" min={1} max={4} value={cardForm.restrictedCopies} onChange={(e) => setCardForm((s) => ({ ...s, restrictedCopies: e.target.value }))} placeholder="2" className="rounded-none" /></FieldBlock> : null}
+                <FieldBlock label="Grupo de banimento" hint="Cartas que não podem coexistir no mesmo deck (par banido ou categoria oficial)"><select value={cardForm.banGroupId} onChange={(e) => setCardForm((s) => ({ ...s, banGroupId: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="">Nenhum</option>{banGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}</select></FieldBlock>
                 {!showStats ? <p className="md:col-span-2 self-end text-xs leading-5 text-slate-600">Este tipo não usa AP/HP no cadastro principal, então os campos foram ocultados para reduzir ruído visual.</p> : null}
               </div>
 

@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "./deck-legality.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -1398,10 +1399,17 @@ app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
   if (model) {
     const body = req.body as Record<string, unknown>;
     const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, body[field] ?? (model as any)[field]]));
+    // restrictedCopies/banGroupId são decisão editorial (curadoria de banimento), não campo
+    // de identidade de jogo derivado da impressão — fica de fora do MODEL_FIELDS_FROM_CARD
+    // de propósito, senão syncCardModelForCode apagaria isso a cada edição de impressão
+    // (Card não tem essas colunas, então a sincronização gravaria undefined por cima).
+    if ("restrictedCopies" in body) (modelData as any).restrictedCopies = body.restrictedCopies === "" || body.restrictedCopies == null ? null : Number(body.restrictedCopies);
+    if ("banGroupId" in body) (modelData as any).banGroupId = body.banGroupId || null;
     const updated = await prisma.cardModel.update({ where: { id }, data: modelData as any });
     // Mantém a impressão primária com os mesmos campos de identidade — evita a impressão
     // "desatualizar" em relação ao modelo até a próxima sincronização.
-    await prisma.card.updateMany({ where: { cardModelId: id, isPrimaryPrint: true }, data: modelData as any });
+    const { restrictedCopies: _rc, banGroupId: _bg, ...printSyncData } = modelData as any;
+    await prisma.card.updateMany({ where: { cardModelId: id, isPrimaryPrint: true }, data: printSyncData });
     return res.json({ ...updated, isModel: true });
   }
   const existing = await prisma.card.findUnique({ where: { id } });
@@ -1764,10 +1772,55 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
   res.status(204).send();
 });
 
+/* ---------------------------------------------------------------------------
+ * Motor de regras de deck (Pacote A) — lógica pura em server/deck-legality.ts
+ * (testável sem subir o Express). Aqui só a parte que precisa do Prisma.
+ * ------------------------------------------------------------------------- */
+async function loadDeckLegalityData(): Promise<DeckLegalityData> {
+  const [models, groups] = await Promise.all([
+    prisma.cardModel.findMany({ where: { isActive: true, OR: [{ legalityStatus: "banned" }, { legalityStatus: "restricted" }] }, select: { id: true, legalityStatus: true, restrictedCopies: true } }),
+    prisma.cardBanGroup.findMany({ where: { isActive: true }, include: { members: { where: { isActive: true }, select: { id: true } } } }),
+  ]);
+  const banned = new Set<string>(models.filter((m: any) => m.legalityStatus === "banned").map((m: any) => m.id as string));
+  const restricted = new Map<string, number>(models.filter((m: any) => m.legalityStatus === "restricted").map((m: any) => [m.id as string, (m.restrictedCopies ?? 2) as number]));
+  const banGroups = new Map<string, { label: string; maxDistinct: number; memberIds: Set<string> }>(
+    groups.map((g: any) => [g.id as string, { label: g.label as string, maxDistinct: g.maxDistinct as number, memberIds: new Set<string>(g.members.map((m: any) => m.id as string)) }]),
+  );
+  return { banned, restricted, banGroups };
+}
+
+app.get("/api/decks/legality", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  const legality = await loadDeckLegalityData();
+  const [bannedModels, restrictedModels, groups] = await Promise.all([
+    prisma.cardModel.findMany({ where: { id: { in: [...legality.banned] } }, select: { id: true, code: true, nameEn: true, namePt: true } }),
+    prisma.cardModel.findMany({ where: { id: { in: [...legality.restricted.keys()] } }, select: { id: true, code: true, nameEn: true, namePt: true, restrictedCopies: true } }),
+    prisma.cardBanGroup.findMany({ where: { isActive: true }, include: { members: { where: { isActive: true }, select: { id: true, code: true, nameEn: true, namePt: true } } } }),
+  ]);
+  res.json({
+    rules: { mainSize: DECK_MAIN_SIZE, resourceSize: DECK_RESOURCE_SIZE, maxColors: DECK_MAX_COLORS, maxCopiesDefault: DECK_MAX_COPIES_DEFAULT },
+    banned: bannedModels,
+    restricted: restrictedModels,
+    banGroups: groups.map((g) => ({ id: g.id, label: g.label, maxDistinct: g.maxDistinct, note: g.note, members: g.members })),
+  });
+});
+
+function attachDeckLegality(deck: any, legality: DeckLegalityData) {
+  const items = (deck.items || []).map((item: any) => ({
+    cardModelId: item.card?.cardModelId ?? null,
+    cardType: item.card?.cardType ?? "",
+    color: item.card?.color ?? null,
+    quantity: item.quantity,
+    section: item.section || "main",
+  }));
+  return { ...deck, legality: computeDeckLegality(items, legality) };
+}
+
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const where = { visibility: "PUBLIC" as const };
+  const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
@@ -1780,7 +1833,7 @@ app.get("/api/decks/public", async (req, res) => {
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
@@ -1788,7 +1841,7 @@ app.get("/api/decks/public", async (req, res) => {
     include: { user: true, items: { include: { card: true } } },
     orderBy: { updatedAt: "desc" },
   });
-  res.json(decks);
+  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
 
 app.get("/api/decks/share/:shareId", async (req, res) => {
@@ -1799,34 +1852,36 @@ app.get("/api/decks/share/:shareId", async (req, res) => {
     include: { user: true, items: { include: { card: true } } },
   });
   if (!deck || deck.visibility === "PRIVATE") return res.status(404).json({ error: "Deck não encontrado." });
-  res.json(deck);
+  const legality = await loadDeckLegalityData();
+  res.json(attachDeckLegality(deck, legality));
 });
 
 app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   setPrivateCache(res, 10, 30);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const where = { userId: req.user!.userId };
+  const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
       prisma.deck.findMany({
         where,
-        include: { items: true },
+        include: { items: { include: { card: true } } },
         orderBy: [{ updatedAt: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
     where,
-    include: { items: true },
+    include: { items: { include: { card: true } } },
     orderBy: [{ updatedAt: "desc" }],
   });
-  res.json(decks);
+  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
 
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
