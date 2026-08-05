@@ -566,10 +566,26 @@ const ALT_ART_RARITY_PATTERN = /\+|Promo|Winner|Judge|SP/i;
  *  CardDetailPage.tsx — enquanto o admin ainda edita por impressão (fase 2 completa do
  *  redesenho de cadastro fica pra depois), isso evita que uma carta cadastrada/editada
  *  pelo admin suma das páginas públicas, que agora consultam CardModel. */
+/** Mesma heurística de prisma/migrate-card-model-data.mjs: nome bruto sem parênteses é o
+ *  sinal mais confiável de impressão regular — variantes (alt-art, promo, evento) sempre
+ *  carregam sufixo entre parênteses no nome, mesmo quando a raridade em si não muda. */
+function pickRepresentativePrint(prints: any[]) {
+  const semParenteses = prints.filter((p) => !p.nameEn.includes("("));
+  if (semParenteses.length === 1) return semParenteses[0];
+  if (semParenteses.length > 1) {
+    const regulares = semParenteses.filter((p) => !ALT_ART_RARITY_PATTERN.test(p.rarity || ""));
+    const candidatas = regulares.length ? regulares : semParenteses;
+    return candidatas.slice().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+  }
+  const regular = prints.find((p) => !ALT_ART_RARITY_PATTERN.test(p.rarity || ""));
+  if (regular) return regular;
+  return [...prints].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+}
+
 async function syncCardModelForCode(code: string) {
   const prints = await prisma.card.findMany({ where: { code, isActive: true } });
   if (!prints.length) return;
-  const representative = prints.find((p) => !ALT_ART_RARITY_PATTERN.test(p.rarity || "")) || prints.slice().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+  const representative = pickRepresentativePrint(prints);
   const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, (representative as any)[field]]));
   const model = await prisma.cardModel.upsert({ where: { code }, update: modelData, create: { code, ...modelData } as any });
   await prisma.card.updateMany({ where: { code }, data: { cardModelId: model.id, isPrimaryPrint: false } });
