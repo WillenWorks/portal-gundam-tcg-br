@@ -317,8 +317,18 @@ export const api = {
 };
 
 export function mapApiCard(card: any): CardRecord {
+  // Duas formas possíveis de entrada: uma "linha de pool" (GET /api/cards, achatada
+  // por CardModel — .id é o modelo, .printId é a impressão exibida) ou uma "impressão
+  // crua" (ex: deck.items[].card, direto da tabela Card — .id já É a impressão, e
+  // .cardModelId é o campo próprio dela apontando pro modelo). Os dois casos precisam
+  // resolver printId/cardModelId de forma consistente pro deckbuilder poder usar sem
+  // se importar de onde veio.
+  const printId: string = card.printId ?? card.id;
+  const cardModelId: string = card.cardModelId ?? card.id;
   return {
     id: card.id,
+    printId,
+    cardModelId,
     code: card.code,
     name: card.nameEn,
     namePt: card.namePt ?? card.nameEn,

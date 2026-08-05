@@ -1884,6 +1884,18 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
 
+/** Confere que todo cardId do payload é uma impressão (Card) de verdade antes de
+ *  tentar gravar — sem isso, um id inválido (ex: id de CardModel por engano, como
+ *  o deckbuilder mandava antes da correção da Fase B1) só aparecia como erro 500
+ *  cru de violação de chave estrangeira no Postgres. */
+async function findInvalidDeckCardIds(items: Array<{ cardId: string }>): Promise<string[]> {
+  const ids = [...new Set(items.map((item) => item.cardId))];
+  if (!ids.length) return [];
+  const found = await prisma.card.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  const foundIds = new Set(found.map((card) => card.id));
+  return ids.filter((id) => !foundIds.has(id));
+}
+
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
@@ -1897,6 +1909,8 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   };
 
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
+  const invalidIds = await findInvalidDeckCardIds(items || []);
+  if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   const deck = await prisma.deck.create({
     data: {
       userId: req.user!.userId,
@@ -1928,6 +1942,8 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   };
   const existing = await prisma.deck.findFirst({ where: { id: deckId, userId: req.user!.userId } });
   if (!existing) return res.status(404).json({ error: "Deck não encontrado." });
+  const invalidIds = await findInvalidDeckCardIds(items || []);
+  if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   await prisma.deckItem.deleteMany({ where: { deckId } });
   const deck = await prisma.deck.update({
