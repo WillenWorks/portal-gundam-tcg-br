@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, Boxes, CalendarDays, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
+import { BookMarked, CalendarDays, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +38,6 @@ const adminNav = [
   { href: "/admin/media", label: "Mídias", icon: Image },
   { href: "/admin/traits", label: "Traits", icon: Tags },
   { href: "/admin/rulings", label: "Rulings", icon: ScrollText },
-  { href: "/admin/decks", label: "Decks", icon: Boxes },
   { href: "/admin/events", label: "Eventos", icon: CalendarDays },
 ] as const;
 
@@ -55,7 +54,6 @@ const titles: Record<string, string> = {
   "/admin/media": "Mídias",
   "/admin/traits": "Traits",
   "/admin/rulings": "Rulings",
-  "/admin/decks": "Decks registrados",
   "/admin/events": "Eventos",
 };
 
