@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "./deck-legality.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -1309,19 +1310,15 @@ app.get("/api/cards", async (req, res) => {
 app.get("/api/cards/filters", async (_req, res) => {
   setPublicCache(res, 300, 900);
   const activeCards: Prisma.CardWhereInput = { isActive: true };
-  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardWhereInput => ({
+  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardModelWhereInput => ({
     isActive: true,
     cardType: Array.isArray(cardType) ? { in: cardType } : cardType,
     AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }],
   });
-  // Conta por `code` único, não por impressão/reprint — uma unidade com 3 reimpressões sem
-  // relação é 1 pendência de curadoria, não 3. Bate com a forma como o resto do projeto
-  // (scripts de curadoria, documentação) já fala em "quantas cartas faltam", evitando o
-  // número inflado que a contagem por linha causaria.
-  const countMissingByCode = async (cardType: CardType | CardType[]) => {
-    const rows = await prisma.card.findMany({ where: missingRelationWhere(cardType), select: { code: true }, distinct: ["code"] });
-    return rows.length;
-  };
+  // CardModel já tem 1 linha por code (por construção, ver docs/13-migracao-cardmodel.md)
+  // — não precisa mais de distinct manual pra evitar contar reimpressão como pendência
+  // separada, como era necessário antes da migração pra CardModel.
+  const countMissingByCode = async (cardType: CardType | CardType[]) => prisma.cardModel.count({ where: missingRelationWhere(cardType) });
   const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows, pilotsMissing, unitsMissing, commandsMissing] = await Promise.all([
     prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
@@ -1396,6 +1393,25 @@ app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
 
 app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const id = String(req.params.id);
+  // :id pode ser um CardModel (edição feita a partir da listagem pública/admin, que lista
+  // por carta) ou uma impressão específica (uso interno futuro) — detecta e trata cada uma.
+  const model = await prisma.cardModel.findUnique({ where: { id } });
+  if (model) {
+    const body = req.body as Record<string, unknown>;
+    const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, body[field] ?? (model as any)[field]]));
+    // restrictedCopies/banGroupId são decisão editorial (curadoria de banimento), não campo
+    // de identidade de jogo derivado da impressão — fica de fora do MODEL_FIELDS_FROM_CARD
+    // de propósito, senão syncCardModelForCode apagaria isso a cada edição de impressão
+    // (Card não tem essas colunas, então a sincronização gravaria undefined por cima).
+    if ("restrictedCopies" in body) (modelData as any).restrictedCopies = body.restrictedCopies === "" || body.restrictedCopies == null ? null : Number(body.restrictedCopies);
+    if ("banGroupId" in body) (modelData as any).banGroupId = body.banGroupId || null;
+    const updated = await prisma.cardModel.update({ where: { id }, data: modelData as any });
+    // Mantém a impressão primária com os mesmos campos de identidade — evita a impressão
+    // "desatualizar" em relação ao modelo até a próxima sincronização.
+    const { restrictedCopies: _rc, banGroupId: _bg, ...printSyncData } = modelData as any;
+    await prisma.card.updateMany({ where: { cardModelId: id, isPrimaryPrint: true }, data: printSyncData });
+    return res.json({ ...updated, isModel: true });
+  }
   const existing = await prisma.card.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Carta não encontrada." });
   const payload = { ...req.body, code: req.body.code || existing.code, recordId: id, externalId: req.body.externalId ?? existing.externalId } as CardInput;
@@ -1404,8 +1420,93 @@ app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
   res.json(card);
 });
 
+app.post("/api/cards/:modelId/prints", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const modelId = String(req.params.modelId);
+  const model = await prisma.cardModel.findUnique({ where: { id: modelId } });
+  if (!model) return res.status(404).json({ error: "Carta não encontrada." });
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; externalId?: string };
+  const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, (model as any)[field]]));
+  if (body.isPrimaryPrint) await prisma.card.updateMany({ where: { cardModelId: modelId }, data: { isPrimaryPrint: false } });
+  const print = await prisma.card.create({
+    data: {
+      ...modelData,
+      code: model.code,
+      cardModelId: modelId,
+      rarity: body.rarity || null,
+      printLabel: body.printLabel || null,
+      setId: body.setId || null,
+      imageUrl: body.imageUrl || null,
+      thumbUrl: body.thumbUrl || null,
+      imageSmallUrl: body.imageSmallUrl || null,
+      imageMediumUrl: body.imageMediumUrl || null,
+      imageLargeUrl: body.imageLargeUrl || null,
+      imageSourceUrl: body.imageSourceUrl || null,
+      officialUrl: body.officialUrl || null,
+      externalId: body.externalId || null,
+      isPrimaryPrint: Boolean(body.isPrimaryPrint),
+    } as any,
+    include: { set: true },
+  });
+  res.status(201).json(print);
+});
+
+app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const printId = String(req.params.printId);
+  const existing = await prisma.card.findUnique({ where: { id: printId } });
+  if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string };
+  if (body.isPrimaryPrint && existing.cardModelId) {
+    await prisma.card.updateMany({ where: { cardModelId: existing.cardModelId }, data: { isPrimaryPrint: false } });
+  }
+  const print = await prisma.card.update({
+    where: { id: printId },
+    data: {
+      rarity: body.rarity ?? existing.rarity,
+      printLabel: body.printLabel ?? existing.printLabel,
+      setId: body.setId === undefined ? existing.setId : body.setId,
+      imageUrl: body.imageUrl ?? existing.imageUrl,
+      thumbUrl: body.thumbUrl ?? existing.thumbUrl,
+      imageSmallUrl: body.imageSmallUrl ?? existing.imageSmallUrl,
+      imageMediumUrl: body.imageMediumUrl ?? existing.imageMediumUrl,
+      imageLargeUrl: body.imageLargeUrl ?? existing.imageLargeUrl,
+      imageSourceUrl: body.imageSourceUrl ?? existing.imageSourceUrl,
+      officialUrl: body.officialUrl ?? existing.officialUrl,
+      legalityStatus: body.legalityStatus ?? existing.legalityStatus,
+      isPrimaryPrint: body.isPrimaryPrint ?? existing.isPrimaryPrint,
+    },
+    include: { set: true },
+  });
+  res.json(print);
+});
+
+app.delete("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const printId = String(req.params.printId);
+  const existing = await prisma.card.findUnique({ where: { id: printId } });
+  if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
+  if (existing.cardModelId) {
+    const siblingCount = await prisma.card.count({ where: { cardModelId: existing.cardModelId, isActive: true } });
+    if (siblingCount <= 1) return res.status(400).json({ error: "Essa é a única impressão desta carta — exclua a carta inteira em vez de só a impressão." });
+  }
+  await prisma.card.update({ where: { id: printId }, data: { isActive: false, deletedAt: new Date() } });
+  if (existing.isPrimaryPrint && existing.cardModelId) {
+    // Precisa de uma nova impressão primária — reaproveita a mesma heurística da sincronização.
+    const remaining = await prisma.card.findMany({ where: { cardModelId: existing.cardModelId, isActive: true } });
+    if (remaining.length) {
+      const next = pickRepresentativePrint(remaining);
+      await prisma.card.update({ where: { id: next.id }, data: { isPrimaryPrint: true } });
+    }
+  }
+  res.status(204).send();
+});
+
 app.delete("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
+  const model = await prisma.cardModel.findUnique({ where: { id } });
+  if (model) {
+    await prisma.cardModel.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+    await prisma.card.updateMany({ where: { cardModelId: id }, data: { isActive: false, deletedAt: new Date() } });
+    return res.status(204).send();
+  }
   await prisma.card.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
@@ -1619,10 +1720,107 @@ app.delete("/api/tournaments/:id", authRequired, roleRequired([UserRole.ADMIN]),
   res.status(204).send();
 });
 
+app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const tournamentId = String(req.params.id);
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  if (!tournament) return res.status(404).json({ error: "Evento não encontrado." });
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  if (!body.playerName?.trim()) return res.status(400).json({ error: "Nome do jogador é obrigatório." });
+  const entry = await prisma.tournamentEntry.create({
+    data: {
+      tournamentId,
+      playerName: body.playerName.trim(),
+      placement: body.placement ?? null,
+      wins: body.wins ?? null,
+      losses: body.losses ?? null,
+      draws: body.draws ?? null,
+      archetype: body.archetype?.trim() || null,
+      deckId: body.deckId || null,
+    },
+  });
+  res.status(201).json(entry);
+});
+
+app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const entry = await prisma.tournamentEntry.update({
+    where: { id: entryId },
+    data: {
+      playerName: body.playerName?.trim() || existing.playerName,
+      placement: body.placement === undefined ? existing.placement : body.placement,
+      wins: body.wins === undefined ? existing.wins : body.wins,
+      losses: body.losses === undefined ? existing.losses : body.losses,
+      draws: body.draws === undefined ? existing.draws : body.draws,
+      archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
+      deckId: body.deckId === undefined ? existing.deckId : (body.deckId || null),
+    },
+  });
+  res.json(entry);
+});
+
+app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  // TournamentEntry não tem isActive/deletedAt no schema (ao contrário do resto do
+  // projeto) — participante de torneio é registro de resultado histórico, não algo
+  // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
+  await prisma.tournamentEntry.delete({ where: { id: entryId } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Motor de regras de deck (Pacote A) — lógica pura em server/deck-legality.ts
+ * (testável sem subir o Express). Aqui só a parte que precisa do Prisma.
+ * ------------------------------------------------------------------------- */
+async function loadDeckLegalityData(): Promise<DeckLegalityData> {
+  const [models, groups] = await Promise.all([
+    prisma.cardModel.findMany({ where: { isActive: true, OR: [{ legalityStatus: "banned" }, { legalityStatus: "restricted" }] }, select: { id: true, legalityStatus: true, restrictedCopies: true } }),
+    prisma.cardBanGroup.findMany({ where: { isActive: true }, include: { members: { where: { isActive: true }, select: { id: true } } } }),
+  ]);
+  const banned = new Set<string>(models.filter((m: any) => m.legalityStatus === "banned").map((m: any) => m.id as string));
+  const restricted = new Map<string, number>(models.filter((m: any) => m.legalityStatus === "restricted").map((m: any) => [m.id as string, (m.restrictedCopies ?? 2) as number]));
+  const banGroups = new Map<string, { label: string; maxDistinct: number; memberIds: Set<string> }>(
+    groups.map((g: any) => [g.id as string, { label: g.label as string, maxDistinct: g.maxDistinct as number, memberIds: new Set<string>(g.members.map((m: any) => m.id as string)) }]),
+  );
+  return { banned, restricted, banGroups };
+}
+
+app.get("/api/decks/legality", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  const legality = await loadDeckLegalityData();
+  const [bannedModels, restrictedModels, groups] = await Promise.all([
+    prisma.cardModel.findMany({ where: { id: { in: [...legality.banned] } }, select: { id: true, code: true, nameEn: true, namePt: true } }),
+    prisma.cardModel.findMany({ where: { id: { in: [...legality.restricted.keys()] } }, select: { id: true, code: true, nameEn: true, namePt: true, restrictedCopies: true } }),
+    prisma.cardBanGroup.findMany({ where: { isActive: true }, include: { members: { where: { isActive: true }, select: { id: true, code: true, nameEn: true, namePt: true } } } }),
+  ]);
+  res.json({
+    rules: { mainSize: DECK_MAIN_SIZE, resourceSize: DECK_RESOURCE_SIZE, maxColors: DECK_MAX_COLORS, maxCopiesDefault: DECK_MAX_COPIES_DEFAULT },
+    banned: bannedModels,
+    restricted: restrictedModels,
+    banGroups: groups.map((g) => ({ id: g.id, label: g.label, maxDistinct: g.maxDistinct, note: g.note, members: g.members })),
+  });
+});
+
+function attachDeckLegality(deck: any, legality: DeckLegalityData) {
+  const items = (deck.items || []).map((item: any) => ({
+    cardModelId: item.card?.cardModelId ?? null,
+    cardType: item.card?.cardType ?? "",
+    color: item.card?.color ?? null,
+    quantity: item.quantity,
+    section: item.section || "main",
+  }));
+  return { ...deck, legality: computeDeckLegality(items, legality) };
+}
+
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const where = { visibility: "PUBLIC" as const };
+  const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
@@ -1635,7 +1833,7 @@ app.get("/api/decks/public", async (req, res) => {
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
@@ -1643,7 +1841,7 @@ app.get("/api/decks/public", async (req, res) => {
     include: { user: true, items: { include: { card: true } } },
     orderBy: { updatedAt: "desc" },
   });
-  res.json(decks);
+  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
 
 app.get("/api/decks/share/:shareId", async (req, res) => {
@@ -1654,35 +1852,49 @@ app.get("/api/decks/share/:shareId", async (req, res) => {
     include: { user: true, items: { include: { card: true } } },
   });
   if (!deck || deck.visibility === "PRIVATE") return res.status(404).json({ error: "Deck não encontrado." });
-  res.json(deck);
+  const legality = await loadDeckLegalityData();
+  res.json(attachDeckLegality(deck, legality));
 });
 
 app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   setPrivateCache(res, 10, 30);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
   const where = { userId: req.user!.userId };
+  const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
       prisma.deck.findMany({
         where,
-        include: { items: true },
+        include: { items: { include: { card: true } } },
         orderBy: [{ updatedAt: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items, page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
     where,
-    include: { items: true },
+    include: { items: { include: { card: true } } },
     orderBy: [{ updatedAt: "desc" }],
   });
-  res.json(decks);
+  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
 });
+
+/** Confere que todo cardId do payload é uma impressão (Card) de verdade antes de
+ *  tentar gravar — sem isso, um id inválido (ex: id de CardModel por engano, como
+ *  o deckbuilder mandava antes da correção da Fase B1) só aparecia como erro 500
+ *  cru de violação de chave estrangeira no Postgres. */
+async function findInvalidDeckCardIds(items: Array<{ cardId: string }>): Promise<string[]> {
+  const ids = [...new Set(items.map((item) => item.cardId))];
+  if (!ids.length) return [];
+  const found = await prisma.card.findMany({ where: { id: { in: ids } }, select: { id: true } });
+  const foundIds = new Set(found.map((card) => card.id));
+  return ids.filter((id) => !foundIds.has(id));
+}
 
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
@@ -1697,6 +1909,8 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   };
 
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
+  const invalidIds = await findInvalidDeckCardIds(items || []);
+  if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   const deck = await prisma.deck.create({
     data: {
       userId: req.user!.userId,
@@ -1728,6 +1942,8 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   };
   const existing = await prisma.deck.findFirst({ where: { id: deckId, userId: req.user!.userId } });
   if (!existing) return res.status(404).json({ error: "Deck não encontrado." });
+  const invalidIds = await findInvalidDeckCardIds(items || []);
+  if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   await prisma.deckItem.deleteMany({ where: { deckId } });
   const deck = await prisma.deck.update({

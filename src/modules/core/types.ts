@@ -13,6 +13,8 @@ export type CardType = "Unit" | "Pilot" | "Command" | "Base" | "Resource" | "UNI
 
 export interface CardRecord {
   id: string;
+  printId?: string;
+  cardModelId?: string;
   code: string;
   name: string;
   namePt?: string;
@@ -35,6 +37,7 @@ export interface CardRecord {
 export interface DeckEntry {
   cardId: string;
   quantity: number;
+  section?: "main" | "resource";
 }
 
 export interface DeckRecord {

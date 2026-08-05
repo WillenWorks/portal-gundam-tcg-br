@@ -1,4 +1,4 @@
-import type { CardRecord, RuleEntry, TournamentRecord } from "@/modules/core/types";
+import type { CardRecord, RuleEntry } from "@/modules/core/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
@@ -277,6 +277,9 @@ export const api = {
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
   updateCard: (id: string, payload: any) => mutate<any>(`/cards/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
   deleteCard: (id: string) => mutate<void>(`/cards/${id}`, { method: "DELETE" }, ["/cards", "/cards/filters", "/sets", "/stats"]),
+  addCardPrint: (modelId: string, payload: any) => mutate<any>(`/cards/${modelId}/prints`, { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters"]),
+  updateCardPrint: (printId: string, payload: any) => mutate<any>(`/cards/prints/${printId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/cards", "/cards/filters"]),
+  deleteCardPrint: (printId: string) => mutate<void>(`/cards/prints/${printId}`, { method: "DELETE" }, ["/cards", "/cards/filters"]),
   uploadCardImage: (formData: FormData) => request<{ imageUrl: string; publicUrl?: string; imageSourceUrl: string; storageDriver?: string; storageBucket?: string; storageKey?: string; originalName?: string; mimeType?: string; size?: number }>("/cards/upload-image", { method: "POST", body: formData }),
   uploadAssetImage: (formData: FormData) => request<{ imageUrl: string; publicUrl?: string; imageSourceUrl: string; storageDriver?: string; storageBucket?: string; storageKey?: string; originalName?: string; mimeType?: string; size?: number }>("/uploads/image", { method: "POST", body: formData }),
   importCards: (payload: any) => mutate<{ imported: number; setId: string | null }>("/import/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
@@ -294,7 +297,11 @@ export const api = {
   createTournament: (payload: any) => mutate<any>("/tournaments", { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournament: (id: string, payload: any) => mutate<any>(`/tournaments/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   deleteTournament: (id: string) => mutate<void>(`/tournaments/${id}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
+  createTournamentEntry: (tournamentId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries`, { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
+  updateTournamentEntry: (tournamentId: string, entryId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
+  deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
+  getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
   listPublicDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
@@ -310,8 +317,18 @@ export const api = {
 };
 
 export function mapApiCard(card: any): CardRecord {
+  // Duas formas possíveis de entrada: uma "linha de pool" (GET /api/cards, achatada
+  // por CardModel — .id é o modelo, .printId é a impressão exibida) ou uma "impressão
+  // crua" (ex: deck.items[].card, direto da tabela Card — .id já É a impressão, e
+  // .cardModelId é o campo próprio dela apontando pro modelo). Os dois casos precisam
+  // resolver printId/cardModelId de forma consistente pro deckbuilder poder usar sem
+  // se importar de onde veio.
+  const printId: string = card.printId ?? card.id;
+  const cardModelId: string = card.cardModelId ?? card.id;
   return {
     id: card.id,
+    printId,
+    cardModelId,
     code: card.code,
     name: card.nameEn,
     namePt: card.namePt ?? card.nameEn,
@@ -342,18 +359,5 @@ export function mapApiRule(rule: any): RuleEntry {
     originalRef: rule.originalUrl ?? rule.title,
     relatedCards: rule.card ? [rule.card.id] : [],
     relatedKeyword: rule.relatedKeyword ?? undefined,
-  };
-}
-
-export function mapApiTournament(event: any): TournamentRecord {
-  return {
-    id: event.id,
-    name: event.name,
-    season: event.season ?? "Unknown",
-    format: (event.format === "team_battle" ? "Team Battle" : event.format === "battle_royale" ? "Battle Royale" : "Constructed") as TournamentRecord["format"],
-    date: event.dateStart ? new Date(event.dateStart).toISOString().slice(0, 10) : "",
-    players: event.participantCount ?? 0,
-    winner: event.winner ?? "TBD",
-    decks: [],
   };
 }

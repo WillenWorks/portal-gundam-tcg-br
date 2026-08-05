@@ -74,6 +74,8 @@ type CardForm = {
   arts: ArtVariantForm[];
   activeArtId: string;
   legalityStatus: string;
+  restrictedCopies: string;
+  banGroupId: string;
 };
  
 /* ── Constantes ─────────────────────────────────────────────────────────── */
@@ -97,8 +99,10 @@ const RELATION_TYPE_HINTS: Record<string, string> = {
  
 const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" }; 
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
+const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
+const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
-const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal" };
+const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
  
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
  
@@ -134,35 +138,18 @@ function normalizeArtState(arts: ArtVariantForm[], activeArtId?: string, fallbac
 }
 
 function mapCardArts(card?: AdminCard) {
-  if (!card) return normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C").arts;
-
-  const rawVariants = Array.isArray(card.metadataJson?.artVariants) ? card.metadataJson.artVariants : [];
-  const mappedVariants = rawVariants
-    .map((item: any, index: number) => createArtVariant({
-      id: String(item?.id || `art-${index + 1}`),
-      label: String(item?.label || `Arte ${index + 1}`),
-      url: String(item?.url || item?.imageUrl || ""),
-      thumbUrl: String(item?.thumbUrl || ""),
-      sourceUrl: String(item?.sourceUrl || item?.imageSourceUrl || ""),
-      rarity: String(item?.rarity || card.rarity || "C"),
-      isPrimary: Boolean(item?.isPrimary),
-    }))
-    .filter((item) => item.url || item.thumbUrl || item.sourceUrl || item.label || item.isPrimary);
-
-  if (mappedVariants.length) return normalizeArtState(mappedVariants, undefined, String(card.rarity || "C")).arts;
-
-  if (card.imageUrl || card.thumbUrl || card.imageSourceUrl) {
-    return normalizeArtState([createArtVariant({
-      label: "Arte 1",
-      url: card.imageUrl || "",
-      thumbUrl: card.thumbUrl || "",
-      sourceUrl: card.imageSourceUrl || "",
-      rarity: String(card.rarity || "C"),
-      isPrimary: true,
-    })], undefined, String(card.rarity || "C")).arts;
-  }
-
-  return normalizeArtState([createArtVariant({ label: "Arte 1", rarity: String(card.rarity || "C"), isPrimary: true })], undefined, String(card.rarity || "C")).arts;
+  const prints = Array.isArray(card?.prints) && card.prints.length ? card.prints : card ? [card] : [];
+  if (!prints.length) return normalizeArtState([createArtVariant({ label: "Impressão 1", rarity: "C", isPrimary: true })], undefined, "C").arts;
+  const mapped = prints.map((print: any, index: number) => createArtVariant({
+    id: String(print.id),
+    label: String(print.printLabel || print.rarity || `Impressão ${index + 1}`),
+    url: String(print.imageUrl || ""),
+    thumbUrl: String(print.thumbUrl || ""),
+    sourceUrl: String(print.imageSourceUrl || ""),
+    rarity: String(print.rarity || card?.rarity || "C"),
+    isPrimary: Boolean(print.isPrimaryPrint ?? prints.length === 1),
+  }));
+  return normalizeArtState(mapped, undefined, String(card?.rarity || "C")).arts;
 }
  
 function mapSetToForm(set?: AdminSet) {
@@ -178,7 +165,7 @@ function mapCardToForm(card?: AdminCard): CardForm {
   const effectSection = sections.find((item: any) => String(item?.kind || "").toLowerCase() === "effect") || sections.find((item: any) => item?.textPt || item?.textEn);
   const arts = mapCardArts(card);
   const activeArtId = arts.find((item) => item.isPrimary)?.id || arts[0]?.id || "";
-  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType === "COMMAND_PILOT" ? "COMMAND" : (card.cardType || "UNIT"), nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal" };
+  return { id: card.id, setId: card.set?.id || "", code: card.code || "", rarity: ["C", "U", "R", "LR"].includes(card.rarity) ? card.rarity : "C", cost: card.cost != null ? String(card.cost) : "0", level: card.level != null ? String(card.level) : "0", cardType: card.cardType === "COMMAND_PILOT" ? "COMMAND" : (card.cardType || "UNIT"), nameEn: card.nameEn || "", namePt: "", burstEnabled: Boolean(card.hasBurst || burstSection?.textPt || burstSection?.textEn), burstEffect: burstSection?.textPt || burstSection?.textEn || "", ap: card.ap != null ? String(card.ap) : "-", hp: card.hp != null ? String(card.hp) : "-", effectText: effectSection?.textPt || effectSection?.textEn || card.effectPt || card.effectEn || "", pilotName: card.pilotName || "", color: card.color || "Blue", traits: (card.traits || []).join("; "), linkText: card.linkText || "", sourceTitle: card.sourceTitle || card.series || "", officialUrl: card.officialUrl || "", arts, activeArtId, legalityStatus: card.legalityStatus || "legal", restrictedCopies: card.restrictedCopies != null ? String(card.restrictedCopies) : "", banGroupId: card.banGroupId || "" };
 }
  
 /* ── Componentes internos ─────────────────────────────────────────────── */
@@ -255,10 +242,10 @@ export default function AdminPage() {
   const adminSection = useMemo(() => {
     const path = location.split("?")[0];
     const value = path.replace(/^\/admin\/?/, "").split("/")[0];
-    const aliases: Record<string, string> = { collections: "sets", traits: "taxonomies", media: "taxonomies", rulings: "rules", events: "events", decks: "decks" };
+    const aliases: Record<string, string> = { collections: "sets", traits: "taxonomies", media: "taxonomies", rulings: "rules", events: "events" };
     return aliases[value] || value || "dashboard";
   }, [location]);
-  const sectionLabel = useMemo(() => ({ dashboard: "Visão geral", users: "Usuários", cards: "Cartas", sets: "Coleções", taxonomies: location.includes("/admin/media") ? "Mídias" : "Traits", rules: "Rulings", decks: "Decks", events: "Eventos" }[adminSection] || "Gestão"), [adminSection, location]);
+  const sectionLabel = useMemo(() => ({ dashboard: "Visão geral", users: "Usuários", cards: "Cartas", sets: "Coleções", taxonomies: location.includes("/admin/media") ? "Mídias" : "Traits", rules: "Rulings", events: "Eventos" }[adminSection] || "Gestão"), [adminSection, location]);
   const isMediaManagement = location.split("?")[0] === "/admin/media";
   const urlCardQuery = useMemo<CardCatalogQuery>(() => {
     const params = new URLSearchParams(location.split("?")[1] || "");
@@ -296,6 +283,12 @@ export default function AdminPage() {
   const [cardFiltersLoading, setCardFiltersLoading] = useState(false);
   const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [banGroups, setBanGroups] = useState<Array<{ id: string; label: string; maxDistinct: number }>>([]);
+  const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
+  const [selectedTournamentId, setSelectedTournamentId] = useState("");
+  const [entryForm, setEntryForm] = useState(emptyEntryForm);
+  const [editingEntryId, setEditingEntryId] = useState("");
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [setForm, setSetForm] = useState(emptySetForm);
   const [cardForm, setCardForm] = useState<CardForm>(emptyCardForm);
@@ -343,14 +336,16 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies()]);
-      const [usersResult, setsResult, rulesResult, taxonomiesResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments(), api.getDeckLegalityData()]);
+      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult, legalityResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
+      if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
+      if (legalityResult.status === "fulfilled") setBanGroups(legalityResult.value.banGroups);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos", "grupos de banimento"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -462,53 +457,71 @@ export default function AdminPage() {
     toast.success("Relação editorial ocultada.");
   };
 
-  const syncArtState = (arts: ArtVariantForm[], activeArtId?: string, fallbackRarity?: string) => normalizeArtState(arts, activeArtId, fallbackRarity || cardForm.rarity || "C");
-  const setArtState = (updater: (current: ArtVariantForm[]) => ArtVariantForm[], preferredActiveId?: string) => {
-    setCardForm((current) => {
-      const nextArts = updater(current.arts);
-      return { ...current, ...normalizeArtState(nextArts, preferredActiveId || current.activeArtId, current.rarity || "C") };
-    });
-  };
   const updateSelectedArt = (patch: Partial<ArtVariantForm>) => {
     if (!selectedArt) return;
-    setArtState((arts) => arts.map((item) => item.id === selectedArt.id ? { ...item, ...patch } : item), selectedArt.id);
+    setCardForm((current) => ({ ...current, arts: current.arts.map((item) => item.id === selectedArt.id ? { ...item, ...patch } : item) }));
   };
-  const addArtVariant = () => {
-    const next = createArtVariant({ label: `Arte ${cardForm.arts.length + 1}`, rarity: cardForm.rarity || "C", isPrimary: cardForm.arts.length === 0 });
-    setArtState((arts) => [...arts, next], next.id);
+  const saveSelectedArt = async () => {
+    if (!selectedArt || !cardForm.id) return;
+    setSaving(true);
+    try {
+      await api.updateCardPrint(selectedArt.id, { printLabel: selectedArt.label.trim() || null, imageUrl: selectedArt.url.trim() || null, thumbUrl: selectedArt.thumbUrl.trim() || null, imageSourceUrl: selectedArt.sourceUrl.trim() || null, rarity: selectedArt.rarity || null });
+      toast.success("Impressão atualizada.");
+      await loadAdminCards();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar impressão.");
+    } finally { setSaving(false); }
   };
-  const duplicateSelectedArt = () => {
-    if (!selectedArt) return;
-    const duplicate = createArtVariant({ ...selectedArt, id: undefined, label: `${selectedArt.label || `Arte ${selectedArtIndex + 1}`} (cópia)`, isPrimary: false });
-    setArtState((arts) => {
-      const next = [...arts];
-      next.splice(selectedArtIndex + 1, 0, duplicate);
-      return next;
-    }, duplicate.id);
+  const addArtVariant = async () => {
+    if (!cardForm.id) { toast.error("Salve a carta antes de adicionar outra impressão."); return; }
+    setSaving(true);
+    try {
+      const created = await api.addCardPrint(cardForm.id, { rarity: cardForm.rarity || "C", printLabel: `Impressão ${cardForm.arts.length + 1}`, isPrimaryPrint: false });
+      const next = createArtVariant({ id: created.id, label: created.printLabel || `Impressão ${cardForm.arts.length + 1}`, rarity: created.rarity || cardForm.rarity, isPrimary: false });
+      setCardForm((current) => ({ ...current, arts: [...current.arts, next], activeArtId: next.id }));
+      toast.success("Impressão criada — edite os dados dela ao lado.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar impressão.");
+    } finally { setSaving(false); }
   };
-  const removeSelectedArt = () => {
-    if (!selectedArt) return;
-    setCardForm((current) => {
-      const remaining = current.arts.filter((item) => item.id !== selectedArt.id);
-      const nextState = normalizeArtState(remaining, remaining[0]?.id, current.rarity || "C");
-      return { ...current, ...nextState };
-    });
+  const duplicateSelectedArt = async () => {
+    if (!selectedArt || !cardForm.id) return;
+    setSaving(true);
+    try {
+      const created = await api.addCardPrint(cardForm.id, { rarity: selectedArt.rarity, printLabel: `${selectedArt.label || "Impressão"} (cópia)`, imageUrl: selectedArt.url || null, thumbUrl: selectedArt.thumbUrl || null, imageSourceUrl: selectedArt.sourceUrl || null, isPrimaryPrint: false });
+      const next = createArtVariant({ id: created.id, label: created.printLabel, url: created.imageUrl || "", thumbUrl: created.thumbUrl || "", sourceUrl: created.imageSourceUrl || "", rarity: created.rarity, isPrimary: false });
+      setCardForm((current) => ({ ...current, arts: [...current.arts, next], activeArtId: next.id }));
+      toast.success("Impressão duplicada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao duplicar impressão.");
+    } finally { setSaving(false); }
   };
-  const moveSelectedArt = (direction: -1 | 1) => {
-    if (!selectedArt) return;
-    setArtState((arts) => {
-      const currentIndex = arts.findIndex((item) => item.id === selectedArt.id);
-      const targetIndex = currentIndex + direction;
-      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= arts.length) return arts;
-      const next = [...arts];
-      const [moved] = next.splice(currentIndex, 1);
-      next.splice(targetIndex, 0, moved);
-      return next;
-    }, selectedArt.id);
+  const removeSelectedArt = async () => {
+    if (!selectedArt || cardForm.arts.length <= 1) return;
+    if (!window.confirm(`Remover a impressão "${selectedArt.label || "sem nome"}"?`)) return;
+    setSaving(true);
+    try {
+      await api.deleteCardPrint(selectedArt.id);
+      setCardForm((current) => {
+        const remaining = current.arts.filter((item) => item.id !== selectedArt.id);
+        return { ...current, ...normalizeArtState(remaining, remaining[0]?.id, current.rarity || "C") };
+      });
+      toast.success("Impressão removida.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao remover impressão — se for a única, exclua a carta inteira.");
+    } finally { setSaving(false); }
   };
-  const markPrimaryArt = () => {
-    if (!selectedArt) return;
-    setArtState((arts) => arts.map((item) => ({ ...item, isPrimary: item.id === selectedArt.id })), selectedArt.id);
+  const markPrimaryArt = async () => {
+    if (!selectedArt || selectedArt.isPrimary) return;
+    setSaving(true);
+    try {
+      await api.updateCardPrint(selectedArt.id, { isPrimaryPrint: true });
+      setCardForm((current) => ({ ...current, arts: current.arts.map((item) => ({ ...item, isPrimary: item.id === selectedArt.id })) }));
+      toast.success("Impressão principal atualizada.");
+      await loadAdminCards();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao marcar impressão principal.");
+    } finally { setSaving(false); }
   };
   const triggerArtUpload = () => artUploadInputRef.current?.click();
   const handleArtUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -520,11 +533,12 @@ export default function AdminPage() {
       formData.append("image", file);
       formData.append("cardCode", cardForm.code || "uncataloged");
       formData.append("artId", selectedArt.id);
-      formData.append("label", selectedArt.label || `Arte ${selectedArtIndex + 1}`);
+      formData.append("label", selectedArt.label || "Impressão");
       const uploaded = await api.uploadCardImage(formData);
       const storageSource = uploaded.storageKey ? `${uploaded.storageDriver || "storage"}:${uploaded.storageKey}` : uploaded.imageSourceUrl || "";
-      setArtState((arts) => arts.map((item) => item.id === selectedArt.id ? { ...item, url: uploaded.imageUrl, sourceUrl: item.sourceUrl || storageSource } : item), selectedArt.id);
-      toast.success("Arte enviada para a biblioteca da carta.");
+      updateSelectedArt({ url: uploaded.imageUrl, sourceUrl: selectedArt.sourceUrl || storageSource });
+      if (cardForm.id) await api.updateCardPrint(selectedArt.id, { imageUrl: uploaded.imageUrl, imageSourceUrl: selectedArt.sourceUrl || storageSource || null });
+      toast.success("Arte enviada e já salva nesta impressão.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao subir imagem da arte.");
     } finally {
@@ -575,24 +589,15 @@ export default function AdminPage() {
     setSaving(true);
     try {
       const parsed = parseCardEffects(cardForm.effectText, cardForm.burstEnabled ? cardForm.burstEffect : "");
-      const artState = syncArtState(cardForm.arts, cardForm.activeArtId, cardForm.rarity);
-      const persistedArts = artState.arts
-        .map((art, index) => ({
-          id: art.id,
-          label: art.label.trim() || `Arte ${index + 1}`,
-          url: art.url.trim(),
-          thumbUrl: art.thumbUrl.trim(),
-          sourceUrl: art.sourceUrl.trim(),
-          rarity: art.rarity || cardForm.rarity,
-          isPrimary: art.isPrimary,
-          position: index,
-        }))
-        .filter((art) => art.url || art.thumbUrl || art.sourceUrl || art.label);
-      const primaryArt = persistedArts.find((art) => art.isPrimary) || persistedArts[0] || null;
-      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, imageUrl: primaryArt?.url || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, thumbUrl: primaryArt?.thumbUrl || null, imageSourceUrl: primaryArt?.sourceUrl || cardForm.officialUrl.trim() || null, metadataJson: { artVariants: persistedArts }, legalityStatus: cardForm.legalityStatus || "legal", triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
+      // Impressões (rarity/imagem/coleção) são gerenciadas na seção "Impressões", persistidas
+      // na hora de cada ação — aqui só vão os campos do modelo (identidade de jogo). Pra
+      // criar uma carta nova, code/rarity/imagem ainda seguem juntos, porque a primeira
+      // impressão precisa nascer junto com o modelo (ver server/index.ts: upsertCards +
+      // syncCardModelForCode já cuidam disso automaticamente).
+      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, legalityStatus: cardForm.legalityStatus || "legal", restrictedCopies: cardForm.legalityStatus === "restricted" && cardForm.restrictedCopies ? Number(cardForm.restrictedCopies) : null, banGroupId: cardForm.banGroupId || null, triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
       if (cardForm.id) await api.updateCard(cardForm.id, payload); else await api.createCard(payload);
       setCardModalOpen(false); setCardForm(emptyCardForm); await loadAll(); await loadAdminCards();
-      toast.success(cardForm.id ? "Carta atualizada." : "Carta criada.");
+      toast.success(cardForm.id ? "Carta atualizada." : "Carta criada — reabra ela na lista pra adicionar mais impressões ou relações.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar carta.");
     } finally { setSaving(false); }
@@ -638,6 +643,80 @@ export default function AdminPage() {
     if (!window.confirm(`Excluir ${card.code}?`)) return;
     await api.deleteCard(card.id); await loadAll(); await loadAdminCards(); toast.success("Carta ocultada. O registro foi preservado.");
   };
+
+  const openTournamentForm = (tournament?: any) => {
+    setTournamentForm(tournament ? {
+      id: tournament.id, name: tournament.name || "", organizer: tournament.organizer || "", country: tournament.country || "", city: tournament.city || "",
+      format: tournament.format || "constructed", season: tournament.season || "", sourceUrl: tournament.sourceUrl || "",
+      participantCount: tournament.participantCount != null ? String(tournament.participantCount) : "",
+      roundCount: tournament.roundCount != null ? String(tournament.roundCount) : "",
+      topCutSize: tournament.topCutSize != null ? String(tournament.topCutSize) : "",
+      dateStart: tournament.dateStart ? new Date(tournament.dateStart).toISOString().slice(0, 10) : "",
+      dateEnd: tournament.dateEnd ? new Date(tournament.dateEnd).toISOString().slice(0, 10) : "",
+    } : emptyTournamentForm);
+  };
+  const saveTournament = async () => {
+    if (!tournamentForm.name.trim()) { toast.error("Nome do evento é obrigatório."); return; }
+    const payload = {
+      name: tournamentForm.name.trim(), organizer: tournamentForm.organizer.trim() || null, country: tournamentForm.country.trim() || null, city: tournamentForm.city.trim() || null,
+      format: tournamentForm.format || "constructed", season: tournamentForm.season.trim() || null, sourceUrl: tournamentForm.sourceUrl.trim() || null,
+      participantCount: tournamentForm.participantCount ? Number(tournamentForm.participantCount) : null,
+      roundCount: tournamentForm.roundCount ? Number(tournamentForm.roundCount) : null,
+      topCutSize: tournamentForm.topCutSize ? Number(tournamentForm.topCutSize) : null,
+      dateStart: tournamentForm.dateStart ? new Date(tournamentForm.dateStart).toISOString() : null,
+      dateEnd: tournamentForm.dateEnd ? new Date(tournamentForm.dateEnd).toISOString() : null,
+    };
+    try {
+      if (tournamentForm.id) await api.updateTournament(tournamentForm.id, payload); else await api.createTournament(payload);
+      setTournamentForm(emptyTournamentForm);
+      await loadAll();
+      toast.success(tournamentForm.id ? "Evento atualizado." : "Evento criado.");
+    } catch (err: any) { toast.error(err?.message || "Erro ao salvar evento."); }
+  };
+  const deleteTournament = async (tournament: any) => {
+    if (!window.confirm(`Excluir "${tournament.name}"? Os participantes cadastrados também somem.`)) return;
+    await api.deleteTournament(tournament.id);
+    if (selectedTournamentId === tournament.id) setSelectedTournamentId("");
+    await loadAll();
+    toast.success("Evento ocultado.");
+  };
+
+  const openEntryForm = (entry?: any) => {
+    setEditingEntryId(entry?.id || "");
+    setEntryForm(entry ? {
+      playerName: entry.playerName || "", placement: entry.placement != null ? String(entry.placement) : "",
+      wins: entry.wins != null ? String(entry.wins) : "", losses: entry.losses != null ? String(entry.losses) : "", draws: entry.draws != null ? String(entry.draws) : "",
+      archetype: entry.archetype || "", deckId: entry.deckId || "",
+    } : emptyEntryForm);
+  };
+  const saveEntry = async () => {
+    if (!selectedTournamentId) return;
+    if (!entryForm.playerName.trim()) { toast.error("Nome do jogador é obrigatório."); return; }
+    const payload = {
+      playerName: entryForm.playerName.trim(),
+      placement: entryForm.placement ? Number(entryForm.placement) : null,
+      wins: entryForm.wins ? Number(entryForm.wins) : null,
+      losses: entryForm.losses ? Number(entryForm.losses) : null,
+      draws: entryForm.draws ? Number(entryForm.draws) : null,
+      archetype: entryForm.archetype.trim() || null,
+      deckId: entryForm.deckId || null,
+    };
+    try {
+      if (editingEntryId) await api.updateTournamentEntry(selectedTournamentId, editingEntryId, payload);
+      else await api.createTournamentEntry(selectedTournamentId, payload);
+      openEntryForm();
+      await loadAll();
+      toast.success(editingEntryId ? "Participante atualizado." : "Participante adicionado.");
+    } catch (err: any) { toast.error(err?.message || "Erro ao salvar participante."); }
+  };
+  const deleteEntry = async (entry: any) => {
+    if (!selectedTournamentId) return;
+    if (!window.confirm(`Remover "${entry.playerName}" deste evento?`)) return;
+    await api.deleteTournamentEntry(selectedTournamentId, entry.id);
+    await loadAll();
+    toast.success("Participante removido.");
+  };
+
   const saveTaxonomy = async () => {
     if (!taxonomyForm.name.trim()) { toast.error("Nome é obrigatório."); return; }
     await api.createTaxonomy({ kind: taxonomyForm.kind, name: taxonomyForm.name.trim(), description: taxonomyForm.description.trim() || null });
@@ -741,9 +820,101 @@ export default function AdminPage() {
 
           <TabsContent value="taxonomies"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title={isMediaManagement ? "Mídias e séries" : "Traits"} description={isMediaManagement ? "Cadastre as séries/fontes usadas pelas cartas. A próxima expansão adiciona sinopse, capa e galeria por mídia." : "Cadastre traits e facções como referência controlada para o catálogo de cartas."} /><div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"><Input value={taxonomyForm.name} onChange={(e) => setTaxonomyForm((s) => ({ ...s, kind: isMediaManagement ? "SOURCE_TITLE" : "TRAIT", name: e.target.value }))} placeholder={isMediaManagement ? "Nome da mídia ou série" : "Nome da trait"} className="rounded-none" /><Input value={taxonomyForm.description} onChange={(e) => setTaxonomyForm((s) => ({ ...s, description: e.target.value }))} placeholder="Descrição opcional" className="rounded-none" /><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTaxonomy}>Adicionar</Button></div><div className="space-y-2"><h3 className="text-xs uppercase tracking-[0.22em] text-slate-500">{isMediaManagement ? "Mídias cadastradas" : "Traits cadastradas"}</h3>{taxonomies.filter((item) => item.kind === (isMediaManagement ? "SOURCE_TITLE" : "TRAIT")).map((item) => <div key={item.id} className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 px-4 py-3"><div><p>{item.name}</p>{item.description ? <p className="mt-1 text-xs text-slate-500">{item.description}</p> : null}</div><Button variant="outline" className="h-8 rounded-none text-red-300" onClick={() => deleteTaxonomy(item)}>Ocultar</Button></div>)}</div></CardContent></Card></TabsContent>
  
-          <TabsContent value="decks"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title="Decks registrados" description="Área administrativa para revisar e montar decks destinados ao blog, a eventos e às páginas públicas." /><div className="grid gap-4 md:grid-cols-2"><Card className="rounded-none border border-white/10 bg-slate-950/50"><CardContent className="space-y-4 p-5"><p className="text-xs uppercase tracking-[0.2em] text-slate-500">Editor</p><p className="text-sm leading-6 text-slate-400">Use o editor de decks existente para criar e revisar listas antes de promovê-las para conteúdo editorial ou eventos.</p><Button asChild className="rounded-none bg-primary text-primary-foreground"><Link href="/deckbuilder">Abrir editor de decks</Link></Button></CardContent></Card><Card className="rounded-none border border-white/10 bg-slate-950/50"><CardContent className="space-y-4 p-5"><p className="text-xs uppercase tracking-[0.2em] text-slate-500">Revisão pública</p><p className="text-sm leading-6 text-slate-400">A listagem pública continua separada do cadastro, evitando que o fluxo de curadoria atrapalhe o uso normal do portal.</p><Button asChild variant="outline" className="rounded-none"><Link href="/decks">Ver decks publicados</Link></Button></CardContent></Card></div></CardContent></Card></TabsContent>
+ 
 
-          <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title="Eventos" description="Cadastros de torneios, estatísticas e listas associadas ficam isolados do catálogo de cartas." /><div className="flex flex-wrap gap-3"><Button asChild className="rounded-none bg-primary text-primary-foreground"><Link href="/eventos">Abrir gestão de eventos</Link></Button><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div><p className="border border-dashed border-white/10 bg-white/[0.025] p-5 text-sm leading-7 text-slate-400">A API de torneios já está disponível; a próxima iteração desta área adiciona a grade administrativa com participantes, decks, placements e exclusão lógica.</p></CardContent></Card></TabsContent>
+          <TabsContent value="events"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6">
+            <SectionTitle title="Eventos" description="Cadastro de torneios e resultados de participantes — alimenta o calendário público e as estatísticas competitivas." />
+            <div className="flex flex-wrap gap-3"><Button asChild variant="outline" className="rounded-none"><Link href="/tournaments">Ver calendário público</Link></Button></div>
+
+            <ModalSection label={tournamentForm.id ? "Editar evento" : "Novo evento"} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Nome do evento"><Input value={tournamentForm.name} onChange={(e) => setTournamentForm((s) => ({ ...s, name: e.target.value }))} placeholder="Copa BR de Verão 2026" className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Organizador"><Input value={tournamentForm.organizer} onChange={(e) => setTournamentForm((s) => ({ ...s, organizer: e.target.value }))} placeholder="Loja/comunidade organizadora" className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <FieldBlock label="Formato"><select value={tournamentForm.format} onChange={(e) => setTournamentForm((s) => ({ ...s, format: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="constructed">Constructed</option><option value="team_battle">Team Battle</option><option value="battle_royale">Battle Royale</option></select></FieldBlock>
+              <FieldBlock label="Temporada"><Input value={tournamentForm.season} onChange={(e) => setTournamentForm((s) => ({ ...s, season: e.target.value }))} placeholder="2026 S1" className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Fonte (URL)"><Input value={tournamentForm.sourceUrl} onChange={(e) => setTournamentForm((s) => ({ ...s, sourceUrl: e.target.value }))} placeholder="Link da cobertura/resultados oficiais" className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Cidade"><Input value={tournamentForm.city} onChange={(e) => setTournamentForm((s) => ({ ...s, city: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="País"><Input value={tournamentForm.country} onChange={(e) => setTournamentForm((s) => ({ ...s, country: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Início"><Input type="date" value={tournamentForm.dateStart} onChange={(e) => setTournamentForm((s) => ({ ...s, dateStart: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Fim"><Input type="date" value={tournamentForm.dateEnd} onChange={(e) => setTournamentForm((s) => ({ ...s, dateEnd: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <FieldBlock label="Participantes"><Input type="number" min={0} value={tournamentForm.participantCount} onChange={(e) => setTournamentForm((s) => ({ ...s, participantCount: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Rodadas"><Input type="number" min={0} value={tournamentForm.roundCount} onChange={(e) => setTournamentForm((s) => ({ ...s, roundCount: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Tamanho do top cut"><Input type="number" min={0} value={tournamentForm.topCutSize} onChange={(e) => setTournamentForm((s) => ({ ...s, topCutSize: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTournament}>{tournamentForm.id ? "Salvar alterações" : "Criar evento"}</Button>
+              {tournamentForm.id ? <Button variant="outline" className="rounded-none" onClick={() => openTournamentForm()}>Cancelar edição</Button> : null}
+            </div>
+
+            <ModalSection label="Eventos cadastrados" />
+            <div className="grid gap-3">
+              {tournaments.length ? tournaments.map((tournament) => (
+                <div key={tournament.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{tournament.format} · {tournament.season || "sem temporada"} · {tournament.dateStart ? new Date(tournament.dateStart).toLocaleDateString("pt-BR") : "sem data"}</p>
+                      <p className="mt-1 text-lg">{tournament.name}</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{(tournament.entries || []).length} participante(s) cadastrado(s){tournament.participantCount ? ` de ${tournament.participantCount} declarados` : ""}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="rounded-none" onClick={() => { setSelectedTournamentId(tournament.id === selectedTournamentId ? "" : tournament.id); openEntryForm(); }}>{selectedTournamentId === tournament.id ? "Fechar participantes" : "Gerenciar participantes"}</Button>
+                      <Button variant="outline" size="icon" className="rounded-none" onClick={() => openTournamentForm(tournament)}><Pencil className="size-4" /></Button>
+                      <Button variant="outline" size="icon" className="rounded-none text-red-300 hover:text-red-200" onClick={() => deleteTournament(tournament)}><Trash2 className="size-4" /></Button>
+                    </div>
+                  </div>
+
+                  {selectedTournamentId === tournament.id ? (
+                    <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {(tournament.entries || []).map((entry: any) => (
+                          <div key={entry.id} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-white">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium">{entry.playerName}</p>
+                                <p className="text-xs text-slate-500">{entry.placement ? `${entry.placement}º lugar` : "sem colocação"} · {entry.archetype || "sem arquétipo"}</p>
+                                <p className="text-xs text-slate-500">{entry.wins ?? 0}V / {entry.losses ?? 0}D / {entry.draws ?? 0}E</p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button variant="outline" size="icon" className="size-7 rounded-none" onClick={() => openEntryForm(entry)}><Pencil className="size-3" /></Button>
+                                <Button variant="outline" size="icon" className="size-7 rounded-none text-red-300 hover:text-red-200" onClick={() => deleteEntry(entry)}><Trash2 className="size-3" /></Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {!(tournament.entries || []).length ? <p className="text-sm text-slate-500">Nenhum participante cadastrado ainda.</p> : null}
+                      </div>
+
+                      <div className="border border-white/10 bg-white/[0.025] p-4">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{editingEntryId ? "Editar participante" : "Novo participante"}</p>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <Input value={entryForm.playerName} onChange={(e) => setEntryForm((s) => ({ ...s, playerName: e.target.value }))} placeholder="Nome do jogador" className="rounded-none" />
+                          <Input value={entryForm.archetype} onChange={(e) => setEntryForm((s) => ({ ...s, archetype: e.target.value }))} placeholder="Arquétipo do deck" className="rounded-none" />
+                        </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-4">
+                          <Input type="number" min={1} value={entryForm.placement} onChange={(e) => setEntryForm((s) => ({ ...s, placement: e.target.value }))} placeholder="Colocação" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.wins} onChange={(e) => setEntryForm((s) => ({ ...s, wins: e.target.value }))} placeholder="Vitórias" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.losses} onChange={(e) => setEntryForm((s) => ({ ...s, losses: e.target.value }))} placeholder="Derrotas" className="rounded-none" />
+                          <Input type="number" min={0} value={entryForm.draws} onChange={(e) => setEntryForm((s) => ({ ...s, draws: e.target.value }))} placeholder="Empates" className="rounded-none" />
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveEntry}>{editingEntryId ? "Salvar participante" : "Adicionar participante"}</Button>
+                          {editingEntryId ? <Button variant="outline" className="rounded-none" onClick={() => openEntryForm()}>Cancelar edição</Button> : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )) : <p className="text-sm text-slate-500">Nenhum evento cadastrado ainda.</p>}
+            </div>
+          </CardContent></Card></TabsContent>
 
           <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova ruling" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); await loadAdminCards(); toast.success("Ruling criada."); }}>Salvar ruling</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
         </Tabs>
@@ -841,6 +1012,8 @@ export default function AdminPage() {
                 {showStats ? <FieldBlock label="HP"><select value={cardForm.hp} onChange={(e) => setCardForm((s) => ({ ...s, hp: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm">{AP_HP_OPTIONS.map((item) => <option key={item} value={item}>HP {item}</option>)}</select></FieldBlock> : null}
                 <FieldBlock label="Cor"><select value={cardForm.color} onChange={(e) => setCardForm((s) => ({ ...s, color: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="">Cor</option>{COLOR_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
                 <FieldBlock label="Legalidade"><select value={cardForm.legalityStatus} onChange={(e) => setCardForm((s) => ({ ...s, legalityStatus: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm">{LEGALITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FieldBlock>
+                {cardForm.legalityStatus === "restricted" ? <FieldBlock label="Cópias permitidas" hint="Ex: 2, conforme a lista oficial de restrição"><Input type="number" min={1} max={4} value={cardForm.restrictedCopies} onChange={(e) => setCardForm((s) => ({ ...s, restrictedCopies: e.target.value }))} placeholder="2" className="rounded-none" /></FieldBlock> : null}
+                <FieldBlock label="Grupo de banimento" hint="Cartas que não podem coexistir no mesmo deck (par banido ou categoria oficial)"><select value={cardForm.banGroupId} onChange={(e) => setCardForm((s) => ({ ...s, banGroupId: e.target.value }))} className="field-shell h-10 w-full px-3 text-sm"><option value="">Nenhum</option>{banGroups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}</select></FieldBlock>
                 {!showStats ? <p className="md:col-span-2 self-end text-xs leading-5 text-slate-600">Este tipo não usa AP/HP no cadastro principal, então os campos foram ocultados para reduzir ruído visual.</p> : null}
               </div>
 
@@ -884,18 +1057,21 @@ export default function AdminPage() {
                 </>}
               </div>
 
-              {/* ARTES */}
-              <ModalSection label="Biblioteca visual de artes" />
+              {/* IMPRESSÕES */}
+              <ModalSection label="Impressões (raridades e artes)" />
+              {!cardForm.id ? (
+                <div className="rounded-none border border-white/10 bg-white/[0.025] p-4 text-sm text-slate-400">Salve a carta primeiro — a raridade e imagem preenchidas acima viram a primeira impressão automaticamente. Depois de salvar, reabra esta carta na lista pra adicionar outras impressões (reprint, alt-art, promo).</div>
+              ) : (
               <div className="grid gap-4 rounded-none border border-white/10 bg-white/[0.025] p-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="min-w-0 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Biblioteca da carta</p>
-                      <p className="text-[11px] leading-5 text-slate-600">Cadastre várias artes, marque a principal e mantenha a raridade específica de cada imagem.</p>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Impressões desta carta</p>
+                      <p className="text-[11px] leading-5 text-slate-600">Cada impressão é uma linha própria no catálogo (reprint, alt-art, promo) — a marcada como principal é a capa exibida nas listagens públicas.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" className="rounded-none" onClick={addArtVariant}><Plus className="mr-2 size-4" />Nova arte</Button>
-                      <Button type="button" variant="outline" className="rounded-none" onClick={duplicateSelectedArt} disabled={!selectedArt}><Copy className="mr-2 size-4" />Duplicar</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={addArtVariant} disabled={saving}><Plus className="mr-2 size-4" />Nova impressão</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={duplicateSelectedArt} disabled={!selectedArt || saving}><Copy className="mr-2 size-4" />Duplicar</Button>
                     </div>
                   </div>
 
@@ -908,12 +1084,12 @@ export default function AdminPage() {
                         className={`group overflow-hidden rounded-none border text-left transition ${selectedArt?.id === art.id ? "border-primary/60 bg-primary/10" : "border-white/10 bg-slate-950/50 hover:border-white/25 hover:bg-white/[0.04]"}`}
                       >
                         <div className="aspect-[63/88] overflow-hidden border-b border-white/10 bg-slate-950/80">
-                          {art.url ? <img src={art.thumbUrl || art.url} alt={art.label || `Arte ${index + 1}`} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-[11px] uppercase tracking-[0.2em] text-slate-600">Sem preview</div>}
+                          {art.url ? <img src={art.thumbUrl || art.url} alt={art.label || `Impressão ${index + 1}`} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-[11px] uppercase tracking-[0.2em] text-slate-600">Sem preview</div>}
                         </div>
                         <div className="space-y-2 p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="text-sm font-medium text-slate-100">{art.label || `Arte ${index + 1}`}</p>
+                              <p className="text-sm font-medium text-slate-100">{art.label || `Impressão ${index + 1}`}</p>
                               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{art.rarity || cardForm.rarity}</p>
                             </div>
                             {art.isPrimary ? <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300"><Star className="mr-1 size-3" />Principal</Badge> : null}
@@ -928,37 +1104,37 @@ export default function AdminPage() {
                 <div className="space-y-4 border border-white/10 bg-slate-950/40 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Editor da arte selecionada</p>
-                      <p className="text-[11px] leading-5 text-slate-600">A imagem principal da carta será sempre a arte marcada com estrela.</p>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Editor da impressão selecionada</p>
+                      <p className="text-[11px] leading-5 text-slate-600">A imagem principal da carta será sempre a impressão marcada com estrela.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" className="h-9 rounded-none px-3" onClick={() => moveSelectedArt(-1)} disabled={!selectedArt || selectedArtIndex === 0}><ChevronLeft className="size-4" /></Button>
-                      <Button type="button" variant="outline" className="h-9 rounded-none px-3" onClick={() => moveSelectedArt(1)} disabled={!selectedArt || selectedArtIndex === cardForm.arts.length - 1}><ChevronRight className="size-4" /></Button>
-                      <Button type="button" variant="outline" className="rounded-none" onClick={markPrimaryArt} disabled={!selectedArt || selectedArt.isPrimary}><Star className="mr-2 size-4" />Principal</Button>
-                      <Button type="button" variant="outline" className="rounded-none text-red-300 hover:text-red-200" onClick={removeSelectedArt} disabled={!selectedArt || cardForm.arts.length <= 1}><Trash2 className="mr-2 size-4" />Remover</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={markPrimaryArt} disabled={!selectedArt || selectedArt.isPrimary || saving}><Star className="mr-2 size-4" />Principal</Button>
+                      <Button type="button" variant="outline" className="rounded-none text-red-300 hover:text-red-200" onClick={removeSelectedArt} disabled={!selectedArt || cardForm.arts.length <= 1 || saving}><Trash2 className="mr-2 size-4" />Remover</Button>
                     </div>
                   </div>
 
                   <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/80">
-                    {selectedArt?.url ? <img src={selectedArt.url} alt={selectedArt.label || "Arte selecionada"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.22em] text-slate-600">Selecione ou envie uma arte</div>}
+                    {selectedArt?.url ? <img src={selectedArt.url} alt={selectedArt.label || "Impressão selecionada"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.22em] text-slate-600">Selecione ou envie uma imagem</div>}
                   </div>
 
                   <div className="grid gap-4">
-                    <FieldBlock label="Rótulo da arte" hint="Ex.: Arte 1, Full Art, Alt Art, Promo Event"><Input value={selectedArt?.label || ""} onChange={(e) => updateSelectedArt({ label: e.target.value })} placeholder="Arte 1" className="rounded-none" /></FieldBlock>
+                    <FieldBlock label="Rótulo da impressão" hint="Ex.: Regular, Alt Art, Championship Winner Card 01"><Input value={selectedArt?.label || ""} onChange={(e) => updateSelectedArt({ label: e.target.value })} placeholder="Regular" className="rounded-none" /></FieldBlock>
                     <FieldBlock label="Imagem" hint="Aceita URL externa ou caminho local em /uploads/cards"><Input value={selectedArt?.url || ""} onChange={(e) => updateSelectedArt({ url: e.target.value })} placeholder="/uploads/cards/GD01-001.webp ou URL" className="rounded-none" /></FieldBlock>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <FieldBlock label="Raridade da arte"><select value={selectedArt?.rarity || cardForm.rarity} onChange={(e) => updateSelectedArt({ rarity: e.target.value })} className="field-shell h-10 w-full px-3 text-sm">{ART_RARITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
+                      <FieldBlock label="Raridade desta impressão"><select value={selectedArt?.rarity || cardForm.rarity} onChange={(e) => updateSelectedArt({ rarity: e.target.value })} className="field-shell h-10 w-full px-3 text-sm">{ART_RARITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
                       <FieldBlock label="Thumb"><Input value={selectedArt?.thumbUrl || ""} onChange={(e) => updateSelectedArt({ thumbUrl: e.target.value })} placeholder="opcional" className="rounded-none" /></FieldBlock>
                     </div>
                     <FieldBlock label="Fonte da imagem"><Input value={selectedArt?.sourceUrl || ""} onChange={(e) => updateSelectedArt({ sourceUrl: e.target.value })} placeholder="URL de origem da arte" className="rounded-none" /></FieldBlock>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button type="button" variant="outline" className="rounded-none" onClick={triggerArtUpload} disabled={!selectedArt || saving}><Upload className="mr-2 size-4" />Upload local</Button>
-                      <p className="self-center text-[11px] leading-5 text-slate-500">O upload preenche a URL desta arte sem sair do modal.</p>
+                      <Button type="button" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveSelectedArt} disabled={!selectedArt || saving}>Salvar impressão</Button>
                     </div>
+                    <p className="text-[11px] leading-5 text-slate-500">Upload já salva a imagem na hora. Rótulo, raridade e os outros campos precisam do botão "Salvar impressão".</p>
                     <input ref={artUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleArtUpload} />
                   </div>
                 </div>
               </div>
+              )}
 
               <datalist id="trait-suggestions">{traitOptions.map((item) => <option key={item} value={item} />)}</datalist>
               <datalist id="link-suggestions">{linkSuggestions.map((item) => <option key={item} value={item} />)}</datalist>

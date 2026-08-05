@@ -28,10 +28,10 @@ type PoolMeta = {
 
 const defaultPoolFilters: PoolFilters = { q: "", color: "", cardType: "", series: "", trait: "" };
 
-function calculateStats(cards: CardRecord[], entries: DeckEntry[]) {
+function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expanded = entries
     .map((entry) => {
-      const card = cards.find((item) => item.id === entry.cardId);
+      const card = cardCache[entry.cardId];
       return card ? { ...card, quantity: entry.quantity } : null;
     })
     .filter(Boolean) as (CardRecord & { quantity: number })[];
@@ -101,12 +101,39 @@ export default function DeckbuilderPage() {
   const [poolPageSize] = useState(24);
   const [poolTotal, setPoolTotal] = useState(0);
   const [poolTotalPages, setPoolTotalPages] = useState(1);
+  // Cache separado da pool paginada, indexado por printId — guarda TODA carta já vista
+  // (seja pela pool ou por um deck carregado), pra decklist nunca "perder" uma carta só
+  // porque o filtro ou a página da pool mudou depois de adicionada.
+  const [cardCache, setCardCache] = useState<Record<string, CardRecord>>({});
+  const [legalityData, setLegalityData] = useState<{ rules: { maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] } | null>(null);
+
+  const cacheCards = (records: CardRecord[]) => {
+    setCardCache((current) => {
+      const next = { ...current };
+      for (const record of records) if (record.printId) next[record.printId] = record;
+      return next;
+    });
+  };
+
+  /** Máximo de cópias permitido pro modelo (code) — banida=0, restrita=limite
+   *  customizado, senão o padrão oficial (4). Soma TODAS as impressões desse
+   *  modelo já no deck, já que o limite é por code, não por arte específica
+   *  (ver docs/14-motor-regras-deck.md). */
+  const getCopyLimit = (cardModelId: string) => {
+    if (!legalityData) return 4;
+    if (legalityData.banned.some((c) => c.id === cardModelId)) return 0;
+    const restricted = legalityData.restricted.find((c) => c.id === cardModelId);
+    if (restricted) return restricted.restrictedCopies ?? 2;
+    return legalityData.rules.maxCopiesDefault;
+  };
 
   const loadCards = async (filters: PoolFilters = poolFilters, page: number = poolPage) => {
     setLoadingPool(true);
     try {
       const result = await api.listCardsPage({ ...filters, sort: "code_asc" }, { page, pageSize: poolPageSize });
-      setCards(result.items.map(mapApiCard));
+      const mapped = result.items.map(mapApiCard);
+      setCards(mapped);
+      cacheCards(mapped);
       setPoolTotal(result.total);
       setPoolTotalPages(result.totalPages);
     } finally {
@@ -119,6 +146,15 @@ export default function DeckbuilderPage() {
     setPoolMeta(result);
   };
 
+  const loadLegality = async () => {
+    try {
+      const result = await api.getDeckLegalityData();
+      setLegalityData(result);
+    } catch {
+      // Sem dado de legalidade, o deckbuilder cai pro limite padrão de 4 — não bloqueia o uso.
+    }
+  };
+
   const applyDeck = (deck: ApiDeck) => {
     setSelectedDeckId(deck.id);
     setSelectedShareId(deck.shareId);
@@ -126,7 +162,11 @@ export default function DeckbuilderPage() {
     setVisibility(deck.visibility);
     setCoverImage(deck.coverImage || "");
     setFeaturedCardIds((deck.featuredCardIds || []).slice(0, 2));
-    setEntries(deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity })));
+    // deck.items[].card já vem incluído na resposta (ver server/index.ts) como a
+    // impressão crua (Card) — usa direto, sem precisar de outra chamada à API.
+    const deckCards = (deck.items || []).map((item: any) => item.card).filter(Boolean).map(mapApiCard);
+    cacheCards(deckCards);
+    setEntries(deck.items.map((item: any) => ({ cardId: item.card?.id ?? item.cardId, quantity: item.quantity, section: (item.section as "main" | "resource") || "main" })));
   };
 
   const loadDecks = async () => {
@@ -144,6 +184,7 @@ export default function DeckbuilderPage() {
 
   useEffect(() => {
     loadPoolMeta().catch(() => undefined);
+    loadLegality().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -166,14 +207,14 @@ export default function DeckbuilderPage() {
     () =>
       entries
         .map((entry) => {
-          const card = cards.find((item) => item.id === entry.cardId);
-          return card ? { ...card, quantity: entry.quantity } : null;
+          const card = cardCache[entry.cardId];
+          return card ? { ...card, quantity: entry.quantity, section: entry.section || "main" } : null;
         })
-        .filter(Boolean) as (CardRecord & { quantity: number })[],
-    [entries, cards],
+        .filter(Boolean) as (CardRecord & { quantity: number; section: string })[],
+    [entries, cardCache],
   );
 
-  const stats = useMemo(() => calculateStats(cards, entries), [cards, entries]);
+  const stats = useMemo(() => calculateStats(cardCache, entries), [cardCache, entries]);
 
   const curveData = useMemo(() => {
     const map = new Map<number, number>();
@@ -231,9 +272,9 @@ export default function DeckbuilderPage() {
   }, [dominantColor, dominantTrait, dominantSeries, typeData]);
 
   const recommendationCards = useMemo(() => {
-    const existing = new Set(entries.map((item) => item.cardId));
+    const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
     return cards
-      .filter((card) => !existing.has(card.id))
+      .filter((card) => !existingModelIds.has(card.id))
       .map((card) => {
         let score = 0;
         const reasons: string[] = [];
@@ -262,7 +303,7 @@ export default function DeckbuilderPage() {
       .filter((card) => card.score > 0)
       .sort((a, b) => b.score - a.score || a.cost - b.cost)
       .slice(0, 6);
-  }, [cards, entries, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
+  }, [cards, entries, cardCache, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
 
   const setPoolFilter = (key: keyof PoolFilters, value: string) => {
     setPoolPage(1);
@@ -274,16 +315,25 @@ export default function DeckbuilderPage() {
     setPoolFilters(defaultPoolFilters);
   };
 
-  const increment = (cardId: string) => {
+  const increment = (card: CardRecord) => {
+    const printId = card.printId || card.id;
+    const modelId = card.cardModelId || card.id;
+    const limit = getCopyLimit(modelId);
+    const currentTotal = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === modelId).reduce((sum, entry) => sum + entry.quantity, 0);
+    if (currentTotal >= limit) {
+      toast.error(limit === 0 ? `${card.namePt || card.name} está banida — não pode ser usada.` : `Limite de ${limit} cópia(s) de "${card.namePt || card.name}" já atingido.`);
+      return;
+    }
+    cacheCards([card]);
     setEntries((current) => {
-      const found = current.find((item) => item.cardId === cardId);
-      if (found) return current.map((item) => (item.cardId === cardId ? { ...item, quantity: Math.min(4, item.quantity + 1) } : item));
-      return [...current, { cardId, quantity: 1 }];
+      const found = current.find((item) => item.cardId === printId);
+      if (found) return current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity + 1 } : item));
+      return [...current, { cardId: printId, quantity: 1, section: "main" }];
     });
   };
 
-  const decrement = (cardId: string) => {
-    setEntries((current) => current.map((item) => (item.cardId === cardId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0));
+  const decrement = (printId: string) => {
+    setEntries((current) => current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0));
   };
 
   const saveDeck = async () => {
@@ -299,7 +349,7 @@ export default function DeckbuilderPage() {
       isPrimary: true,
       coverImage: coverImage || null,
       featuredCardIds: featuredCardIds.slice(0, 2),
-      items: entries.map((item) => ({ ...item, section: "main" })),
+      items: entries.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section || "main" })),
     };
 
     if (selectedDeckId) {
@@ -421,7 +471,8 @@ export default function DeckbuilderPage() {
               {loadingPool ? <p className="text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
               {!loadingPool && !cards.length ? <p className="text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
-                const qtyInDeck = entries.find((item) => item.cardId === card.id)?.quantity ?? 0;
+                const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
+                const limit = getCopyLimit(card.id);
                 return (
                   <div key={card.id} className="panel-cut border surface-strong p-4">
                     <div className="flex items-start justify-between gap-4">
@@ -430,10 +481,10 @@ export default function DeckbuilderPage() {
                         <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
                         <p className="text-sm text-muted-portal">{card.color} · {card.type} · custo {card.cost} · {card.trait || "sem trait"}</p>
                       </div>
-                      <Badge variant="outline" className="rounded-none border-white/20 text-soft">no deck: {qtyInDeck}</Badge>
+                      <Badge variant="outline" className={`rounded-none ${limit === 0 ? "border-red-400/40 text-red-300" : "border-white/20 text-soft"}`}>{limit === 0 ? "banida" : `no deck: ${qtyInDeck}/${limit}`}</Badge>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card.id)}>Adicionar</Button>
+                      <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={qtyInDeck >= limit} onClick={() => increment(card)}>Adicionar</Button>
                       <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
                       {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver rulings</Link> : null}
                     </div>
@@ -554,7 +605,7 @@ export default function DeckbuilderPage() {
                           <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
                           <p className="text-sm text-muted-portal">score {card.score} · {card.color} · custo {card.cost}</p>
                         </div>
-                        <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card.id)}>Adicionar</Button>
+                        <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>Adicionar</Button>
                       </div>
                       <ul className="mt-3 space-y-1 text-sm text-soft">
                         {card.reasons.map((reason: string) => <li key={reason}>• {reason}</li>)}
@@ -659,7 +710,7 @@ export default function DeckbuilderPage() {
               <h3 className="font-heading text-3xl uppercase heading-portal">Decklist atual</h3>
               <div className="mt-6 space-y-3 max-h-[520px] overflow-auto pr-1">
                 {deckRows.length ? deckRows.map((row) => (
-                  <div key={row.id} className="panel-cut border surface-strong p-4">
+                  <div key={row.printId || row.id} className="panel-cut border surface-strong p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{row.code}</p>
@@ -667,13 +718,13 @@ export default function DeckbuilderPage() {
                         <p className="text-sm text-muted-portal">{row.color} · {row.type} · custo {row.cost} · {row.trait || "sem trait"}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => decrement(row.id)}>-</Button>
+                        <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => decrement(row.printId || row.id)}>-</Button>
                         <div className="min-w-10 text-center text-lg heading-portal">{row.quantity}</div>
-                        <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(row.id)}>+</Button>
+                        <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(row)}>+</Button>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Link href={`/cards/${row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
+                      <Link href={`/cards/${row.cardModelId || row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
                       {row.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(row.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Rulings</Link> : null}
                     </div>
                   </div>

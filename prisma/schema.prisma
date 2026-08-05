@@ -177,6 +177,8 @@ model CardModel {
   hasAction         Boolean  @default(false)
   oncePerTurn       Boolean  @default(false)
   legalityStatus    String?  @default("legal")
+  restrictedCopies  Int?
+  banGroupId        String?
   isActive          Boolean  @default(true)
   deletedAt         DateTime?
   createdAt         DateTime @default(now())
@@ -186,8 +188,26 @@ model CardModel {
   outgoingRelations CardRelation[] @relation("CardRelationSourceModel")
   incomingRelations CardRelation[] @relation("CardRelationTargetModel")
   rulings           Ruling[]
+  banGroup          CardBanGroup?  @relation(fields: [banGroupId], references: [id])
 
   @@index([isActive, code])
+}
+
+/// Agrupa CardModel que não podem coexistir num mesmo deck além de maxDistinct
+/// escolhas diferentes — cobre tanto "par banido" (2 cartas específicas, ver
+/// docs/14-motor-regras-deck.md) quanto a regra de categoria genérica oficial
+/// (ex: toda unit "Lv.2/custo 1/2AP/2HP sem efeito" é mutuamente incompatível
+/// com as outras do grupo, mas até 4 cópias de UMA delas continua permitido).
+model CardBanGroup {
+  id          String   @id @default(cuid())
+  label       String
+  maxDistinct Int      @default(1)
+  note        String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members CardModel[]
 }
 
 model Card {

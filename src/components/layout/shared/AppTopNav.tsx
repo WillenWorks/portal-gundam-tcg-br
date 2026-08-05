@@ -12,7 +12,10 @@ import { cn } from "@/lib/utils";
 export const publicTopNav = [
   { href: "/", label: "Home" },
   { href: "/decks", label: "Decks" },
-  { href: "/database", label: "Database" },
+  { href: "/database", label: "Database", children: [
+    { href: "/database", label: "Cartas" },
+    { href: "/sets", label: "Coleções" },
+  ] },
   { href: "/eventos", label: "Eventos" },
   { href: "/rules", label: "Rulings" },
 ] as const;
@@ -20,6 +23,44 @@ export const publicTopNav = [
 function isActiveRoute(currentPath: string, href: string) {
   if (href === "/") return currentPath === "/";
   return currentPath === href || currentPath.startsWith(`${href}/`);
+}
+
+function NavDropdown({ item, active, currentPath }: { item: (typeof publicTopNav)[number]; active: boolean; currentPath: string }) {
+  const [open, setOpen] = useState(false);
+  const children = "children" in item ? item.children : undefined;
+  if (!children) return null;
+  return (
+    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          "inline-flex items-center gap-1 px-3 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft",
+          active ? "text-primary" : "text-slate-300 hover:text-white",
+        )}
+      >
+        {item.label}
+        <ChevronDown className={cn("size-3.5 transition-transform", open ? "rotate-180" : "")} />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-50 min-w-[180px] border border-white/10 bg-slate-950/97 py-2 backdrop-blur-xl light:border-slate-300/80 light:bg-white">
+          {children.map((child) => (
+            <Link
+              key={child.href}
+              href={child.href}
+              onClick={() => setOpen(false)}
+              className={cn(
+                "block px-4 py-2 text-sm uppercase tracking-[0.16em] nav-hover-soft",
+                isActiveRoute(currentPath, child.href) ? "text-primary" : "text-slate-300 hover:text-white light:text-slate-700 light:hover:text-slate-950",
+              )}
+            >
+              {child.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function AppTopNav() {
@@ -45,6 +86,9 @@ export function AppTopNav() {
         <nav className="hidden items-center gap-1 lg:flex">
           {publicTopNav.map((item) => {
             const active = isActiveRoute(currentPath, item.href);
+            if ("children" in item && item.children) {
+              return <NavDropdown key={item.href} item={item} active={active} currentPath={currentPath} />;
+            }
             return (
               <Link
                 key={item.href}
@@ -112,20 +156,39 @@ export function AppTopNav() {
           <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-2 px-4 py-4 sm:px-6">
             {publicTopNav.map((item) => {
               const active = isActiveRoute(currentPath, item.href);
+              const children = "children" in item && item.children ? item.children : null;
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "panel-cut border px-4 py-3 text-sm uppercase tracking-[0.18em] transition",
-                    active
-                      ? "border-primary/40 bg-primary/10 text-white light:text-slate-950"
-                      : "border-white/10 bg-white/5 text-slate-200 nav-hover-soft hover:border-white/20 light:border-slate-400/90 light:bg-white light:text-slate-800",
-                  )}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {item.label}
-                </Link>
+                <div key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "panel-cut border px-4 py-3 text-sm uppercase tracking-[0.18em] transition",
+                      active
+                        ? "border-primary/40 bg-primary/10 text-white light:text-slate-950"
+                        : "border-white/10 bg-white/5 text-slate-200 nav-hover-soft hover:border-white/20 light:border-slate-400/90 light:bg-white light:text-slate-800",
+                    )}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                  {children ? (
+                    <div className="mt-2 ml-4 grid gap-2 border-l border-white/10 pl-3">
+                      {children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={cn(
+                            "px-3 py-2 text-xs uppercase tracking-[0.16em] nav-hover-soft",
+                            isActiveRoute(currentPath, child.href) ? "text-primary" : "text-slate-400 hover:text-white",
+                          )}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
 
