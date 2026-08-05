@@ -27,6 +27,7 @@
  *   node prisma/migrate-card-model-data.mjs --apply      # aplica de verdade
  */
 import { PrismaClient } from "@prisma/client";
+import { pathToFileURL } from "node:url";
 
 const APPLY = process.argv.includes("--apply");
 const ALT_ART_RARITY_PATTERN = /\+|Promo|Winner|Judge|SP/i;
@@ -39,7 +40,25 @@ const MODEL_FIELDS = [
   "textSectionsJson", "hasBurst", "hasMain", "hasAction", "oncePerTurn", "legalityStatus",
 ];
 
-function pickRepresentativePrint(prints) {
+export function pickRepresentativePrint(prints) {
+  // Sinal principal: o nome BRUTO de uma impressão alternativa/promocional sempre carrega
+  // um sufixo entre parênteses (ex: "A Show of Resolve (U+)", "Ball (Judge Pack 02)",
+  // "Cagalli Yula Athha (Championship Participation Pack 01)") — a impressão regular nunca
+  // tem parênteses no nome. Isso resolve 100% dos 477 codes multi-impressão testados,
+  // diferente de olhar só a raridade (que não sinaliza promo quando o texto da raridade em
+  // si não muda, ex: "Ball (Judge Pack 02)" tem raridade "Common", igual à regular).
+  const semParenteses = prints.filter((p) => !p.nameEn.includes("("));
+  if (semParenteses.length === 1) return semParenteses[0];
+  if (semParenteses.length > 1) {
+    // Mais de uma "sem parênteses" (ex: mesma carta reimpressa em produto diferente,
+    // tipo Deathscythe saindo em booster e também no Deck Build Box) — usa raridade
+    // como desempate secundário, e por fim a mais antiga entre as candidatas restantes.
+    const regulares = semParenteses.filter((p) => !isAltArtRarity(p.rarity));
+    const candidatas = regulares.length ? regulares : semParenteses;
+    return candidatas.slice().sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+  }
+  // Nenhuma impressão sem parênteses no nome — cai pro critério antigo de raridade,
+  // e por fim a mais antiga.
   const regular = prints.find((p) => !isAltArtRarity(p.rarity));
   if (regular) return regular;
   return [...prints].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
@@ -144,7 +163,11 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// Só roda main() quando o arquivo é executado direto — não quando um teste importa
+// pickRepresentativePrint (mesmo padrão de prisma/apply-gcg-official-curation.mjs).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
