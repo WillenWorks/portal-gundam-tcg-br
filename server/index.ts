@@ -1309,19 +1309,15 @@ app.get("/api/cards", async (req, res) => {
 app.get("/api/cards/filters", async (_req, res) => {
   setPublicCache(res, 300, 900);
   const activeCards: Prisma.CardWhereInput = { isActive: true };
-  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardWhereInput => ({
+  const missingRelationWhere = (cardType: CardType | CardType[]): Prisma.CardModelWhereInput => ({
     isActive: true,
     cardType: Array.isArray(cardType) ? { in: cardType } : cardType,
     AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }],
   });
-  // Conta por `code` único, não por impressão/reprint — uma unidade com 3 reimpressões sem
-  // relação é 1 pendência de curadoria, não 3. Bate com a forma como o resto do projeto
-  // (scripts de curadoria, documentação) já fala em "quantas cartas faltam", evitando o
-  // número inflado que a contagem por linha causaria.
-  const countMissingByCode = async (cardType: CardType | CardType[]) => {
-    const rows = await prisma.card.findMany({ where: missingRelationWhere(cardType), select: { code: true }, distinct: ["code"] });
-    return rows.length;
-  };
+  // CardModel já tem 1 linha por code (por construção, ver docs/13-migracao-cardmodel.md)
+  // — não precisa mais de distinct manual pra evitar contar reimpressão como pendência
+  // separada, como era necessário antes da migração pra CardModel.
+  const countMissingByCode = async (cardType: CardType | CardType[]) => prisma.cardModel.count({ where: missingRelationWhere(cardType) });
   const [colorsRaw, typesRaw, raritiesRaw, statusesRaw, mediaRows, traitRows, traitTaxonomies, mediaTaxonomies, sets, keywordRows, pilotsMissing, unitsMissing, commandsMissing] = await Promise.all([
     prisma.card.findMany({ where: activeCards, select: { color: true }, distinct: ["color"], orderBy: { color: "asc" } }),
     prisma.card.findMany({ where: activeCards, select: { cardType: true }, distinct: ["cardType"], orderBy: { cardType: "asc" } }),
