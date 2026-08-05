@@ -134,35 +134,18 @@ function normalizeArtState(arts: ArtVariantForm[], activeArtId?: string, fallbac
 }
 
 function mapCardArts(card?: AdminCard) {
-  if (!card) return normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C").arts;
-
-  const rawVariants = Array.isArray(card.metadataJson?.artVariants) ? card.metadataJson.artVariants : [];
-  const mappedVariants = rawVariants
-    .map((item: any, index: number) => createArtVariant({
-      id: String(item?.id || `art-${index + 1}`),
-      label: String(item?.label || `Arte ${index + 1}`),
-      url: String(item?.url || item?.imageUrl || ""),
-      thumbUrl: String(item?.thumbUrl || ""),
-      sourceUrl: String(item?.sourceUrl || item?.imageSourceUrl || ""),
-      rarity: String(item?.rarity || card.rarity || "C"),
-      isPrimary: Boolean(item?.isPrimary),
-    }))
-    .filter((item) => item.url || item.thumbUrl || item.sourceUrl || item.label || item.isPrimary);
-
-  if (mappedVariants.length) return normalizeArtState(mappedVariants, undefined, String(card.rarity || "C")).arts;
-
-  if (card.imageUrl || card.thumbUrl || card.imageSourceUrl) {
-    return normalizeArtState([createArtVariant({
-      label: "Arte 1",
-      url: card.imageUrl || "",
-      thumbUrl: card.thumbUrl || "",
-      sourceUrl: card.imageSourceUrl || "",
-      rarity: String(card.rarity || "C"),
-      isPrimary: true,
-    })], undefined, String(card.rarity || "C")).arts;
-  }
-
-  return normalizeArtState([createArtVariant({ label: "Arte 1", rarity: String(card.rarity || "C"), isPrimary: true })], undefined, String(card.rarity || "C")).arts;
+  const prints = Array.isArray(card?.prints) && card.prints.length ? card.prints : card ? [card] : [];
+  if (!prints.length) return normalizeArtState([createArtVariant({ label: "Impressão 1", rarity: "C", isPrimary: true })], undefined, "C").arts;
+  const mapped = prints.map((print: any, index: number) => createArtVariant({
+    id: String(print.id),
+    label: String(print.printLabel || print.rarity || `Impressão ${index + 1}`),
+    url: String(print.imageUrl || ""),
+    thumbUrl: String(print.thumbUrl || ""),
+    sourceUrl: String(print.imageSourceUrl || ""),
+    rarity: String(print.rarity || card?.rarity || "C"),
+    isPrimary: Boolean(print.isPrimaryPrint ?? prints.length === 1),
+  }));
+  return normalizeArtState(mapped, undefined, String(card?.rarity || "C")).arts;
 }
  
 function mapSetToForm(set?: AdminSet) {
@@ -462,53 +445,71 @@ export default function AdminPage() {
     toast.success("Relação editorial ocultada.");
   };
 
-  const syncArtState = (arts: ArtVariantForm[], activeArtId?: string, fallbackRarity?: string) => normalizeArtState(arts, activeArtId, fallbackRarity || cardForm.rarity || "C");
-  const setArtState = (updater: (current: ArtVariantForm[]) => ArtVariantForm[], preferredActiveId?: string) => {
-    setCardForm((current) => {
-      const nextArts = updater(current.arts);
-      return { ...current, ...normalizeArtState(nextArts, preferredActiveId || current.activeArtId, current.rarity || "C") };
-    });
-  };
   const updateSelectedArt = (patch: Partial<ArtVariantForm>) => {
     if (!selectedArt) return;
-    setArtState((arts) => arts.map((item) => item.id === selectedArt.id ? { ...item, ...patch } : item), selectedArt.id);
+    setCardForm((current) => ({ ...current, arts: current.arts.map((item) => item.id === selectedArt.id ? { ...item, ...patch } : item) }));
   };
-  const addArtVariant = () => {
-    const next = createArtVariant({ label: `Arte ${cardForm.arts.length + 1}`, rarity: cardForm.rarity || "C", isPrimary: cardForm.arts.length === 0 });
-    setArtState((arts) => [...arts, next], next.id);
+  const saveSelectedArt = async () => {
+    if (!selectedArt || !cardForm.id) return;
+    setSaving(true);
+    try {
+      await api.updateCardPrint(selectedArt.id, { printLabel: selectedArt.label.trim() || null, imageUrl: selectedArt.url.trim() || null, thumbUrl: selectedArt.thumbUrl.trim() || null, imageSourceUrl: selectedArt.sourceUrl.trim() || null, rarity: selectedArt.rarity || null });
+      toast.success("Impressão atualizada.");
+      await loadAdminCards();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar impressão.");
+    } finally { setSaving(false); }
   };
-  const duplicateSelectedArt = () => {
-    if (!selectedArt) return;
-    const duplicate = createArtVariant({ ...selectedArt, id: undefined, label: `${selectedArt.label || `Arte ${selectedArtIndex + 1}`} (cópia)`, isPrimary: false });
-    setArtState((arts) => {
-      const next = [...arts];
-      next.splice(selectedArtIndex + 1, 0, duplicate);
-      return next;
-    }, duplicate.id);
+  const addArtVariant = async () => {
+    if (!cardForm.id) { toast.error("Salve a carta antes de adicionar outra impressão."); return; }
+    setSaving(true);
+    try {
+      const created = await api.addCardPrint(cardForm.id, { rarity: cardForm.rarity || "C", printLabel: `Impressão ${cardForm.arts.length + 1}`, isPrimaryPrint: false });
+      const next = createArtVariant({ id: created.id, label: created.printLabel || `Impressão ${cardForm.arts.length + 1}`, rarity: created.rarity || cardForm.rarity, isPrimary: false });
+      setCardForm((current) => ({ ...current, arts: [...current.arts, next], activeArtId: next.id }));
+      toast.success("Impressão criada — edite os dados dela ao lado.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar impressão.");
+    } finally { setSaving(false); }
   };
-  const removeSelectedArt = () => {
-    if (!selectedArt) return;
-    setCardForm((current) => {
-      const remaining = current.arts.filter((item) => item.id !== selectedArt.id);
-      const nextState = normalizeArtState(remaining, remaining[0]?.id, current.rarity || "C");
-      return { ...current, ...nextState };
-    });
+  const duplicateSelectedArt = async () => {
+    if (!selectedArt || !cardForm.id) return;
+    setSaving(true);
+    try {
+      const created = await api.addCardPrint(cardForm.id, { rarity: selectedArt.rarity, printLabel: `${selectedArt.label || "Impressão"} (cópia)`, imageUrl: selectedArt.url || null, thumbUrl: selectedArt.thumbUrl || null, imageSourceUrl: selectedArt.sourceUrl || null, isPrimaryPrint: false });
+      const next = createArtVariant({ id: created.id, label: created.printLabel, url: created.imageUrl || "", thumbUrl: created.thumbUrl || "", sourceUrl: created.imageSourceUrl || "", rarity: created.rarity, isPrimary: false });
+      setCardForm((current) => ({ ...current, arts: [...current.arts, next], activeArtId: next.id }));
+      toast.success("Impressão duplicada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao duplicar impressão.");
+    } finally { setSaving(false); }
   };
-  const moveSelectedArt = (direction: -1 | 1) => {
-    if (!selectedArt) return;
-    setArtState((arts) => {
-      const currentIndex = arts.findIndex((item) => item.id === selectedArt.id);
-      const targetIndex = currentIndex + direction;
-      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= arts.length) return arts;
-      const next = [...arts];
-      const [moved] = next.splice(currentIndex, 1);
-      next.splice(targetIndex, 0, moved);
-      return next;
-    }, selectedArt.id);
+  const removeSelectedArt = async () => {
+    if (!selectedArt || cardForm.arts.length <= 1) return;
+    if (!window.confirm(`Remover a impressão "${selectedArt.label || "sem nome"}"?`)) return;
+    setSaving(true);
+    try {
+      await api.deleteCardPrint(selectedArt.id);
+      setCardForm((current) => {
+        const remaining = current.arts.filter((item) => item.id !== selectedArt.id);
+        return { ...current, ...normalizeArtState(remaining, remaining[0]?.id, current.rarity || "C") };
+      });
+      toast.success("Impressão removida.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao remover impressão — se for a única, exclua a carta inteira.");
+    } finally { setSaving(false); }
   };
-  const markPrimaryArt = () => {
-    if (!selectedArt) return;
-    setArtState((arts) => arts.map((item) => ({ ...item, isPrimary: item.id === selectedArt.id })), selectedArt.id);
+  const markPrimaryArt = async () => {
+    if (!selectedArt || selectedArt.isPrimary) return;
+    setSaving(true);
+    try {
+      await api.updateCardPrint(selectedArt.id, { isPrimaryPrint: true });
+      setCardForm((current) => ({ ...current, arts: current.arts.map((item) => ({ ...item, isPrimary: item.id === selectedArt.id })) }));
+      toast.success("Impressão principal atualizada.");
+      await loadAdminCards();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao marcar impressão principal.");
+    } finally { setSaving(false); }
   };
   const triggerArtUpload = () => artUploadInputRef.current?.click();
   const handleArtUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -520,11 +521,12 @@ export default function AdminPage() {
       formData.append("image", file);
       formData.append("cardCode", cardForm.code || "uncataloged");
       formData.append("artId", selectedArt.id);
-      formData.append("label", selectedArt.label || `Arte ${selectedArtIndex + 1}`);
+      formData.append("label", selectedArt.label || "Impressão");
       const uploaded = await api.uploadCardImage(formData);
       const storageSource = uploaded.storageKey ? `${uploaded.storageDriver || "storage"}:${uploaded.storageKey}` : uploaded.imageSourceUrl || "";
-      setArtState((arts) => arts.map((item) => item.id === selectedArt.id ? { ...item, url: uploaded.imageUrl, sourceUrl: item.sourceUrl || storageSource } : item), selectedArt.id);
-      toast.success("Arte enviada para a biblioteca da carta.");
+      updateSelectedArt({ url: uploaded.imageUrl, sourceUrl: selectedArt.sourceUrl || storageSource });
+      if (cardForm.id) await api.updateCardPrint(selectedArt.id, { imageUrl: uploaded.imageUrl, imageSourceUrl: selectedArt.sourceUrl || storageSource || null });
+      toast.success("Arte enviada e já salva nesta impressão.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao subir imagem da arte.");
     } finally {
@@ -575,24 +577,15 @@ export default function AdminPage() {
     setSaving(true);
     try {
       const parsed = parseCardEffects(cardForm.effectText, cardForm.burstEnabled ? cardForm.burstEffect : "");
-      const artState = syncArtState(cardForm.arts, cardForm.activeArtId, cardForm.rarity);
-      const persistedArts = artState.arts
-        .map((art, index) => ({
-          id: art.id,
-          label: art.label.trim() || `Arte ${index + 1}`,
-          url: art.url.trim(),
-          thumbUrl: art.thumbUrl.trim(),
-          sourceUrl: art.sourceUrl.trim(),
-          rarity: art.rarity || cardForm.rarity,
-          isPrimary: art.isPrimary,
-          position: index,
-        }))
-        .filter((art) => art.url || art.thumbUrl || art.sourceUrl || art.label);
-      const primaryArt = persistedArts.find((art) => art.isPrimary) || persistedArts[0] || null;
-      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, imageUrl: primaryArt?.url || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, thumbUrl: primaryArt?.thumbUrl || null, imageSourceUrl: primaryArt?.sourceUrl || cardForm.officialUrl.trim() || null, metadataJson: { artVariants: persistedArts }, legalityStatus: cardForm.legalityStatus || "legal", triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
+      // Impressões (rarity/imagem/coleção) são gerenciadas na seção "Impressões", persistidas
+      // na hora de cada ação — aqui só vão os campos do modelo (identidade de jogo). Pra
+      // criar uma carta nova, code/rarity/imagem ainda seguem juntos, porque a primeira
+      // impressão precisa nascer junto com o modelo (ver server/index.ts: upsertCards +
+      // syncCardModelForCode já cuidam disso automaticamente).
+      const payload = { code: cardForm.code.trim(), rarity: cardForm.rarity, cost: Number(cardForm.cost), level: Number(cardForm.level), cardType: cardForm.cardType, nameEn: cardForm.nameEn.trim(), namePt: null, effectPt: showEffects ? cardForm.effectText.trim() || null : null, burstEffectPt: showBurst && cardForm.burstEnabled ? cardForm.burstEffect.trim() || null : null, ap: showStats && cardForm.ap !== "-" ? Number(cardForm.ap) : null, hp: showStats && cardForm.hp !== "-" ? Number(cardForm.hp) : null, pilotName: showPilotName ? cardForm.pilotName.trim() || null : null, color: cardForm.color || null, setId: cardForm.setId || null, linkText: cardForm.linkText.trim() || null, traits: semicolonToArray(cardForm.traits), trait: semicolonToArray(cardForm.traits).join(" | ") || null, sourceTitle: cardForm.sourceTitle.trim() || null, series: cardForm.sourceTitle.trim() || null, officialUrl: cardForm.officialUrl.trim() || null, legalityStatus: cardForm.legalityStatus || "legal", triggerKeywords: parsed.triggerKeywords, effectKeywords: parsed.effectKeywords, keywordTags: parsed.keywordTags, hasBurst: parsed.hasBurst, hasMain: parsed.hasMain, hasAction: parsed.hasAction, oncePerTurn: parsed.oncePerTurn, textSectionsJson: parsed.sections, cardSubtypes: [] };
       if (cardForm.id) await api.updateCard(cardForm.id, payload); else await api.createCard(payload);
       setCardModalOpen(false); setCardForm(emptyCardForm); await loadAll(); await loadAdminCards();
-      toast.success(cardForm.id ? "Carta atualizada." : "Carta criada.");
+      toast.success(cardForm.id ? "Carta atualizada." : "Carta criada — reabra ela na lista pra adicionar mais impressões ou relações.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar carta.");
     } finally { setSaving(false); }
@@ -884,18 +877,21 @@ export default function AdminPage() {
                 </>}
               </div>
 
-              {/* ARTES */}
-              <ModalSection label="Biblioteca visual de artes" />
+              {/* IMPRESSÕES */}
+              <ModalSection label="Impressões (raridades e artes)" />
+              {!cardForm.id ? (
+                <div className="rounded-none border border-white/10 bg-white/[0.025] p-4 text-sm text-slate-400">Salve a carta primeiro — a raridade e imagem preenchidas acima viram a primeira impressão automaticamente. Depois de salvar, reabra esta carta na lista pra adicionar outras impressões (reprint, alt-art, promo).</div>
+              ) : (
               <div className="grid gap-4 rounded-none border border-white/10 bg-white/[0.025] p-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="min-w-0 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Biblioteca da carta</p>
-                      <p className="text-[11px] leading-5 text-slate-600">Cadastre várias artes, marque a principal e mantenha a raridade específica de cada imagem.</p>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Impressões desta carta</p>
+                      <p className="text-[11px] leading-5 text-slate-600">Cada impressão é uma linha própria no catálogo (reprint, alt-art, promo) — a marcada como principal é a capa exibida nas listagens públicas.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" className="rounded-none" onClick={addArtVariant}><Plus className="mr-2 size-4" />Nova arte</Button>
-                      <Button type="button" variant="outline" className="rounded-none" onClick={duplicateSelectedArt} disabled={!selectedArt}><Copy className="mr-2 size-4" />Duplicar</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={addArtVariant} disabled={saving}><Plus className="mr-2 size-4" />Nova impressão</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={duplicateSelectedArt} disabled={!selectedArt || saving}><Copy className="mr-2 size-4" />Duplicar</Button>
                     </div>
                   </div>
 
@@ -908,12 +904,12 @@ export default function AdminPage() {
                         className={`group overflow-hidden rounded-none border text-left transition ${selectedArt?.id === art.id ? "border-primary/60 bg-primary/10" : "border-white/10 bg-slate-950/50 hover:border-white/25 hover:bg-white/[0.04]"}`}
                       >
                         <div className="aspect-[63/88] overflow-hidden border-b border-white/10 bg-slate-950/80">
-                          {art.url ? <img src={art.thumbUrl || art.url} alt={art.label || `Arte ${index + 1}`} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-[11px] uppercase tracking-[0.2em] text-slate-600">Sem preview</div>}
+                          {art.url ? <img src={art.thumbUrl || art.url} alt={art.label || `Impressão ${index + 1}`} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-[11px] uppercase tracking-[0.2em] text-slate-600">Sem preview</div>}
                         </div>
                         <div className="space-y-2 p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="text-sm font-medium text-slate-100">{art.label || `Arte ${index + 1}`}</p>
+                              <p className="text-sm font-medium text-slate-100">{art.label || `Impressão ${index + 1}`}</p>
                               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{art.rarity || cardForm.rarity}</p>
                             </div>
                             {art.isPrimary ? <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300"><Star className="mr-1 size-3" />Principal</Badge> : null}
@@ -928,37 +924,37 @@ export default function AdminPage() {
                 <div className="space-y-4 border border-white/10 bg-slate-950/40 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Editor da arte selecionada</p>
-                      <p className="text-[11px] leading-5 text-slate-600">A imagem principal da carta será sempre a arte marcada com estrela.</p>
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Editor da impressão selecionada</p>
+                      <p className="text-[11px] leading-5 text-slate-600">A imagem principal da carta será sempre a impressão marcada com estrela.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" className="h-9 rounded-none px-3" onClick={() => moveSelectedArt(-1)} disabled={!selectedArt || selectedArtIndex === 0}><ChevronLeft className="size-4" /></Button>
-                      <Button type="button" variant="outline" className="h-9 rounded-none px-3" onClick={() => moveSelectedArt(1)} disabled={!selectedArt || selectedArtIndex === cardForm.arts.length - 1}><ChevronRight className="size-4" /></Button>
-                      <Button type="button" variant="outline" className="rounded-none" onClick={markPrimaryArt} disabled={!selectedArt || selectedArt.isPrimary}><Star className="mr-2 size-4" />Principal</Button>
-                      <Button type="button" variant="outline" className="rounded-none text-red-300 hover:text-red-200" onClick={removeSelectedArt} disabled={!selectedArt || cardForm.arts.length <= 1}><Trash2 className="mr-2 size-4" />Remover</Button>
+                      <Button type="button" variant="outline" className="rounded-none" onClick={markPrimaryArt} disabled={!selectedArt || selectedArt.isPrimary || saving}><Star className="mr-2 size-4" />Principal</Button>
+                      <Button type="button" variant="outline" className="rounded-none text-red-300 hover:text-red-200" onClick={removeSelectedArt} disabled={!selectedArt || cardForm.arts.length <= 1 || saving}><Trash2 className="mr-2 size-4" />Remover</Button>
                     </div>
                   </div>
 
                   <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/80">
-                    {selectedArt?.url ? <img src={selectedArt.url} alt={selectedArt.label || "Arte selecionada"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.22em] text-slate-600">Selecione ou envie uma arte</div>}
+                    {selectedArt?.url ? <img src={selectedArt.url} alt={selectedArt.label || "Impressão selecionada"} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center px-6 text-center text-xs uppercase tracking-[0.22em] text-slate-600">Selecione ou envie uma imagem</div>}
                   </div>
 
                   <div className="grid gap-4">
-                    <FieldBlock label="Rótulo da arte" hint="Ex.: Arte 1, Full Art, Alt Art, Promo Event"><Input value={selectedArt?.label || ""} onChange={(e) => updateSelectedArt({ label: e.target.value })} placeholder="Arte 1" className="rounded-none" /></FieldBlock>
+                    <FieldBlock label="Rótulo da impressão" hint="Ex.: Regular, Alt Art, Championship Winner Card 01"><Input value={selectedArt?.label || ""} onChange={(e) => updateSelectedArt({ label: e.target.value })} placeholder="Regular" className="rounded-none" /></FieldBlock>
                     <FieldBlock label="Imagem" hint="Aceita URL externa ou caminho local em /uploads/cards"><Input value={selectedArt?.url || ""} onChange={(e) => updateSelectedArt({ url: e.target.value })} placeholder="/uploads/cards/GD01-001.webp ou URL" className="rounded-none" /></FieldBlock>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <FieldBlock label="Raridade da arte"><select value={selectedArt?.rarity || cardForm.rarity} onChange={(e) => updateSelectedArt({ rarity: e.target.value })} className="field-shell h-10 w-full px-3 text-sm">{ART_RARITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
+                      <FieldBlock label="Raridade desta impressão"><select value={selectedArt?.rarity || cardForm.rarity} onChange={(e) => updateSelectedArt({ rarity: e.target.value })} className="field-shell h-10 w-full px-3 text-sm">{ART_RARITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
                       <FieldBlock label="Thumb"><Input value={selectedArt?.thumbUrl || ""} onChange={(e) => updateSelectedArt({ thumbUrl: e.target.value })} placeholder="opcional" className="rounded-none" /></FieldBlock>
                     </div>
                     <FieldBlock label="Fonte da imagem"><Input value={selectedArt?.sourceUrl || ""} onChange={(e) => updateSelectedArt({ sourceUrl: e.target.value })} placeholder="URL de origem da arte" className="rounded-none" /></FieldBlock>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button type="button" variant="outline" className="rounded-none" onClick={triggerArtUpload} disabled={!selectedArt || saving}><Upload className="mr-2 size-4" />Upload local</Button>
-                      <p className="self-center text-[11px] leading-5 text-slate-500">O upload preenche a URL desta arte sem sair do modal.</p>
+                      <Button type="button" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveSelectedArt} disabled={!selectedArt || saving}>Salvar impressão</Button>
                     </div>
+                    <p className="text-[11px] leading-5 text-slate-500">Upload já salva a imagem na hora. Rótulo, raridade e os outros campos precisam do botão "Salvar impressão".</p>
                     <input ref={artUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleArtUpload} />
                   </div>
                 </div>
               </div>
+              )}
 
               <datalist id="trait-suggestions">{traitOptions.map((item) => <option key={item} value={item} />)}</datalist>
               <datalist id="link-suggestions">{linkSuggestions.map((item) => <option key={item} value={item} />)}</datalist>

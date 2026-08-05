@@ -1392,6 +1392,18 @@ app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDIT
 
 app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const id = String(req.params.id);
+  // :id pode ser um CardModel (edição feita a partir da listagem pública/admin, que lista
+  // por carta) ou uma impressão específica (uso interno futuro) — detecta e trata cada uma.
+  const model = await prisma.cardModel.findUnique({ where: { id } });
+  if (model) {
+    const body = req.body as Record<string, unknown>;
+    const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, body[field] ?? (model as any)[field]]));
+    const updated = await prisma.cardModel.update({ where: { id }, data: modelData as any });
+    // Mantém a impressão primária com os mesmos campos de identidade — evita a impressão
+    // "desatualizar" em relação ao modelo até a próxima sincronização.
+    await prisma.card.updateMany({ where: { cardModelId: id, isPrimaryPrint: true }, data: modelData as any });
+    return res.json({ ...updated, isModel: true });
+  }
   const existing = await prisma.card.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Carta não encontrada." });
   const payload = { ...req.body, code: req.body.code || existing.code, recordId: id, externalId: req.body.externalId ?? existing.externalId } as CardInput;
@@ -1400,8 +1412,93 @@ app.put("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.E
   res.json(card);
 });
 
+app.post("/api/cards/:modelId/prints", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const modelId = String(req.params.modelId);
+  const model = await prisma.cardModel.findUnique({ where: { id: modelId } });
+  if (!model) return res.status(404).json({ error: "Carta não encontrada." });
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; externalId?: string };
+  const modelData = Object.fromEntries(MODEL_FIELDS_FROM_CARD.map((field) => [field, (model as any)[field]]));
+  if (body.isPrimaryPrint) await prisma.card.updateMany({ where: { cardModelId: modelId }, data: { isPrimaryPrint: false } });
+  const print = await prisma.card.create({
+    data: {
+      ...modelData,
+      code: model.code,
+      cardModelId: modelId,
+      rarity: body.rarity || null,
+      printLabel: body.printLabel || null,
+      setId: body.setId || null,
+      imageUrl: body.imageUrl || null,
+      thumbUrl: body.thumbUrl || null,
+      imageSmallUrl: body.imageSmallUrl || null,
+      imageMediumUrl: body.imageMediumUrl || null,
+      imageLargeUrl: body.imageLargeUrl || null,
+      imageSourceUrl: body.imageSourceUrl || null,
+      officialUrl: body.officialUrl || null,
+      externalId: body.externalId || null,
+      isPrimaryPrint: Boolean(body.isPrimaryPrint),
+    } as any,
+    include: { set: true },
+  });
+  res.status(201).json(print);
+});
+
+app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const printId = String(req.params.printId);
+  const existing = await prisma.card.findUnique({ where: { id: printId } });
+  if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string };
+  if (body.isPrimaryPrint && existing.cardModelId) {
+    await prisma.card.updateMany({ where: { cardModelId: existing.cardModelId }, data: { isPrimaryPrint: false } });
+  }
+  const print = await prisma.card.update({
+    where: { id: printId },
+    data: {
+      rarity: body.rarity ?? existing.rarity,
+      printLabel: body.printLabel ?? existing.printLabel,
+      setId: body.setId === undefined ? existing.setId : body.setId,
+      imageUrl: body.imageUrl ?? existing.imageUrl,
+      thumbUrl: body.thumbUrl ?? existing.thumbUrl,
+      imageSmallUrl: body.imageSmallUrl ?? existing.imageSmallUrl,
+      imageMediumUrl: body.imageMediumUrl ?? existing.imageMediumUrl,
+      imageLargeUrl: body.imageLargeUrl ?? existing.imageLargeUrl,
+      imageSourceUrl: body.imageSourceUrl ?? existing.imageSourceUrl,
+      officialUrl: body.officialUrl ?? existing.officialUrl,
+      legalityStatus: body.legalityStatus ?? existing.legalityStatus,
+      isPrimaryPrint: body.isPrimaryPrint ?? existing.isPrimaryPrint,
+    },
+    include: { set: true },
+  });
+  res.json(print);
+});
+
+app.delete("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const printId = String(req.params.printId);
+  const existing = await prisma.card.findUnique({ where: { id: printId } });
+  if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
+  if (existing.cardModelId) {
+    const siblingCount = await prisma.card.count({ where: { cardModelId: existing.cardModelId, isActive: true } });
+    if (siblingCount <= 1) return res.status(400).json({ error: "Essa é a única impressão desta carta — exclua a carta inteira em vez de só a impressão." });
+  }
+  await prisma.card.update({ where: { id: printId }, data: { isActive: false, deletedAt: new Date() } });
+  if (existing.isPrimaryPrint && existing.cardModelId) {
+    // Precisa de uma nova impressão primária — reaproveita a mesma heurística da sincronização.
+    const remaining = await prisma.card.findMany({ where: { cardModelId: existing.cardModelId, isActive: true } });
+    if (remaining.length) {
+      const next = pickRepresentativePrint(remaining);
+      await prisma.card.update({ where: { id: next.id }, data: { isPrimaryPrint: true } });
+    }
+  }
+  res.status(204).send();
+});
+
 app.delete("/api/cards/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
+  const model = await prisma.cardModel.findUnique({ where: { id } });
+  if (model) {
+    await prisma.cardModel.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+    await prisma.card.updateMany({ where: { cardModelId: id }, data: { isActive: false, deletedAt: new Date() } });
+    return res.status(204).send();
+  }
   await prisma.card.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
   res.status(204).send();
 });
