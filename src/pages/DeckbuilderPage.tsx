@@ -89,19 +89,20 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  igual ao padrão de deckbuilder de jogo real (Master Duel, MTG Arena, YGO Omega) em vez
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
-function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void }) {
-  const isFixedComponent = card.type === "EX_BASE" || card.type === "EX_RESOURCE";
+function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onSwapExComponent }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void }) {
+  const exSection = card.type === "EX_BASE" ? "ex_base" : card.type === "EX_RESOURCE" ? "ex_resource" : null;
   const banned = limit === 0;
-  const atLimit = qtyInDeck >= limit || isFixedComponent;
+  const atLimit = qtyInDeck >= limit;
   const image = card.imageMediumUrl || card.imageUrl;
+  const handleClick = () => (exSection ? onSwapExComponent(exSection, card.printId || card.id) : onAdd(card));
   return (
     <div className="group relative">
       <button
         type="button"
-        onClick={() => onAdd(card)}
-        disabled={atLimit}
-        title={isFixedComponent ? `${card.namePt || card.name} — componente fixo do jogo, não entra na contagem do deck` : banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
-        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${atLimit ? "opacity-45" : ""}`}
+        onClick={handleClick}
+        disabled={!exSection && atLimit}
+        title={exSection ? `Usar essa arte pro ${exSection === "ex_base" ? "EX Base" : "EX Resource"} do deck` : banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
+        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${!exSection && atLimit ? "opacity-45" : ""}`}
       >
         {image ? (
           <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
@@ -109,14 +110,14 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRe
           <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>
         )}
 
-        {qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{qtyInDeck}</span> : null}
+        {!exSection && qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{qtyInDeck}</span> : null}
         {banned ? <span className="absolute inset-x-0 top-0 bg-red-500/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">banida</span> : null}
-        {isFixedComponent ? <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">componente fixo</span> : null}
-        {!banned && !isFixedComponent && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
+        {exSection ? <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">carta única</span> : null}
+        {!banned && !exSection && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
 
         <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left transition duration-200 group-hover:translate-y-0">
           <p className="truncate text-xs font-medium text-white">{card.namePt || card.name}</p>
-          <p className="truncate text-[10px] text-slate-400">{card.code} · custo {card.cost}{limit !== Infinity ? ` · ${qtyInDeck}/${limit}` : ""}</p>
+          <p className="truncate text-[10px] text-slate-400">{card.code}{exSection ? "" : ` · custo ${card.cost}${limit !== Infinity ? ` · ${qtyInDeck}/${limit}` : ""}`}</p>
         </div>
       </button>
       <Link
@@ -151,6 +152,25 @@ function DeckGridTile({ row, onIncrement, onDecrement }: { row: DeckRow; onIncre
         </div>
       </button>
       <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-sm font-bold text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">+</button>
+    </div>
+  );
+}
+
+/** EX Base / EX Resource — mesmo visual da decklist, mas sem número (é sempre 1,
+ *  mostrar "1" seria ruído) e com um botão de reset no lugar de +/-, já que a
+ *  troca de arte acontece clicando na carta na pool (ver PoolCardTile), não aqui. */
+function ExComponentTile({ label, row, onReset }: { label: string; row: DeckRow | undefined; onReset: () => void }) {
+  const image = row?.imageMediumUrl || row?.imageUrl;
+  return (
+    <div className="group relative">
+      <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15">
+        {image ? <img src={image} alt={row?.namePt || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
+        <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">{label}</span>
+        <div className="absolute inset-x-0 bottom-0 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
+          <p className="truncate text-[10px] font-medium text-white">{row?.namePt || row?.name || "Carregando…"}</p>
+        </div>
+      </div>
+      <button type="button" onClick={onReset} title={`Voltar ${label} pra arte padrão`} className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[13px] text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">↺</button>
     </div>
   );
 }
@@ -289,6 +309,14 @@ export default function DeckbuilderPage() {
     if (!card) return;
     cacheCards([card]);
     setEntries((current) => current.map((item) => (item.section === section ? { ...item, cardId: printId } : item)));
+  };
+
+  const resetExComponent = (section: "ex_base" | "ex_resource") => {
+    const options = section === "ex_base" ? exBaseOptions : exResourceOptions;
+    const defaultCode = section === "ex_base" ? "EXB-001" : "EXR-001";
+    const defaultCard = options.find((item) => item.code === defaultCode) || options[0];
+    if (!defaultCard) return;
+    setExComponentArt(section, defaultCard.printId || defaultCard.id);
   };
 
   const applyDeck = (deck: ApiDeck) => {
@@ -474,13 +502,9 @@ export default function DeckbuilderPage() {
   };
 
   const increment = (card: CardRecord) => {
-    // EX Base / EX Resource são componente fixo do jogo (1 de cada, sempre — "at the
-    // start of the game, place 1 active EX Base..."), não é escolha de deckbuilding.
-    // Fica de fora da pool por enquanto — a troca de arte customizada fica pra depois.
-    if (card.type === "EX_BASE" || card.type === "EX_RESOURCE") {
-      toast.error(`${card.type === "EX_BASE" ? "EX Base" : "EX Resource"} é componente fixo do jogo, não entra na contagem do deck — customização de arte ainda não disponível.`);
-      return;
-    }
+    // EX Base / EX Resource não entram pela pool normal — usar o clique de troca
+    // de arte (ver PoolCardTile/onSwapExComponent). Isso aqui é só rede de segurança.
+    if (card.type === "EX_BASE" || card.type === "EX_RESOURCE") return;
     const printId = card.printId || card.id;
     const modelId = card.cardModelId || card.id;
     const section = getSectionForCardType(card.type);
@@ -658,7 +682,7 @@ export default function DeckbuilderPage() {
                 const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
                 const limit = getCopyLimit(card.id, card.type);
                 const section = getSectionForCardType(card.type);
-                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} />;
+                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onSwapExComponent={setExComponentArt} />;
               })}
             </div>
 
@@ -698,30 +722,17 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
-          {/* EX Base / EX Resource — componente fixo, vem integrado com arte padrão (EXB-001/
-              EXR-001), trocável. Fica acima da capa editorial: é parte do deck de verdade,
-              a capa é só cosmético. */}
+          {/* EX Base / EX Resource — sempre presentes, arte trocável clicando na carta na
+              pool (busque "ex base"/"ex resource" — desbloqueada, marcada "carta única").
+              Fica acima da capa editorial: é parte do deck de verdade, a capa é cosmética. */}
           <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
-              {([["ex_base", "EX Base", exBaseRow, exBaseOptions], ["ex_resource", "EX Resource", exResourceRow, exResourceOptions]] as const).map(([section, label, row, options]) => {
-                const image = row?.imageMediumUrl || row?.imageUrl;
-                return (
-                  <div key={section} className="flex items-center gap-3 border border-white/10 bg-slate-950/40 p-3">
-                    <div className="aspect-[63/88] w-14 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">
-                      {image ? <img src={image} alt={label} className="h-full w-full object-cover" /> : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label} · componente fixo</p>
-                      <p className="truncate text-sm font-medium heading-portal">{row?.namePt || row?.name || "Carregando…"}</p>
-                      {options.length ? (
-                        <select value={row?.printId || row?.id || ""} onChange={(e) => setExComponentArt(section, e.target.value)} className="field-shell mt-1 h-8 w-full px-2 text-xs">
-                          {options.map((option) => <option key={option.printId || option.id} value={option.printId || option.id}>{option.code}{(option as any).printLabel ? ` · ${(option as any).printLabel}` : ""}</option>)}
-                        </select>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
+            <CardContent className="p-5">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">EX Base / EX Resource</p>
+              <p className="mt-1 text-xs leading-5 text-muted-portal">Sempre inclusos, arte padrão por padrão. Pra trocar, busque "ex base" ou "ex resource" na pool e clique na arte desejada.</p>
+              <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6">
+                <ExComponentTile label="EX Base" row={exBaseRow} onReset={() => resetExComponent("ex_base")} />
+                <ExComponentTile label="EX Resource" row={exResourceRow} onReset={() => resetExComponent("ex_resource")} />
+              </div>
             </CardContent>
           </Card>
 
