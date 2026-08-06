@@ -27,6 +27,11 @@ export type DeckLegalityItem = {
   section: string;
 };
 
+/** Seções que existem no DeckItem mas não contam pro deck principal nem de
+ *  recursos — EX Base/EX Resource são componente fixo do jogo (1 de cada,
+ *  sempre), não uma escolha de quantidade/deckbuilding de verdade. */
+export const NON_COUNTED_SECTIONS = new Set(["ex_base", "ex_resource"]);
+
 export type DeckLegalityIssue = { type: string; message: string; cardModelId?: string };
 
 /** items: uma linha por DeckItem já carregado com o cardModel e a cor/tipo do card.
@@ -34,7 +39,7 @@ export type DeckLegalityIssue = { type: string; message: string; cardModelId?: s
  *  exibir (Pacote B decide como mostrar). */
 export function computeDeckLegality(items: DeckLegalityItem[], legality: DeckLegalityData) {
   const issues: DeckLegalityIssue[] = [];
-  const mainItems = items.filter((item) => item.section !== "resource");
+  const mainItems = items.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section));
   const resourceItems = items.filter((item) => item.section === "resource");
 
   const mainCount = mainItems.reduce((sum, item) => sum + item.quantity, 0);

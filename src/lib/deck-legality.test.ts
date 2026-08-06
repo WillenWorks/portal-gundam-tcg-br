@@ -102,4 +102,15 @@ describe("computeDeckLegality", () => {
     const result = computeDeckLegality(deck, legality);
     expect(result.issues.some((i) => i.type === "ban_group")).toBe(true);
   });
+
+  it("caso real: EX Base e EX Resource não contam pro deck principal nem de recursos (são componente fixo)", () => {
+    const deck = [
+      ...baseLegalDeck(),
+      { cardModelId: "exbase1", cardType: "EX_BASE", color: null, quantity: 1, section: "ex_base" },
+      { cardModelId: "exresource1", cardType: "EX_RESOURCE", color: null, quantity: 1, section: "ex_resource" },
+    ];
+    const result = computeDeckLegality(deck, emptyLegality);
+    expect(result.valid).toBe(true);
+    expect(result.issues).toHaveLength(0);
+  });
 });

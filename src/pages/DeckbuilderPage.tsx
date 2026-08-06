@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntr
 
   // Estatísticas de curva/cor/tipo fazem sentido só pro deck principal — o deck de
   // recursos não tem custo nem essas dimensões de análise (ver docs/14-motor-regras-deck.md).
-  const expanded = expandedAll.filter((item) => item.section !== "resource");
+  const expanded = expandedAll.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section));
   const resourceDeckCount = expandedAll.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
 
   const mainDeckCount = expanded.reduce((sum, item) => sum + item.quantity, 0);
@@ -242,6 +242,55 @@ export default function DeckbuilderPage() {
     }
   };
 
+  const [exBaseOptions, setExBaseOptions] = useState<CardRecord[]>([]);
+  const [exResourceOptions, setExResourceOptions] = useState<CardRecord[]>([]);
+
+  /** EX Base e EX Resource são componente fixo — carrega as artes disponíveis uma vez
+   *  (são poucos codes, cabe tudo numa página só) pro seletor "trocar arte". */
+  const loadExComponents = async () => {
+    try {
+      const [baseResult, resourceResult] = await Promise.all([
+        api.listCardsPage({ cardType: "EX_BASE" } as PoolFilters, { page: 1, pageSize: 100 }),
+        api.listCardsPage({ cardType: "EX_RESOURCE" } as PoolFilters, { page: 1, pageSize: 100 }),
+      ]);
+      const baseCards = baseResult.items.map(mapApiCard);
+      const resourceCards = resourceResult.items.map(mapApiCard);
+      setExBaseOptions(baseCards);
+      setExResourceOptions(resourceCards);
+      cacheCards([...baseCards, ...resourceCards]);
+    } catch {
+      // Sem opções carregadas, os dois seletores ficam vazios — não impede o resto do deckbuilder.
+    }
+  };
+
+  // Garante que todo deck tem exatamente 1 EX Base + 1 EX Resource assim que as opções
+  // carregam (padrão: code EXB-001/EXR-001, a arte "básica" das imagens oficiais) — sem
+  // isso o jogador teria que lembrar de configurar isso toda vez, e é componente fixo
+  // do jogo, não uma escolha real de deckbuilding.
+  useEffect(() => {
+    if (loadingDeck || (!exBaseOptions.length && !exResourceOptions.length)) return;
+    setEntries((current) => {
+      let next = current;
+      if (!next.some((item) => item.section === "ex_base") && exBaseOptions.length) {
+        const defaultCard = exBaseOptions.find((c) => c.code === "EXB-001") || exBaseOptions[0];
+        next = [...next, { cardId: defaultCard.printId || defaultCard.id, quantity: 1, section: "ex_base" }];
+      }
+      if (!next.some((item) => item.section === "ex_resource") && exResourceOptions.length) {
+        const defaultCard = exResourceOptions.find((c) => c.code === "EXR-001") || exResourceOptions[0];
+        next = [...next, { cardId: defaultCard.printId || defaultCard.id, quantity: 1, section: "ex_resource" }];
+      }
+      return next;
+    });
+  }, [exBaseOptions, exResourceOptions, loadingDeck]);
+
+  const setExComponentArt = (section: "ex_base" | "ex_resource", printId: string) => {
+    const options = section === "ex_base" ? exBaseOptions : exResourceOptions;
+    const card = options.find((item) => (item.printId || item.id) === printId);
+    if (!card) return;
+    cacheCards([card]);
+    setEntries((current) => current.map((item) => (item.section === section ? { ...item, cardId: printId } : item)));
+  };
+
   const applyDeck = (deck: ApiDeck) => {
     setSelectedDeckId(deck.id);
     setSelectedShareId(deck.shareId);
@@ -254,7 +303,7 @@ export default function DeckbuilderPage() {
     // impressão crua (Card) — usa direto, sem precisar de outra chamada à API.
     const deckCards = (deck.items || []).map((item: any) => item.card).filter(Boolean).map(mapApiCard);
     cacheCards(deckCards);
-    setEntries(deck.items.map((item: any) => ({ cardId: item.card?.id ?? item.cardId, quantity: item.quantity, section: (item.section as "main" | "resource") || "main" })));
+    setEntries(deck.items.map((item: any) => ({ cardId: item.card?.id ?? item.cardId, quantity: item.quantity, section: (item.section as DeckEntry["section"]) || "main" })));
   };
 
   const loadDeck = async (id: string) => {
@@ -277,6 +326,7 @@ export default function DeckbuilderPage() {
   useEffect(() => {
     loadPoolMeta().catch(() => undefined);
     loadLegality().catch(() => undefined);
+    loadExComponents().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -302,8 +352,10 @@ export default function DeckbuilderPage() {
     [entries, cardCache],
   );
 
-  const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource"), [deckRows]);
+  const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [deckRows]);
   const resourceDeckRows = useMemo(() => deckRows.filter((row) => row.section === "resource"), [deckRows]);
+  const exBaseRow = useMemo(() => deckRows.find((row) => row.section === "ex_base"), [deckRows]);
+  const exResourceRow = useMemo(() => deckRows.find((row) => row.section === "ex_resource"), [deckRows]);
 
   // Converte o formato bruto de /api/decks/legality (arrays simples, do jeito que a API
   // devolve) pro formato que computeDeckLegality espera (Set/Map) — mesmo motor do
@@ -643,6 +695,33 @@ export default function DeckbuilderPage() {
               <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[220px] overflow-auto pr-1">
                 {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* EX Base / EX Resource — componente fixo, vem integrado com arte padrão (EXB-001/
+              EXR-001), trocável. Fica acima da capa editorial: é parte do deck de verdade,
+              a capa é só cosmético. */}
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+              {([["ex_base", "EX Base", exBaseRow, exBaseOptions], ["ex_resource", "EX Resource", exResourceRow, exResourceOptions]] as const).map(([section, label, row, options]) => {
+                const image = row?.imageMediumUrl || row?.imageUrl;
+                return (
+                  <div key={section} className="flex items-center gap-3 border border-white/10 bg-slate-950/40 p-3">
+                    <div className="aspect-[63/88] w-14 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">
+                      {image ? <img src={image} alt={label} className="h-full w-full object-cover" /> : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label} · componente fixo</p>
+                      <p className="truncate text-sm font-medium heading-portal">{row?.namePt || row?.name || "Carregando…"}</p>
+                      {options.length ? (
+                        <select value={row?.printId || row?.id || ""} onChange={(e) => setExComponentArt(section, e.target.value)} className="field-shell mt-1 h-8 w-full px-2 text-xs">
+                          {options.map((option) => <option key={option.printId || option.id} value={option.printId || option.id}>{option.code}{(option as any).printLabel ? ` · ${(option as any).printLabel}` : ""}</option>)}
+                        </select>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
 
