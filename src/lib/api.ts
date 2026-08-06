@@ -34,6 +34,7 @@ export type ApiDeck = {
   updatedAt?: string;
   user?: AuthUser;
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
+  legality?: { valid: boolean; issues: Array<{ type: string; message: string; cardModelId?: string }> };
 };
 
 export type ApiBinder = {
@@ -306,6 +307,7 @@ export const api = {
     request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
   listMyDecks: () => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000 }),
+  getMyDeck: (id: string) => request<ApiDeck>(`/decks/me/${id}`, undefined, { ttlMs: 5_000 }),
   listMyDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/me${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 10_000 }),
   createMyDeck: (payload: any) => mutate<ApiDeck>("/decks/me", { method: "POST", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/users/"]),

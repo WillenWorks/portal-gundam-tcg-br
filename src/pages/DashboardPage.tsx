@@ -60,7 +60,7 @@ export default function DashboardPage() {
             <CardContent className="p-6 2xl:p-7">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Atalhos</p>
               <div className="mt-5 space-y-4">
-                {[["Criar deck novo", "/deckbuilder"],["Configurações do usuário", "/profile"],["Editar lista de desejos", "/wishlist"],["Editar cartas possuídas", "/owned"]].map(([label, href]) => (
+                {[["Criar deck novo", "/deckbuilder/new"],["Configurações do usuário", "/profile"],["Editar lista de desejos", "/wishlist"],["Editar cartas possuídas", "/owned"]].map(([label, href]) => (
                   <Link key={href} href={href} className="panel-cut block border border-white/10 bg-slate-950/60 p-4 text-lg transition hover:bg-white/10 dark:bg-slate-950/60 dark:text-white light:border-slate-300/80 light:bg-slate-50 light:text-slate-900">{label}</Link>
                 ))}
               </div>
@@ -81,7 +81,7 @@ export default function DashboardPage() {
                       {deck.visibility !== "PRIVATE" ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">share ativo</Badge> : null}
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Link href="/deckbuilder" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir deck no editor</Link>
+                      <Link href={`/deckbuilder/${deck.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir deck no editor</Link>
                       {deck.visibility !== "PRIVATE" ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Ver versão pública</Link> : null}
                     </div>
                   </div>

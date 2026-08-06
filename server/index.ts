@@ -10,7 +10,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "./deck-legality.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -1882,6 +1882,17 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
     orderBy: [{ updatedAt: "desc" }],
   });
   res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
+});
+
+app.get("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  setPrivateCache(res, 10, 30);
+  const deck = await prisma.deck.findFirst({
+    where: { id: String(req.params.id), userId: req.user!.userId },
+    include: { items: { include: { card: true } } },
+  });
+  if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
+  const legality = await loadDeckLegalityData();
+  res.json(attachDeckLegality(deck, legality));
 });
 
 /** Confere que todo cardId do payload é uma impressão (Card) de verdade antes de
