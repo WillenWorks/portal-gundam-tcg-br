@@ -86,25 +86,70 @@ const pieColors = ["#47a0ff", "#4fd1c5", "#f59e0b", "#ef4444", "#a78bfa", "#94a3
 
 type DeckRow = CardRecord & { quantity: number; section: string };
 
-function DeckRowCard({ row, onIncrement, onDecrement }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void }) {
+/** Tile de carta na pool — imagem em destaque (não texto), clique pra adicionar direto,
+ *  igual ao padrão de deckbuilder de jogo real (Master Duel, MTG Arena, YGO Omega) em vez
+ *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
+ *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
+function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void }) {
+  const banned = limit === 0;
+  const atLimit = qtyInDeck >= limit;
+  const image = card.imageMediumUrl || card.imageUrl;
   return (
-    <div className="panel-cut border surface-strong p-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{row.code}</p>
-          <p className="mt-1 text-lg heading-portal">{row.namePt || row.name}</p>
-          <p className="text-sm text-muted-portal">{row.color} · {row.type} · custo {row.cost} · {row.trait || "sem trait"}</p>
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={() => onAdd(card)}
+        disabled={atLimit}
+        title={banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
+        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${atLimit ? "opacity-45" : ""}`}
+      >
+        {image ? (
+          <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>
+        )}
+
+        {qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{qtyInDeck}</span> : null}
+        {banned ? <span className="absolute inset-x-0 top-0 bg-red-500/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">banida</span> : null}
+        {!banned && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
+
+        <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left transition duration-200 group-hover:translate-y-0">
+          <p className="truncate text-xs font-medium text-white">{card.namePt || card.name}</p>
+          <p className="truncate text-[10px] text-slate-400">{card.code} · custo {card.cost}{limit !== Infinity ? ` · ${qtyInDeck}/${limit}` : ""}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => onDecrement(row.printId || row.id)}>-</Button>
-          <div className="min-w-10 text-center text-lg heading-portal">{row.quantity}</div>
-          <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => onIncrement(row)}>+</Button>
+      </button>
+      <Link
+        href={`/cards/${card.id}`}
+        onClick={(event) => event.stopPropagation()}
+        title="Ver detalhes da carta"
+        className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[11px] font-bold text-white opacity-0 transition group-hover:opacity-100"
+      >
+        i
+      </Link>
+    </div>
+  );
+}
+
+/** Tile compacto da decklist — mesma grade visual da pool, mas clicar remove uma
+ *  cópia (simétrico: pool adiciona, decklist remove). Botão "+" só aparece no
+ *  hover, pra não competir com o clique principal. */
+function DeckGridTile({ row, onIncrement, onDecrement }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void }) {
+  const image = row.imageMediumUrl || row.imageUrl;
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={() => onDecrement(row.printId || row.id)}
+        title={`Remover 1 cópia de ${row.namePt || row.name}`}
+        className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-red-400/50"
+      >
+        {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+        <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{row.quantity}</span>
+        <div className="absolute inset-x-0 bottom-0 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
+          <p className="truncate text-[10px] font-medium text-white">{row.namePt || row.name}</p>
         </div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Link href={`/cards/${row.cardModelId || row.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
-        {row.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(row.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Rulings</Link> : null}
-      </div>
+      </button>
+      <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-sm font-bold text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">+</button>
     </div>
   );
 }
@@ -503,30 +548,14 @@ export default function DeckbuilderPage() {
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
-            <div className="mt-6 space-y-3 max-h-[760px] overflow-auto pr-1">
-              {loadingPool ? <p className="text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
-              {!loadingPool && !cards.length ? <p className="text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
+            <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5">
+              {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
+              {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
                 const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
                 const limit = getCopyLimit(card.id, card.type);
                 const section = getSectionForCardType(card.type);
-                return (
-                  <div key={card.id} className="panel-cut border surface-strong p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}{section === "resource" ? <span className="ml-2 text-accent">· vai pro deck de recursos</span> : null}</p>
-                        <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
-                        <p className="text-sm text-muted-portal">{card.color} · {card.type} · custo {card.cost} · {card.trait || "sem trait"}</p>
-                      </div>
-                      <Badge variant="outline" className={`rounded-none ${limit === 0 ? "border-red-400/40 text-red-300" : "border-white/20 text-soft"}`}>{limit === 0 ? "banida" : limit === Infinity ? `no deck: ${qtyInDeck}` : `no deck: ${qtyInDeck}/${limit}`}</Badge>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={qtyInDeck >= limit} onClick={() => increment(card)}>Adicionar</Button>
-                      <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
-                      {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver rulings</Link> : null}
-                    </div>
-                  </div>
-                );
+                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} />;
               })}
             </div>
 
@@ -736,8 +765,8 @@ export default function DeckbuilderPage() {
                 <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
                 <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
               </div>
-              <div className="mt-6 space-y-3 max-h-[520px] overflow-auto pr-1">
-                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckRowCard key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
+              <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[520px] overflow-auto pr-1">
+                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
               </div>
             </CardContent>
           </Card>
@@ -749,8 +778,8 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 space-y-3 max-h-[280px] overflow-auto pr-1">
-                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckRowCard key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
+              <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[280px] overflow-auto pr-1">
+                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>
           </Card>
