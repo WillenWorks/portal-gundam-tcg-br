@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Copy, ImagesIcon, Minus, Plus, Save, Share2, Trash2, X } from "lucide-react";
+import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2 } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -146,7 +146,7 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
 /** Tile compacto da decklist — mesma grade visual da pool, mas clicar remove uma
  *  cópia (simétrico: pool adiciona, decklist remove). Botão "+" só aparece no
  *  hover, pra não competir com o clique principal. */
-function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void }) {
+function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onPreview: (card: CardRecord) => void }) {
   const image = row.imageMediumUrl || row.imageUrl;
   const printId = row.printId || row.id;
   const modelId = row.cardModelId || row.id;
@@ -165,6 +165,9 @@ function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery }: { row: D
       <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
         <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
           <Minus className="size-3.5" />
+        </button>
+        <button type="button" onClick={() => onPreview(row)} title="Ver imagem grande" className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-white/20">
+          <Eye className="size-3.5" />
         </button>
         <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground">
           <Plus className="size-3.5" />
@@ -234,7 +237,7 @@ function AltArtModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl border-white/10 bg-slate-950 text-white">
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
         <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Galeria de arte</p>
@@ -246,21 +249,21 @@ function AltArtModal({
         ) : prints.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-portal">Não achei impressões dessa carta.</p>
         ) : (
-          <div className="grid max-h-[65vh] grid-cols-3 gap-3 overflow-auto pr-1 sm:grid-cols-4">
+          <div className="grid max-h-[65vh] grid-cols-2 gap-4 overflow-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
             {prints.map((print) => {
               const printId = print.printId || print.id;
               const qty = entries.filter((entry) => entry.cardId === printId).reduce((sum, entry) => sum + entry.quantity, 0);
               const image = print.imageMediumUrl || print.imageUrl;
               return (
-                <div key={printId} className="border border-white/10 bg-slate-900/60 p-2">
+                <div key={printId} className="border border-white/10 bg-slate-900/60 p-2.5">
                   <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">
                     {image ? <img src={image} alt={print.namePt || print.name} className="h-full w-full object-cover" /> : null}
                   </div>
                   <p className="mt-2 truncate text-[11px] text-slate-400">{print.code}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <Button size="sm" variant="outline" className="h-7 flex-1 rounded-none border-white/15 bg-white/5 px-0 text-white hover:text-white" onClick={() => onDecrement(printId)} disabled={qty <= 0}><Minus className="size-3.5" /></Button>
-                    <span className="min-w-6 text-center text-sm font-bold">{qty}</span>
-                    <Button size="sm" className="h-7 flex-1 rounded-none bg-primary px-0 text-primary-foreground hover:bg-primary/90" onClick={() => onIncrement(print)} disabled={qty >= limit}><Plus className="size-3.5" /></Button>
+                  <div className="mt-2 flex items-center justify-center gap-2.5">
+                    <button type="button" onClick={() => onDecrement(printId)} disabled={qty <= 0} className="flex size-8 shrink-0 items-center justify-center rounded-none border border-white/15 bg-white/5 text-white transition hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"><Minus className="size-4" /></button>
+                    <span className="w-6 shrink-0 text-center text-sm font-bold">{qty}</span>
+                    <button type="button" onClick={() => onIncrement(print)} disabled={qty >= limit} className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-30"><Plus className="size-4" /></button>
                   </div>
                 </div>
               );
@@ -268,6 +271,29 @@ function AltArtModal({
           </div>
         )}
         <p className="border-t border-white/10 pt-3 text-xs text-slate-500">Limite de {limit === Infinity ? "cópia livre" : `${limit} cópia(s)`} somado entre todas as artes desta carta.</p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Preview em alta resolução — só a imagem grande + link pra abrir o detalhe da carta
+ *  numa aba nova (não navega pra fora do deckbuilder, senão perde o estado da sessão). */
+function CardPreviewModal({ card, onClose }: { card: CardRecord | null; onClose: () => void }) {
+  if (!card) return null;
+  const image = card.imageLargeUrl || card.imageMediumUrl || card.imageUrl;
+  const modelId = card.cardModelId || card.id;
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md border-white/10 bg-slate-950 text-white">
+        <div className="overflow-hidden border border-white/10 bg-slate-950/70">
+          {image ? <img src={image} alt={card.namePt || card.name} className="w-full" /> : null}
+        </div>
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="min-w-0 truncate text-sm text-soft">{card.namePt || card.name} · {card.code}</p>
+          <a href={`/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
+            <ExternalLink className="size-3.5" />Abrir detalhe
+          </a>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -284,6 +310,7 @@ export default function DeckbuilderPage() {
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
+  const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -803,7 +830,7 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
               </div>
               <div className="mt-6 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[420px] overflow-auto pr-1">
-                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
+                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
               </div>
             </CardContent>
           </Card>
@@ -815,8 +842,8 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[220px] overflow-auto pr-1">
-                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
+              <div className="mt-4 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[380px] overflow-auto pr-1">
+                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>
           </Card>
@@ -982,6 +1009,7 @@ export default function DeckbuilderPage() {
       </div>
       )}
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
+      <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
     </PortalShell>
   );
 }
