@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
-import { type ComponentType, type ReactNode, useMemo, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
+import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,7 +57,7 @@ const titles: Record<string, string> = {
   "/admin/events": "Eventos",
 };
 
-function SidebarLinks({ location, isAdmin, onNavigate }: { location: string; isAdmin: boolean; onNavigate?: () => void }) {
+function SidebarLinks({ location, isAdmin, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   const currentPath = location.split("?")[0];
   const navGroups: Array<{ title: string; items: ReadonlyArray<{ href: string; label: string; icon: ComponentType<{ className?: string }> }> }> = [
     { title: "Painel do usuário", items: userNav },
@@ -68,7 +68,7 @@ function SidebarLinks({ location, isAdmin, onNavigate }: { location: string; isA
     <div className="space-y-6">
       {navGroups.map((group) => (
         <div key={group.title} className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{group.title}</p>
+          {!collapsed ? <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{group.title}</p> : null}
           {group.items.map((item) => {
             const Icon = item.icon;
             const active = location === item.href || currentPath === item.href || (item.href.includes("?") && location.includes(item.href.split("?")[1] || ""));
@@ -77,15 +77,17 @@ function SidebarLinks({ location, isAdmin, onNavigate }: { location: string; isA
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                title={collapsed ? item.label : undefined}
                 className={cn(
                   "panel-cut flex items-center gap-3 border px-4 py-3 text-sm uppercase tracking-[0.18em] transition",
+                  collapsed ? "justify-center px-0" : "",
                   active
                     ? "border-primary/40 bg-primary/12 text-white dark:text-white light:text-slate-900"
                     : "border-white/10 bg-white/5 text-slate-300 nav-hover-soft hover:border-white/20 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white/80 light:text-slate-800",
                 )}
               >
-                <Icon className={cn("size-4", active ? "text-primary" : "text-slate-400")} />
-                <span>{item.label}</span>
+                <Icon className={cn("size-4 shrink-0", active ? "text-primary" : "text-slate-400")} />
+                {!collapsed ? <span>{item.label}</span> : null}
               </Link>
             );
           })}
@@ -100,6 +102,14 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("portal-gundam-tcg-br:sidebar-collapsed") === "1";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem("portal-gundam-tcg-br:sidebar-collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
 
   const currentPath = useMemo(() => location.split("?")[0], [location]);
   const currentTitle = titles[currentPath] ?? "Portal";
@@ -114,6 +124,9 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:hidden" onClick={() => setMobileSidebarOpen(true)}>
               <Menu className="size-4" />
               <span className="ml-2">Painel</span>
+            </Button>
+            <Button type="button" variant="outline" className="hidden rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:inline-flex" onClick={() => setCollapsed((current) => !current)} title={collapsed ? "Expandir painel" : "Recolher painel"}>
+              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
             </Button>
             <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white">
               <img src={logoWhite} alt="Gundam Card Game" className="h-9 w-auto opacity-90" />
@@ -135,11 +148,11 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
         </div>
       </header>
 
-      <div className="grid min-h-[calc(100vh-73px)] w-full lg:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/10 bg-slate-950/82 px-5 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:block lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:overflow-y-auto">
-          <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge>
-          <div className="mt-8">
-            <SidebarLinks location={location} isAdmin={isAdmin} />
+      <div className={cn("grid min-h-[calc(100vh-73px)] w-full transition-[grid-template-columns] duration-200", collapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]")}>
+        <aside className={cn("hidden border-r border-white/10 bg-slate-950/82 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:block lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:overflow-y-auto", collapsed ? "px-2" : "px-5")}>
+          {!collapsed ? <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge> : null}
+          <div className={collapsed ? "mt-2" : "mt-8"}>
+            <SidebarLinks location={location} isAdmin={isAdmin} collapsed={collapsed} />
           </div>
         </aside>
 

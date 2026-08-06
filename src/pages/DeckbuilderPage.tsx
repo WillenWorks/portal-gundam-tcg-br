@@ -5,7 +5,6 @@ import { Link, useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
-import { useAuth } from "@/contexts/AuthContext";
 import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -155,7 +154,6 @@ function DeckGridTile({ row, onIncrement, onDecrement }: { row: DeckRow; onIncre
 }
 
 export default function DeckbuilderPage() {
-  const { user } = useAuth();
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
   const deckId = params?.id && params.id !== "new" ? params.id : null;
@@ -164,6 +162,7 @@ export default function DeckbuilderPage() {
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -523,7 +522,44 @@ export default function DeckbuilderPage() {
       {loadingDeck ? (
         <p className="text-sm text-muted-portal">Carregando deck...</p>
       ) : (
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="space-y-6">
+        {/* Barra compacta — nome, visibilidade, status de validade e ações, tudo visível sem rolar */}
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+              <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="field-shell font-heading text-xl uppercase heading-portal sm:max-w-xs" />
+              <div className="flex flex-wrap gap-1.5">
+                {(["PRIVATE", "UNLISTED", "PUBLIC"] as DeckVisibility[]).map((mode) => (
+                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-2.5 py-1.5 text-[11px] uppercase tracking-[0.14em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10 hover:text-white"}`}>
+                    {mode}
+                  </button>
+                ))}
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-none border px-3 py-1.5 text-xs uppercase tracking-[0.14em] ${liveLegality.valid ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300"}`} title={liveLegality.issues.map((i) => i.message).join(" · ")}>
+                <span className={`inline-flex size-2 rounded-full ${liveLegality.valid ? "bg-emerald-400" : "bg-amber-400"}`} />
+                {liveLegality.valid ? "Válido" : `${liveLegality.issues.length} pendência(s)`} · {stats.mainDeckCount}/{DECK_MAIN_SIZE} · {stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar</Button>
+              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo</Button>
+              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
+              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Abas — Montar é o padrão (pool + decklist), Estatísticas junta diagnóstico/arquétipo/recomendações/gráficos */}
+        <div className="flex gap-2 border-b border-white/10">
+          {([["montar", "Montar"], ["estatisticas", "Estatísticas"]] as const).map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setActiveTab(key)} className={`border-b-2 px-4 py-2.5 text-sm uppercase tracking-[0.18em] transition ${activeTab === key ? "border-primary text-white" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "montar" ? (
+        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -548,7 +584,7 @@ export default function DeckbuilderPage() {
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
-            <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5">
+            <div className="mt-6 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-6">
               {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
               {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
@@ -570,65 +606,50 @@ export default function DeckbuilderPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+          <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sessão atual</p>
-                  <p className="mt-2 text-sm text-soft">{user ? `${user.displayName} · ${user.role}` : "Visitante"}</p>
-                  <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="field-shell mt-4 font-heading text-3xl uppercase heading-portal heading-portal" />
-                </div>
-                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.mainDeckCount} cartas</Badge>
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
+                <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
               </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(["PRIVATE", "UNLISTED", "PUBLIC"] as DeckVisibility[]).map((mode) => (
-                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-3 py-2 text-xs uppercase tracking-[0.18em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10 hover:text-white"}`}>
-                    {mode}
-                  </button>
-                ))}
-              </div>
-
-              <div className={`mt-4 panel-cut border p-4 ${liveLegality.valid ? "border-emerald-400/30 bg-emerald-400/10" : "border-amber-400/30 bg-amber-400/10"}`}>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex size-2.5 rounded-full ${liveLegality.valid ? "bg-emerald-400" : "bg-amber-400"}`} />
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-300">{liveLegality.valid ? "Deck válido pra torneio" : `${liveLegality.issues.length} pendência(s) de legalidade`}</p>
-                </div>
-                {liveLegality.issues.length ? (
-                  <ul className="mt-3 space-y-1.5 text-sm leading-6 text-slate-300">
-                    {liveLegality.issues.map((issue, index) => <li key={`${issue.type}-${index}`} className="flex gap-2"><span className="text-amber-400">•</span>{issue.message}</li>)}
-                  </ul>
-                ) : null}
-              </div>
-
-              <div className="mt-6 grid gap-4 border-y border-white/10 py-5 lg:grid-cols-[180px_1fr]">
-                <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
-                  {coverImage ? <img src={coverImage} alt="Capa do deck" className="h-full w-full object-cover" /> : <div className="flex h-full min-h-28 items-center justify-center px-4 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}
-                  <input ref={coverUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
-                </div>
-                <div className="space-y-3">
-                  <div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial</p><p className="mt-1 text-sm text-soft">Envie uma imagem do computador para representar o deck.</p></div>
-                  <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" disabled={uploadingCover} onClick={() => coverUploadInputRef.current?.click()}>{uploadingCover ? "Enviando…" : "Enviar capa"}</Button>{coverImage ? <Button type="button" variant="ghost" className="rounded-none text-slate-400 hover:text-white" onClick={() => setCoverImage("")}>Remover</Button> : null}</div>
-                  <div className="pt-2"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de destaque · até 2</p><p className="mt-1 text-sm text-soft">Escolha cartas já cadastradas na pool carregada.</p><div className="mt-3 grid max-h-40 gap-2 overflow-auto pr-1 sm:grid-cols-2">{cards.map((card) => { const active = featuredCardIds.includes(card.id); return <button key={card.id} type="button" onClick={() => toggleFeaturedCard(card.id)} className={`flex items-center gap-2 border p-2 text-left text-xs transition ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}><span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span><span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span></button>; })}</div></div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo deck</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
-                <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar decklist</Button>
-                {selectedShareId ? <Button variant="ghost" className="rounded-none text-soft hover:bg-white/10 hover:text-white" onClick={copyShareLink}><Copy className="mr-2 size-4" />{selectedShareId}</Button> : null}
-              </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Curva média</p><p className="mt-2 font-heading text-4xl heading-portal">{stats.avgCost}</p></div>
-                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Custo baixo</p><p className="mt-2 font-heading text-4xl heading-portal">{stats.lowCostRate}%</p></div>
-                <div className="panel-cut border surface-strong p-4"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Traço dominante</p><p className="mt-2 text-sm leading-7 text-soft">{topTraits[0] ? `${topTraits[0][0]} · ${topTraits[0][1]}` : "—"}</p></div>
+              <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[420px] overflow-auto pr-1">
+                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
               </div>
             </CardContent>
           </Card>
 
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="font-heading text-3xl uppercase heading-portal">Deck de recursos</h3>
+                <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
+              <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[220px] overflow-auto pr-1">
+                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Capa + destaque — opcionais, recolhidos por padrão pra não competir com a decklist */}
+          <details className="panel-cut border surface-strong open:pb-5">
+            <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial e cartas de destaque (opcional)</summary>
+            <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
+              <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
+                {coverImage ? <img src={coverImage} alt="Capa do deck" className="h-full w-full object-cover" /> : <div className="flex h-full min-h-28 items-center justify-center px-4 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}
+                <input ref={coverUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+              </div>
+              <div className="space-y-3">
+                <div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial</p><p className="mt-1 text-sm text-soft">Envie uma imagem do computador para representar o deck.</p></div>
+                <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" disabled={uploadingCover} onClick={() => coverUploadInputRef.current?.click()}>{uploadingCover ? "Enviando…" : "Enviar capa"}</Button>{coverImage ? <Button type="button" variant="ghost" className="rounded-none text-slate-400 hover:text-white" onClick={() => setCoverImage("")}>Remover</Button> : null}</div>
+                <div className="pt-2"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de destaque · até 2</p><p className="mt-1 text-sm text-soft">Escolha cartas já cadastradas na pool carregada.</p><div className="mt-3 grid max-h-40 gap-2 overflow-auto pr-1 sm:grid-cols-2">{cards.map((card) => { const active = featuredCardIds.includes(card.id); return <button key={card.id} type="button" onClick={() => toggleFeaturedCard(card.id)} className={`flex items-center gap-2 border p-2 text-left text-xs transition ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}><span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span><span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span></button>; })}</div></div>
+              </div>
+            </div>
+          </details>
+        </div>
+        </div>
+        ) : (
+        <div className="space-y-6">
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -674,26 +695,20 @@ export default function DeckbuilderPage() {
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
                 <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
-                <div className="mt-6 space-y-4">
+                <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {recommendationCards.length ? recommendationCards.map((card) => (
-                    <div key={card.id} className="panel-cut border surface-strong p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                          <p className="mt-1 text-lg heading-portal">{card.namePt || card.name}</p>
-                          <p className="text-sm text-muted-portal">score {card.score} · {card.color} · custo {card.cost}</p>
+                    <div key={card.id} className="panel-cut border surface-strong p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
+                          <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
+                          <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
                         </div>
-                        <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>Adicionar</Button>
-                      </div>
-                      <ul className="mt-3 space-y-1 text-sm text-soft">
-                        {card.reasons.map((reason: string) => <li key={reason}>• {reason}</li>)}
-                      </ul>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir carta</Link>
-                        {card.keywords[0] ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(card.keywords[0])}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver rulings</Link> : null}
+                        <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
                       </div>
                     </div>
-                  )) : <p className="text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
+                  )) : <p className="col-span-full text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
                 </div>
               </CardContent>
             </Card>
@@ -758,32 +773,8 @@ export default function DeckbuilderPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
-                <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
-              </div>
-              <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[520px] overflow-auto pr-1">
-                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="panel-cut rounded-none surface-panel">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-heading text-3xl uppercase heading-portal">Deck de recursos</h3>
-                <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[280px] overflow-auto pr-1">
-                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
-              </div>
-            </CardContent>
-          </Card>
         </div>
+        )}
       </div>
       )}
     </PortalShell>
