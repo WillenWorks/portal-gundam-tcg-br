@@ -1,7 +1,7 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Plus, Save, Share2, Trash2 } from "lucide-react";
-import { Link, useLocation, useRoute } from "wouter";
+import { ChevronLeft, ChevronRight, Copy, ImagesIcon, Minus, Plus, Save, Share2, Trash2, X } from "lucide-react";
+import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 
@@ -89,12 +90,14 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  igual ao padrão de deckbuilder de jogo real (Master Duel, MTG Arena, YGO Omega) em vez
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
-function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onSwapExComponent }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void }) {
+function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onOpenGallery, onSwapExComponent }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void }) {
   const exSection = card.type === "EX_BASE" ? "ex_base" : card.type === "EX_RESOURCE" ? "ex_resource" : null;
   const banned = limit === 0;
   const atLimit = qtyInDeck >= limit;
   const image = card.imageMediumUrl || card.imageUrl;
-  const handleClick = () => (exSection ? onSwapExComponent(exSection, card.printId || card.id) : onAdd(card));
+  const printId = card.printId || card.id;
+  const modelId = card.cardModelId || card.id;
+  const handleClick = () => (exSection ? onSwapExComponent(exSection, printId) : onAdd(card));
   return (
     <div className="group relative">
       <button
@@ -110,24 +113,32 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onSwapExComponen
           <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>
         )}
 
-        {!exSection && qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{qtyInDeck}</span> : null}
+        {!exSection && qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{qtyInDeck}</span> : null}
         {banned ? <span className="absolute inset-x-0 top-0 bg-red-500/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">banida</span> : null}
         {exSection ? <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">carta única</span> : null}
         {!banned && !exSection && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
 
-        <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left transition duration-200 group-hover:translate-y-0">
-          <p className="truncate text-xs font-medium text-white">{card.namePt || card.name}</p>
-          <p className="truncate text-[10px] text-slate-400">{card.code}{exSection ? "" : ` · custo ${card.cost}${limit !== Infinity ? ` · ${qtyInDeck}/${limit}` : ""}`}</p>
+        <div className="absolute inset-x-0 bottom-6 translate-y-full bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+          <p className="truncate text-[11px] font-medium text-white">{card.namePt || card.name}</p>
         </div>
       </button>
-      <Link
-        href={`/cards/${card.id}`}
-        onClick={(event) => event.stopPropagation()}
-        title="Ver detalhes da carta"
-        className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[11px] font-bold text-white opacity-0 transition group-hover:opacity-100"
-      >
-        i
-      </Link>
+
+      {!exSection ? (
+        <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">
+          <ImagesIcon className="size-3.5" />
+        </button>
+      ) : null}
+
+      {!exSection ? (
+        <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+          <button type="button" onClick={() => onDecrement(printId)} disabled={qtyInDeck <= 0} title={`Remover 1 cópia`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500 disabled:pointer-events-none disabled:opacity-30">
+            <Minus className="size-3.5" />
+          </button>
+          <button type="button" onClick={() => onAdd(card)} disabled={atLimit} title="Adicionar 1 cópia" className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground disabled:pointer-events-none disabled:opacity-30">
+            <Plus className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -135,23 +146,30 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onSwapExComponen
 /** Tile compacto da decklist — mesma grade visual da pool, mas clicar remove uma
  *  cópia (simétrico: pool adiciona, decklist remove). Botão "+" só aparece no
  *  hover, pra não competir com o clique principal. */
-function DeckGridTile({ row, onIncrement, onDecrement }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void }) {
+function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void }) {
   const image = row.imageMediumUrl || row.imageUrl;
+  const printId = row.printId || row.id;
+  const modelId = row.cardModelId || row.id;
   return (
     <div className="group relative">
-      <button
-        type="button"
-        onClick={() => onDecrement(row.printId || row.id)}
-        title={`Remover 1 cópia de ${row.namePt || row.name}`}
-        className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-red-400/50"
-      >
+      <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/50">
         {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
-        <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{row.quantity}</span>
-        <div className="absolute inset-x-0 bottom-0 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
-          <p className="truncate text-[10px] font-medium text-white">{row.namePt || row.name}</p>
+        <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
+        <div className="absolute inset-x-0 bottom-6 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
+          <p className="truncate text-[11px] font-medium text-white">{row.namePt || row.name}</p>
         </div>
+      </div>
+      <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">
+        <ImagesIcon className="size-3.5" />
       </button>
-      <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-sm font-bold text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">+</button>
+      <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+        <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
+          <Minus className="size-3.5" />
+        </button>
+        <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground">
+          <Plus className="size-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -175,6 +193,86 @@ function ExComponentTile({ label, row, onReset }: { label: string; row: DeckRow 
   );
 }
 
+/** Modal de galeria de arte — abre a partir do botão no canto superior esquerdo de
+ *  qualquer tile (pool ou decklist). Busca as impressões da carta sob demanda (só
+ *  quando abre) e cada impressão tem seus próprios +/-, respeitando o mesmo limite
+ *  de cópia por code que a pool já usa (increment já soma entre impressões). */
+function AltArtModal({
+  modelId,
+  onClose,
+  entries,
+  getCopyLimit,
+  onIncrement,
+  onDecrement,
+}: {
+  modelId: string | null;
+  onClose: () => void;
+  entries: DeckEntry[];
+  getCopyLimit: (cardModelId: string, cardType?: string) => number;
+  onIncrement: (card: CardRecord) => void;
+  onDecrement: (printId: string) => void;
+}) {
+  const [prints, setPrints] = useState<CardRecord[] | null>(null);
+  const [modelLabel, setModelLabel] = useState("");
+
+  useEffect(() => {
+    if (!modelId) { setPrints(null); return; }
+    let active = true;
+    setPrints(null);
+    api.getCard(modelId).then((data) => {
+      if (!active) return;
+      setModelLabel(data.namePt || data.nameEn || "");
+      const modelFields = { cardModelId: modelId, nameEn: data.nameEn, namePt: data.namePt, cardType: data.cardType, color: data.color, cost: data.cost, level: data.level, ap: data.ap, hp: data.hp, trait: data.trait, series: data.series, sourceTitle: data.sourceTitle, keywordTags: data.keywordTags, effectPt: data.effectPt, effectEn: data.effectEn };
+      const mapped = (data.prints || []).map((print: any) => mapApiCard({ ...print, ...modelFields }));
+      setPrints(mapped);
+    }).catch(() => { if (active) setPrints([]); });
+    return () => { active = false; };
+  }, [modelId]);
+
+  if (!modelId) return null;
+  const limit = prints?.[0] ? getCopyLimit(modelId, prints[0].type) : 4;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl border-white/10 bg-slate-950 text-white">
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Galeria de arte</p>
+            <h3 className="font-heading text-2xl uppercase heading-portal">{modelLabel || "Carregando…"}</h3>
+          </div>
+        </div>
+        {!prints ? (
+          <p className="py-8 text-center text-sm text-muted-portal">Carregando impressões...</p>
+        ) : prints.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-portal">Não achei impressões dessa carta.</p>
+        ) : (
+          <div className="grid max-h-[65vh] grid-cols-3 gap-3 overflow-auto pr-1 sm:grid-cols-4">
+            {prints.map((print) => {
+              const printId = print.printId || print.id;
+              const qty = entries.filter((entry) => entry.cardId === printId).reduce((sum, entry) => sum + entry.quantity, 0);
+              const image = print.imageMediumUrl || print.imageUrl;
+              return (
+                <div key={printId} className="border border-white/10 bg-slate-900/60 p-2">
+                  <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">
+                    {image ? <img src={image} alt={print.namePt || print.name} className="h-full w-full object-cover" /> : null}
+                  </div>
+                  <p className="mt-2 truncate text-[11px] text-slate-400">{print.code}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <Button size="sm" variant="outline" className="h-7 flex-1 rounded-none border-white/15 bg-white/5 px-0 text-white hover:text-white" onClick={() => onDecrement(printId)} disabled={qty <= 0}><Minus className="size-3.5" /></Button>
+                    <span className="min-w-6 text-center text-sm font-bold">{qty}</span>
+                    <Button size="sm" className="h-7 flex-1 rounded-none bg-primary px-0 text-primary-foreground hover:bg-primary/90" onClick={() => onIncrement(print)} disabled={qty >= limit}><Plus className="size-3.5" /></Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="border-t border-white/10 pt-3 text-xs text-slate-500">Limite de {limit === Infinity ? "cópia livre" : `${limit} cópia(s)`} somado entre todas as artes desta carta.</p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function DeckbuilderPage() {
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
@@ -185,6 +283,7 @@ export default function DeckbuilderPage() {
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
+  const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -675,14 +774,14 @@ export default function DeckbuilderPage() {
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
-            <div className="mt-6 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-6">
+            <div className="mt-6 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-7">
               {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
               {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
                 const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
                 const limit = getCopyLimit(card.id, card.type);
                 const section = getSectionForCardType(card.type);
-                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onSwapExComponent={setExComponentArt} />;
+                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onSwapExComponent={setExComponentArt} />;
               })}
             </div>
 
@@ -703,8 +802,8 @@ export default function DeckbuilderPage() {
                 <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
                 <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
               </div>
-              <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[420px] overflow-auto pr-1">
-                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
+              <div className="mt-6 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[420px] overflow-auto pr-1">
+                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
               </div>
             </CardContent>
           </Card>
@@ -716,8 +815,8 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-8 max-h-[220px] overflow-auto pr-1">
-                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
+              <div className="mt-4 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[220px] overflow-auto pr-1">
+                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>
           </Card>
@@ -882,6 +981,7 @@ export default function DeckbuilderPage() {
         )}
       </div>
       )}
+      <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
     </PortalShell>
   );
 }
