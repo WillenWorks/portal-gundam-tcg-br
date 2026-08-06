@@ -90,8 +90,9 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
 function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void }) {
+  const isFixedComponent = card.type === "EX_BASE" || card.type === "EX_RESOURCE";
   const banned = limit === 0;
-  const atLimit = qtyInDeck >= limit;
+  const atLimit = qtyInDeck >= limit || isFixedComponent;
   const image = card.imageMediumUrl || card.imageUrl;
   return (
     <div className="group relative">
@@ -99,7 +100,7 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRe
         type="button"
         onClick={() => onAdd(card)}
         disabled={atLimit}
-        title={banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
+        title={isFixedComponent ? `${card.namePt || card.name} — componente fixo do jogo, não entra na contagem do deck` : banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
         className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${atLimit ? "opacity-45" : ""}`}
       >
         {image ? (
@@ -110,7 +111,8 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd }: { card: CardRe
 
         {qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{qtyInDeck}</span> : null}
         {banned ? <span className="absolute inset-x-0 top-0 bg-red-500/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">banida</span> : null}
-        {!banned && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
+        {isFixedComponent ? <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">componente fixo</span> : null}
+        {!banned && !isFixedComponent && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
 
         <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left transition duration-200 group-hover:translate-y-0">
           <p className="truncate text-xs font-medium text-white">{card.namePt || card.name}</p>
@@ -420,6 +422,13 @@ export default function DeckbuilderPage() {
   };
 
   const increment = (card: CardRecord) => {
+    // EX Base / EX Resource são componente fixo do jogo (1 de cada, sempre — "at the
+    // start of the game, place 1 active EX Base..."), não é escolha de deckbuilding.
+    // Fica de fora da pool por enquanto — a troca de arte customizada fica pra depois.
+    if (card.type === "EX_BASE" || card.type === "EX_RESOURCE") {
+      toast.error(`${card.type === "EX_BASE" ? "EX Base" : "EX Resource"} é componente fixo do jogo, não entra na contagem do deck — customização de arte ainda não disponível.`);
+      return;
+    }
     const printId = card.printId || card.id;
     const modelId = card.cardModelId || card.id;
     const section = getSectionForCardType(card.type);
@@ -427,6 +436,12 @@ export default function DeckbuilderPage() {
     const currentTotal = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === modelId).reduce((sum, entry) => sum + entry.quantity, 0);
     if (currentTotal >= limit) {
       toast.error(limit === 0 ? `${card.namePt || card.name} está banida — não pode ser usada.` : `Limite de ${limit} cópia(s) de "${card.namePt || card.name}" já atingido.`);
+      return;
+    }
+    // Limite do deck de recursos é no TOTAL (exatamente 10), separado do limite por
+    // carta (que é livre entre si) — sem isso dava pra passar de 10 sem aviso nenhum.
+    if (section === "resource" && stats.resourceDeckCount >= DECK_RESOURCE_SIZE) {
+      toast.error(`Deck de recursos já tem ${DECK_RESOURCE_SIZE} cartas — remova uma antes de adicionar outra.`);
       return;
     }
     cacheCards([card]);
