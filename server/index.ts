@@ -1187,14 +1187,6 @@ app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([U
   res.status(204).send();
 });
 
-/** TODO: exclusão da "coleção Beta" (imagem quebrada/ausente, código "GD01_b" e
- *  variantes) foi tentada e revertida em ago/2026 — a combinação NOT/OR com relação
- *  opcional (set) causou uma regressão pior (nenhuma carta mostrando imagem, ver
- *  histórico do commit). Sem acesso a Postgres real com o dado de produção pra testar
- *  a query de verdade, não é seguro tentar de novo às cegas. Alternativa mais segura
- *  pra quando isso voltar à mesa: marcar as impressões beta explicitamente no admin
- *  (um boolean simples, tipo isActive) em vez de casar por padrão de texto no code/set.
-
 app.get("/api/cards", async (req, res) => {
   setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q ?? req.query.search);
@@ -1222,29 +1214,20 @@ app.get("/api/cards", async (req, res) => {
   };
   const hasPrintFilter = Boolean(rarity || setCode);
 
+  // Busca por texto em duas camadas — nome bate primeiro, série preenche o resto da
+  // página. Trait/efeito/piloto ficam de fora de propósito (só teriam sentido pros
+  // filtros dedicados de trait/keyword, que já existem separados) — buscar "Wing" deve
+  // trazer as cartas com "Wing" no nome, não qualquer carta cujo efeito cite a palavra.
   const qNameCondition: Prisma.CardModelWhereInput | undefined = q
     ? { OR: [{ code: { contains: q, mode: "insensitive" } }, { nameEn: { contains: q, mode: "insensitive" } }, { namePt: { contains: q, mode: "insensitive" } }] }
     : undefined;
-  const qBroadCondition: Prisma.CardModelWhereInput | undefined = q
-    ? {
-        OR: [
-          { code: { contains: q, mode: "insensitive" } },
-          { nameEn: { contains: q, mode: "insensitive" } },
-          { namePt: { contains: q, mode: "insensitive" } },
-          { series: { contains: q, mode: "insensitive" } },
-          { sourceTitle: { contains: q, mode: "insensitive" } },
-          { trait: { contains: q, mode: "insensitive" } },
-          { linkText: { contains: q, mode: "insensitive" } },
-          { pilotName: { contains: q, mode: "insensitive" } },
-          { effectEn: { contains: q, mode: "insensitive" } },
-          { effectPt: { contains: q, mode: "insensitive" } },
-          { keywordTags: { has: q } },
-        ],
-      }
+  const qSeriesCondition: Prisma.CardModelWhereInput | undefined = q
+    ? { OR: [{ series: { contains: q, mode: "insensitive" } }, { sourceTitle: { contains: q, mode: "insensitive" } }] }
     : undefined;
+  const qBroadCondition: Prisma.CardModelWhereInput | undefined = q ? { OR: [qNameCondition!, qSeriesCondition!] } : undefined;
 
-  // Filtros que não dependem de q — reaproveitados nas duas metades da busca em duas
-  // camadas (nome primeiro, resto depois) sem duplicar a lista inteira duas vezes.
+  // Filtros que não dependem de q — reaproveitados nas duas camadas da busca (nome
+  // primeiro, série depois) sem repetir a lista inteira duas vezes.
   const restFilters: Prisma.CardModelWhereInput[] = [
     { isActive: true },
     color ? { color } : {},
@@ -1267,8 +1250,6 @@ app.get("/api/cards", async (req, res) => {
   ];
 
   const where: Prisma.CardModelWhereInput = { AND: [...restFilters, qBroadCondition || {}] };
-  // "nome bate" é a mesma lista de filtros, só trocando a condição de busca — usada pra
-  // buscar em duas camadas (ver abaixo) sem repetir os outros filtros por engano.
   const whereNameMatch: Prisma.CardModelWhereInput = { AND: [...restFilters, qNameCondition || {}] };
 
   const orderByMap: Record<string, Prisma.CardModelOrderByWithRelationInput[]> = {
@@ -1314,9 +1295,8 @@ app.get("/api/cards", async (req, res) => {
 
   if (pagination.enabled) {
     // Com busca textual ativa, nome bate primeiro (over-fetch até skip+take e corta),
-    // resto dos campos (série, efeito, trait...) preenche o que sobrar da página — sem
-    // isso, buscar "Wing" trazia qualquer carta da série Gundam Wing mesmo sem "Wing"
-    // no nome, com peso igual a quem realmente bate no nome.
+    // série preenche o resto da página — sem isso, buscar "Wing" trazia qualquer carta
+    // da série Gundam Wing mesmo sem "Wing" no nome, com peso igual a quem batia no nome.
     if (q) {
       const need = pagination.skip + pagination.take;
       const [nameMatches, total] = await Promise.all([
