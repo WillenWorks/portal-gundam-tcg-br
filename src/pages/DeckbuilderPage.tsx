@@ -90,7 +90,7 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  igual ao padrão de deckbuilder de jogo real (Master Duel, MTG Arena, YGO Omega) em vez
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
-function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onOpenGallery, onSwapExComponent }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void }) {
+function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onOpenGallery, onSwapExComponent, onPreview }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void; onPreview: (card: CardRecord) => void }) {
   const exSection = card.type === "EX_BASE" ? "ex_base" : card.type === "EX_RESOURCE" ? "ex_resource" : null;
   const banned = limit === 0;
   const atLimit = qtyInDeck >= limit;
@@ -133,6 +133,9 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
           <button type="button" onClick={() => onDecrement(printId)} disabled={qtyInDeck <= 0} title={`Remover 1 cópia`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500 disabled:pointer-events-none disabled:opacity-30">
             <Minus className="size-3.5" />
+          </button>
+          <button type="button" onClick={() => onPreview(card)} title="Ver imagem grande" className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-white/20">
+            <Eye className="size-3.5" />
           </button>
           <button type="button" onClick={() => onAdd(card)} disabled={atLimit} title="Adicionar 1 cópia" className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground disabled:pointer-events-none disabled:opacity-30">
             <Plus className="size-3.5" />
@@ -290,7 +293,7 @@ function CardPreviewModal({ card, onClose }: { card: CardRecord | null; onClose:
         </div>
         <div className="flex items-center justify-between gap-3 pt-1">
           <p className="min-w-0 truncate text-sm text-soft">{card.namePt || card.name} · {card.code}</p>
-          <a href={`/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
+          <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
             <ExternalLink className="size-3.5" />Abrir detalhe
           </a>
         </div>
@@ -835,7 +838,7 @@ export default function DeckbuilderPage() {
                 const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
                 const limit = getCopyLimit(card.id, card.type);
                 const section = getSectionForCardType(card.type);
-                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onSwapExComponent={setExComponentArt} />;
+                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onSwapExComponent={setExComponentArt} onPreview={setPreviewCard} />;
               })}
             </div>
 
