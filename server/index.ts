@@ -1187,15 +1187,13 @@ app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([U
   res.status(204).send();
 });
 
-/** Impressões da "coleção Beta" têm imagem quebrada/ausente no catálogo — excluídas das
- *  listagens e da galeria de arte até isso ser resolvido na curadoria (código "GD01_b" e
- *  variantes, seja no code da própria impressão ou no code da coleção/set dela). */
-const excludeBetaPrints: Prisma.CardWhereInput = {
-  AND: [
-    { NOT: { code: { contains: "_b", mode: "insensitive" } } },
-    { OR: [{ setId: null }, { NOT: { set: { is: { code: { contains: "_b", mode: "insensitive" } } } } }] },
-  ],
-};
+/** TODO: exclusão da "coleção Beta" (imagem quebrada/ausente, código "GD01_b" e
+ *  variantes) foi tentada e revertida em ago/2026 — a combinação NOT/OR com relação
+ *  opcional (set) causou uma regressão pior (nenhuma carta mostrando imagem, ver
+ *  histórico do commit). Sem acesso a Postgres real com o dado de produção pra testar
+ *  a query de verdade, não é seguro tentar de novo às cegas. Alternativa mais segura
+ *  pra quando isso voltar à mesa: marcar as impressões beta explicitamente no admin
+ *  (um boolean simples, tipo isActive) em vez de casar por padrão de texto no code/set.
 
 app.get("/api/cards", async (req, res) => {
   setPublicCache(res, 20, 90);
@@ -1219,7 +1217,6 @@ app.get("/api/cards", async (req, res) => {
 
   const printWhere: Prisma.CardWhereInput = {
     isActive: true,
-    ...excludeBetaPrints,
     ...(rarity ? { rarity } : {}),
     ...(setCode ? { set: { is: { code: setCode } } } : {}),
   };
@@ -1297,12 +1294,12 @@ app.get("/api/cards", async (req, res) => {
 
   const printInclude = {
     prints: {
-      where: hasPrintFilter ? printWhere : { isActive: true, ...excludeBetaPrints },
+      where: hasPrintFilter ? printWhere : { isActive: true },
       include: { set: true },
       orderBy: [{ isPrimaryPrint: "desc" as const }, { createdAt: "asc" as const }],
       take: 1,
     },
-    _count: { select: { prints: { where: { isActive: true, ...excludeBetaPrints } } } },
+    _count: { select: { prints: { where: { isActive: true } } } },
   };
 
   // "Achata" CardModel + a impressão representativa (a que bate com o filtro de raridade/
@@ -1406,7 +1403,7 @@ app.get("/api/cards/:id", async (req, res) => {
 
   let model = await prisma.cardModel.findUnique({
     where: { id },
-    include: { prints: { where: { isActive: true, ...excludeBetaPrints }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
+    include: { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
   });
 
   // Compatibilidade: se o :id passado for de uma impressão específica (ex: link salvo de
@@ -1416,7 +1413,7 @@ app.get("/api/cards/:id", async (req, res) => {
     if (print?.cardModelId) {
       model = await prisma.cardModel.findUnique({
         where: { id: print.cardModelId },
-        include: { prints: { where: { isActive: true, ...excludeBetaPrints }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
+        include: { prints: { where: { isActive: true }, include: { set: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }] }, rulings: { where: { isActive: true } } },
       });
     }
   }
