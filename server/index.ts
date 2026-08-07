@@ -1191,10 +1191,9 @@ app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([U
  *  listagens e da galeria de arte até isso ser resolvido na curadoria (código "GD01_b" e
  *  variantes, seja no code da própria impressão ou no code da coleção/set dela). */
 const excludeBetaPrints: Prisma.CardWhereInput = {
-  code: { not: { contains: "_b", mode: "insensitive" } },
-  OR: [
-    { setId: null },
-    { set: { is: { code: { not: { contains: "_b", mode: "insensitive" } } } } },
+  AND: [
+    { NOT: { code: { contains: "_b", mode: "insensitive" } } },
+    { OR: [{ setId: null }, { NOT: { set: { is: { code: { contains: "_b", mode: "insensitive" } } } } }] },
   ],
 };
 
