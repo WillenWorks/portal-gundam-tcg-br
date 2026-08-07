@@ -561,6 +561,30 @@ export default function DeckbuilderPage() {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
   }, [mainDeckRows]);
 
+  // Candidatos de recomendação buscados à parte da pool que o usuário está navegando —
+  // sem isso, um filtro de cor/tipo ativo na pool "sequestrava" a recomendação (só podia
+  // sugerir dentro do que já estava filtrado, mesmo que a melhor sinergia estivesse fora).
+  // Refaz sempre que trait/série/cor dominante do deck muda, não quando o usuário troca filtro.
+  const [recommendationPool, setRecommendationPool] = useState<CardRecord[]>([]);
+  useEffect(() => {
+    if (!dominantTrait && !dominantSeries && !dominantColor) { setRecommendationPool([]); return; }
+    let active = true;
+    Promise.all([
+      dominantTrait ? api.listCardsPage({ trait: dominantTrait } as CardFilters, { page: 1, pageSize: 40 }).catch(() => null) : null,
+      dominantSeries ? api.listCardsPage({ series: dominantSeries } as CardFilters, { page: 1, pageSize: 40 }).catch(() => null) : null,
+      dominantColor ? api.listCardsPage({ color: dominantColor } as CardFilters, { page: 1, pageSize: 40 }).catch(() => null) : null,
+    ]).then(([byTrait, bySeries, byColor]) => {
+      if (!active) return;
+      const merged = new Map<string, CardRecord>();
+      for (const result of [byTrait, bySeries, byColor]) {
+        if (!result) continue;
+        for (const card of result.items.map(mapApiCard)) merged.set(card.id, card);
+      }
+      setRecommendationPool([...merged.values()]);
+    });
+    return () => { active = false; };
+  }, [dominantTrait, dominantSeries, dominantColor]);
+
   const synergyScore = useMemo(() => {
     if (!deckRows.length) return 0;
     let points = 0;
@@ -585,7 +609,10 @@ export default function DeckbuilderPage() {
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
-    return cards
+    const candidates = new Map<string, CardRecord>();
+    for (const card of cards) candidates.set(card.id, card);
+    for (const card of recommendationPool) candidates.set(card.id, card);
+    return [...candidates.values()]
       .filter((card) => !existingModelIds.has(card.id))
       .map((card) => {
         let score = 0;
@@ -615,7 +642,7 @@ export default function DeckbuilderPage() {
       .filter((card) => card.score > 0)
       .sort((a, b) => b.score - a.score || a.cost - b.cost)
       .slice(0, 6);
-  }, [cards, entries, cardCache, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
+  }, [cards, recommendationPool, entries, cardCache, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
 
   const setPoolFilter = (key: keyof PoolFilters, value: string) => {
     setPoolPage(1);
