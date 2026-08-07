@@ -37,7 +37,7 @@ export interface CardRecord {
 export interface DeckEntry {
   cardId: string;
   quantity: number;
-  section?: "main" | "resource";
+  section?: "main" | "resource" | "ex_base" | "ex_resource";
 }
 
 export interface DeckRecord {

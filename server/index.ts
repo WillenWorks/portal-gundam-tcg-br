@@ -1214,45 +1214,43 @@ app.get("/api/cards", async (req, res) => {
   };
   const hasPrintFilter = Boolean(rarity || setCode);
 
-  const where: Prisma.CardModelWhereInput = {
-    AND: [
-      { isActive: true },
-      q
-        ? {
-            OR: [
-              { code: { contains: q, mode: "insensitive" } },
-              { nameEn: { contains: q, mode: "insensitive" } },
-              { namePt: { contains: q, mode: "insensitive" } },
-              { series: { contains: q, mode: "insensitive" } },
-              { sourceTitle: { contains: q, mode: "insensitive" } },
-              { trait: { contains: q, mode: "insensitive" } },
-              { linkText: { contains: q, mode: "insensitive" } },
-              { pilotName: { contains: q, mode: "insensitive" } },
-              { effectEn: { contains: q, mode: "insensitive" } },
-              { effectPt: { contains: q, mode: "insensitive" } },
-              { keywordTags: { has: q } },
-            ],
-          }
-        : {},
-      color ? { color } : {},
-      cardType ? (cardType === "COMMAND" || cardType === "COMMAND_PILOT" ? { cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } } : { cardType: cardType as CardType }) : {},
-      media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
-      trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
-      keyword ? { keywordTags: { has: keyword } } : {},
-      status ? { legalityStatus: status } : {},
-      ap !== undefined ? { ap } : {},
-      hp !== undefined ? { hp } : {},
-      cost !== undefined ? { cost } : {},
-      level !== undefined ? { level } : {},
-      link === "has" ? { OR: [{ linkText: { not: null } }, { pilotName: { not: null } }] } : {},
-      link === "pilot-card" ? { cardType: CardType.PILOT } : {},
-      link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
-      link === "none" ? { linkText: null, pilotName: null } : {},
-      relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
-      relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
-      hasPrintFilter ? { prints: { some: printWhere } } : {},
-    ],
-  };
+  // Busca por texto em duas camadas — nome bate primeiro, série preenche o resto da
+  // página. Trait/efeito/piloto ficam de fora de propósito (só teriam sentido pros
+  // filtros dedicados de trait/keyword, que já existem separados) — buscar "Wing" deve
+  // trazer as cartas com "Wing" no nome, não qualquer carta cujo efeito cite a palavra.
+  const qNameCondition: Prisma.CardModelWhereInput | undefined = q
+    ? { OR: [{ code: { contains: q, mode: "insensitive" } }, { nameEn: { contains: q, mode: "insensitive" } }, { namePt: { contains: q, mode: "insensitive" } }] }
+    : undefined;
+  const qSeriesCondition: Prisma.CardModelWhereInput | undefined = q
+    ? { OR: [{ series: { contains: q, mode: "insensitive" } }, { sourceTitle: { contains: q, mode: "insensitive" } }] }
+    : undefined;
+  const qBroadCondition: Prisma.CardModelWhereInput | undefined = q ? { OR: [qNameCondition!, qSeriesCondition!] } : undefined;
+
+  // Filtros que não dependem de q — reaproveitados nas duas camadas da busca (nome
+  // primeiro, série depois) sem repetir a lista inteira duas vezes.
+  const restFilters: Prisma.CardModelWhereInput[] = [
+    { isActive: true },
+    color ? { color } : {},
+    cardType ? (cardType === "COMMAND" || cardType === "COMMAND_PILOT" ? { cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } } : { cardType: cardType as CardType }) : {},
+    media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
+    trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
+    keyword ? { keywordTags: { has: keyword } } : {},
+    status ? { legalityStatus: status } : {},
+    ap !== undefined ? { ap } : {},
+    hp !== undefined ? { hp } : {},
+    cost !== undefined ? { cost } : {},
+    level !== undefined ? { level } : {},
+    link === "has" ? { OR: [{ linkText: { not: null } }, { pilotName: { not: null } }] } : {},
+    link === "pilot-card" ? { cardType: CardType.PILOT } : {},
+    link === "pilot-reference" ? { AND: [{ cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } }, { OR: [{ effectEn: { contains: "[Pilot]", mode: "insensitive" } }, { effectPt: { contains: "[Pilot]", mode: "insensitive" } }] }] } : {},
+    link === "none" ? { linkText: null, pilotName: null } : {},
+    relation === "missing" ? { AND: [{ outgoingRelations: { none: { isActive: true } } }, { incomingRelations: { none: { isActive: true } } }] } : {},
+    relation === "confirmed" ? { OR: [{ outgoingRelations: { some: { isActive: true } } }, { incomingRelations: { some: { isActive: true } } }] } : {},
+    hasPrintFilter ? { prints: { some: printWhere } } : {},
+  ];
+
+  const where: Prisma.CardModelWhereInput = { AND: [...restFilters, qBroadCondition || {}] };
+  const whereNameMatch: Prisma.CardModelWhereInput = { AND: [...restFilters, qNameCondition || {}] };
 
   const orderByMap: Record<string, Prisma.CardModelOrderByWithRelationInput[]> = {
     code_asc: [{ code: "asc" }, { nameEn: "asc" }],
@@ -1296,6 +1294,31 @@ app.get("/api/cards", async (req, res) => {
   };
 
   if (pagination.enabled) {
+    // Com busca textual ativa, nome bate primeiro (over-fetch até skip+take e corta),
+    // série preenche o resto da página — sem isso, buscar "Wing" trazia qualquer carta
+    // da série Gundam Wing mesmo sem "Wing" no nome, com peso igual a quem batia no nome.
+    if (q) {
+      const need = pagination.skip + pagination.take;
+      const [nameMatches, total] = await Promise.all([
+        prisma.cardModel.findMany({ where: whereNameMatch, include: printInclude, orderBy, take: need }),
+        prisma.cardModel.count({ where }),
+      ]);
+      let combined = nameMatches;
+      if (nameMatches.length < need) {
+        const remaining = need - nameMatches.length;
+        const excludeIds = nameMatches.map((m) => m.id);
+        const otherMatches = await prisma.cardModel.findMany({
+          where: { AND: [where, { id: { notIn: excludeIds } }] },
+          include: printInclude,
+          orderBy,
+          take: remaining,
+        });
+        combined = [...nameMatches, ...otherMatches];
+      }
+      const items = combined.slice(pagination.skip, pagination.skip + pagination.take);
+      return res.json({ items: items.map(flattenModel), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    }
+
     const [items, total] = await Promise.all([
       prisma.cardModel.findMany({ where, include: printInclude, orderBy, skip: pagination.skip, take: pagination.take }),
       prisma.cardModel.count({ where }),

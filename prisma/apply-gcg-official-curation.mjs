@@ -197,15 +197,23 @@ async function apply() {
     console.log(`Cartas no dataset oficial: ${officialCards.length}`);
 
     // --- 1. série ---
+    // Atualiza tanto a impressão (Card, mantido por compatibilidade/histórico) quanto o
+    // CardModel — que é quem a busca e a exibição pública usam de verdade desde a
+    // migração de Fase 1/2 (ver docs/13-migracao-cardmodel.md). Esse script nunca tinha
+    // sido atualizado depois daquela migração — só gravava na impressão, então o
+    // CardModel ficava com series/sourceTitle nulo pra sempre (o seed sempre zera os
+    // dois como null, e nada mais os preenchia no nível certo).
     let seriesUpdated = 0;
+    let seriesModelUpdated = 0;
     for (const u of seriesUpdates) {
-      const result = await prisma.card.updateMany({
-        where: { code: u.code, isActive: true },
-        data: { series: u.sourceTitle, sourceTitle: u.sourceTitle },
-      });
-      seriesUpdated += result.count;
+      const [printResult, modelResult] = await Promise.all([
+        prisma.card.updateMany({ where: { code: u.code, isActive: true }, data: { series: u.sourceTitle, sourceTitle: u.sourceTitle } }),
+        prisma.cardModel.updateMany({ where: { code: u.code, isActive: true }, data: { series: u.sourceTitle, sourceTitle: u.sourceTitle } }),
+      ]);
+      seriesUpdated += printResult.count;
+      seriesModelUpdated += modelResult.count;
     }
-    console.log(`Série: ${seriesUpdated} impressões atualizadas (${seriesUpdates.length} codes oficiais processados).`);
+    console.log(`Série: ${seriesUpdated} impressões e ${seriesModelUpdated} cartas (CardModel) atualizadas (${seriesUpdates.length} codes oficiais processados).`);
     if (seriesSkipped.length) {
       console.log(`Série: ${seriesSkipped.length} carta(s) com Source Title ambíguo, não gravadas — revisar manualmente:`);
       for (const s of seriesSkipped) console.log(`   - ${s.code} ${s.name} | valor bruto: "${s.rawSourceTitle}"`);
