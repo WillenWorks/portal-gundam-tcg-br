@@ -19,13 +19,13 @@ export default function DeckListPage() {
   const [decks, setDecks] = useState<ApiDeck[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (options?: { bypassCache?: boolean; silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
-      const result = await api.listMyDecks();
+      const result = await api.listMyDecks(options);
       setDecks(result);
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
 
@@ -35,8 +35,12 @@ export default function DeckListPage() {
     if (!window.confirm(`Excluir o deck "${name}"? Não tem como desfazer.`)) return;
     try {
       await api.deleteMyDeck(id);
+      // Some da lista na hora (não espera o reload) — o reload logo depois é só
+      // consistência silenciosa, ignorando o cache HTTP do navegador pra não voltar
+      // stale, sem piscar o estado de "carregando" já que a lista já está certa.
+      setDecks((current) => current.filter((deck) => deck.id !== id));
       toast.success("Deck excluído.");
-      await load();
+      await load({ bypassCache: true, silent: true });
     } catch (err: any) {
       toast.error(err?.message || "Erro ao excluir o deck.");
     }

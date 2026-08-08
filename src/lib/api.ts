@@ -198,7 +198,12 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
     if (cached !== null) return cached;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  // bypassCache também precisa avisar o fetch em si, não só pular o cache da aplicação —
+  // o backend manda Cache-Control (private, max-age) nas rotas de GET, e o navegador
+  // respeita isso independente do cache interno daqui. Sem "no-store" explícito, uma
+  // chamada logo depois de invalidar (ex: recarregar lista após excluir) pode voltar
+  // stale do cache HTTP do próprio navegador por até o max-age configurado.
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: options?.bypassCache ? "no-store" : init?.cache });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || "Falha na API.");
@@ -307,7 +312,7 @@ export const api = {
   listPublicDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
-  listMyDecks: () => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000 }),
+  listMyDecks: (options?: { bypassCache?: boolean }) => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
   getMyDeck: (id: string) => request<ApiDeck>(`/decks/me/${id}`, undefined, { ttlMs: 5_000 }),
   listMyDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/me${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 10_000 }),
