@@ -12,7 +12,7 @@ export function FeaturedCoverImage({ cards, fallbackLabel = "Sem capa", classNam
   if (withImage.length === 1) {
     return (
       <div className={`h-full w-full overflow-hidden ${className}`}>
-        <img src={withImage[0].imageUrl!} alt={withImage[0].name} className="h-full w-full object-cover" />
+        <img src={withImage[0].imageUrl!} alt={withImage[0].name} className="h-full w-full object-cover object-top" />
       </div>
     );
   }
@@ -21,7 +21,7 @@ export function FeaturedCoverImage({ cards, fallbackLabel = "Sem capa", classNam
     <div className={`flex h-full w-full overflow-hidden ${className}`}>
       {withImage.map((card) => (
         <div key={card.id} className="h-full w-1/2 overflow-hidden">
-          <img src={card.imageUrl!} alt={card.name} className="h-full w-full object-cover" />
+          <img src={card.imageUrl!} alt={card.name} className="h-full w-full object-cover object-top" />
         </div>
       ))}
     </div>
