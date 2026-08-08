@@ -35,6 +35,7 @@ export type ApiDeck = {
   user?: AuthUser;
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
   legality?: { valid: boolean; issues: Array<{ type: string; message: string; cardModelId?: string }> };
+  featuredCards?: Array<{ id: string; name: string; imageUrl: string | null }>;
 };
 
 export type ApiBinder = {

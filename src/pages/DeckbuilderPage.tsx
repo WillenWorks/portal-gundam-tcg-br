@@ -1,5 +1,5 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2 } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -320,8 +321,14 @@ export default function DeckbuilderPage() {
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
   const [coverImage, setCoverImage] = useState("");
   const [featuredCardIds, setFeaturedCardIds] = useState<string[]>([]);
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const coverUploadInputRef = useRef<HTMLInputElement | null>(null);
+  // Detalhes (nome + imagem) das cartas de destaque escolhidas — independente da pool
+  // principal, já que a busca de destaque agora é própria (pode achar qualquer carta do
+  // catálogo, não só o que está na tela). Populado ao carregar um deck existente (via
+  // deck.featuredCards, já resolvido pelo back-end) ou ao escolher pela busca dedicada.
+  const [featuredCardDetails, setFeaturedCardDetails] = useState<Record<string, { id: string; name: string; imageUrl: string | null }>>({});
+  const [featuredQuery, setFeaturedQuery] = useState("");
+  const [featuredResults, setFeaturedResults] = useState<CardRecord[]>([]);
+  const [featuredSearching, setFeaturedSearching] = useState(false);
   const [poolFilters, setPoolFilters] = useState<PoolFilters>(defaultPoolFilters);
   const [poolQueryDraft, setPoolQueryDraft] = useState("");
   const [poolMeta, setPoolMeta] = useState<PoolMeta>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
@@ -457,6 +464,7 @@ export default function DeckbuilderPage() {
     setVisibility(deck.visibility);
     setCoverImage(deck.coverImage || "");
     setFeaturedCardIds((deck.featuredCardIds || []).slice(0, 2));
+    setFeaturedCardDetails(Object.fromEntries((deck.featuredCards || []).map((card: any) => [card.id, card])));
     // deck.items[].card já vem incluído na resposta (ver server/index.ts) como a
     // impressão crua (Card) — usa direto, sem precisar de outra chamada à API.
     const deckCards = (deck.items || []).map((item: any) => item.card).filter(Boolean).map(mapApiCard);
@@ -714,34 +722,29 @@ export default function DeckbuilderPage() {
     toast.success("Deck salvo no backend.");
   };
 
-  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setUploadingCover(true);
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-      formData.append("entity", "decks");
-      formData.append("referenceCode", deckName || "deck");
-      formData.append("label", "cover");
-      const uploaded = await api.uploadAssetImage(formData);
-      setCoverImage(uploaded.imageUrl);
-      toast.success("Capa do deck enviada.");
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao enviar a capa do deck.");
-    } finally {
-      if (event.target) event.target.value = "";
-      setUploadingCover(false);
-    }
+
+  const toggleFeaturedCard = (card: { id: string; name: string; imageUrl: string | null }) => {
+    setFeaturedCardIds((current) => {
+      if (current.includes(card.id)) return current.filter((id) => id !== card.id);
+      if (current.length >= 2) { toast.error("Escolha no máximo duas cartas de destaque."); return current; }
+      return [...current, card.id];
+    });
+    setFeaturedCardDetails((current) => ({ ...current, [card.id]: card }));
   };
 
-  const toggleFeaturedCard = (cardId: string) => {
-    setFeaturedCardIds((current) => {
-      if (current.includes(cardId)) return current.filter((id) => id !== cardId);
-      if (current.length >= 2) { toast.error("Escolha no máximo duas cartas de destaque."); return current; }
-      return [...current, cardId];
-    });
-  };
+  // Busca dedicada pras cartas de destaque — decoupled da pool principal de propósito,
+  // pra achar qualquer carta do catálogo (não só o que está filtrado na tela agora).
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const trimmed = featuredQuery.trim();
+      if (!trimmed) { setFeaturedResults([]); return; }
+      setFeaturedSearching(true);
+      api.listCardsPage({ q: trimmed } as CardFilters, { page: 1, pageSize: 12 })
+        .then((result) => setFeaturedResults(result.items.map(mapApiCard)))
+        .finally(() => setFeaturedSearching(false));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [featuredQuery]);
 
   const copyShareLink = async () => {
     if (!selectedShareId) {
@@ -893,18 +896,48 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
-          {/* Capa + destaque — opcionais, recolhidos por padrão pra não competir com a decklist */}
+          {/* Estilo visual — opcional, recolhido por padrão pra não competir com a decklist.
+              Capa = as próprias cartas escolhidas, divididas ao meio (sem processar imagem,
+              não temos arte sem moldura/SAMPLE na base — ver FeaturedCoverImage). */}
           <details className="panel-cut border surface-strong open:pb-5">
-            <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial e cartas de destaque (opcional)</summary>
+            <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
             <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
               <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
-                {coverImage ? <img src={coverImage} alt="Capa do deck" className="h-full w-full object-cover" /> : <div className="flex h-full min-h-28 items-center justify-center px-4 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}
-                <input ref={coverUploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+                <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
               </div>
               <div className="space-y-3">
-                <div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Capa editorial</p><p className="mt-1 text-sm text-soft">Envie uma imagem do computador para representar o deck.</p></div>
-                <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" disabled={uploadingCover} onClick={() => coverUploadInputRef.current?.click()}>{uploadingCover ? "Enviando…" : "Enviar capa"}</Button>{coverImage ? <Button type="button" variant="ghost" className="rounded-none text-slate-400 hover:text-white" onClick={() => setCoverImage("")}>Remover</Button> : null}</div>
-                <div className="pt-2"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de destaque · até 2</p><p className="mt-1 text-sm text-soft">Escolha cartas já cadastradas na pool carregada.</p><div className="mt-3 grid max-h-40 gap-2 overflow-auto pr-1 sm:grid-cols-2">{cards.map((card) => { const active = featuredCardIds.includes(card.id); return <button key={card.id} type="button" onClick={() => toggleFeaturedCard(card.id)} className={`flex items-center gap-2 border p-2 text-left text-xs transition ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}><span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span><span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span></button>; })}</div></div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
+                  <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
+                </div>
+                {featuredCardIds.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {featuredCardIds.map((id) => {
+                      const card = featuredCardDetails[id];
+                      if (!card) return null;
+                      return (
+                        <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
+                          {card.name} <span className="text-primary">✕</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
+                <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                  {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
+                  {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
+                  {featuredResults.map((card) => {
+                    const active = featuredCardIds.includes(card.id);
+                    const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
+                    return (
+                      <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
+                        <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
+                        <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </details>

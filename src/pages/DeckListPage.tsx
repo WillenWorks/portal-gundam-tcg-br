@@ -10,6 +10,7 @@ import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 
 const VISIBILITY_LABEL: Record<string, string> = { PRIVATE: "Privado", UNLISTED: "Não listado", PUBLIC: "Público" };
 
@@ -84,7 +85,7 @@ export default function DeckListPage() {
                     toda deixava a capa enorme. Altura fixa fica igual não importa quantas
                     colunas cabem na tela. */}
                 <button type="button" onClick={() => navigate(`/deckbuilder/${deck.id}`)} className="block h-36 w-full overflow-hidden border-b border-white/10 bg-slate-950/70 text-left light:border-slate-300/70">
-                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.22em] text-slate-600">Sem capa</div>}
+                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]" /> : <FeaturedCoverImage cards={deck.featuredCards} className="transition duration-300 hover:scale-[1.03]" />}
                 </button>
                 <CardContent className="space-y-3 p-5">
                   <div className="flex items-start justify-between gap-3">
