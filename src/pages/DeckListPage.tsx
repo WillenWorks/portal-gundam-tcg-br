@@ -74,7 +74,7 @@ export default function DeckListPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {decks.map((deck) => {
             const mainCount = deck.items.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
             const resourceCount = deck.items.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
