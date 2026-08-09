@@ -1839,6 +1839,25 @@ function attachDeckLegality(deck: any, legality: DeckLegalityData) {
   return { ...deck, legality: computeDeckLegality(items, legality) };
 }
 
+/** Resolve featuredCardIds (ids de CardModel, escolhidos como "estilo visual" do deck)
+ *  pra imagem+nome de exibição — usado pra montar a capa dividida em duas metades (ver
+ *  DeckListPage/DeckbuilderPage). Busca em lote pra não fazer 1 query por deck quando
+ *  a rota devolve uma lista inteira. */
+async function enrichDecksWithFeaturedCards(decks: any[], legality: DeckLegalityData) {
+  const allIds = [...new Set(decks.flatMap((deck) => deck.featuredCardIds || []))];
+  const models = allIds.length
+    ? await prisma.cardModel.findMany({
+        where: { id: { in: allIds } },
+        include: { prints: { where: { isActive: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }], take: 1 } },
+      })
+    : [];
+  const byId = new Map(models.map((model: any) => [model.id, { id: model.id, name: model.namePt || model.nameEn, imageUrl: model.prints[0]?.imageMediumUrl || model.prints[0]?.imageUrl || null }]));
+  return decks.map((deck) => ({
+    ...attachDeckLegality(deck, legality),
+    featuredCards: (deck.featuredCardIds || []).map((id: string) => byId.get(id)).filter(Boolean),
+  }));
+}
+
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
@@ -1856,7 +1875,7 @@ app.get("/api/decks/public", async (req, res) => {
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: await enrichDecksWithFeaturedCards(items, legality), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
@@ -1864,7 +1883,7 @@ app.get("/api/decks/public", async (req, res) => {
     include: { user: true, items: { include: { card: true } } },
     orderBy: { updatedAt: "desc" },
   });
-  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
+  res.json(await enrichDecksWithFeaturedCards(decks, legality));
 });
 
 app.get("/api/decks/share/:shareId", async (req, res) => {
@@ -1876,7 +1895,7 @@ app.get("/api/decks/share/:shareId", async (req, res) => {
   });
   if (!deck || deck.visibility === "PRIVATE") return res.status(404).json({ error: "Deck não encontrado." });
   const legality = await loadDeckLegalityData();
-  res.json(attachDeckLegality(deck, legality));
+  res.json((await enrichDecksWithFeaturedCards([deck], legality))[0]);
 });
 
 app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
@@ -1896,7 +1915,7 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       }),
       prisma.deck.count({ where }),
     ]);
-    return res.json({ items: items.map((deck) => attachDeckLegality(deck, legality)), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    return res.json({ items: await enrichDecksWithFeaturedCards(items, legality), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
   }
 
   const decks = await prisma.deck.findMany({
@@ -1904,7 +1923,7 @@ app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
     include: { items: { include: { card: true } } },
     orderBy: [{ updatedAt: "desc" }],
   });
-  res.json(decks.map((deck) => attachDeckLegality(deck, legality)));
+  res.json(await enrichDecksWithFeaturedCards(decks, legality));
 });
 
 app.get("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => {
@@ -1915,7 +1934,7 @@ app.get("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   });
   if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
   const legality = await loadDeckLegalityData();
-  res.json(attachDeckLegality(deck, legality));
+  res.json((await enrichDecksWithFeaturedCards([deck], legality))[0]);
 });
 
 /** Confere que todo cardId do payload é uma impressão (Card) de verdade antes de

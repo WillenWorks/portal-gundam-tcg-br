@@ -35,6 +35,7 @@ export type ApiDeck = {
   user?: AuthUser;
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
   legality?: { valid: boolean; issues: Array<{ type: string; message: string; cardModelId?: string }> };
+  featuredCards?: Array<{ id: string; name: string; imageUrl: string | null }>;
 };
 
 export type ApiBinder = {
@@ -197,7 +198,16 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
     if (cached !== null) return cached;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  // O cache HTTP nativo do navegador (governado pelo Cache-Control que o backend manda)
+  // fica ATIVO independente do cache da aplicação aqui — mesmo com o cache interno já
+  // invalidado corretamente, um fetch() normal pode voltar servido direto do cache do
+  // navegador sem nem chegar no servidor, porque o "max-age" da resposta anterior ainda
+  // não expirou. Isso já causou dois bugs (excluir deck que reaparece depois de recarregar
+  // a página, mesmo já tendo sido excluído de verdade no banco). Como o app já tem seu
+  // próprio cache com invalidação correta (ttlMs + invalidateApiCache), o cache HTTP do
+  // navegador é só redundante e vira fonte de inconsistência — desligado sempre, não só
+  // quando bypassCache está ligado.
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || "Falha na API.");
@@ -306,7 +316,7 @@ export const api = {
   listPublicDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
-  listMyDecks: () => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000 }),
+  listMyDecks: (options?: { bypassCache?: boolean }) => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
   getMyDeck: (id: string) => request<ApiDeck>(`/decks/me/${id}`, undefined, { ttlMs: 5_000 }),
   listMyDecksPage: (pagination: PaginationParams = {}) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/me${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 10_000 }),

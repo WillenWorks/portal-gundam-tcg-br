@@ -422,7 +422,7 @@ model TournamentEntry {
   deckId       String?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  deck       Deck?      @relation(fields: [deckId], references: [id])
+  deck       Deck?      @relation(fields: [deckId], references: [id], onDelete: SetNull)
 }
 
 model Post {

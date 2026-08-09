@@ -5,11 +5,12 @@ import { toast } from "sonner";
 import { Plus, Share2, Trash2 } from "lucide-react";
 
 import { api, type ApiDeck } from "@/lib/api";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE } from "@/lib/deck-legality";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 
 const VISIBILITY_LABEL: Record<string, string> = { PRIVATE: "Privado", UNLISTED: "Não listado", PUBLIC: "Público" };
 
@@ -18,13 +19,13 @@ export default function DeckListPage() {
   const [decks, setDecks] = useState<ApiDeck[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (options?: { bypassCache?: boolean; silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     try {
-      const result = await api.listMyDecks();
+      const result = await api.listMyDecks(options);
       setDecks(result);
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
 
@@ -32,9 +33,17 @@ export default function DeckListPage() {
 
   const removeDeck = async (id: string, name: string) => {
     if (!window.confirm(`Excluir o deck "${name}"? Não tem como desfazer.`)) return;
-    await api.deleteMyDeck(id);
-    toast.success("Deck excluído.");
-    await load();
+    try {
+      await api.deleteMyDeck(id);
+      // Some da lista na hora (não espera o reload) — o reload logo depois é só
+      // consistência silenciosa, ignorando o cache HTTP do navegador pra não voltar
+      // stale, sem piscar o estado de "carregando" já que a lista já está certa.
+      setDecks((current) => current.filter((deck) => deck.id !== id));
+      toast.success("Deck excluído.");
+      await load({ bypassCache: true, silent: true });
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao excluir o deck.");
+    }
   };
 
   const copyShareLink = async (deck: ApiDeck) => {
@@ -69,15 +78,18 @@ export default function DeckListPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {decks.map((deck) => {
-            const mainCount = deck.items.filter((item) => item.section !== "resource").reduce((sum, item) => sum + item.quantity, 0);
+            const mainCount = deck.items.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
             const resourceCount = deck.items.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
             const valid = deck.legality?.valid ?? false;
             return (
               <Card key={deck.id} className="panel-cut overflow-hidden rounded-none surface-panel">
-                <button type="button" onClick={() => navigate(`/deckbuilder/${deck.id}`)} className="block aspect-[16/9] w-full overflow-hidden border-b border-white/10 bg-slate-950/70 text-left light:border-slate-300/70">
-                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.22em] text-slate-600">Sem capa</div>}
+                {/* Altura fixa (não aspect-ratio) — em 1 coluna (mobile), acompanhar a largura
+                    toda deixava a capa enorme. Altura fixa fica igual não importa quantas
+                    colunas cabem na tela. */}
+                <button type="button" onClick={() => navigate(`/deckbuilder/${deck.id}`)} className="block h-52 w-full overflow-hidden border-b border-white/10 bg-slate-950/70 text-left light:border-slate-300/70">
+                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]" /> : <FeaturedCoverImage cards={deck.featuredCards} className="transition duration-300 hover:scale-[1.03]" />}
                 </button>
                 <CardContent className="space-y-3 p-5">
                   <div className="flex items-start justify-between gap-3">
