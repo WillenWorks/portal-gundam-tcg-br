@@ -5,7 +5,7 @@ import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
-import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
+import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -317,6 +317,9 @@ export default function DeckbuilderPage() {
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
+  const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
+  const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -788,12 +791,12 @@ export default function DeckbuilderPage() {
    *  isso depende de as imagens das cartas permitirem uso entre domínios (CORS). Se a
    *  fonte não permitir, o canvas fica "contaminado" e a exportação falha com aviso
    *  claro em vez de travar silenciosamente. */
-  const downloadDeckImage = async () => {
+  const generateDeckImage = async () => {
     if (!mainDeckRows.length && !resourceDeckRows.length) {
       toast.error("Monte pelo menos uma carta para gerar a imagem.");
       return;
     }
-    const loadingToast = toast.loading("Gerando imagem...");
+    setGeneratingImage(true);
     try {
       const CARD_W = 140;
       const CARD_H = Math.round((CARD_W * 88) / 63);
@@ -803,6 +806,11 @@ export default function DeckbuilderPage() {
       const SECTION_LABEL_H = 26;
       const SECTION_GAP = 30;
 
+      // Passa pelo nosso proxy (ver server/index.ts: /api/image-proxy) — o CDN de
+      // origem (tcgplayer-cdn.tcgplayer.com) não libera CORS pra uso em canvas de outro
+      // domínio, então canvas.toBlob() ficaria "contaminado" e travaria com a imagem
+      // crua. Same-origin (via nosso proxy) resolve isso.
+      const proxied = (src: string) => (src ? `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(src)}` : "");
       const loadImage = (src: string): Promise<HTMLImageElement | null> =>
         new Promise((resolve) => {
           if (!src) { resolve(null); return; }
@@ -810,7 +818,7 @@ export default function DeckbuilderPage() {
           img.crossOrigin = "anonymous";
           img.onload = () => resolve(img);
           img.onerror = () => resolve(null);
-          img.src = src;
+          img.src = proxied(src);
         });
 
       const buildSection = async (rows: DeckRow[]) => {
@@ -875,19 +883,33 @@ export default function DeckbuilderPage() {
       drawSection(`Deck de recursos (${stats.resourceDeckCount}/${DECK_RESOURCE_SIZE})`, resourceSection);
 
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("As imagens das cartas bloqueiam exportação entre domínios (CORS) — não consegui gerar o arquivo.");
+      if (!blob) throw new Error("Não consegui gerar o arquivo da imagem.");
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(deckName || "deck").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Imagem baixada.", { id: loadingToast });
+      setDeckImageBlob(blob);
+      setDeckImagePreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar a imagem.", { id: loadingToast });
+      toast.error(err?.message || "Erro ao gerar a imagem.");
+    } finally {
+      setGeneratingImage(false);
     }
   };
+
+  const confirmDownloadDeckImage = () => {
+    if (!deckImageBlob) return;
+    const url = URL.createObjectURL(deckImageBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(deckName || "deck").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Imagem baixada.");
+  };
+
+  const closeDeckImagePreview = () => {
+    setDeckImagePreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return null; });
+    setDeckImageBlob(null);
+  };
+
 
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Decks", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo deck" }]}>
@@ -923,7 +945,7 @@ export default function DeckbuilderPage() {
                 <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">
                   <DropdownMenuItem onClick={copyDecklist} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar decklist (texto)</DropdownMenuItem>
                   <DropdownMenuItem onClick={copyDecklistMSA} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar formato MSA/Exburst</DropdownMenuItem>
-                  <DropdownMenuItem onClick={downloadDeckImage} className="cursor-pointer focus:bg-white/10 focus:text-white">Baixar imagem (PNG)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={generateDeckImage} disabled={generatingImage} className="cursor-pointer focus:bg-white/10 focus:text-white">{generatingImage ? "Gerando…" : "Baixar imagem (PNG)"}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1204,6 +1226,21 @@ export default function DeckbuilderPage() {
       )}
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
+      <Dialog open={Boolean(deckImagePreviewUrl)} onOpenChange={(open) => !open && closeDeckImagePreview()}>
+        <DialogContent className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
+          <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pré-visualização</p>
+              <h3 className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</h3>
+            </div>
+          </div>
+          {deckImagePreviewUrl ? <img src={deckImagePreviewUrl} alt="Prévia da decklist" className="max-h-[65vh] w-full overflow-auto border border-white/10 object-contain" /> : null}
+          <div className="flex justify-end gap-2 border-t border-white/10 pt-3">
+            <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" onClick={closeDeckImagePreview}>Cancelar</Button>
+            <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={confirmDownloadDeckImage}><Save className="mr-2 size-4" />Baixar PNG</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PortalShell>
   );
 }

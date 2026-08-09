@@ -754,6 +754,45 @@ async function ensureAdminSeed() {
   await ensureUserBinders(user.id);
 }
 
+/** Proxy de imagem — só existe pra dar suporte a exportações client-side que usam
+ *  canvas (ex: imagem PNG da decklist), já que canvas.toBlob() exige que a imagem
+ *  seja "same-origin" ou tenha CORS liberado, e o CDN de onde vêm as imagens de carta
+ *  (tcgplayer-cdn.tcgplayer.com) não libera isso pra uso via canvas em outro domínio.
+ *  Lista de permissão restrita de propósito — não é um proxy aberto pra qualquer URL. */
+const IMAGE_PROXY_ALLOWED_HOSTS = ["tcgplayer-cdn.tcgplayer.com"];
+if (process.env.SUPABASE_URL) {
+  try { IMAGE_PROXY_ALLOWED_HOSTS.push(new URL(process.env.SUPABASE_URL).host); } catch { /* URL inválida no .env, ignora */ }
+}
+
+app.get("/api/image-proxy", async (req, res) => {
+  const rawUrl = String(req.query.url || "");
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return res.status(400).json({ error: "URL inválida." });
+  }
+  if (parsed.protocol !== "https:" || !IMAGE_PROXY_ALLOWED_HOSTS.includes(parsed.host)) {
+    return res.status(403).json({ error: "Domínio não permitido no proxy de imagem." });
+  }
+  try {
+    const upstream = await fetch(parsed.toString());
+    if (!upstream.ok || !upstream.body) return res.status(upstream.status).json({ error: "Não consegui buscar a imagem de origem." });
+    res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
+    setPublicCache(res, 3600, 86400); // imagem de carta é estável, cacheia agressivo
+    const reader = upstream.body.getReader();
+    const pump = async (): Promise<void> => {
+      const { done, value } = await reader.read();
+      if (done) { res.end(); return; }
+      res.write(value);
+      return pump();
+    };
+    await pump();
+  } catch {
+    res.status(502).json({ error: "Erro ao buscar a imagem de origem." });
+  }
+});
+
 app.get("/api/health", async (_req, res) => {
   setPublicCache(res, 15, 60);
   const [userCount, cardCount, deckCount, binderCount] = await Promise.all([

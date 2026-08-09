@@ -1,6 +1,6 @@
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
 const USER_KEY = "portal-gundam-tcg-br:user";
 const API_CACHE_PREFIX = "portal-gundam-tcg-br:api-cache:";
