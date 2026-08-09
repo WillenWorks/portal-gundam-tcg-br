@@ -32,10 +32,17 @@ sem risco de subir coisa quebrada.
 1. Cria conta em [supabase.com](https://supabase.com) (dá pra usar login do GitHub).
 2. "New Project" — escolhe uma senha forte pro banco (anota, vai precisar).
 3. Espera o projeto provisionar (~2 min).
-4. Vai em **Project Settings → Database → Connection string** → copia a URI no modo
-   "Connection pooling" (porta 6543, recomendado pra ambiente serverless-like) —
-   essa é a sua `DATABASE_URL` de produção. Troca `[YOUR-PASSWORD]` pela senha do
-   passo 2.
+4. Vai em **Project Settings → Database → Connection string** → escolhe a aba
+   **"Session pooler"** (não "Direct connection" — desde 2024 ela só resolve em
+   IPv6, e o Render não tem saída IPv6, dá erro P1001 "Can't reach database
+   server"; e não "Transaction pooler"/porta 6543 também, que às vezes conflita
+   com o jeito que o Prisma prepara consulta). O host muda de
+   `db.<projeto>.supabase.co` pra `aws-0-<região>.pooler.supabase.com`, porta
+   5432, usuário no formato `postgres.<projeto>` — copia a URI completa dali,
+   essa é sua `DATABASE_URL` de produção. Troca `[YOUR-PASSWORD]` pela senha do
+   passo 2 — se a senha tiver caractere especial (`@`, `#`, `%` etc), precisa
+   codificar em formato de URL primeiro (ex: `@` vira `%40`), senão o Postgres
+   confunde com separador da string de conexão.
 5. (Opcional, mas recomendado): vai em **Project Settings → Database** e ativa
    backup automático se o plano permitir.
 6. Se for usar Supabase Storage pras imagens (recomendado em produção, em vez de
