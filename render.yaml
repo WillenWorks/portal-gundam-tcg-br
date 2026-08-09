@@ -1,0 +1,43 @@
+# Deploy da API no Render — ver docs/15-deploy-e-login-google.md pro passo a passo
+# completo (as partes que só dá pra fazer logado na conta do Render/Google/Supabase).
+#
+# Esse arquivo descreve o serviço; a maior parte dos valores sensíveis (DATABASE_URL,
+# JWT_SECRET, GOOGLE_CLIENT_ID etc) precisa ser preenchida manualmente no painel do
+# Render como variável de ambiente — não fica hardcoded aqui de propósito.
+services:
+  - type: web
+    name: portal-gundam-tcg-br-api
+    runtime: node
+    plan: free
+    branch: production
+    buildCommand: pnpm install --frozen-lockfile && pnpm run prisma:generate
+    startCommand: pnpm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: API_PORT
+        value: 8787
+      - key: STORAGE_DRIVER
+        value: supabase
+      # Preencher no painel do Render (não commitar valor real):
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        sync: false
+      - key: SUPABASE_STORAGE_PUBLIC_BASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false

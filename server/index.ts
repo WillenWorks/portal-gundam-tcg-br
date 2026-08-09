@@ -9,6 +9,7 @@ import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
+import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 
@@ -28,7 +29,11 @@ const SUPABASE_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "card-ima
 const SUPABASE_STORAGE_PUBLIC_BASE_URL = (process.env.SUPABASE_STORAGE_PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const MAX_IMAGE_UPLOAD_MB = Number(process.env.MAX_IMAGE_UPLOAD_MB || 8);
 
-app.use(cors());
+// Sem ALLOWED_ORIGINS configurado (ambiente local), fica aberto — igual sempre foi.
+// Em produção, define a lista (separada por vírgula) com o domínio real do front-end,
+// senão o navegador bloqueia as chamadas antes mesmo de chegar aqui.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean);
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
 app.use(express.json({ limit: "4mb" }));
 app.use("/uploads", express.static(uploadRootDir, {
   maxAge: STORAGE_DRIVER === "local" ? "1d" : 0,
@@ -843,7 +848,66 @@ app.post("/api/auth/login", async (req, res) => {
   const normalizedPassword = String(password || "");
   if (!normalizedEmail || !normalizedPassword) return res.status(400).json({ error: "Email e senha são obrigatórios." });
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (!user || !user.isActive || !(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
+  if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
+  if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
+  if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
+  await ensureUserBinders(user.id);
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  res.json({ token, user: serializeUser(user) });
+});
+
+/** Login/cadastro com Google — verifica o ID token emitido pelo Google Identity
+ *  Services no front-end (não confia em nada que o cliente mande além do token
+ *  assinado). Se já existe conta com esse e-mail (cadastrada por senha), vincula o
+ *  googleId a ela em vez de criar duplicata — assim o jogador pode entrar pelos dois
+ *  caminhos na mesma conta depois. Login com senha continua existindo exatamente
+ *  igual, isso aqui é só um caminho adicional. */
+app.post("/api/auth/google", async (req, res) => {
+  const { credential } = req.body as { credential?: string };
+  if (!credential) return res.status(400).json({ error: "Token do Google ausente." });
+  if (!process.env.GOOGLE_CLIENT_ID) return res.status(503).json({ error: "Login com Google não configurado neste ambiente." });
+
+  let payload: { sub: string; email?: string; email_verified?: boolean; name?: string; picture?: string } | undefined;
+  try {
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload() as typeof payload;
+  } catch {
+    return res.status(401).json({ error: "Token do Google inválido ou expirado." });
+  }
+  if (!payload || !payload.email || !payload.email_verified) return res.status(401).json({ error: "Não foi possível confirmar o e-mail do Google." });
+
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  let user = await prisma.user.findUnique({ where: { googleId: payload.sub } });
+
+  if (!user) {
+    const existingByEmail = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existingByEmail) {
+      // Já tinha conta por senha com esse e-mail — vincula o Google a ela em vez de duplicar.
+      user = await prisma.user.update({ where: { id: existingByEmail.id }, data: { googleId: payload.sub, avatarUrl: existingByEmail.avatarUrl || payload.picture || null } });
+    } else {
+      const displayName = payload.name || normalizedEmail.split("@")[0];
+      const usernameBase = slugify(displayName);
+      let username = usernameBase;
+      let suffix = 1;
+      while (await prisma.user.findUnique({ where: { username } })) username = `${usernameBase}-${suffix++}`;
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          displayName,
+          username,
+          googleId: payload.sub,
+          avatarUrl: payload.picture || null,
+          role: UserRole.USER,
+          isActive: true,
+          preferredCardLanguage: CardLanguage.PT_BR,
+          preferredTheme: "dark",
+        },
+      });
+    }
+  }
+
+  if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
   await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
