@@ -198,12 +198,16 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
     if (cached !== null) return cached;
   }
 
-  // bypassCache também precisa avisar o fetch em si, não só pular o cache da aplicação —
-  // o backend manda Cache-Control (private, max-age) nas rotas de GET, e o navegador
-  // respeita isso independente do cache interno daqui. Sem "no-store" explícito, uma
-  // chamada logo depois de invalidar (ex: recarregar lista após excluir) pode voltar
-  // stale do cache HTTP do próprio navegador por até o max-age configurado.
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: options?.bypassCache ? "no-store" : init?.cache });
+  // O cache HTTP nativo do navegador (governado pelo Cache-Control que o backend manda)
+  // fica ATIVO independente do cache da aplicação aqui — mesmo com o cache interno já
+  // invalidado corretamente, um fetch() normal pode voltar servido direto do cache do
+  // navegador sem nem chegar no servidor, porque o "max-age" da resposta anterior ainda
+  // não expirou. Isso já causou dois bugs (excluir deck que reaparece depois de recarregar
+  // a página, mesmo já tendo sido excluído de verdade no banco). Como o app já tem seu
+  // próprio cache com invalidação correta (ttlMs + invalidateApiCache), o cache HTTP do
+  // navegador é só redundante e vira fonte de inconsistência — desligado sempre, não só
+  // quando bypassCache está ligado.
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || "Falha na API.");
