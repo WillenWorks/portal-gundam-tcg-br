@@ -1,6 +1,6 @@
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
 const USER_KEY = "portal-gundam-tcg-br:user";
 const API_CACHE_PREFIX = "portal-gundam-tcg-br:api-cache:";
@@ -256,6 +256,7 @@ export const api = {
   health: () => request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number }>("/health", undefined, { ttlMs: 15_000 }),
   register: (payload: { email: string; password: string; displayName: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: (email: string, password: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
   updatePassword: (payload: { currentPassword: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),

@@ -8,6 +8,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   register: (payload: { email: string; password: string; displayName: string }) => Promise<void>;
   refreshMe: () => Promise<void>;
   setCurrentUser: (user: AuthUser | null) => void;
@@ -41,6 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: Boolean(user),
     async login(email, password) {
       const result = await api.login(email, password);
+      storeAuth(result.token, result.user);
+      setUser(result.user);
+      toast.success(`Login realizado como ${result.user.displayName}.`);
+      navigate("/profile", { replace: true });
+    },
+    async loginWithGoogle(credential) {
+      const result = await api.loginWithGoogle(credential);
       storeAuth(result.token, result.user);
       setUser(result.user);
       toast.success(`Login realizado como ${result.user.displayName}.`);

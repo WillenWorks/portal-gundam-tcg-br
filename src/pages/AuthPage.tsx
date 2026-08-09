@@ -1,6 +1,7 @@
 /* Auth pública v8.1 — login/cadastro no site sem sidebar privada. */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
+import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Só definida em ambientes com o Google OAuth configurado (ver docs/15-deploy-e-login-google.md)
+// — sem isso, o botão simplesmente não aparece, não quebra nada pra quem não configurou ainda.
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 function getInitialMode() {
   if (typeof window === "undefined") return "login" as const;
@@ -18,13 +23,41 @@ function getInitialMode() {
 }
 
 export default function AuthPage() {
-  const { login, register, isAuthenticated, user } = useAuth();
+  const { login, register, loginWithGoogle, isAuthenticated, user } = useAuth();
   const [mode, setMode] = useState<"login" | "register">(() => getInitialMode());
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(import.meta.env.DEV ? "pilot@gundambr.local" : "");
   const [password, setPassword] = useState(import.meta.env.DEV ? "pilot123" : "");
   const eyebrow = useMemo(() => (mode === "login" ? "Acesso ao painel" : "Cadastro público"), [mode]);
   const title = useMemo(() => (mode === "login" ? "Entrar" : "Criar conta"), [mode]);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+
+  // Carrega o script do Google Identity Services só quando necessário — condicional a
+  // ter client ID configurado e o usuário ainda não estar logado. Renderiza o botão
+  // oficial do Google no div de referência (googleButtonRef) via API deles.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || isAuthenticated) return;
+    const scriptId = "google-identity-services";
+    const initialize = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id || !googleButtonRef.current) return;
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response: { credential: string }) => {
+          loginWithGoogle(response.credential).catch((err: any) => toast.error(err?.message || "Erro ao entrar com Google."));
+        },
+      });
+      google.accounts.id.renderButton(googleButtonRef.current, { theme: "outline", size: "large", width: 320, locale: "pt-BR" });
+    };
+    if (document.getElementById(scriptId)) { initialize(); return; }
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initialize;
+    document.head.appendChild(script);
+  }, [isAuthenticated]);
 
   const submit = async () => {
     if (mode === "login") {
@@ -60,6 +93,13 @@ export default function AuthPage() {
               <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={submit}>{mode === "login" ? "Entrar no painel" : "Criar conta e entrar"}</Button>
               <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Link href="/decks">Explorar o site antes</Link></Button>
             </div>
+
+            {GOOGLE_CLIENT_ID ? (
+              <div className="space-y-3 border-t border-white/10 pt-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">ou</p>
+                <div ref={googleButtonRef} />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
