@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 
@@ -768,6 +769,126 @@ export default function DeckbuilderPage() {
     toast.success("Decklist copiada em texto.");
   };
 
+  /** Formato Exburst/MSA (Mobile Suit Arena) — "4x CODE" por linha, sem cabeçalho, sem
+   *  nome, EX Base/Resource fora (não fazem parte do deckbuilding nesses simuladores
+   *  também). É o formato que a comunidade usa pra importar deck pronto no MSA — ver
+   *  msafixer.com, que documenta esse como "Exburst Format". */
+  const copyDecklistMSA = async () => {
+    if (!mainDeckRows.length && !resourceDeckRows.length) {
+      toast.error("Monte pelo menos uma carta para copiar a decklist.");
+      return;
+    }
+    const lines = [...mainDeckRows, ...resourceDeckRows].map((row) => `${row.quantity}x ${row.code}`);
+    await navigator.clipboard.writeText(lines.join("\n"));
+    toast.success("Decklist copiada no formato MSA/Exburst.");
+  };
+
+  /** Imagem PNG da decklist inteira, tipo pôster (como o ExBurst faz) — desenha a grade
+   *  de cartas num canvas e baixa como arquivo. Cliente-side, sem servidor — mas por
+   *  isso depende de as imagens das cartas permitirem uso entre domínios (CORS). Se a
+   *  fonte não permitir, o canvas fica "contaminado" e a exportação falha com aviso
+   *  claro em vez de travar silenciosamente. */
+  const downloadDeckImage = async () => {
+    if (!mainDeckRows.length && !resourceDeckRows.length) {
+      toast.error("Monte pelo menos uma carta para gerar a imagem.");
+      return;
+    }
+    const loadingToast = toast.loading("Gerando imagem...");
+    try {
+      const CARD_W = 140;
+      const CARD_H = Math.round((CARD_W * 88) / 63);
+      const GAP = 10;
+      const COLS = 8;
+      const MARGIN = 24;
+      const SECTION_LABEL_H = 26;
+      const SECTION_GAP = 30;
+
+      const loadImage = (src: string): Promise<HTMLImageElement | null> =>
+        new Promise((resolve) => {
+          if (!src) { resolve(null); return; }
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
+
+      const buildSection = async (rows: DeckRow[]) => {
+        const images = await Promise.all(rows.map((row) => loadImage(row.imageMediumUrl || row.imageUrl || "")));
+        return rows.map((row, i) => ({ row, image: images[i] }));
+      };
+      const [mainSection, resourceSection] = await Promise.all([buildSection(mainDeckRows), buildSection(resourceDeckRows)]);
+
+      const sectionRows = (count: number) => Math.max(1, Math.ceil(count / COLS));
+      const sectionHeight = (count: number) => SECTION_LABEL_H + sectionRows(count) * (CARD_H + GAP);
+      const totalWidth = MARGIN * 2 + COLS * CARD_W + (COLS - 1) * GAP;
+      const totalHeight = MARGIN + 44 + sectionHeight(mainSection.length) + SECTION_GAP + sectionHeight(resourceSection.length) + MARGIN;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = totalWidth;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas não suportado neste navegador.");
+
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(0, 0, totalWidth, totalHeight);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 24px sans-serif";
+      ctx.fillText(deckName || "Deck", MARGIN, MARGIN + 22);
+
+      let cursorY = MARGIN + 44;
+      const drawSection = (label: string, section: { row: DeckRow; image: HTMLImageElement | null }[]) => {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(label.toUpperCase(), MARGIN, cursorY);
+        const gridTop = cursorY + SECTION_LABEL_H;
+        section.forEach((entry, index) => {
+          const col = index % COLS;
+          const row = Math.floor(index / COLS);
+          const x = MARGIN + col * (CARD_W + GAP);
+          const y = gridTop + row * (CARD_H + GAP);
+          if (entry.image) {
+            ctx.drawImage(entry.image, x, y, CARD_W, CARD_H);
+          } else {
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(x, y, CARD_W, CARD_H);
+            ctx.fillStyle = "#64748b";
+            ctx.font = "11px sans-serif";
+            ctx.fillText(entry.row.code, x + 8, y + CARD_H / 2);
+          }
+          ctx.fillStyle = "#3b82f6";
+          ctx.beginPath();
+          ctx.arc(x + CARD_W - 14, y + 14, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 13px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(entry.row.quantity), x + CARD_W - 14, y + 15);
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
+        });
+        cursorY = gridTop + sectionRows(section.length) * (CARD_H + GAP) + SECTION_GAP;
+      };
+
+      drawSection(`Deck principal (${stats.mainDeckCount}/${DECK_MAIN_SIZE})`, mainSection);
+      drawSection(`Deck de recursos (${stats.resourceDeckCount}/${DECK_RESOURCE_SIZE})`, resourceSection);
+
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("As imagens das cartas bloqueiam exportação entre domínios (CORS) — não consegui gerar o arquivo.");
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(deckName || "deck").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Imagem baixada.", { id: loadingToast });
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar a imagem.", { id: loadingToast });
+    }
+  };
+
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Decks", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo deck" }]}>
       {loadingDeck ? (
@@ -795,7 +916,16 @@ export default function DeckbuilderPage() {
               <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar</Button>
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo</Button>
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
-              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyDecklist}><Copy className="mr-2 size-4" />Copiar</Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Exportar</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">
+                  <DropdownMenuItem onClick={copyDecklist} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar decklist (texto)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyDecklistMSA} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar formato MSA/Exburst</DropdownMenuItem>
+                  <DropdownMenuItem onClick={downloadDeckImage} className="cursor-pointer focus:bg-white/10 focus:text-white">Baixar imagem (PNG)</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardContent>
         </Card>
