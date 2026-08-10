@@ -5,6 +5,8 @@ import { Link } from "wouter";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
+import { NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { api, type ApiDeck } from "@/lib/api";
 
 export default function PublicDecksPage() {
@@ -18,13 +20,12 @@ export default function PublicDecksPage() {
     <PublicShell breadcrumbs={[{ label: "Decks Públicos" }]} title="Decks públicos" description="Listas compartilhadas pela comunidade para estudo, referência e comparação de build.">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {decks.map((deck) => {
-          const cover = deck.items[0]?.card?.imageUrl || deck.coverImage || null;
-          const quantity = deck.items.reduce((sum, item) => sum + item.quantity, 0);
+          const quantity = deck.items.filter((item) => !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
           return (
             <Card key={deck.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-4 p-4">
                 <Link href={`/deck/${deck.shareId}`} className="block overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/7] dark:bg-slate-950/60 light:bg-slate-100">
-                  {cover ? <img src={cover} alt={deck.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.24em] text-slate-500">Deck público</div>}
+                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover" /> : <FeaturedCoverImage cards={deck.featuredCards} fallbackLabel="Deck público" />}
                 </Link>
                 <div className="flex items-start justify-between gap-4">
                   <div>

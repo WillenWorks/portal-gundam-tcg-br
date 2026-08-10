@@ -1,13 +1,13 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2 } from "lucide-react";
+import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
-import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
@@ -121,19 +121,19 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         {exSection ? <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">carta única</span> : null}
         {!banned && !exSection && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
 
-        <div className="absolute inset-x-0 bottom-6 translate-y-full bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[11px] font-medium text-white">{card.namePt || card.name}</p>
         </div>
       </button>
 
       {!exSection ? (
-        <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">
+        <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">
           <ImagesIcon className="size-3.5" />
         </button>
       ) : null}
 
       {!exSection ? (
-        <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+        <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100">
           <button type="button" onClick={() => onDecrement(printId)} disabled={qtyInDeck <= 0} title={`Remover 1 cópia`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500 disabled:pointer-events-none disabled:opacity-30">
             <Minus className="size-3.5" />
           </button>
@@ -161,14 +161,14 @@ function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview 
       <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/50">
         {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
-        <div className="absolute inset-x-0 bottom-6 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-6 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[11px] font-medium text-white">{row.namePt || row.name}</p>
         </div>
       </div>
-      <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">
+      <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">
         <ImagesIcon className="size-3.5" />
       </button>
-      <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-0 transition group-hover:opacity-100">
+      <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100">
         <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
           <Minus className="size-3.5" />
         </button>
@@ -193,11 +193,11 @@ function ExComponentTile({ label, row, onReset }: { label: string; row: DeckRow 
       <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15">
         {image ? <img src={image} alt={row?.namePt || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
         <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">{label}</span>
-        <div className="absolute inset-x-0 bottom-0 bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[10px] font-medium text-white">{row?.namePt || row?.name || "Carregando…"}</p>
         </div>
       </div>
-      <button type="button" onClick={onReset} title={`Voltar ${label} pra arte padrão`} className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[13px] text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">↺</button>
+      <button type="button" onClick={onReset} title={`Voltar ${label} pra arte padrão`} className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[13px] text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">↺</button>
     </div>
   );
 }
@@ -315,11 +315,15 @@ export default function DeckbuilderPage() {
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
+  const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
   const [deckName, setDeckName] = useState("Novo Deck");
   const [entries, setEntries] = useState<DeckEntry[]>([]);
   const [visibility, setVisibility] = useState<DeckVisibility>("PRIVATE");
@@ -404,21 +408,25 @@ export default function DeckbuilderPage() {
   };
 
   const [exBaseOptions, setExBaseOptions] = useState<CardRecord[]>([]);
+  const [defaultResourceOption, setDefaultResourceOption] = useState<CardRecord | null>(null);
   const [exResourceOptions, setExResourceOptions] = useState<CardRecord[]>([]);
 
   /** EX Base e EX Resource são componente fixo — carrega as artes disponíveis uma vez
    *  (são poucos codes, cabe tudo numa página só) pro seletor "trocar arte". */
   const loadExComponents = async () => {
     try {
-      const [baseResult, resourceResult] = await Promise.all([
+      const [baseResult, resourceResult, defaultResourceResult] = await Promise.all([
         api.listCardsPage({ cardType: "EX_BASE" } as PoolFilters, { page: 1, pageSize: 100 }),
         api.listCardsPage({ cardType: "EX_RESOURCE" } as PoolFilters, { page: 1, pageSize: 100 }),
+        api.listCardsPage({ cardType: "RESOURCE", sort: "code_asc" } as PoolFilters, { page: 1, pageSize: 1 }),
       ]);
       const baseCards = baseResult.items.map(mapApiCard);
       const resourceCards = resourceResult.items.map(mapApiCard);
+      const defaultResourceCards = defaultResourceResult.items.map(mapApiCard);
       setExBaseOptions(baseCards);
       setExResourceOptions(resourceCards);
-      cacheCards([...baseCards, ...resourceCards]);
+      setDefaultResourceOption(defaultResourceCards[0] || null);
+      cacheCards([...baseCards, ...resourceCards, ...defaultResourceCards]);
     } catch {
       // Sem opções carregadas, os dois seletores ficam vazios — não impede o resto do deckbuilder.
     }
@@ -443,6 +451,20 @@ export default function DeckbuilderPage() {
       return next;
     });
   }, [exBaseOptions, exResourceOptions, loadingDeck]);
+
+  // Preenche o deck de recursos com 10 cópias de 1 resource padrão só quando ele está
+  // TOTALMENTE vazio — diferente do EX Base/Resource, isso não é um slot travado: é só
+  // um ponto de partida conveniente, o jogador continua livre pra adicionar/remover
+  // qualquer resource pela pool normalmente depois. Não mexe se já tiver algo lá (deck
+  // carregado do banco, ou o jogador já começou a montar essa parte).
+  useEffect(() => {
+    if (loadingDeck || !defaultResourceOption) return;
+    setEntries((current) => {
+      if (current.some((item) => item.section === "resource")) return current;
+      const printId = defaultResourceOption.printId || defaultResourceOption.id;
+      return [...current, { cardId: printId, quantity: DECK_RESOURCE_SIZE, section: "resource" }];
+    });
+  }, [defaultResourceOption, loadingDeck]);
 
   const setExComponentArt = (section: "ex_base" | "ex_resource", printId: string) => {
     const options = section === "ex_base" ? exBaseOptions : exResourceOptions;
@@ -523,6 +545,8 @@ export default function DeckbuilderPage() {
   );
 
   const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [deckRows]);
+  const [mainViewMode, setMainViewMode] = useState<"grid" | "type">("grid");
+  const groupedMainRows = useMemo(() => groupCardsByType(mainDeckRows), [mainDeckRows]);
   const resourceDeckRows = useMemo(() => deckRows.filter((row) => row.section === "resource"), [deckRows]);
   const exBaseRow = useMemo(() => deckRows.find((row) => row.section === "ex_base"), [deckRows]);
   const exResourceRow = useMemo(() => deckRows.find((row) => row.section === "ex_resource"), [deckRows]);
@@ -786,6 +810,55 @@ export default function DeckbuilderPage() {
     toast.success("Decklist copiada no formato MSA/Exburst.");
   };
 
+  /** Importa uma decklist colada em texto — aceita "4x CODE", "4 CODE" ou só "CODE"
+   *  (1 cópia), uma por linha, mesmo formato que a exportação MSA/Exburst gera (então
+   *  o que sai daqui volta a entrar sem editar nada). Substitui o deck principal e o
+   *  de recursos atuais — EX Base/Resource ficam intocados, não fazem parte do formato.
+   *  Busca cada code em paralelo (não é 1 chamada por linha sequencial). */
+  const importDecklistText = async (text: string) => {
+    const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+    const parsed = lines.map((line) => {
+      const match = line.match(/^(\d+)\s*x?\s+(\S+)$/i) || line.match(/^(\S+)$/);
+      if (!match) return null;
+      if (match.length === 3) return { quantity: Number(match[1]) || 1, code: match[2].toUpperCase() };
+      return { quantity: 1, code: match[1].toUpperCase() };
+    }).filter(Boolean) as Array<{ quantity: number; code: string }>;
+
+    if (!parsed.length) { toast.error("Não consegui reconhecer nenhuma linha nesse texto."); return; }
+
+    setImporting(true);
+    try {
+      const results = await Promise.all(
+        parsed.map(async (item) => {
+          const result = await api.listCardsPage({ q: item.code } as PoolFilters, { page: 1, pageSize: 5 }).catch(() => null);
+          const match = result?.items.map(mapApiCard).find((card) => card.code.toUpperCase() === item.code);
+          return { ...item, card: match || null };
+        }),
+      );
+
+      const found = results.filter((r) => r.card);
+      const missing = results.filter((r) => !r.card);
+
+      const newEntries: DeckEntry[] = found.map((r) => {
+        const card = r.card!;
+        cacheCards([card]);
+        return { cardId: card.printId || card.id, quantity: r.quantity, section: card.type === "RESOURCE" ? "resource" : "main" };
+      });
+
+      setEntries((current) => [...current.filter((e) => e.section === "ex_base" || e.section === "ex_resource"), ...newEntries]);
+      setImportModalOpen(false);
+      setImportText("");
+
+      if (missing.length) {
+        toast.warning(`${found.length} carta(s) importada(s). ${missing.length} código(s) não encontrado(s): ${missing.map((m) => m.code).join(", ")}`);
+      } else {
+        toast.success(`${found.length} carta(s) importada(s) com sucesso.`);
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
   /** Imagem PNG da decklist inteira, tipo pôster (como o ExBurst faz) — desenha a grade
    *  de cartas num canvas e baixa como arquivo. Cliente-side, sem servidor — mas por
    *  isso depende de as imagens das cartas permitirem uso entre domínios (CORS). Se a
@@ -938,6 +1011,7 @@ export default function DeckbuilderPage() {
               <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar</Button>
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo</Button>
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
+              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Upload className="mr-2 size-4" />Importar</Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Exportar</Button>
@@ -987,7 +1061,7 @@ export default function DeckbuilderPage() {
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
-            <div className="mt-6 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-7">
+            <div className="mt-6 grid grid-cols-3 gap-2.5 sm:grid-cols-5 xl:grid-cols-6">
               {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
               {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
@@ -1011,12 +1085,33 @@ export default function DeckbuilderPage() {
         <div className="space-y-6">
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
-                <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
+                <div className="flex items-center gap-3">
+                  <div className="flex border border-white/15">
+                    <button type="button" onClick={() => setMainViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Grade única</button>
+                    <button type="button" onClick={() => setMainViewMode("type")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
+                  </div>
+                  <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
+                </div>
               </div>
-              <div className="mt-6 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[420px] overflow-auto pr-1">
-                {mainDeckRows.length ? mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p>}
+              <div className="mt-6 max-h-[440px] overflow-auto pr-1">
+                {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" ? (
+                  <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
+                    {mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {groupedMainRows.map((group) => (
+                      <div key={group.type}>
+                        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{group.label} · {group.rows.reduce((sum, r) => sum + r.quantity, 0)}</p>
+                        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
+                          {group.rows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1028,7 +1123,7 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 grid grid-cols-5 gap-2.5 sm:grid-cols-7 xl:grid-cols-9 max-h-[380px] overflow-auto pr-1">
+              <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8 max-h-[400px] overflow-auto pr-1">
                 {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>
@@ -1226,6 +1321,20 @@ export default function DeckbuilderPage() {
       )}
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
+      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
+        <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
+          <div className="border-b border-white/10 pb-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Importar decklist</p>
+            <h3 className="font-heading text-2xl uppercase heading-portal">Colar lista em texto</h3>
+            <p className="mt-2 text-sm text-soft">Uma carta por linha, formato "4x CODE" (mesmo que a exportação MSA/Exburst gera). Substitui o deck principal e o de recursos atuais — EX Base/Resource não são afetados.</p>
+          </div>
+          <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={10} placeholder={"4x ST01-001\n2x ST01-002\n..."} className="field-shell w-full resize-none p-3 font-mono text-xs" />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" onClick={() => setImportModalOpen(false)}>Cancelar</Button>
+            <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={importing || !importText.trim()} onClick={() => importDecklistText(importText)}>{importing ? "Importando…" : "Importar"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(deckImagePreviewUrl)} onOpenChange={(open) => !open && closeDeckImagePreview()}>
         <DialogContent className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
           <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">

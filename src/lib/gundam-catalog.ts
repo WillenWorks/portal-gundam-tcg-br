@@ -20,6 +20,17 @@ export const CARD_TYPE_OPTIONS = [
 
 export const COLOR_OPTIONS = ["Blue", "Green", "Red", "Purple", "White"] as const;
 
+// Cor de exibição de cada cor de jogo — pra qualquer gráfico/badge que precise
+// representar a cor real da carta, em vez de pegar cor de paleta por índice
+// (o que resulta em "Blue" aparecendo verde só porque veio primeiro nos dados).
+export const GAME_COLOR_HEX: Record<string, string> = {
+  Blue: "#3b82f6",
+  Green: "#22c55e",
+  Red: "#ef4444",
+  Purple: "#a855f7",
+  White: "#e2e8f0",
+};
+
 // Raridade base da carta. Variações de arte ficam no cadastro da imagem.
 export const RARITY_OPTIONS = ["C", "U", "R", "LR"] as const;
 export const ART_RARITY_OPTIONS = ["C", "C+", "U", "U+", "R", "R+", "LR", "LR+", "LR++", "Promo", "Winner", "Judge"] as const;

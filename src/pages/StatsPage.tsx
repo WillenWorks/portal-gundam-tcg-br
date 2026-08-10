@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { api } from "@/lib/api";
+import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 
 const chartConfig = {
   value: { label: "Valor", color: "#47a0ff" },
 } satisfies ChartConfig;
 
-const pieColors = ["#47a0ff", "#4fd1c5", "#f59e0b", "#ef4444", "#a78bfa", "#94a3b8"];
+const FALLBACK_SLICE_COLOR = "#94a3b8";
+const typeLabel = (raw: string) => CARD_TYPE_OPTIONS.find((opt) => opt.value === raw)?.label || raw;
 
 export default function StatsPage() {
   const [health, setHealth] = useState<{ userCount: number; cardCount: number; deckCount: number } | null>(null);
@@ -44,7 +46,7 @@ export default function StatsPage() {
   const typeChart = useMemo(() => {
     const map = new Map<string, number>();
     cards.forEach((card) => map.set(card.cardType || "Sem tipo", (map.get(card.cardType || "Sem tipo") ?? 0) + 1));
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name: typeLabel(name), value }));
   }, [cards]);
 
   const deckColorMeta = useMemo(() => {
@@ -137,7 +139,7 @@ export default function StatsPage() {
                   <PieChart>
                     <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                     <Pie data={colorChart} dataKey="value" nameKey="name" innerRadius={52} outerRadius={95} strokeWidth={2}>
-                      {colorChart.map((entry, index) => <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />)}
+                      {colorChart.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || FALLBACK_SLICE_COLOR} />)}
                     </Pie>
                     <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                   </PieChart>
@@ -194,7 +196,9 @@ export default function StatsPage() {
                     <XAxis dataKey="name" tickLine={false} axisLine={false} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" fill="var(--color-value)" radius={0} />
+                    <Bar dataKey="value" radius={0}>
+                      {deckColorMeta.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || FALLBACK_SLICE_COLOR} />)}
+                    </Bar>
                   </BarChart>
                 </ChartContainer>
               </div>

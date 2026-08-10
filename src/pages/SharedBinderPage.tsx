@@ -4,7 +4,6 @@ import { useRoute } from "wouter";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { api, type ApiBinder } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function SharedBinderPage() {
@@ -32,21 +31,20 @@ export default function SharedBinderPage() {
             )}
           </CardContent>
         </Card>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {binder?.items.map((item) => (
-            <Card key={item.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
-              <CardContent className="space-y-3 p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{item.card.code}</p>
-                    <h3 className="text-2xl uppercase">{item.card.namePt || item.card.nameEn}</h3>
-                  </div>
-                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">x{item.quantity}</Badge>
+        <div className="grid grid-cols-5 gap-3 sm:grid-cols-7 xl:grid-cols-9">
+          {binder?.items.map((item) => {
+            const image = item.card?.imageMediumUrl || item.card?.imageUrl;
+            return (
+              <div key={item.id} className="group relative block aspect-[63/88] overflow-hidden border border-white/15">
+                {image ? <img src={image} alt={item.card?.namePt || item.card?.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{item.card?.namePt || item.card?.nameEn}</div>}
+                <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{item.quantity}</span>
+                <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+                  <p className="truncate text-[11px] font-medium text-white">{item.card?.namePt || item.card?.nameEn}</p>
+                  <p className="truncate text-[10px] text-slate-400">{item.card?.code}</p>
                 </div>
-                <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{item.card.set?.code || "sem coleção"} · {item.card.cardType}</p>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </PublicShell>
