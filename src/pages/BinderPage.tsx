@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
 import type { CardRecord } from "@/modules/core/types";
 
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -33,11 +33,11 @@ function PoolCardTile({ card, quantity, onAdd, onOpenGallery }: { card: CardReco
       <button type="button" onClick={() => onAdd(card)} title={`Adicionar ${card.namePt || card.name}`} className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/60">
         {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>}
         {quantity > 0 ? <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{quantity}</span> : null}
-        <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-1.5 text-left opacity-0 transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
           <p className="truncate text-[11px] font-medium text-white">{card.namePt || card.name}</p>
         </div>
       </button>
-      <button type="button" onClick={() => onOpenGallery(card.id)} title="Escolher arte específica" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-primary hover:text-primary-foreground group-hover:opacity-100">
+      <button type="button" onClick={() => onOpenGallery(card.id)} title="Escolher arte específica" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">
         <ImagesIcon className="size-3.5" />
       </button>
     </div>
@@ -55,7 +55,7 @@ function BinderItemTile({ row, onDecrement, onPreview }: { row: CardRecord & { q
         {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
       </button>
-      <button type="button" onClick={() => onPreview(row)} title="Ver imagem grande" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-0 transition hover:bg-white/20 group-hover:opacity-100">
+      <button type="button" onClick={() => onPreview(row)} title="Ver imagem grande" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-white/20 lg:opacity-0 lg:group-hover:opacity-100">
         <Eye className="size-3.5" />
       </button>
     </div>
@@ -225,6 +225,8 @@ export default function BinderPage({ kind }: { kind: "WISHLIST" | "OWNED" }) {
   }, [rows]);
 
   const totals = useMemo(() => ({ unique: rows.length, quantity: rows.reduce((sum, r) => sum + r.quantity, 0) }), [rows]);
+  const [itemsViewMode, setItemsViewMode] = useState<"grid" | "type">("grid");
+  const groupedRows = useMemo(() => groupCardsByType(rows), [rows]);
 
   const increment = (card: CardRecord) => {
     const printId = card.printId || card.id;
@@ -299,7 +301,7 @@ export default function BinderPage({ kind }: { kind: "WISHLIST" | "OWNED" }) {
                 <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((c) => <option key={c} value={c}>{CARD_TYPE_OPTIONS.find((opt) => opt.value === c)?.label || c}</option>)}</select>
               </div>
               <Badge variant="outline" className="mt-4 rounded-none border-white/20 text-soft">{poolTotal} cartas encontradas</Badge>
-              <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-5 xl:grid-cols-6">
+              <div className="mt-4 grid grid-cols-3 gap-2.5 sm:grid-cols-4 xl:grid-cols-5">
                 {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando...</p> : null}
                 {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada.</p> : null}
                 {cards.map((card) => <PoolCardTile key={card.id} card={card} quantity={quantityByModel.get(card.id) || 0} onAdd={increment} onOpenGallery={setAltArtModelId} />)}
@@ -316,10 +318,31 @@ export default function BinderPage({ kind }: { kind: "WISHLIST" | "OWNED" }) {
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <h3 className="font-heading text-3xl uppercase heading-portal">{pageTitle}</h3>
-              <div className="mt-6 grid grid-cols-5 gap-3 sm:grid-cols-7 xl:grid-cols-8">
-                {rows.length ? rows.map((row) => <BinderItemTile key={row.printId || row.id} row={row} onDecrement={decrement} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Ainda vazio — adiciona cartas pela pool ao lado.</p>}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-heading text-3xl uppercase heading-portal">{pageTitle}</h3>
+                <div className="flex border border-white/15">
+                  <button type="button" onClick={() => setItemsViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${itemsViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Grade única</button>
+                  <button type="button" onClick={() => setItemsViewMode("type")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${itemsViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
+                </div>
               </div>
+              {!rows.length ? (
+                <p className="mt-6 text-sm text-muted-portal">Ainda vazio — adiciona cartas pela pool ao lado.</p>
+              ) : itemsViewMode === "grid" ? (
+                <div className="mt-6 grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-7">
+                  {rows.map((row) => <BinderItemTile key={row.printId || row.id} row={row} onDecrement={decrement} onPreview={setPreviewCard} />)}
+                </div>
+              ) : (
+                <div className="mt-6 space-y-5">
+                  {groupedRows.map((group) => (
+                    <div key={group.type}>
+                      <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{group.label} · {group.rows.reduce((sum, r) => sum + r.quantity, 0)}</p>
+                      <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 xl:grid-cols-7">
+                        {group.rows.map((row) => <BinderItemTile key={row.printId || row.id} row={row} onDecrement={decrement} onPreview={setPreviewCard} />)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
