@@ -24,8 +24,7 @@ export default function DashboardPage() {
   }, []);
 
   const publicDecks = decks.filter((deck) => deck.visibility === "PUBLIC");
-  const wishlist = binders.find((item) => item.kind === "WISHLIST");
-  const owned = binders.find((item) => item.kind === "OWNED");
+  const binderItemTotal = binders.reduce((sum, binder) => sum + binder.items.length, 0);
 
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área" }]}> 
@@ -34,12 +33,11 @@ export default function DashboardPage() {
           <CardContent className="p-6 lg:p-8 2xl:p-10">
             <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área do usuário</Badge>
             <h2 className="mt-5 max-w-5xl font-heading text-5xl uppercase leading-[0.9] sm:text-6xl 2xl:text-7xl">Bem-vindo, <span className="text-primary">{user?.displayName}</span>.</h2>
-            <p className="mt-5 max-w-4xl text-sm leading-7 text-slate-300">Seu dashboard concentra decks, configurações, idioma das cartas, wishlist e cartas possuídas com compartilhamento externo.</p>
+            <p className="mt-5 max-w-4xl text-sm leading-7 text-slate-300">Seu dashboard concentra decks, configurações, idioma das cartas e binders organizados do seu jeito, com compartilhamento externo.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"><Link href="/deckbuilder">Criar / editar deck</Link></Button>
               <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Link href="/profile">Abrir configurações</Link></Button>
-              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Link href="/wishlist">Lista de desejos</Link></Button>
-              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Link href="/owned">Cartas possuídas</Link></Button>
+              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Link href="/binders">Meus binders</Link></Button>
             </div>
           </CardContent>
         </Card>
@@ -48,8 +46,8 @@ export default function DashboardPage() {
           {[
             ["Decks salvos", String(decks.length)],
             ["Decks públicos", String(publicDecks.length)],
-            ["Desejos", String(wishlist?.items.length || 0)],
-            ["Possuídas", String(owned?.items.length || 0)],
+            ["Binders", String(binders.length)],
+            ["Cartas guardadas", String(binderItemTotal)],
           ].map(([label, value]) => (
             <Card key={label} className="panel-cut rounded-none surface-panel"><CardContent className="p-5 2xl:p-6"><p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{label}</p><p className="mt-4 font-heading text-5xl leading-none">{value}</p></CardContent></Card>
           ))}
@@ -60,7 +58,7 @@ export default function DashboardPage() {
             <CardContent className="p-6 2xl:p-7">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Atalhos</p>
               <div className="mt-5 space-y-4">
-                {[["Criar deck novo", "/deckbuilder/new"],["Configurações do usuário", "/profile"],["Editar lista de desejos", "/wishlist"],["Editar cartas possuídas", "/owned"]].map(([label, href]) => (
+                {[["Criar deck novo", "/deckbuilder/new"],["Configurações do usuário", "/profile"],["Meus binders", "/binders"]].map(([label, href]) => (
                   <Link key={href} href={href} className="panel-cut block border border-white/10 bg-slate-950/60 p-4 text-lg transition hover:bg-white/10 dark:bg-slate-950/60 dark:text-white light:border-slate-300/80 light:bg-slate-50 light:text-slate-900">{label}</Link>
                 ))}
               </div>

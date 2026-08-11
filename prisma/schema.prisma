@@ -44,11 +44,6 @@ enum CardLanguage {
   EN
 }
 
-enum BinderKind {
-  WISHLIST
-  OWNED
-}
-
 enum SetKind {
   BOOSTER_PACK
   STARTER_DECK
@@ -337,7 +332,6 @@ model DeckItem {
 model CardBinder {
   id          String     @id @default(cuid())
   userId      String
-  kind        BinderKind
   name        String
   description String?    @db.Text
   shareId     String     @unique @default(cuid())
@@ -347,16 +341,15 @@ model CardBinder {
 
   user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CardBinderItem[]
-
-  @@unique([userId, kind])
 }
 
 model CardBinderItem {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   binderId String
   cardId   String
-  quantity Int    @default(1)
+  quantity Int     @default(1)
   note     String? @db.Text
+  position Int     @default(0)
 
   binder CardBinder @relation(fields: [binderId], references: [id], onDelete: Cascade)
   card   Card       @relation(fields: [cardId], references: [id], onDelete: Cascade)
