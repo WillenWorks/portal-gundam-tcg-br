@@ -81,7 +81,7 @@ function SidebarLinks({ location, isAdmin, onNavigate, collapsed = false }: { lo
                   collapsed ? "justify-center px-0" : "",
                   active
                     ? "border-primary/40 bg-primary/12 text-white dark:text-white light:text-slate-900"
-                    : "border-white/10 bg-white/5 text-slate-300 nav-hover-soft hover:border-white/20 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white/80 light:text-slate-800",
+                    : "border-white/10 bg-white/5 text-slate-300 nav-hover-soft hover:border-white/20 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white/80 light:text-slate-800 light:hover:text-slate-950",
                 )}
               >
                 <Icon className={cn("size-4 shrink-0", active ? "text-primary" : "text-slate-400")} />
