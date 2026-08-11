@@ -7,7 +7,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 
 
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
-import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,6 @@ const chartConfig = {
   value: { label: "Quantidade", color: "#47a0ff" },
 } satisfies ChartConfig;
 
-const pieColors = ["#47a0ff", "#4fd1c5", "#f59e0b", "#ef4444", "#a78bfa", "#94a3b8"];
 
 type DeckRow = CardRecord & { quantity: number; section: string };
 
@@ -639,13 +638,34 @@ export default function DeckbuilderPage() {
 
   const archetypeBlocks = useMemo(() => {
     const blocks: Array<{ label: string; value: string; hint: string }> = [];
-    if (dominantColor) blocks.push({ label: "Cor-base", value: dominantColor, hint: "Maior presença atual na lista." });
-    if (dominantTrait) blocks.push({ label: "Trait-base", value: dominantTrait, hint: "Núcleo de identidade do deck." });
+    const total = stats.mainDeckCount || 1;
+    if (dominantColor) {
+      const count = stats.colorMap[dominantColor] || 0;
+      blocks.push({ label: "Cor-base", value: dominantColor, hint: `${count}/${stats.mainDeckCount} cartas · ${Math.round((count / total) * 100)}% do deck principal.` });
+    }
+    if (dominantTrait) {
+      const count = stats.traitMap[dominantTrait] || 0;
+      blocks.push({ label: "Trait-base", value: dominantTrait, hint: `${count}/${stats.mainDeckCount} cartas · núcleo de identidade do deck.` });
+    }
     if (dominantSeries) blocks.push({ label: "Série-base", value: dominantSeries, hint: "Linha temática mais recorrente." });
     const mainType = [...typeData].sort((a, b) => b.quantity - a.quantity)[0];
-    if (mainType) blocks.push({ label: "Tipo-base", value: mainType.name, hint: "Tipo mais frequente na composição." });
+    if (mainType) blocks.push({ label: "Tipo-base", value: mainType.name, hint: `${mainType.quantity}/${stats.mainDeckCount} cartas · tipo mais frequente.` });
     return blocks;
-  }, [dominantColor, dominantTrait, dominantSeries, typeData]);
+  }, [dominantColor, dominantTrait, dominantSeries, typeData, stats.colorMap, stats.traitMap, stats.mainDeckCount]);
+
+  // Segunda cor (deck pode ter ate 2, ver DECK_MAX_COLORS) e traits secundarios --
+  // arquétipo de verdade raramente é 1 cor+1 trait só, é a combinação. archetypeBlocks
+  // já mostra o dominante; isso aqui expõe o que vem depois, que estava calculado
+  // (topTraits) mas nunca aparecia na tela.
+  const colorBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return [...colorData].sort((a, b) => b.value - a.value).slice(0, 3).map((item) => ({ ...item, pct: Math.round((item.value / total) * 100) }));
+  }, [colorData, stats.mainDeckCount]);
+
+  const traitBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return topTraits.map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
+  }, [topTraits, stats.mainDeckCount]);
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
@@ -1259,6 +1279,40 @@ export default function DeckbuilderPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de cor</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.</p>
+                <div className="mt-5 space-y-3">
+                  {colorBreakdown.length ? colorBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full" style={{ width: `${item.pct}%`, backgroundColor: GAME_COLOR_HEX[item.name] || "#94a3b8" }} /></div>
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de trait</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.</p>
+                <div className="mt-5 space-y-3">
+                  {traitBreakdown.length ? traitBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas com trait definido para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
@@ -1288,7 +1342,7 @@ export default function DeckbuilderPage() {
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                       <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2}>
-                        {colorData.map((entry, index) => <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />)}
+                        {colorData.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || "#94a3b8"} />)}
                       </Pie>
                       <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                     </PieChart>
