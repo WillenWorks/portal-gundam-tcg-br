@@ -23,6 +23,7 @@ import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
 import NotFound from "@/pages/NotFound";
 import BinderPage from "@/pages/BinderPage";
+import BinderListPage from "@/pages/BinderListPage";
 import AuthPage from "@/pages/AuthPage";
 import TournamentsPage from "@/pages/TournamentsPage";
 
@@ -66,8 +67,8 @@ function AppRouter() {
       <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
-        <Route path="/wishlist">{() => <RequireAuth><BinderPage kind="WISHLIST" /></RequireAuth>}</Route>
-        <Route path="/owned">{() => <RequireAuth><BinderPage kind="OWNED" /></RequireAuth>}</Route>
+        <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
+        <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
         <Route path="/decks" component={PublicDecksPage} />
         <Route path="/deck/:shareId" component={SharedDeckPage} />
         <Route path="/binder/:shareId" component={SharedBinderPage} />

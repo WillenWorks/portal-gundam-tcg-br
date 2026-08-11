@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -172,6 +172,17 @@ function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
   } catch {
     return res.status(401).json({ error: "Token inválido." });
   }
+}
+
+/** Como authRequired, mas não bloqueia se não tiver token — só preenche req.user
+ *  quando o token existe e é válido. Usado em rotas públicas onde o dono logado
+ *  deve enxergar mais do que um visitante anônimo (ex: pasta privada só pro dono). */
+function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
+  }
+  next();
 }
 
 function roleRequired(roles: UserRole[]) {
@@ -697,7 +708,7 @@ function setPrivateCache(res: Response, maxAgeSeconds = 10, staleSeconds = 30) {
   res.setHeader("Cache-Control", `private, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
 }
 
-function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number }) {
+function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: number; binderCount?: number }) {
   return {
     id: user.id,
     email: user.email,
@@ -711,21 +722,6 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     preferredTheme: user.preferredTheme,
     stats,
   };
-}
-
-async function ensureUserBinders(userId: string) {
-  await Promise.all([
-    prisma.cardBinder.upsert({
-      where: { userId_kind: { userId, kind: BinderKind.WISHLIST } },
-      update: {},
-      create: { userId, kind: BinderKind.WISHLIST, name: "Lista de Desejos", description: "Cartas que quero adquirir." },
-    }),
-    prisma.cardBinder.upsert({
-      where: { userId_kind: { userId, kind: BinderKind.OWNED } },
-      update: {},
-      create: { userId, kind: BinderKind.OWNED, name: "Cartas Possuídas", description: "Cartas que já tenho." },
-    }),
-  ]);
 }
 
 async function requireActiveUser(req: RequestWithUser, res: Response) {
@@ -756,7 +752,6 @@ async function ensureAdminSeed() {
       preferredTheme: "dark",
     },
   });
-  await ensureUserBinders(user.id);
 }
 
 /** Proxy de imagem — só existe pra dar suporte a exportações client-side que usam
@@ -837,7 +832,6 @@ app.post("/api/auth/register", async (req, res) => {
       preferredTheme: "dark",
     },
   });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.status(201).json({ token, user: serializeUser(user) });
 });
@@ -851,7 +845,6 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
 });
@@ -908,7 +901,6 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
 });
@@ -916,14 +908,12 @@ app.post("/api/auth/google", async (req, res) => {
 app.get("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
   const user = await requireActiveUser(req, res);
   if (!user) return;
-  await ensureUserBinders(user.id);
-  const [deckCount, publicDeckCount, wishlistCount, ownedCount] = await Promise.all([
+  const [deckCount, publicDeckCount, binderCount] = await Promise.all([
     prisma.deck.count({ where: { userId: user.id } }),
     prisma.deck.count({ where: { userId: user.id, visibility: "PUBLIC" } }),
-    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.WISHLIST } } }),
-    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.OWNED } } }),
+    prisma.cardBinder.count({ where: { userId: user.id } }),
   ]);
-  res.json(serializeUser(user, { deckCount, publicDeckCount, wishlistCount, ownedCount }));
+  res.json(serializeUser(user, { deckCount, publicDeckCount, binderCount }));
 });
 
 app.put("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
@@ -998,50 +988,83 @@ app.get("/api/users/:username", async (req, res) => {
 app.get("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {
   const current = await requireActiveUser(req, res);
   if (!current) return;
-  await ensureUserBinders(current.id);
-  const binders = await prisma.cardBinder.findMany({ where: { userId: current.id }, include: { items: { include: { card: { include: { set: true } } } } }, orderBy: [{ kind: "asc" }] });
+  const binders = await prisma.cardBinder.findMany({
+    where: { userId: current.id },
+    include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } }, _count: { select: { items: true } } },
+    orderBy: [{ createdAt: "asc" }],
+  });
   res.json(binders);
 });
 
-app.put("/api/binders/me/:kind", authRequired, async (req: RequestWithUser, res) => {
+app.get("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
   const current = await requireActiveUser(req, res);
   if (!current) return;
-  const kind = String(req.params.kind).toUpperCase() as BinderKind;
-  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null }> };
-  const binder = await prisma.cardBinder.upsert({
-    where: { userId_kind: { userId: current.id, kind } },
-    update: {
-      name: payload.name,
-      description: payload.description,
-      isPublic: payload.isPublic,
-    },
-    create: {
+  const binder = await prisma.cardBinder.findFirst({
+    where: { id: String(req.params.id), userId: current.id },
+    include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
+  });
+  if (!binder) return res.status(404).json({ error: "Binder não encontrado." });
+  res.json(binder);
+});
+
+app.post("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean };
+  const binder = await prisma.cardBinder.create({
+    data: {
       userId: current.id,
-      kind,
-      name: payload.name || (kind === BinderKind.WISHLIST ? "Lista de Desejos" : "Cartas Possuídas"),
+      name: payload.name?.trim() || "Novo binder",
       description: payload.description,
       isPublic: payload.isPublic ?? true,
     },
+    include: { items: true },
+  });
+  res.status(201).json(binder);
+});
+
+app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const binderId = String(req.params.id);
+  const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
+  if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
+
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number }> };
+  await prisma.cardBinder.update({
+    where: { id: binderId },
+    data: { name: payload.name, description: payload.description, isPublic: payload.isPublic },
   });
   if (payload.items) {
-    await prisma.cardBinderItem.deleteMany({ where: { binderId: binder.id } });
+    await prisma.cardBinderItem.deleteMany({ where: { binderId } });
     if (payload.items.length) {
       await prisma.cardBinderItem.createMany({
-        data: payload.items.map((item) => ({ binderId: binder.id, cardId: item.cardId, quantity: item.quantity, note: item.note || null })),
+        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index })),
       });
     }
   }
-  const full = await prisma.cardBinder.findUnique({ where: { id: binder.id }, include: { items: { include: { card: { include: { set: true } } } } } });
+  const full = await prisma.cardBinder.findUnique({ where: { id: binderId }, include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } } });
   res.json(full);
 });
 
-app.get("/api/binders/share/:shareId", async (req, res) => {
-  setPublicCache(res, 20, 60);
+app.delete("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const binderId = String(req.params.id);
+  const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
+  if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
+  await prisma.cardBinder.delete({ where: { id: binderId } });
+  res.status(204).send();
+});
+
+app.get("/api/binders/share/:shareId", authOptional, async (req: RequestWithUser, res) => {
   const binder = await prisma.cardBinder.findUnique({
     where: { shareId: String(req.params.shareId) },
-    include: { user: true, items: { include: { card: { include: { set: true } } } } },
+    include: { user: true, items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
   });
-  if (!binder || !binder.isPublic || !binder.user.isActive) return res.status(404).json({ error: "Lista não encontrada." });
+  const isOwner = Boolean(req.user && binder && req.user.userId === binder.userId);
+  if (!binder || !binder.user.isActive || (!binder.isPublic && !isOwner)) return res.status(404).json({ error: "Pasta não encontrada." });
+  if (!isOwner) setPublicCache(res, 20, 60); // dono pode ver versão privada sempre fresca, sem cache
   res.json(binder);
 });
 

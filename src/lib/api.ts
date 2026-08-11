@@ -41,14 +41,13 @@ export type ApiDeck = {
 export type ApiBinder = {
   id: string;
   shareId: string;
-  kind: "WISHLIST" | "OWNED";
   name: string;
   description?: string | null;
   isPublic: boolean;
   createdAt?: string;
   updatedAt?: string;
   user?: AuthUser;
-  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; card: any }>;
+  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; card: any }>;
   _count?: { items: number };
 };
 
@@ -324,8 +323,11 @@ export const api = {
   createMyDeck: (payload: any) => mutate<ApiDeck>("/decks/me", { method: "POST", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/users/"]),
   updateMyDeck: (id: string, payload: any) => mutate<ApiDeck>(`/decks/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/decks/share", "/users/"]),
   deleteMyDeck: (id: string) => mutate<void>(`/decks/me/${id}`, { method: "DELETE" }, ["/decks/me", "/decks/public", "/users/"]),
-  listMyBinders: () => request<ApiBinder[]>("/binders/me", undefined, { ttlMs: 10_000 }),
-  updateMyBinder: (kind: "WISHLIST" | "OWNED", payload: any) => mutate<ApiBinder>(`/binders/me/${kind}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
+  listMyBinders: (options?: { bypassCache?: boolean }) => request<ApiBinder[]>("/binders/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
+  getMyBinder: (id: string) => request<ApiBinder>(`/binders/me/${id}`, undefined, { ttlMs: 5_000 }),
+  createBinder: (payload: { name: string; description?: string; isPublic?: boolean }) => mutate<ApiBinder>("/binders/me", { method: "POST", body: JSON.stringify(payload) }, ["/binders/me", "/users/"]),
+  updateMyBinder: (id: string, payload: any) => mutate<ApiBinder>(`/binders/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
+  deleteBinder: (id: string) => mutate<void>(`/binders/me/${id}`, { method: "DELETE" }, ["/binders/me", "/users/"]),
   getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
 };
 
@@ -355,6 +357,9 @@ export function mapApiCard(card: any): CardRecord {
     trait: card.trait ?? "",
     keywords: card.keywordTags ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
+    rarity: card.rarity ?? undefined,
+    setCode: card.set?.code ?? card.setCode ?? undefined,
+    setName: card.set?.namePt ?? card.set?.nameEn ?? undefined,
     imageUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,
     imageSmallUrl: card.imageSmallUrl ?? card.thumbUrl ?? undefined,
     imageMediumUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,

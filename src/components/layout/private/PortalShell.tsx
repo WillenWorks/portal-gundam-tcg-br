@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Heart, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
+import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,8 +26,7 @@ const userNav = [
   { href: "/portal", label: "Minha Área", icon: Home },
   { href: "/deckbuilder", label: "Decks", icon: Swords },
   { href: "/profile", label: "Configurações", icon: Settings },
-  { href: "/wishlist", label: "Lista de desejos", icon: Heart },
-  { href: "/owned", label: "Cartas possuídas", icon: BookMarked },
+  { href: "/binders", label: "Binders", icon: BookMarked },
 ] as const;
 
 const adminNav = [
@@ -45,8 +44,7 @@ const titles: Record<string, string> = {
   "/portal": "Minha área",
   "/deckbuilder": "Decks",
   "/profile": "Configurações",
-  "/wishlist": "Lista de desejos",
-  "/owned": "Cartas possuídas",
+  "/binders": "Binders",
   "/admin": "Gestão",
   "/admin/users": "Gestão de usuários",
   "/admin/cards": "Cadastro de cartas",
