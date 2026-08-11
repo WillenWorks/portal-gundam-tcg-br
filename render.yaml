@@ -9,7 +9,7 @@ services:
     name: portal-gundam-tcg-br-api
     runtime: node
     plan: free
-    branch: production
+    branch: main
     buildCommand: pnpm install --frozen-lockfile && pnpm run prisma:generate
     startCommand: pnpm run start
     healthCheckPath: /api/health
