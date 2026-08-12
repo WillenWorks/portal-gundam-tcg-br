@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
+import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,10 +23,11 @@ import { cn } from "@/lib/utils";
 type Crumb = { label: string; href?: string };
 
 const userNav = [
-  { href: "/portal", label: "Minha Área", icon: Home },
+  { href: "/", label: "Página Inicial", icon: Globe },
+  { href: "/portal", label: "Home", icon: Home },
   { href: "/deckbuilder", label: "Decks", icon: Swords },
+  { href: "/binders", label: "Pastas", icon: BookMarked },
   { href: "/profile", label: "Configurações", icon: Settings },
-  { href: "/binders", label: "Binders", icon: BookMarked },
 ] as const;
 
 const adminNav = [
@@ -44,7 +45,7 @@ const titles: Record<string, string> = {
   "/portal": "Minha área",
   "/deckbuilder": "Decks",
   "/profile": "Configurações",
-  "/binders": "Binders",
+  "/binders": "Pastas",
   "/admin": "Gestão",
   "/admin/users": "Gestão de usuários",
   "/admin/cards": "Cadastro de cartas",
@@ -81,7 +82,7 @@ function SidebarLinks({ location, isAdmin, onNavigate, collapsed = false }: { lo
                   collapsed ? "justify-center px-0" : "",
                   active
                     ? "border-primary/40 bg-primary/12 text-white dark:text-white light:text-slate-900"
-                    : "border-white/10 bg-white/5 text-slate-300 nav-hover-soft hover:border-white/20 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white/80 light:text-slate-800",
+                    : "border-white/10 bg-white/5 text-slate-300 nav-hover-soft hover:border-white/20 hover:text-white dark:border-white/10 dark:bg-white/5 dark:text-slate-300 light:border-slate-300/70 light:bg-white/80 light:text-slate-800 light:hover:text-slate-950",
                 )}
               >
                 <Icon className={cn("size-4 shrink-0", active ? "text-primary" : "text-slate-400")} />
@@ -181,7 +182,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
             </Breadcrumb>
 
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/88 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{isAdmin && currentPath.startsWith("/admin") ? "Gestão administrativa" : "Núcleo operacional"}</p>
+              {isAdmin && currentPath.startsWith("/admin") ? <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Gestão administrativa</p> : null}
               <h1 className="mt-2 font-heading text-5xl uppercase leading-none dark:text-white light:text-slate-900">{currentTitle}</h1>
             </div>
           </header>

@@ -213,7 +213,7 @@ function getImageExtension(file: Express.Multer.File) {
   return ".jpg";
 }
 
-function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   const now = new Date();
   const yyyy = String(now.getUTCFullYear());
   const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
@@ -279,7 +279,7 @@ async function saveImageToSupabase(file: Express.Multer.File, objectKey: string)
   };
 }
 
-async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   if (!file.buffer?.length) throw new Error("Arquivo de imagem vazio.");
   const objectKey = buildStorageObjectKey(file, input);
   if (STORAGE_DRIVER === "supabase") return saveImageToSupabase(file, objectKey);
@@ -720,6 +720,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     isActive: user.isActive,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
+    hasPassword: Boolean(user.passwordHash),
     stats,
   };
 }
@@ -937,11 +938,34 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   const current = await requireActiveUser(req, res);
   if (!current) return;
   const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: "Senha atual e nova senha são obrigatórias." });
-  if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: "A nova senha precisa ter pelo menos 8 caracteres." });
+  if (current.passwordHash) {
+    // Conta com senha de verdade -- exige confirmar a atual antes de trocar.
+    if (!currentPassword) return res.status(400).json({ error: "Informe a senha atual." });
+    if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  }
+  // Conta so-com-Google (passwordHash nulo) -- nao tem senha atual pra conferir, deixa
+  // definir uma agora (isso NAO desativa o login por Google, so adiciona um segundo
+  // caminho de acesso pra essa conta).
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
   res.json({ ok: true });
+});
+
+// Upload de avatar -- aberto a qualquer usuario autenticado (diferente do upload
+// generico de imagem de carta, que exige ADMIN/EDITOR). Ja atualiza avatarUrl direto
+// no registro do usuario, nao precisa de um PUT separado depois.
+app.post("/api/auth/me/avatar", authRequired, upload.single("image"), async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
+    const saved = await saveUploadedCardImage(req.file, { entity: "avatars", label: current.id });
+    const user = await prisma.user.update({ where: { id: current.id }, data: { avatarUrl: saved.publicUrl } });
+    res.status(201).json(serializeUser(user));
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || "Erro ao enviar avatar." });
+  }
 });
 
 app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
@@ -1688,7 +1712,7 @@ app.post("/api/uploads/image", authRequired, roleRequired([UserRole.ADMIN, UserR
   try {
     if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
     const entityRaw = String(req.body?.entity || "cards");
-    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" : "cards";
+    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" | "avatars" : "cards";
     const saved = await saveUploadedCardImage(req.file, {
       entity,
       cardCode: req.body?.referenceCode ? String(req.body.referenceCode) : undefined,
@@ -2075,6 +2099,27 @@ async function findInvalidDeckCardIds(items: Array<{ cardId: string }>): Promise
   return ids.filter((id) => !foundIds.has(id));
 }
 
+/** Garante 10 recursos sempre, no servidor -- rede de seguranca independente do
+ * auto-preenchimento do client (DeckbuilderPage.tsx), que so roda dentro do editor.
+ * Sem isso, um deck que chegou aqui por outro caminho (corrida entre salvar rapido
+ * demais e o efeito do client ainda nao ter rodado, importacao, etc) fica salvo com
+ * resource incompleto pra sempre, aparecendo "pendente" na lista sem o usuario saber
+ * por que (a contagem de recurso nem aparece mais na tela, so o principal). Mesma
+ * logica de completar a diferenca com a arte de menor codigo, ja testada isolada
+ * quando construi a versao do client. */
+async function topUpDeckResources(items: Array<{ cardId: string; quantity: number; section?: string }>): Promise<Array<{ cardId: string; quantity: number; section?: string }>> {
+  const resourceTotal = items.filter((item) => (item.section ?? "main") === "resource").reduce((sum, item) => sum + item.quantity, 0);
+  const missing = DECK_RESOURCE_SIZE - resourceTotal;
+  if (missing <= 0) return items;
+  const defaultResource = await prisma.card.findFirst({ where: { cardType: "RESOURCE", isActive: true }, orderBy: { code: "asc" }, select: { id: true } });
+  if (!defaultResource) return items; // catalogo sem resource cadastrado -- nada a fazer, nao trava o salvamento por isso
+  const existingIndex = items.findIndex((item) => (item.section ?? "main") === "resource" && item.cardId === defaultResource.id);
+  if (existingIndex >= 0) {
+    return items.map((item, i) => (i === existingIndex ? { ...item, quantity: item.quantity + missing } : item));
+  }
+  return [...items, { cardId: defaultResource.id, quantity: missing, section: "resource" }];
+}
+
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
@@ -2090,6 +2135,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   const invalidIds = await findInvalidDeckCardIds(items || []);
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.create({
     data: {
       userId: req.user!.userId,
@@ -2100,7 +2146,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });
@@ -2125,6 +2171,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   await prisma.deckItem.deleteMany({ where: { deckId } });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.update({
     where: { id: deckId },
     data: {
@@ -2135,7 +2182,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });

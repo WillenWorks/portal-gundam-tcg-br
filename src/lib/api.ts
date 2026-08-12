@@ -17,7 +17,8 @@ export type AuthUser = {
   isActive?: boolean;
   preferredCardLanguage?: "PT_BR" | "EN";
   preferredTheme?: string | null;
-  stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number };
+  hasPassword?: boolean;
+  stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
 };
 
 export type ApiDeck = {
@@ -258,7 +259,8 @@ export const api = {
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
-  updatePassword: (payload: { currentPassword: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
@@ -356,6 +358,7 @@ export function mapApiCard(card: any): CardRecord {
     series: card.series ?? "",
     trait: card.trait ?? "",
     keywords: card.keywordTags ?? [],
+    triggerKeywords: card.triggerKeywords ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
     rarity: card.rarity ?? undefined,
     setCode: card.set?.code ?? card.setCode ?? undefined,
