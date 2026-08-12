@@ -317,6 +317,65 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
   );
 }
 
+/** Modal de detalhe — abre a partir de qualquer estatística clicável (cor, trait,
+ *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
+ *  aquele número. Lista ou imagem, alternável — clicar numa carta abre o preview
+ *  grande dela (reaproveita CardPreviewModal). */
+function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { label: string; value: string } | null; rows: DeckRow[]; onClose: () => void; onPreviewCard: (card: DeckRow) => void }) {
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  if (!title) return null;
+  const total = rows.reduce((sum, r) => sum + r.quantity, 0);
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
+            <h3 className="font-heading text-2xl uppercase heading-portal">{title.value}</h3>
+            <p className="mt-1 text-xs text-slate-500">{rows.length} carta(s) única(s) · {total} no total</p>
+          </div>
+          <div className="flex border border-white/15">
+            <button type="button" onClick={() => setViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Imagens</button>
+            <button type="button" onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Lista</button>
+          </div>
+        </div>
+
+        {!rows.length ? <p className="py-8 text-center text-sm text-muted-portal">Nenhuma carta encontrada.</p> : viewMode === "grid" ? (
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+            {rows.map((row) => {
+              const image = row.imageMediumUrl || row.imageUrl;
+              return (
+                <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="group relative block aspect-[63/88] overflow-hidden border border-white/15 transition hover:border-primary/50">
+                  {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+                  <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row) => {
+              const image = row.imageMediumUrl || row.imageUrl;
+              return (
+                <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="flex w-full items-center gap-3 border border-white/10 bg-white/5 p-2 text-left transition hover:border-primary/40 hover:bg-white/10">
+                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : null}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium heading-portal">{row.namePt || row.name}</p>
+                    <p className="text-xs text-slate-500">{row.code} · {row.color}</p>
+                  </div>
+                  <span className="shrink-0 text-sm text-muted-portal">{row.quantity}x</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export default function DeckbuilderPage() {
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
@@ -330,6 +389,8 @@ export default function DeckbuilderPage() {
   const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
+  const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
+  const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -725,6 +786,13 @@ export default function DeckbuilderPage() {
       return count ? { name, count, pct: Math.round((count / total) * 100) } : null;
     }).filter((item): item is NonNullable<typeof item> => item !== null);
   }, [mainDeckRows, stats.mainDeckCount]);
+
+  /** Abre o modal de detalhe filtrando o deck principal pelo criterio clicado --
+   *  reaproveitado por todo bloco clicavel (cor, trait, serie, tipo, keyword). */
+  const openStatDetail = (label: string, value: string, matcher: (row: DeckRow) => boolean) => {
+    setStatDetail({ label, value });
+    setStatDetailRows(mainDeckRows.filter(matcher));
+  };
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
@@ -1341,10 +1409,10 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.</p>
                 <div className="mt-5 space-y-3">
                   {colorBreakdown.length ? colorBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Cor", item.name, (row) => row.color === item.name)} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full" style={{ width: `${item.pct}%`, backgroundColor: GAME_COLOR_HEX[item.name] || "#94a3b8" }} /></div>
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
                 </div>
               </CardContent>
@@ -1357,10 +1425,10 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.</p>
                 <div className="mt-5 space-y-3">
                   {traitBreakdown.length ? traitBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Trait", item.name, (row) => (row.trait || "Sem trait") === item.name)} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas com trait definido para ver a distribuição.</p>}
                 </div>
               </CardContent>
@@ -1375,10 +1443,10 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.</p>
                 <div className="mt-5 space-y-3">
                   {seriesBreakdown.length ? seriesBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Série", item.name, (row) => (row.series || "Sem série definida") === item.name)} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate heading-portal">{item.name}</span><span className="shrink-0 text-muted-portal">{item.value} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
                 </div>
               </CardContent>
@@ -1391,10 +1459,10 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.</p>
                 <div className="mt-5 space-y-3">
                   {typeBreakdown.length ? typeBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Tipo", item.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === item.name)} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} /></div>
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
                 </div>
               </CardContent>
@@ -1409,11 +1477,11 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.</p>
                 <div className="mt-5 space-y-3">
                   {effectKeywordBreakdown.length ? effectKeywordBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de efeito", item.name, (row) => row.keywords.includes(item.name))} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
                       {item.valueBreakdown ? <p className="mt-1 text-[11px] text-slate-500">{item.valueBreakdown.map(([val, qty]) => `${qty}x ${item.name} ${val}`).join(", ")}</p> : null}
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Nenhuma keyword de efeito detectada ainda neste deck.</p>}
                 </div>
               </CardContent>
@@ -1426,10 +1494,10 @@ export default function DeckbuilderPage() {
                 <p className="mt-1 text-xs leading-5 text-slate-500">QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.</p>
                 <div className="mt-5 space-y-3">
                   {triggerKeywordBreakdown.length ? triggerKeywordBreakdown.map((item) => (
-                    <div key={item.name}>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de gatilho", item.name, (row) => Boolean(row.triggerKeywords?.includes(item.name)))} className="block w-full text-left transition hover:opacity-80">
                       <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
-                    </div>
+                    </button>
                   )) : <p className="text-sm text-muted-portal">Nenhuma keyword de gatilho detectada ainda neste deck.</p>}
                 </div>
               </CardContent>
@@ -1452,7 +1520,7 @@ export default function DeckbuilderPage() {
                       <XAxis dataKey="cost" tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Custo", `${entry.cost}`, (row) => String(row.cost) === entry.cost)} className="cursor-pointer" />
                     </BarChart>
                   </ChartContainer>
                 </div>
@@ -1467,7 +1535,7 @@ export default function DeckbuilderPage() {
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                      <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2}>
+                      <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2} onClick={(entry: any) => openStatDetail("Cor", entry.name, (row) => row.color === entry.name)} className="cursor-pointer">
                         {colorData.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || "#94a3b8"} />)}
                       </Pie>
                       <ChartLegend content={<ChartLegendContent nameKey="name" />} />
@@ -1489,7 +1557,7 @@ export default function DeckbuilderPage() {
                     <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={90} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                    <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Tipo", entry.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === entry.name)} className="cursor-pointer" />
                   </BarChart>
                 </ChartContainer>
               </div>
@@ -1501,6 +1569,7 @@ export default function DeckbuilderPage() {
       )}
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
+      <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
         <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">
