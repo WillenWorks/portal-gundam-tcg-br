@@ -221,5 +221,63 @@
   .panel-cut {
     clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   }
-  .title-glow { text-shadow: 0 0 24px oklch(0.73 0.13 215 / 0.3); }
+  .title-glow { text-shadow: 0 0 24px color-mix(in oklch, var(--primary) 30%, transparent); }
+}
+
+/* Zeon — identidade militar/imperial de verdade, nao so paleta. Emblema geometrico
+ * ORIGINAL (nao o crest oficial da franquia, que e propriedade da Bandai/Sunrise —
+ * ver ZeonSigil.tsx), corte de canto unico mais agressivo em vez do corte duplo
+ * simetrico do Hangar, listra de risco no topo dos paineis hero, tipografia mais
+ * pesada em titulo. So dentro das paginas -- navegacao/sidebar continuam identicas
+ * nos dois perfis, por pedido explicito. */
+@layer utilities {
+  .faction-zeon .panel-cut {
+    clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%);
+  }
+  .faction-zeon .hero-surface {
+    background-image: linear-gradient(135deg, oklch(0.18 0.035 20), oklch(0.26 0.06 15), oklch(0.36 0.04 25));
+    position: relative;
+  }
+  .light.faction-zeon .hero-surface {
+    background-image: linear-gradient(135deg, oklch(0.95 0.02 25), oklch(0.9 0.04 20), oklch(0.85 0.05 18));
+  }
+  .faction-zeon .hero-surface::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 5px;
+    background: repeating-linear-gradient(135deg, var(--primary) 0 12px, var(--accent) 12px 24px);
+  }
+  .faction-zeon .hero-surface::after {
+    content: "";
+    position: absolute;
+    right: -16px;
+    bottom: -16px;
+    width: 170px;
+    height: 170px;
+    background-color: var(--primary);
+    opacity: 0.08;
+    mask-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTAgNCBMOTIgMjcgVjczIEw1MCA5NiBMOCA3MyBWMjcgWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyLjUiLz48cGF0aCBkPSJNNTAgNCBMOTIgMjcgTDUwIDUwIEw4IDI3IFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIyNiIgeTE9IjE1IiB4Mj0iNzQiIHkyPSI4NSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    pointer-events: none;
+  }
+  .faction-zeon h1, .faction-zeon h2, .faction-zeon h3 {
+    font-weight: 700;
+    letter-spacing: 0.07em;
+  }
+  .faction-zeon .surface-panel {
+    position: relative;
+  }
+  .faction-zeon .surface-panel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 22px;
+    height: 22px;
+    border-top: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+    border-right: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+    pointer-events: none;
+  }
 }

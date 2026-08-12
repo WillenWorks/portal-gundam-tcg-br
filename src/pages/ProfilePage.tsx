@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useFaction } from "@/contexts/FactionContext";
+import { FactionSigil } from "@/components/theme/FactionSigil";
 import { api } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
@@ -125,11 +126,15 @@ export default function ProfilePage() {
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Aparência e idioma</p>
               <div>
                 <label className="text-xs text-slate-500">Perfil visual</label>
-                <select value={faction} onChange={(e) => setFaction(e.target.value as "hangar" | "zeon")} className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
-                  <option value="hangar">Hangar</option>
-                  <option value="zeon">Zeon</option>
-                </select>
-                <p className="mt-1.5 text-xs text-slate-500">Muda a identidade de cor do site (vermelho/dourado no Zeon). Mais facções chegam depois.</p>
+                <div className="mt-1.5 grid grid-cols-2 gap-2">
+                  {(["hangar", "zeon"] as const).map((option) => (
+                    <button key={option} type="button" onClick={() => setFaction(option)} className={`flex items-center gap-2.5 border p-2.5 text-left transition ${faction === option ? "border-primary/60 bg-primary/10" : "border-white/15 bg-white/5 hover:border-white/30"}`}>
+                      {option === "zeon" ? <FactionSigil className="size-6 shrink-0 text-primary" /> : <div className="size-6 shrink-0 border border-white/30" />}
+                      <span className="text-sm capitalize">{option}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs text-slate-500">Muda a identidade visual do site (cor, cantos, tipografia). Mais facções chegam depois.</p>
               </div>
               <div>
                 <label className="text-xs text-slate-500">Modo de cor</label>
