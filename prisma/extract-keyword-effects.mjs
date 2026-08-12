@@ -23,6 +23,7 @@
  *   node prisma/extract-keyword-effects.mjs --apply       -> aplica de verdade.
  */
 import { PrismaClient } from "@prisma/client";
+import { pathToFileURL } from "node:url";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -117,10 +118,13 @@ async function main() {
   }
 }
 
-if (process.argv[1] === fileURLToPathSafe(import.meta.url)) {
+// process.argv[1] === import.meta.url direto quebra no Windows: import.meta.url vem
+// como "file:///C:/..." e process.argv[1] como "C:\\..." (barra invertida, sem
+// file://, sem a barra extra antes da letra do drive) -- as duas strings nunca batem,
+// entao main() nunca era chamado, sem erro nenhum, sem log nenhum (exatamente o
+// sintoma reportado: script "roda" e nao faz nada). Mesmo problema ja resolvido antes
+// em apply-gcg-official-curation.mjs -- devia ter reaproveitado o padrao de la desde
+// o inicio em vez de escrever um novo (com bug).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((err) => { console.error(err); process.exit(1); });
-}
-
-function fileURLToPathSafe(url) {
-  try { return new URL(url).pathname; } catch { return url; }
 }
