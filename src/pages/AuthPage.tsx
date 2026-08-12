@@ -1,6 +1,6 @@
 /* Auth pública v8.1 — login/cadastro no site sem sidebar privada. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -24,6 +24,7 @@ function getInitialMode() {
 
 export default function AuthPage() {
   const { login, register, loginWithGoogle, isAuthenticated, user } = useAuth();
+  const [, navigate] = useLocation();
   const [mode, setMode] = useState<"login" | "register">(() => getInitialMode());
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState(import.meta.env.DEV ? "pilot@gundambr.local" : "");
@@ -58,6 +59,12 @@ export default function AuthPage() {
     script.onload = initialize;
     document.head.appendChild(script);
   }, [isAuthenticated]);
+
+  // Assim que autentica (login normal ou Google), cai direto na Minha Área -- antes
+  // ficava parado na propria tela de login sem redirecionamento nenhum.
+  useEffect(() => {
+    if (isAuthenticated) navigate("/portal", { replace: true });
+  }, [isAuthenticated, navigate]);
 
   const submit = async () => {
     if (mode === "login") {

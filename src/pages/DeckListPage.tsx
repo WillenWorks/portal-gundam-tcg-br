@@ -60,7 +60,7 @@ export default function DeckListPage() {
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Deckbuilder</p>
               <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Meus decks</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Cada deck aqui é um dossiê próprio — capa, legalidade e as duas listas (principal e recursos) ficam dentro do editor.</p>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Monte, edite e acompanhe a legalidade dos seus decks em tempo real — capa, curva de custo e estatísticas completas em cada um.</p>
             </div>
             <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo deck</Button>
           </CardContent>

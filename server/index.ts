@@ -213,7 +213,7 @@ function getImageExtension(file: Express.Multer.File) {
   return ".jpg";
 }
 
-function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   const now = new Date();
   const yyyy = String(now.getUTCFullYear());
   const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
@@ -279,7 +279,7 @@ async function saveImageToSupabase(file: Express.Multer.File, objectKey: string)
   };
 }
 
-async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   if (!file.buffer?.length) throw new Error("Arquivo de imagem vazio.");
   const objectKey = buildStorageObjectKey(file, input);
   if (STORAGE_DRIVER === "supabase") return saveImageToSupabase(file, objectKey);
@@ -720,6 +720,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     isActive: user.isActive,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
+    hasPassword: Boolean(user.passwordHash),
     stats,
   };
 }
@@ -937,11 +938,34 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   const current = await requireActiveUser(req, res);
   if (!current) return;
   const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: "Senha atual e nova senha são obrigatórias." });
-  if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: "A nova senha precisa ter pelo menos 8 caracteres." });
+  if (current.passwordHash) {
+    // Conta com senha de verdade -- exige confirmar a atual antes de trocar.
+    if (!currentPassword) return res.status(400).json({ error: "Informe a senha atual." });
+    if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  }
+  // Conta so-com-Google (passwordHash nulo) -- nao tem senha atual pra conferir, deixa
+  // definir uma agora (isso NAO desativa o login por Google, so adiciona um segundo
+  // caminho de acesso pra essa conta).
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
   res.json({ ok: true });
+});
+
+// Upload de avatar -- aberto a qualquer usuario autenticado (diferente do upload
+// generico de imagem de carta, que exige ADMIN/EDITOR). Ja atualiza avatarUrl direto
+// no registro do usuario, nao precisa de um PUT separado depois.
+app.post("/api/auth/me/avatar", authRequired, upload.single("image"), async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
+    const saved = await saveUploadedCardImage(req.file, { entity: "avatars", label: current.id });
+    const user = await prisma.user.update({ where: { id: current.id }, data: { avatarUrl: saved.publicUrl } });
+    res.status(201).json(serializeUser(user));
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || "Erro ao enviar avatar." });
+  }
 });
 
 app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
@@ -1688,7 +1712,7 @@ app.post("/api/uploads/image", authRequired, roleRequired([UserRole.ADMIN, UserR
   try {
     if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
     const entityRaw = String(req.body?.entity || "cards");
-    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" : "cards";
+    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" | "avatars" : "cards";
     const saved = await saveUploadedCardImage(req.file, {
       entity,
       cardCode: req.body?.referenceCode ? String(req.body.referenceCode) : undefined,
