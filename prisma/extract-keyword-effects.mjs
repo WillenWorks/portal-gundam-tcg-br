@@ -38,6 +38,34 @@ const KEYWORD_PATTERNS = [
   { name: "Suppression", regex: /\bSuppression\b/i },
 ];
 
+// Keywords de GATILHO (quando o efeito ativa, nao o que ele faz) -- lista oficial tem
+// tambem "Attack" e "Destroyed" soltos, mas essas duas palavras aparecem demais em
+// texto de efeito comum fora do papel de keyword ("when this Unit attacks",
+// "if this Unit is destroyed" como condicao, nao como marcador formal) -- risco de
+// falso positivo alto demais pra regex simples sem mais exemplo real pra calibrar.
+// "Attack" so entra quando vem logo depois de "During Link"/"During Pair" (padrao
+// visto nos cards reais dessa sessao: badges concatenados sem separador no inicio do
+// texto). "Destroyed" fica de fora por enquanto -- fica documentado, nao e esquecimento.
+const TRIGGER_KEYWORD_PATTERNS = [
+  { name: "Deploy", regex: /\bDeploy\b/i },
+  { name: "Burst", regex: /\[Burst\]|\bBurst\b/i },
+  { name: "Once per Turn", regex: /\bOnce per Turn\b/i },
+  { name: "During Link", regex: /\bDuring Link\b/i },
+  { name: "During Pair", regex: /\bDuring Pair\b/i },
+  { name: "When Paired", regex: /\bWhen Paired\b/i },
+  { name: "Attack", regex: /\bDuring (?:Link|Pair)\s+Attack\b/i },
+  { name: "Activate", regex: /\bActivate[·:]/i },
+];
+
+export function extractTriggerKeywords(effectText) {
+  if (!effectText) return [];
+  const found = [];
+  for (const { name, regex } of TRIGGER_KEYWORD_PATTERNS) {
+    if (regex.test(effectText)) found.push(name);
+  }
+  return found;
+}
+
 export function extractKeywords(effectText) {
   if (!effectText) return [];
   const found = [];
@@ -50,30 +78,36 @@ export function extractKeywords(effectText) {
 async function main() {
   const prisma = new PrismaClient();
   try {
-    const models = await prisma.cardModel.findMany({ where: { effectEn: { not: null } }, select: { id: true, code: true, effectEn: true, keywordTags: true } });
+    const models = await prisma.cardModel.findMany({ where: { effectEn: { not: null } }, select: { id: true, code: true, effectEn: true } });
     const modelUpdates = models
-      .map((m) => ({ id: m.id, code: m.code, next: extractKeywords(m.effectEn) }))
-      .filter((m) => m.next.length > 0 && JSON.stringify(m.next) !== JSON.stringify([]));
+      .map((m) => ({ id: m.id, code: m.code, keywordTags: extractKeywords(m.effectEn), triggerKeywords: extractTriggerKeywords(m.effectEn) }))
+      .filter((m) => m.keywordTags.length > 0 || m.triggerKeywords.length > 0);
 
     const prints = await prisma.card.findMany({ where: { effectEn: { not: null } }, select: { id: true, code: true, effectEn: true } });
     const printUpdates = prints
-      .map((p) => ({ id: p.id, code: p.code, next: extractKeywords(p.effectEn) }))
-      .filter((p) => p.next.length > 0);
+      .map((p) => ({ id: p.id, code: p.code, keywordTags: extractKeywords(p.effectEn), triggerKeywords: extractTriggerKeywords(p.effectEn) }))
+      .filter((p) => p.keywordTags.length > 0 || p.triggerKeywords.length > 0);
 
-    console.log(`CardModel com keyword detectada: ${modelUpdates.length} de ${models.length}`);
-    console.log(`Card (print) com keyword detectada: ${printUpdates.length} de ${prints.length}`);
+    console.log(`CardModel com keyword de efeito e/ou gatilho detectada: ${modelUpdates.length} de ${models.length}`);
+    console.log(`Card (print) com keyword de efeito e/ou gatilho detectada: ${printUpdates.length} de ${prints.length}`);
     console.log("\nAmostra (10 primeiras):");
-    for (const m of modelUpdates.slice(0, 10)) console.log(`  ${m.code}: ${m.next.join(", ")}`);
+    for (const m of modelUpdates.slice(0, 10)) console.log(`  ${m.code}: efeito=[${m.keywordTags.join(", ")}] gatilho=[${m.triggerKeywords.join(", ")}]`);
 
-    const tally = {};
-    for (const m of modelUpdates) for (const k of m.next) tally[k] = (tally[k] || 0) + 1;
-    console.log("\nContagem por keyword (nível modelo):");
-    for (const [k, count] of Object.entries(tally).sort((a, b) => b[1] - a[1])) console.log(`  ${k}: ${count}`);
+    const tallyEffect = {};
+    const tallyTrigger = {};
+    for (const m of modelUpdates) {
+      for (const k of m.keywordTags) tallyEffect[k] = (tallyEffect[k] || 0) + 1;
+      for (const k of m.triggerKeywords) tallyTrigger[k] = (tallyTrigger[k] || 0) + 1;
+    }
+    console.log("\nContagem por keyword de EFEITO (nível modelo):");
+    for (const [k, count] of Object.entries(tallyEffect).sort((a, b) => b[1] - a[1])) console.log(`  ${k}: ${count}`);
+    console.log("\nContagem por keyword de GATILHO (nível modelo):");
+    for (const [k, count] of Object.entries(tallyTrigger).sort((a, b) => b[1] - a[1])) console.log(`  ${k}: ${count}`);
 
     if (APPLY) {
       console.log("\nAplicando...");
-      for (const m of modelUpdates) await prisma.cardModel.update({ where: { id: m.id }, data: { keywordTags: m.next } });
-      for (const p of printUpdates) await prisma.card.update({ where: { id: p.id }, data: { keywordTags: p.next } });
+      for (const m of modelUpdates) await prisma.cardModel.update({ where: { id: m.id }, data: { keywordTags: m.keywordTags, triggerKeywords: m.triggerKeywords } });
+      for (const p of printUpdates) await prisma.card.update({ where: { id: p.id }, data: { keywordTags: p.keywordTags, triggerKeywords: p.triggerKeywords } });
       console.log(`Aplicado: ${modelUpdates.length} CardModel + ${printUpdates.length} Card atualizados.`);
     } else {
       console.log("\nDry-run (padrão) -- nada foi gravado. Rode com --apply pra aplicar de verdade.");

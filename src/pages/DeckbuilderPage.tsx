@@ -32,6 +32,19 @@ type PoolMeta = {
 
 const defaultPoolFilters: PoolFilters = { q: "", color: "", cardType: "", series: "", trait: "" };
 
+// Mesma lista das 7 keywords de efeito extraidas no backend (ver
+// prisma/extract-keyword-effects.mjs) -- mantidas em sincronia manual, sao poucas e
+// mudam raramente (so em atualizacao de regra oficial do jogo).
+const EFFECT_KEYWORD_LIST = ["Repair", "Breach", "Support", "Blocker", "First Strike", "High-Maneuver", "Suppression"];
+const NUMERIC_KEYWORDS = new Set(["Repair", "Breach", "Support"]);
+const TRIGGER_KEYWORD_LIST = ["Deploy", "Burst", "Once per Turn", "During Link", "During Pair", "When Paired", "Attack", "Activate"];
+
+function extractKeywordValue(effect: string, name: string): number | null {
+  if (!effect) return null;
+  const match = effect.match(new RegExp(`\\b${name}\\s+(\\d+)\\b`, "i"));
+  return match ? Number(match[1]) : null;
+}
+
 function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expandedAll = entries
     .map((entry) => {
@@ -681,6 +694,37 @@ export default function DeckbuilderPage() {
     const total = stats.mainDeckCount || 1;
     return [...typeData].sort((a, b) => b.quantity - a.quantity).map((item) => ({ name: item.name, value: item.quantity, pct: Math.round((item.quantity / total) * 100) }));
   }, [typeData, stats.mainDeckCount]);
+
+  // Detalhamento por valor (ex: "2x Breach 2, 1x Breach 5") -- so pras 3 keywords de
+  // efeito numericas. O valor sai reprocessando o texto do efeito no navegador mesmo
+  // (nao precisa de campo novo no banco: keywordTags ja guarda so o nome, de proposito
+  // -- valor especifico so importa aqui, pro detalhamento visual).
+  const effectKeywordBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return EFFECT_KEYWORD_LIST.map((name) => {
+      const rows = mainDeckRows.filter((row) => row.keywords.includes(name));
+      const count = rows.reduce((sum, r) => sum + r.quantity, 0);
+      if (!count) return null;
+      let valueBreakdown: Array<[number, number]> | null = null;
+      if (NUMERIC_KEYWORDS.has(name)) {
+        const valMap = new Map<number, number>();
+        rows.forEach((row) => {
+          const val = extractKeywordValue(row.effect, name);
+          if (val !== null) valMap.set(val, (valMap.get(val) || 0) + row.quantity);
+        });
+        valueBreakdown = [...valMap.entries()].sort((a, b) => a[0] - b[0]);
+      }
+      return { name, count, pct: Math.round((count / total) * 100), valueBreakdown };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [mainDeckRows, stats.mainDeckCount]);
+
+  const triggerKeywordBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return TRIGGER_KEYWORD_LIST.map((name) => {
+      const count = mainDeckRows.filter((row) => row.triggerKeywords?.includes(name)).reduce((sum, r) => sum + r.quantity, 0);
+      return count ? { name, count, pct: Math.round((count / total) * 100) } : null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [mainDeckRows, stats.mainDeckCount]);
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
@@ -1352,6 +1396,41 @@ export default function DeckbuilderPage() {
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} /></div>
                     </div>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.</p>
+                <div className="mt-5 space-y-3">
+                  {effectKeywordBreakdown.length ? effectKeywordBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
+                      {item.valueBreakdown ? <p className="mt-1 text-[11px] text-slate-500">{item.valueBreakdown.map(([val, qty]) => `${qty}x ${item.name} ${val}`).join(", ")}</p> : null}
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Nenhuma keyword de efeito detectada ainda neste deck.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.</p>
+                <div className="mt-5 space-y-3">
+                  {triggerKeywordBreakdown.length ? triggerKeywordBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Nenhuma keyword de gatilho detectada ainda neste deck.</p>}
                 </div>
               </CardContent>
             </Card>

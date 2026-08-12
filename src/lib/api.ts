@@ -356,6 +356,7 @@ export function mapApiCard(card: any): CardRecord {
     series: card.series ?? "",
     trait: card.trait ?? "",
     keywords: card.keywordTags ?? [],
+    triggerKeywords: card.triggerKeywords ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
     rarity: card.rarity ?? undefined,
     setCode: card.set?.code ?? card.setCode ?? undefined,
