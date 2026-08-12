@@ -2099,6 +2099,27 @@ async function findInvalidDeckCardIds(items: Array<{ cardId: string }>): Promise
   return ids.filter((id) => !foundIds.has(id));
 }
 
+/** Garante 10 recursos sempre, no servidor -- rede de seguranca independente do
+ * auto-preenchimento do client (DeckbuilderPage.tsx), que so roda dentro do editor.
+ * Sem isso, um deck que chegou aqui por outro caminho (corrida entre salvar rapido
+ * demais e o efeito do client ainda nao ter rodado, importacao, etc) fica salvo com
+ * resource incompleto pra sempre, aparecendo "pendente" na lista sem o usuario saber
+ * por que (a contagem de recurso nem aparece mais na tela, so o principal). Mesma
+ * logica de completar a diferenca com a arte de menor codigo, ja testada isolada
+ * quando construi a versao do client. */
+async function topUpDeckResources(items: Array<{ cardId: string; quantity: number; section?: string }>): Promise<Array<{ cardId: string; quantity: number; section?: string }>> {
+  const resourceTotal = items.filter((item) => (item.section ?? "main") === "resource").reduce((sum, item) => sum + item.quantity, 0);
+  const missing = DECK_RESOURCE_SIZE - resourceTotal;
+  if (missing <= 0) return items;
+  const defaultResource = await prisma.card.findFirst({ where: { cardType: "RESOURCE", isActive: true }, orderBy: { code: "asc" }, select: { id: true } });
+  if (!defaultResource) return items; // catalogo sem resource cadastrado -- nada a fazer, nao trava o salvamento por isso
+  const existingIndex = items.findIndex((item) => (item.section ?? "main") === "resource" && item.cardId === defaultResource.id);
+  if (existingIndex >= 0) {
+    return items.map((item, i) => (i === existingIndex ? { ...item, quantity: item.quantity + missing } : item));
+  }
+  return [...items, { cardId: defaultResource.id, quantity: missing, section: "resource" }];
+}
+
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
@@ -2114,6 +2135,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   const invalidIds = await findInvalidDeckCardIds(items || []);
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.create({
     data: {
       userId: req.user!.userId,
@@ -2124,7 +2146,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });
@@ -2149,6 +2171,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   await prisma.deckItem.deleteMany({ where: { deckId } });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.update({
     where: { id: deckId },
     data: {
@@ -2159,7 +2182,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });
