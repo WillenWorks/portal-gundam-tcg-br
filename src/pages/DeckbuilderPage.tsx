@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronRight, Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -321,6 +321,20 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
  *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
  *  aquele número. Lista ou imagem, alternável — clicar numa carta abre o preview
  *  grande dela (reaproveita CardPreviewModal). */
+/** Botão "?" pequeno — clique alterna uma dica curta abaixo do título. Botão em vez de
+ *  hover de propósito: hover não existe em touch, botão funciona igual em qualquer tela. */
+function InfoHint({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-block align-middle">
+      <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary">?</button>
+      {open ? (
+        <span className="absolute left-0 top-6 z-20 w-60 border border-white/15 bg-slate-950 p-2.5 text-[11px] leading-4 text-slate-300 shadow-xl">{text}</span>
+      ) : null}
+    </span>
+  );
+}
+
 function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { label: string; value: string } | null; rows: DeckRow[]; onClose: () => void; onPreviewCard: (card: DeckRow) => void }) {
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   if (!title) return null;
@@ -1405,12 +1419,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de cor</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck<InfoHint text="Clique numa cor pra ver quais cartas do deck são dessa cor." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.</p>
                 <div className="mt-5 space-y-3">
                   {colorBreakdown.length ? colorBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Cor", item.name, (row) => row.color === item.name)} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Cor", item.name, (row) => row.color === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full" style={{ width: `${item.pct}%`, backgroundColor: GAME_COLOR_HEX[item.name] || "#94a3b8" }} /></div>
                     </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
@@ -1421,12 +1435,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de trait</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck<InfoHint text="Clique numa trait pra ver quais cartas do deck têm essa trait." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.</p>
                 <div className="mt-5 space-y-3">
                   {traitBreakdown.length ? traitBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Trait", item.name, (row) => (row.trait || "Sem trait") === item.name)} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Trait", item.name, (row) => (row.trait || "Sem trait") === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
                     </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas com trait definido para ver a distribuição.</p>}
@@ -1439,12 +1453,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de série</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck<InfoHint text="Clique numa série pra ver quais cartas do deck são dela." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.</p>
                 <div className="mt-5 space-y-3">
                   {seriesBreakdown.length ? seriesBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Série", item.name, (row) => (row.series || "Sem série definida") === item.name)} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate heading-portal">{item.name}</span><span className="shrink-0 text-muted-portal">{item.value} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Série", item.name, (row) => (row.series || "Sem série definida") === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate heading-portal">{item.name}</span><span className="flex shrink-0 items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
                     </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
@@ -1455,12 +1469,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Composição por tipo</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck<InfoHint text="Clique num tipo pra ver quais cartas do deck são desse tipo." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.</p>
                 <div className="mt-5 space-y-3">
                   {typeBreakdown.length ? typeBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Tipo", item.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === item.name)} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Tipo", item.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} /></div>
                     </button>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
@@ -1473,12 +1487,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito<InfoHint text="Clique numa keyword pra ver quais cartas do deck têm ela." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.</p>
                 <div className="mt-5 space-y-3">
                   {effectKeywordBreakdown.length ? effectKeywordBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de efeito", item.name, (row) => row.keywords.includes(item.name))} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de efeito", item.name, (row) => row.keywords.includes(item.name))} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.count} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
                       {item.valueBreakdown ? <p className="mt-1 text-[11px] text-slate-500">{item.valueBreakdown.map(([val, qty]) => `${qty}x ${item.name} ${val}`).join(", ")}</p> : null}
                     </button>
@@ -1490,12 +1504,12 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho<InfoHint text="Clique numa keyword pra ver quais cartas do deck ativam nesse momento." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.</p>
                 <div className="mt-5 space-y-3">
                   {triggerKeywordBreakdown.length ? triggerKeywordBreakdown.map((item) => (
-                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de gatilho", item.name, (row) => Boolean(row.triggerKeywords?.includes(item.name)))} className="block w-full text-left transition hover:opacity-80">
-                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.count} · {item.pct}%</span></div>
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de gatilho", item.name, (row) => Boolean(row.triggerKeywords?.includes(item.name)))} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.count} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
                     </button>
                   )) : <p className="text-sm text-muted-portal">Nenhuma keyword de gatilho detectada ainda neste deck.</p>}
@@ -1510,7 +1524,7 @@ export default function DeckbuilderPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo</h3>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo<InfoHint text="Clique numa barra pra ver as cartas daquele custo." /></h3>
                   </div>
                 </div>
                 <div className="mt-6 h-[260px]">
@@ -1530,7 +1544,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 02</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor<InfoHint text="Clique numa fatia pra ver as cartas dessa cor." /></h3>
                 <div className="mt-6 h-[260px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
@@ -1549,7 +1563,7 @@ export default function DeckbuilderPage() {
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 03</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo</h3>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo<InfoHint text="Clique numa barra pra ver as cartas desse tipo." /></h3>
               <div className="mt-6 h-[250px]">
                 <ChartContainer config={chartConfig} className="h-full w-full">
                   <BarChart layout="vertical" data={typeData} margin={{ left: 12, right: 12 }}>
