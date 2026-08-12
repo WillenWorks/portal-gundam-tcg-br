@@ -6,6 +6,7 @@ import { Router, Route, Switch, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import Home from "@/pages/Home";
@@ -100,12 +101,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" switchable>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <AppRouter />
-          </TooltipProvider>
-        </AuthProvider>
+        <FactionProvider defaultFaction="hangar">
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <AppRouter />
+            </TooltipProvider>
+          </AuthProvider>
+        </FactionProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

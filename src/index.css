@@ -75,6 +75,38 @@
   --ring: oklch(0.58 0.16 229);
 }
 
+/* Perfil visual Zeon — vermelho carmesim como identidade (hue 18, distinto do
+ * --destructive em hue 25 de proposito, pra nao ler como "erro"), dourado como
+ * acento (referencia a farda/insignia). Fundo com leve deslocamento de matiz pro
+ * quente, mesma luminosidade/croma do Hangar -- identidade sem perder legibilidade. */
+.dark.faction-zeon {
+  --background: oklch(0.17 0.02 22);
+  --card: oklch(0.22 0.024 22 / 0.88);
+  --popover: oklch(0.19 0.024 22 / 0.96);
+  --primary: oklch(0.62 0.19 18);
+  --primary-foreground: oklch(0.14 0.02 22);
+  --secondary: oklch(0.3 0.024 22 / 0.9);
+  --muted: oklch(0.26 0.02 22 / 0.86);
+  --accent: oklch(0.78 0.15 70);
+  --accent-foreground: oklch(0.16 0.02 22);
+  --border: oklch(0.48 0.07 20 / 0.35);
+  --ring: oklch(0.62 0.19 18);
+}
+
+.light.faction-zeon {
+  --background: oklch(0.93 0.012 30);
+  --card: oklch(0.985 0.006 30 / 0.88);
+  --popover: oklch(0.99 0.006 30 / 0.96);
+  --primary: oklch(0.48 0.2 15);
+  --primary-foreground: oklch(0.98 0.004 30);
+  --secondary: oklch(0.9 0.016 30);
+  --muted: oklch(0.9 0.014 30);
+  --accent: oklch(0.68 0.15 65);
+  --accent-foreground: oklch(0.2 0.02 22);
+  --border: oklch(0.78 0.03 25 / 0.92);
+  --ring: oklch(0.48 0.2 15);
+}
+
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { scroll-behavior: smooth; }
@@ -92,6 +124,21 @@
       radial-gradient(circle at 20% 20%, oklch(0.84 0.035 220 / 0.32), transparent 24%),
       radial-gradient(circle at 80% 0%, oklch(0.86 0.03 80 / 0.22), transparent 20%),
       linear-gradient(180deg, oklch(0.94 0.008 240), oklch(0.88 0.012 240));
+  }
+  /* Zeon: mesmo esquema de camadas (glow superior-esquerdo + superior-direito +
+   * gradiente vertical de base), so com matiz deslocado pro vermelho/dourado em vez
+   * de azul/amarelo -- mantem a MESMA estrutura visual do Hangar, so muda a cor. */
+  .dark.faction-zeon body {
+    background-image:
+      radial-gradient(circle at 20% 20%, oklch(0.32 0.09 20 / 0.24), transparent 20%),
+      radial-gradient(circle at 80% 0%, oklch(0.62 0.14 70 / 0.14), transparent 18%),
+      linear-gradient(180deg, oklch(0.2 0.03 22), oklch(0.14 0.02 22));
+  }
+  .light.faction-zeon body {
+    background-image:
+      radial-gradient(circle at 20% 20%, oklch(0.82 0.05 20 / 0.32), transparent 24%),
+      radial-gradient(circle at 80% 0%, oklch(0.84 0.05 65 / 0.24), transparent 20%),
+      linear-gradient(180deg, oklch(0.94 0.014 30), oklch(0.88 0.018 30));
   }
   h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); letter-spacing: 0.04em; }
   ::selection { background: oklch(0.73 0.13 215 / 0.35); color: oklch(0.97 0.01 240); }

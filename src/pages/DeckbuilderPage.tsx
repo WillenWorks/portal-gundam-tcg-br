@@ -94,8 +94,8 @@ function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntr
 }
 
 const chartConfig = {
-  quantity: { label: "Quantidade", color: "#47a0ff" },
-  value: { label: "Quantidade", color: "#47a0ff" },
+  quantity: { label: "Quantidade", color: "var(--primary)" },
+  value: { label: "Quantidade", color: "var(--primary)" },
 } satisfies ChartConfig;
 
 
@@ -1085,6 +1085,11 @@ export default function DeckbuilderPage() {
       const MARGIN = 24;
       const SECTION_LABEL_H = 26;
       const SECTION_GAP = 30;
+      // Cor do tema ativo (Hangar/Zeon) lida em tempo real -- canvas nao resolve
+      // var(--primary) sozinho como o CSS resolveria num elemento DOM normal, mas
+      // aceita a string oklch() resolvida direto (navegadores modernos suportam
+      // CSS Color 4 no canvas 2D). Fallback pro azul original se algo vier vazio.
+      const themePrimaryColor = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#3b82f6";
 
       // Passa pelo nosso proxy (ver server/index.ts: /api/image-proxy) — o CDN de
       // origem (tcgplayer-cdn.tcgplayer.com) não libera CORS pra uso em canvas de outro
@@ -1144,7 +1149,7 @@ export default function DeckbuilderPage() {
             ctx.font = "11px sans-serif";
             ctx.fillText(entry.row.code, x + 8, y + CARD_H / 2);
           }
-          ctx.fillStyle = "#3b82f6";
+          ctx.fillStyle = themePrimaryColor;
           ctx.beginPath();
           ctx.arc(x + CARD_W - 14, y + 14, 13, 0, Math.PI * 2);
           ctx.fill();

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useFaction } from "@/contexts/FactionContext";
 import { api } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 export default function ProfilePage() {
   const { user, refreshMe, setCurrentUser } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { faction, setFaction } = useFaction();
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [preferredCardLanguage, setPreferredCardLanguage] = useState<"PT_BR" | "EN">("PT_BR");
@@ -123,10 +125,11 @@ export default function ProfilePage() {
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Aparência e idioma</p>
               <div>
                 <label className="text-xs text-slate-500">Perfil visual</label>
-                <select value="hangar" disabled className="field-shell mt-1.5 h-10 w-full px-3 text-sm opacity-70">
-                  <option value="hangar">Hangar (padrão)</option>
+                <select value={faction} onChange={(e) => setFaction(e.target.value as "hangar" | "zeon")} className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
+                  <option value="hangar">Hangar</option>
+                  <option value="zeon">Zeon</option>
                 </select>
-                <p className="mt-1.5 text-xs text-slate-500">Outros temas visuais (por facção) chegam em breve.</p>
+                <p className="mt-1.5 text-xs text-slate-500">Muda a identidade de cor do site (vermelho/dourado no Zeon). Mais facções chegam depois.</p>
               </div>
               <div>
                 <label className="text-xs text-slate-500">Modo de cor</label>
