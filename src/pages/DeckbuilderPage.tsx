@@ -1,5 +1,5 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
@@ -325,11 +325,22 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
  *  hover de propósito: hover não existe em touch, botão funciona igual em qualquer tela. */
 function InfoHint({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
   return (
-    <span className="relative inline-block align-middle">
-      <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary">?</button>
+    <span ref={ref} className="relative inline-block align-middle">
+      <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500">?</button>
       {open ? (
-        <span className="absolute left-0 top-6 z-20 w-60 border border-white/15 bg-slate-950 p-2.5 text-[11px] leading-4 text-slate-300 shadow-xl">{text}</span>
+        <span className="surface-panel absolute left-0 top-6 z-20 w-60 border p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal shadow-xl [font-family:var(--font-body)]">{text}</span>
       ) : null}
     </span>
   );
@@ -539,17 +550,26 @@ export default function DeckbuilderPage() {
     });
   }, [exBaseOptions, exResourceOptions, loadingDeck]);
 
-  // Preenche o deck de recursos com 10 cópias de 1 resource padrão só quando ele está
-  // TOTALMENTE vazio — diferente do EX Base/Resource, isso não é um slot travado: é só
-  // um ponto de partida conveniente, o jogador continua livre pra adicionar/remover
-  // qualquer resource pela pool normalmente depois. Não mexe se já tiver algo lá (deck
-  // carregado do banco, ou o jogador já começou a montar essa parte).
+  // Preenche o deck de recursos ate DECK_RESOURCE_SIZE (10) com o resource padrao --
+  // roda 1 vez quando o deck termina de carregar (nao fica competindo com o jogador
+  // decrementando durante a edicao). Antes so checava "existe pelo menos 1 resource"
+  // e parava ali -- se o deck tivesse 7/10 espalhados em varias artes, nunca completava
+  // e ficava pendente pra sempre. Agora soma o total de verdade e completa a diferenca
+  // com a arte padrao, seja sendo do zero ou completando o que ja tem. Nao trava slot
+  // fixo (diferente do EX Base/Resource) -- o jogador continua livre pra trocar/remover
+  // qualquer resource pela pool normalmente depois.
   useEffect(() => {
     if (loadingDeck || !defaultResourceOption) return;
     setEntries((current) => {
-      if (current.some((item) => item.section === "resource")) return current;
+      const resourceTotal = current.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
+      const missing = DECK_RESOURCE_SIZE - resourceTotal;
+      if (missing <= 0) return current;
       const printId = defaultResourceOption.printId || defaultResourceOption.id;
-      return [...current, { cardId: printId, quantity: DECK_RESOURCE_SIZE, section: "resource" }];
+      const existingDefaultEntry = current.find((item) => item.section === "resource" && item.cardId === printId);
+      if (existingDefaultEntry) {
+        return current.map((item) => (item === existingDefaultEntry ? { ...item, quantity: item.quantity + missing } : item));
+      }
+      return [...current, { cardId: printId, quantity: missing, section: "resource" }];
     });
   }, [defaultResourceOption, loadingDeck]);
 

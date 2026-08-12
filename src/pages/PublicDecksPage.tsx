@@ -6,7 +6,7 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
-import { NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
+import { DECK_MAIN_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { api, type ApiDeck } from "@/lib/api";
 
 export default function PublicDecksPage() {
@@ -20,7 +20,7 @@ export default function PublicDecksPage() {
     <PublicShell breadcrumbs={[{ label: "Decks Públicos" }]} title="Decks públicos" description="Listas compartilhadas pela comunidade para estudo, referência e comparação de build.">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {decks.map((deck) => {
-          const quantity = deck.items.filter((item) => !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
+          const quantity = deck.items.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
           return (
             <Card key={deck.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
               <CardContent className="space-y-4 p-4">
@@ -33,7 +33,7 @@ export default function PublicDecksPage() {
                     <h3 className="mt-2 font-heading text-2xl uppercase leading-none">{deck.name}</h3>
                     <p className="mt-2 text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{deck.createdAt ? new Date(deck.createdAt).toLocaleDateString("pt-BR") : "sem data"}</p>
                   </div>
-                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{quantity} cartas</Badge>
+                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{quantity}/{DECK_MAIN_SIZE}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Abrir deck</Link>
