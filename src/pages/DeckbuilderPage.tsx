@@ -574,7 +574,7 @@ export default function DeckbuilderPage() {
   }, [mainDeckRows]);
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
-  const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name, quantity })), [stats.typeMap]);
+  const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
   const topTraits = useMemo(() => Object.entries(stats.traitMap).sort((a, b) => b[1] - a[1]).slice(0, 3), [stats.traitMap]);
   const poolActiveFilters = useMemo(() => Object.values(poolFilters).filter(Boolean).length, [poolFilters]);
 
@@ -666,6 +666,21 @@ export default function DeckbuilderPage() {
     const total = stats.mainDeckCount || 1;
     return topTraits.map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
   }, [topTraits, stats.mainDeckCount]);
+
+  const seriesBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    const map = new Map<string, number>();
+    mainDeckRows.forEach((row) => {
+      const key = row.series || "Sem série definida";
+      map.set(key, (map.get(key) || 0) + row.quantity);
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
+  }, [mainDeckRows, stats.mainDeckCount]);
+
+  const typeBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return [...typeData].sort((a, b) => b.quantity - a.quantity).map((item) => ({ name: item.name, value: item.quantity, pct: Math.round((item.quantity / total) * 100) }));
+  }, [typeData, stats.mainDeckCount]);
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
@@ -1236,45 +1251,43 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <Card className="panel-cut rounded-none surface-panel">
-              <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {archetypeBlocks.length ? archetypeBlocks.map((block) => (
-                    <div key={block.label} className="panel-cut border surface-strong p-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
-                      <p className="mt-2 text-lg heading-portal">{block.value}</p>
-                      <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
-                    </div>
-                  )) : <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
-                </div>
-              </CardContent>
-            </Card>
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {archetypeBlocks.length ? archetypeBlocks.map((block) => (
+                  <div key={block.label} className="panel-cut border surface-strong p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
+                    <p className="mt-2 text-lg heading-portal">{block.value}</p>
+                    <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
+                  </div>
+                )) : <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="panel-cut rounded-none surface-panel">
-              <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {recommendationCards.length ? recommendationCards.map((card) => (
-                    <div key={card.id} className="panel-cut border surface-strong p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
-                          <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
-                          <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
-                        </div>
-                        <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {recommendationCards.length ? recommendationCards.map((card) => (
+                  <div key={card.id} className="panel-cut border surface-strong p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
+                        <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
+                        <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
                       </div>
+                      <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
                     </div>
-                  )) : <p className="col-span-full text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  </div>
+                )) : <p className="col-span-full text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="panel-cut rounded-none surface-panel">
@@ -1305,6 +1318,40 @@ export default function DeckbuilderPage() {
                       <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
                     </div>
                   )) : <p className="text-sm text-muted-portal">Adicione cartas com trait definido para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de série</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.</p>
+                <div className="mt-5 space-y-3">
+                  {seriesBreakdown.length ? seriesBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate heading-portal">{item.name}</span><span className="shrink-0 text-muted-portal">{item.value} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Composição por tipo</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.</p>
+                <div className="mt-5 space-y-3">
+                  {typeBreakdown.length ? typeBreakdown.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="text-muted-portal">{item.value} · {item.pct}%</span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} /></div>
+                    </div>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
                 </div>
               </CardContent>
             </Card>
