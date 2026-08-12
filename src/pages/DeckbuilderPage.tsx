@@ -902,8 +902,34 @@ export default function DeckbuilderPage() {
     });
   };
 
+  // Resource sempre soma 10 de verdade, em tempo real. Decrementar uma arte que NAO
+  // e a padrao compensa aumentando a padrao na hora (voce troca uma copia por outra,
+  // o total nunca cai). Decrementar a PROPRIA arte padrao NAO se autocura de proposito
+  // -- senao voce nunca conseguiria abrir espaco pra trocar por uma arte nova (o
+  // increment ja trava em 10, entao abrir espaco decrementando o padrao e o unico
+  // jeito de entrar uma arte diferente). Usa o total real (nao so +1), entao mesmo se
+  // o padrao tiver sido reduzido antes, o proximo decremento de outra arte completa
+  // a diferenca toda de uma vez, nao so 1.
   const decrement = (printId: string) => {
-    setEntries((current) => current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0));
+    setEntries((current) => {
+      const target = current.find((item) => item.cardId === printId);
+      let next = current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0);
+
+      if (target?.section === "resource" && defaultResourceOption) {
+        const defaultPrintId = defaultResourceOption.printId || defaultResourceOption.id;
+        if (printId !== defaultPrintId) {
+          const resourceTotal = next.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
+          const missing = DECK_RESOURCE_SIZE - resourceTotal;
+          if (missing > 0) {
+            const existingDefault = next.find((item) => item.section === "resource" && item.cardId === defaultPrintId);
+            next = existingDefault
+              ? next.map((item) => (item === existingDefault ? { ...item, quantity: item.quantity + missing } : item))
+              : [...next, { cardId: defaultPrintId, quantity: missing, section: "resource" }];
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const saveDeck = async () => {
