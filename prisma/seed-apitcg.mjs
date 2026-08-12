@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { seedApiTcgTaxonomies } from "./apitcg-taxonomies.mjs";
+import { extractKeywords } from "./extract-keyword-effects.mjs";
 
 const prisma = new PrismaClient();
 const datasetPath = fileURLToPath(new URL("../data/apitcg-gundam.json", import.meta.url));
@@ -173,7 +174,7 @@ async function main() {
         effectEn: attributes.Description || null,
         effectPt: null,
         triggerKeywords: [],
-        keywordTags: [],
+        keywordTags: extractKeywords(attributes.Description || null),
         effectKeywords: [],
         textSectionsJson: null,
         hasBurst: false,
@@ -225,7 +226,7 @@ async function main() {
         effectEn: attributes.Description || null,
         effectPt: null,
         triggerKeywords: [],
-        keywordTags: [],
+        keywordTags: extractKeywords(attributes.Description || null),
         effectKeywords: [],
         textSectionsJson: null,
         hasBurst: false,
