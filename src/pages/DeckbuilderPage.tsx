@@ -342,7 +342,7 @@ function InfoHint({ text }: { text: string }) {
     <span ref={ref} className="relative inline-block align-middle">
       <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500">?</button>
       {open ? (
-        <span className="surface-panel absolute left-0 top-6 z-20 w-60 border p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal shadow-xl [font-family:var(--font-body)]">{text}</span>
+        <span className="absolute left-0 top-6 z-20 w-60 border border-border bg-popover p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal text-popover-foreground shadow-xl [font-family:var(--font-body)]">{text}</span>
       ) : null}
     </span>
   );
