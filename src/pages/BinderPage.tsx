@@ -18,6 +18,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
+import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import type { CardRecord } from "@/modules/core/types";
 
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -366,7 +367,7 @@ export default function BinderPage() {
               <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Adicionar cartas</h3>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell sm:col-span-2" />
-                <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{poolMeta.colors.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                <MultiSelectFilter label="Cores" options={poolMeta.colors} value={poolFilters.color ?? ""} onChange={(v) => setPoolFilter("color", v)} />
                 <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((c) => <option key={c} value={c}>{CARD_TYPE_OPTIONS.find((opt) => opt.value === c)?.label || c}</option>)}</select>
               </div>
               <Badge variant="outline" className="mt-4 rounded-none border-white/20 text-soft">{poolTotal} cartas encontradas</Badge>

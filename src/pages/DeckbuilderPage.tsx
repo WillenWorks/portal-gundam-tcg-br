@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -8,6 +8,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
+import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
@@ -341,7 +342,7 @@ function InfoHint({ text }: { text: string }) {
     <span ref={ref} className="relative inline-block align-middle">
       <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500">?</button>
       {open ? (
-        <span className="surface-panel absolute left-0 top-6 z-20 w-60 border p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal shadow-xl [font-family:var(--font-body)]">{text}</span>
+        <span className="absolute left-0 top-6 z-20 w-60 border border-border bg-popover p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal text-popover-foreground shadow-xl [font-family:var(--font-body)]">{text}</span>
       ) : null}
     </span>
   );
@@ -442,7 +443,7 @@ export default function DeckbuilderPage() {
   const [loadingPool, setLoadingPool] = useState(true);
   const [loadingDeck, setLoadingDeck] = useState(Boolean(deckId));
   const [poolPage, setPoolPage] = useState(1);
-  const [poolPageSize] = useState(24);
+  const [poolPageSize, setPoolPageSize] = useState(24);
   const [poolTotal, setPoolTotal] = useState(0);
   const [poolTotalPages, setPoolTotalPages] = useState(1);
   // Cache separado da pool paginada, indexado por printId — guarda TODA carta já vista
@@ -654,7 +655,19 @@ export default function DeckbuilderPage() {
 
   const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [deckRows]);
   const [mainViewMode, setMainViewMode] = useState<"grid" | "type">("grid");
-  const groupedMainRows = useMemo(() => groupCardsByType(mainDeckRows), [mainDeckRows]);
+  const [mainTileColumns, setMainTileColumns] = useState(8);
+  const [mainSortField, setMainSortField] = useState<"default" | "color" | "level" | "cost" | "trait" | "name">("default");
+  const sortedMainDeckRows = useMemo(() => {
+    if (mainSortField === "default") return mainDeckRows;
+    return [...mainDeckRows].sort((a, b) => {
+      if (mainSortField === "color") return (a.color || "").localeCompare(b.color || "");
+      if (mainSortField === "level") return (a.level ?? 0) - (b.level ?? 0);
+      if (mainSortField === "cost") return (a.cost ?? 0) - (b.cost ?? 0);
+      if (mainSortField === "trait") return (a.trait || "").localeCompare(b.trait || "");
+      return (a.namePt || a.name || "").localeCompare(b.namePt || b.name || "");
+    });
+  }, [mainDeckRows, mainSortField]);
+  const groupedMainRows = useMemo(() => groupCardsByType(sortedMainDeckRows), [sortedMainDeckRows]);
   const resourceDeckRows = useMemo(() => deckRows.filter((row) => row.section === "resource"), [deckRows]);
   const exBaseRow = useMemo(() => deckRows.find((row) => row.section === "ex_base"), [deckRows]);
   const exResourceRow = useMemo(() => deckRows.find((row) => row.section === "ex_resource"), [deckRows]);
@@ -1228,12 +1241,12 @@ export default function DeckbuilderPage() {
                 <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="size-4" /></Button>
               </TooltipTrigger><TooltipContent>Compartilhar</TooltipContent></Tooltip>
               <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Upload className="size-4" /></Button>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Download className="size-4" /></Button>
               </TooltipTrigger><TooltipContent>Importar</TooltipContent></Tooltip>
               <DropdownMenu>
                 <Tooltip><TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="size-4" /></Button>
+                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Upload className="size-4" /></Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger><TooltipContent>Exportar</TooltipContent></Tooltip>
                 <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">
@@ -1269,10 +1282,10 @@ export default function DeckbuilderPage() {
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell xl:col-span-2" />
-              <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{poolMeta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Cores" options={poolMeta.colors} value={poolFilters.color ?? ""} onChange={(v) => setPoolFilter("color", v)} />
               <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((item) => <option key={item} value={item}>{CARD_TYPE_OPTIONS.find((opt) => opt.value === item)?.label || item}</option>)}</select>
               <select value={poolFilters.series} onChange={(e) => setPoolFilter("series", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as séries</option>{poolMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.trait} onChange={(e) => setPoolFilter("trait", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{poolMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Traits" options={poolMeta.traits} value={poolFilters.trait ?? ""} onChange={(v) => setPoolFilter("trait", v)} />
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -1294,7 +1307,10 @@ export default function DeckbuilderPage() {
 
             <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Página {poolPage} de {poolTotalPages} · exibindo {cards.length} de {poolTotal} resultados</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={poolPageSize} onChange={(e) => { setPoolPageSize(Number(e.target.value)); setPoolPage(1); }} className="field-shell h-9 px-2 text-xs" title="Cartas por página">
+                  {[12, 24, 48, 96].map((n) => <option key={n} value={n}>{n}/página</option>)}
+                </select>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage <= 1 || loadingPool} onClick={() => setPoolPage((current) => Math.max(1, current - 1))}>Anterior</Button>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage >= poolTotalPages || loadingPool} onClick={() => setPoolPage((current) => Math.min(poolTotalPages, current + 1))}>Próxima</Button>
               </div>
@@ -1308,6 +1324,18 @@ export default function DeckbuilderPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <ImagesIcon className="size-3.5 text-slate-500" />
+                    <input type="range" min={4} max={10} value={14 - mainTileColumns} onChange={(e) => setMainTileColumns(14 - Number(e.target.value))} className="w-20 accent-primary" title="Tamanho das imagens" />
+                  </div>
+                  <select value={mainSortField} onChange={(e) => setMainSortField(e.target.value as typeof mainSortField)} className="field-shell h-9 px-2 text-xs" title="Ordenar por">
+                    <option value="default">Ordem de adição</option>
+                    <option value="color">Cor</option>
+                    <option value="level">Nível</option>
+                    <option value="cost">Custo</option>
+                    <option value="trait">Trait</option>
+                    <option value="name">Nome</option>
+                  </select>
                   <div className="flex border border-white/15">
                     <button type="button" onClick={() => setMainViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Grade única</button>
                     <button type="button" onClick={() => setMainViewMode("type")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
@@ -1317,15 +1345,15 @@ export default function DeckbuilderPage() {
               </div>
               <div className="mt-6 max-h-[440px] overflow-auto pr-1">
                 {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" ? (
-                  <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
-                    {mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
+                    {sortedMainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                   </div>
                 ) : (
                   <div className="space-y-5">
                     {groupedMainRows.map((group) => (
                       <div key={group.type}>
                         <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{group.label} · {group.rows.reduce((sum, r) => sum + r.quantity, 0)}</p>
-                        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
+                        <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
                           {group.rows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                         </div>
                       </div>

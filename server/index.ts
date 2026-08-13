@@ -291,6 +291,16 @@ function normalizeQueryValue(input: unknown) {
   return String(input ?? "").trim();
 }
 
+// Pra filtro que aceita mais de 1 valor combinado (ex: cor Azul + Roxa, ou trait OZ +
+// G Team) -- aceita separado por virgula na querystring (?color=Blue,Purple) ou
+// repetido (?color=Blue&color=Purple, que o Express ja entrega como array e
+// normalizeQueryValue junta com virgula via String() de array).
+function normalizeMultiQueryValue(input: unknown): string[] {
+  const raw = normalizeQueryValue(input);
+  if (!raw) return [];
+  return raw.split(",").map((v) => v.trim()).filter(Boolean);
+}
+
 function parsePositiveInt(input: unknown, fallback: number, max = 100) {
   const value = Number.parseInt(String(input ?? ""), 10);
   if (!Number.isFinite(value) || value <= 0) return fallback;
@@ -1340,10 +1350,10 @@ app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([U
 app.get("/api/cards", async (req, res) => {
   setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q ?? req.query.search);
-  const color = normalizeQueryValue(req.query.color);
+  const colors = normalizeMultiQueryValue(req.query.color);
   const cardType = normalizeQueryValue(req.query.cardType);
   const media = normalizeQueryValue(req.query.media ?? req.query.series);
-  const trait = normalizeQueryValue(req.query.trait);
+  const traits = normalizeMultiQueryValue(req.query.trait);
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
   const rarity = normalizeQueryValue(req.query.rarity);
@@ -1380,10 +1390,10 @@ app.get("/api/cards", async (req, res) => {
   // primeiro, série depois) sem repetir a lista inteira duas vezes.
   const restFilters: Prisma.CardModelWhereInput[] = [
     { isActive: true },
-    color ? { color } : {},
+    colors.length ? { color: { in: colors } } : {},
     cardType ? (cardType === "COMMAND" || cardType === "COMMAND_PILOT" ? { cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } } : { cardType: cardType as CardType }) : {},
     media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
-    trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
+    traits.length ? { OR: traits.flatMap((t) => [{ traits: { has: t } }, { trait: { contains: t, mode: "insensitive" as const } }]) } : {},
     keyword ? { keywordTags: { has: keyword } } : {},
     status ? { legalityStatus: status } : {},
     ap !== undefined ? { ap } : {},
@@ -2011,7 +2021,14 @@ async function enrichDecksWithFeaturedCards(decks: any[], legality: DeckLegality
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
-  const where = { visibility: "PUBLIC" as const };
+  const q = normalizeQueryValue(req.query.q);
+  const sort = normalizeQueryValue(req.query.sort) || "recent";
+  const where: Prisma.DeckWhereInput = {
+    visibility: "PUBLIC" as const,
+    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { user: { is: { displayName: { contains: q, mode: "insensitive" } } } }] } : {}),
+  };
+  const orderBy: Prisma.DeckOrderByWithRelationInput =
+    sort === "name_asc" ? { name: "asc" } : sort === "name_desc" ? { name: "desc" } : sort === "oldest" ? { createdAt: "asc" } : { updatedAt: "desc" };
   const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
@@ -2019,7 +2036,7 @@ app.get("/api/decks/public", async (req, res) => {
       prisma.deck.findMany({
         where,
         include: { user: true, items: { include: { card: true } } },
-        orderBy: { updatedAt: "desc" },
+        orderBy,
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -2031,7 +2048,7 @@ app.get("/api/decks/public", async (req, res) => {
   const decks = await prisma.deck.findMany({
     where,
     include: { user: true, items: { include: { card: true } } },
-    orderBy: { updatedAt: "desc" },
+    orderBy,
   });
   res.json(await enrichDecksWithFeaturedCards(decks, legality));
 });

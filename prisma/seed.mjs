@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, CardLanguage, BinderKind, SetKind, CardType } from "@prisma/client";
+import { PrismaClient, UserRole, CardLanguage, SetKind, CardType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -84,18 +84,6 @@ async function seedUser({ email, displayName, username, password, role, bio, pre
       preferredCardLanguage: CardLanguage.PT_BR,
       preferredTheme,
     },
-  });
-
-  await prisma.cardBinder.upsert({
-    where: { userId_kind: { userId: user.id, kind: BinderKind.WISHLIST } },
-    update: { name: "Lista de Desejos", isPublic: true },
-    create: { userId: user.id, kind: BinderKind.WISHLIST, name: "Lista de Desejos", description: "Cartas que quero adquirir.", isPublic: true },
-  });
-
-  await prisma.cardBinder.upsert({
-    where: { userId_kind: { userId: user.id, kind: BinderKind.OWNED } },
-    update: { name: "Cartas Possuídas", isPublic: true },
-    create: { userId: user.id, kind: BinderKind.OWNED, name: "Cartas Possuídas", description: "Cartas que já tenho.", isPublic: true },
   });
 
   return user;

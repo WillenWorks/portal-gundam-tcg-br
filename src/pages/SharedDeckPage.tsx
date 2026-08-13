@@ -1,11 +1,13 @@
 /* Deck compartilhado v8 — leitura pública com estatísticas rápidas e lista estruturada. */
 import { useEffect, useMemo, useState } from "react";
 import { useRoute } from "wouter";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
 import { api, mapApiCard, type ApiDeck } from "@/lib/api";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
@@ -89,6 +91,12 @@ export default function SharedDeckPage() {
 
   const mainRows = useMemo(() => allRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [allRows]);
   const resourceRows = useMemo(() => allRows.filter((row) => row.section === "resource"), [allRows]);
+
+  const exportDecklist = async () => {
+    const text = [...mainRows, ...resourceRows].map((row) => `${row.quantity}x ${row.code}`).join("\n");
+    await navigator.clipboard.writeText(text);
+    toast.success("Decklist copiada (formato MSA/Exburst).");
+  };
   const visibleRows = useMemo(() => [...mainRows, ...resourceRows], [mainRows, resourceRows]);
 
   const stats = useMemo(() => {
@@ -114,10 +122,13 @@ export default function SharedDeckPage() {
                   <p className="mt-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">Owner: {deck.user?.displayName || "Usuário"}</p>
                   <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{deck.notes || "Sem notas públicas."}</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.total} cartas</Badge>
-                  <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{stats.unique} únicas</Badge>
-                  <Badge className="rounded-none border border-white/15 bg-white/5 dark:text-slate-200 light:text-slate-700">curva {stats.avgCost}</Badge>
+                <div className="flex flex-col items-start gap-3 sm:items-end">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{stats.total} cartas</Badge>
+                    <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{stats.unique} únicas</Badge>
+                    <Badge className="rounded-none border border-white/15 bg-white/5 dark:text-slate-200 light:text-slate-700">curva {stats.avgCost}</Badge>
+                  </div>
+                  <Button variant="outline" size="sm" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={exportDecklist}><Copy className="mr-2 size-3.5" />Exportar</Button>
                 </div>
               </div>
             )}

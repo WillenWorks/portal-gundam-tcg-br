@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
 import { formatCardText } from "@/lib/utils";
+import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
@@ -49,7 +50,7 @@ function readFiltersFromHash(): { filters: CardFilters; page: number; pageSize: 
   };
 }
 
-function buildHash(filters: CardFilters, page: number, pageSize: number) {
+function buildHash(basePath: string, filters: CardFilters, page: number, pageSize: number) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.set(key, value);
@@ -57,11 +58,12 @@ function buildHash(filters: CardFilters, page: number, pageSize: number) {
   if (page > 1) params.set("page", String(page));
   if (pageSize !== DEFAULT_PAGE_SIZE) params.set("pageSize", String(pageSize));
   const query = params.toString();
-  return query ? `/database?${query}` : "/database";
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 export default function CardsPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const basePath = useMemo(() => location.split("?")[0], [location]);
   const initial = useMemo(() => readFiltersFromHash(), []);
   const [filters, setFilters] = useState<CardFilters>(initial.filters);
   const [page, setPage] = useState(initial.page);
@@ -88,7 +90,7 @@ export default function CardsPage() {
   }, [filters, page, pageSize]);
 
   useEffect(() => {
-    navigate(buildHash(filters, page, pageSize), { replace: true });
+    navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
   }, [filters, page, pageSize, navigate]);
 
   const activeFilters = useMemo(
@@ -113,7 +115,7 @@ export default function CardsPage() {
   const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(filters, page, pageSize)}`);
+    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(basePath, filters, page, pageSize)}`);
     toast.success("Link da busca copiado.");
   };
 
@@ -136,10 +138,10 @@ export default function CardsPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
               <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Nome, código, trait, efeito ou série" className="field-shell sm:col-span-2 lg:col-span-6 light:border-slate-300/80 light:bg-white light:text-slate-900" />
-              <select value={filters.color ?? ""} onChange={(event) => setFilter("color", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as cores</option>{meta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <div className="lg:col-span-3"><MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} /></div>
               <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
               <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.trait ?? ""} onChange={(event) => setFilter("trait", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as traits</option>{meta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <div className="lg:col-span-3"><MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} /></div>
               <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
               <select value={filters.sort ?? "created_desc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="created_desc">Últimas cadastradas</option><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
@@ -171,14 +173,19 @@ export default function CardsPage() {
             return (
               <Card key={card.id} className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                      <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
-                      {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
+                  <div className="flex items-start gap-4">
+                    <Link href={`/cards/${card.id}`} className="block aspect-[63/88] w-16 shrink-0 overflow-hidden border border-white/15">
+                      {card.imageMediumUrl || card.imageUrl ? <img src={card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[8px] uppercase text-slate-600">sem arte</div>}
+                    </Link>
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
+                        <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
+                        {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
+                      </div>
                     </div>
                   </div>
 
