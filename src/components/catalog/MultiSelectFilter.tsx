@@ -32,7 +32,7 @@ export function MultiSelectFilter({ label, options, value, onChange }: { label: 
         <ChevronDown className="size-4 shrink-0 text-slate-500" />
       </button>
       {open ? (
-        <div className="surface-panel absolute left-0 top-11 z-30 max-h-64 w-full min-w-[200px] overflow-y-auto border p-2 shadow-xl">
+        <div className="absolute left-0 top-11 z-30 max-h-64 w-full min-w-[200px] overflow-y-auto border border-border bg-popover p-2 text-popover-foreground shadow-xl">
           {options.length ? options.map((option) => (
             <label key={option} className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm hover:bg-white/10">
               <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} className="accent-primary" />
