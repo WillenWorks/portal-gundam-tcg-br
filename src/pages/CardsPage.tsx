@@ -49,7 +49,7 @@ function readFiltersFromHash(): { filters: CardFilters; page: number; pageSize: 
   };
 }
 
-function buildHash(filters: CardFilters, page: number, pageSize: number) {
+function buildHash(basePath: string, filters: CardFilters, page: number, pageSize: number) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
     if (value) params.set(key, value);
@@ -57,11 +57,12 @@ function buildHash(filters: CardFilters, page: number, pageSize: number) {
   if (page > 1) params.set("page", String(page));
   if (pageSize !== DEFAULT_PAGE_SIZE) params.set("pageSize", String(pageSize));
   const query = params.toString();
-  return query ? `/database?${query}` : "/database";
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 export default function CardsPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const basePath = useMemo(() => location.split("?")[0], [location]);
   const initial = useMemo(() => readFiltersFromHash(), []);
   const [filters, setFilters] = useState<CardFilters>(initial.filters);
   const [page, setPage] = useState(initial.page);
@@ -88,7 +89,7 @@ export default function CardsPage() {
   }, [filters, page, pageSize]);
 
   useEffect(() => {
-    navigate(buildHash(filters, page, pageSize), { replace: true });
+    navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
   }, [filters, page, pageSize, navigate]);
 
   const activeFilters = useMemo(
@@ -113,7 +114,7 @@ export default function CardsPage() {
   const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(filters, page, pageSize)}`);
+    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(basePath, filters, page, pageSize)}`);
     toast.success("Link da busca copiado.");
   };
 

@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -1228,12 +1228,12 @@ export default function DeckbuilderPage() {
                 <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="size-4" /></Button>
               </TooltipTrigger><TooltipContent>Compartilhar</TooltipContent></Tooltip>
               <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Upload className="size-4" /></Button>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Download className="size-4" /></Button>
               </TooltipTrigger><TooltipContent>Importar</TooltipContent></Tooltip>
               <DropdownMenu>
                 <Tooltip><TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="size-4" /></Button>
+                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Upload className="size-4" /></Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger><TooltipContent>Exportar</TooltipContent></Tooltip>
                 <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">

@@ -124,14 +124,10 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <Menu className="size-4" />
               <span className="ml-2">Painel</span>
             </Button>
-            <Button type="button" variant="outline" className="hidden rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:inline-flex" onClick={() => setCollapsed((current) => !current)} title={collapsed ? "Expandir painel" : "Recolher painel"}>
-              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-            </Button>
             <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white">
               <img src={logoWhite} alt="Gundam Card Game" className="h-9 w-auto opacity-90" />
               <div className="hidden min-w-0 border-l border-white/15 pl-3 md:block">
                 <p className="font-heading text-lg uppercase tracking-[0.18em]">Portal BR</p>
-                <p className="truncate text-xs uppercase tracking-[0.22em] text-slate-400">Painel operacional</p>
               </div>
             </Link>
           </div>
@@ -148,11 +144,14 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
       </header>
 
       <div className={cn("grid min-h-[calc(100vh-73px)] w-full transition-[grid-template-columns] duration-200", collapsed ? "lg:grid-cols-[76px_minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]")}>
-        <aside className={cn("hidden border-r border-white/10 bg-slate-950/82 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:block lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:overflow-y-auto", collapsed ? "px-2" : "px-5")}>
+        <aside className={cn("hidden border-r border-white/10 bg-slate-950/82 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:flex lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:flex-col lg:overflow-y-auto", collapsed ? "px-2" : "px-5")}>
           {!collapsed ? <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge> : null}
-          <div className={collapsed ? "mt-2" : "mt-8"}>
+          <div className={cn("flex-1", collapsed ? "mt-2" : "mt-8")}>
             <SidebarLinks location={location} isAdmin={isAdmin} collapsed={collapsed} />
           </div>
+          <Button type="button" variant="outline" className={cn("mt-4 hidden w-full rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:inline-flex", collapsed ? "justify-center px-0" : "justify-start")} onClick={() => setCollapsed((current) => !current)} title={collapsed ? "Expandir painel" : "Recolher painel"}>
+            {collapsed ? <ChevronRight className="size-4" /> : <><ChevronLeft className="mr-2 size-4" />Recolher</>}
+          </Button>
         </aside>
 
         <div className="min-w-0 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 lg:py-8">
