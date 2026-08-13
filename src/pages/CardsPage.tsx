@@ -172,14 +172,19 @@ export default function CardsPage() {
             return (
               <Card key={card.id} className="panel-cut rounded-none surface-panel">
                 <CardContent className="space-y-4 p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                      <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
-                      {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
+                  <div className="flex items-start gap-4">
+                    <Link href={`/cards/${card.id}`} className="block aspect-[63/88] w-16 shrink-0 overflow-hidden border border-white/15">
+                      {card.imageMediumUrl || card.imageUrl ? <img src={card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[8px] uppercase text-slate-600">sem arte</div>}
+                    </Link>
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
+                        <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
+                        {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
+                      </div>
                     </div>
                   </div>
 
