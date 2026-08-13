@@ -8,6 +8,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
+import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
@@ -1281,10 +1282,10 @@ export default function DeckbuilderPage() {
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell xl:col-span-2" />
-              <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{poolMeta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Cores" options={poolMeta.colors} value={poolFilters.color ?? ""} onChange={(v) => setPoolFilter("color", v)} />
               <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((item) => <option key={item} value={item}>{CARD_TYPE_OPTIONS.find((opt) => opt.value === item)?.label || item}</option>)}</select>
               <select value={poolFilters.series} onChange={(e) => setPoolFilter("series", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as séries</option>{poolMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.trait} onChange={(e) => setPoolFilter("trait", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{poolMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Traits" options={poolMeta.traits} value={poolFilters.trait ?? ""} onChange={(v) => setPoolFilter("trait", v)} />
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
