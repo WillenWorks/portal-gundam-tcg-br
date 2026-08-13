@@ -72,7 +72,9 @@ export default function SetDetailPage() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {setData.cards.map((card: any) => (
+              {setData.cards.map((card: any) => {
+                const sameCodeCount = setData.cards.filter((c: any) => c.code === card.code).length;
+                return (
                 <Card key={card.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
                   <CardContent className="space-y-4 p-5">
                     <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[3/4] dark:bg-slate-950/60 light:bg-slate-100">
@@ -84,7 +86,7 @@ export default function SetDetailPage() {
                     </div>
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}{sameCodeCount > 1 ? ` · ${sameCodeCount} versões` : ""}</p>
                         <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none">{card.namePt || card.nameEn}</h3>
                       </div>
                       <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
@@ -98,7 +100,8 @@ export default function SetDetailPage() {
                     <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </>
         ) : null}

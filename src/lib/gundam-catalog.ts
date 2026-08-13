@@ -31,6 +31,22 @@ export const GAME_COLOR_HEX: Record<string, string> = {
   White: "#e2e8f0",
 };
 
+/** Agrupa uma lista de carta por tipo, na ordem que faz sentido pra montagem de deck
+ *  (unidade primeiro, recurso por último) — usado onde a listagem de carta pode
+ *  alternar entre "tudo junto" e "separado por tipo" (deckbuilder, binder). */
+const CARD_TYPE_GROUP_ORDER = ["UNIT", "PILOT", "COMMAND", "BASE", "RESOURCE", "EX_BASE", "EX_RESOURCE", "UNIT_TOKEN"] as const;
+export function groupCardsByType<T extends { type: string }>(rows: T[]): Array<{ type: string; label: string; rows: T[] }> {
+  const map = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = row.type || "Outro";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(row);
+  }
+  const ordered = CARD_TYPE_GROUP_ORDER.filter((type) => map.has(type));
+  const extra = [...map.keys()].filter((key) => !CARD_TYPE_GROUP_ORDER.includes(key as any));
+  return [...ordered, ...extra].map((type) => ({ type, label: CARD_TYPE_OPTIONS.find((opt) => opt.value === type)?.label || type, rows: map.get(type)! }));
+}
+
 // Raridade base da carta. Variações de arte ficam no cadastro da imagem.
 export const RARITY_OPTIONS = ["C", "U", "R", "LR"] as const;
 export const ART_RARITY_OPTIONS = ["C", "C+", "U", "U+", "R", "R+", "LR", "LR+", "LR++", "Promo", "Winner", "Judge"] as const;

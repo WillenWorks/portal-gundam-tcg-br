@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 
 const chartConfig = {
-  value: { label: "Valor", color: "#47a0ff" },
+  value: { label: "Valor", color: "var(--primary)" },
 } satisfies ChartConfig;
 
 const FALLBACK_SLICE_COLOR = "#94a3b8";

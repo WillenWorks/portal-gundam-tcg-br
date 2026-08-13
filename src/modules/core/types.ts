@@ -27,7 +27,11 @@ export interface CardRecord {
   series: string;
   trait: string;
   keywords: string[];
+  triggerKeywords: string[];
   effect: string;
+  rarity?: string;
+  setCode?: string;
+  setName?: string;
   imageUrl?: string;
   imageSmallUrl?: string;
   imageMediumUrl?: string;

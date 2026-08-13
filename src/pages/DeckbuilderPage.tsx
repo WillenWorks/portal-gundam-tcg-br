@@ -1,13 +1,14 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
-import { useEffect, useMemo, useState } from "react";
-import { Copy, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
-import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
+import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
+import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 
@@ -31,6 +33,19 @@ type PoolMeta = {
 };
 
 const defaultPoolFilters: PoolFilters = { q: "", color: "", cardType: "", series: "", trait: "" };
+
+// Mesma lista das 7 keywords de efeito extraidas no backend (ver
+// prisma/extract-keyword-effects.mjs) -- mantidas em sincronia manual, sao poucas e
+// mudam raramente (so em atualizacao de regra oficial do jogo).
+const EFFECT_KEYWORD_LIST = ["Repair", "Breach", "Support", "Blocker", "First Strike", "High-Maneuver", "Suppression"];
+const NUMERIC_KEYWORDS = new Set(["Repair", "Breach", "Support"]);
+const TRIGGER_KEYWORD_LIST = ["Deploy", "Burst", "Once per Turn", "During Link", "During Pair", "When Paired", "Attack", "Activate"];
+
+function extractKeywordValue(effect: string, name: string): number | null {
+  if (!effect) return null;
+  const match = effect.match(new RegExp(`\\b${name}\\s+(\\d+)\\b`, "i"));
+  return match ? Number(match[1]) : null;
+}
 
 function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expandedAll = entries
@@ -81,11 +96,10 @@ function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntr
 }
 
 const chartConfig = {
-  quantity: { label: "Quantidade", color: "#47a0ff" },
-  value: { label: "Quantidade", color: "#47a0ff" },
+  quantity: { label: "Quantidade", color: "var(--primary)" },
+  value: { label: "Quantidade", color: "var(--primary)" },
 } satisfies ChartConfig;
 
-const pieColors = ["#47a0ff", "#4fd1c5", "#f59e0b", "#ef4444", "#a78bfa", "#94a3b8"];
 
 type DeckRow = CardRecord & { quantity: number; section: string };
 
@@ -284,19 +298,19 @@ function AltArtModal({
 
 /** Preview em alta resolução — só a imagem grande + link pra abrir o detalhe da carta
  *  numa aba nova (não navega pra fora do deckbuilder, senão perde o estado da sessão). */
-function CardPreviewModal({ card, onClose }: { card: CardRecord | null; onClose: () => void }) {
+function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: number }) | null; onClose: () => void }) {
   if (!card) return null;
   const image = card.imageLargeUrl || card.imageMediumUrl || card.imageUrl;
   const modelId = card.cardModelId || card.id;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md border-white/10 bg-slate-950 text-white">
-        <div className="overflow-hidden border border-white/10 bg-slate-950/70">
-          {image ? <img src={image} alt={card.namePt || card.name} className="w-full" /> : null}
+      <DialogContent className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
+          {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
         </div>
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="min-w-0 truncate text-sm text-soft">{card.namePt || card.name} · {card.code}</p>
-          <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
+        <div className="flex flex-col items-center gap-2 pt-1">
+          {card.quantity !== undefined ? <p className="text-sm text-slate-400">{card.quantity}x nesse deck</p> : null}
+          <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
             <ExternalLink className="size-3.5" />Abrir detalhe
           </a>
         </div>
@@ -304,6 +318,90 @@ function CardPreviewModal({ card, onClose }: { card: CardRecord | null; onClose:
     </Dialog>
   );
 }
+
+/** Modal de detalhe — abre a partir de qualquer estatística clicável (cor, trait,
+ *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
+ *  aquele número. Lista ou imagem, alternável — clicar numa carta abre o preview
+ *  grande dela (reaproveita CardPreviewModal). */
+/** Botão "?" pequeno — clique alterna uma dica curta abaixo do título. Botão em vez de
+ *  hover de propósito: hover não existe em touch, botão funciona igual em qualquer tela. */
+function InfoHint({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <span ref={ref} className="relative inline-block align-middle">
+      <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500">?</button>
+      {open ? (
+        <span className="surface-panel absolute left-0 top-6 z-20 w-60 border p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal shadow-xl [font-family:var(--font-body)]">{text}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { label: string; value: string } | null; rows: DeckRow[]; onClose: () => void; onPreviewCard: (card: DeckRow) => void }) {
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  if (!title) return null;
+  const total = rows.reduce((sum, r) => sum + r.quantity, 0);
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
+            <h3 className="font-heading text-2xl uppercase heading-portal">{title.value}</h3>
+            <p className="mt-1 text-xs text-slate-500">{rows.length} carta(s) única(s) · {total} no total</p>
+          </div>
+          <div className="flex border border-white/15">
+            <button type="button" onClick={() => setViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Imagens</button>
+            <button type="button" onClick={() => setViewMode("list")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Lista</button>
+          </div>
+        </div>
+
+        {!rows.length ? <p className="py-8 text-center text-sm text-muted-portal">Nenhuma carta encontrada.</p> : viewMode === "grid" ? (
+          <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+            {rows.map((row) => {
+              const image = row.imageMediumUrl || row.imageUrl;
+              return (
+                <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="group relative block aspect-[63/88] overflow-hidden border border-white/15 transition hover:border-primary/50">
+                  {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+                  <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row) => {
+              const image = row.imageMediumUrl || row.imageUrl;
+              return (
+                <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="flex w-full items-center gap-3 border border-white/10 bg-white/5 p-2 text-left transition hover:border-primary/40 hover:bg-white/10">
+                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : null}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium heading-portal">{row.namePt || row.name}</p>
+                    <p className="text-xs text-slate-500">{row.code} · {row.color}</p>
+                  </div>
+                  <span className="shrink-0 text-sm text-muted-portal">{row.quantity}x</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function DeckbuilderPage() {
   const [, navigate] = useLocation();
@@ -318,6 +416,8 @@ export default function DeckbuilderPage() {
   const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
+  const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
+  const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -343,7 +443,7 @@ export default function DeckbuilderPage() {
   const [loadingPool, setLoadingPool] = useState(true);
   const [loadingDeck, setLoadingDeck] = useState(Boolean(deckId));
   const [poolPage, setPoolPage] = useState(1);
-  const [poolPageSize] = useState(24);
+  const [poolPageSize, setPoolPageSize] = useState(24);
   const [poolTotal, setPoolTotal] = useState(0);
   const [poolTotalPages, setPoolTotalPages] = useState(1);
   // Cache separado da pool paginada, indexado por printId — guarda TODA carta já vista
@@ -452,17 +552,26 @@ export default function DeckbuilderPage() {
     });
   }, [exBaseOptions, exResourceOptions, loadingDeck]);
 
-  // Preenche o deck de recursos com 10 cópias de 1 resource padrão só quando ele está
-  // TOTALMENTE vazio — diferente do EX Base/Resource, isso não é um slot travado: é só
-  // um ponto de partida conveniente, o jogador continua livre pra adicionar/remover
-  // qualquer resource pela pool normalmente depois. Não mexe se já tiver algo lá (deck
-  // carregado do banco, ou o jogador já começou a montar essa parte).
+  // Preenche o deck de recursos ate DECK_RESOURCE_SIZE (10) com o resource padrao --
+  // roda 1 vez quando o deck termina de carregar (nao fica competindo com o jogador
+  // decrementando durante a edicao). Antes so checava "existe pelo menos 1 resource"
+  // e parava ali -- se o deck tivesse 7/10 espalhados em varias artes, nunca completava
+  // e ficava pendente pra sempre. Agora soma o total de verdade e completa a diferenca
+  // com a arte padrao, seja sendo do zero ou completando o que ja tem. Nao trava slot
+  // fixo (diferente do EX Base/Resource) -- o jogador continua livre pra trocar/remover
+  // qualquer resource pela pool normalmente depois.
   useEffect(() => {
     if (loadingDeck || !defaultResourceOption) return;
     setEntries((current) => {
-      if (current.some((item) => item.section === "resource")) return current;
+      const resourceTotal = current.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
+      const missing = DECK_RESOURCE_SIZE - resourceTotal;
+      if (missing <= 0) return current;
       const printId = defaultResourceOption.printId || defaultResourceOption.id;
-      return [...current, { cardId: printId, quantity: DECK_RESOURCE_SIZE, section: "resource" }];
+      const existingDefaultEntry = current.find((item) => item.section === "resource" && item.cardId === printId);
+      if (existingDefaultEntry) {
+        return current.map((item) => (item === existingDefaultEntry ? { ...item, quantity: item.quantity + missing } : item));
+      }
+      return [...current, { cardId: printId, quantity: missing, section: "resource" }];
     });
   }, [defaultResourceOption, loadingDeck]);
 
@@ -546,7 +655,19 @@ export default function DeckbuilderPage() {
 
   const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [deckRows]);
   const [mainViewMode, setMainViewMode] = useState<"grid" | "type">("grid");
-  const groupedMainRows = useMemo(() => groupCardsByType(mainDeckRows), [mainDeckRows]);
+  const [mainTileColumns, setMainTileColumns] = useState(8);
+  const [mainSortField, setMainSortField] = useState<"default" | "color" | "level" | "cost" | "trait" | "name">("default");
+  const sortedMainDeckRows = useMemo(() => {
+    if (mainSortField === "default") return mainDeckRows;
+    return [...mainDeckRows].sort((a, b) => {
+      if (mainSortField === "color") return (a.color || "").localeCompare(b.color || "");
+      if (mainSortField === "level") return (a.level ?? 0) - (b.level ?? 0);
+      if (mainSortField === "cost") return (a.cost ?? 0) - (b.cost ?? 0);
+      if (mainSortField === "trait") return (a.trait || "").localeCompare(b.trait || "");
+      return (a.namePt || a.name || "").localeCompare(b.namePt || b.name || "");
+    });
+  }, [mainDeckRows, mainSortField]);
+  const groupedMainRows = useMemo(() => groupCardsByType(sortedMainDeckRows), [sortedMainDeckRows]);
   const resourceDeckRows = useMemo(() => deckRows.filter((row) => row.section === "resource"), [deckRows]);
   const exBaseRow = useMemo(() => deckRows.find((row) => row.section === "ex_base"), [deckRows]);
   const exResourceRow = useMemo(() => deckRows.find((row) => row.section === "ex_resource"), [deckRows]);
@@ -575,7 +696,7 @@ export default function DeckbuilderPage() {
   }, [mainDeckRows]);
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
-  const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name, quantity })), [stats.typeMap]);
+  const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
   const topTraits = useMemo(() => Object.entries(stats.traitMap).sort((a, b) => b[1] - a[1]).slice(0, 3), [stats.traitMap]);
   const poolActiveFilters = useMemo(() => Object.values(poolFilters).filter(Boolean).length, [poolFilters]);
 
@@ -639,13 +760,87 @@ export default function DeckbuilderPage() {
 
   const archetypeBlocks = useMemo(() => {
     const blocks: Array<{ label: string; value: string; hint: string }> = [];
-    if (dominantColor) blocks.push({ label: "Cor-base", value: dominantColor, hint: "Maior presença atual na lista." });
-    if (dominantTrait) blocks.push({ label: "Trait-base", value: dominantTrait, hint: "Núcleo de identidade do deck." });
+    const total = stats.mainDeckCount || 1;
+    if (dominantColor) {
+      const count = stats.colorMap[dominantColor] || 0;
+      blocks.push({ label: "Cor-base", value: dominantColor, hint: `${count}/${stats.mainDeckCount} cartas · ${Math.round((count / total) * 100)}% do deck principal.` });
+    }
+    if (dominantTrait) {
+      const count = stats.traitMap[dominantTrait] || 0;
+      blocks.push({ label: "Trait-base", value: dominantTrait, hint: `${count}/${stats.mainDeckCount} cartas · núcleo de identidade do deck.` });
+    }
     if (dominantSeries) blocks.push({ label: "Série-base", value: dominantSeries, hint: "Linha temática mais recorrente." });
     const mainType = [...typeData].sort((a, b) => b.quantity - a.quantity)[0];
-    if (mainType) blocks.push({ label: "Tipo-base", value: mainType.name, hint: "Tipo mais frequente na composição." });
+    if (mainType) blocks.push({ label: "Tipo-base", value: mainType.name, hint: `${mainType.quantity}/${stats.mainDeckCount} cartas · tipo mais frequente.` });
     return blocks;
-  }, [dominantColor, dominantTrait, dominantSeries, typeData]);
+  }, [dominantColor, dominantTrait, dominantSeries, typeData, stats.colorMap, stats.traitMap, stats.mainDeckCount]);
+
+  // Segunda cor (deck pode ter ate 2, ver DECK_MAX_COLORS) e traits secundarios --
+  // arquétipo de verdade raramente é 1 cor+1 trait só, é a combinação. archetypeBlocks
+  // já mostra o dominante; isso aqui expõe o que vem depois, que estava calculado
+  // (topTraits) mas nunca aparecia na tela.
+  const colorBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return [...colorData].sort((a, b) => b.value - a.value).slice(0, 3).map((item) => ({ ...item, pct: Math.round((item.value / total) * 100) }));
+  }, [colorData, stats.mainDeckCount]);
+
+  const traitBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return topTraits.map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
+  }, [topTraits, stats.mainDeckCount]);
+
+  const seriesBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    const map = new Map<string, number>();
+    mainDeckRows.forEach((row) => {
+      const key = row.series || "Sem série definida";
+      map.set(key, (map.get(key) || 0) + row.quantity);
+    });
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
+  }, [mainDeckRows, stats.mainDeckCount]);
+
+  const typeBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return [...typeData].sort((a, b) => b.quantity - a.quantity).map((item) => ({ name: item.name, value: item.quantity, pct: Math.round((item.quantity / total) * 100) }));
+  }, [typeData, stats.mainDeckCount]);
+
+  // Detalhamento por valor (ex: "2x Breach 2, 1x Breach 5") -- so pras 3 keywords de
+  // efeito numericas. O valor sai reprocessando o texto do efeito no navegador mesmo
+  // (nao precisa de campo novo no banco: keywordTags ja guarda so o nome, de proposito
+  // -- valor especifico so importa aqui, pro detalhamento visual).
+  const effectKeywordBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return EFFECT_KEYWORD_LIST.map((name) => {
+      const rows = mainDeckRows.filter((row) => row.keywords.includes(name));
+      const count = rows.reduce((sum, r) => sum + r.quantity, 0);
+      if (!count) return null;
+      let valueBreakdown: Array<[number, number]> | null = null;
+      if (NUMERIC_KEYWORDS.has(name)) {
+        const valMap = new Map<number, number>();
+        rows.forEach((row) => {
+          const val = extractKeywordValue(row.effect, name);
+          if (val !== null) valMap.set(val, (valMap.get(val) || 0) + row.quantity);
+        });
+        valueBreakdown = [...valMap.entries()].sort((a, b) => a[0] - b[0]);
+      }
+      return { name, count, pct: Math.round((count / total) * 100), valueBreakdown };
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [mainDeckRows, stats.mainDeckCount]);
+
+  const triggerKeywordBreakdown = useMemo(() => {
+    const total = stats.mainDeckCount || 1;
+    return TRIGGER_KEYWORD_LIST.map((name) => {
+      const count = mainDeckRows.filter((row) => row.triggerKeywords?.includes(name)).reduce((sum, r) => sum + r.quantity, 0);
+      return count ? { name, count, pct: Math.round((count / total) * 100) } : null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [mainDeckRows, stats.mainDeckCount]);
+
+  /** Abre o modal de detalhe filtrando o deck principal pelo criterio clicado --
+   *  reaproveitado por todo bloco clicavel (cor, trait, serie, tipo, keyword). */
+  const openStatDetail = (label: string, value: string, matcher: (row: DeckRow) => boolean) => {
+    setStatDetail({ label, value });
+    setStatDetailRows(mainDeckRows.filter(matcher));
+  };
 
   const recommendationCards = useMemo(() => {
     const existingModelIds = new Set(entries.map((entry) => cardCache[entry.cardId]?.cardModelId).filter(Boolean));
@@ -721,8 +916,34 @@ export default function DeckbuilderPage() {
     });
   };
 
+  // Resource sempre soma 10 de verdade, em tempo real. Decrementar uma arte que NAO
+  // e a padrao compensa aumentando a padrao na hora (voce troca uma copia por outra,
+  // o total nunca cai). Decrementar a PROPRIA arte padrao NAO se autocura de proposito
+  // -- senao voce nunca conseguiria abrir espaco pra trocar por uma arte nova (o
+  // increment ja trava em 10, entao abrir espaco decrementando o padrao e o unico
+  // jeito de entrar uma arte diferente). Usa o total real (nao so +1), entao mesmo se
+  // o padrao tiver sido reduzido antes, o proximo decremento de outra arte completa
+  // a diferenca toda de uma vez, nao so 1.
   const decrement = (printId: string) => {
-    setEntries((current) => current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0));
+    setEntries((current) => {
+      const target = current.find((item) => item.cardId === printId);
+      let next = current.map((item) => (item.cardId === printId ? { ...item, quantity: item.quantity - 1 } : item)).filter((item) => item.quantity > 0);
+
+      if (target?.section === "resource" && defaultResourceOption) {
+        const defaultPrintId = defaultResourceOption.printId || defaultResourceOption.id;
+        if (printId !== defaultPrintId) {
+          const resourceTotal = next.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
+          const missing = DECK_RESOURCE_SIZE - resourceTotal;
+          if (missing > 0) {
+            const existingDefault = next.find((item) => item.section === "resource" && item.cardId === defaultPrintId);
+            next = existingDefault
+              ? next.map((item) => (item === existingDefault ? { ...item, quantity: item.quantity + missing } : item))
+              : [...next, { cardId: defaultPrintId, quantity: missing, section: "resource" }];
+          }
+        }
+      }
+      return next;
+    });
   };
 
   const saveDeck = async () => {
@@ -878,6 +1099,11 @@ export default function DeckbuilderPage() {
       const MARGIN = 24;
       const SECTION_LABEL_H = 26;
       const SECTION_GAP = 30;
+      // Cor do tema ativo (Hangar/Zeon) lida em tempo real -- canvas nao resolve
+      // var(--primary) sozinho como o CSS resolveria num elemento DOM normal, mas
+      // aceita a string oklch() resolvida direto (navegadores modernos suportam
+      // CSS Color 4 no canvas 2D). Fallback pro azul original se algo vier vazio.
+      const themePrimaryColor = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#3b82f6";
 
       // Passa pelo nosso proxy (ver server/index.ts: /api/image-proxy) — o CDN de
       // origem (tcgplayer-cdn.tcgplayer.com) não libera CORS pra uso em canvas de outro
@@ -937,7 +1163,7 @@ export default function DeckbuilderPage() {
             ctx.font = "11px sans-serif";
             ctx.fillText(entry.row.code, x + 8, y + CARD_H / 2);
           }
-          ctx.fillStyle = "#3b82f6";
+          ctx.fillStyle = themePrimaryColor;
           ctx.beginPath();
           ctx.arc(x + CARD_W - 14, y + 14, 13, 0, Math.PI * 2);
           ctx.fill();
@@ -1008,14 +1234,21 @@ export default function DeckbuilderPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="mr-2 size-4" />Salvar</Button>
-              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo</Button>
-              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="mr-2 size-4" />Compartilhar</Button>
-              <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Upload className="mr-2 size-4" />Importar</Button>
+              <Tooltip><TooltipTrigger asChild>
+                <Button size="icon" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="size-4" /></Button>
+              </TooltipTrigger><TooltipContent>Salvar</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="size-4" /></Button>
+              </TooltipTrigger><TooltipContent>Compartilhar</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Download className="size-4" /></Button>
+              </TooltipTrigger><TooltipContent>Importar</TooltipContent></Tooltip>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Exportar</Button>
-                </DropdownMenuTrigger>
+                <Tooltip><TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Upload className="size-4" /></Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger><TooltipContent>Exportar</TooltipContent></Tooltip>
                 <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">
                   <DropdownMenuItem onClick={copyDecklist} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar decklist (texto)</DropdownMenuItem>
                   <DropdownMenuItem onClick={copyDecklistMSA} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar formato MSA/Exburst</DropdownMenuItem>
@@ -1049,10 +1282,10 @@ export default function DeckbuilderPage() {
 
             <div className="mt-6 grid gap-4 xl:grid-cols-2">
               <Input value={poolQueryDraft} onChange={(e) => setPoolQueryDraft(e.target.value)} placeholder="Nome, código, série ou trait" className="field-shell xl:col-span-2" />
-              <select value={poolFilters.color} onChange={(e) => setPoolFilter("color", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as cores</option>{poolMeta.colors.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Cores" options={poolMeta.colors} value={poolFilters.color ?? ""} onChange={(v) => setPoolFilter("color", v)} />
               <select value={poolFilters.cardType} onChange={(e) => setPoolFilter("cardType", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todos os tipos</option>{poolMeta.cardTypes.map((item) => <option key={item} value={item}>{CARD_TYPE_OPTIONS.find((opt) => opt.value === item)?.label || item}</option>)}</select>
               <select value={poolFilters.series} onChange={(e) => setPoolFilter("series", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as séries</option>{poolMeta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={poolFilters.trait} onChange={(e) => setPoolFilter("trait", e.target.value)} className="field-shell h-10 px-3 text-sm"><option value="">Todas as traits</option>{poolMeta.traits.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Traits" options={poolMeta.traits} value={poolFilters.trait ?? ""} onChange={(v) => setPoolFilter("trait", v)} />
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -1074,7 +1307,10 @@ export default function DeckbuilderPage() {
 
             <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Página {poolPage} de {poolTotalPages} · exibindo {cards.length} de {poolTotal} resultados</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={poolPageSize} onChange={(e) => { setPoolPageSize(Number(e.target.value)); setPoolPage(1); }} className="field-shell h-9 px-2 text-xs" title="Cartas por página">
+                  {[12, 24, 48, 96].map((n) => <option key={n} value={n}>{n}/página</option>)}
+                </select>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage <= 1 || loadingPool} onClick={() => setPoolPage((current) => Math.max(1, current - 1))}>Anterior</Button>
                 <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white disabled:opacity-40 light:border-slate-400/90 light:bg-white light:text-slate-950" disabled={poolPage >= poolTotalPages || loadingPool} onClick={() => setPoolPage((current) => Math.min(poolTotalPages, current + 1))}>Próxima</Button>
               </div>
@@ -1088,6 +1324,18 @@ export default function DeckbuilderPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h3 className="font-heading text-3xl uppercase heading-portal">Deck principal</h3>
                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <ImagesIcon className="size-3.5 text-slate-500" />
+                    <input type="range" min={4} max={10} value={14 - mainTileColumns} onChange={(e) => setMainTileColumns(14 - Number(e.target.value))} className="w-20 accent-primary" title="Tamanho das imagens" />
+                  </div>
+                  <select value={mainSortField} onChange={(e) => setMainSortField(e.target.value as typeof mainSortField)} className="field-shell h-9 px-2 text-xs" title="Ordenar por">
+                    <option value="default">Ordem de adição</option>
+                    <option value="color">Cor</option>
+                    <option value="level">Nível</option>
+                    <option value="cost">Custo</option>
+                    <option value="trait">Trait</option>
+                    <option value="name">Nome</option>
+                  </select>
                   <div className="flex border border-white/15">
                     <button type="button" onClick={() => setMainViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Grade única</button>
                     <button type="button" onClick={() => setMainViewMode("type")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
@@ -1097,15 +1345,15 @@ export default function DeckbuilderPage() {
               </div>
               <div className="mt-6 max-h-[440px] overflow-auto pr-1">
                 {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" ? (
-                  <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
-                    {mainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                  <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
+                    {sortedMainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                   </div>
                 ) : (
                   <div className="space-y-5">
                     {groupedMainRows.map((group) => (
                       <div key={group.type}>
                         <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{group.label} · {group.rows.reduce((sum, r) => sum + r.quantity, 0)}</p>
-                        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8">
+                        <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
                           {group.rows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                         </div>
                       </div>
@@ -1216,41 +1464,142 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {archetypeBlocks.length ? archetypeBlocks.map((block) => (
+                  <div key={block.label} className="panel-cut border surface-strong p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
+                    <p className="mt-2 text-lg heading-portal">{block.value}</p>
+                    <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
+                  </div>
+                )) : <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {recommendationCards.length ? recommendationCards.map((card) => (
+                  <div key={card.id} className="panel-cut border surface-strong p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
+                        <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
+                        <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
+                      </div>
+                      <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
+                    </div>
+                  </div>
+                )) : <p className="col-span-full text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {archetypeBlocks.length ? archetypeBlocks.map((block) => (
-                    <div key={block.label} className="panel-cut border surface-strong p-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
-                      <p className="mt-2 text-lg heading-portal">{block.value}</p>
-                      <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
-                    </div>
-                  )) : <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>}
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de cor</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck<InfoHint text="Clique numa cor pra ver quais cartas do deck são dessa cor." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.</p>
+                <div className="mt-5 space-y-3">
+                  {colorBreakdown.length ? colorBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Cor", item.name, (row) => row.color === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full" style={{ width: `${item.pct}%`, backgroundColor: GAME_COLOR_HEX[item.name] || "#94a3b8" }} /></div>
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {recommendationCards.length ? recommendationCards.map((card) => (
-                    <div key={card.id} className="panel-cut border surface-strong p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
-                          <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
-                          <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
-                        </div>
-                        <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
-                      </div>
-                    </div>
-                  )) : <p className="col-span-full text-sm text-muted-portal">Ainda não há sinais suficientes para recomendar cartas. Monte um núcleo inicial ou limpe filtros muito restritos.</p>}
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de trait</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck<InfoHint text="Clique numa trait pra ver quais cartas do deck têm essa trait." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.</p>
+                <div className="mt-5 space-y-3">
+                  {traitBreakdown.length ? traitBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Trait", item.name, (row) => (row.trait || "Sem trait") === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas com trait definido para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de série</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck<InfoHint text="Clique numa série pra ver quais cartas do deck são dela." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.</p>
+                <div className="mt-5 space-y-3">
+                  {seriesBreakdown.length ? seriesBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Série", item.name, (row) => (row.series || "Sem série definida") === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between gap-2 text-sm"><span className="min-w-0 truncate heading-portal">{item.name}</span><span className="flex shrink-0 items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Composição por tipo</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck<InfoHint text="Clique num tipo pra ver quais cartas do deck são desse tipo." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.</p>
+                <div className="mt-5 space-y-3">
+                  {typeBreakdown.length ? typeBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Tipo", item.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === item.name)} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.value} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} /></div>
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito<InfoHint text="Clique numa keyword pra ver quais cartas do deck têm ela." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.</p>
+                <div className="mt-5 space-y-3">
+                  {effectKeywordBreakdown.length ? effectKeywordBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de efeito", item.name, (row) => row.keywords.includes(item.name))} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.count} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-primary" style={{ width: `${item.pct}%` }} /></div>
+                      {item.valueBreakdown ? <p className="mt-1 text-[11px] text-slate-500">{item.valueBreakdown.map(([val, qty]) => `${qty}x ${item.name} ${val}`).join(", ")}</p> : null}
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Nenhuma keyword de efeito detectada ainda neste deck.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho<InfoHint text="Clique numa keyword pra ver quais cartas do deck ativam nesse momento." /></h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.</p>
+                <div className="mt-5 space-y-3">
+                  {triggerKeywordBreakdown.length ? triggerKeywordBreakdown.map((item) => (
+                    <button key={item.name} type="button" onClick={() => openStatDetail("Keyword de gatilho", item.name, (row) => Boolean(row.triggerKeywords?.includes(item.name)))} className="group block w-full text-left transition hover:opacity-80">
+                      <div className="flex items-center justify-between text-sm"><span className="heading-portal">{item.name}</span><span className="flex items-center gap-1 text-muted-portal">{item.count} · {item.pct}%<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></span></div>
+                      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5"><div className="h-full bg-accent" style={{ width: `${item.pct}%` }} /></div>
+                    </button>
+                  )) : <p className="text-sm text-muted-portal">Nenhuma keyword de gatilho detectada ainda neste deck.</p>}
                 </div>
               </CardContent>
             </Card>
@@ -1262,7 +1611,7 @@ export default function DeckbuilderPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo</h3>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo<InfoHint text="Clique numa barra pra ver as cartas daquele custo." /></h3>
                   </div>
                 </div>
                 <div className="mt-6 h-[260px]">
@@ -1272,7 +1621,7 @@ export default function DeckbuilderPage() {
                       <XAxis dataKey="cost" tickLine={false} axisLine={false} />
                       <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Custo", `${entry.cost}`, (row) => String(row.cost) === entry.cost)} className="cursor-pointer" />
                     </BarChart>
                   </ChartContainer>
                 </div>
@@ -1282,13 +1631,13 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 02</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor</h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor<InfoHint text="Clique numa fatia pra ver as cartas dessa cor." /></h3>
                 <div className="mt-6 h-[260px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
                       <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                      <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2}>
-                        {colorData.map((entry, index) => <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />)}
+                      <Pie data={colorData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={90} strokeWidth={2} onClick={(entry: any) => openStatDetail("Cor", entry.name, (row) => row.color === entry.name)} className="cursor-pointer">
+                        {colorData.map((entry) => <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || "#94a3b8"} />)}
                       </Pie>
                       <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                     </PieChart>
@@ -1301,7 +1650,7 @@ export default function DeckbuilderPage() {
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 03</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo</h3>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo<InfoHint text="Clique numa barra pra ver as cartas desse tipo." /></h3>
               <div className="mt-6 h-[250px]">
                 <ChartContainer config={chartConfig} className="h-full w-full">
                   <BarChart layout="vertical" data={typeData} margin={{ left: 12, right: 12 }}>
@@ -1309,7 +1658,7 @@ export default function DeckbuilderPage() {
                     <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
                     <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={90} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" />
+                    <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Tipo", entry.name, (row) => (CARD_TYPE_OPTIONS.find((opt) => opt.value === row.type)?.label || row.type) === entry.name)} className="cursor-pointer" />
                   </BarChart>
                 </ChartContainer>
               </div>
@@ -1321,6 +1670,7 @@ export default function DeckbuilderPage() {
       )}
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
+      <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
         <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">

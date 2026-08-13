@@ -6,6 +6,7 @@ import { Router, Route, Switch, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import Home from "@/pages/Home";
@@ -23,6 +24,7 @@ import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
 import NotFound from "@/pages/NotFound";
 import BinderPage from "@/pages/BinderPage";
+import BinderListPage from "@/pages/BinderListPage";
 import AuthPage from "@/pages/AuthPage";
 import TournamentsPage from "@/pages/TournamentsPage";
 
@@ -66,8 +68,8 @@ function AppRouter() {
       <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
-        <Route path="/wishlist">{() => <RequireAuth><BinderPage kind="WISHLIST" /></RequireAuth>}</Route>
-        <Route path="/owned">{() => <RequireAuth><BinderPage kind="OWNED" /></RequireAuth>}</Route>
+        <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
+        <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
         <Route path="/decks" component={PublicDecksPage} />
         <Route path="/deck/:shareId" component={SharedDeckPage} />
         <Route path="/binder/:shareId" component={SharedBinderPage} />
@@ -99,12 +101,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" switchable>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <AppRouter />
-          </TooltipProvider>
-        </AuthProvider>
+        <FactionProvider defaultFaction="hangar">
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <AppRouter />
+            </TooltipProvider>
+          </AuthProvider>
+        </FactionProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

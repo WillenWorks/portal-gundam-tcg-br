@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, BinderKind, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -174,6 +174,17 @@ function authRequired(req: RequestWithUser, res: Response, next: NextFunction) {
   }
 }
 
+/** Como authRequired, mas não bloqueia se não tiver token — só preenche req.user
+ *  quando o token existe e é válido. Usado em rotas públicas onde o dono logado
+ *  deve enxergar mais do que um visitante anônimo (ex: pasta privada só pro dono). */
+function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) {
+  const auth = req.headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
+  }
+  next();
+}
+
 function roleRequired(roles: UserRole[]) {
   return (req: RequestWithUser, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: "Não autenticado." });
@@ -202,7 +213,7 @@ function getImageExtension(file: Express.Multer.File) {
   return ".jpg";
 }
 
-function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+function buildStorageObjectKey(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   const now = new Date();
   const yyyy = String(now.getUTCFullYear());
   const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
@@ -268,7 +279,7 @@ async function saveImageToSupabase(file: Express.Multer.File, objectKey: string)
   };
 }
 
-async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks"; cardCode?: string; artId?: string; label?: string }) {
+async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity?: "cards" | "collections" | "media" | "decks" | "avatars"; cardCode?: string; artId?: string; label?: string }) {
   if (!file.buffer?.length) throw new Error("Arquivo de imagem vazio.");
   const objectKey = buildStorageObjectKey(file, input);
   if (STORAGE_DRIVER === "supabase") return saveImageToSupabase(file, objectKey);
@@ -278,6 +289,16 @@ async function saveUploadedCardImage(file: Express.Multer.File, input?: { entity
 
 function normalizeQueryValue(input: unknown) {
   return String(input ?? "").trim();
+}
+
+// Pra filtro que aceita mais de 1 valor combinado (ex: cor Azul + Roxa, ou trait OZ +
+// G Team) -- aceita separado por virgula na querystring (?color=Blue,Purple) ou
+// repetido (?color=Blue&color=Purple, que o Express ja entrega como array e
+// normalizeQueryValue junta com virgula via String() de array).
+function normalizeMultiQueryValue(input: unknown): string[] {
+  const raw = normalizeQueryValue(input);
+  if (!raw) return [];
+  return raw.split(",").map((v) => v.trim()).filter(Boolean);
 }
 
 function parsePositiveInt(input: unknown, fallback: number, max = 100) {
@@ -697,7 +718,7 @@ function setPrivateCache(res: Response, maxAgeSeconds = 10, staleSeconds = 30) {
   res.setHeader("Cache-Control", `private, max-age=${maxAgeSeconds}, stale-while-revalidate=${staleSeconds}`);
 }
 
-function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number }) {
+function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: number; binderCount?: number }) {
   return {
     id: user.id,
     email: user.email,
@@ -709,23 +730,9 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     isActive: user.isActive,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
+    hasPassword: Boolean(user.passwordHash),
     stats,
   };
-}
-
-async function ensureUserBinders(userId: string) {
-  await Promise.all([
-    prisma.cardBinder.upsert({
-      where: { userId_kind: { userId, kind: BinderKind.WISHLIST } },
-      update: {},
-      create: { userId, kind: BinderKind.WISHLIST, name: "Lista de Desejos", description: "Cartas que quero adquirir." },
-    }),
-    prisma.cardBinder.upsert({
-      where: { userId_kind: { userId, kind: BinderKind.OWNED } },
-      update: {},
-      create: { userId, kind: BinderKind.OWNED, name: "Cartas Possuídas", description: "Cartas que já tenho." },
-    }),
-  ]);
 }
 
 async function requireActiveUser(req: RequestWithUser, res: Response) {
@@ -756,7 +763,6 @@ async function ensureAdminSeed() {
       preferredTheme: "dark",
     },
   });
-  await ensureUserBinders(user.id);
 }
 
 /** Proxy de imagem — só existe pra dar suporte a exportações client-side que usam
@@ -837,7 +843,6 @@ app.post("/api/auth/register", async (req, res) => {
       preferredTheme: "dark",
     },
   });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.status(201).json({ token, user: serializeUser(user) });
 });
@@ -851,7 +856,6 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
 });
@@ -908,7 +912,6 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  await ensureUserBinders(user.id);
   const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
   res.json({ token, user: serializeUser(user) });
 });
@@ -916,14 +919,12 @@ app.post("/api/auth/google", async (req, res) => {
 app.get("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
   const user = await requireActiveUser(req, res);
   if (!user) return;
-  await ensureUserBinders(user.id);
-  const [deckCount, publicDeckCount, wishlistCount, ownedCount] = await Promise.all([
+  const [deckCount, publicDeckCount, binderCount] = await Promise.all([
     prisma.deck.count({ where: { userId: user.id } }),
     prisma.deck.count({ where: { userId: user.id, visibility: "PUBLIC" } }),
-    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.WISHLIST } } }),
-    prisma.cardBinderItem.count({ where: { binder: { userId: user.id, kind: BinderKind.OWNED } } }),
+    prisma.cardBinder.count({ where: { userId: user.id } }),
   ]);
-  res.json(serializeUser(user, { deckCount, publicDeckCount, wishlistCount, ownedCount }));
+  res.json(serializeUser(user, { deckCount, publicDeckCount, binderCount }));
 });
 
 app.put("/api/auth/me", authRequired, async (req: RequestWithUser, res) => {
@@ -947,11 +948,34 @@ app.put("/api/auth/password", authRequired, async (req: RequestWithUser, res) =>
   const current = await requireActiveUser(req, res);
   if (!current) return;
   const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
-  if (!currentPassword || !newPassword) return res.status(400).json({ error: "Senha atual e nova senha são obrigatórias." });
-  if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: "A nova senha precisa ter pelo menos 8 caracteres." });
+  if (current.passwordHash) {
+    // Conta com senha de verdade -- exige confirmar a atual antes de trocar.
+    if (!currentPassword) return res.status(400).json({ error: "Informe a senha atual." });
+    if (!(await bcrypt.compare(currentPassword, current.passwordHash))) return res.status(401).json({ error: "Senha atual inválida." });
+  }
+  // Conta so-com-Google (passwordHash nulo) -- nao tem senha atual pra conferir, deixa
+  // definir uma agora (isso NAO desativa o login por Google, so adiciona um segundo
+  // caminho de acesso pra essa conta).
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: current.id }, data: { passwordHash } });
   res.json({ ok: true });
+});
+
+// Upload de avatar -- aberto a qualquer usuario autenticado (diferente do upload
+// generico de imagem de carta, que exige ADMIN/EDITOR). Ja atualiza avatarUrl direto
+// no registro do usuario, nao precisa de um PUT separado depois.
+app.post("/api/auth/me/avatar", authRequired, upload.single("image"), async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
+    const saved = await saveUploadedCardImage(req.file, { entity: "avatars", label: current.id });
+    const user = await prisma.user.update({ where: { id: current.id }, data: { avatarUrl: saved.publicUrl } });
+    res.status(201).json(serializeUser(user));
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || "Erro ao enviar avatar." });
+  }
 });
 
 app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
@@ -998,50 +1022,83 @@ app.get("/api/users/:username", async (req, res) => {
 app.get("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {
   const current = await requireActiveUser(req, res);
   if (!current) return;
-  await ensureUserBinders(current.id);
-  const binders = await prisma.cardBinder.findMany({ where: { userId: current.id }, include: { items: { include: { card: { include: { set: true } } } } }, orderBy: [{ kind: "asc" }] });
+  const binders = await prisma.cardBinder.findMany({
+    where: { userId: current.id },
+    include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } }, _count: { select: { items: true } } },
+    orderBy: [{ createdAt: "asc" }],
+  });
   res.json(binders);
 });
 
-app.put("/api/binders/me/:kind", authRequired, async (req: RequestWithUser, res) => {
+app.get("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
   const current = await requireActiveUser(req, res);
   if (!current) return;
-  const kind = String(req.params.kind).toUpperCase() as BinderKind;
-  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null }> };
-  const binder = await prisma.cardBinder.upsert({
-    where: { userId_kind: { userId: current.id, kind } },
-    update: {
-      name: payload.name,
-      description: payload.description,
-      isPublic: payload.isPublic,
-    },
-    create: {
+  const binder = await prisma.cardBinder.findFirst({
+    where: { id: String(req.params.id), userId: current.id },
+    include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
+  });
+  if (!binder) return res.status(404).json({ error: "Binder não encontrado." });
+  res.json(binder);
+});
+
+app.post("/api/binders/me", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean };
+  const binder = await prisma.cardBinder.create({
+    data: {
       userId: current.id,
-      kind,
-      name: payload.name || (kind === BinderKind.WISHLIST ? "Lista de Desejos" : "Cartas Possuídas"),
+      name: payload.name?.trim() || "Novo binder",
       description: payload.description,
       isPublic: payload.isPublic ?? true,
     },
+    include: { items: true },
+  });
+  res.status(201).json(binder);
+});
+
+app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const binderId = String(req.params.id);
+  const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
+  if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
+
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number }> };
+  await prisma.cardBinder.update({
+    where: { id: binderId },
+    data: { name: payload.name, description: payload.description, isPublic: payload.isPublic },
   });
   if (payload.items) {
-    await prisma.cardBinderItem.deleteMany({ where: { binderId: binder.id } });
+    await prisma.cardBinderItem.deleteMany({ where: { binderId } });
     if (payload.items.length) {
       await prisma.cardBinderItem.createMany({
-        data: payload.items.map((item) => ({ binderId: binder.id, cardId: item.cardId, quantity: item.quantity, note: item.note || null })),
+        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index })),
       });
     }
   }
-  const full = await prisma.cardBinder.findUnique({ where: { id: binder.id }, include: { items: { include: { card: { include: { set: true } } } } } });
+  const full = await prisma.cardBinder.findUnique({ where: { id: binderId }, include: { items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } } });
   res.json(full);
 });
 
-app.get("/api/binders/share/:shareId", async (req, res) => {
-  setPublicCache(res, 20, 60);
+app.delete("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) => {
+  const current = await requireActiveUser(req, res);
+  if (!current) return;
+  const binderId = String(req.params.id);
+  const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
+  if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
+  await prisma.cardBinder.delete({ where: { id: binderId } });
+  res.status(204).send();
+});
+
+app.get("/api/binders/share/:shareId", authOptional, async (req: RequestWithUser, res) => {
   const binder = await prisma.cardBinder.findUnique({
     where: { shareId: String(req.params.shareId) },
-    include: { user: true, items: { include: { card: { include: { set: true } } } } },
+    include: { user: true, items: { include: { card: { include: { set: true } } }, orderBy: { position: "asc" } } },
   });
-  if (!binder || !binder.isPublic || !binder.user.isActive) return res.status(404).json({ error: "Lista não encontrada." });
+  const isOwner = Boolean(req.user && binder && req.user.userId === binder.userId);
+  if (!binder || !binder.user.isActive || (!binder.isPublic && !isOwner)) return res.status(404).json({ error: "Pasta não encontrada." });
+  if (!isOwner) setPublicCache(res, 20, 60); // dono pode ver versão privada sempre fresca, sem cache
   res.json(binder);
 });
 
@@ -1293,10 +1350,10 @@ app.delete("/api/cards/:id/relations/:relationId", authRequired, roleRequired([U
 app.get("/api/cards", async (req, res) => {
   setPublicCache(res, 20, 90);
   const q = normalizeQueryValue(req.query.q ?? req.query.search);
-  const color = normalizeQueryValue(req.query.color);
+  const colors = normalizeMultiQueryValue(req.query.color);
   const cardType = normalizeQueryValue(req.query.cardType);
   const media = normalizeQueryValue(req.query.media ?? req.query.series);
-  const trait = normalizeQueryValue(req.query.trait);
+  const traits = normalizeMultiQueryValue(req.query.trait);
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
   const rarity = normalizeQueryValue(req.query.rarity);
@@ -1333,10 +1390,10 @@ app.get("/api/cards", async (req, res) => {
   // primeiro, série depois) sem repetir a lista inteira duas vezes.
   const restFilters: Prisma.CardModelWhereInput[] = [
     { isActive: true },
-    color ? { color } : {},
+    colors.length ? { color: { in: colors } } : {},
     cardType ? (cardType === "COMMAND" || cardType === "COMMAND_PILOT" ? { cardType: { in: [CardType.COMMAND, CardType.COMMAND_PILOT] } } : { cardType: cardType as CardType }) : {},
     media ? { OR: [{ sourceTitle: media }, { series: media }] } : {},
-    trait ? { OR: [{ traits: { has: trait } }, { trait: { contains: trait, mode: "insensitive" } }] } : {},
+    traits.length ? { OR: traits.flatMap((t) => [{ traits: { has: t } }, { trait: { contains: t, mode: "insensitive" as const } }]) } : {},
     keyword ? { keywordTags: { has: keyword } } : {},
     status ? { legalityStatus: status } : {},
     ap !== undefined ? { ap } : {},
@@ -1665,7 +1722,7 @@ app.post("/api/uploads/image", authRequired, roleRequired([UserRole.ADMIN, UserR
   try {
     if (!req.file) return res.status(400).json({ error: "Arquivo não enviado." });
     const entityRaw = String(req.body?.entity || "cards");
-    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" : "cards";
+    const entity = ["cards", "collections", "media", "decks"].includes(entityRaw) ? entityRaw as "cards" | "collections" | "media" | "decks" | "avatars" : "cards";
     const saved = await saveUploadedCardImage(req.file, {
       entity,
       cardCode: req.body?.referenceCode ? String(req.body.referenceCode) : undefined,
@@ -1964,7 +2021,14 @@ async function enrichDecksWithFeaturedCards(decks: any[], legality: DeckLegality
 app.get("/api/decks/public", async (req, res) => {
   setPublicCache(res, 15, 60);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
-  const where = { visibility: "PUBLIC" as const };
+  const q = normalizeQueryValue(req.query.q);
+  const sort = normalizeQueryValue(req.query.sort) || "recent";
+  const where: Prisma.DeckWhereInput = {
+    visibility: "PUBLIC" as const,
+    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { user: { is: { displayName: { contains: q, mode: "insensitive" } } } }] } : {}),
+  };
+  const orderBy: Prisma.DeckOrderByWithRelationInput =
+    sort === "name_asc" ? { name: "asc" } : sort === "name_desc" ? { name: "desc" } : sort === "oldest" ? { createdAt: "asc" } : { updatedAt: "desc" };
   const legality = await loadDeckLegalityData();
 
   if (pagination.enabled) {
@@ -1972,7 +2036,7 @@ app.get("/api/decks/public", async (req, res) => {
       prisma.deck.findMany({
         where,
         include: { user: true, items: { include: { card: true } } },
-        orderBy: { updatedAt: "desc" },
+        orderBy,
         skip: pagination.skip,
         take: pagination.take,
       }),
@@ -1984,7 +2048,7 @@ app.get("/api/decks/public", async (req, res) => {
   const decks = await prisma.deck.findMany({
     where,
     include: { user: true, items: { include: { card: true } } },
-    orderBy: { updatedAt: "desc" },
+    orderBy,
   });
   res.json(await enrichDecksWithFeaturedCards(decks, legality));
 });
@@ -2052,6 +2116,27 @@ async function findInvalidDeckCardIds(items: Array<{ cardId: string }>): Promise
   return ids.filter((id) => !foundIds.has(id));
 }
 
+/** Garante 10 recursos sempre, no servidor -- rede de seguranca independente do
+ * auto-preenchimento do client (DeckbuilderPage.tsx), que so roda dentro do editor.
+ * Sem isso, um deck que chegou aqui por outro caminho (corrida entre salvar rapido
+ * demais e o efeito do client ainda nao ter rodado, importacao, etc) fica salvo com
+ * resource incompleto pra sempre, aparecendo "pendente" na lista sem o usuario saber
+ * por que (a contagem de recurso nem aparece mais na tela, so o principal). Mesma
+ * logica de completar a diferenca com a arte de menor codigo, ja testada isolada
+ * quando construi a versao do client. */
+async function topUpDeckResources(items: Array<{ cardId: string; quantity: number; section?: string }>): Promise<Array<{ cardId: string; quantity: number; section?: string }>> {
+  const resourceTotal = items.filter((item) => (item.section ?? "main") === "resource").reduce((sum, item) => sum + item.quantity, 0);
+  const missing = DECK_RESOURCE_SIZE - resourceTotal;
+  if (missing <= 0) return items;
+  const defaultResource = await prisma.card.findFirst({ where: { cardType: "RESOURCE", isActive: true }, orderBy: { code: "asc" }, select: { id: true } });
+  if (!defaultResource) return items; // catalogo sem resource cadastrado -- nada a fazer, nao trava o salvamento por isso
+  const existingIndex = items.findIndex((item) => (item.section ?? "main") === "resource" && item.cardId === defaultResource.id);
+  if (existingIndex >= 0) {
+    return items.map((item, i) => (i === existingIndex ? { ...item, quantity: item.quantity + missing } : item));
+  }
+  return [...items, { cardId: defaultResource.id, quantity: missing, section: "resource" }];
+}
+
 app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   const { name, format, visibility, notes, coverImage, featuredCardIds, isPrimary, items } = req.body as {
     name: string;
@@ -2067,6 +2152,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   const invalidIds = await findInvalidDeckCardIds(items || []);
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.create({
     data: {
       userId: req.user!.userId,
@@ -2077,7 +2163,7 @@ app.post("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });
@@ -2102,6 +2188,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
   if (invalidIds.length) return res.status(400).json({ error: `Carta(s) inválida(s) no deck: ${invalidIds.join(", ")}. Recarregue a página e tente de novo.` });
   if (isPrimary) await prisma.deck.updateMany({ where: { userId: req.user!.userId }, data: { isPrimary: false } });
   await prisma.deckItem.deleteMany({ where: { deckId } });
+  const completeItems = await topUpDeckResources(items || []);
   const deck = await prisma.deck.update({
     where: { id: deckId },
     data: {
@@ -2112,7 +2199,7 @@ app.put("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) => 
       coverImage: coverImage || null,
       featuredCardIds: Array.isArray(featuredCardIds) ? featuredCardIds.filter(Boolean).slice(0, 2) : [],
       isPrimary: Boolean(isPrimary),
-      items: { create: items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
+      items: { create: completeItems.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section ?? "main" })) },
     },
     include: { items: true },
   });

@@ -17,7 +17,8 @@ export type AuthUser = {
   isActive?: boolean;
   preferredCardLanguage?: "PT_BR" | "EN";
   preferredTheme?: string | null;
-  stats?: { deckCount: number; publicDeckCount: number; wishlistCount?: number; ownedCount?: number };
+  hasPassword?: boolean;
+  stats?: { deckCount: number; publicDeckCount: number; binderCount?: number };
 };
 
 export type ApiDeck = {
@@ -41,14 +42,13 @@ export type ApiDeck = {
 export type ApiBinder = {
   id: string;
   shareId: string;
-  kind: "WISHLIST" | "OWNED";
   name: string;
   description?: string | null;
   isPublic: boolean;
   createdAt?: string;
   updatedAt?: string;
   user?: AuthUser;
-  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; card: any }>;
+  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; card: any }>;
   _count?: { items: number };
 };
 
@@ -259,7 +259,8 @@ export const api = {
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   me: () => request<AuthUser>("/auth/me", undefined, { ttlMs: 10_000 }),
   updateMe: (payload: { displayName?: string; bio?: string; avatarUrl?: string; preferredCardLanguage?: "PT_BR" | "EN"; preferredTheme?: string }) => mutate<AuthUser>("/auth/me", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me", "/users/", "/decks/me", "/binders/me"]),
-  updatePassword: (payload: { currentPassword: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  updatePassword: (payload: { currentPassword?: string; newPassword: string }) => mutate<{ ok: true }>("/auth/password", { method: "PUT", body: JSON.stringify(payload) }, ["/auth/me"]),
+  uploadAvatar: (formData: FormData) => mutate<AuthUser>("/auth/me/avatar", { method: "POST", body: formData }, ["/auth/me"]),
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
@@ -314,8 +315,8 @@ export const api = {
   deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
-  listPublicDecksPage: (pagination: PaginationParams = {}) =>
-    request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 15_000 }),
+  listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>
+    request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12), q: filters?.q, sort: filters?.sort })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
   listMyDecks: (options?: { bypassCache?: boolean }) => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
   getMyDeck: (id: string) => request<ApiDeck>(`/decks/me/${id}`, undefined, { ttlMs: 5_000 }),
@@ -324,8 +325,11 @@ export const api = {
   createMyDeck: (payload: any) => mutate<ApiDeck>("/decks/me", { method: "POST", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/users/"]),
   updateMyDeck: (id: string, payload: any) => mutate<ApiDeck>(`/decks/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/decks/me", "/decks/public", "/decks/share", "/users/"]),
   deleteMyDeck: (id: string) => mutate<void>(`/decks/me/${id}`, { method: "DELETE" }, ["/decks/me", "/decks/public", "/users/"]),
-  listMyBinders: () => request<ApiBinder[]>("/binders/me", undefined, { ttlMs: 10_000 }),
-  updateMyBinder: (kind: "WISHLIST" | "OWNED", payload: any) => mutate<ApiBinder>(`/binders/me/${kind}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
+  listMyBinders: (options?: { bypassCache?: boolean }) => request<ApiBinder[]>("/binders/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
+  getMyBinder: (id: string) => request<ApiBinder>(`/binders/me/${id}`, undefined, { ttlMs: 5_000 }),
+  createBinder: (payload: { name: string; description?: string; isPublic?: boolean }) => mutate<ApiBinder>("/binders/me", { method: "POST", body: JSON.stringify(payload) }, ["/binders/me", "/users/"]),
+  updateMyBinder: (id: string, payload: any) => mutate<ApiBinder>(`/binders/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
+  deleteBinder: (id: string) => mutate<void>(`/binders/me/${id}`, { method: "DELETE" }, ["/binders/me", "/users/"]),
   getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
 };
 
@@ -354,7 +358,11 @@ export function mapApiCard(card: any): CardRecord {
     series: card.series ?? "",
     trait: card.trait ?? "",
     keywords: card.keywordTags ?? [],
+    triggerKeywords: card.triggerKeywords ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
+    rarity: card.rarity ?? undefined,
+    setCode: card.set?.code ?? card.setCode ?? undefined,
+    setName: card.set?.namePt ?? card.set?.nameEn ?? undefined,
     imageUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,
     imageSmallUrl: card.imageSmallUrl ?? card.thumbUrl ?? undefined,
     imageMediumUrl: card.imageMediumUrl ?? card.imageUrl ?? undefined,

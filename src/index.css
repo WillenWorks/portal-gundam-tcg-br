@@ -75,6 +75,38 @@
   --ring: oklch(0.58 0.16 229);
 }
 
+/* Perfil visual Zeon — vermelho carmesim como identidade (hue 18, distinto do
+ * --destructive em hue 25 de proposito, pra nao ler como "erro"), dourado como
+ * acento (referencia a farda/insignia). Fundo com leve deslocamento de matiz pro
+ * quente, mesma luminosidade/croma do Hangar -- identidade sem perder legibilidade. */
+.dark.faction-zeon {
+  --background: oklch(0.17 0.02 22);
+  --card: oklch(0.22 0.024 22 / 0.88);
+  --popover: oklch(0.19 0.024 22 / 0.96);
+  --primary: oklch(0.62 0.19 18);
+  --primary-foreground: oklch(0.14 0.02 22);
+  --secondary: oklch(0.3 0.024 22 / 0.9);
+  --muted: oklch(0.26 0.02 22 / 0.86);
+  --accent: oklch(0.78 0.15 70);
+  --accent-foreground: oklch(0.16 0.02 22);
+  --border: oklch(0.48 0.07 20 / 0.35);
+  --ring: oklch(0.62 0.19 18);
+}
+
+.light.faction-zeon {
+  --background: oklch(0.93 0.012 30);
+  --card: oklch(0.985 0.006 30 / 0.88);
+  --popover: oklch(0.99 0.006 30 / 0.96);
+  --primary: oklch(0.48 0.2 15);
+  --primary-foreground: oklch(0.98 0.004 30);
+  --secondary: oklch(0.9 0.016 30);
+  --muted: oklch(0.9 0.014 30);
+  --accent: oklch(0.68 0.15 65);
+  --accent-foreground: oklch(0.2 0.02 22);
+  --border: oklch(0.78 0.03 25 / 0.92);
+  --ring: oklch(0.48 0.2 15);
+}
+
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { scroll-behavior: smooth; }
@@ -92,6 +124,21 @@
       radial-gradient(circle at 20% 20%, oklch(0.84 0.035 220 / 0.32), transparent 24%),
       radial-gradient(circle at 80% 0%, oklch(0.86 0.03 80 / 0.22), transparent 20%),
       linear-gradient(180deg, oklch(0.94 0.008 240), oklch(0.88 0.012 240));
+  }
+  /* Zeon: mesmo esquema de camadas (glow superior-esquerdo + superior-direito +
+   * gradiente vertical de base), so com matiz deslocado pro vermelho/dourado em vez
+   * de azul/amarelo -- mantem a MESMA estrutura visual do Hangar, so muda a cor. */
+  .dark.faction-zeon body {
+    background-image:
+      radial-gradient(circle at 20% 20%, oklch(0.32 0.09 20 / 0.24), transparent 20%),
+      radial-gradient(circle at 80% 0%, oklch(0.62 0.14 70 / 0.14), transparent 18%),
+      linear-gradient(180deg, oklch(0.2 0.03 22), oklch(0.14 0.02 22));
+  }
+  .light.faction-zeon body {
+    background-image:
+      radial-gradient(circle at 20% 20%, oklch(0.82 0.05 20 / 0.32), transparent 24%),
+      radial-gradient(circle at 80% 0%, oklch(0.84 0.05 65 / 0.24), transparent 20%),
+      linear-gradient(180deg, oklch(0.94 0.014 30), oklch(0.88 0.018 30));
   }
   h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); letter-spacing: 0.04em; }
   ::selection { background: oklch(0.73 0.13 215 / 0.35); color: oklch(0.97 0.01 240); }
@@ -174,5 +221,63 @@
   .panel-cut {
     clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
   }
-  .title-glow { text-shadow: 0 0 24px oklch(0.73 0.13 215 / 0.3); }
+  .title-glow { text-shadow: 0 0 24px color-mix(in oklch, var(--primary) 30%, transparent); }
+}
+
+/* Zeon — identidade militar/imperial de verdade, nao so paleta. Emblema geometrico
+ * ORIGINAL (nao o crest oficial da franquia, que e propriedade da Bandai/Sunrise —
+ * ver ZeonSigil.tsx), corte de canto unico mais agressivo em vez do corte duplo
+ * simetrico do Hangar, listra de risco no topo dos paineis hero, tipografia mais
+ * pesada em titulo. So dentro das paginas -- navegacao/sidebar continuam identicas
+ * nos dois perfis, por pedido explicito. */
+@layer utilities {
+  .faction-zeon .panel-cut {
+    clip-path: polygon(0 0, calc(100% - 30px) 0, 100% 30px, 100% 100%, 0 100%);
+  }
+  .faction-zeon .hero-surface {
+    background-image: linear-gradient(135deg, oklch(0.18 0.035 20), oklch(0.26 0.06 15), oklch(0.36 0.04 25));
+    position: relative;
+  }
+  .light.faction-zeon .hero-surface {
+    background-image: linear-gradient(135deg, oklch(0.95 0.02 25), oklch(0.9 0.04 20), oklch(0.85 0.05 18));
+  }
+  .faction-zeon .hero-surface::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 5px;
+    background: repeating-linear-gradient(135deg, var(--primary) 0 12px, var(--accent) 12px 24px);
+  }
+  .faction-zeon .hero-surface::after {
+    content: "";
+    position: absolute;
+    right: -16px;
+    bottom: -16px;
+    width: 170px;
+    height: 170px;
+    background-color: var(--primary);
+    opacity: 0.08;
+    mask-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNTAgNCBMOTIgMjcgVjczIEw1MCA5NiBMOCA3MyBWMjcgWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyLjUiLz48cGF0aCBkPSJNNTAgNCBMOTIgMjcgTDUwIDUwIEw4IDI3IFoiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIyNiIgeTE9IjE1IiB4Mj0iNzQiIHkyPSI4NSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    pointer-events: none;
+  }
+  .faction-zeon h1, .faction-zeon h2, .faction-zeon h3 {
+    font-weight: 700;
+    letter-spacing: 0.07em;
+  }
+  .faction-zeon .surface-panel {
+    position: relative;
+  }
+  .faction-zeon .surface-panel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 22px;
+    height: 22px;
+    border-top: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+    border-right: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+    pointer-events: none;
+  }
 }

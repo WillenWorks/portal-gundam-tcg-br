@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, Share2, Trash2 } from "lucide-react";
 
 import { api, type ApiDeck } from "@/lib/api";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
+import { DECK_MAIN_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export default function DeckListPage() {
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Deckbuilder</p>
               <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Meus decks</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Cada deck aqui é um dossiê próprio — capa, legalidade e as duas listas (principal e recursos) ficam dentro do editor.</p>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-soft">Monte, edite e acompanhe a legalidade dos seus decks em tempo real — capa, curva de custo e estatísticas completas em cada um.</p>
             </div>
             <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate("/deckbuilder/new")}><Plus className="mr-2 size-4" />Novo deck</Button>
           </CardContent>
@@ -81,7 +81,6 @@ export default function DeckListPage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {decks.map((deck) => {
             const mainCount = deck.items.filter((item) => item.section !== "resource" && !NON_COUNTED_SECTIONS.has(item.section)).reduce((sum, item) => sum + item.quantity, 0);
-            const resourceCount = deck.items.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
             const valid = deck.legality?.valid ?? false;
             return (
               <Card key={deck.id} className="panel-cut overflow-hidden rounded-none surface-panel">
@@ -100,7 +99,7 @@ export default function DeckListPage() {
                     <Badge variant="outline" className="rounded-none border-white/20 text-soft">{VISIBILITY_LABEL[deck.visibility] || deck.visibility}</Badge>
                     <Badge variant="outline" className={`rounded-none ${valid ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}`}>{valid ? "válido" : "pendente"}</Badge>
                   </div>
-                  <p className="text-sm text-muted-portal">Principal {mainCount}/{DECK_MAIN_SIZE} · Recursos {resourceCount}/{DECK_RESOURCE_SIZE}</p>
+                  <p className="text-sm text-muted-portal">{mainCount}/{DECK_MAIN_SIZE}</p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => navigate(`/deckbuilder/${deck.id}`)}>Editar</Button>
                     {deck.visibility !== "PRIVATE" ? <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => copyShareLink(deck)}><Share2 className="size-4" /></Button> : null}

@@ -8,24 +8,28 @@ Tudo que eu (Claude) consigo preparar já está pronto no código (`render.yaml`
 `vercel.json`, script `start`, CORS configurável, migration). As etapas abaixo exigem
 login nas suas próprias contas — ninguém mais consegue fazer isso por você.
 
-## 0. Antes de tudo: a branch `production`
+## 0. Antes de tudo: o fluxo de branch
 
-Já criei a branch `production` a partir do estado atual. A partir de agora, o fluxo é:
+**Atualização (ago/2026): o fluxo é `dev`/`main`.** `dev` é onde o trabalho e teste
+acontece; `main` é a branch de produção — Render e Vercel observam essa branch, só
+recebe merge quando algo em `dev` está validado e pronto pra ir ao ar. A branch
+`production` foi criada num momento anterior mas nunca chegou a ser usada de
+verdade — fica parada, sem uso, pode ser removida quando quiser.
 
 ```bash
-# trabalha e testa normalmente na main (ou noutra branch de feature)
-git checkout main
+# trabalha e testa normalmente na dev
+git checkout dev
 # ...commits normais...
 
 # quando validar que está pronto pra ir ao ar:
-git checkout production
-git merge main
-git push origin production
+git checkout main
+git merge dev
+git push origin main
+git checkout dev
 ```
 
-Só um push em `production` vai disparar deploy (configurando Vercel/Render pra
-observar essa branch especificamente, no passo 2 e 3). `main` fica livre pra testar
-sem risco de subir coisa quebrada.
+Só um push em `main` dispara deploy (Vercel/Render já observam essa branch — passo 2
+e 3 abaixo). `dev` fica livre pra testar sem risco de subir coisa quebrada.
 
 ## 1. Supabase (banco de dados)
 
@@ -60,8 +64,8 @@ a senha do banco.
    pede autorização pra ler seus repositórios).
 2. **New → Web Service** → escolhe o repositório `portal-gundam-tcg-br`.
 3. Na tela de configuração:
-   - **Branch**: `production` (não `main` — isso garante que só o que você promover
-     pra lá sobe).
+   - **Branch**: `main` (é a branch de produção — trabalho/teste acontece em `dev`,
+     só sobe quando você faz merge pra `main`).
    - **Root Directory**: deixa vazio (raiz do repo).
    - **Runtime**: Node.
    - **Build Command**: `pnpm install --frozen-lockfile && pnpm run prisma:generate`
@@ -105,7 +109,7 @@ a senha do banco.
    - `VITE_APP_ENV` → `production`
    - `VITE_GOOGLE_CLIENT_ID` → vem do passo 4, pode deixar em branco por enquanto
 5. Em **Settings → Git**, confirma que a **Production Branch** está configurada como
-   `production` (não `main`).
+   `main` (é essa que já está no ar — trabalho/teste fica em `dev`).
 6. **Deploy**. Anota o domínio que o Vercel deu (ex:
    `https://portal-gundam-tcg-br.vercel.app`).
 7. **Volta no Render** (passo 2.4) e preenche `ALLOWED_ORIGINS` com esse domínio —
