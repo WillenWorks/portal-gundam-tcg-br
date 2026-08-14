@@ -1637,7 +1637,7 @@ app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN
   const printId = String(req.params.printId);
   const existing = await prisma.card.findUnique({ where: { id: printId } });
   if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
-  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string };
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string; quantityInProduct?: number | null };
   if (body.isPrimaryPrint && existing.cardModelId) {
     await prisma.card.updateMany({ where: { cardModelId: existing.cardModelId }, data: { isPrimaryPrint: false } });
   }
@@ -1656,6 +1656,7 @@ app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN
       officialUrl: body.officialUrl ?? existing.officialUrl,
       legalityStatus: body.legalityStatus ?? existing.legalityStatus,
       isPrimaryPrint: body.isPrimaryPrint ?? existing.isPrimaryPrint,
+      quantityInProduct: body.quantityInProduct === undefined ? existing.quantityInProduct : body.quantityInProduct,
     },
     include: { set: true },
   });

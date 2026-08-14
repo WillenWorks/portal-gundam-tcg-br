@@ -7,6 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 
+// "Fechada" = conteudo pre-definido e conhecido (starter deck, build box, acessorio,
+// premium) -- faz sentido mostrar quantidade por carta. "Regular" = booster pack
+// aleatorio (GD01, GD02, EB01...) -- quantidade por carta nao existe como conceito,
+// cada pacote e um sorteio.
+const isClosedSet = (setType?: string | null) => Boolean(setType) && setType !== "BOOSTER_PACK";
+const setKindLabel = (setType?: string | null) => {
+  switch (setType) {
+    case "BOOSTER_PACK": return "Regular";
+    case "STARTER_DECK": return "Fechada · Starter Deck";
+    case "ACCESSORIES": return "Fechada · Acessório";
+    case "PREMIUM_BANDAI": return "Fechada · Premium";
+    default: return "Fechada";
+  }
+};
+
 export default function SetDetailPage() {
   const [, params] = useRoute<{ code: string }>("/sets/:code");
   const [setData, setSetData] = useState<any | null>(null);
@@ -18,6 +33,7 @@ export default function SetDetailPage() {
   }, [params?.code]);
 
   const releaseDate = setData?.releaseDate ? new Date(setData.releaseDate) : null;
+  const closed = isClosedSet(setData?.setType);
 
   return (
     <PublicShell breadcrumbs={[{ label: "Coleções", href: "/sets" }, { label: setData?.code || params?.code || "Coleção" }]}>
@@ -43,7 +59,7 @@ export default function SetDetailPage() {
 
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{setData.setType || "BOOSTER"}</Badge>
+                    <Badge className={`rounded-none border ${closed ? "border-accent/40 bg-accent/10 text-accent" : "border-primary/40 bg-primary/10 text-primary"}`}>{setKindLabel(setData.setType)}</Badge>
                     <Badge variant="outline" className="rounded-none border-white/15 bg-white/5 text-slate-200 dark:text-slate-200 light:text-slate-700">
                       {setData._count?.cards ?? setData.cards?.length ?? 0} cartas
                     </Badge>
@@ -91,6 +107,9 @@ export default function SetDetailPage() {
                       </div>
                       <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
                     </div>
+                    {closed ? (
+                      <p className="text-xs text-slate-500">{card.quantityInProduct != null ? `${card.quantityInProduct}x nesta coleção` : "Quantidade não informada"}</p>
+                    ) : null}
                     <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{card.cardType}{card.cost != null ? ` · custo ${card.cost}` : ""}{card.trait ? ` · trait ${card.trait}` : ""}</p>
                     {card.keywordTags?.length ? (
                       <div className="flex flex-wrap gap-2">

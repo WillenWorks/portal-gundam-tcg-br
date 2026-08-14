@@ -91,7 +91,7 @@ export default function CardsPage() {
 
   useEffect(() => {
     navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
-  }, [filters, page, pageSize, navigate]);
+  }, [basePath, filters, page, pageSize, navigate]);
 
   const activeFilters = useMemo(
     () => Object.entries(filters).filter(([, value]) => value).length - (filters.sort ? 1 : 0),
