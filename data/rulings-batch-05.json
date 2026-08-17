@@ -1,0 +1,167 @@
+[
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What do 'active' and 'rested' mean for a card?",
+    "answerEn": "Active means the card is standing upright (vertical) — ready to use. Rested means it's turned sideways (horizontal) — already used or tapped for something. Cards default to active whenever they enter the battle area, resource area, or base section.",
+    "questionPt": "O que significam \"ativo\" e \"descansado\" pra uma carta?",
+    "answerPt": "Ativo significa que a carta está na posição vertical — pronta pra usar. Descansado significa que está virada de lado (horizontal) — já foi usada ou gasta pra alguma coisa. As cartas começam ativas por padrão sempre que entram na área de batalha, de recurso, ou na base."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Damage",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Is there a difference between 'battle damage' and 'effect damage'?",
+    "answerEn": "Yes, they're two distinct categories. Battle damage comes specifically from Units fighting each other (or a Base/player) during the damage step of a battle. Effect damage comes from a card's text directly dealing damage, outside of battle. Some card effects care which type it was — 'when this Unit deals battle damage' won't trigger from effect damage.",
+    "questionPt": "Tem diferença entre \"dano de batalha\" e \"dano de efeito\"?",
+    "answerPt": "Sim, são duas categorias distintas. Dano de batalha vem especificamente de Units lutando entre si (ou contra Base/jogador) na etapa de dano de uma batalha. Dano de efeito vem do texto de uma carta causando dano diretamente, fora de batalha. Alguns efeitos de carta se importam com qual tipo foi — \"quando esta Unit causa dano de batalha\" não dispara com dano de efeito."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Damage",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If a Base or Shield takes more damage than its HP, does the excess spill over to something else?",
+    "answerEn": "No. Any damage beyond what's needed to destroy it is simply wasted — it never carries over to another Shield or anything else.",
+    "questionPt": "Se uma Base ou escudo recebe mais dano do que o HP dele, o excedente passa pra outra coisa?",
+    "answerPt": "Não. Qualquer dano além do necessário pra destruir simplesmente se perde — nunca passa pra outro escudo nem pra mais nada."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "HP",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Can a Unit's HP go above its printed maximum through recovery effects?",
+    "answerEn": "No. Recovery only removes damage counters it already has — it can't exceed the card's original HP. And a Unit that hasn't taken any damage yet has nothing to recover; a recovery effect on it simply does nothing.",
+    "questionPt": "O HP de uma Unit pode passar do máximo impresso por causa de efeito de recuperação?",
+    "answerPt": "Não. Recuperação só remove contadores de dano que ela já tem — não passa do HP original da carta. E uma Unit que ainda não recebeu dano nenhum não tem nada pra recuperar; um efeito de recuperação nela simplesmente não faz nada."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What's the difference between 'play,' 'deploy,' and 'pair'?",
+    "answerEn": "Play is the general act of revealing a card from your hand and paying its cost. Deploy specifically means a Unit or Base ending up on the field as a result. Pair specifically means a Pilot (or a Command card with a Pilot effect) being placed beneath a Unit. Playing a Unit card results in it being deployed; playing a Pilot card results in it being paired.",
+    "questionPt": "Qual a diferença entre \"jogar\", \"implantar\" (deploy) e \"parear\" (pair)?",
+    "answerPt": "Jogar é o ato geral de revelar uma carta da mão e pagar o custo dela. Deploy significa especificamente uma Unit ou Base terminando em campo como resultado disso. Pair significa especificamente um Piloto (ou uma carta Command com efeito de Piloto) sendo colocado embaixo de uma Unit. Jogar uma carta de Unit resulta nela sendo implantada; jogar uma carta de Piloto resulta nele sendo pareado."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What's the real difference between a card being destroyed, discarded, and removed?",
+    "answerEn": "Destroyed applies to Units, Bases, and Shields taking lethal damage (or sent to trash by an effect) — they go to the trash. Discarded specifically means a card going from your hand to the trash. Removed means a card taken completely out of play into the removal area — and a removed Unit or Base is NOT treated as 'destroyed', so Destroyed-triggered effects won't fire for it.",
+    "questionPt": "Qual a diferença real entre uma carta ser destruída, descartada, e removida?",
+    "answerPt": "Destruída vale pra Units, Bases e escudos que recebem dano letal (ou são mandados pro descarte por um efeito) — elas vão pro descarte. Descartada significa especificamente uma carta indo da sua mão pro descarte. Removida significa uma carta sendo tirada completamente do jogo pra área de remoção — e uma Unit ou Base removida NÃO é tratada como \"destruída\", então efeitos que disparam com Destroyed não ativam pra ela."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If my deck only has one card left when I'm told to shuffle it, does anything actually happen?",
+    "answerEn": "The deck still counts as shuffled, even though there's nothing to reorder with just one card — the rules treat it as fulfilled regardless.",
+    "questionPt": "Se meu deck só tem 1 carta quando mandam eu embaralhar, alguma coisa realmente acontece?",
+    "answerPt": "O deck ainda conta como embaralhado, mesmo não tendo nada pra reordenar com só 1 carta — a regra trata como cumprida de qualquer jeito."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What does it mean for a card to 'gain' an effect?",
+    "answerEn": "It means a new effect (often a keyword effect like Repair or Breach) is being added onto that card by some other source — not something printed on it originally.",
+    "questionPt": "O que significa uma carta \"ganhar\" um efeito?",
+    "answerPt": "Significa que um efeito novo (geralmente uma keyword de efeito tipo Repair ou Breach) está sendo adicionado naquela carta por alguma outra fonte — não é algo impresso nela originalmente."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Token",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the baseline rules for any token, regardless of what card created it?",
+    "answerEn": "Tokens follow the same rules as a real card of their type — a Unit token can be paired with a Pilot just like normal. But tokens always count as colorless, and their Level and cost are always treated as zero.",
+    "questionPt": "Quais são as regras básicas de qualquer token, não importa qual carta criou ele?",
+    "answerPt": "Tokens seguem as mesmas regras de uma carta de verdade do tipo dele — um token de Unit pode ser pareado com Piloto normalmente. Mas tokens sempre contam como sem cor, e o Nível e custo deles sempre são tratados como zero."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Token",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What happens to a token if it gets moved to the hand, trash, or anywhere outside the battle/resource/shield areas?",
+    "answerEn": "It's removed from the game entirely — tokens can't exist outside those three locations. It briefly 'passes through' the new location first, though, so triggers like 'when destroyed' or 'when returned to hand' still fire correctly before it vanishes.",
+    "questionPt": "O que acontece com um token se ele for movido pra mão, descarte, ou qualquer lugar fora das áreas de batalha/recurso/escudo?",
+    "answerPt": "Ele é removido do jogo por completo — tokens não existem fora desses 3 locais específicos. Mas ele passa brevemente por aquele novo local antes, então gatilhos tipo \"quando destruído\" ou \"quando retorna pra mão\" ainda disparam certinho antes dele sumir."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Token",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Is there a limit on how many token copies of the same card number I can bring to a game?",
+    "answerEn": "Yes — six or fewer copies of tokens sharing the same card number when preparing to play.",
+    "questionPt": "Existe limite de quantas cópias de token com o mesmo número de carta eu posso trazer pra partida?",
+    "answerPt": "Sim — até 6 cópias de tokens com o mesmo número de carta, na hora de preparar pra jogar."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What exactly are 'counters' in practical terms?",
+    "answerEn": "Any small object — chips, dice, tokens — placed on top of a card to track how much damage it's currently received. They're removed when that damage is healed.",
+    "questionPt": "O que são \"contadores\" na prática?",
+    "answerPt": "Qualquer objeto pequeno — fichas, dados, marcadores — colocado em cima de uma carta pra marcar quanto dano ela recebeu até agora. São removidos quando aquele dano é curado."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Fundamental Terminology",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What does the '/' symbol mean when it appears in card text, like '(Zeon)/(Neo Zeon)'?",
+    "answerEn": "It works exactly like the word 'or.' A requirement written as '1 (Zeon)/(Neo Zeon) Unit card' means you can choose either a Zeon Unit or a Neo Zeon Unit to satisfy it — not both.",
+    "questionPt": "O que o símbolo \"/\" significa quando aparece no texto de uma carta, tipo \"(Zeon)/(Neo Zeon)\"?",
+    "answerPt": "Funciona exatamente como a palavra \"ou\". Um requisito escrito como \"1 carta de Unit (Zeon)/(Neo Zeon)\" significa que você pode escolher uma Unit Zeon ou uma Unit Neo Zeon pra satisfazer ele — não as duas."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Damage",
+    "relatedPhase": "terminology",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How does damage reduction work — does it apply before or after the damage is dealt?",
+    "answerEn": "Before. Reduce lowers the incoming damage by the stated amount before it's actually applied to the card. If the reduction is equal to or greater than the incoming damage, the final damage received is zero.",
+    "questionPt": "Como a redução de dano funciona — aplica antes ou depois do dano ser causado?",
+    "answerPt": "Antes. Reduce diminui o dano que está chegando pela quantidade indicada antes dele ser realmente aplicado na carta. Se a redução for igual ou maior que o dano que chegaria, o dano final recebido é zero."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If Blocker changes the attack target mid-battle, does the original target 'stay' in the battle too, or does it fully swap over?",
+    "answerEn": "It fully swaps. The instant the target changes, the original Unit stops being considered part of the battle, and the new Unit (the one that blocked) takes its place entirely — there's no overlap between the two.",
+    "questionPt": "Se o Blocker muda o alvo do ataque no meio da batalha, o alvo original \"continua\" na batalha também, ou troca por completo?",
+    "answerPt": "Troca por completo. No instante em que o alvo muda, a Unit original para de ser considerada parte da batalha, e a nova Unit (a que bloqueou) assume o lugar dela inteiramente — não tem sobreposição entre as duas."
+  }
+]
