@@ -11,14 +11,14 @@ import { Input } from "@/components/ui/input";
 import { api, mapApiRule, type RulingFilters } from "@/lib/api";
 import type { RuleEntry } from "@/modules/core/types";
 
-const defaultFilters: RulingFilters = { q: "", sourceType: "", relatedKeyword: "", sort: "updated_desc" };
+const defaultFilters: RulingFilters = { q: "", sourceType: "", relatedKeyword: "", title: "", sort: "updated_desc" };
 const sourceLabels: Record<string, string> = { OFFICIAL_RULES: "Official Rules", OFFICIAL_FAQ: "Official FAQ", COMMUNITY_EXPLAINER: "Community Explainer" };
 
 function readFiltersFromHash(): RulingFilters {
   const hash = window.location.hash || "#/rules";
   const [, query = ""] = hash.split("?");
   const params = new URLSearchParams(query);
-  return { q: params.get("q") ?? "", sourceType: params.get("sourceType") ?? "", relatedKeyword: params.get("relatedKeyword") ?? "", sort: params.get("sort") ?? "updated_desc" };
+  return { q: params.get("q") ?? "", sourceType: params.get("sourceType") ?? "", relatedKeyword: params.get("relatedKeyword") ?? "", title: params.get("title") ?? "", sort: params.get("sort") ?? "updated_desc" };
 }
 
 function buildHash(filters: RulingFilters) {
@@ -32,7 +32,7 @@ export default function RulesPage() {
   const [, navigate] = useLocation();
   const [filters, setFilters] = useState<RulingFilters>(() => readFiltersFromHash());
   const [rules, setRules] = useState<RuleEntry[]>([]);
-  const [meta, setMeta] = useState<{ sourceTypes: string[]; relatedKeywords: string[] }>({ sourceTypes: [], relatedKeywords: [] });
+  const [meta, setMeta] = useState<{ sourceTypes: string[]; relatedKeywords: string[]; titles: string[] }>({ sourceTypes: [], relatedKeywords: [], titles: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { api.getRulingFilters().then(setMeta).catch(() => undefined); }, []);
@@ -66,8 +66,9 @@ export default function RulesPage() {
                 <button type="button" onClick={copySearchLink} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900"><Copy className="mr-2 size-4" />Copiar busca</button>
               </div>
             </div>
-            <div className="grid gap-4 xl:grid-cols-4">
+            <div className="grid gap-4 xl:grid-cols-5">
               <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Buscar por título, pergunta ou resposta" className="rounded-none xl:col-span-2" />
+              <select value={filters.title ?? ""} onChange={(event) => setFilter("title", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as categorias</option>{meta.titles.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.sourceType ?? ""} onChange={(event) => setFilter("sourceType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as fontes</option>{meta.sourceTypes.map((item) => <option key={item} value={item}>{sourceLabels[item] || item}</option>)}</select>
               <select value={filters.relatedKeyword ?? ""} onChange={(event) => setFilter("relatedKeyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.relatedKeywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
