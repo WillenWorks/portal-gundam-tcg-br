@@ -14,6 +14,12 @@ protegido por direito autoral da Bandai palavra por palavra. A regra do jogo em
 si (o que acontece mecanicamente) não é protegida por direito autoral, só a
 redação específica da Bandai é — por isso a explicação é redigida do zero.
 
+**Atualização (17/ago/2026)**: consegui o PDF completo (35 páginas, as 13 seções
+inteiras) e validei as 7 keywords de efeito contra o texto oficial. Achei 1
+correção real (Breach — faltava o requisito "durante o seu turno" e o caso de
+não ativar quando o oponente não tem nem Base nem escudo), já corrigida abaixo.
+As outras 6 bateram certo.
+
 ## Keywords de efeito (7 — Comprehensive Rules, seção 13)
 
 Mantém o nome em inglês sempre. Detecção automática já existe em
@@ -22,7 +28,7 @@ Mantém o nome em inglês sempre. Detecção automática já existe em
 | Keyword (fica em inglês) | Explicação mecânica em português |
 |---|---|
 | **Repair X** | No fim do seu turno, essa Unit recupera X pontos de HP. Não cura instantaneamente durante a partida — só no fechamento do turno de quem controla a carta. |
-| **Breach X** | Quando o ataque dessa Unit destrói uma Unit inimiga, causa X de dano direto ao topo da área de escudo do oponente (a Base, se tiver, senão o escudo mais no topo). É dano extra, além da batalha em si. |
+| **Breach X** | Quando essa Unit destrói uma Unit inimiga com dano de batalha DURANTE O SEU TURNO, causa X de dano direto na primeira carta da área de escudo do oponente (a Base, se tiver, senão o escudo mais no topo). É dano extra, além da batalha em si. Ativa mesmo se as duas Units se destruírem mutuamente. Se o oponente não tiver nem Base nem escudo, o efeito simplesmente não ativa — não sobra dano pra outro lugar. |
 | **Support X** | Descansando essa Unit durante sua fase principal, você dá AP+X pra 1 outra Unit aliada só durante aquele turno. Não empilha do zero a cada uso — se a Unit já tem Support de outra fonte, o valor soma no efeito existente, não duplica. |
 | **Blocker** | Quando o oponente declara ataque, você pode descansar essa Unit pra mudar o alvo do ataque pra ela. Protege outra Unit sua trocando quem recebe o dano. |
 | **First Strike** | Durante uma batalha, essa Unit causa dano ANTES da Unit inimiga. Se o dano dela já for suficiente pra destruir o alvo, o inimigo pode nem chegar a causar dano de volta. |
