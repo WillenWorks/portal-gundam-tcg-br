@@ -381,5 +381,6 @@ export function mapApiRule(rule: any): RuleEntry {
     originalRef: rule.originalUrl ?? rule.title,
     relatedCards: rule.card ? [rule.card.id] : [],
     relatedKeyword: rule.relatedKeyword ?? undefined,
+    relatedPhase: rule.relatedPhase ?? undefined,
   };
 }
