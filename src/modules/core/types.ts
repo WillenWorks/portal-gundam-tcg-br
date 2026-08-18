@@ -57,7 +57,11 @@ export interface RuleEntry {
   title: string;
   category: "Basic Rules" | "Vocabulary" | "Keywords" | "Detailed Rules";
   source: "Official Rules" | "Official FAQ" | "Community Explainer";
+  /** Resposta (PT-BR) -- nome mantido por compatibilidade, mas representa a RESPOSTA, nao um resumo. */
   summaryPt: string;
+  /** Pergunta (PT-BR) -- o que deve aparecer em listas/filtros, nunca a resposta. */
+  questionPt: string;
+  examplePlayPt?: string;
   originalRef: string;
   relatedCards?: string[];
   relatedKeyword?: string;
