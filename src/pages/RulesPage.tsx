@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api, mapApiRule, type RulingFilters } from "@/lib/api";
+import { translateRuleTitle } from "@/lib/ruleLabels";
 import type { RuleEntry } from "@/modules/core/types";
 
 const defaultFilters: RulingFilters = { q: "", sourceType: "", relatedKeyword: "", title: "", sort: "updated_desc" };
@@ -45,14 +46,29 @@ function buildHash(filters: RulingFilters) {
   return query ? `/rules?${query}` : "/rules";
 }
 
+// Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA
+// direto ali, sem sair da página -- só quem quiser o detalhe completo (fonte,
+// metadados, carta vinculada, mais rulings da mesma categoria) clica no link.
 function RuleRow({ item }: { item: RuleEntry }) {
+  const hasExtra = Boolean(item.examplePlayPt) || Boolean(item.relatedCards?.length);
   return (
-    <Link href={`/rules/${item.id}`} className="block border-t border-white/10 px-4 py-3 transition first:border-t-0 hover:bg-white/5 dark:text-white light:text-slate-900">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.summaryPt.split(".")[0] || item.title}</p>
-        {item.relatedKeyword ? <Badge variant="outline" className="shrink-0 rounded-none border-accent/40 text-accent">{item.relatedKeyword}</Badge> : null}
-      </div>
-    </Link>
+    <AccordionItem value={item.id} className="border-t border-white/10 first:border-t-0">
+      <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline dark:text-white light:text-slate-900 [&>svg]:mt-1">
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left">
+          <span className="min-w-0 flex-1">{item.questionPt || item.title}</span>
+          {item.relatedKeyword ? <Badge variant="outline" className="shrink-0 rounded-none border-accent/40 text-accent">{item.relatedKeyword}</Badge> : null}
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="px-4 pb-4 pt-0">
+        <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.summaryPt || "Sem resposta cadastrada."}</p>
+        {item.examplePlayPt ? (
+          <p className="mt-3 text-sm leading-7 text-slate-400"><span className="text-xs uppercase tracking-[0.2em] text-slate-500">Exemplo: </span>{item.examplePlayPt}</p>
+        ) : null}
+        <Link href={`/rules/${item.id}`} className="mt-3 inline-block text-xs uppercase tracking-[0.18em] text-primary hover:underline">
+          {hasExtra ? "Ver detalhe completo (carta e exemplo vinculados)" : "Ver detalhe completo"}
+        </Link>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -130,7 +146,7 @@ export default function RulesPage() {
             </div>
             <div className="grid gap-4 xl:grid-cols-5">
               <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Buscar por título, pergunta ou resposta" className="rounded-none xl:col-span-2" />
-              <select value={filters.title ?? ""} onChange={(event) => setFilter("title", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as categorias</option>{meta.titles.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.title ?? ""} onChange={(event) => setFilter("title", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as categorias</option>{meta.titles.map((item) => <option key={item} value={item}>{translateRuleTitle(item)}</option>)}</select>
               <select value={filters.sourceType ?? ""} onChange={(event) => setFilter("sourceType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as fontes</option>{meta.sourceTypes.map((item) => <option key={item} value={item}>{sourceLabels[item] || item}</option>)}</select>
               <select value={filters.relatedKeyword ?? ""} onChange={(event) => setFilter("relatedKeyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.relatedKeywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
@@ -152,11 +168,12 @@ export default function RulesPage() {
                 <Card key={item.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
                   <CardContent className="p-5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{item.title}</Badge>
+                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{translateRuleTitle(item.title)}</Badge>
                       <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.source}</Badge>
                       {item.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{item.relatedKeyword}</Badge> : null}
                     </div>
-                    <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.summaryPt}</p>
+                    <p className="mt-4 text-sm font-medium leading-6 dark:text-white light:text-slate-900">{item.questionPt || item.title}</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.summaryPt}</p>
                     <div className="mt-4"><Link href={`/rules/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Abrir detalhe</Link></div>
                   </CardContent>
                 </Card>
@@ -177,10 +194,12 @@ export default function RulesPage() {
                         {group.categories.map((cat) => (
                           <AccordionItem key={cat.title} value={cat.title} className="border-white/5">
                             <AccordionTrigger className="px-3 py-2.5 text-sm text-slate-300 hover:no-underline dark:text-slate-300 light:text-slate-600">
-                              <span className="flex items-center gap-3">{cat.title}<Badge variant="outline" className="rounded-none border-white/15 text-[11px] text-slate-500">{cat.rows.length}</Badge></span>
+                              <span className="flex items-center gap-3">{translateRuleTitle(cat.title)}<Badge variant="outline" className="rounded-none border-white/15 text-[11px] text-slate-500">{cat.rows.length}</Badge></span>
                             </AccordionTrigger>
                             <AccordionContent className="p-0">
-                              <div className="border-t border-white/10">{cat.rows.map((row) => <RuleRow key={row.id} item={row} />)}</div>
+                              <Accordion type="multiple" className="w-full border-t border-white/10">
+                                {cat.rows.map((row) => <RuleRow key={row.id} item={row} />)}
+                              </Accordion>
                             </AccordionContent>
                           </AccordionItem>
                         ))}

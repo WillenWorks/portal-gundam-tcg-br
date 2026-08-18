@@ -6,6 +6,7 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { translateRuleTitle } from "@/lib/ruleLabels";
 
 const sourceLabels: Record<string, string> = {
   OFFICIAL_RULES: "Official Rules",
@@ -56,7 +57,7 @@ export default function RulingDetailPage() {
     if (!rule) return [{ label: "Regras", href: "/rules" }, { label: params?.id || "Detalhe" }];
     const trail: Array<{ label: string; href?: string }> = [{ label: "Regras", href: "/rules" }];
     if (rule.card) trail.push({ label: rule.card.code || rule.card.namePt || rule.card.nameEn, href: `/cards/${rule.card.id}` });
-    trail.push({ label: rule.title || "Ruling" });
+    trail.push({ label: translateRuleTitle(rule.title) || "Ruling" });
     return trail;
   }, [rule, params?.id]);
 
@@ -72,9 +73,8 @@ export default function RulingDetailPage() {
             ) : (
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Ruling individual</p>
-                  <h2 className="mt-2 font-heading text-5xl uppercase">{rule.title}</h2>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">{rule.answerPt || rule.questionPt || "Sem conteúdo cadastrado."}</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Ruling individual · {translateRuleTitle(rule.title)}</p>
+                  <h2 className="mt-2 font-heading text-4xl uppercase leading-tight lg:text-5xl">{rule.questionPt || rule.title || "Sem pergunta cadastrada."}</h2>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[rule.sourceType] || rule.sourceType}</Badge>
@@ -151,8 +151,9 @@ export default function RulingDetailPage() {
                           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[item.sourceType] || item.sourceType}</Badge>
                           {item.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{item.relatedKeyword}</Badge> : null}
                         </div>
-                        <h4 className="mt-3 text-2xl uppercase text-white">{item.title}</h4>
-                        <p className="mt-3 text-sm leading-7 text-slate-300">{item.answerPt || item.questionPt || "Sem resumo cadastrado."}</p>
+                        <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-500">{translateRuleTitle(item.title)}</p>
+                        <h4 className="mt-1 text-lg font-medium leading-6 text-white">{item.questionPt || item.title || "Sem pergunta cadastrada."}</h4>
+                        <p className="mt-3 text-sm leading-7 text-slate-300">{item.answerPt || "Sem resposta cadastrada."}</p>
                         <div className="mt-4 flex flex-wrap gap-3">
                           <Link href={`/rules/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                           {item.card ? <Link href={`/cards/${item.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ir para carta</Link> : null}
