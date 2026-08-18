@@ -39,6 +39,8 @@
     "curation:gcg:apply": "node prisma/apply-gcg-official-curation.mjs --apply",
     "keywords:extract:apply": "node prisma/extract-keyword-effects.mjs --apply",
     "catalog:cleanup:phantom-prints": "node prisma/cleanup-phantom-prints.mjs",
+    "rulings:import": "node prisma/import-rulings.mjs",
+    "rulings:import:apply": "node prisma/import-rulings.mjs --apply",
     "catalog:cleanup:phantom-prints:apply": "node prisma/cleanup-phantom-prints.mjs --apply",
     "catalog:bootstrap": "pnpm run prisma:seed && pnpm run prisma:seed:apitcg && pnpm run cardmodel:migrate:apply && pnpm run curation:gcg:apply && pnpm run keywords:extract:apply && pnpm run banlist:apply && pnpm run catalog:apitcg:check",
     "catalog:bootstrap:fresh": "pnpm run prisma:reset && pnpm run catalog:bootstrap",

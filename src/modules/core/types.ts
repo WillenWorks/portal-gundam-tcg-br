@@ -61,6 +61,7 @@ export interface RuleEntry {
   originalRef: string;
   relatedCards?: string[];
   relatedKeyword?: string;
+  relatedPhase?: string;
 }
 
 export interface TournamentDeckUsage {

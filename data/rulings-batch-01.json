@@ -1,0 +1,156 @@
+[
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "How many cards must a main deck have?",
+    "answerEn": "Exactly 50 — not more, not fewer. This is a hard requirement for deck legality.",
+    "questionPt": "Quantas cartas o deck principal precisa ter?",
+    "answerPt": "Exatamente 50 — nem mais, nem menos. É um requisito obrigatório pra o deck ser considerado válido."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "What color and card-type rules apply when building a deck?",
+    "answerEn": "A deck can use at most two colors total, mixed freely between them. Within that color restriction, you can include any combination of the four main card types: Unit, Pilot, Command, and Base.",
+    "questionPt": "Quais regras de cor e tipo de carta valem na montagem do deck?",
+    "answerPt": "O deck pode usar no máximo duas cores no total, misturadas livremente entre si. Dentro dessa restrição de cor, dá pra incluir qualquer combinação dos 4 tipos principais de carta: Unit, Pilot, Command e Base."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "What's the copy limit per card in the main deck?",
+    "answerEn": "Up to 4 copies of any single card number.",
+    "questionPt": "Qual o limite de cópias por carta no deck principal?",
+    "answerPt": "Até 4 cópias do mesmo número de carta."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Does the copy limit apply per card name or per card number?",
+    "answerEn": "Per card number, not name. Two prints with the same character/unit name but different card numbers (from different sets) are treated as fully separate cards for deck-building purposes — you can run 4 copies of each.",
+    "questionPt": "O limite de cópias vale por nome da carta ou por número da carta?",
+    "answerPt": "Por número, não por nome. Duas impressões com o mesmo nome de personagem/unidade mas números de carta diferentes (de sets diferentes) contam como cartas totalmente separadas pra montagem de deck — dá pra jogar 4 cópias de cada uma."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "How many cards must the resource deck have?",
+    "answerEn": "Exactly 10, separate from the 50-card main deck.",
+    "questionPt": "Quantas cartas o deck de recursos precisa ter?",
+    "answerPt": "Exatamente 10, separado do deck principal de 50."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Are there deck-building restrictions specific to the resource deck?",
+    "answerEn": "Yes — it can only contain cards of the Resource type, and unlike the main deck, there's no 4-copy limit: you can run any number of copies of the same Resource card.",
+    "questionPt": "Existem restrições de montagem específicas pro deck de recursos?",
+    "answerPt": "Sim — ele só pode conter cartas do tipo Resource, e diferente do deck principal, não tem limite de 4 cópias: dá pra usar quantas cópias quiser da mesma carta de Resource."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Where do unused tokens go before they enter play?",
+    "answerEn": "Keep them off to the side, outside the play area, until an effect actually puts one into play.",
+    "questionPt": "Onde ficam os tokens não usados antes de entrarem em jogo?",
+    "answerPt": "Ficam separados, fora da área de jogo, até algum efeito realmente colocar um em jogo."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Does the order of cards in the shield area matter?",
+    "answerEn": "Yes. Shields are placed so the top card of your deck when you set up becomes the bottommost Shield in the stack.",
+    "questionPt": "A ordem das cartas na área de escudo importa?",
+    "answerPt": "Sim. Os escudos são colocados de forma que a carta do topo do seu deck, na hora de montar, vira o escudo mais embaixo da pilha."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "How is turn order decided at the start of a game?",
+    "answerEn": "Players use rock-paper-scissors (or an agreed alternative). The winner chooses who takes the first turn — and this choice happens before either player looks at their starting hand.",
+    "questionPt": "Como se decide a ordem de turno no início da partida?",
+    "answerPt": "Os jogadores jogam par-ou-ímpar/pedra-papel-tesoura (ou um método equivalente combinado). Quem ganha escolhe quem joga primeiro — e essa escolha acontece antes de qualquer jogador ver a própria mão inicial."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Can I mulligan my starting hand?",
+    "answerEn": "Yes, once, starting with Player One. If you redraw, your entire original hand goes to the bottom of your deck, you draw 5 fresh cards, and then shuffle your deck.",
+    "questionPt": "Dá pra fazer mulligan (redistribuir) a mão inicial?",
+    "answerPt": "Sim, uma vez, começando pelo Jogador Um. Se você redistribuir, a mão original inteira vai pro fundo do seu deck, você compra 5 cartas novas, e embaralha o deck em seguida."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "What is the EX Base?",
+    "answerEn": "A Base token (0 AP / 3 HP) that both players place in their shield area's base slot at the very start of the game, automatically — not something you build into your deck.",
+    "questionPt": "O que é o EX Base?",
+    "answerPt": "Um token de Base (0 AP / 3 HP) que os dois jogadores colocam na posição de base da área de escudo logo no início da partida, automaticamente — não é algo que você monta no deck."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Preparing to Play",
+    "relatedPhase": "preparing_to_play",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Preparing+to+Play",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "What is the EX Resource?",
+    "answerEn": "A Resource token placed automatically in Player Two's resource area at game start (a small compensation for going second). Some card effects can also grant additional EX Resources during the game.",
+    "questionPt": "O que é o EX Resource?",
+    "answerPt": "Um token de Resource colocado automaticamente na área de recurso do Jogador Dois no início da partida (uma pequena compensação por jogar em segundo). Alguns efeitos de carta também podem conceder EX Resources adicionais durante a partida."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Repair",
+    "relatedKeyword": "Repair",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Repair",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "Does Repair trigger on a Unit that's already at full HP at end of turn?",
+    "answerEn": "No — Repair only matters when the Unit has actually lost HP. An undamaged Unit has nothing to recover, so nothing happens.",
+    "questionPt": "O Repair ativa numa Unit que já está com o HP cheio no fim do turno?",
+    "answerPt": "Não. O Repair só faz diferença quando a Unit realmente perdeu HP. Se ela está com o HP cheio, não há nada pra recuperar, então o efeito simplesmente não muda nada."
+  },
+  {
+    "sourceType": "OFFICIAL_FAQ",
+    "title": "Repair",
+    "relatedKeyword": "Repair",
+    "originalUrl": "https://www.gundam-gcg.com/en/rules/faqs/list.php?sub_category=Repair",
+    "officialUpdatedAt": "2025-07-04",
+    "questionEn": "What happens when a Unit gains Repair from a second source, stacking with the Repair it already has?",
+    "answerEn": "Multiple instances of Repair on the same Unit stack by simple addition — they don't overwrite each other or apply separately. A Unit with Repair 2 that gains an additional Repair 1 ends up healing for 3 total at the end of the turn, as a single combined Repair 3 effect.",
+    "questionPt": "O que acontece quando uma Unit ganha Repair de uma segunda fonte, empilhando com o Repair que ela já tinha?",
+    "answerPt": "Múltiplas instâncias de Repair na mesma Unit se somam — elas não se sobrepõem nem aplicam separado. Uma Unit com Repair 2 que ganha mais Repair 1 termina curando 3 de HP no total no fim do turno, como se fosse um único efeito de Repair 3."
+  }
+]

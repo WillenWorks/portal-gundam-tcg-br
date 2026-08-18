@@ -1,0 +1,168 @@
+[
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Action Steps",
+    "relatedPhase": "action_step",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "During an Action Step, if I choose to pass, do I lose my chance to act for the rest of that step?",
+    "answerEn": "No — passing just means you do nothing this turn of the back-and-forth. The step only ends when both players pass consecutively, one right after the other. If your opponent takes an action after you pass, you get another chance.",
+    "questionPt": "Na Etapa de Ação, se eu escolher passar, eu perco minha chance de agir pelo resto daquela etapa?",
+    "answerPt": "Não — passar só significa que você não faz nada nessa rodada da alternância. A etapa só termina quando os dois jogadores passam seguidos, um logo depois do outro. Se seu oponente fizer alguma ação depois de você passar, você ganha outra chance."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the five categories that every card effect falls into?",
+    "answerEn": "Constant, Triggered, Activated, Command, and Substitution — each behaves differently in terms of when and how it applies.",
+    "questionPt": "Quais são as 5 categorias que todo efeito de carta se encaixa?",
+    "answerPt": "Constante, Disparado, Ativado, de Comando, e de Substituição — cada um se comporta diferente em termos de quando e como se aplica."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How does a Constant effect differ from a Triggered one?",
+    "answerEn": "A Constant effect doesn't wait for anything — it's simply always active the whole time its card is in the location where it works. A Triggered effect only activates the instant its specific condition is met.",
+    "questionPt": "Como um efeito Constante é diferente de um efeito Disparado?",
+    "answerPt": "Um efeito Constante não espera nada — ele simplesmente está sempre ativo o tempo todo enquanto a carta dele está no local onde funciona. Um efeito Disparado só ativa no instante em que a condição específica dele é cumprida."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If two Constant effects contradict each other — one says something CAN happen, another says it CAN'T — which one wins?",
+    "answerEn": "The effect that says something 'can't' happen (or otherwise disallows it) always takes precedence over an effect that would allow it.",
+    "questionPt": "Se dois efeitos Constantes se contradizem — um diz que algo pode acontecer, outro diz que não pode — qual vence?",
+    "answerPt": "O efeito que diz que algo \"não pode\" acontecer (ou de alguma forma proíbe) sempre tem prioridade sobre um efeito que permitiria."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If multiple of my own effects trigger at the same time, who decides the order I resolve them in?",
+    "answerEn": "You do, freely, since they're all your own triggered effects happening simultaneously.",
+    "questionPt": "Se vários efeitos meus disparam ao mesmo tempo, quem decide a ordem que eu resolvo eles?",
+    "answerPt": "Você decide, livremente, já que são todos efeitos disparados seus acontecendo ao mesmo tempo."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If effects belonging to both players trigger at the same time, whose resolve first?",
+    "answerEn": "All of the active player's triggered effects resolve first, and only after those are done does the standby player's triggered effects resolve.",
+    "questionPt": "Se efeitos dos dois jogadores disparam ao mesmo tempo, de quem resolve primeiro?",
+    "answerPt": "Todos os efeitos disparados do jogador ativo resolvem primeiro, e só depois deles terminarem é que os efeitos disparados do jogador em espera resolvem."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "While I'm in the middle of resolving several triggered effects, a new effect triggers. Does it wait its turn, or jump the line?",
+    "answerEn": "It jumps the line — a newly triggered effect gets priority and resolves immediately, before you finish resolving what was already in progress.",
+    "questionPt": "Enquanto eu estou no meio de resolver vários efeitos disparados, um efeito novo dispara. Ele espera a vez, ou fura a fila?",
+    "answerPt": "Ele fura a fila — um efeito recém-disparado ganha prioridade e resolve imediatamente, antes de você terminar de resolver o que já estava em andamento."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Burst",
+    "relatedKeyword": "Burst",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If a Burst effect and some other triggered effect both trigger together, which resolves first?",
+    "answerEn": "Burst always gets priority over any other triggered effect and resolves first, no matter what else is waiting.",
+    "questionPt": "Se um efeito Burst e algum outro efeito disparado ativam juntos, qual resolve primeiro?",
+    "answerPt": "O Burst sempre tem prioridade sobre qualquer outro efeito disparado e resolve primeiro, não importa o que mais estiver esperando."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What does the circled number symbol (like ①) mean on an activated effect?",
+    "answerEn": "It's a cost you pay to satisfy that effect's condition — the number inside the symbol is the amount, and once paid, the effect can be activated.",
+    "questionPt": "O que o símbolo de número circulado (tipo ①) significa num efeito ativado?",
+    "answerPt": "É um custo que você paga pra satisfazer a condição daquele efeito — o número dentro do símbolo é a quantidade, e depois de pago, o efeito pode ser ativado."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What's a substitution effect, in simple terms?",
+    "answerEn": "It swaps out what would normally happen for something else instead. If a card says 'do B instead of A,' the B part is the substitution — A never actually happens.",
+    "questionPt": "O que é um efeito de substituição, em termos simples?",
+    "answerPt": "Ele troca o que normalmente aconteceria por outra coisa no lugar. Se uma carta diz \"faça B em vez de A\", a parte B é a substituição — A nunca chega a acontecer de verdade."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If an effect requires me to choose a target and there's no legal target available, what happens?",
+    "answerEn": "The effect simply doesn't activate at all — no partial activation, no fizzle-with-consequence, it just doesn't happen.",
+    "questionPt": "Se um efeito exige que eu escolha um alvo e não tem alvo legal disponível, o que acontece?",
+    "answerPt": "O efeito simplesmente não ativa — sem ativação parcial, sem consequência de falha, ele só não acontece."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Effect Activation and Resolution",
+    "relatedPhase": "effects",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If an effect's text doesn't specify who or what it targets, who or what does it default to?",
+    "answerEn": "If it's meant to affect a card, it targets the card generating the effect itself. If it's meant to affect a player, it targets whoever owns that card.",
+    "questionPt": "Se o texto de um efeito não especifica quem ou o que ele afeta, pra quem ou pro que ele aponta por padrão?",
+    "answerPt": "Se é pra afetar uma carta, aponta pra própria carta que está gerando o efeito. Se é pra afetar um jogador, aponta pra quem é o dono daquela carta."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Rules Management",
+    "relatedPhase": "rules_management",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What is 'rules management,' in plain terms?",
+    "answerEn": "It's bookkeeping the game does automatically, without either player needing to do anything — things like checking for defeat, destroying cards with zero HP, and trimming excess Units over the field limit.",
+    "questionPt": "O que é o \"gerenciamento de regras\", em termos simples?",
+    "answerPt": "É uma contabilidade que o jogo faz automaticamente, sem nenhum dos jogadores precisar fazer nada — coisas como checar derrota, destruir cartas com HP zero, e ajustar excesso de Units acima do limite de campo."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Rules Management",
+    "relatedPhase": "rules_management",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How many Units can I have in my battle area at once?",
+    "answerEn": "Six at most. If a seventh would enter (by playing a card or an effect deploying one), you must immediately choose one already there and send it to the trash — and that one isn't treated as 'destroyed', just moved by rules management.",
+    "questionPt": "Quantas Units eu posso ter na minha área de batalha ao mesmo tempo?",
+    "answerPt": "6 no máximo. Se uma sétima fosse entrar (jogando uma carta ou um efeito implantando uma), você precisa escolher imediatamente uma que já está lá e mandar pro descarte — e essa não é tratada como \"destruída\", só movida pelo gerenciamento de regras."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Rules Management",
+    "relatedPhase": "rules_management",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How many Bases can I have at once?",
+    "answerEn": "Only one. If a second Base would be deployed, you must send one of the two to the trash right away — again, not treated as 'destroyed'.",
+    "questionPt": "Quantas Bases eu posso ter ao mesmo tempo?",
+    "answerPt": "Só uma. Se uma segunda Base fosse ser implantada, você precisa mandar uma das duas pro descarte na hora — de novo, não é tratada como \"destruída\"."
+  }
+]

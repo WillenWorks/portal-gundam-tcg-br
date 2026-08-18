@@ -33,10 +33,11 @@ export default function RulingDetailPage() {
         if (!active) return;
         setRule(detail);
 
+        // Relacionadas: por keyword quando tem (mais especifico), senao pela mesma
+        // categoria (title) -- sem isso, a maioria das rulings (que sao por fase de
+        // jogo, nao por keyword) nunca mostrava nenhuma relacionada.
         const relatedKeyword = detail.relatedKeyword || "";
-        if (!relatedKeyword) return;
-
-        const result = await api.listRulings({ relatedKeyword, sort: "updated_desc" });
+        const result = await api.listRulings(relatedKeyword ? { relatedKeyword, sort: "updated_desc" } : { title: detail.title, sort: "updated_desc" });
         if (!active) return;
         setMoreRules(result.filter((item) => item.id !== detail.id).slice(0, 5));
       } catch (err: any) {
@@ -89,7 +90,7 @@ export default function RulingDetailPage() {
             <div className="flex flex-wrap gap-3">
               <Link href="/rules" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Voltar para regras</Link>
               {rule.card ? <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ir para a carta</Link> : null}
-              {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir trilha da keyword</Link> : null}
+              {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir trilha da keyword</Link> : <Link href={`/rules?title=${encodeURIComponent(rule.title)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver mais desta categoria</Link>}
               {rule.card?.namePt || rule.card?.nameEn ? <Link href={`/rules?q=${encodeURIComponent(rule.card.namePt || rule.card.nameEn)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Buscar pelo nome da carta</Link> : null}
             </div>
 

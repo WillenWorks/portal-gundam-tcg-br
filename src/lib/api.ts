@@ -76,6 +76,7 @@ export type RulingFilters = {
   q?: string;
   sourceType?: string;
   relatedKeyword?: string;
+  title?: string;
   sort?: string;
 };
 
@@ -299,7 +300,7 @@ export const api = {
   importCatalog: (payload: any) => mutate<{ imported: { sets: number; cards: number; rulings: number; tournaments: number; images: number }; clearedExisting: boolean }>("/import/catalog", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/rulings", "/rulings/filters", "/tournaments", "/stats", "/decks/public", "/decks/me"]),
   importImageManifest: (payload: { items: any[] }) => mutate<{ imported: number }>("/import/images-manifest", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/sets", "/decks/public"]),
   listRulings: (filters: RulingFilters = {}) => request<any[]>(`/rulings${toQuery(filters)}`, undefined, { ttlMs: 20_000 }),
-  getRulingFilters: () => request<{ sourceTypes: string[]; relatedKeywords: string[] }>("/rulings/filters", undefined, { ttlMs: 60_000 }),
+  getRulingFilters: () => request<{ sourceTypes: string[]; relatedKeywords: string[]; titles: string[]; relatedPhases: string[] }>("/rulings/filters", undefined, { ttlMs: 60_000 }),
   getRuling: (id: string) => request<any>(`/rulings/${id}`, undefined, { ttlMs: 30_000 }),
   createRuling: (payload: any) => mutate<any>("/rulings", { method: "POST", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
   updateRuling: (id: string, payload: any) => mutate<any>(`/rulings/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/rulings", "/rulings/filters"]),
@@ -380,5 +381,6 @@ export function mapApiRule(rule: any): RuleEntry {
     originalRef: rule.originalUrl ?? rule.title,
     relatedCards: rule.card ? [rule.card.id] : [],
     relatedKeyword: rule.relatedKeyword ?? undefined,
+    relatedPhase: rule.relatedPhase ?? undefined,
   };
 }
