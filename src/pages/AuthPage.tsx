@@ -16,9 +16,8 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 
 function getInitialMode() {
   if (typeof window === "undefined") return "login" as const;
-  const hash = window.location.hash || "#/login";
-  const [, query = ""] = hash.split("?");
-  const params = new URLSearchParams(query);
+  // Lê da URL real (?mode=register), não do hash -- ver src/lib/hashLocationWithQuery.ts.
+  const params = new URLSearchParams(window.location.search);
   return params.get("mode") === "register" ? "register" as const : "login" as const;
 }
 

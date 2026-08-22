@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router, Route, Switch, useLocation } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
+import { useHashLocationWithQuery } from "@/lib/hashLocationWithQuery";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
@@ -64,7 +64,7 @@ function RequireAuth({ children, adminOnly = false }: { children: ReactNode; adm
 
 function AppRouter() {
   return (
-    <Router hook={useHashLocation}>
+    <Router hook={useHashLocationWithQuery}>
       <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
