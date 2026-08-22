@@ -88,6 +88,16 @@ export default function CardDetailPage() {
   const editorialRelations = useMemo(() => [...relations.outgoing, ...relations.incoming].filter((relation) => relation.relatedCard).slice(0, 8), [relations]);
   const breadcrumbs = useMemo(() => [{ label: "Cartas", href: "/cards" }, ...(selectedPrint?.set?.code ? [{ label: selectedPrint.set.code, href: `/sets/${selectedPrint.set.code}` }] : []), { label: selectedPrint?.code || "Detalhe" }], [selectedPrint]);
   const textSections = useMemo(() => Array.isArray(card?.textSectionsJson) ? card.textSectionsJson.filter((item: any) => item?.textPt || item?.textEn) : [], [card]);
+  const traitList: string[] = card?.traits?.length ? card.traits : (card?.trait ? [card.trait] : []);
+  const mediaValue: string = card?.sourceTitle || card?.series || "";
+  // Mesma lógica de agregação de keywords usada no card list (CardsPage) -- trigger +
+  // effect + flags booleanos de tipo de habilidade -- pra manter os links consistentes
+  // com o que aparece na busca do catálogo.
+  const cardKeywords = useMemo(() => {
+    if (!card) return [] as string[];
+    const flags = [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
+    return Array.from(new Set([...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...flags]));
+  }, [card]);
 
   return <PublicShell breadcrumbs={breadcrumbs}>
     <div className="space-y-6">
@@ -117,10 +127,34 @@ export default function CardDetailPage() {
             ) : null}
           </div>
           <Card className="panel-cut rounded-none border-primary/30 hero-surface"><CardContent className="space-y-5 p-6">
-            <div className="flex flex-wrap gap-2"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge><Badge variant="outline" className="rounded-none border-white/20 text-slate-300">{card.color || "Sem cor"}</Badge>{selectedPrint?.rarity ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{selectedPrint.rarity}</Badge> : null}{card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}{prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}</div>
-            <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code || "Sem coleção"} · {selectedPrint?.code || card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
+            <div className="flex flex-wrap gap-2"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>{card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">Sem cor</Badge>}{selectedPrint?.rarity ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{selectedPrint.rarity}</Badge> : null}{card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}{prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}</div>
+            <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : "Sem coleção"} · {selectedPrint?.code || card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
-            <div className="space-y-2 text-sm leading-7 text-slate-300"><p><span className="text-slate-500">Traits:</span> {(card.traits || []).join(" · ") || card.trait || "—"}</p><p><span className="text-slate-500">Mídia:</span> {card.sourceTitle || card.series || "—"}</p><p><span className="text-slate-500">Link/requisito:</span> {card.linkText || "—"}</p></div>
+            <div className="space-y-2 text-sm leading-7 text-slate-300">
+              <p>
+                <span className="text-slate-500">Traits:</span>{" "}
+                {traitList.length ? traitList.map((trait: string, index: number) => (
+                  <span key={trait}>
+                    {index > 0 ? " · " : ""}
+                    <Link href={`/cards?trait=${encodeURIComponent(trait)}`} className="hover:text-primary hover:underline">{trait}</Link>
+                  </span>
+                )) : "—"}
+              </p>
+              <p>
+                <span className="text-slate-500">Mídia:</span>{" "}
+                {mediaValue ? <Link href={`/cards?series=${encodeURIComponent(mediaValue)}`} className="hover:text-primary hover:underline">{mediaValue}</Link> : "—"}
+              </p>
+              <p><span className="text-slate-500">Link/requisito:</span> {card.linkText || "—"}</p>
+            </div>
+            {cardKeywords.length ? (
+              <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+                {cardKeywords.map((keyword) => (
+                  <Link key={keyword} href={`/rules?relatedKeyword=${encodeURIComponent(keyword)}`}>
+                    <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{keyword}</Badge>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
             <div className="border-t border-white/10 pt-4"><p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">{formatCardText(textSections[0]?.textPt || textSections[0]?.textEn || card.effectPt || card.effectEn) || "Sem texto cadastrado."}</p></div>
           </CardContent></Card>
         </section>

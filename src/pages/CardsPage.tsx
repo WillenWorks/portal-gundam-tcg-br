@@ -183,7 +183,11 @@ export default function CardsPage() {
                         <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
+                        {card.color ? (
+                          <button type="button" onClick={() => setFilter("color", card.color)} title={`Filtrar por ${card.color}`}>
+                            <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{card.color}</Badge>
+                          </button>
+                        ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">—</Badge>}
                         {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
                       </div>
                     </div>
@@ -199,21 +203,35 @@ export default function CardsPage() {
                   {traitText || seriesText ? (
                     <div>
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Trait / Série</p>
-                      <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{[traitText, seriesText].filter(Boolean).join(" · ")}</p>
+                      <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
+                        {traitText ? <button type="button" onClick={() => setFilter("trait", (card.traits && card.traits[0]) || card.trait)} className="hover:text-primary hover:underline" title={`Filtrar por ${traitText}`}>{traitText}</button> : null}
+                        {traitText && seriesText ? " · " : null}
+                        {seriesText ? <button type="button" onClick={() => setFilter("series", seriesText)} className="hover:text-primary hover:underline" title={`Filtrar por ${seriesText}`}>{seriesText}</button> : null}
+                      </p>
                     </div>
                   ) : null}
 
                   {keywords.length ? (
                     <div className="flex flex-wrap gap-2">
                       {keywords.map((keyword: string) => (
-                        <Badge key={keyword} variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{keyword}</Badge>
+                        <Link key={keyword} href={`/rules?relatedKeyword=${encodeURIComponent(keyword)}`}>
+                          <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{keyword}</Badge>
+                        </Link>
                       ))}
                     </div>
                   ) : null}
 
                   <p className="whitespace-pre-line text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{formatEffect(card)}</p>
                   <div>
-                    <div className="flex flex-wrap gap-2 pb-1">{card.set?.code ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{card.set.code}</Badge> : null}{(card.cardSubtypes || []).slice(0,2).map((item: string) => <Badge key={item} variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{item}</Badge>)}</div><Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
+                    <div className="flex flex-wrap gap-2 pb-1">
+                      {card.set?.code ? (
+                        <button type="button" onClick={() => setFilter("setCode", card.set.code)} title={`Filtrar pela coleção ${card.set.code}`}>
+                          <Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{card.set.code}</Badge>
+                        </button>
+                      ) : null}
+                      {(card.cardSubtypes || []).slice(0,2).map((item: string) => <Badge key={item} variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{item}</Badge>)}
+                    </div>
+                    <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
                   </div>
                 </CardContent>
               </Card>
