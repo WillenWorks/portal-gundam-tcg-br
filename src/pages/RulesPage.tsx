@@ -32,10 +32,12 @@ const PHASE_GROUPS: Array<{ key: string; label: string; phases: string[] }> = [
   { key: "engine", label: "Motor de Regras", phases: ["effects", "rules_management"] },
 ];
 
-function readFiltersFromHash(): RulingFilters {
-  const hash = window.location.hash || "#/rules";
-  const [, query = ""] = hash.split("?");
-  const params = new URLSearchParams(query);
+// Lê os filtros da URL REAL (?relatedKeyword=Burst), não do hash -- o wouter guarda a
+// query da navegação em window.location.search mesmo em roteamento por hash (ver
+// src/lib/hashLocationWithQuery.ts), então é ali que um link com keyword embutida
+// (clique numa keyword em outra página) deixa o valor.
+function readFiltersFromLocation(): RulingFilters {
+  const params = new URLSearchParams(window.location.search);
   return { q: params.get("q") ?? "", sourceType: params.get("sourceType") ?? "", relatedKeyword: params.get("relatedKeyword") ?? "", title: params.get("title") ?? "", sort: params.get("sort") ?? "updated_desc" };
 }
 
@@ -44,6 +46,15 @@ function buildHash(filters: RulingFilters) {
   Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
   const query = params.toString();
   return query ? `/rules?${query}` : "/rules";
+}
+
+// O link de busca copiado precisa refletir a mesma URL real que o app produz ao navegar
+// (query em window.location.search, hash só com o caminho).
+function buildShareUrl(filters: RulingFilters) {
+  const target = buildHash(filters);
+  const [path, query = ""] = target.split("?");
+  const search = query ? `?${query}` : "";
+  return `${window.location.origin}${window.location.pathname}${search}#${path}`;
 }
 
 // Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA
@@ -74,7 +85,7 @@ function RuleRow({ item }: { item: RuleEntry }) {
 
 export default function RulesPage() {
   const [, navigate] = useLocation();
-  const [filters, setFilters] = useState<RulingFilters>(() => readFiltersFromHash());
+  const [filters, setFilters] = useState<RulingFilters>(() => readFiltersFromLocation());
   const [rules, setRules] = useState<RuleEntry[]>([]);
   const [allRules, setAllRules] = useState<RuleEntry[]>([]);
   const [meta, setMeta] = useState<{ sourceTypes: string[]; relatedKeywords: string[]; titles: string[] }>({ sourceTypes: [], relatedKeywords: [], titles: [] });
@@ -94,7 +105,7 @@ export default function RulesPage() {
   const setFilter = (key: keyof RulingFilters, value: string) => setFilters((state) => ({ ...state, [key]: value }));
 
   const copySearchLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(filters)}`);
+    await navigator.clipboard.writeText(buildShareUrl(filters));
     toast.success("Link da busca copiado.");
   };
 
