@@ -13,6 +13,7 @@ import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
 import { formatCardText } from "@/lib/utils";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
+import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "@/lib/rarityLabels";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
@@ -27,13 +28,16 @@ const defaultFilters: CardFilters = {
   trait: "",
   keyword: "",
   setCode: "",
+  rarity: "",
   sort: "created_desc",
 };
 
-function readFiltersFromHash(): { filters: CardFilters; page: number; pageSize: number } {
-  const hash = window.location.hash || "#/database";
-  const [, query = ""] = hash.split("?");
-  const params = new URLSearchParams(query);
+// Lê os filtros da URL REAL (?color=Blue), não do hash -- o wouter guarda a query da
+// navegação em window.location.search mesmo em roteamento por hash (ver
+// src/lib/hashLocationWithQuery.ts), então é ali que qualquer link com filtro embutido
+// (clique numa cor/série/trait/coleção/raridade em outra página) deixa o valor.
+function readFiltersFromLocation(): { filters: CardFilters; page: number; pageSize: number } {
+  const params = new URLSearchParams(window.location.search);
   return {
     filters: {
       q: params.get("q") ?? "",
@@ -43,6 +47,7 @@ function readFiltersFromHash(): { filters: CardFilters; page: number; pageSize: 
       trait: params.get("trait") ?? "",
       keyword: params.get("keyword") ?? "",
       setCode: params.get("setCode") ?? "",
+      rarity: params.get("rarity") ?? "",
       sort: params.get("sort") ?? "created_desc",
     },
     page: Number(params.get("page")) || 1,
@@ -61,33 +66,49 @@ function buildHash(basePath: string, filters: CardFilters, page: number, pageSiz
   return query ? `${basePath}?${query}` : basePath;
 }
 
+// O link de busca copiado precisa refletir a mesma URL real que o app produz ao
+// navegar (query em window.location.search, hash só com o caminho) -- senão colar o
+// link copiado numa aba nova nem bate com a rota certa.
+function buildShareUrl(basePath: string, filters: CardFilters, page: number, pageSize: number) {
+  const target = buildHash(basePath, filters, page, pageSize);
+  const [path, query = ""] = target.split("?");
+  const search = query ? `?${query}` : "";
+  return `${window.location.origin}${window.location.pathname}${search}#${path}`;
+}
+
 export default function CardsPage() {
   const [location, navigate] = useLocation();
   const basePath = useMemo(() => location.split("?")[0], [location]);
-  const initial = useMemo(() => readFiltersFromHash(), []);
+  const initial = useMemo(() => readFiltersFromLocation(), []);
   const [filters, setFilters] = useState<CardFilters>(initial.filters);
   const [page, setPage] = useState(initial.page);
   const [pageSize, setPageSize] = useState(initial.pageSize);
   const [cards, setCards] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [meta, setMeta] = useState<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> }>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
+  const [meta, setMeta] = useState<{ colors: string[]; cardTypes: string[]; series: string[]; traits: string[]; keywords: string[]; rarities: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }> }>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], rarities: [], sets: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.getCardFilters().then(setMeta).catch(() => undefined);
   }, []);
 
+  // Raridade é filtrada/exibida pelo rótulo canônico (Common, Legend Rare...), mas a API
+  // guarda o valor cru por impressão (C+, LR++...) -- agrupa uma vez a partir do que
+  // /cards/filters devolveu e expande de volta na hora de consultar.
+  const rarityGroups = useMemo(() => groupRaritiesByLabel(meta.rarities), [meta.rarities]);
+
   useEffect(() => {
     setLoading(true);
-    api.listCardsPage(filters, { page, pageSize })
+    const apiFilters: CardFilters = { ...filters, rarity: expandRarityFilter(filters.rarity ?? "", rarityGroups) };
+    api.listCardsPage(apiFilters, { page, pageSize })
       .then((result) => {
         setCards(result.items);
         setTotal(result.total);
         setTotalPages(result.totalPages);
       })
       .finally(() => setLoading(false));
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, rarityGroups]);
 
   useEffect(() => {
     navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
@@ -115,9 +136,10 @@ export default function CardsPage() {
   const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#${buildHash(basePath, filters, page, pageSize)}`);
+    await navigator.clipboard.writeText(buildShareUrl(basePath, filters, page, pageSize));
     toast.success("Link da busca copiado.");
   };
+  const rarityOptions = useMemo(() => Array.from(rarityGroups.keys()).sort(), [rarityGroups]);
 
   return (
     <PublicShell breadcrumbs={[{ label: "Catálogo" }]} title="Catálogo de Cartas" description="Catálogo completo de cartas com filtros combinados e link de busca pra compartilhar. Estatísticas avançadas por carta chegam nas próximas atualizações.">
@@ -144,6 +166,7 @@ export default function CardsPage() {
               <div className="lg:col-span-3"><MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} /></div>
               <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+              <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.sort ?? "created_desc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="created_desc">Últimas cadastradas</option><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
             </div>
 
@@ -188,13 +211,18 @@ export default function CardsPage() {
                             <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{card.color}</Badge>
                           </button>
                         ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">—</Badge>}
+                        {card.rarity ? (
+                          <button type="button" onClick={() => setFilter("rarity", normalizeRarityLabel(card.rarity))} title={`Filtrar por ${normalizeRarityLabel(card.rarity)}`}>
+                            <Badge variant="outline" className="cursor-pointer rounded-none border-amber-400/40 bg-amber-400/10 text-amber-300 transition hover:border-amber-400 hover:bg-amber-400/20">{normalizeRarityLabel(card.rarity)}</Badge>
+                          </button>
+                        ) : null}
                         {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">
-                    <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Tipo: {cardTypeLabel(card.cardType)}</div>
+                    <button type="button" onClick={() => setFilter("cardType", card.cardType === "COMMAND_PILOT" ? "COMMAND" : card.cardType)} className="panel-cut border surface-strong p-3 text-left transition hover:border-primary/50 hover:text-primary light:border-slate-300/80 light:bg-slate-50" title={`Filtrar por ${cardTypeLabel(card.cardType)}`}>Tipo: {cardTypeLabel(card.cardType)}</button>
                     <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Custo: {card.cost ?? "—"}</div>
                     {hasAp ? <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">AP: {card.ap}</div> : null}
                     {hasHp ? <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">HP: {card.hp}</div> : null}
