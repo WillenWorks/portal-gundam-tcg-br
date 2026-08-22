@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatCardText } from "@/lib/utils";
 import { translateRuleTitle } from "@/lib/ruleLabels";
+import { normalizeRarityLabel } from "@/lib/rarityLabels";
 
 const RELATION_LABELS: Record<string, string> = {
   PILOT_OF: "Piloto",
@@ -127,7 +128,21 @@ export default function CardDetailPage() {
             ) : null}
           </div>
           <Card className="panel-cut rounded-none border-primary/30 hero-surface"><CardContent className="space-y-5 p-6">
-            <div className="flex flex-wrap gap-2"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>{card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">Sem cor</Badge>}{selectedPrint?.rarity ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{selectedPrint.rarity}</Badge> : null}{card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}{prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}</div>
+            <div className="flex flex-wrap gap-2">
+              {card.cardType ? (
+                <Link href={`/cards?cardType=${encodeURIComponent(card.cardType === "COMMAND_PILOT" ? "COMMAND" : card.cardType)}`}>
+                  <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>
+                </Link>
+              ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{TYPE_LABELS[card.cardType] || card.cardType}</Badge>}
+              {card.color ? <Link href={`/cards?color=${encodeURIComponent(card.color)}`}><Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary">{card.color}</Badge></Link> : <Badge variant="outline" className="rounded-none border-white/20 text-slate-300">Sem cor</Badge>}
+              {selectedPrint?.rarity ? (
+                <Link href={`/cards?rarity=${encodeURIComponent(normalizeRarityLabel(selectedPrint.rarity))}`}>
+                  <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{normalizeRarityLabel(selectedPrint.rarity)}</Badge>
+                </Link>
+              ) : null}
+              {card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}
+              {prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}
+            </div>
             <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : "Sem coleção"} · {selectedPrint?.code || card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>
             <div className="space-y-2 text-sm leading-7 text-slate-300">
