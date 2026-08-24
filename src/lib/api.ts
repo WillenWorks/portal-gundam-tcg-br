@@ -15,6 +15,7 @@ export type AuthUser = {
   bio?: string | null;
   avatarUrl?: string | null;
   isActive?: boolean;
+  isHoster?: boolean;
   preferredCardLanguage?: "PT_BR" | "EN";
   preferredTheme?: string | null;
   hasPassword?: boolean;
@@ -314,6 +315,12 @@ export const api = {
   createTournamentEntry: (tournamentId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries`, { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournamentEntry: (tournamentId: string, entryId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
+  listHostedEventsMine: () => request<any[]>("/hosted-events/mine", undefined, { ttlMs: 5_000 }),
+  listHostedEventsAdmin: () => request<any[]>("/hosted-events/admin", undefined, { ttlMs: 5_000 }),
+  getHostedEvent: (id: string) => request<any>(`/hosted-events/${id}`, undefined, { ttlMs: 5_000 }),
+  createHostedEvent: (payload: any) => mutate<any>("/hosted-events", { method: "POST", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  updateHostedEvent: (id: string, payload: any) => mutate<any>(`/hosted-events/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  deleteHostedEvent: (id: string) => mutate<void>(`/hosted-events/${id}`, { method: "DELETE" }, ["/hosted-events"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
   listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>

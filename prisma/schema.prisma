@@ -44,6 +44,14 @@ enum CardLanguage {
   EN
 }
 
+enum HostedEventStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 enum SetKind {
   BOOSTER_PACK
   STARTER_DECK
@@ -86,6 +94,7 @@ model User {
   passwordHash          String?
   role                  UserRole     @default(USER)
   isActive              Boolean      @default(true)
+  isHoster              Boolean      @default(false)
   preferredCardLanguage CardLanguage @default(PT_BR)
   bio                   String?      @db.Text
   avatarUrl             String?
@@ -97,6 +106,7 @@ model User {
   posts             Post[]
   binders           CardBinder[]
   tournamentEntries TournamentEntry[]
+  hostedEvents      HostedEvent[]
 }
 
 model CardSet {
@@ -424,6 +434,36 @@ model TournamentEntry {
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   deck       Deck?      @relation(fields: [deckId], references: [id], onDelete: SetNull)
   user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// Evento "ao vivo" organizado por um usuário com a flag isHoster (ou um ADMIN),
+// diferente do Tournament (que é um report retroativo cadastrado pelo admin).
+// Fase A do plano "reorganização do admin + hoster": só o esqueleto do evento
+// (dono, local/data/formato/limite de jogadores) e seu ciclo de status. Participantes,
+// trava de deck e rodadas/pontuação entram nas fases seguintes.
+model HostedEvent {
+  id          String            @id @default(cuid())
+  hosterId    String
+  name        String
+  description String?           @db.Text
+  format      String            @default("constructed")
+  venueName   String?
+  city        String?
+  country     String?
+  dateStart   DateTime
+  dateEnd     DateTime?
+  maxPlayers  Int?
+  status      HostedEventStatus @default(DRAFT)
+  isActive    Boolean           @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  hoster User @relation(fields: [hosterId], references: [id], onDelete: Cascade)
+
+  @@index([hosterId])
+  @@index([status])
+  @@index([dateStart])
 }
 
 model Post {

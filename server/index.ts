@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -54,6 +54,7 @@ type AuthPayload = {
   role: UserRole;
   email: string;
   username: string;
+  isHoster: boolean;
 };
 
 type RequestWithUser = Request & { user?: AuthPayload };
@@ -191,6 +192,17 @@ function roleRequired(roles: UserRole[]) {
     if (!roles.includes(req.user.role)) return res.status(403).json({ error: "Sem permissão." });
     next();
   };
+}
+
+/** Libera pra quem tem a flag isHoster (concedida pelo admin) ou é ADMIN direto --
+ *  diferente de roleRequired porque isHoster não é um degrau de UserRole, é uma
+ *  capacidade extra concedida por fora (um EDITOR ou USER comum pode virar Hoster
+ *  sem mudar de role). Ownership de um evento específico (só o próprio hoster ou um
+ *  ADMIN pode editar/apagar) é checado à parte, dentro de cada rota. */
+function hosterRequired(req: RequestWithUser, res: Response, next: NextFunction) {
+  if (!req.user) return res.status(401).json({ error: "Não autenticado." });
+  if (!req.user.isHoster && req.user.role !== UserRole.ADMIN) return res.status(403).json({ error: "Sem permissão de organizador." });
+  next();
 }
 
 function slugify(value: string) {
@@ -728,6 +740,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     bio: user.bio,
     avatarUrl: user.avatarUrl,
     isActive: user.isActive,
+    isHoster: user.isHoster,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
@@ -843,7 +856,7 @@ app.post("/api/auth/register", async (req, res) => {
       preferredTheme: "dark",
     },
   });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.status(201).json({ token, user: serializeUser(user) });
 });
 
@@ -856,7 +869,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -912,7 +925,7 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -986,7 +999,7 @@ app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async 
 
 app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string };
+  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string; isHoster?: boolean };
   const user = await prisma.user.update({
     where: { id },
     data: {
@@ -994,6 +1007,7 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       role: payload.role,
       isActive: payload.isActive,
       bio: payload.bio,
+      isHoster: payload.isHoster,
     },
   });
   res.json(serializeUser(user));
@@ -1986,6 +2000,113 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
   // projeto) — participante de torneio é registro de resultado histórico, não algo
   // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
   await prisma.tournamentEntry.delete({ where: { id: entryId } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Eventos ao vivo organizados por um Hoster (fase A) — diferente do Tournament
+ * acima, que é um report retroativo cadastrado pelo admin. Aqui é o dono do
+ * evento (isHoster=true ou ADMIN) quem cria/edita/cancela. Participantes, trava
+ * de deck e rodadas/pontuação entram em fases seguintes deste recurso.
+ * ------------------------------------------------------------------------- */
+
+const hostedEventOwnerInclude = {
+  hoster: { select: { id: true, username: true, displayName: true } },
+} as const;
+
+async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
+  const event = await prisma.hostedEvent.findFirst({ where: { id, isActive: true }, include: hostedEventOwnerInclude });
+  if (!event) {
+    res.status(404).json({ error: "Evento não encontrado." });
+    return null;
+  }
+  if (event.hosterId !== req.user!.userId && req.user!.role !== UserRole.ADMIN) {
+    res.status(403).json({ error: "Sem permissão sobre este evento." });
+    return null;
+  }
+  return event;
+}
+
+app.get("/api/hosted-events/mine", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  setPrivateCache(res, 5, 20);
+  const events = await prisma.hostedEvent.findMany({
+    where: { hosterId: req.user!.userId, isActive: true },
+    include: hostedEventOwnerInclude,
+    orderBy: [{ dateStart: "desc" }],
+  });
+  res.json(events);
+});
+
+app.get("/api/hosted-events/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
+  setPrivateCache(res, 5, 20);
+  const events = await prisma.hostedEvent.findMany({ where: { isActive: true }, include: hostedEventOwnerInclude, orderBy: [{ dateStart: "desc" }] });
+  res.json(events);
+});
+
+app.get("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  res.json(event);
+});
+
+app.post("/api/hosted-events", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const body = req.body as {
+    name?: string; description?: string | null; format?: string; venueName?: string | null;
+    city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
+    maxPlayers?: number | null; status?: HostedEventStatus;
+  };
+  if (!body.name?.trim()) return res.status(400).json({ error: "Nome do evento é obrigatório." });
+  if (!body.dateStart) return res.status(400).json({ error: "Data/hora de início é obrigatória." });
+  const event = await prisma.hostedEvent.create({
+    data: {
+      hosterId: req.user!.userId,
+      name: body.name.trim(),
+      description: body.description?.trim() || null,
+      format: body.format?.trim() || "constructed",
+      venueName: body.venueName?.trim() || null,
+      city: body.city?.trim() || null,
+      country: body.country?.trim() || null,
+      dateStart: new Date(body.dateStart),
+      dateEnd: body.dateEnd ? new Date(body.dateEnd) : null,
+      maxPlayers: body.maxPlayers ?? null,
+      status: body.status ?? HostedEventStatus.DRAFT,
+    },
+    include: hostedEventOwnerInclude,
+  });
+  res.status(201).json(event);
+});
+
+app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const existing = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!existing) return;
+  const body = req.body as {
+    name?: string; description?: string | null; format?: string; venueName?: string | null;
+    city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
+    maxPlayers?: number | null; status?: HostedEventStatus;
+  };
+  const event = await prisma.hostedEvent.update({
+    where: { id: existing.id },
+    data: {
+      name: body.name?.trim() || existing.name,
+      description: body.description === undefined ? existing.description : (body.description?.trim() || null),
+      format: body.format?.trim() || existing.format,
+      venueName: body.venueName === undefined ? existing.venueName : (body.venueName?.trim() || null),
+      city: body.city === undefined ? existing.city : (body.city?.trim() || null),
+      country: body.country === undefined ? existing.country : (body.country?.trim() || null),
+      dateStart: body.dateStart ? new Date(body.dateStart) : existing.dateStart,
+      dateEnd: body.dateEnd === undefined ? existing.dateEnd : (body.dateEnd ? new Date(body.dateEnd) : null),
+      maxPlayers: body.maxPlayers === undefined ? existing.maxPlayers : body.maxPlayers,
+      status: body.status ?? existing.status,
+    },
+    include: hostedEventOwnerInclude,
+  });
+  res.json(event);
+});
+
+app.delete("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const existing = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!existing) return;
+  await prisma.hostedEvent.update({ where: { id: existing.id }, data: { isActive: false, deletedAt: new Date(), status: HostedEventStatus.CANCELLED } });
   res.status(204).send();
 });
 
