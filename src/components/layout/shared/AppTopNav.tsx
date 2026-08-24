@@ -17,6 +17,7 @@ export const publicTopNav = [
     { href: "/sets", label: "Coleções" },
   ] },
   { href: "/eventos", label: "Eventos" },
+  { href: "/stats", label: "Estatísticas" },
   { href: "/rules", label: "Rulings" },
 ] as const;
 
