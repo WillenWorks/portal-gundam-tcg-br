@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { motion } from "framer-motion";
 
-import logoWhite from "@/assets/gundam-logo-white.png";
+import gundamCardBack from "@/assets/gundam-card-back.png";
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
@@ -430,8 +430,8 @@ function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onCl
                       transition={{ duration: 0.4, ease: "easeInOut", delay: revealed ? index * 0.1 : 0 }}
                       style={{ transformStyle: "preserve-3d" }}
                     >
-                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden border border-primary/30 bg-slate-900" style={{ backfaceVisibility: "hidden" }}>
-                        <img src={logoWhite} alt="" className="h-9 w-9 opacity-25" />
+                      <div className="absolute inset-0 overflow-hidden border border-primary/30 bg-slate-900" style={{ backfaceVisibility: "hidden" }}>
+                        <img src={gundamCardBack} alt="" className="h-full w-full object-cover" />
                       </div>
                       <div className="absolute inset-0 overflow-hidden border border-white/10 bg-slate-950/70" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
                         {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
