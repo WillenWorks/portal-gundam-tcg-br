@@ -10,7 +10,7 @@ import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api, type ApiBinder } from "@/lib/api";
 
@@ -102,10 +102,10 @@ export default function BinderListPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-sm border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-sm border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Nova pasta</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">Dá um nome</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">Dá um nome</DialogTitle>
           </div>
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Cartas competitivas, Pra trocar..." className="field-shell" onKeyDown={(e) => e.key === "Enter" && confirmCreate()} autoFocus />
           <div className="flex justify-end gap-2">

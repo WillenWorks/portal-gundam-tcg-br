@@ -14,7 +14,7 @@ import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CARD_TYPE_OPTIONS, groupCardsByType } from "@/lib/gundam-catalog";
@@ -119,10 +119,10 @@ function PrintPickerModal({ modelId, onClose, entries, onIncrement, onDecrement 
   if (!modelId) return null;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
         <div className="border-b border-white/10 pb-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Galeria de arte</p>
-          <h3 className="font-heading text-2xl uppercase heading-portal">{label || "Carregando…"}</h3>
+          <DialogTitle className="font-heading text-2xl uppercase heading-portal">{label || "Carregando…"}</DialogTitle>
         </div>
         {!prints ? <p className="py-8 text-center text-sm text-muted-portal">Carregando impressões...</p> : !prints.length ? <p className="py-8 text-center text-sm text-muted-portal">Não achei impressões dessa carta.</p> : (
           <div className="grid max-h-[65vh] grid-cols-2 gap-4 overflow-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
@@ -154,7 +154,8 @@ function CardPreviewModal({ card, onClose }: { card: BinderRow | null; onClose: 
   const image = card.imageLargeUrl || card.imageMediumUrl || card.imageUrl;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}</div>
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-sm text-slate-400">{card.quantity}x nesse binder</p>

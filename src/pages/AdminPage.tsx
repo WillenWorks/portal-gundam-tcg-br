@@ -1009,7 +1009,7 @@ export default function AdminPage() {
  
       {/* ── Modal: Coleção ──────────────────────────────────────────────────── */}
       <Dialog open={setModalOpen} onOpenChange={setSetModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-4xl">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">{setForm.id ? "Editar coleção" : "Nova coleção"}</DialogTitle>
           </DialogHeader>
@@ -1042,7 +1042,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Trait / Mídia ────────────────────────────────────────────── */}
       <Dialog open={taxonomyModalOpen} onOpenChange={setTaxonomyModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">{taxonomyForm.id ? "Editar" : "Nova"} {taxonomyForm.kind === "SOURCE_TITLE" ? "mídia" : "trait"}</DialogTitle>
           </DialogHeader>
@@ -1063,7 +1063,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Piloto rápido ───────────────────────────────────────────── */}
       <Dialog open={quickPilotOpen} onOpenChange={setQuickPilotOpen}>
-        <DialogContent className="rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
+        <DialogContent aria-describedby={undefined} className="rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">Piloto rápido</DialogTitle>
           </DialogHeader>
@@ -1082,7 +1082,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Carta ────────────────────────────────────────────────────── */}
       <Dialog open={cardModalOpen} onOpenChange={setCardModalOpen}>
-        <DialogContent className="max-h-[94vh] !w-[calc(100vw-1.5rem)] !max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto rounded-none border-white/10 bg-slate-950 p-4 text-white sm:!w-[calc(100vw-3rem)] sm:!max-w-[calc(100vw-3rem)] sm:p-6 2xl:!max-w-[1720px]">
+        <DialogContent aria-describedby={undefined} className="max-h-[94vh] !w-[calc(100vw-1.5rem)] !max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto rounded-none border-white/10 bg-slate-950 p-4 text-white sm:!w-[calc(100vw-3rem)] sm:!max-w-[calc(100vw-3rem)] sm:p-6 2xl:!max-w-[1720px]">
  
           {/* Cabeçalho */}
           <DialogHeader className="border-b border-white/8 pb-4">

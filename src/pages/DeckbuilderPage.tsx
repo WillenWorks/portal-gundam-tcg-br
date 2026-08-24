@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -280,11 +280,11 @@ function AltArtModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
         <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Galeria de arte</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">{modelLabel || "Carregando…"}</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">{modelLabel || "Carregando…"}</DialogTitle>
           </div>
         </div>
         {!prints ? (
@@ -327,7 +327,8 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
   const modelId = card.cardModelId || card.id;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
           {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
         </div>
@@ -401,10 +402,10 @@ function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onCl
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
         <div className="border-b border-white/10 pb-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Prévia de jogo</p>
-          <h3 className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</h3>
+          <DialogTitle className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</DialogTitle>
           <p className="mt-1 text-xs leading-5 text-slate-500">5 cartas sorteadas do deck principal embaralhado -- a mesma população do cálculo hipergeométrico ao lado. Sortear de novo é matematicamente idêntico a um mulligan (sorteio novo e independente).</p>
         </div>
         {population.length === 0 ? (
@@ -489,11 +490,11 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">{title.value}</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">{title.value}</DialogTitle>
             <p className="mt-1 text-xs text-slate-500">{rows.length} carta(s) única(s) · {total} no total</p>
           </div>
           <div className="flex border border-white/15">
@@ -1849,10 +1850,10 @@ export default function DeckbuilderPage() {
       <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
       <OpeningHandModal open={openingHandOpen} onClose={() => setOpeningHandOpen(false)} mainDeckRows={mainDeckRows} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-        <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Importar decklist</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">Colar lista em texto</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">Colar lista em texto</DialogTitle>
             <p className="mt-2 text-sm text-soft">Uma carta por linha, formato "4x CODE" (mesmo que a exportação MSA/Exburst gera). Substitui o deck principal e o de recursos atuais — EX Base/Resource não são afetados.</p>
           </div>
           <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={10} placeholder={"4x ST01-001\n2x ST01-002\n..."} className="field-shell w-full resize-none p-3 font-mono text-xs" />
@@ -1863,11 +1864,11 @@ export default function DeckbuilderPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(deckImagePreviewUrl)} onOpenChange={(open) => !open && closeDeckImagePreview()}>
-        <DialogContent className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
           <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pré-visualização</p>
-              <h3 className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</h3>
+              <DialogTitle className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</DialogTitle>
             </div>
           </div>
           {deckImagePreviewUrl ? <img src={deckImagePreviewUrl} alt="Prévia da decklist" className="max-h-[65vh] w-full overflow-auto border border-white/10 object-contain" /> : null}
