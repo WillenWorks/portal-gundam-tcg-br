@@ -4,7 +4,7 @@
  * Keywords → Terminologia → Motor de Regras), não é ordem arbitrária. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Copy } from "lucide-react";
+import { ChevronRight, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -31,6 +31,83 @@ const PHASE_GROUPS: Array<{ key: string; label: string; phases: string[] }> = [
   { key: "terminology", label: "Terminologia", phases: ["terminology"] },
   { key: "engine", label: "Motor de Regras", phases: ["effects", "rules_management"] },
 ];
+
+/** Diagrama visual por mecânica -- só pros grupos com uma sequência linear de passos
+ *  clara no Comprehensive Rules oficial (Turno, Batalha). Conteúdo vem direto das
+ *  rulings oficiais já cadastradas (turn_flow, end_phase, battle), não é invenção --
+ *  ver data/rulings-batch-02.json e 03.json pra conferir contra a fonte. */
+type FlowStep = { label: string; detail?: string };
+type MechanicDiagram = { title: string; steps: FlowStep[]; notes?: string[] };
+
+const MECHANIC_DIAGRAMS: Record<string, MechanicDiagram[]> = {
+  turn: [
+    {
+      title: "Fluxo do turno",
+      steps: [
+        { label: "Início", detail: "Ativa tudo que estava descansado" },
+        { label: "Compra", detail: "Compra exatamente 1 carta" },
+        { label: "Recurso", detail: "Coloca 1 Resource na área" },
+        { label: "Principal", detail: "Joga carta, ativa efeito, ataca" },
+        { label: "Final", detail: "4 etapas -- ver abaixo" },
+      ],
+      notes: ["Toda fase precisa esvaziar a fila de efeitos disparados antes do turno avançar pra próxima -- nunca ficam sobrepostas."],
+    },
+    {
+      title: "Etapas da fase final",
+      steps: [
+        { label: "Ação", detail: "Jogador em espera age primeiro" },
+        { label: "Final", detail: "Dispara efeitos de \"fim do turno\" (ex: Repair)" },
+        { label: "Mão", detail: "Descarta até ficar com 10 cartas" },
+        { label: "Limpeza", detail: "Efeitos temporários expiram aqui" },
+      ],
+    },
+  ],
+  battle: [
+    {
+      title: "Sequência de uma batalha",
+      steps: [
+        { label: "Ataque", detail: "Descansa a Unit, declara o alvo" },
+        { label: "Bloqueio", detail: "Defensor pode redirecionar com Blocker" },
+        { label: "Ação", detail: "Defensor age primeiro, depois alterna" },
+        { label: "Dano", detail: "Normalmente simultâneo entre os dois lados" },
+        { label: "Final da batalha", detail: "Efeitos \"durante esta batalha\" acabam aqui" },
+      ],
+      notes: [
+        "Base tem prioridade sobre escudo: enquanto o oponente tiver uma Base em jogo, todo dano de ataque direto vai pra ela, não pro escudo.",
+        "First Strike quebra a simultaneidade -- causa dano antes do outro lado, e se isso já destruir o alvo, o alvo nunca chega a bater de volta.",
+        "Se atacante ou defensor sai da batalha antes da Etapa de Dano, ela pula direto pra Etapa Final da Batalha.",
+      ],
+    },
+  ],
+};
+
+/** Uma sequência de passos conectados por seta, no mesmo estilo tático (cortes de
+ *  painel, cor de destaque) do resto do site -- pensado pra ficar legível tanto
+ *  numa fileira única (desktop) quanto quebrando em linhas (mobile). */
+function MechanicFlow({ diagram }: { diagram: MechanicDiagram }) {
+  return (
+    <div className="border border-white/10 bg-slate-950/40 p-4 light:border-slate-300/80 light:bg-slate-50">
+      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{diagram.title}</p>
+      <div className="mt-3 flex flex-wrap items-stretch gap-2">
+        {diagram.steps.map((step, index) => (
+          <div key={step.label} className="flex items-center gap-2">
+            <div className="min-w-[140px] flex-1 border border-primary/30 bg-primary/5 p-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-primary">{String(index + 1).padStart(2, "0")}</p>
+              <p className="mt-1 text-sm font-medium dark:text-white light:text-slate-900">{step.label}</p>
+              {step.detail ? <p className="mt-1 text-xs leading-5 text-slate-500">{step.detail}</p> : null}
+            </div>
+            {index < diagram.steps.length - 1 ? <ChevronRight className="size-4 shrink-0 text-slate-600" /> : null}
+          </div>
+        ))}
+      </div>
+      {diagram.notes?.length ? (
+        <div className="mt-3 space-y-1.5 border-t border-white/10 pt-3">
+          {diagram.notes.map((note) => <p key={note} className="text-xs leading-6 text-slate-400">▸ {note}</p>)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 // Lê os filtros da URL REAL (?relatedKeyword=Burst), não do hash -- o wouter guarda a
 // query da navegação em window.location.search mesmo em roteamento por hash (ver
@@ -201,6 +278,11 @@ export default function RulesPage() {
                       <span className="flex items-center gap-3"><span>{group.label}</span><Badge variant="outline" className="rounded-none border-white/20 text-xs text-slate-400 dark:text-slate-400 light:text-slate-500">{group.count}</Badge></span>
                     </AccordionTrigger>
                     <AccordionContent className="px-1">
+                      {MECHANIC_DIAGRAMS[group.key] ? (
+                        <div className="mb-3 space-y-3 px-2">
+                          {MECHANIC_DIAGRAMS[group.key].map((diagram) => <MechanicFlow key={diagram.title} diagram={diagram} />)}
+                        </div>
+                      ) : null}
                       <Accordion type="multiple" className="w-full">
                         {group.categories.map((cat) => (
                           <AccordionItem key={cat.title} value={cat.title} className="border-white/5">
