@@ -758,13 +758,21 @@ async function requireActiveUser(req: RequestWithUser, res: Response) {
 }
 
 async function ensureAdminSeed() {
+  // Bootstrap de conveniência: só cria a conta admin padrão se o banco ainda não tiver
+  // NENHUM admin (instalação nova). Uma vez que existe um admin real, esta função não
+  // mexe mais em nada — nem cria, nem atualiza senha de ninguém. Isso evita duas falhas
+  // que já aconteceram em produção: (1) colisão de unique constraint em `username` contra
+  // uma conta admin real já existente (derrubava a API inteira, já que o `app.listen()`
+  // só roda depois desta função resolver), e (2) reset silencioso da senha do admin real
+  // pra "admin123" (ou o valor de SEED_ADMIN_PASSWORD) a cada reinício do processo.
+  const existingAdminCount = await prisma.user.count({ where: { role: UserRole.ADMIN } });
+  if (existingAdminCount > 0) return;
+
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@gundambr.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, isActive: true, preferredCardLanguage: CardLanguage.PT_BR, preferredTheme: "dark" },
-    create: {
+  await prisma.user.create({
+    data: {
       email,
       username: "admin-portal",
       displayName: "Administrador Portal BR",
@@ -2756,18 +2764,28 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: "Erro interno da API." });
 });
 
-ensureAdminSeed()
-  .then(async () => {
-    app.listen(PORT, () => {
-      console.log(`API pronta em http://localhost:${PORT}`);
-    });
-  })
-  .catch(async (error: any) => {
+async function boot() {
+  try {
+    await ensureAdminSeed();
+  } catch (error: any) {
+    // Schema realmente fora de sincronia com o banco é fatal de verdade — servir tráfego
+    // nesse estado só geraria erro 500 em cascata em qualquer rota, então aí sim vale
+    // derrubar o processo cedo com uma mensagem clara, sem chamar app.listen().
     if (error?.code === "P2022" || error?.code === "P2021") {
       console.error("Falha ao iniciar API: o schema do banco está defasado em relação ao prisma/schema.prisma.");
       console.error("Use `pnpm dev:api` para sincronizar automaticamente ou rode `pnpm prisma:push` antes do modo raw.");
+      await prisma.$disconnect();
+      process.exit(1);
     }
-    console.error("Falha ao iniciar API", error);
-    await prisma.$disconnect();
-    process.exit(1);
+    // Qualquer outra falha no bootstrap opcional do admin seed (ex.: um erro transitório
+    // de conexão) não deve derrubar a API inteira — só loga e segue pro app.listen() abaixo.
+    // Antes, qualquer rejeição aqui impedia o app.listen() de rodar, deixando a API inteira
+    // fora do ar (nenhum request chegava a receber resposta) sem nenhum sinal claro do motivo.
+    console.error("Aviso: ensureAdminSeed falhou, API vai subir mesmo assim.", error);
+  }
+  app.listen(PORT, () => {
+    console.log(`API pronta em http://localhost:${PORT}`);
   });
+}
+
+boot();
