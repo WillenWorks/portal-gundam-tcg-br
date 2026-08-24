@@ -102,11 +102,13 @@ model User {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  decks             Deck[]
-  posts             Post[]
-  binders           CardBinder[]
-  tournamentEntries TournamentEntry[]
-  hostedEvents      HostedEvent[]
+  decks                   Deck[]
+  posts                   Post[]
+  binders                 CardBinder[]
+  tournamentEntries       TournamentEntry[]
+  hostedEvents            HostedEvent[]
+  deckSnapshots           DeckSnapshot[]
+  hostedEventParticipants HostedEventParticipant[]
 }
 
 model CardSet {
@@ -267,11 +269,12 @@ model Card {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  cardModel   CardModel?       @relation(fields: [cardModelId], references: [id])
-  set         CardSet?         @relation(fields: [setId], references: [id])
-  deckItems   DeckItem[]
-  rulings     Ruling[]
-  binderItems CardBinderItem[]
+  cardModel         CardModel?         @relation(fields: [cardModelId], references: [id])
+  set               CardSet?           @relation(fields: [setId], references: [id])
+  deckItems         DeckItem[]
+  rulings           Ruling[]
+  binderItems       CardBinderItem[]
+  deckSnapshotItems DeckSnapshotItem[]
 
   @@index([code])
   @@index([cardModelId])
@@ -323,9 +326,11 @@ model Deck {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  user              User              @relation(fields: [userId], references: [id])
-  items             DeckItem[]
-  tournamentEntries TournamentEntry[]
+  user                    User                      @relation(fields: [userId], references: [id])
+  items                   DeckItem[]
+  tournamentEntries       TournamentEntry[]
+  deckSnapshots           DeckSnapshot[]
+  hostedEventParticipants HostedEventParticipant[]
 }
 
 model DeckItem {
@@ -430,10 +435,15 @@ model TournamentEntry {
   // ter conta e não ter publicado o deck usado nesse evento específico. Cobre
   // "fase 1" do hub de eventos (registrado vs convidado nas estatísticas).
   userId       String?
+  // Fase B: cópia congelada da decklist no momento em que o admin vinculou o
+  // deckId acima -- resolve o gap de o deckId apontar pro Deck vivo (se o dono
+  // editar/apagar o deck depois, o resultado histórico não pode perder a lista).
+  deckSnapshotId String?
 
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  deck       Deck?      @relation(fields: [deckId], references: [id], onDelete: SetNull)
-  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
 }
 
 // Evento "ao vivo" organizado por um usuário com a flag isHoster (ou um ADMIN),
@@ -459,11 +469,77 @@ model HostedEvent {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  hoster User @relation(fields: [hosterId], references: [id], onDelete: Cascade)
+  hoster       User                      @relation(fields: [hosterId], references: [id], onDelete: Cascade)
+  participants HostedEventParticipant[]
 
   @@index([hosterId])
   @@index([status])
   @@index([dateStart])
+}
+
+// Fase B: participante de um HostedEvent -- sempre um usuário cadastrado (diferente
+// do TournamentEntry de report, que aceita jogador convidado sem conta). O hoster
+// escolhe o deck do participante; uma vez travado (deckSnapshotId preenchido), o
+// backend recusa qualquer tentativa de trocar -- a decklist real do evento nunca
+// pode ser reescrita depois do fato.
+model HostedEventParticipant {
+  id             String    @id @default(cuid())
+  eventId        String
+  userId         String
+  deckId         String?
+  deckSnapshotId String?
+  deckLockedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  event        HostedEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Cópia congelada de uma decklist (cartas + quantidades) no momento em que ela foi
+// vinculada a um resultado histórico (TournamentEntry) ou travada num evento do
+// Hoster (HostedEventParticipant). Existe pra que a lista exibida nunca mude depois
+// -- mesmo que o Deck de origem seja editado ou apagado pelo dono (sourceDeckId e
+// sourceUserId ficam null nesse caso, mas os itens da snapshot continuam intactos).
+model DeckSnapshot {
+  id           String   @id @default(cuid())
+  sourceDeckId String?
+  sourceUserId String?
+  name         String
+  format       String?
+  createdAt    DateTime @default(now())
+
+  sourceDeck Deck? @relation(fields: [sourceDeckId], references: [id], onDelete: SetNull)
+  sourceUser User? @relation(fields: [sourceUserId], references: [id], onDelete: SetNull)
+
+  items                   DeckSnapshotItem[]
+  tournamentEntries       TournamentEntry[]
+  hostedEventParticipants HostedEventParticipant[]
+
+  @@index([sourceDeckId])
+  @@index([sourceUserId])
+}
+
+model DeckSnapshotItem {
+  id             String @id @default(cuid())
+  deckSnapshotId String
+  cardId         String
+  quantity       Int
+  section        String @default("main")
+
+  deckSnapshot DeckSnapshot @relation(fields: [deckSnapshotId], references: [id], onDelete: Cascade)
+  // Restrict (não Cascade como em DeckItem): uma carta não pode ser apagada de
+  // verdade enquanto existir numa decklist histórica congelada.
+  card         Card         @relation(fields: [cardId], references: [id], onDelete: Restrict)
+
+  @@index([deckSnapshotId])
+  @@index([cardId])
 }
 
 model Post {

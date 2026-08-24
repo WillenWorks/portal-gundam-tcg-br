@@ -1013,6 +1013,28 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
   res.json(serializeUser(user));
 });
 
+// Fase B: busca mínima de usuários pra o Hoster adicionar participantes num evento --
+// antes só existia o perfil público por username exato (/api/users/:username), sem
+// forma de listar/procurar contas. Restrito a Hoster/ADMIN (mesmo público que já
+// enxerga userId em formulários de vínculo), retorna só os campos essenciais.
+app.get("/api/users/search", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const q = String(req.query.q || "").trim();
+  if (q.length < 2) return res.json([]);
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { username: { contains: q, mode: "insensitive" } },
+        { displayName: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, username: true, displayName: true, avatarUrl: true },
+    orderBy: [{ username: "asc" }],
+    take: 10,
+  });
+  res.json(users);
+});
+
 app.get("/api/users/:username", async (req, res) => {
   setPublicCache(res, 20, 60);
   const username = String(req.params.username);
@@ -1906,14 +1928,38 @@ app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), asy
   res.status(204).send();
 });
 
+// Fase B: congela a decklist de um Deck vivo numa DeckSnapshot (cópia imutável) --
+// chamado sempre que um deckId é vinculado a um resultado histórico (TournamentEntry)
+// ou travado num evento do Hoster (HostedEventParticipant), pra que editar/apagar o
+// Deck original depois não afete a lista que já foi exibida como "a decklist usada".
+async function createDeckSnapshot(deckId: string) {
+  const deck = await prisma.deck.findUnique({ where: { id: deckId }, include: { items: true } });
+  if (!deck) return null;
+  const snapshot = await prisma.deckSnapshot.create({
+    data: {
+      sourceDeckId: deck.id,
+      sourceUserId: deck.userId,
+      name: deck.name,
+      format: deck.format,
+      items: {
+        create: deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section })),
+      },
+    },
+  });
+  return snapshot.id;
+}
+
 // Entry inclui user (conta cadastrada, se vinculada) e deck (só o essencial pra link
 // público -- não o decklist inteiro) -- alimenta a fase 1 do hub de eventos: exibir
 // quem tem conta no site e qual deck foi usado, sem vazar dado sensível de usuário.
+// Fase B: deckSnapshot traz a decklist congelada no momento em que o deckId foi
+// vinculado, pra sobreviver a uma edição/exclusão do Deck original.
 const tournamentEntryInclude = {
   entries: {
     include: {
       user: { select: { id: true, username: true, displayName: true } },
       deck: { select: { id: true, name: true, shareId: true } },
+      deckSnapshot: { include: { items: { include: { card: true } } } },
     },
   },
 } as const;
@@ -1955,6 +2001,11 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
   if (!tournament) return res.status(404).json({ error: "Evento não encontrado." });
   const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   if (!body.playerName?.trim()) return res.status(400).json({ error: "Nome do jogador é obrigatório." });
+  const deckId = body.deckId || null;
+  // Fase B: se um deckId foi informado, congela a decklist agora -- garante que o
+  // resultado histórico continue mostrando a lista usada mesmo se o deck for
+  // editado/apagado depois.
+  const deckSnapshotId = deckId ? await createDeckSnapshot(deckId) : null;
   const entry = await prisma.tournamentEntry.create({
     data: {
       tournamentId,
@@ -1964,8 +2015,9 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
       losses: body.losses ?? null,
       draws: body.draws ?? null,
       archetype: body.archetype?.trim() || null,
-      deckId: body.deckId || null,
+      deckId,
       userId: body.userId || null,
+      deckSnapshotId,
     },
   });
   res.status(201).json(entry);
@@ -1976,6 +2028,12 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
   const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
   if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
   const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
+  const nextDeckId = body.deckId === undefined ? existing.deckId : (body.deckId || null);
+  // Fase B: só gera uma nova snapshot quando o deckId muda de fato -- evita recongelar
+  // a decklist a cada edição de campo que não mexe no deck vinculado.
+  const deckSnapshotId = nextDeckId === existing.deckId
+    ? existing.deckSnapshotId
+    : (nextDeckId ? await createDeckSnapshot(nextDeckId) : null);
   const entry = await prisma.tournamentEntry.update({
     where: { id: entryId },
     data: {
@@ -1985,8 +2043,9 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
       losses: body.losses === undefined ? existing.losses : body.losses,
       draws: body.draws === undefined ? existing.draws : body.draws,
       archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
-      deckId: body.deckId === undefined ? existing.deckId : (body.deckId || null),
+      deckId: nextDeckId,
       userId: body.userId === undefined ? existing.userId : (body.userId || null),
+      deckSnapshotId,
     },
   });
   res.json(entry);
@@ -2010,8 +2069,20 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
  * de deck e rodadas/pontuação entram em fases seguintes deste recurso.
  * ------------------------------------------------------------------------- */
 
+// Fase B: participante de um HostedEvent -- sempre um usuário cadastrado no site
+// (diferente do TournamentEntry de report, que aceita jogador convidado sem conta).
+// A trava de deck é definitiva: uma vez que deckLockedAt é preenchido, o endpoint de
+// travar deck passa a recusar (409) qualquer nova tentativa pro mesmo participante --
+// "uma vez escolhido o deck, não pode mais ser desfeito", conforme pedido.
+const hostedEventParticipantInclude = {
+  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+  deck: { select: { id: true, name: true, shareId: true } },
+  deckSnapshot: { include: { items: { include: { card: true } } } },
+} as const;
+
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
+  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
 } as const;
 
 async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
@@ -2108,6 +2179,71 @@ app.delete("/api/hosted-events/:id", authRequired, hosterRequired, async (req: R
   if (!existing) return;
   await prisma.hostedEvent.update({ where: { id: existing.id }, data: { isActive: false, deletedAt: new Date(), status: HostedEventStatus.CANCELLED } });
   res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Fase B -- participantes de um HostedEvent e trava de deck. Adicionar/remover
+ * participante e travar o deck só o dono do evento (ou ADMIN) pode fazer, via
+ * loadOwnedHostedEvent. A trava em si é de mão única (ver comentário acima de
+ * hostedEventParticipantInclude).
+ * ------------------------------------------------------------------------- */
+
+app.post("/api/hosted-events/:id/participants", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const body = req.body as { userId?: string };
+  if (!body.userId) return res.status(400).json({ error: "Usuário é obrigatório." });
+  const user = await prisma.user.findUnique({ where: { id: body.userId } });
+  if (!user || !user.isActive) return res.status(404).json({ error: "Usuário não encontrado." });
+  if (event.maxPlayers) {
+    const count = await prisma.hostedEventParticipant.count({ where: { eventId: event.id } });
+    if (count >= event.maxPlayers) return res.status(409).json({ error: "Limite de jogadores do evento já foi atingido." });
+  }
+  try {
+    const participant = await prisma.hostedEventParticipant.create({
+      data: { eventId: event.id, userId: body.userId },
+      include: hostedEventParticipantInclude,
+    });
+    res.status(201).json(participant);
+  } catch (err: any) {
+    if (err?.code === "P2002") return res.status(409).json({ error: "Esse jogador já está inscrito neste evento." });
+    throw err;
+  }
+});
+
+app.delete("/api/hosted-events/:id/participants/:participantId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const participant = await prisma.hostedEventParticipant.findFirst({ where: { id: String(req.params.participantId), eventId: event.id } });
+  if (!participant) return res.status(404).json({ error: "Participante não encontrado." });
+  // Deck já travado -- o resultado passa a fazer parte do histórico do evento e não
+  // pode mais sumir do registro (mesma lógica de "não pode ser desfeito" da trava).
+  if (participant.deckLockedAt) return res.status(403).json({ error: "Não é possível remover um participante com deck já travado." });
+  await prisma.hostedEventParticipant.delete({ where: { id: participant.id } });
+  res.status(204).send();
+});
+
+app.post("/api/hosted-events/:id/participants/:participantId/deck", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const participant = await prisma.hostedEventParticipant.findFirst({ where: { id: String(req.params.participantId), eventId: event.id } });
+  if (!participant) return res.status(404).json({ error: "Participante não encontrado." });
+  if (participant.deckLockedAt) return res.status(409).json({ error: "O deck deste participante já foi travado e não pode mais ser alterado." });
+  const body = req.body as { deckId?: string };
+  if (!body.deckId) return res.status(400).json({ error: "Deck é obrigatório." });
+  const deck = await prisma.deck.findUnique({ where: { id: body.deckId } });
+  // Só decks públicos do próprio participante podem ser travados -- o Hoster não tem
+  // acesso a decks privados de terceiros (mesma regra do perfil público /u/:username).
+  if (!deck || deck.userId !== participant.userId || deck.visibility !== "PUBLIC") {
+    return res.status(404).json({ error: "Deck não encontrado no perfil público deste jogador." });
+  }
+  const deckSnapshotId = await createDeckSnapshot(deck.id);
+  const updated = await prisma.hostedEventParticipant.update({
+    where: { id: participant.id },
+    data: { deckId: deck.id, deckSnapshotId, deckLockedAt: new Date() },
+    include: hostedEventParticipantInclude,
+  });
+  res.json(updated);
 });
 
 /* ---------------------------------------------------------------------------
