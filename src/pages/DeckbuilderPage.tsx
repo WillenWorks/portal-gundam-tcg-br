@@ -4,7 +4,9 @@ import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Sav
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
+import { motion } from "framer-motion";
 
+import logoWhite from "@/assets/gundam-logo-white.png";
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
@@ -340,6 +342,117 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
   );
 }
 
+// Expande cada linha do deck principal em N cópias individuais (uma por quantidade)
+// pra sortear uma mão com a probabilidade real de cada carta -- é a mesma população
+// usada no cálculo hipergeométrico do card "Mão inicial" (ver hypergeometricAtLeastOne
+// acima), só que aqui em vez de calcular a chance, a gente sorteia de verdade.
+function buildDeckPopulation(rows: DeckRow[]): DeckRow[] {
+  const population: DeckRow[] = [];
+  rows.forEach((row) => { for (let i = 0; i < row.quantity; i++) population.push(row); });
+  return population;
+}
+
+function shuffleDraw<T>(population: T[], count: number): T[] {
+  const pool = [...population];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
+/** Prévia visual da mão inicial -- sorteia 5 cartas de verdade da lista principal
+ *  (mesma população do cálculo hipergeométrico) e anima o draw: cartas viram
+ *  encostando na área uma por vez, depois flipam de costas pra frente em sequência,
+ *  igual abrir a mão numa partida real. Sortear de novo simula tanto "e se eu tivesse
+ *  comprado outra mão" quanto o mulligan oficial (mulligan também é só um sorteio novo
+ *  e independente da mesma população, ver rulling em data/rulings-batch-01.json). */
+function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onClose: () => void; mainDeckRows: DeckRow[] }) {
+  const [hand, setHand] = useState<DeckRow[]>([]);
+  const [revealCount, setRevealCount] = useState(0);
+  const [round, setRound] = useState(0);
+  const population = useMemo(() => buildDeckPopulation(mainDeckRows), [mainDeckRows]);
+
+  const draw = () => {
+    setHand(shuffleDraw(population, Math.min(5, population.length)));
+    setRound((r) => r + 1);
+  };
+
+  useEffect(() => {
+    if (open) draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só redesenha ao abrir/fechar; editar o deck com o modal aberto não deve interromper a mão em exibição.
+  }, [open]);
+
+  useEffect(() => {
+    if (!hand.length) return;
+    setRevealCount(0);
+    let i = 0;
+    const timer = window.setInterval(() => {
+      i += 1;
+      setRevealCount(i);
+      if (i >= hand.length) window.clearInterval(timer);
+    }, 380);
+    return () => window.clearInterval(timer);
+  }, [round, hand.length]);
+
+  if (!open) return null;
+  const done = revealCount >= hand.length;
+  const lowCostHits = hand.filter((card) => card.cost <= 2).length;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
+        <div className="border-b border-white/10 pb-3">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Prévia de jogo</p>
+          <h3 className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">5 cartas sorteadas do deck principal embaralhado -- a mesma população do cálculo hipergeométrico ao lado. Sortear de novo é matematicamente idêntico a um mulligan (sorteio novo e independente).</p>
+        </div>
+        {population.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted-portal">Adicione cartas ao deck principal pra simular uma mão.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap justify-center gap-3 py-6">
+              {hand.map((card, index) => {
+                const revealed = index < revealCount;
+                const image = card.imageMediumUrl || card.imageUrl;
+                return (
+                  <motion.div
+                    key={`${round}-${index}`}
+                    initial={{ opacity: 0, y: 28, scale: 0.85 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: index * 0.1, duration: 0.3, ease: "easeOut" }}
+                    className="h-[196px] w-[140px] shrink-0"
+                    style={{ perspective: 800 }}
+                  >
+                    <motion.div
+                      className="relative h-full w-full"
+                      animate={{ rotateY: revealed ? 180 : 0 }}
+                      transition={{ duration: 0.4, ease: "easeInOut", delay: revealed ? index * 0.1 : 0 }}
+                      style={{ transformStyle: "preserve-3d" }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden border border-primary/30 bg-slate-900" style={{ backfaceVisibility: "hidden" }}>
+                        <img src={logoWhite} alt="" className="h-9 w-9 opacity-25" />
+                      </div>
+                      <div className="absolute inset-0 overflow-hidden border border-white/10 bg-slate-950/70" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+                        {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
+                        {card.cost <= 2 ? <span className="absolute left-1 top-1 rounded-none border border-emerald-400/60 bg-emerald-400/20 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-emerald-200">Custo baixo</span> : null}
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+              <p className="text-sm text-slate-400">{done ? (lowCostHits > 0 ? `${lowCostHits} carta(s) de custo baixo nessa mão.` : "Nenhuma carta de custo baixo nessa mão -- vai acontecer, é probabilidade.") : "Comprando..."}</p>
+              <Button variant="outline" className="rounded-none" onClick={draw}>Comprar mão novamente</Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** Modal de detalhe — abre a partir de qualquer estatística clicável (cor, trait,
  *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
  *  aquele número. Lista ou imagem, alternável — clicar numa carta abre o preview
@@ -436,6 +549,7 @@ export default function DeckbuilderPage() {
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
   const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
+  const [openingHandOpen, setOpeningHandOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
   const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
@@ -1678,8 +1792,13 @@ export default function DeckbuilderPage() {
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<InfoHint text="Cálculo hipergeométrico: chance de comprar pelo menos 1 carta de custo ≤2 numa mão de 5 cartas puxada do deck principal embaralhado. 'Com 1 mulligan' conta a mão original OU a mão redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente da mesma população, não uma troca parcial." /></h3>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<InfoHint text="Cálculo hipergeométrico: chance de comprar pelo menos 1 carta de custo ≤2 numa mão de 5 cartas puxada do deck principal embaralhado. 'Com 1 mulligan' conta a mão original OU a mão redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente da mesma população, não uma troca parcial." /></h3>
+                </div>
+                <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}><Eye className="mr-2 size-4" />Simular abertura</Button>
+              </div>
               {stats.mainDeckCount > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-3">
                   <div className="panel-cut border surface-strong p-4">
@@ -1728,6 +1847,7 @@ export default function DeckbuilderPage() {
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
       <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
+      <OpeningHandModal open={openingHandOpen} onClose={() => setOpeningHandOpen(false)} mainDeckRows={mainDeckRows} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
         <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">
