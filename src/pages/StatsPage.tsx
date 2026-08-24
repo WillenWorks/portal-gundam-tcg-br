@@ -7,7 +7,7 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 
@@ -29,10 +29,10 @@ function DeckDrillModal({ title, decks, onClose }: { title: { label: string; val
   if (!title) return null;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-lg max-h-[80vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
         <div className="border-b border-white/10 pb-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
-          <h3 className="font-heading text-2xl uppercase heading-portal">{title.value}</h3>
+          <DialogTitle className="font-heading text-2xl uppercase heading-portal">{title.value}</DialogTitle>
           <p className="mt-1 text-xs text-slate-500">{decks.length} deck(s) público(s)</p>
         </div>
         {!decks.length ? (

@@ -6,7 +6,7 @@ import { Link, useRoute } from "wouter";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatCardText } from "@/lib/utils";
 import { translateRuleTitle } from "@/lib/ruleLabels";
@@ -189,7 +189,8 @@ export default function CardDetailPage() {
         </section>
       </> : null}
     </div>
-    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
+    <Dialog open={zoomOpen} onOpenChange={setZoomOpen}><DialogContent aria-describedby={undefined} className="max-h-[96vh] max-w-5xl overflow-auto border-white/10 bg-slate-950 p-3 text-white">
+      <DialogTitle className="sr-only">{`Arte ampliada: ${card?.namePt || card?.nameEn || "Carta"}`}</DialogTitle>
       <div className="relative">
         {artUrl ? <img src={artUrl} alt={card?.namePt || card?.nameEn || "Carta"} className="mx-auto max-h-[84vh] w-auto" /> : null}
         {prints.length > 1 ? <>
