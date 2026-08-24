@@ -1892,16 +1892,28 @@ app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), asy
   res.status(204).send();
 });
 
+// Entry inclui user (conta cadastrada, se vinculada) e deck (só o essencial pra link
+// público -- não o decklist inteiro) -- alimenta a fase 1 do hub de eventos: exibir
+// quem tem conta no site e qual deck foi usado, sem vazar dado sensível de usuário.
+const tournamentEntryInclude = {
+  entries: {
+    include: {
+      user: { select: { id: true, username: true, displayName: true } },
+      deck: { select: { id: true, name: true, shareId: true } },
+    },
+  },
+} as const;
+
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);
-  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: { entries: true }, orderBy: [{ dateStart: "desc" }] });
+  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: tournamentEntryInclude, orderBy: [{ dateStart: "desc" }] });
   res.json(events);
 });
 
 app.get("/api/tournaments/:id", async (req, res) => {
   setPublicCache(res, 20, 90);
   const id = String(req.params.id);
-  const event = await prisma.tournament.findUnique({ where: { id }, include: { entries: true } });
+  const event = await prisma.tournament.findUnique({ where: { id }, include: tournamentEntryInclude });
   if (!event) return res.status(404).json({ error: "Evento não encontrado." });
   res.json(event);
 });
@@ -1927,7 +1939,7 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
   const tournamentId = String(req.params.id);
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) return res.status(404).json({ error: "Evento não encontrado." });
-  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   if (!body.playerName?.trim()) return res.status(400).json({ error: "Nome do jogador é obrigatório." });
   const entry = await prisma.tournamentEntry.create({
     data: {
@@ -1939,6 +1951,7 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
       draws: body.draws ?? null,
       archetype: body.archetype?.trim() || null,
       deckId: body.deckId || null,
+      userId: body.userId || null,
     },
   });
   res.status(201).json(entry);
@@ -1948,7 +1961,7 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
   const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
   const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
   if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
-  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   const entry = await prisma.tournamentEntry.update({
     where: { id: entryId },
     data: {
@@ -1959,6 +1972,7 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
       draws: body.draws === undefined ? existing.draws : body.draws,
       archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
       deckId: body.deckId === undefined ? existing.deckId : (body.deckId || null),
+      userId: body.userId === undefined ? existing.userId : (body.userId || null),
     },
   });
   res.json(entry);

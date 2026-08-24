@@ -13,13 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { api } from "@/lib/api";
+import { api, type ApiDeck } from "@/lib/api";
 import { extractLinkSuggestions, getKeywordIcon, getKeywordStyleClass, parseCardEffects } from "@/lib/gundam-card-effects";
 import { AP_HP_OPTIONS, ART_RARITY_OPTIONS, CARD_TYPE_OPTIONS, COLOR_OPTIONS, COST_LEVEL_OPTIONS, LINK_SUGGESTION_TRAITS, PRODUCT_TYPE_OPTIONS, RARITY_OPTIONS, SOURCE_TITLE_OPTIONS, TRAIT_OPTIONS } from "@/lib/gundam-catalog";
  
 /* ── Tipos ─────────────────────────────────────────────────────────────── */
  
-type AdminUser = { id: string; displayName: string; email: string; role: string; isActive: boolean };
+type AdminUser = { id: string; displayName: string; email: string; username: string; role: string; isActive: boolean };
 type AdminSet = any;
 type AdminCard = any;
 type AdminRuling = any;
@@ -101,7 +101,7 @@ const RELATION_TYPE_HINTS: Record<string, string> = {
 const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" }; 
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
 const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
-const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "" };
+const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "", userId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
 const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
  
@@ -287,6 +287,7 @@ export default function AdminPage() {
   const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [publicDecks, setPublicDecks] = useState<ApiDeck[]>([]);
   const [banGroups, setBanGroups] = useState<Array<{ id: string; label: string; maxDistinct: number }>>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
@@ -339,16 +340,17 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments(), api.getDeckLegalityData()]);
-      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult, legalityResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments(), api.getDeckLegalityData(), api.listPublicDecks()]);
+      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult, legalityResult, publicDecksResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
       if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
       if (legalityResult.status === "fulfilled") setBanGroups(legalityResult.value.banGroups);
+      if (publicDecksResult.status === "fulfilled") setPublicDecks(publicDecksResult.value);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos", "grupos de banimento"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos", "grupos de banimento", "decks públicos"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -689,7 +691,7 @@ export default function AdminPage() {
     setEntryForm(entry ? {
       playerName: entry.playerName || "", placement: entry.placement != null ? String(entry.placement) : "",
       wins: entry.wins != null ? String(entry.wins) : "", losses: entry.losses != null ? String(entry.losses) : "", draws: entry.draws != null ? String(entry.draws) : "",
-      archetype: entry.archetype || "", deckId: entry.deckId || "",
+      archetype: entry.archetype || "", deckId: entry.deckId || "", userId: entry.userId || entry.user?.id || "",
     } : emptyEntryForm);
   };
   const saveEntry = async () => {
@@ -703,6 +705,7 @@ export default function AdminPage() {
       draws: entryForm.draws ? Number(entryForm.draws) : null,
       archetype: entryForm.archetype.trim() || null,
       deckId: entryForm.deckId || null,
+      userId: entryForm.userId || null,
     };
     try {
       if (editingEntryId) await api.updateTournamentEntry(selectedTournamentId, editingEntryId, payload);
@@ -884,6 +887,10 @@ export default function AdminPage() {
                                 <p className="text-sm font-medium">{entry.playerName}</p>
                                 <p className="text-xs text-slate-500">{entry.placement ? `${entry.placement}º lugar` : "sem colocação"} · {entry.archetype || "sem arquétipo"}</p>
                                 <p className="text-xs text-slate-500">{entry.wins ?? 0}V / {entry.losses ?? 0}D / {entry.draws ?? 0}E</p>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {entry.user ? <Badge variant="outline" className="rounded-none border-emerald-400/40 text-[10px] text-emerald-300">Cadastrado · {entry.user.displayName}</Badge> : <Badge variant="outline" className="rounded-none border-white/20 text-[10px] text-slate-500">Convidado</Badge>}
+                                  {entry.deck ? <Badge variant="outline" className="rounded-none border-cyan-400/40 text-[10px] text-cyan-300">Deck: {entry.deck.name}</Badge> : null}
+                                </div>
                               </div>
                               <div className="flex gap-1">
                                 <Button variant="outline" size="icon" className="size-7 rounded-none" onClick={() => openEntryForm(entry)}><Pencil className="size-3" /></Button>
@@ -901,6 +908,17 @@ export default function AdminPage() {
                           <Input value={entryForm.playerName} onChange={(e) => setEntryForm((s) => ({ ...s, playerName: e.target.value }))} placeholder="Nome do jogador" className="rounded-none" />
                           <Input value={entryForm.archetype} onChange={(e) => setEntryForm((s) => ({ ...s, archetype: e.target.value }))} placeholder="Arquétipo do deck" className="rounded-none" />
                         </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <select value={entryForm.userId} onChange={(e) => { const uid = e.target.value; const picked = users.find((u) => u.id === uid); setEntryForm((s) => ({ ...s, userId: uid, playerName: picked ? picked.displayName : s.playerName })); }} className="field-shell h-10 px-3 text-sm">
+                            <option value="">— Jogador convidado (sem conta) —</option>
+                            {users.map((u) => <option key={u.id} value={u.id}>{u.displayName} · @{u.username}</option>)}
+                          </select>
+                          <select value={entryForm.deckId} onChange={(e) => setEntryForm((s) => ({ ...s, deckId: e.target.value }))} className="field-shell h-10 px-3 text-sm">
+                            <option value="">— Sem deck vinculado (só arquétipo) —</option>
+                            {publicDecks.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.user?.displayName || "sem dono"}</option>)}
+                          </select>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-4 text-slate-500">Só decks marcados como públicos aparecem aqui pra vincular — se o jogador não publicou o deck, deixe sem vínculo e registre pelo menos o arquétipo.</p>
                         <div className="mt-3 grid gap-3 md:grid-cols-4">
                           <Input type="number" min={1} value={entryForm.placement} onChange={(e) => setEntryForm((s) => ({ ...s, placement: e.target.value }))} placeholder="Colocação" className="rounded-none" />
                           <Input type="number" min={0} value={entryForm.wins} onChange={(e) => setEntryForm((s) => ({ ...s, wins: e.target.value }))} placeholder="Vitórias" className="rounded-none" />

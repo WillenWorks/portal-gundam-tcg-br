@@ -93,9 +93,10 @@ model User {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  decks   Deck[]
-  posts   Post[]
-  binders CardBinder[]
+  decks             Deck[]
+  posts             Post[]
+  binders           CardBinder[]
+  tournamentEntries TournamentEntry[]
 }
 
 model CardSet {
@@ -415,9 +416,14 @@ model TournamentEntry {
   draws        Int?
   archetype    String?
   deckId       String?
+  // Vínculo com conta cadastrada no site -- independente do deck: um jogador pode
+  // ter conta e não ter publicado o deck usado nesse evento específico. Cobre
+  // "fase 1" do hub de eventos (registrado vs convidado nas estatísticas).
+  userId       String?
 
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   deck       Deck?      @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Post {
