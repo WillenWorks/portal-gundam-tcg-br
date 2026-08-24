@@ -377,10 +377,10 @@ export default function OrganizerPage() {
   };
 
   const setDraftField = (roundId: string, field: "participantAId" | "participantBId" | "tableNumber", value: string) => {
-    setMatchDraft((current) => ({
-      ...current,
-      [roundId]: { participantAId: "", participantBId: "", tableNumber: "", ...current[roundId], [field]: value },
-    }));
+    setMatchDraft((current) => {
+      const base = current[roundId] ?? { participantAId: "", participantBId: "", tableNumber: "" };
+      return { ...current, [roundId]: { ...base, [field]: value } };
+    });
   };
 
   const createMatch = async (round: HostedEventRound) => {
@@ -483,7 +483,7 @@ export default function OrganizerPage() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none surface-panel">
+        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>{form.id ? "Editar evento" : "Novo evento"}</DialogTitle>
           </DialogHeader>
@@ -512,7 +512,7 @@ export default function OrganizerPage() {
       </Dialog>
 
       <Dialog open={Boolean(participantsEvent)} onOpenChange={(open) => { if (!open) setParticipantsEvent(null); }}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none surface-panel">
+        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>Participantes{participantsEvent ? ` — ${participantsEvent.name}` : ""}</DialogTitle>
           </DialogHeader>
@@ -590,7 +590,7 @@ export default function OrganizerPage() {
       </Dialog>
 
       <Dialog open={Boolean(roundsEvent)} onOpenChange={(open) => { if (!open) setRoundsEvent(null); }}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-3xl overflow-y-auto rounded-none surface-panel">
+        <DialogContent className="panel-cut max-h-[85vh] max-w-3xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>Rodadas & resultados{roundsEvent ? ` — ${roundsEvent.name}` : ""}</DialogTitle>
           </DialogHeader>
