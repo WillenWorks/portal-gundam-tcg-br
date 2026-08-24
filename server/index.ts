@@ -1049,7 +1049,7 @@ app.get("/api/users/:username", async (req, res) => {
     prisma.cardBinder.findMany({
       where: { userId: user.id, isPublic: true },
       include: { _count: { select: { items: true } } },
-      orderBy: [{ kind: "asc" }],
+      orderBy: [{ createdAt: "asc" }],
     }),
   ]);
   res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks, binders });
