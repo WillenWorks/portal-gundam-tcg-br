@@ -78,7 +78,11 @@ export default function RulingDetailPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[rule.sourceType] || rule.sourceType}</Badge>
-                  {rule.relatedKeyword ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{rule.relatedKeyword}</Badge> : null}
+                  {rule.relatedKeyword ? (
+                    <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} title={`Ver todas as rulings de ${rule.relatedKeyword}`}>
+                      <Badge className="cursor-pointer rounded-none border border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{rule.relatedKeyword}</Badge>
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -118,7 +122,7 @@ export default function RulingDetailPage() {
                   <h3 className="font-heading text-3xl uppercase">Metadados</h3>
                   <div className="space-y-3 text-sm leading-7 text-slate-300">
                     <p><span className="text-slate-500">Fonte:</span> {sourceLabels[rule.sourceType] || rule.sourceType}</p>
-                    <p><span className="text-slate-500">Keyword:</span> {rule.relatedKeyword || "—"}</p>
+                    <p><span className="text-slate-500">Keyword:</span> {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="text-primary underline-offset-4 hover:underline">{rule.relatedKeyword}</Link> : "—"}</p>
                     <p><span className="text-slate-500">Status da tradução:</span> {rule.translationStatus || "—"}</p>
                     <p><span className="text-slate-500">Referência original:</span> {rule.originalUrl ? <a href={rule.originalUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">Abrir fonte</a> : "—"}</p>
                   </div>
@@ -149,7 +153,11 @@ export default function RulingDetailPage() {
                       <div key={item.id} className="panel-cut border surface-strong p-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[item.sourceType] || item.sourceType}</Badge>
-                          {item.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{item.relatedKeyword}</Badge> : null}
+                          {item.relatedKeyword ? (
+                            <Link href={`/rules?relatedKeyword=${encodeURIComponent(item.relatedKeyword)}`} title={`Ver todas as rulings de ${item.relatedKeyword}`}>
+                              <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{item.relatedKeyword}</Badge>
+                            </Link>
+                          ) : null}
                         </div>
                         <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-500">{translateRuleTitle(item.title)}</p>
                         <h4 className="mt-1 text-lg font-medium leading-6 text-white">{item.questionPt || item.title || "Sem pergunta cadastrada."}</h4>

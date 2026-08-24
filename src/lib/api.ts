@@ -15,6 +15,7 @@ export type AuthUser = {
   bio?: string | null;
   avatarUrl?: string | null;
   isActive?: boolean;
+  isHoster?: boolean;
   preferredCardLanguage?: "PT_BR" | "EN";
   preferredTheme?: string | null;
   hasPassword?: boolean;
@@ -272,11 +273,16 @@ export const api = {
   updatePost: (id: string, payload: any) => mutate<any>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
   deletePost: (id: string) => mutate<void>(`/posts/${id}`, { method: "DELETE" }, ["/posts"]),
   listSets: () => request<Array<{ id: string; code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null; _count?: { cards: number } }>>("/sets", undefined, { ttlMs: 60_000 }),
+  // Versão de gestão: traz também coleções ocultadas (isActive=false), pro admin poder
+  // ver e reativar. GET /sets normal (acima) nunca devolve isso -- é a listagem pública.
+  listAdminSets: () => request<any[]>("/sets/admin", undefined, { ttlMs: 5_000 }),
   getSet: (code: string) => request<any>(`/sets/${code}`, undefined, { ttlMs: 30_000 }),
   createSet: (payload: any) => mutate<any>("/sets", { method: "POST", body: JSON.stringify(payload) }, ["/sets"]),
   updateSet: (id: string, payload: any) => mutate<any>(`/sets/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/sets", "/cards", "/cards/filters"]),
   deleteSet: (id: string) => mutate<void>(`/sets/${id}`, { method: "DELETE" }, ["/sets", "/cards", "/cards/filters"]),
   listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
+  // Mesma lógica de listAdminSets, mas pra Traits/Séries.
+  listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
   createTaxonomy: (payload: any) => mutate<any>("/taxonomies", { method: "POST", body: JSON.stringify(payload) }, ["/taxonomies"]),
   updateTaxonomy: (id: string, payload: any) => mutate<any>(`/taxonomies/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/taxonomies"]),
   deleteTaxonomy: (id: string) => mutate<void>(`/taxonomies/${id}`, { method: "DELETE" }, ["/taxonomies"]),
@@ -314,6 +320,40 @@ export const api = {
   createTournamentEntry: (tournamentId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries`, { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournamentEntry: (tournamentId: string, entryId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
+  listHostedEventsMine: () => request<any[]>("/hosted-events/mine", undefined, { ttlMs: 5_000 }),
+  listHostedEventsAdmin: () => request<any[]>("/hosted-events/admin", undefined, { ttlMs: 5_000 }),
+  getHostedEvent: (id: string) => request<any>(`/hosted-events/${id}`, undefined, { ttlMs: 5_000 }),
+  createHostedEvent: (payload: any) => mutate<any>("/hosted-events", { method: "POST", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  updateHostedEvent: (id: string, payload: any) => mutate<any>(`/hosted-events/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  deleteHostedEvent: (id: string) => mutate<void>(`/hosted-events/${id}`, { method: "DELETE" }, ["/hosted-events"]),
+  // Fase B: busca de usuários pro Hoster montar a lista de participantes -- sem cache
+  // (bypassCache) porque é uma busca incremental enquanto o organizador digita.
+  searchUsers: (q: string) =>
+    request<Array<{ id: string; username: string; displayName: string; avatarUrl?: string | null }>>(`/users/search${toQuery({ q })}`, undefined, { bypassCache: true }),
+  addHostedEventParticipant: (eventId: string, userId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/participants`, { method: "POST", body: JSON.stringify({ userId }) }, ["/hosted-events"]),
+  removeHostedEventParticipant: (eventId: string, participantId: string) =>
+    mutate<void>(`/hosted-events/${eventId}/participants/${participantId}`, { method: "DELETE" }, ["/hosted-events"]),
+  // Trava o deck do participante -- ação de mão única no backend (uma vez travado,
+  // o servidor recusa qualquer nova tentativa com 409).
+  lockHostedEventParticipantDeck: (eventId: string, participantId: string, deckId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/participants/${participantId}/deck`, { method: "POST", body: JSON.stringify({ deckId }) }, ["/hosted-events"]),
+  // Fase C: rodadas, confrontos e classificação. Pareamento e resultado são lançados
+  // manualmente pelo Hoster -- toda mutação invalida o cache de /hosted-events pra
+  // refletir na tela do organizador imediatamente.
+  getHostedEventStandings: (eventId: string) => request<any[]>(`/hosted-events/${eventId}/standings`, undefined, { ttlMs: 5_000 }),
+  createHostedEventRound: (eventId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds`, { method: "POST" }, ["/hosted-events"]),
+  updateHostedEventRound: (eventId: string, roundId: string, status: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}`, { method: "PUT", body: JSON.stringify({ status }) }, ["/hosted-events"]),
+  deleteHostedEventRound: (eventId: string, roundId: string) =>
+    mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}`, { method: "DELETE" }, ["/hosted-events"]),
+  createHostedEventMatch: (eventId: string, roundId: string, payload: { participantAId: string; participantBId?: string | null; tableNumber?: number | null }) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}/matches`, { method: "POST", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  reportHostedEventMatchResult: (eventId: string, roundId: string, matchId: string, result: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "PUT", body: JSON.stringify({ result }) }, ["/hosted-events"]),
+  deleteHostedEventMatch: (eventId: string, roundId: string, matchId: string) =>
+    mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "DELETE" }, ["/hosted-events"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
   listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>

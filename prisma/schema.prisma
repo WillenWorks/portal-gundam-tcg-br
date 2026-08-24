@@ -44,6 +44,34 @@ enum CardLanguage {
   EN
 }
 
+enum HostedEventStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// Fase C: status de uma rodada dentro de um HostedEvent.
+enum HostedEventRoundStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Fase C: resultado de um confronto. BYE é o caso sem participantB (folga --
+// vitória automática pro participantA, sem afetar as estatísticas de ninguém
+// mais). O MVP é sempre lançado manualmente pelo Hoster; o schema não impede
+// que um pareamento automático (Swiss) venha a preencher essas mesmas tabelas
+// no futuro.
+enum HostedEventMatchResult {
+  PENDING
+  PLAYER_A_WIN
+  PLAYER_B_WIN
+  DRAW
+  BYE
+}
+
 enum SetKind {
   BOOSTER_PACK
   STARTER_DECK
@@ -86,6 +114,7 @@ model User {
   passwordHash          String?
   role                  UserRole     @default(USER)
   isActive              Boolean      @default(true)
+  isHoster              Boolean      @default(false)
   preferredCardLanguage CardLanguage @default(PT_BR)
   bio                   String?      @db.Text
   avatarUrl             String?
@@ -93,9 +122,13 @@ model User {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  decks   Deck[]
-  posts   Post[]
-  binders CardBinder[]
+  decks                   Deck[]
+  posts                   Post[]
+  binders                 CardBinder[]
+  tournamentEntries       TournamentEntry[]
+  hostedEvents            HostedEvent[]
+  deckSnapshots           DeckSnapshot[]
+  hostedEventParticipants HostedEventParticipant[]
 }
 
 model CardSet {
@@ -131,6 +164,10 @@ model TaxonomyEntry {
   name         String
   slug         String
   description  String?      @db.Text
+  // Usados só pra kind=SOURCE_TITLE (séries/mídias) no admin -- capa + link oficial da
+  // obra; galeria adicional fica em metadataJson.galleryImages, mesmo padrão do CardSet.
+  coverImage   String?
+  officialUrl  String?
   metadataJson Json?
   isActive     Boolean      @default(true)
   deletedAt    DateTime?
@@ -256,11 +293,12 @@ model Card {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  cardModel   CardModel?       @relation(fields: [cardModelId], references: [id])
-  set         CardSet?         @relation(fields: [setId], references: [id])
-  deckItems   DeckItem[]
-  rulings     Ruling[]
-  binderItems CardBinderItem[]
+  cardModel         CardModel?         @relation(fields: [cardModelId], references: [id])
+  set               CardSet?           @relation(fields: [setId], references: [id])
+  deckItems         DeckItem[]
+  rulings           Ruling[]
+  binderItems       CardBinderItem[]
+  deckSnapshotItems DeckSnapshotItem[]
 
   @@index([code])
   @@index([cardModelId])
@@ -312,9 +350,11 @@ model Deck {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  user              User              @relation(fields: [userId], references: [id])
-  items             DeckItem[]
-  tournamentEntries TournamentEntry[]
+  user                    User                      @relation(fields: [userId], references: [id])
+  items                   DeckItem[]
+  tournamentEntries       TournamentEntry[]
+  deckSnapshots           DeckSnapshot[]
+  hostedEventParticipants HostedEventParticipant[]
 }
 
 model DeckItem {
@@ -415,9 +455,161 @@ model TournamentEntry {
   draws        Int?
   archetype    String?
   deckId       String?
+  // Vínculo com conta cadastrada no site -- independente do deck: um jogador pode
+  // ter conta e não ter publicado o deck usado nesse evento específico. Cobre
+  // "fase 1" do hub de eventos (registrado vs convidado nas estatísticas).
+  userId       String?
+  // Fase B: cópia congelada da decklist no momento em que o admin vinculou o
+  // deckId acima -- resolve o gap de o deckId apontar pro Deck vivo (se o dono
+  // editar/apagar o deck depois, o resultado histórico não pode perder a lista).
+  deckSnapshotId String?
 
-  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  deck       Deck?      @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
+}
+
+// Evento "ao vivo" organizado por um usuário com a flag isHoster (ou um ADMIN),
+// diferente do Tournament (que é um report retroativo cadastrado pelo admin).
+// Fase A do plano "reorganização do admin + hoster": só o esqueleto do evento
+// (dono, local/data/formato/limite de jogadores) e seu ciclo de status. Participantes,
+// trava de deck e rodadas/pontuação entram nas fases seguintes.
+model HostedEvent {
+  id          String            @id @default(cuid())
+  hosterId    String
+  name        String
+  description String?           @db.Text
+  format      String            @default("constructed")
+  venueName   String?
+  city        String?
+  country     String?
+  dateStart   DateTime
+  dateEnd     DateTime?
+  maxPlayers  Int?
+  status      HostedEventStatus @default(DRAFT)
+  isActive    Boolean           @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  hoster       User                      @relation(fields: [hosterId], references: [id], onDelete: Cascade)
+  participants HostedEventParticipant[]
+  rounds       HostedEventRound[]
+
+  @@index([hosterId])
+  @@index([status])
+  @@index([dateStart])
+}
+
+// Fase B: participante de um HostedEvent -- sempre um usuário cadastrado (diferente
+// do TournamentEntry de report, que aceita jogador convidado sem conta). O hoster
+// escolhe o deck do participante; uma vez travado (deckSnapshotId preenchido), o
+// backend recusa qualquer tentativa de trocar -- a decklist real do evento nunca
+// pode ser reescrita depois do fato.
+model HostedEventParticipant {
+  id             String    @id @default(cuid())
+  eventId        String
+  userId         String
+  deckId         String?
+  deckSnapshotId String?
+  deckLockedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  event        HostedEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
+  deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
+
+  matchesAsA HostedEventMatch[] @relation("MatchParticipantA")
+  matchesAsB HostedEventMatch[] @relation("MatchParticipantB")
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Fase C: uma rodada de um HostedEvent. Pareamento é manual no MVP (o Hoster monta
+// os confrontos à mão) -- roundNumber + status servem tanto pra isso quanto pra uma
+// futura rodada gerada automaticamente (Swiss), sem precisar mudar o schema.
+model HostedEventRound {
+  id          String                 @id @default(cuid())
+  eventId     String
+  roundNumber Int
+  status      HostedEventRoundStatus @default(PENDING)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  event   HostedEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  matches HostedEventMatch[]
+
+  @@unique([eventId, roundNumber])
+  @@index([eventId])
+}
+
+// Fase C: um confronto dentro de uma rodada. participantB nulo = bye (folga) --
+// participantA ganha automaticamente sem afetar o adversário (que não existe).
+// O resultado é lançado manualmente pelo Hoster (result começa PENDING);
+// reportedAt marca quando o resultado foi de fato lançado.
+model HostedEventMatch {
+  id             String                 @id @default(cuid())
+  roundId        String
+  tableNumber    Int?
+  participantAId String
+  participantBId String?
+  result         HostedEventMatchResult @default(PENDING)
+  reportedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  round        HostedEventRound        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participantA HostedEventParticipant  @relation("MatchParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB HostedEventParticipant? @relation("MatchParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([participantAId])
+  @@index([participantBId])
+}
+
+// Cópia congelada de uma decklist (cartas + quantidades) no momento em que ela foi
+// vinculada a um resultado histórico (TournamentEntry) ou travada num evento do
+// Hoster (HostedEventParticipant). Existe pra que a lista exibida nunca mude depois
+// -- mesmo que o Deck de origem seja editado ou apagado pelo dono (sourceDeckId e
+// sourceUserId ficam null nesse caso, mas os itens da snapshot continuam intactos).
+model DeckSnapshot {
+  id           String   @id @default(cuid())
+  sourceDeckId String?
+  sourceUserId String?
+  name         String
+  format       String?
+  createdAt    DateTime @default(now())
+
+  sourceDeck Deck? @relation(fields: [sourceDeckId], references: [id], onDelete: SetNull)
+  sourceUser User? @relation(fields: [sourceUserId], references: [id], onDelete: SetNull)
+
+  items                   DeckSnapshotItem[]
+  tournamentEntries       TournamentEntry[]
+  hostedEventParticipants HostedEventParticipant[]
+
+  @@index([sourceDeckId])
+  @@index([sourceUserId])
+}
+
+model DeckSnapshotItem {
+  id             String @id @default(cuid())
+  deckSnapshotId String
+  cardId         String
+  quantity       Int
+  section        String @default("main")
+
+  deckSnapshot DeckSnapshot @relation(fields: [deckSnapshotId], references: [id], onDelete: Cascade)
+  // Restrict (não Cascade como em DeckItem): uma carta não pode ser apagada de
+  // verdade enquanto existir numa decklist histórica congelada.
+  card         Card         @relation(fields: [cardId], references: [id], onDelete: Restrict)
+
+  @@index([deckSnapshotId])
+  @@index([cardId])
 }
 
 model Post {

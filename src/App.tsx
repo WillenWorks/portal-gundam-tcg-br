@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router, Route, Switch, useLocation } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
+import { useHashLocationWithQuery } from "@/lib/hashLocationWithQuery";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FactionProvider } from "@/contexts/FactionContext";
@@ -32,6 +32,7 @@ const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -41,9 +42,12 @@ function LazyRoute({ label, children }: { label: string; children: ReactNode }) 
   return <Suspense fallback={<RouteLoader label={label} />}>{children}</Suspense>;
 }
 
-function RequireAuth({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
+function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { children: ReactNode; adminOnly?: boolean; hosterOnly?: boolean }) {
   const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
+  // hosterOnly libera pra quem tem a flag isHoster (concedida pelo admin) OU é ADMIN
+  // direto -- não é um degrau de role, é uma capacidade extra por fora.
+  const deniedByHoster = hosterOnly && !(user?.isHoster || user?.role === "ADMIN");
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -52,10 +56,14 @@ function RequireAuth({ children, adminOnly = false }: { children: ReactNode; adm
     }
     if (adminOnly && user?.role !== "ADMIN") {
       navigate("/portal", { replace: true });
+      return;
     }
-  }, [adminOnly, isAuthenticated, navigate, user?.role]);
+    if (deniedByHoster) {
+      navigate("/portal", { replace: true });
+    }
+  }, [adminOnly, deniedByHoster, isAuthenticated, navigate, user?.role]);
 
-  if (!isAuthenticated || (adminOnly && user?.role !== "ADMIN")) {
+  if (!isAuthenticated || (adminOnly && user?.role !== "ADMIN") || deniedByHoster) {
     return <GlobalLoader label="Validando acesso" />;
   }
 
@@ -64,7 +72,7 @@ function RequireAuth({ children, adminOnly = false }: { children: ReactNode; adm
 
 function AppRouter() {
   return (
-    <Router hook={useHashLocation}>
+    <Router hook={useHashLocationWithQuery}>
       <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
@@ -86,6 +94,7 @@ function AppRouter() {
         <Route path="/deckbuilder">{() => <RequireAuth><LazyRoute label="Decks"><DeckListPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
+        <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

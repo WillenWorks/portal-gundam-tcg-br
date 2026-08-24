@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Users } from "lucide-react";
+import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +30,10 @@ const userNav = [
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 
+const hosterNav = [
+  { href: "/organizador", label: "Meus eventos", icon: Trophy },
+] as const;
+
 const adminNav = [
   { href: "/admin", label: "Visão geral", icon: ShieldCheck },
   { href: "/admin/users", label: "Usuários", icon: Users },
@@ -54,13 +58,15 @@ const titles: Record<string, string> = {
   "/admin/traits": "Traits",
   "/admin/rulings": "Rulings",
   "/admin/events": "Eventos",
+  "/organizador": "Meus eventos",
 };
 
-function SidebarLinks({ location, isAdmin, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; onNavigate?: () => void; collapsed?: boolean }) {
+function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {
   const currentPath = location.split("?")[0];
   const navGroups: Array<{ title: string; items: ReadonlyArray<{ href: string; label: string; icon: ComponentType<{ className?: string }> }> }> = [
     { title: "Painel do usuário", items: userNav },
   ];
+  if (isHoster || isAdmin) navGroups.push({ title: "Organizador", items: hosterNav });
   if (isAdmin) navGroups.push({ title: "Gestão", items: adminNav });
 
   return (
@@ -114,6 +120,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
   const currentTitle = titles[currentPath] ?? "Portal";
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: currentTitle }];
   const isAdmin = user?.role === "ADMIN";
+  const isHoster = Boolean(user?.isHoster);
 
   return (
     <div className="min-h-screen text-white dark:text-white light:text-slate-900">
@@ -147,7 +154,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
         <aside className={cn("hidden border-r border-white/10 bg-slate-950/82 py-6 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82 light:border-slate-300/70 light:bg-white/82 lg:flex lg:sticky lg:top-[73px] lg:h-[calc(100vh-73px)] lg:flex-col lg:overflow-y-auto", collapsed ? "px-2" : "px-5")}>
           {!collapsed ? <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge> : null}
           <div className={cn("flex-1", collapsed ? "mt-2" : "mt-8")}>
-            <SidebarLinks location={location} isAdmin={isAdmin} collapsed={collapsed} />
+            <SidebarLinks location={location} isAdmin={isAdmin} isHoster={isHoster} collapsed={collapsed} />
           </div>
           <Button type="button" variant="outline" className={cn("mt-4 hidden w-full rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:inline-flex", collapsed ? "justify-center px-0" : "justify-start")} onClick={() => setCollapsed((current) => !current)} title={collapsed ? "Expandir painel" : "Recolher painel"}>
             {collapsed ? <ChevronRight className="size-4" /> : <><ChevronLeft className="mr-2 size-4" />Recolher</>}
@@ -199,7 +206,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
           <div className="px-4 pb-6">
             <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área privada</Badge>
             <div className="mt-6">
-              <SidebarLinks location={location} isAdmin={isAdmin} onNavigate={() => setMobileSidebarOpen(false)} />
+              <SidebarLinks location={location} isAdmin={isAdmin} isHoster={isHoster} onNavigate={() => setMobileSidebarOpen(false)} />
             </div>
             <Separator className="my-6 bg-white/10" />
             <div className="grid gap-2">

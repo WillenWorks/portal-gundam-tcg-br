@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -54,6 +54,7 @@ type AuthPayload = {
   role: UserRole;
   email: string;
   username: string;
+  isHoster: boolean;
 };
 
 type RequestWithUser = Request & { user?: AuthPayload };
@@ -191,6 +192,17 @@ function roleRequired(roles: UserRole[]) {
     if (!roles.includes(req.user.role)) return res.status(403).json({ error: "Sem permissão." });
     next();
   };
+}
+
+/** Libera pra quem tem a flag isHoster (concedida pelo admin) ou é ADMIN direto --
+ *  diferente de roleRequired porque isHoster não é um degrau de UserRole, é uma
+ *  capacidade extra concedida por fora (um EDITOR ou USER comum pode virar Hoster
+ *  sem mudar de role). Ownership de um evento específico (só o próprio hoster ou um
+ *  ADMIN pode editar/apagar) é checado à parte, dentro de cada rota. */
+function hosterRequired(req: RequestWithUser, res: Response, next: NextFunction) {
+  if (!req.user) return res.status(401).json({ error: "Não autenticado." });
+  if (!req.user.isHoster && req.user.role !== UserRole.ADMIN) return res.status(403).json({ error: "Sem permissão de organizador." });
+  next();
 }
 
 function slugify(value: string) {
@@ -728,6 +740,7 @@ function serializeUser(user: any, stats?: { deckCount: number; publicDeckCount: 
     bio: user.bio,
     avatarUrl: user.avatarUrl,
     isActive: user.isActive,
+    isHoster: user.isHoster,
     preferredCardLanguage: user.preferredCardLanguage,
     preferredTheme: user.preferredTheme,
     hasPassword: Boolean(user.passwordHash),
@@ -843,7 +856,7 @@ app.post("/api/auth/register", async (req, res) => {
       preferredTheme: "dark",
     },
   });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.status(201).json({ token, user: serializeUser(user) });
 });
 
@@ -856,7 +869,7 @@ app.post("/api/auth/login", async (req, res) => {
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
   if (!user.passwordHash) return res.status(401).json({ error: "Essa conta usa login com Google — entre pelo botão \"Continuar com Google\"." });
   if (!(await bcrypt.compare(normalizedPassword, user.passwordHash))) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -912,7 +925,7 @@ app.post("/api/auth/google", async (req, res) => {
   }
 
   if (!user.isActive) return res.status(401).json({ error: "Usuário inativo." });
-  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username });
+  const token = signToken({ userId: user.id, role: user.role, email: user.email, username: user.username, isHoster: user.isHoster });
   res.json({ token, user: serializeUser(user) });
 });
 
@@ -986,7 +999,7 @@ app.get("/api/users/admin", authRequired, roleRequired([UserRole.ADMIN]), async 
 
 app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
   const id = String(req.params.id);
-  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string };
+  const payload = req.body as { displayName?: string; role?: UserRole; isActive?: boolean; bio?: string; isHoster?: boolean };
   const user = await prisma.user.update({
     where: { id },
     data: {
@@ -994,9 +1007,32 @@ app.put("/api/users/admin/:id", authRequired, roleRequired([UserRole.ADMIN]), as
       role: payload.role,
       isActive: payload.isActive,
       bio: payload.bio,
+      isHoster: payload.isHoster,
     },
   });
   res.json(serializeUser(user));
+});
+
+// Fase B: busca mínima de usuários pra o Hoster adicionar participantes num evento --
+// antes só existia o perfil público por username exato (/api/users/:username), sem
+// forma de listar/procurar contas. Restrito a Hoster/ADMIN (mesmo público que já
+// enxerga userId em formulários de vínculo), retorna só os campos essenciais.
+app.get("/api/users/search", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const q = String(req.query.q || "").trim();
+  if (q.length < 2) return res.json([]);
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { username: { contains: q, mode: "insensitive" } },
+        { displayName: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, username: true, displayName: true, avatarUrl: true },
+    orderBy: [{ username: "asc" }],
+    take: 10,
+  });
+  res.json(users);
 });
 
 app.get("/api/users/:username", async (req, res) => {
@@ -1013,7 +1049,7 @@ app.get("/api/users/:username", async (req, res) => {
     prisma.cardBinder.findMany({
       where: { userId: user.id, isPublic: true },
       include: { _count: { select: { items: true } } },
-      orderBy: [{ kind: "asc" }],
+      orderBy: [{ createdAt: "asc" }],
     }),
   ]);
   res.json({ id: user.id, username: user.username, displayName: user.displayName, bio: user.bio, avatarUrl: user.avatarUrl, decks, binders });
@@ -1208,6 +1244,16 @@ app.get("/api/sets", async (_req, res) => {
   res.json(sets);
 });
 
+// Listagem de gestão do admin -- ao contrário de GET /api/sets (só ativos, uso público),
+// essa traz TUDO (incluindo ocultados), pra permitir localizar e reativar uma coleção
+// que foi ocultada por engano. Precisa vir antes de /api/sets/:code, senão "admin" seria
+// interpretado como um código de coleção.
+app.get("/api/sets/admin", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (_req, res) => {
+  setPrivateCache(res, 5, 20);
+  const sets = await prisma.cardSet.findMany({ include: { _count: { select: { cards: true } } }, orderBy: [{ isActive: "desc" }, { code: "asc" }] });
+  res.json(sets);
+});
+
 app.get("/api/sets/:code", async (req, res) => {
   setPublicCache(res, 30, 120);
   const code = String(req.params.code);
@@ -1236,7 +1282,31 @@ app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.ED
   const id = String(req.params.id);
   const existing = await prisma.cardSet.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
-  const payload = { ...req.body, code: req.body.code || existing.code } as SetInput;
+  // Faz merge com o registro existente campo a campo (em vez de só espalhar req.body por
+  // cima) -- upsertSets escreve TODOS os campos incondicionalmente, então um PUT parcial
+  // (ex: só { isActive: true } pra reativar uma coleção ocultada) sem esse merge apagaria
+  // o resto dos dados. Sempre reativa (isActive: true já é fixo dentro de upsertSets),
+  // então isso também serve como o botão "Reativar" do admin.
+  const body = req.body as Partial<SetInput>;
+  const payload: SetInput = {
+    code: body.code || existing.code,
+    nameEn: body.nameEn ?? existing.nameEn,
+    namePt: body.namePt ?? existing.namePt ?? undefined,
+    officialUrl: body.officialUrl ?? existing.officialUrl,
+    releaseDate: body.releaseDate ?? existing.releaseDate,
+    coverImage: body.coverImage ?? existing.coverImage,
+    shortDescription: body.shortDescription ?? existing.shortDescription,
+    setType: body.setType ?? existing.setType,
+    productCodeAlt: body.productCodeAlt ?? existing.productCodeAlt,
+    msrpUsd: body.msrpUsd ?? existing.msrpUsd,
+    contentSummaryEn: body.contentSummaryEn ?? existing.contentSummaryEn,
+    contentSummaryPt: body.contentSummaryPt ?? existing.contentSummaryPt,
+    raritySummary: body.raritySummary ?? existing.raritySummary,
+    productNotes: body.productNotes ?? existing.productNotes,
+    sourceTitles: body.sourceTitles ?? existing.sourceTitles,
+    starterDeckVariantOf: body.starterDeckVariantOf ?? existing.starterDeckVariantOf,
+    metadataJson: body.metadataJson ?? existing.metadataJson,
+  };
   const setMap = await upsertSets([payload]);
   const updated = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
   res.json(updated);
@@ -1260,14 +1330,32 @@ app.get("/api/taxonomies", async (req, res) => {
   res.json(items);
 });
 
+// Listagem de gestão do admin -- mesmo raciocínio de GET /api/sets/admin: traz ocultados
+// junto, pra dar pra ver e reativar uma trait/série que foi ocultada por engano (a rota
+// pública acima nunca devolve isso, de propósito, pra não vazar taxonomia desativada nos
+// filtros/autocomplete do site).
+app.get("/api/taxonomies/admin", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  setPrivateCache(res, 5, 20);
+  const kind = req.query.kind ? normalizeTaxonomyKind(req.query.kind) : undefined;
+  const items = await prisma.taxonomyEntry.findMany({
+    where: { ...(kind ? { kind } : {}) },
+    orderBy: [{ isActive: "desc" }, { kind: "asc" }, { name: "asc" }],
+  });
+  res.json(items);
+});
+
 app.post("/api/taxonomies", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const kind = normalizeTaxonomyKind(req.body.kind);
   const name = String(req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "Nome é obrigatório." });
   const item = await prisma.taxonomyEntry.upsert({
     where: { kind_name: { kind, name } },
-    update: { description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
-    create: { kind, name, slug: slugify(name), description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
+    // Reativa sempre (isActive/deletedAt) -- sem isso, recadastrar um nome que já tinha
+    // sido ocultado batia no unique constraint e caía no "update" mantendo isActive:false
+    // pra sempre, um jeito confuso de um registro nunca mais reaparecer mesmo depois de
+    // "recriado".
+    update: { description: req.body.description || null, coverImage: req.body.coverImage || null, officialUrl: req.body.officialUrl || null, metadataJson: req.body.metadataJson || Prisma.JsonNull, isActive: true, deletedAt: null },
+    create: { kind, name, slug: slugify(name), description: req.body.description || null, coverImage: req.body.coverImage || null, officialUrl: req.body.officialUrl || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
   });
   res.status(201).json(item);
 });
@@ -1277,9 +1365,20 @@ app.put("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN, UserR
   const existing = await prisma.taxonomyEntry.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Registro não encontrado." });
   const name = String(req.body.name || existing.name).trim();
+  const nextActive = typeof req.body.isActive === "boolean" ? req.body.isActive : existing.isActive;
   const updated = await prisma.taxonomyEntry.update({
     where: { id },
-    data: { kind: req.body.kind ? normalizeTaxonomyKind(req.body.kind) : existing.kind, name, slug: slugify(name), description: req.body.description ?? existing.description, metadataJson: req.body.metadataJson ?? existing.metadataJson ?? Prisma.JsonNull },
+    data: {
+      kind: req.body.kind ? normalizeTaxonomyKind(req.body.kind) : existing.kind,
+      name,
+      slug: slugify(name),
+      description: req.body.description ?? existing.description,
+      coverImage: req.body.coverImage ?? existing.coverImage,
+      officialUrl: req.body.officialUrl ?? existing.officialUrl,
+      metadataJson: req.body.metadataJson ?? existing.metadataJson ?? Prisma.JsonNull,
+      isActive: nextActive,
+      deletedAt: nextActive ? null : (existing.deletedAt ?? new Date()),
+    },
   });
   res.json(updated);
 });
@@ -1356,7 +1455,10 @@ app.get("/api/cards", async (req, res) => {
   const traits = normalizeMultiQueryValue(req.query.trait);
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
-  const rarity = normalizeQueryValue(req.query.rarity);
+  // Multi-valor igual cor/trait (?rarity=Common,C+,C++) -- o front agrupa variações de
+  // foil/parallel (C+, LR++ etc.) sob o rótulo canônico e expande de volta pra essa
+  // lista antes de consultar, então aqui é só um IN normal.
+  const rarities = normalizeMultiQueryValue(req.query.rarity);
   const status = normalizeQueryValue(req.query.status ?? req.query.legalityStatus);
   const link = normalizeQueryValue(req.query.link);
   const relation = normalizeQueryValue(req.query.relation);
@@ -1369,10 +1471,10 @@ app.get("/api/cards", async (req, res) => {
 
   const printWhere: Prisma.CardWhereInput = {
     isActive: true,
-    ...(rarity ? { rarity } : {}),
+    ...(rarities.length ? { rarity: { in: rarities } } : {}),
     ...(setCode ? { set: { is: { code: setCode } } } : {}),
   };
-  const hasPrintFilter = Boolean(rarity || setCode);
+  const hasPrintFilter = Boolean(rarities.length || setCode);
 
   // Busca por texto em duas camadas — nome bate primeiro, série preenche o resto da
   // página. Trait/efeito/piloto ficam de fora de propósito (só teriam sentido pros
@@ -1560,9 +1662,16 @@ app.get("/api/cards/:id", async (req, res) => {
 
   if (!model) return res.status(404).json({ error: "Carta não encontrada." });
 
+  // Presença competitiva: em quantos decks públicos essa carta (qualquer impressão dela)
+  // aparece. Não depende de torneio, só do corpus de decks com visibility=PUBLIC.
+  const printIds = model.prints.map((print) => print.id);
+  const publicDeckCount = printIds.length
+    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { not: "token_reference" } } } } })
+    : 0;
+
   const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
   const { prints, ...modelFields } = model;
-  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints });
+  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, publicDeckCount });
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
@@ -1882,16 +1991,52 @@ app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), asy
   res.status(204).send();
 });
 
+// Fase B: congela a decklist de um Deck vivo numa DeckSnapshot (cópia imutável) --
+// chamado sempre que um deckId é vinculado a um resultado histórico (TournamentEntry)
+// ou travado num evento do Hoster (HostedEventParticipant), pra que editar/apagar o
+// Deck original depois não afete a lista que já foi exibida como "a decklist usada".
+async function createDeckSnapshot(deckId: string) {
+  const deck = await prisma.deck.findUnique({ where: { id: deckId }, include: { items: true } });
+  if (!deck) return null;
+  const snapshot = await prisma.deckSnapshot.create({
+    data: {
+      sourceDeckId: deck.id,
+      sourceUserId: deck.userId,
+      name: deck.name,
+      format: deck.format,
+      items: {
+        create: deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section })),
+      },
+    },
+  });
+  return snapshot.id;
+}
+
+// Entry inclui user (conta cadastrada, se vinculada) e deck (só o essencial pra link
+// público -- não o decklist inteiro) -- alimenta a fase 1 do hub de eventos: exibir
+// quem tem conta no site e qual deck foi usado, sem vazar dado sensível de usuário.
+// Fase B: deckSnapshot traz a decklist congelada no momento em que o deckId foi
+// vinculado, pra sobreviver a uma edição/exclusão do Deck original.
+const tournamentEntryInclude = {
+  entries: {
+    include: {
+      user: { select: { id: true, username: true, displayName: true } },
+      deck: { select: { id: true, name: true, shareId: true } },
+      deckSnapshot: { include: { items: { include: { card: true } } } },
+    },
+  },
+} as const;
+
 app.get("/api/tournaments", async (_req, res) => {
   setPublicCache(res, 20, 90);
-  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: { entries: true }, orderBy: [{ dateStart: "desc" }] });
+  const events = await prisma.tournament.findMany({ where: { isActive: true }, include: tournamentEntryInclude, orderBy: [{ dateStart: "desc" }] });
   res.json(events);
 });
 
 app.get("/api/tournaments/:id", async (req, res) => {
   setPublicCache(res, 20, 90);
   const id = String(req.params.id);
-  const event = await prisma.tournament.findUnique({ where: { id }, include: { entries: true } });
+  const event = await prisma.tournament.findUnique({ where: { id }, include: tournamentEntryInclude });
   if (!event) return res.status(404).json({ error: "Evento não encontrado." });
   res.json(event);
 });
@@ -1917,8 +2062,13 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
   const tournamentId = String(req.params.id);
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) return res.status(404).json({ error: "Evento não encontrado." });
-  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   if (!body.playerName?.trim()) return res.status(400).json({ error: "Nome do jogador é obrigatório." });
+  const deckId = body.deckId || null;
+  // Fase B: se um deckId foi informado, congela a decklist agora -- garante que o
+  // resultado histórico continue mostrando a lista usada mesmo se o deck for
+  // editado/apagado depois.
+  const deckSnapshotId = deckId ? await createDeckSnapshot(deckId) : null;
   const entry = await prisma.tournamentEntry.create({
     data: {
       tournamentId,
@@ -1928,7 +2078,9 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
       losses: body.losses ?? null,
       draws: body.draws ?? null,
       archetype: body.archetype?.trim() || null,
-      deckId: body.deckId || null,
+      deckId,
+      userId: body.userId || null,
+      deckSnapshotId,
     },
   });
   res.status(201).json(entry);
@@ -1938,7 +2090,13 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
   const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
   const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
   if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
-  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null };
+  const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
+  const nextDeckId = body.deckId === undefined ? existing.deckId : (body.deckId || null);
+  // Fase B: só gera uma nova snapshot quando o deckId muda de fato -- evita recongelar
+  // a decklist a cada edição de campo que não mexe no deck vinculado.
+  const deckSnapshotId = nextDeckId === existing.deckId
+    ? existing.deckSnapshotId
+    : (nextDeckId ? await createDeckSnapshot(nextDeckId) : null);
   const entry = await prisma.tournamentEntry.update({
     where: { id: entryId },
     data: {
@@ -1948,7 +2106,9 @@ app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([Use
       losses: body.losses === undefined ? existing.losses : body.losses,
       draws: body.draws === undefined ? existing.draws : body.draws,
       archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
-      deckId: body.deckId === undefined ? existing.deckId : (body.deckId || null),
+      deckId: nextDeckId,
+      userId: body.userId === undefined ? existing.userId : (body.userId || null),
+      deckSnapshotId,
     },
   });
   res.json(entry);
@@ -1962,6 +2122,373 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
   // projeto) — participante de torneio é registro de resultado histórico, não algo
   // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
   await prisma.tournamentEntry.delete({ where: { id: entryId } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Eventos ao vivo organizados por um Hoster (fase A) — diferente do Tournament
+ * acima, que é um report retroativo cadastrado pelo admin. Aqui é o dono do
+ * evento (isHoster=true ou ADMIN) quem cria/edita/cancela. Participantes, trava
+ * de deck e rodadas/pontuação entram em fases seguintes deste recurso.
+ * ------------------------------------------------------------------------- */
+
+// Fase B: participante de um HostedEvent -- sempre um usuário cadastrado no site
+// (diferente do TournamentEntry de report, que aceita jogador convidado sem conta).
+// A trava de deck é definitiva: uma vez que deckLockedAt é preenchido, o endpoint de
+// travar deck passa a recusar (409) qualquer nova tentativa pro mesmo participante --
+// "uma vez escolhido o deck, não pode mais ser desfeito", conforme pedido.
+const hostedEventParticipantInclude = {
+  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+  deck: { select: { id: true, name: true, shareId: true } },
+  deckSnapshot: { include: { items: { include: { card: true } } } },
+} as const;
+
+// Fase C: participante enxuto (só id + usuário) pra exibir num confronto -- os dados
+// completos (deck/deckSnapshot) já vêm pela lista de participants do próprio evento,
+// não precisa duplicar aqui.
+const hostedEventMatchInclude = {
+  participantA: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+  participantB: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+} as const;
+
+const hostedEventRoundInclude = {
+  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" as const }, { createdAt: "asc" as const }] },
+} as const;
+
+const hostedEventOwnerInclude = {
+  hoster: { select: { id: true, username: true, displayName: true } },
+  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
+  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
+} as const;
+
+async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
+  const event = await prisma.hostedEvent.findFirst({ where: { id, isActive: true }, include: hostedEventOwnerInclude });
+  if (!event) {
+    res.status(404).json({ error: "Evento não encontrado." });
+    return null;
+  }
+  if (event.hosterId !== req.user!.userId && req.user!.role !== UserRole.ADMIN) {
+    res.status(403).json({ error: "Sem permissão sobre este evento." });
+    return null;
+  }
+  return event;
+}
+
+app.get("/api/hosted-events/mine", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  setPrivateCache(res, 5, 20);
+  const events = await prisma.hostedEvent.findMany({
+    where: { hosterId: req.user!.userId, isActive: true },
+    include: hostedEventOwnerInclude,
+    orderBy: [{ dateStart: "desc" }],
+  });
+  res.json(events);
+});
+
+app.get("/api/hosted-events/admin", authRequired, roleRequired([UserRole.ADMIN]), async (_req, res) => {
+  setPrivateCache(res, 5, 20);
+  const events = await prisma.hostedEvent.findMany({ where: { isActive: true }, include: hostedEventOwnerInclude, orderBy: [{ dateStart: "desc" }] });
+  res.json(events);
+});
+
+app.get("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  res.json(event);
+});
+
+app.post("/api/hosted-events", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const body = req.body as {
+    name?: string; description?: string | null; format?: string; venueName?: string | null;
+    city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
+    maxPlayers?: number | null; status?: HostedEventStatus;
+  };
+  if (!body.name?.trim()) return res.status(400).json({ error: "Nome do evento é obrigatório." });
+  if (!body.dateStart) return res.status(400).json({ error: "Data/hora de início é obrigatória." });
+  const event = await prisma.hostedEvent.create({
+    data: {
+      hosterId: req.user!.userId,
+      name: body.name.trim(),
+      description: body.description?.trim() || null,
+      format: body.format?.trim() || "constructed",
+      venueName: body.venueName?.trim() || null,
+      city: body.city?.trim() || null,
+      country: body.country?.trim() || null,
+      dateStart: new Date(body.dateStart),
+      dateEnd: body.dateEnd ? new Date(body.dateEnd) : null,
+      maxPlayers: body.maxPlayers ?? null,
+      status: body.status ?? HostedEventStatus.DRAFT,
+    },
+    include: hostedEventOwnerInclude,
+  });
+  res.status(201).json(event);
+});
+
+app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const existing = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!existing) return;
+  const body = req.body as {
+    name?: string; description?: string | null; format?: string; venueName?: string | null;
+    city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
+    maxPlayers?: number | null; status?: HostedEventStatus;
+  };
+  const event = await prisma.hostedEvent.update({
+    where: { id: existing.id },
+    data: {
+      name: body.name?.trim() || existing.name,
+      description: body.description === undefined ? existing.description : (body.description?.trim() || null),
+      format: body.format?.trim() || existing.format,
+      venueName: body.venueName === undefined ? existing.venueName : (body.venueName?.trim() || null),
+      city: body.city === undefined ? existing.city : (body.city?.trim() || null),
+      country: body.country === undefined ? existing.country : (body.country?.trim() || null),
+      dateStart: body.dateStart ? new Date(body.dateStart) : existing.dateStart,
+      dateEnd: body.dateEnd === undefined ? existing.dateEnd : (body.dateEnd ? new Date(body.dateEnd) : null),
+      maxPlayers: body.maxPlayers === undefined ? existing.maxPlayers : body.maxPlayers,
+      status: body.status ?? existing.status,
+    },
+    include: hostedEventOwnerInclude,
+  });
+  res.json(event);
+});
+
+app.delete("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const existing = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!existing) return;
+  await prisma.hostedEvent.update({ where: { id: existing.id }, data: { isActive: false, deletedAt: new Date(), status: HostedEventStatus.CANCELLED } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Fase B -- participantes de um HostedEvent e trava de deck. Adicionar/remover
+ * participante e travar o deck só o dono do evento (ou ADMIN) pode fazer, via
+ * loadOwnedHostedEvent. A trava em si é de mão única (ver comentário acima de
+ * hostedEventParticipantInclude).
+ * ------------------------------------------------------------------------- */
+
+app.post("/api/hosted-events/:id/participants", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const body = req.body as { userId?: string };
+  if (!body.userId) return res.status(400).json({ error: "Usuário é obrigatório." });
+  const user = await prisma.user.findUnique({ where: { id: body.userId } });
+  if (!user || !user.isActive) return res.status(404).json({ error: "Usuário não encontrado." });
+  if (event.maxPlayers) {
+    const count = await prisma.hostedEventParticipant.count({ where: { eventId: event.id } });
+    if (count >= event.maxPlayers) return res.status(409).json({ error: "Limite de jogadores do evento já foi atingido." });
+  }
+  try {
+    const participant = await prisma.hostedEventParticipant.create({
+      data: { eventId: event.id, userId: body.userId },
+      include: hostedEventParticipantInclude,
+    });
+    res.status(201).json(participant);
+  } catch (err: any) {
+    if (err?.code === "P2002") return res.status(409).json({ error: "Esse jogador já está inscrito neste evento." });
+    throw err;
+  }
+});
+
+app.delete("/api/hosted-events/:id/participants/:participantId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const participant = await prisma.hostedEventParticipant.findFirst({ where: { id: String(req.params.participantId), eventId: event.id } });
+  if (!participant) return res.status(404).json({ error: "Participante não encontrado." });
+  // Deck já travado -- o resultado passa a fazer parte do histórico do evento e não
+  // pode mais sumir do registro (mesma lógica de "não pode ser desfeito" da trava).
+  if (participant.deckLockedAt) return res.status(403).json({ error: "Não é possível remover um participante com deck já travado." });
+  // Fase C: idem se o participante já tem confronto registrado (mesmo sem resultado
+  // lançado ainda) -- remover ia deixar HostedEventMatch.participantAId/BId órfão de
+  // sentido na tabela de rodadas.
+  const matchCount = await prisma.hostedEventMatch.count({
+    where: { OR: [{ participantAId: participant.id }, { participantBId: participant.id }] },
+  });
+  if (matchCount > 0) return res.status(403).json({ error: "Não é possível remover um participante que já está em algum confronto." });
+  await prisma.hostedEventParticipant.delete({ where: { id: participant.id } });
+  res.status(204).send();
+});
+
+app.post("/api/hosted-events/:id/participants/:participantId/deck", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const participant = await prisma.hostedEventParticipant.findFirst({ where: { id: String(req.params.participantId), eventId: event.id } });
+  if (!participant) return res.status(404).json({ error: "Participante não encontrado." });
+  if (participant.deckLockedAt) return res.status(409).json({ error: "O deck deste participante já foi travado e não pode mais ser alterado." });
+  const body = req.body as { deckId?: string };
+  if (!body.deckId) return res.status(400).json({ error: "Deck é obrigatório." });
+  const deck = await prisma.deck.findUnique({ where: { id: body.deckId } });
+  // Só decks públicos do próprio participante podem ser travados -- o Hoster não tem
+  // acesso a decks privados de terceiros (mesma regra do perfil público /u/:username).
+  if (!deck || deck.userId !== participant.userId || deck.visibility !== "PUBLIC") {
+    return res.status(404).json({ error: "Deck não encontrado no perfil público deste jogador." });
+  }
+  const deckSnapshotId = await createDeckSnapshot(deck.id);
+  const updated = await prisma.hostedEventParticipant.update({
+    where: { id: participant.id },
+    data: { deckId: deck.id, deckSnapshotId, deckLockedAt: new Date() },
+    include: hostedEventParticipantInclude,
+  });
+  res.json(updated);
+});
+
+/* ---------------------------------------------------------------------------
+ * Fase C -- rodadas, confrontos e classificação de um HostedEvent. Pareamento e
+ * lançamento de resultado são manuais (o Hoster monta os confrontos e digita quem
+ * ganhou); o schema comporta um pareamento automático (Swiss) no futuro sem precisar
+ * ser reescrito. participantBId nulo = bye, que já nasce com resultado BYE fixo.
+ * ------------------------------------------------------------------------- */
+
+// Pontuação padrão de TCG: vitória=3, empate=1, derrota=0. Bye conta como vitória
+// automática (3 pts) sem afetar estatística de mais ninguém, já que não existe um
+// adversário de verdade. Fixo pro MVP (não configurável por evento ainda).
+const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
+
+async function computeHostedEventStandings(eventId: string) {
+  const participants = await prisma.hostedEventParticipant.findMany({
+    where: { eventId },
+    select: { id: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+  });
+  type Row = { participantId: string; user: (typeof participants)[number]["user"]; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
+  const stats = new Map<string, Row>();
+  for (const p of participants) {
+    stats.set(p.id, { participantId: p.id, user: p.user, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
+  }
+  const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
+  for (const m of matches) {
+    const a = stats.get(m.participantAId);
+    const b = m.participantBId ? stats.get(m.participantBId) : null;
+    if (!a) continue;
+    if (m.result === HostedEventMatchResult.BYE) {
+      a.points += HOSTED_EVENT_POINTS.win;
+      a.wins += 1;
+      a.byes += 1;
+      a.played += 1;
+    } else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) {
+      a.points += HOSTED_EVENT_POINTS.win;
+      a.wins += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.loss; b.losses += 1; b.played += 1; }
+    } else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) {
+      a.points += HOSTED_EVENT_POINTS.loss;
+      a.losses += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.win; b.wins += 1; b.played += 1; }
+    } else if (m.result === HostedEventMatchResult.DRAW) {
+      a.points += HOSTED_EVENT_POINTS.draw;
+      a.draws += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.draw; b.draws += 1; b.played += 1; }
+    }
+    // PENDING: confronto ainda sem resultado lançado, não conta pra classificação.
+  }
+  return Array.from(stats.values()).sort((x, y) => y.points - x.points || y.wins - x.wins || x.losses - y.losses);
+}
+
+app.get("/api/hosted-events/:id/standings", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const standings = await computeHostedEventStandings(event.id);
+  res.json(standings);
+});
+
+app.post("/api/hosted-events/:id/rounds", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const last = await prisma.hostedEventRound.findFirst({ where: { eventId: event.id }, orderBy: [{ roundNumber: "desc" }] });
+  const round = await prisma.hostedEventRound.create({
+    data: { eventId: event.id, roundNumber: (last?.roundNumber ?? 0) + 1 },
+    include: hostedEventRoundInclude,
+  });
+  res.status(201).json(round);
+});
+
+app.put("/api/hosted-events/:id/rounds/:roundId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const body = req.body as { status?: HostedEventRoundStatus };
+  if (!body.status) return res.status(400).json({ error: "Status é obrigatório." });
+  const updated = await prisma.hostedEventRound.update({ where: { id: round.id }, data: { status: body.status }, include: hostedEventRoundInclude });
+  res.json(updated);
+});
+
+app.delete("/api/hosted-events/:id/rounds/:roundId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id }, include: { matches: true } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  // Impede apagar uma rodada com resultado já lançado -- os pontos já contam pra
+  // classificação, apagar silenciosamente reescreveria o histórico do evento.
+  if (round.matches.some((m) => m.result !== HostedEventMatchResult.PENDING)) {
+    return res.status(409).json({ error: "Não é possível remover uma rodada com resultados já lançados." });
+  }
+  await prisma.hostedEventRound.delete({ where: { id: round.id } });
+  res.status(204).send();
+});
+
+app.post("/api/hosted-events/:id/rounds/:roundId/matches", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const body = req.body as { participantAId?: string; participantBId?: string | null; tableNumber?: number | null };
+  if (!body.participantAId) return res.status(400).json({ error: "Participante A é obrigatório." });
+  if (body.participantBId && body.participantAId === body.participantBId) {
+    return res.status(400).json({ error: "Os dois participantes do confronto precisam ser diferentes." });
+  }
+  const participantIds = [body.participantAId, body.participantBId].filter((v): v is string => !!v);
+  const participants = await prisma.hostedEventParticipant.findMany({ where: { id: { in: participantIds }, eventId: event.id } });
+  if (participants.length !== participantIds.length) return res.status(404).json({ error: "Participante não encontrado neste evento." });
+  // Cada participante só pode aparecer em um confronto por rodada.
+  const alreadyPaired = await prisma.hostedEventMatch.findFirst({
+    where: { roundId: round.id, OR: [{ participantAId: { in: participantIds } }, { participantBId: { in: participantIds } }] },
+  });
+  if (alreadyPaired) return res.status(409).json({ error: "Um dos participantes já está em outro confronto nesta rodada." });
+  const match = await prisma.hostedEventMatch.create({
+    data: {
+      roundId: round.id,
+      tableNumber: body.tableNumber ?? null,
+      participantAId: body.participantAId,
+      participantBId: body.participantBId || null,
+      // Sem adversário = bye -- já nasce com resultado definido (vitória automática).
+      result: body.participantBId ? HostedEventMatchResult.PENDING : HostedEventMatchResult.BYE,
+      reportedAt: body.participantBId ? null : new Date(),
+    },
+    include: hostedEventMatchInclude,
+  });
+  res.status(201).json(match);
+});
+
+app.put("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const match = await prisma.hostedEventMatch.findFirst({ where: { id: String(req.params.matchId), roundId: round.id } });
+  if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
+  const body = req.body as { tableNumber?: number | null; result?: HostedEventMatchResult };
+  const data: Prisma.HostedEventMatchUpdateInput = {};
+  if (body.tableNumber !== undefined) data.tableNumber = body.tableNumber;
+  if (body.result !== undefined) {
+    // Bye (sem participantB) só pode continuar BYE -- não faz sentido lançar
+    // vitória/derrota/empate pra um confronto sem adversário de verdade.
+    if (!match.participantBId && body.result !== HostedEventMatchResult.BYE) {
+      return res.status(400).json({ error: "Confronto sem adversário só pode ter resultado de bye." });
+    }
+    data.result = body.result;
+    data.reportedAt = body.result === HostedEventMatchResult.PENDING ? null : new Date();
+  }
+  const updated = await prisma.hostedEventMatch.update({ where: { id: match.id }, data, include: hostedEventMatchInclude });
+  res.json(updated);
+});
+
+app.delete("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const match = await prisma.hostedEventMatch.findFirst({ where: { id: String(req.params.matchId), roundId: round.id } });
+  if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
+  await prisma.hostedEventMatch.delete({ where: { id: match.id } });
   res.status(204).send();
 });
 

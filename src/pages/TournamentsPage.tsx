@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "wouter";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,15 @@ export default function TournamentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Panorama combinado de todos os eventos ativos -- meta geral e composição
+  // registrado/convidado. Não calcula taxa de vitória real (deferido de propósito,
+  // ver docs/16-roadmap-ideias-mapeadas.md): só o que dá pra tirar de dado cadastrado
+  // sem inventar métrica (mesmo critério do archetypeBreakdown por evento, acima).
+  const allEntries = useMemo(() => tournaments.flatMap((tournament) => tournament.entries || []), [tournaments]);
+  const overallBreakdown = useMemo(() => archetypeBreakdown(allEntries), [allEntries]);
+  const registeredCount = allEntries.filter((entry) => entry.user).length;
+  const deckLinkedCount = allEntries.filter((entry) => entry.deck).length;
+
   return (
     <PublicShell
       breadcrumbs={[{ label: "Eventos" }]}
@@ -52,6 +62,50 @@ export default function TournamentsPage() {
         {loading ? <p className="text-sm text-slate-400">Carregando eventos...</p> : null}
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
         {!loading && !error && !tournaments.length ? <p className="text-sm text-slate-400">Nenhum evento cadastrado ainda.</p> : null}
+
+        {!loading && !error && tournaments.length ? (
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Panorama geral</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Eventos</p>
+                  <p className="mt-2 font-heading text-3xl leading-none dark:text-white light:text-slate-900">{tournaments.length}</p>
+                </div>
+                <div className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Participações registradas</p>
+                  <p className="mt-2 font-heading text-3xl leading-none dark:text-white light:text-slate-900">{allEntries.length}</p>
+                </div>
+                <div className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Com conta no site</p>
+                  <p className="mt-2 font-heading text-3xl leading-none dark:text-white light:text-slate-900">{registeredCount}{allEntries.length ? <span className="ml-2 text-sm text-slate-500">({Math.round((registeredCount / allEntries.length) * 100)}%)</span> : null}</p>
+                </div>
+                <div className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Com deck vinculado</p>
+                  <p className="mt-2 font-heading text-3xl leading-none dark:text-white light:text-slate-900">{deckLinkedCount}{allEntries.length ? <span className="ml-2 text-sm text-slate-500">({Math.round((deckLinkedCount / allEntries.length) * 100)}%)</span> : null}</p>
+                </div>
+              </div>
+
+              {overallBreakdown.length ? (
+                <div className="mt-6">
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Meta geral · arquétipos declarados em todos os eventos</p>
+                  <div className="mt-3 grid gap-4 2xl:grid-cols-3">
+                    {overallBreakdown.slice(0, 6).map((item) => (
+                      <div key={item.archetype} className="panel-cut border surface-strong p-4 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="font-heading text-2xl uppercase leading-none dark:text-white light:text-slate-900">{item.archetype}</p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <Progress value={item.share} className="h-2 rounded-none bg-slate-800 light:bg-slate-200" />
+                          <span className="text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">{item.share}%</span>
+                        </div>
+                        <p className="mt-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-600">{item.count} entrada(s){item.bestPlacement ? ` · melhor colocação: ${item.bestPlacement}º` : ""}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {tournaments.map((tournament) => {
           const entries: any[] = tournament.entries || [];
@@ -95,6 +149,28 @@ export default function TournamentsPage() {
                 ) : (
                   <p className="mt-6 text-sm text-slate-500">Sem arquétipo declarado pelos participantes ainda.</p>
                 )}
+
+                {entries.length ? (
+                  <div className="mt-6 space-y-2 border-t border-white/10 pt-6">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Participantes</p>
+                    <div className="grid gap-2 lg:grid-cols-2">
+                      {[...entries].sort((a, b) => (a.placement ?? Infinity) - (b.placement ?? Infinity)).map((entry) => (
+                        <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 border border-white/10 bg-slate-950/40 px-3 py-2 text-sm light:border-slate-300/80 light:bg-slate-50">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-slate-500">{entry.placement ? `${entry.placement}º` : "—"}</span>
+                            {entry.user ? (
+                              <Link href={`/u/${entry.user.username}`} className="text-slate-200 hover:underline dark:text-slate-200 light:text-slate-800">{entry.playerName}</Link>
+                            ) : (
+                              <span className="text-slate-300 dark:text-slate-300 light:text-slate-700">{entry.playerName}</span>
+                            )}
+                            {entry.archetype ? <span className="text-xs text-slate-500">· {entry.archetype}</span> : null}
+                          </div>
+                          {entry.deck ? <Link href={`/deck/${entry.deck.shareId}`} className="text-xs uppercase tracking-[0.14em] text-primary hover:underline">Ver deck</Link> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           );

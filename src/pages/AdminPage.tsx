@@ -1,6 +1,6 @@
 /* Admin v9.4 — parserização semântica + validação robusta + modal redesenhada. */
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, Search, Star, Trash2, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, RotateCcw, Search, Star, Trash2, Upload, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
  
@@ -13,17 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { api } from "@/lib/api";
+import { api, type ApiDeck } from "@/lib/api";
 import { extractLinkSuggestions, getKeywordIcon, getKeywordStyleClass, parseCardEffects } from "@/lib/gundam-card-effects";
 import { AP_HP_OPTIONS, ART_RARITY_OPTIONS, CARD_TYPE_OPTIONS, COLOR_OPTIONS, COST_LEVEL_OPTIONS, LINK_SUGGESTION_TRAITS, PRODUCT_TYPE_OPTIONS, RARITY_OPTIONS, SOURCE_TITLE_OPTIONS, TRAIT_OPTIONS } from "@/lib/gundam-catalog";
  
 /* ── Tipos ─────────────────────────────────────────────────────────────── */
  
-type AdminUser = { id: string; displayName: string; email: string; role: string; isActive: boolean };
+type AdminUser = { id: string; displayName: string; email: string; username: string; role: string; isActive: boolean; isHoster?: boolean };
 type AdminSet = any;
 type AdminCard = any;
 type AdminRuling = any;
-type AdminTaxonomy = { id: string; kind: "TRAIT" | "SOURCE_TITLE"; name: string; description?: string | null };
+type AdminTaxonomy = { id: string; kind: "TRAIT" | "SOURCE_TITLE"; name: string; description?: string | null; coverImage?: string | null; officialUrl?: string | null; metadataJson?: any; isActive?: boolean };
 type CardFilterOptions = { colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; traits: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string }>; missingRelationCounts: { PILOT: number; UNIT: number; COMMAND: number } };
 type ActiveCardFilter = { key: keyof CardCatalogQuery; label: string; value: string };
 type CardCatalogQuery = { q: string; color: string; cardType: string; setCode: string; rarity: string; ap: string; hp: string; cost: string; level: string; trait: string; media: string; link: string; relation: string; status: string; sort: string; page: number; pageSize: number };
@@ -98,10 +98,11 @@ const RELATION_TYPE_HINTS: Record<string, string> = {
   STORY_RELATED: "Sem direção fixa. Aparecem juntas na narrativa do anime/mangá (rivais, aliados, família) mas sem nenhuma mecânica de jogo em comum. Última opção — prefira um tipo mais específico se ele se aplicar.",
 };
  
-const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" }; 
+const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" };
+const emptyTaxonomyForm = { id: "", kind: "TRAIT" as "TRAIT" | "SOURCE_TITLE", name: "", description: "", coverImage: "", galleryImages: [] as string[], officialUrl: "" };
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
 const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
-const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "" };
+const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "", userId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
 const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
  
@@ -158,7 +159,13 @@ function mapCardArts(card?: AdminCard) {
 function mapSetToForm(set?: AdminSet) {
   if (!set) return emptySetForm;
   const galleryImages = Array.isArray(set.metadataJson?.galleryImages) ? set.metadataJson.galleryImages.filter((item: unknown) => typeof item === "string") : (set.coverImage ? [set.coverImage] : []);
-  return { id: set.id, code: set.code, nameEn: set.nameEn || "", namePt: set.namePt || "", officialUrl: set.officialUrl || "", coverImage: set.coverImage || galleryImages[0] || "", galleryImages, releaseDate: set.releaseDate ? new Date(set.releaseDate).toISOString().slice(0, 10) : "", shortDescription: set.shortDescription || "", setType: set.setType || "BOOSTER_PACK", productCodeAlt: set.productCodeAlt || "", msrpUsd: set.msrpUsd != null ? String(set.msrpUsd) : "", contentSummaryPt: set.contentSummaryPt || "", contentSummaryEn: set.contentSummaryEn || "", raritySummary: set.raritySummary || "", productNotes: set.productNotes || "", sourceTitles: arrayToCsv(set.sourceTitles) }; 
+  return { id: set.id, code: set.code, nameEn: set.nameEn || "", namePt: set.namePt || "", officialUrl: set.officialUrl || "", coverImage: set.coverImage || galleryImages[0] || "", galleryImages, releaseDate: set.releaseDate ? new Date(set.releaseDate).toISOString().slice(0, 10) : "", shortDescription: set.shortDescription || "", setType: set.setType || "BOOSTER_PACK", productCodeAlt: set.productCodeAlt || "", msrpUsd: set.msrpUsd != null ? String(set.msrpUsd) : "", contentSummaryPt: set.contentSummaryPt || "", contentSummaryEn: set.contentSummaryEn || "", raritySummary: set.raritySummary || "", productNotes: set.productNotes || "", sourceTitles: arrayToCsv(set.sourceTitles) };
+}
+
+function mapTaxonomyToForm(entry?: AdminTaxonomy) {
+  if (!entry) return emptyTaxonomyForm;
+  const galleryImages = Array.isArray(entry.metadataJson?.galleryImages) ? entry.metadataJson.galleryImages.filter((item: unknown) => typeof item === "string") : (entry.coverImage ? [entry.coverImage] : []);
+  return { id: entry.id, kind: entry.kind, name: entry.name || "", description: entry.description || "", coverImage: entry.coverImage || galleryImages[0] || "", galleryImages, officialUrl: entry.officialUrl || "" };
 }
  
 function mapCardToForm(card?: AdminCard): CardForm {
@@ -279,6 +286,12 @@ export default function AdminPage() {
  
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sets, setSets] = useState<AdminSet[]>([]);
+  // Versões de gestão (incluem ocultados) usadas só nas abas Coleções/Traits/Séries do
+  // admin -- `sets`/`taxonomies` acima continuam só-ativos, porque também alimentam
+  // dropdowns/autocomplete em outras abas (ex: seletor de coleção da carta) onde um
+  // registro oculto não deveria aparecer como opção.
+  const [adminSets, setAdminSets] = useState<AdminSet[]>([]);
+  const [adminTaxonomies, setAdminTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [cards, setCards] = useState<AdminCard[]>([]);
   const [cardTotal, setCardTotal] = useState(0);
   const [cardTotalPages, setCardTotalPages] = useState(1);
@@ -287,6 +300,7 @@ export default function AdminPage() {
   const [cardFiltersError, setCardFiltersError] = useState<string | null>(null);
   const [rules, setRules] = useState<AdminRuling[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [publicDecks, setPublicDecks] = useState<ApiDeck[]>([]);
   const [banGroups, setBanGroups] = useState<Array<{ id: string; label: string; maxDistinct: number }>>([]);
   const [tournamentForm, setTournamentForm] = useState(emptyTournamentForm);
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
@@ -296,7 +310,8 @@ export default function AdminPage() {
   const [setForm, setSetForm] = useState(emptySetForm);
   const [cardForm, setCardForm] = useState<CardForm>(emptyCardForm);
   const [ruleForm, setRuleForm] = useState(emptyRuleForm);
-  const [taxonomyForm, setTaxonomyForm] = useState({ kind: "TRAIT" as "TRAIT" | "SOURCE_TITLE", name: "", description: "" });
+  const [taxonomyForm, setTaxonomyForm] = useState(emptyTaxonomyForm);
+  const [taxonomyModalOpen, setTaxonomyModalOpen] = useState(false);
   const [setModalOpen, setSetModalOpen] = useState(false);
   const [cardModalOpen, setCardModalOpen] = useState(false);
   const [setSearch, setSetSearch] = useState("");
@@ -310,6 +325,7 @@ export default function AdminPage() {
   const [relationDraft, setRelationDraft] = useState({ targetCardId: "", relationType: "PILOT_OF", notePt: "", sourceUrl: "" });
   const artUploadInputRef = useRef<HTMLInputElement | null>(null);
   const setGalleryUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const taxonomyGalleryUploadInputRef = useRef<HTMLInputElement | null>(null);
  
   const loadAdminCards = async () => {
     const { page, pageSize, ...filters } = cardQuery;
@@ -339,16 +355,19 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listRulings(), api.listTaxonomies(), api.listTournaments(), api.getDeckLegalityData()]);
-      const [usersResult, setsResult, rulesResult, taxonomiesResult, tournamentsResult, legalityResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listAdminSets(), api.listRulings(), api.listTaxonomies(), api.listAdminTaxonomies(), api.listTournaments(), api.getDeckLegalityData(), api.listPublicDecks()]);
+      const [usersResult, setsResult, adminSetsResult, rulesResult, taxonomiesResult, adminTaxonomiesResult, tournamentsResult, legalityResult, publicDecksResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
+      if (adminSetsResult.status === "fulfilled") setAdminSets(adminSetsResult.value);
       if (rulesResult.status === "fulfilled") setRules(rulesResult.value);
       if (taxonomiesResult.status === "fulfilled") setTaxonomies(taxonomiesResult.value);
+      if (adminTaxonomiesResult.status === "fulfilled") setAdminTaxonomies(adminTaxonomiesResult.value);
       if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
       if (legalityResult.status === "fulfilled") setBanGroups(legalityResult.value.banGroups);
+      if (publicDecksResult.status === "fulfilled") setPublicDecks(publicDecksResult.value);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "rulings", "taxonomias", "eventos", "grupos de banimento"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "coleções (gestão)", "rulings", "taxonomias", "taxonomias (gestão)", "eventos", "grupos de banimento", "decks públicos"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -370,7 +389,7 @@ export default function AdminPage() {
   }, [cardQuery, user?.role]);
 
  
-  const visibleSets = useMemo(() => { const term = setSearch.trim().toLowerCase(); return term ? sets.filter((set) => [set.code, set.namePt, set.nameEn, set.setType].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : sets; }, [setSearch, sets]);
+  const visibleSets = useMemo(() => { const term = setSearch.trim().toLowerCase(); return term ? adminSets.filter((set) => [set.code, set.namePt, set.nameEn, set.setType].filter(Boolean).some((item) => String(item).toLowerCase().includes(term))) : adminSets; }, [setSearch, adminSets]);
   const availableCardFilters = useMemo<CardFilterOptions>(() => ({
     colors: Array.from(new Set([...COLOR_OPTIONS, ...cardFilterOptions.colors])).filter(Boolean).sort(),
     cardTypes: CATALOG_CARD_TYPE_FILTERS.map((item) => item.value),
@@ -638,10 +657,14 @@ export default function AdminPage() {
   };
 
   const deleteSet = async (set: AdminSet) => {
-    if (!window.confirm(`Excluir ${set.code}?`)) return;
+    if (!window.confirm(`Ocultar ${set.code}? As cartas dela continuam existindo, só some das listagens públicas -- dá pra reativar depois.`)) return;
     await api.deleteSet(set.id); await loadAll(); await loadAdminCards(); toast.success("Coleção ocultada. O registro foi preservado.");
   };
- 
+
+  const restoreSet = async (set: AdminSet) => {
+    await api.updateSet(set.id, { isActive: true }); await loadAll(); await loadAdminCards(); toast.success("Coleção reativada.");
+  };
+
   const deleteCard = async (card: AdminCard) => {
     if (!window.confirm(`Excluir ${card.code}?`)) return;
     await api.deleteCard(card.id); await loadAll(); await loadAdminCards(); toast.success("Carta ocultada. O registro foi preservado.");
@@ -689,7 +712,7 @@ export default function AdminPage() {
     setEntryForm(entry ? {
       playerName: entry.playerName || "", placement: entry.placement != null ? String(entry.placement) : "",
       wins: entry.wins != null ? String(entry.wins) : "", losses: entry.losses != null ? String(entry.losses) : "", draws: entry.draws != null ? String(entry.draws) : "",
-      archetype: entry.archetype || "", deckId: entry.deckId || "",
+      archetype: entry.archetype || "", deckId: entry.deckId || "", userId: entry.userId || entry.user?.id || "",
     } : emptyEntryForm);
   };
   const saveEntry = async () => {
@@ -703,6 +726,7 @@ export default function AdminPage() {
       draws: entryForm.draws ? Number(entryForm.draws) : null,
       archetype: entryForm.archetype.trim() || null,
       deckId: entryForm.deckId || null,
+      userId: entryForm.userId || null,
     };
     try {
       if (editingEntryId) await api.updateTournamentEntry(selectedTournamentId, editingEntryId, payload);
@@ -720,19 +744,62 @@ export default function AdminPage() {
     toast.success("Participante removido.");
   };
 
+  const openTaxonomyModal = (entry?: AdminTaxonomy) => { setTaxonomyForm(entry ? mapTaxonomyToForm(entry) : { ...emptyTaxonomyForm, kind: isMediaManagement ? "SOURCE_TITLE" : "TRAIT" }); setTaxonomyModalOpen(true); };
+
+  const handleTaxonomyGalleryUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setSaving(true);
+    try {
+      const uploadedUrls = await Promise.all(files.map(async (file) => {
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("entity", "media");
+        formData.append("referenceCode", taxonomyForm.name || "media");
+        formData.append("label", "gallery");
+        return (await api.uploadAssetImage(formData)).imageUrl;
+      }));
+      setTaxonomyForm((current) => {
+        const galleryImages = [...current.galleryImages, ...uploadedUrls];
+        return { ...current, galleryImages, coverImage: current.coverImage || galleryImages[0] || "" };
+      });
+      toast.success(`${uploadedUrls.length} imagem(ns) adicionada(s) à galeria.`);
+    } catch (err: any) { toast.error(err?.message || "Erro ao enviar imagens da mídia."); }
+    finally { if (event.target) event.target.value = ""; setSaving(false); }
+  };
+
   const saveTaxonomy = async () => {
     if (!taxonomyForm.name.trim()) { toast.error("Nome é obrigatório."); return; }
-    await api.createTaxonomy({ kind: taxonomyForm.kind, name: taxonomyForm.name.trim(), description: taxonomyForm.description.trim() || null });
-    setTaxonomyForm({ kind: taxonomyForm.kind, name: "", description: "" });
-    await loadAll(); await loadAdminCards();
-    toast.success(taxonomyForm.kind === "TRAIT" ? "Trait cadastrada." : "Mídia cadastrada.");
+    setSaving(true);
+    try {
+      const payload = {
+        kind: taxonomyForm.kind,
+        name: taxonomyForm.name.trim(),
+        description: taxonomyForm.description.trim() || null,
+        coverImage: taxonomyForm.kind === "SOURCE_TITLE" ? (taxonomyForm.coverImage.trim() || taxonomyForm.galleryImages[0] || null) : null,
+        officialUrl: taxonomyForm.kind === "SOURCE_TITLE" ? (taxonomyForm.officialUrl.trim() || null) : null,
+        metadataJson: taxonomyForm.kind === "SOURCE_TITLE" ? { galleryImages: taxonomyForm.galleryImages.filter(Boolean) } : null,
+      };
+      if (taxonomyForm.id) await api.updateTaxonomy(taxonomyForm.id, payload); else await api.createTaxonomy(payload);
+      setTaxonomyModalOpen(false); setTaxonomyForm(emptyTaxonomyForm);
+      await loadAll(); await loadAdminCards();
+      toast.success(taxonomyForm.id ? "Registro atualizado." : (taxonomyForm.kind === "TRAIT" ? "Trait cadastrada." : "Mídia cadastrada."));
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar registro.");
+    } finally { setSaving(false); }
   };
 
   const deleteTaxonomy = async (entry: AdminTaxonomy) => {
-    if (!window.confirm(`Excluir ${entry.name}?`)) return;
+    if (!window.confirm(`Ocultar ${entry.name}? Dá pra reativar depois.`)) return;
     await api.deleteTaxonomy(entry.id);
     await loadAll(); await loadAdminCards();
     toast.success("Registro ocultado. O dado foi preservado.");
+  };
+
+  const restoreTaxonomy = async (entry: AdminTaxonomy) => {
+    await api.updateTaxonomy(entry.id, { isActive: true });
+    await loadAll(); await loadAdminCards();
+    toast.success("Registro reativado.");
   };
 
  
@@ -816,12 +883,14 @@ export default function AdminPage() {
           </TabsContent>
  
           <TabsContent value="sets">
-            <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><SectionTitle title="Coleções e produtos" description="Produtos cadastrados como booster, starter deck, promo pack ou evento com campos próprios." /><div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={setSearch} onChange={(e) => setSetSearch(e.target.value)} placeholder="Buscar por código, nome ou categoria" className="rounded-none pl-9" /></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openSetModal()}><Plus className="mr-2 size-4" />Nova coleção</Button></div></div><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Lançamento</th><th className="px-4 py-3">MSRP</th><th className="px-4 py-3">Cartas</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{visibleSets.map((set) => <tr key={set.id} className="border-t border-white/10 align-top"><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-24 overflow-hidden border border-white/10 bg-slate-950/60">{set.coverImage ? <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{set.code}{set.productCodeAlt ? ` · ${set.productCodeAlt}` : ""}</p><p className="mt-1 font-medium">{set.namePt || set.nameEn}</p><p className="text-xs text-slate-500">{set.sourceTitles?.join(", ") || "sem obras vinculadas"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{set.setType || "OTHER"}</Badge></td><td className="px-4 py-4">{set.releaseDate ? new Date(set.releaseDate).toLocaleDateString("pt-BR") : "—"}</td><td className="px-4 py-4">{set.msrpUsd != null ? `US$ ${set.msrpUsd.toFixed(2)}` : "—"}</td><td className="px-4 py-4">{set._count?.cards ?? 0}</td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openSetModal(set)}><Pencil className="size-4" /></Button><Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteSet(set)}><Trash2 className="size-4" /></Button></div></td></tr>)}</tbody></table></div></CardContent></Card>
+            <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><SectionTitle title="Coleções e produtos" description="Produtos cadastrados como booster, starter deck, promo pack ou evento com campos próprios." /><div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={setSearch} onChange={(e) => setSetSearch(e.target.value)} placeholder="Buscar por código, nome ou categoria" className="rounded-none pl-9" /></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openSetModal()}><Plus className="mr-2 size-4" />Nova coleção</Button></div></div><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Lançamento</th><th className="px-4 py-3">MSRP</th><th className="px-4 py-3">Cartas</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{visibleSets.map((set) => <tr key={set.id} className={`border-t border-white/10 align-top ${set.isActive === false ? "opacity-60" : ""}`}><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-24 overflow-hidden border border-white/10 bg-slate-950/60">{set.coverImage ? <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{set.code}{set.productCodeAlt ? ` · ${set.productCodeAlt}` : ""}</p><p className="mt-1 font-medium">{set.namePt || set.nameEn}</p><p className="text-xs text-slate-500">{set.sourceTitles?.join(", ") || "sem obras vinculadas"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{set.setType || "OTHER"}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${set.isActive === false ? "border border-red-400/40 bg-red-400/10 text-red-300" : "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}>{set.isActive === false ? "Oculta" : "Ativa"}</Badge></td><td className="px-4 py-4">{set.releaseDate ? new Date(set.releaseDate).toLocaleDateString("pt-BR") : "—"}</td><td className="px-4 py-4">{set.msrpUsd != null ? `US$ ${set.msrpUsd.toFixed(2)}` : "—"}</td><td className="px-4 py-4">{set._count?.cards ?? 0}</td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openSetModal(set)}><Pencil className="size-4" /></Button>{set.isActive === false ? <Button variant="outline" className="rounded-none text-emerald-300 hover:text-emerald-200" onClick={() => restoreSet(set)}><RotateCcw className="size-4" /></Button> : <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteSet(set)}><Trash2 className="size-4" /></Button>}</div></td></tr>)}</tbody></table></div></CardContent></Card>
           </TabsContent>
  
-          <TabsContent value="users"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-6"><SectionTitle title="Usuários" description="Listagem operacional de contas, função e permissão de acesso. Bloqueios são lógicos: nenhuma conta é apagada." /><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Função</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{users.map((entry) => <tr key={entry.id} className="border-t border-white/10"><td className="px-4 py-4"><p className="font-medium">{entry.displayName}</p><p className="text-xs text-slate-500">{entry.email}</p></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{entry.role}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${entry.isActive ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border border-red-400/40 bg-red-400/10 text-red-300"}`}>{entry.isActive ? "Ativo" : "Bloqueado"}</Badge></td><td className="px-4 py-4 text-right"><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isActive: !entry.isActive }); await loadAll(); await loadAdminCards(); toast.success(entry.isActive ? "Usuário bloqueado logicamente." : "Usuário reativado."); }}>{entry.isActive ? "Bloquear" : "Reativar"}</Button></td></tr>)}</tbody></table></div></CardContent></Card></TabsContent>
+          <TabsContent value="users"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-6"><SectionTitle title="Usuários" description="Listagem operacional de contas, função e permissão de acesso. Bloqueios são lógicos: nenhuma conta é apagada." /><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Função</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Hoster</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{users.map((entry) => <tr key={entry.id} className="border-t border-white/10"><td className="px-4 py-4"><p className="font-medium">{entry.displayName}</p><p className="text-xs text-slate-500">{entry.email}</p></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{entry.role}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${entry.isActive ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border border-red-400/40 bg-red-400/10 text-red-300"}`}>{entry.isActive ? "Ativo" : "Bloqueado"}</Badge></td><td className="px-4 py-4">{entry.isHoster ? <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300">Hoster</Badge> : <span className="text-xs text-slate-600">—</span>}</td><td className="px-4 py-4 text-right space-x-2"><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isHoster: !entry.isHoster }); await loadAll(); toast.success(entry.isHoster ? "Permissão de Hoster revogada." : "Usuário promovido a Hoster."); }}>{entry.isHoster ? "Revogar Hoster" : "Conceder Hoster"}</Button><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isActive: !entry.isActive }); await loadAll(); await loadAdminCards(); toast.success(entry.isActive ? "Usuário bloqueado logicamente." : "Usuário reativado."); }}>{entry.isActive ? "Bloquear" : "Reativar"}</Button></td></tr>)}</tbody></table></div></CardContent></Card></TabsContent>
 
-          <TabsContent value="taxonomies"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><SectionTitle title={isMediaManagement ? "Mídias e séries" : "Traits"} description={isMediaManagement ? "Cadastre as séries/fontes usadas pelas cartas. A próxima expansão adiciona sinopse, capa e galeria por mídia." : "Cadastre traits e facções como referência controlada para o catálogo de cartas."} /><div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"><Input value={taxonomyForm.name} onChange={(e) => setTaxonomyForm((s) => ({ ...s, kind: isMediaManagement ? "SOURCE_TITLE" : "TRAIT", name: e.target.value }))} placeholder={isMediaManagement ? "Nome da mídia ou série" : "Nome da trait"} className="rounded-none" /><Input value={taxonomyForm.description} onChange={(e) => setTaxonomyForm((s) => ({ ...s, description: e.target.value }))} placeholder="Descrição opcional" className="rounded-none" /><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTaxonomy}>Adicionar</Button></div><div className="space-y-2"><h3 className="text-xs uppercase tracking-[0.22em] text-slate-500">{isMediaManagement ? "Mídias cadastradas" : "Traits cadastradas"}</h3>{taxonomies.filter((item) => item.kind === (isMediaManagement ? "SOURCE_TITLE" : "TRAIT")).map((item) => <div key={item.id} className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 px-4 py-3"><div><p>{item.name}</p>{item.description ? <p className="mt-1 text-xs text-slate-500">{item.description}</p> : null}</div><Button variant="outline" className="h-8 rounded-none text-red-300" onClick={() => deleteTaxonomy(item)}>Ocultar</Button></div>)}</div></CardContent></Card></TabsContent>
+          <TabsContent value="taxonomies">
+            <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><SectionTitle title={isMediaManagement ? "Mídias e séries" : "Traits"} description={isMediaManagement ? "Séries/obras de origem usadas pelas cartas -- sinopse, capa, galeria e link oficial." : "Traits e facções como referência controlada para o catálogo de cartas."} /><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openTaxonomyModal()}><Plus className="mr-2 size-4" />{isMediaManagement ? "Nova mídia" : "Nova trait"}</Button></div><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Nome</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{adminTaxonomies.filter((item) => item.kind === (isMediaManagement ? "SOURCE_TITLE" : "TRAIT")).map((item) => <tr key={item.id} className={`border-t border-white/10 align-top ${item.isActive === false ? "opacity-60" : ""}`}><td className="px-4 py-4"><div className="flex items-start gap-3">{isMediaManagement ? <div className="h-14 w-20 shrink-0 overflow-hidden border border-white/10 bg-slate-950/60">{item.coverImage ? <img src={item.coverImage} alt={item.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}</div> : null}<div><p className="font-medium">{item.name}</p>{item.description ? <p className="mt-1 text-xs text-slate-500">{item.description}</p> : null}{item.officialUrl ? <a href={item.officialUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-primary hover:underline">{item.officialUrl}</a> : null}</div></div></td><td className="px-4 py-4"><Badge className={`rounded-none ${item.isActive === false ? "border border-red-400/40 bg-red-400/10 text-red-300" : "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}>{item.isActive === false ? "Oculto" : "Ativo"}</Badge></td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openTaxonomyModal(item)}><Pencil className="size-4" /></Button>{item.isActive === false ? <Button variant="outline" className="rounded-none text-emerald-300 hover:text-emerald-200" onClick={() => restoreTaxonomy(item)}><RotateCcw className="size-4" /></Button> : <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteTaxonomy(item)}><Trash2 className="size-4" /></Button>}</div></td></tr>)}</tbody></table>{!adminTaxonomies.filter((item) => item.kind === (isMediaManagement ? "SOURCE_TITLE" : "TRAIT")).length ? <p className="p-4 text-sm text-slate-500">Nenhum registro cadastrado ainda.</p> : null}</div></CardContent></Card>
+          </TabsContent>
  
  
 
@@ -884,6 +953,10 @@ export default function AdminPage() {
                                 <p className="text-sm font-medium">{entry.playerName}</p>
                                 <p className="text-xs text-slate-500">{entry.placement ? `${entry.placement}º lugar` : "sem colocação"} · {entry.archetype || "sem arquétipo"}</p>
                                 <p className="text-xs text-slate-500">{entry.wins ?? 0}V / {entry.losses ?? 0}D / {entry.draws ?? 0}E</p>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {entry.user ? <Badge variant="outline" className="rounded-none border-emerald-400/40 text-[10px] text-emerald-300">Cadastrado · {entry.user.displayName}</Badge> : <Badge variant="outline" className="rounded-none border-white/20 text-[10px] text-slate-500">Convidado</Badge>}
+                                  {entry.deck ? <Badge variant="outline" className="rounded-none border-cyan-400/40 text-[10px] text-cyan-300">Deck: {entry.deck.name}</Badge> : null}
+                                </div>
                               </div>
                               <div className="flex gap-1">
                                 <Button variant="outline" size="icon" className="size-7 rounded-none" onClick={() => openEntryForm(entry)}><Pencil className="size-3" /></Button>
@@ -901,6 +974,17 @@ export default function AdminPage() {
                           <Input value={entryForm.playerName} onChange={(e) => setEntryForm((s) => ({ ...s, playerName: e.target.value }))} placeholder="Nome do jogador" className="rounded-none" />
                           <Input value={entryForm.archetype} onChange={(e) => setEntryForm((s) => ({ ...s, archetype: e.target.value }))} placeholder="Arquétipo do deck" className="rounded-none" />
                         </div>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <select value={entryForm.userId} onChange={(e) => { const uid = e.target.value; const picked = users.find((u) => u.id === uid); setEntryForm((s) => ({ ...s, userId: uid, playerName: picked ? picked.displayName : s.playerName })); }} className="field-shell h-10 px-3 text-sm">
+                            <option value="">— Jogador convidado (sem conta) —</option>
+                            {users.map((u) => <option key={u.id} value={u.id}>{u.displayName} · @{u.username}</option>)}
+                          </select>
+                          <select value={entryForm.deckId} onChange={(e) => setEntryForm((s) => ({ ...s, deckId: e.target.value }))} className="field-shell h-10 px-3 text-sm">
+                            <option value="">— Sem deck vinculado (só arquétipo) —</option>
+                            {publicDecks.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.user?.displayName || "sem dono"}</option>)}
+                          </select>
+                        </div>
+                        <p className="mt-1.5 text-[11px] leading-4 text-slate-500">Só decks marcados como públicos aparecem aqui pra vincular — se o jogador não publicou o deck, deixe sem vínculo e registre pelo menos o arquétipo.</p>
                         <div className="mt-3 grid gap-3 md:grid-cols-4">
                           <Input type="number" min={1} value={entryForm.placement} onChange={(e) => setEntryForm((s) => ({ ...s, placement: e.target.value }))} placeholder="Colocação" className="rounded-none" />
                           <Input type="number" min={0} value={entryForm.wins} onChange={(e) => setEntryForm((s) => ({ ...s, wins: e.target.value }))} placeholder="Vitórias" className="rounded-none" />
@@ -955,7 +1039,28 @@ export default function AdminPage() {
           </div>
         </DialogContent>
       </Dialog>
- 
+
+      {/* ── Modal: Trait / Mídia ────────────────────────────────────────────── */}
+      <Dialog open={taxonomyModalOpen} onOpenChange={setTaxonomyModalOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-3xl uppercase">{taxonomyForm.id ? "Editar" : "Nova"} {taxonomyForm.kind === "SOURCE_TITLE" ? "mídia" : "trait"}</DialogTitle>
+          </DialogHeader>
+          <Input value={taxonomyForm.name} onChange={(e) => setTaxonomyForm((s) => ({ ...s, name: e.target.value }))} placeholder={taxonomyForm.kind === "SOURCE_TITLE" ? "Nome da mídia ou série" : "Nome da trait"} className="rounded-none" />
+          <Textarea value={taxonomyForm.description} onChange={(e) => setTaxonomyForm((s) => ({ ...s, description: e.target.value }))} placeholder={taxonomyForm.kind === "SOURCE_TITLE" ? "Sinopse" : "Descrição opcional"} className="min-h-24 rounded-none" />
+          {taxonomyForm.kind === "SOURCE_TITLE" ? (
+            <>
+              <Input value={taxonomyForm.officialUrl} onChange={(e) => setTaxonomyForm((s) => ({ ...s, officialUrl: e.target.value }))} placeholder="Link oficial" className="rounded-none" />
+              <div className="border border-white/10 bg-white/[0.02] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Galeria visual</p><p className="mt-1 text-sm text-slate-400">Envie uma ou mais imagens. Clique em uma miniatura para defini-la como capa.</p></div><input ref={taxonomyGalleryUploadInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleTaxonomyGalleryUpload} /><Button type="button" variant="outline" className="rounded-none" disabled={saving} onClick={() => taxonomyGalleryUploadInputRef.current?.click()}><Upload className="mr-2 size-4" />Adicionar imagens</Button></div>{taxonomyForm.galleryImages.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{taxonomyForm.galleryImages.map((url, index) => <div key={`${url}-${index}`} className={`group relative overflow-hidden border ${taxonomyForm.coverImage === url ? "border-primary" : "border-white/10"}`}><button type="button" className="block aspect-[4/3] w-full" onClick={() => setTaxonomyForm((s) => ({ ...s, coverImage: url }))}><img src={url} alt={`Imagem ${index + 1}`} className="h-full w-full object-cover" /></button><div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-slate-950/85 px-2 py-1.5 text-[10px] uppercase tracking-[0.12em]">{taxonomyForm.coverImage === url ? <span className="text-primary">Capa</span> : <button type="button" className="text-slate-300" onClick={() => setTaxonomyForm((s) => ({ ...s, coverImage: url }))}>Usar como capa</button>}<button type="button" className="text-red-300" onClick={() => setTaxonomyForm((s) => { const galleryImages = s.galleryImages.filter((item) => item !== url); return { ...s, galleryImages, coverImage: s.coverImage === url ? galleryImages[0] || "" : s.coverImage }; })}>Remover</button></div></div>)}</div> : <p className="mt-4 text-sm text-slate-500">Nenhuma imagem adicionada ainda.</p>}</div>
+            </>
+          ) : null}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" className="rounded-none" onClick={() => setTaxonomyModalOpen(false)}>Cancelar</Button>
+            <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTaxonomy} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Modal: Piloto rápido ───────────────────────────────────────────── */}
       <Dialog open={quickPilotOpen} onOpenChange={setQuickPilotOpen}>
         <DialogContent className="rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
