@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -554,6 +555,7 @@ export default function DeckbuilderPage() {
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
   const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
+  const [handOddsBreakdownOpen, setHandOddsBreakdownOpen] = useState(false);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -841,6 +843,22 @@ export default function DeckbuilderPage() {
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
   const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
+
+  // AP/HP só existem em Unidades (ver CardRecord) -- por isso os histogramas abaixo
+  // filtram por type === "UNIT" antes de agrupar, senão as barras ficariam poluídas
+  // com pilotos/comandos que não têm esses atributos (inspirado nos histogramas
+  // "AP Range"/"HP Range" do ExBurst, que fazem o mesmo recorte).
+  const unitRows = useMemo(() => mainDeckRows.filter((row) => row.type === "UNIT"), [mainDeckRows]);
+  const apData = useMemo(() => {
+    const map = new Map<number, number>();
+    unitRows.forEach((row) => { if (typeof row.ap === "number") map.set(row.ap, (map.get(row.ap) ?? 0) + row.quantity); });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([ap, quantity]) => ({ ap: String(ap), quantity }));
+  }, [unitRows]);
+  const hpData = useMemo(() => {
+    const map = new Map<number, number>();
+    unitRows.forEach((row) => { if (typeof row.hp === "number") map.set(row.hp, (map.get(row.hp) ?? 0) + row.quantity); });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([hp, quantity]) => ({ hp: String(hp), quantity }));
+  }, [unitRows]);
   const topTraits = useMemo(() => Object.entries(stats.traitMap).sort((a, b) => b[1] - a[1]).slice(0, 3), [stats.traitMap]);
   const poolActiveFilters = useMemo(() => Object.values(poolFilters).filter(Boolean).length, [poolFilters]);
 
@@ -1821,6 +1839,34 @@ export default function DeckbuilderPage() {
               ) : (
                 <p className="mt-6 text-sm text-muted-portal">Adicione cartas ao deck principal para calcular a chance de abertura.</p>
               )}
+              {stats.mainDeckCount > 0 ? (
+                <Collapsible open={handOddsBreakdownOpen} onOpenChange={setHandOddsBreakdownOpen} className="mt-5 border-t border-white/10 pt-4">
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary transition hover:opacity-80">
+                      <ChevronDown className={`size-3.5 transition-transform ${handOddsBreakdownOpen ? "rotate-180" : ""}`} />
+                      Ver detalhamento do cálculo
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-3">
+                    <p className="text-sm text-muted-portal">
+                      Cálculo hipergeométrico — probabilidade de comprar pelo menos 1 sucesso numa amostra sem reposição:
+                    </p>
+                    <div className="panel-cut border surface-strong p-4 font-mono text-xs text-soft">
+                      <p>P(pelo menos 1) = 1 − C(N−K, n) / C(N, n)</p>
+                      <p className="mt-2 text-slate-500">onde:</p>
+                      <p className="mt-1">N = {stats.mainDeckCount} <span className="text-slate-500">(cartas no deck principal)</span></p>
+                      <p>K = {stats.lowCostCount} <span className="text-slate-500">(cartas de custo ≤2, os "sucessos")</span></p>
+                      <p>n = {OPENING_HAND_SIZE} <span className="text-slate-500">(tamanho da mão comprada)</span></p>
+                      <p className="mt-2 border-t border-white/10 pt-2">P = 1 − C({stats.mainDeckCount - stats.lowCostCount}, {OPENING_HAND_SIZE}) / C({stats.mainDeckCount}, {OPENING_HAND_SIZE}) = <span className="text-primary">{(handOdds.openingHand * 100).toFixed(2)}%</span></p>
+                    </div>
+                    <p className="text-sm text-muted-portal">
+                      "Com 1 mulligan" trata cada tentativa como um sorteio independente da mesma população de {stats.mainDeckCount} cartas
+                      (mulligan oficial: devolve a mão, embaralha e compra 5 de novo — não é uma troca parcial). A chance de acertar em pelo
+                      menos uma das duas tentativas é 1 − (1 − P)² = <span className="text-primary">{(handOdds.withMulligan * 100).toFixed(2)}%</span>.
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -1841,6 +1887,46 @@ export default function DeckbuilderPage() {
               </div>
             </CardContent>
           </Card>
+
+          {unitRows.length > 0 ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 04</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de AP<InfoHint text="AP (poder de ataque) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele AP." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={apData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="ap" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("AP", entry.ap, (row) => row.type === "UNIT" && String(row.ap) === entry.ap)} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de HP<InfoHint text="HP (pontos de vida) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele HP." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={hpData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="hp" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("HP", entry.hp, (row) => row.type === "UNIT" && String(row.hp) === entry.hp)} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          ) : null}
         </div>
         )}
       </div>

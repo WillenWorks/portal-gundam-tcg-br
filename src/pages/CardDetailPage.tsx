@@ -1,11 +1,12 @@
 /* Detalhe de carta v10 — relações editoriais confirmadas separadas de recomendações automáticas. */
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Expand, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Expand, ExternalLink } from "lucide-react";
 import { Link, useRoute } from "wouter";
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatCardText } from "@/lib/utils";
@@ -41,18 +42,24 @@ export default function CardDetailPage() {
   const [error, setError] = useState("");
   const [zoomOpen, setZoomOpen] = useState(false);
   const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
+  const [cardStats, setCardStats] = useState<Awaited<ReturnType<typeof api.getCardStats>> | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
     async function load() {
       if (!params?.id) return;
-      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError(""); setSelectedPrintId(null);
+      setCard(null); setRelations({ outgoing: [], incoming: [] }); setRecommendations([]); setError(""); setSelectedPrintId(null); setCardStats(null);
       try {
         const detail = await api.getCard(params.id);
         if (!active) return;
         setCard(detail);
         setSelectedPrintId(detail.printId ?? null);
         const relationRequest = api.getCardRelations(params.id).catch(() => ({ outgoing: [], incoming: [] }));
+        // Estatísticas competitivas são "best effort" -- se a rota falhar (ou a carta não
+        // tiver amostra), a seção simplesmente não aparece, não é motivo pra bloquear a
+        // página inteira (ver getCard acima, que é a única request que realmente importa).
+        api.getCardStats(params.id).then((result) => { if (active) setCardStats(result); }).catch(() => { if (active) setCardStats(null); });
         const primaryTrait = detail.traits?.[0] || detail.trait;
         const suggestionRequests: Promise<any[]>[] = [];
         if (primaryTrait) suggestionRequests.push(api.listCards({ trait: primaryTrait, sort: "code_asc" }));
@@ -178,6 +185,63 @@ export default function CardDetailPage() {
             <div className="border-t border-white/10 pt-4"><p className="whitespace-pre-line text-sm leading-7 dark:text-slate-200 light:text-slate-700">{formatCardText(textSections[0]?.textPt || textSections[0]?.textEn || card.effectPt || card.effectEn) || "Sem texto cadastrado."}</p></div>
           </CardContent></Card>
         </section>
+
+        {cardStats?.hasEnoughData ? (
+          <section>
+            <Card className="panel-cut rounded-none border-cyan-400/30 surface-panel">
+              <CardContent className="p-5">
+                <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex w-full items-center justify-between gap-4 text-left">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.24em] text-cyan-400">Estatísticas competitivas</p>
+                        <h2 className="mt-1 font-heading text-3xl uppercase">Uso e desempenho</h2>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="hidden text-right sm:block">
+                          <p className="text-2xl font-heading text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">taxa de uso</p>
+                        </div>
+                        {cardStats.winRate != null ? (
+                          <div className="hidden text-right sm:block">
+                            <p className="text-2xl font-heading text-emerald-300">{cardStats.winRate}%</p>
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">taxa de vitória</p>
+                          </div>
+                        ) : null}
+                        <ChevronDown className={`size-5 shrink-0 text-slate-400 transition-transform ${statsOpen ? "rotate-180" : ""}`} />
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-5 space-y-4 border-t border-white/10 pt-5">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Taxa de uso</p>
+                        <p className="mt-1 font-heading text-2xl text-cyan-300">{cardStats.usageRate ?? "—"}%</p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Taxa de vitória</p>
+                        <p className="mt-1 font-heading text-2xl text-emerald-300">{cardStats.winRate ?? "—"}%</p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Decks com a carta</p>
+                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{cardStats.deckAppearances} <span className="text-sm text-slate-500">/ {cardStats.totalDecks}</span></p>
+                      </div>
+                      <div className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">V / E / D</p>
+                        <p className="mt-1 font-heading text-2xl dark:text-white light:text-slate-900">{cardStats.wins}V {cardStats.draws}E {cardStats.losses}D</p>
+                      </div>
+                    </div>
+                    <p className="text-xs leading-6 text-slate-500">
+                      Calculado a partir de {cardStats.deckAppearances} decklist{cardStats.deckAppearances === 1 ? "" : "s"} reais com essa carta,
+                      entre torneios reportados e eventos ao vivo já finalizados (deste total, {cardStats.totalMatches} partida{cardStats.totalMatches === 1 ? "" : "s"} com
+                      resultado lançado). Taxa de uso = decks com a carta / {cardStats.totalDecks} decks registrados no total. Amostra pequena — trate como indicativo, não absoluto.
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
+          </section>
+        ) : null}
 
         <section className="grid gap-6 lg:grid-cols-2">
           <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Relações</h2>{editorialRelations.length ? <div className="grid gap-3">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] || relation.relationType} />)}</div> : <p className="text-sm leading-7 text-slate-400">Nenhuma relação confirmada para esta carta ainda.</p>}</CardContent></Card>

@@ -1682,6 +1682,100 @@ app.get("/api/cards/:id", async (req, res) => {
   res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, publicDeckCount });
 });
 
+// Estatísticas competitivas por CardModel -- agrega os dois "informes" que o site
+// conhece (Tournament/TournamentEntry, retroativo, e HostedEvent/HostedEventParticipant
+// já finalizado) através de DeckSnapshotItem, que é o único ponto em comum entre eles
+// (ambos travam a decklist real numa DeckSnapshot no momento do resultado). Gated por
+// amostra mínima: cartas sem uso real relevante voltam hasEnoughData=false e o
+// frontend simplesmente não mostra a seção, pra não passar segurança falsa numa
+// amostra de 1 partida (ver pedido do usuário: "validável, confiável e útil").
+const CARD_STATS_MIN_MATCHES = 8;
+const CARD_STATS_MIN_DECKS = 3;
+
+app.get("/api/cards/:id/stats", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const id = String(req.params.id);
+
+  let model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
+  if (!model) {
+    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    if (print?.cardModelId) model = await prisma.cardModel.findUnique({ where: { id: print.cardModelId }, select: { id: true } });
+  }
+  if (!model) return res.status(404).json({ error: "Carta não encontrada." });
+
+  const prints = await prisma.card.findMany({ where: { cardModelId: model.id }, select: { id: true } });
+  const printIds = prints.map((print) => print.id);
+
+  const emptyStats = { cardModelId: model.id, hasEnoughData: false, deckAppearances: 0, totalDecks: 0, usageRate: null as number | null, wins: 0, losses: 0, draws: 0, totalMatches: 0, winRate: null as number | null };
+  if (!printIds.length) return res.json(emptyStats);
+
+  // Snapshots (de qualquer um dos dois sistemas) que realmente incluem essa carta em
+  // alguma cópia jogável -- fora token de referência, mesmo critério do publicDeckCount acima.
+  const snapshotsWithCard = await prisma.deckSnapshotItem.findMany({
+    where: { cardId: { in: printIds }, section: { not: "token_reference" } },
+    select: { deckSnapshotId: true },
+    distinct: ["deckSnapshotId"],
+  });
+  const snapshotIdsWithCard = snapshotsWithCard.map((item) => item.deckSnapshotId);
+
+  let wins = 0, losses = 0, draws = 0, deckAppearances = 0;
+
+  if (snapshotIdsWithCard.length) {
+    const reportEntries = await prisma.tournamentEntry.findMany({
+      where: { deckSnapshotId: { in: snapshotIdsWithCard } },
+      select: { wins: true, losses: true, draws: true },
+    });
+    for (const entry of reportEntries) {
+      deckAppearances += 1;
+      wins += entry.wins ?? 0;
+      losses += entry.losses ?? 0;
+      draws += entry.draws ?? 0;
+    }
+
+    // Eventos "ao vivo" só entram na conta quando já finalizados -- mesma regra usada
+    // em GET /api/hosted-events/public, pra não misturar resultado parcial/em andamento.
+    const hostedParticipants = await prisma.hostedEventParticipant.findMany({
+      where: { deckSnapshotId: { in: snapshotIdsWithCard }, event: { status: HostedEventStatus.COMPLETED } },
+      select: { matchesAsA: { select: { result: true } }, matchesAsB: { select: { result: true } } },
+    });
+    for (const participant of hostedParticipants) {
+      deckAppearances += 1;
+      for (const m of participant.matchesAsA) {
+        if (m.result === HostedEventMatchResult.PLAYER_A_WIN || m.result === HostedEventMatchResult.BYE) wins += 1;
+        else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) losses += 1;
+        else if (m.result === HostedEventMatchResult.DRAW) draws += 1;
+      }
+      for (const m of participant.matchesAsB) {
+        if (m.result === HostedEventMatchResult.PLAYER_B_WIN) wins += 1;
+        else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) losses += 1;
+        else if (m.result === HostedEventMatchResult.DRAW) draws += 1;
+      }
+    }
+  }
+
+  // Denominador da taxa de uso: todo deck já congelado num resultado real (report OU
+  // evento finalizado), tenha ou não essa carta -- não é "todo deck público do site".
+  const totalDecks = await prisma.deckSnapshot.count({
+    where: { OR: [{ tournamentEntries: { some: {} } }, { hostedEventParticipants: { some: { event: { status: HostedEventStatus.COMPLETED } } } }] },
+  });
+
+  const totalMatches = wins + losses + draws;
+  const hasEnoughData = totalMatches >= CARD_STATS_MIN_MATCHES || deckAppearances >= CARD_STATS_MIN_DECKS;
+
+  res.json({
+    cardModelId: model.id,
+    hasEnoughData,
+    deckAppearances,
+    totalDecks,
+    usageRate: totalDecks > 0 ? Number(((deckAppearances / totalDecks) * 100).toFixed(1)) : null,
+    wins,
+    losses,
+    draws,
+    totalMatches,
+    winRate: totalMatches > 0 ? Number(((wins / totalMatches) * 100).toFixed(1)) : null,
+  });
+});
+
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const payload = req.body as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
@@ -2198,6 +2292,31 @@ app.get("/api/hosted-events/admin", authRequired, roleRequired([UserRole.ADMIN])
   res.json(events);
 });
 
+// Pública (sem auth) -- eventos "ao vivo" já finalizados, pra aparecer na tela pública
+// de Eventos ao lado dos Tournament/TournamentEntry (report retroativo do admin). Até
+// aqui o HostedEvent nunca tinha rota pública nenhuma: um evento rodado pelo Hoster via
+// /organizador (participantes, rodadas, bye, status = COMPLETED) ficava invisível pra
+// qualquer visitante, mesmo já encerrado -- só aparecia se o admin *também* cadastrasse
+// um Tournament report separado pro mesmo evento. Precisa estar declarada ANTES de
+// GET /api/hosted-events/:id (Express casa rota literal antes de :id só se vier primeiro
+// no arquivo), senão "public" seria interpretado como um :id.
+app.get("/api/hosted-events/public", async (_req, res) => {
+  setPublicCache(res, 20, 90);
+  const events = await prisma.hostedEvent.findMany({
+    where: { isActive: true, status: HostedEventStatus.COMPLETED },
+    select: {
+      id: true, name: true, description: true, format: true, venueName: true, city: true, country: true,
+      dateStart: true, dateEnd: true, status: true,
+      hoster: { select: { id: true, username: true, displayName: true } },
+    },
+    orderBy: [{ dateStart: "desc" }],
+  });
+  const withStandings = await Promise.all(
+    events.map(async (event) => ({ ...event, standings: await computeHostedEventStandings(event.id) }))
+  );
+  res.json(withStandings);
+});
+
 app.get("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
   const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
   if (!event) return;
@@ -2352,12 +2471,12 @@ const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
 async function computeHostedEventStandings(eventId: string) {
   const participants = await prisma.hostedEventParticipant.findMany({
     where: { eventId },
-    select: { id: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    select: { id: true, deckSnapshotId: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
   });
-  type Row = { participantId: string; user: (typeof participants)[number]["user"]; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
+  type Row = { participantId: string; user: (typeof participants)[number]["user"]; hasDeck: boolean; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
   const stats = new Map<string, Row>();
   for (const p of participants) {
-    stats.set(p.id, { participantId: p.id, user: p.user, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
+    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
   }
   const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
   for (const m of matches) {
