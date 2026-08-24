@@ -142,6 +142,11 @@ export default function CardDetailPage() {
               ) : null}
               {card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}
               {prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}
+              {card.publicDeckCount ? (
+                <Link href="/stats">
+                  <Badge variant="outline" className="cursor-pointer rounded-none border-cyan-400/40 bg-cyan-400/10 text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-400/20">Usada em {card.publicDeckCount} deck{card.publicDeckCount === 1 ? "" : "s"} público{card.publicDeckCount === 1 ? "" : "s"}</Badge>
+                </Link>
+              ) : null}
             </div>
             <div><p className="text-xs uppercase tracking-[0.26em] text-slate-400">{selectedPrint?.set?.code ? <Link href={`/sets/${selectedPrint.set.code}`} className="hover:text-primary hover:underline">{selectedPrint.set.code}</Link> : "Sem coleção"} · {selectedPrint?.code || card.code}</p><h1 className="mt-2 font-heading text-3xl uppercase leading-none sm:text-4xl lg:text-5xl">{card.namePt || card.nameEn}</h1><p className="mt-3 text-sm text-slate-400">{card.nameEn}{card.namePt ? ` · ${card.namePt}` : ""}</p></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[["Custo", card.cost], ["Level", card.level], ["AP", card.ap], ["HP", card.hp]].map(([label, value]) => <div key={String(label)} className="border border-white/10 bg-slate-950/40 p-3 light:border-slate-300/80 light:bg-slate-50"><p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{String(label)}</p><p className="mt-1 font-heading text-3xl dark:text-white light:text-slate-900">{value ?? "—"}</p></div>)}</div>

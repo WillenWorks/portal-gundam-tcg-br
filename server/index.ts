@@ -1563,9 +1563,16 @@ app.get("/api/cards/:id", async (req, res) => {
 
   if (!model) return res.status(404).json({ error: "Carta não encontrada." });
 
+  // Presença competitiva: em quantos decks públicos essa carta (qualquer impressão dela)
+  // aparece. Não depende de torneio, só do corpus de decks com visibility=PUBLIC.
+  const printIds = model.prints.map((print) => print.id);
+  const publicDeckCount = printIds.length
+    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { not: "token_reference" } } } } })
+    : 0;
+
   const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
   const { prints, ...modelFields } = model;
-  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints });
+  res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, publicDeckCount });
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
