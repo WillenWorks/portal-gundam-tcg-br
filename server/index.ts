@@ -1244,6 +1244,16 @@ app.get("/api/sets", async (_req, res) => {
   res.json(sets);
 });
 
+// Listagem de gestão do admin -- ao contrário de GET /api/sets (só ativos, uso público),
+// essa traz TUDO (incluindo ocultados), pra permitir localizar e reativar uma coleção
+// que foi ocultada por engano. Precisa vir antes de /api/sets/:code, senão "admin" seria
+// interpretado como um código de coleção.
+app.get("/api/sets/admin", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (_req, res) => {
+  setPrivateCache(res, 5, 20);
+  const sets = await prisma.cardSet.findMany({ include: { _count: { select: { cards: true } } }, orderBy: [{ isActive: "desc" }, { code: "asc" }] });
+  res.json(sets);
+});
+
 app.get("/api/sets/:code", async (req, res) => {
   setPublicCache(res, 30, 120);
   const code = String(req.params.code);
@@ -1272,7 +1282,31 @@ app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.ED
   const id = String(req.params.id);
   const existing = await prisma.cardSet.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
-  const payload = { ...req.body, code: req.body.code || existing.code } as SetInput;
+  // Faz merge com o registro existente campo a campo (em vez de só espalhar req.body por
+  // cima) -- upsertSets escreve TODOS os campos incondicionalmente, então um PUT parcial
+  // (ex: só { isActive: true } pra reativar uma coleção ocultada) sem esse merge apagaria
+  // o resto dos dados. Sempre reativa (isActive: true já é fixo dentro de upsertSets),
+  // então isso também serve como o botão "Reativar" do admin.
+  const body = req.body as Partial<SetInput>;
+  const payload: SetInput = {
+    code: body.code || existing.code,
+    nameEn: body.nameEn ?? existing.nameEn,
+    namePt: body.namePt ?? existing.namePt ?? undefined,
+    officialUrl: body.officialUrl ?? existing.officialUrl,
+    releaseDate: body.releaseDate ?? existing.releaseDate,
+    coverImage: body.coverImage ?? existing.coverImage,
+    shortDescription: body.shortDescription ?? existing.shortDescription,
+    setType: body.setType ?? existing.setType,
+    productCodeAlt: body.productCodeAlt ?? existing.productCodeAlt,
+    msrpUsd: body.msrpUsd ?? existing.msrpUsd,
+    contentSummaryEn: body.contentSummaryEn ?? existing.contentSummaryEn,
+    contentSummaryPt: body.contentSummaryPt ?? existing.contentSummaryPt,
+    raritySummary: body.raritySummary ?? existing.raritySummary,
+    productNotes: body.productNotes ?? existing.productNotes,
+    sourceTitles: body.sourceTitles ?? existing.sourceTitles,
+    starterDeckVariantOf: body.starterDeckVariantOf ?? existing.starterDeckVariantOf,
+    metadataJson: body.metadataJson ?? existing.metadataJson,
+  };
   const setMap = await upsertSets([payload]);
   const updated = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
   res.json(updated);
@@ -1296,14 +1330,32 @@ app.get("/api/taxonomies", async (req, res) => {
   res.json(items);
 });
 
+// Listagem de gestão do admin -- mesmo raciocínio de GET /api/sets/admin: traz ocultados
+// junto, pra dar pra ver e reativar uma trait/série que foi ocultada por engano (a rota
+// pública acima nunca devolve isso, de propósito, pra não vazar taxonomia desativada nos
+// filtros/autocomplete do site).
+app.get("/api/taxonomies/admin", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  setPrivateCache(res, 5, 20);
+  const kind = req.query.kind ? normalizeTaxonomyKind(req.query.kind) : undefined;
+  const items = await prisma.taxonomyEntry.findMany({
+    where: { ...(kind ? { kind } : {}) },
+    orderBy: [{ isActive: "desc" }, { kind: "asc" }, { name: "asc" }],
+  });
+  res.json(items);
+});
+
 app.post("/api/taxonomies", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const kind = normalizeTaxonomyKind(req.body.kind);
   const name = String(req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "Nome é obrigatório." });
   const item = await prisma.taxonomyEntry.upsert({
     where: { kind_name: { kind, name } },
-    update: { description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
-    create: { kind, name, slug: slugify(name), description: req.body.description || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
+    // Reativa sempre (isActive/deletedAt) -- sem isso, recadastrar um nome que já tinha
+    // sido ocultado batia no unique constraint e caía no "update" mantendo isActive:false
+    // pra sempre, um jeito confuso de um registro nunca mais reaparecer mesmo depois de
+    // "recriado".
+    update: { description: req.body.description || null, coverImage: req.body.coverImage || null, officialUrl: req.body.officialUrl || null, metadataJson: req.body.metadataJson || Prisma.JsonNull, isActive: true, deletedAt: null },
+    create: { kind, name, slug: slugify(name), description: req.body.description || null, coverImage: req.body.coverImage || null, officialUrl: req.body.officialUrl || null, metadataJson: req.body.metadataJson || Prisma.JsonNull },
   });
   res.status(201).json(item);
 });
@@ -1313,9 +1365,20 @@ app.put("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN, UserR
   const existing = await prisma.taxonomyEntry.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Registro não encontrado." });
   const name = String(req.body.name || existing.name).trim();
+  const nextActive = typeof req.body.isActive === "boolean" ? req.body.isActive : existing.isActive;
   const updated = await prisma.taxonomyEntry.update({
     where: { id },
-    data: { kind: req.body.kind ? normalizeTaxonomyKind(req.body.kind) : existing.kind, name, slug: slugify(name), description: req.body.description ?? existing.description, metadataJson: req.body.metadataJson ?? existing.metadataJson ?? Prisma.JsonNull },
+    data: {
+      kind: req.body.kind ? normalizeTaxonomyKind(req.body.kind) : existing.kind,
+      name,
+      slug: slugify(name),
+      description: req.body.description ?? existing.description,
+      coverImage: req.body.coverImage ?? existing.coverImage,
+      officialUrl: req.body.officialUrl ?? existing.officialUrl,
+      metadataJson: req.body.metadataJson ?? existing.metadataJson ?? Prisma.JsonNull,
+      isActive: nextActive,
+      deletedAt: nextActive ? null : (existing.deletedAt ?? new Date()),
+    },
   });
   res.json(updated);
 });

@@ -164,6 +164,10 @@ model TaxonomyEntry {
   name         String
   slug         String
   description  String?      @db.Text
+  // Usados só pra kind=SOURCE_TITLE (séries/mídias) no admin -- capa + link oficial da
+  // obra; galeria adicional fica em metadataJson.galleryImages, mesmo padrão do CardSet.
+  coverImage   String?
+  officialUrl  String?
   metadataJson Json?
   isActive     Boolean      @default(true)
   deletedAt    DateTime?
