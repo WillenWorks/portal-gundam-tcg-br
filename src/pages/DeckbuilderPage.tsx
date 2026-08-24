@@ -47,6 +47,26 @@ function extractKeywordValue(effect: string, name: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+// Mão inicial é sempre 5 cartas compradas do deck principal embaralhado (Comprehensive
+// Rules 6 -- ver data/rulings-batch-01.json, "Can I mulligan my starting hand?": um
+// mulligan devolve a mão inteira pro fundo do deck, embaralha e compra 5 novas -- ou
+// seja, é um segundo sorteio independente da mesma população de N cartas, não um
+// redesenho parcial. P(pelo menos 1 sucesso) = 1 - P(0 sucessos), calculado direto por
+// produto de razões em vez de fatorial/combinação pra não estourar precisão com N até 50.
+const OPENING_HAND_SIZE = 5;
+function hypergeometricAtLeastOne(populationSize: number, successCount: number, drawSize: number): number {
+  if (populationSize <= 0 || successCount <= 0 || drawSize <= 0) return 0;
+  if (successCount >= populationSize) return 1;
+  const draws = Math.min(drawSize, populationSize);
+  let probabilityOfZero = 1;
+  for (let i = 0; i < draws; i++) {
+    const remainingFailures = populationSize - successCount - i;
+    if (remainingFailures < 0) return 1;
+    probabilityOfZero *= remainingFailures / (populationSize - i);
+  }
+  return 1 - probabilityOfZero;
+}
+
 function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expandedAll = entries
     .map((entry) => {
@@ -85,6 +105,7 @@ function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntr
   return {
     mainDeckCount,
     resourceDeckCount,
+    lowCostCount,
     lowCostRate: mainDeckCount ? Math.round((lowCostCount / mainDeckCount) * 100) : 0,
     avgCost: avgCost.toFixed(2),
     cardsWithKeywords,
@@ -694,6 +715,14 @@ export default function DeckbuilderPage() {
     mainDeckRows.forEach((row) => map.set(row.cost, (map.get(row.cost) ?? 0) + row.quantity));
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([cost, quantity]) => ({ cost: String(cost), quantity }));
   }, [mainDeckRows]);
+
+  // Chance de abrir com pelo menos 1 carta de custo baixo (≤2) na mão inicial de 5,
+  // e a mesma conta considerando 1 mulligan (ver hypergeometricAtLeastOne acima).
+  const handOdds = useMemo(() => {
+    const openingHand = hypergeometricAtLeastOne(stats.mainDeckCount, stats.lowCostCount, OPENING_HAND_SIZE);
+    const withMulligan = 1 - (1 - openingHand) * (1 - openingHand);
+    return { openingHand, withMulligan };
+  }, [stats.mainDeckCount, stats.lowCostCount]);
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
   const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
@@ -1646,6 +1675,34 @@ export default function DeckbuilderPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="panel-cut rounded-none surface-panel">
+            <CardContent className="p-6">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<InfoHint text="Cálculo hipergeométrico: chance de comprar pelo menos 1 carta de custo ≤2 numa mão de 5 cartas puxada do deck principal embaralhado. 'Com 1 mulligan' conta a mão original OU a mão redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente da mesma população, não uma troca parcial." /></h3>
+              {stats.mainDeckCount > 0 ? (
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <div className="panel-cut border surface-strong p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)</p>
+                    <p className="mt-2 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}</p>
+                    <p className="mt-2 text-sm text-muted-portal">{stats.lowCostRate}% da lista principal.</p>
+                  </div>
+                  <div className="panel-cut border border-primary/30 bg-primary/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Chance na mão de abertura</p>
+                    <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%</p>
+                    <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.</p>
+                  </div>
+                  <div className="panel-cut border surface-strong p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan</p>
+                    <p className="mt-2 text-lg heading-portal">{Math.round(handOdds.withMulligan * 100)}%</p>
+                    <p className="mt-2 text-sm text-muted-portal">Contando a chance de acertar na mão original ou na redistribuída.</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-6 text-sm text-muted-portal">Adicione cartas ao deck principal para calcular a chance de abertura.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
