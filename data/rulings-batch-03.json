@@ -1,0 +1,171 @@
+[
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the five steps of a battle, in order?",
+    "answerEn": "Attack Step → Block Step → Action Step → Damage Step → Battle End Step.",
+    "questionPt": "Quais são as 5 etapas de uma batalha, em ordem?",
+    "answerPt": "Etapa de Ataque → Etapa de Bloqueio → Etapa de Ação → Etapa de Dano → Etapa Final da Batalha."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "When I attack with a Unit, what happens first, and what can I target?",
+    "answerEn": "You select one active Unit you control, rest it, and declare an attack target — either the opposing player or a rested enemy Unit. You can't attack with an already-rested Unit, and you can't target an active enemy Unit.",
+    "questionPt": "Quando eu ataco com uma Unit, o que acontece primeiro, e o que dá pra escolher como alvo?",
+    "answerPt": "Você seleciona uma Unit ativa que você controla, descansa ela, e declara um alvo de ataque — o jogador oponente ou uma Unit inimiga descansada. Não dá pra atacar com uma Unit já descansada, nem escolher como alvo uma Unit inimiga ativa."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What triggers during the Attack Step besides declaring the target?",
+    "answerEn": "Any effect with Attack timing or 'when this Unit attacks' wording triggers here, and any effect worded 'during this battle' starts applying from this point on.",
+    "questionPt": "O que dispara na Etapa de Ataque além de declarar o alvo?",
+    "answerPt": "Qualquer efeito com timing Attack ou texto \"quando esta Unit ataca\" dispara aqui, e qualquer efeito com o texto \"durante esta batalha\" começa a valer a partir desse momento."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Blocker",
+    "relatedKeyword": "Blocker",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What does Blocker actually do, and when can it be used?",
+    "answerEn": "During the Block Step, the defending player may activate Blocker on one of their own active Units to switch the attack target to that Unit instead — protecting whatever was originally being attacked.",
+    "questionPt": "O que o Blocker realmente faz, e quando dá pra usar?",
+    "answerPt": "Durante a Etapa de Bloqueio, o jogador defensor pode ativar o Blocker numa Unit ativa dele pra trocar o alvo do ataque pra essa Unit — protegendo o que estava sendo atacado originalmente."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Blocker",
+    "relatedKeyword": "Blocker",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Can a Unit that's already the attack target activate its own Blocker to protect itself?",
+    "answerEn": "No. The Unit originally targeted for attack cannot activate its own Blocker — Blocker only works to redirect an attack onto a different Unit.",
+    "questionPt": "Uma Unit que já é o alvo do ataque pode ativar o próprio Blocker pra se proteger?",
+    "answerPt": "Não. A Unit originalmente escolhida como alvo não pode ativar o próprio Blocker — o Blocker só serve pra redirecionar um ataque pra uma Unit diferente."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Blocker",
+    "relatedKeyword": "Blocker",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How many times can Blocker be used against a single attack?",
+    "answerEn": "Only once per attack. And it's always optional — the defending player can simply choose not to block.",
+    "questionPt": "Quantas vezes o Blocker pode ser usado contra um único ataque?",
+    "answerPt": "Só uma vez por ataque. E é sempre opcional — o jogador defensor pode simplesmente escolher não bloquear."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If the attacking Unit or the defender gets destroyed or removed mid-battle, before Damage Step, does the battle just stop?",
+    "answerEn": "The battle doesn't stop entirely — it skips straight to the Battle End Step, bypassing whatever steps would have come next. This happens whenever either side leaves the battle before Damage Step is reached.",
+    "questionPt": "Se a Unit atacante ou a defensora for destruída ou removida no meio da batalha, antes da Etapa de Dano, a batalha simplesmente para?",
+    "answerPt": "A batalha não para de vez — ela pula direto pra Etapa Final da Batalha, ignorando as etapas que viriam antes. Isso acontece sempre que um dos dois lados sai da batalha antes de chegar na Etapa de Dano."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "During the battle's own Action Step, who acts first?",
+    "answerEn": "The standby player (the defender) acts first, same as the End Phase's own Action Step — then it alternates back and forth between players.",
+    "questionPt": "Na Etapa de Ação da própria batalha, quem age primeiro?",
+    "answerPt": "O jogador em espera (o defensor) age primeiro, igual na Etapa de Ação da Fase Final — depois alterna entre os jogadores."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If I attack the opponent directly and they have no Base and no Shields left at all, what happens?",
+    "answerEn": "The attacking Unit deals its full AP as battle damage directly to the opponent. A player who takes damage while having no shields and no Base immediately loses the game.",
+    "questionPt": "Se eu atacar o oponente direto e ele não tiver Base nem escudo nenhum, o que acontece?",
+    "answerPt": "A Unit atacante causa seu AP inteiro como dano de batalha direto no oponente. Um jogador que recebe dano sem nenhum escudo e sem Base perde a partida imediatamente."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If the opponent has a Shield but no Base, what happens when I attack them directly?",
+    "answerEn": "Damage goes to their topmost Shield, equal to the attacker's AP. Any damage at all — even just 1 — destroys that Shield: it gets revealed, checked for a Burst effect, then goes to the trash.",
+    "questionPt": "Se o oponente tem escudo mas não tem Base, o que acontece quando eu ataco ele direto?",
+    "answerPt": "O dano vai pro escudo mais no topo, igual ao AP do atacante. Qualquer dano, mesmo que seja só 1, destrói aquele escudo: ele é revelado, checado se tem efeito Burst, e vai pro descarte."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If the opponent has a Base, does my attack hit the Base or their Shields?",
+    "answerEn": "The Base always takes priority — as long as a Base is present, all damage from an attack on the player goes to the Base instead of the Shields, tracked with damage counters until its HP hits zero.",
+    "questionPt": "Se o oponente tem uma Base, meu ataque acerta a Base ou os escudos?",
+    "answerPt": "A Base sempre tem prioridade — enquanto tiver uma Base presente, todo dano de um ataque no jogador vai pra Base em vez dos escudos, marcado com contadores de dano até o HP dela chegar a zero."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "In a Unit vs. Unit battle, do both sides deal damage at the same time?",
+    "answerEn": "Yes, normally — the attacker and the defender deal damage to each other simultaneously, each equal to their own AP. Whichever one's HP reaches zero is destroyed.",
+    "questionPt": "Numa batalha de Unit contra Unit, os dois lados causam dano ao mesmo tempo?",
+    "answerPt": "Sim, normalmente — o atacante e o defensor causam dano um no outro simultaneamente, cada um igual ao próprio AP. Quem tiver o HP chegando a zero é destruído."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "First Strike",
+    "relatedKeyword": "First Strike",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What does First Strike actually change in the damage sequence?",
+    "answerEn": "A Unit with First Strike deals its battle damage before the other side, instead of simultaneously. If that first hit is enough to destroy the target, the target never gets to deal its own damage back.",
+    "questionPt": "O que o First Strike realmente muda na sequência de dano?",
+    "answerPt": "Uma Unit com First Strike causa o dano de batalha dela antes do outro lado, em vez de simultâneo. Se esse primeiro golpe já for suficiente pra destruir o alvo, o alvo nunca chega a causar o dano dele de volta."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "If both Units in a battle end up destroyed, is one considered to have died first?",
+    "answerEn": "No — outside of First Strike specifically changing the order, if both Units are destroyed in the same battle, their destruction counts as happening at the exact same moment.",
+    "questionPt": "Se as duas Units de uma batalha acabam destruídas, alguma delas morre primeiro?",
+    "answerPt": "Não — fora o First Strike mudando a ordem especificamente, se as duas Units são destruídas na mesma batalha, a destruição das duas conta como acontecendo no mesmo instante."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "battle",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "When do effects worded 'during this battle' stop applying?",
+    "answerEn": "At the Battle End Step, the very last step — any effect that only applies 'during this battle' loses effect there, right before returning to the Main Phase.",
+    "questionPt": "Quando efeitos com o texto \"durante esta batalha\" param de valer?",
+    "answerPt": "Na Etapa Final da Batalha, a última etapa de todas — qualquer efeito que só vale \"durante esta batalha\" perde efeito ali, bem antes de voltar pra Fase Principal."
+  }
+]

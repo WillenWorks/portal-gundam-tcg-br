@@ -1637,7 +1637,7 @@ app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN
   const printId = String(req.params.printId);
   const existing = await prisma.card.findUnique({ where: { id: printId } });
   if (!existing) return res.status(404).json({ error: "Impressão não encontrada." });
-  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string };
+  const body = req.body as { rarity?: string; printLabel?: string; setId?: string | null; imageUrl?: string; thumbUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string; imageLargeUrl?: string; imageSourceUrl?: string; officialUrl?: string; isPrimaryPrint?: boolean; legalityStatus?: string; quantityInProduct?: number | null };
   if (body.isPrimaryPrint && existing.cardModelId) {
     await prisma.card.updateMany({ where: { cardModelId: existing.cardModelId }, data: { isPrimaryPrint: false } });
   }
@@ -1656,6 +1656,7 @@ app.put("/api/cards/prints/:printId", authRequired, roleRequired([UserRole.ADMIN
       officialUrl: body.officialUrl ?? existing.officialUrl,
       legalityStatus: body.legalityStatus ?? existing.legalityStatus,
       isPrimaryPrint: body.isPrimaryPrint ?? existing.isPrimaryPrint,
+      quantityInProduct: body.quantityInProduct === undefined ? existing.quantityInProduct : body.quantityInProduct,
     },
     include: { set: true },
   });
@@ -1811,6 +1812,7 @@ app.get("/api/rulings", async (req, res) => {
   const q = normalizeQueryValue(req.query.q);
   const sourceType = normalizeQueryValue(req.query.sourceType);
   const relatedKeyword = normalizeQueryValue(req.query.relatedKeyword);
+  const title = normalizeQueryValue(req.query.title);
   const sort = normalizeQueryValue(req.query.sort) || "updated_desc";
 
   const rulings = await prisma.ruling.findMany({
@@ -1830,6 +1832,7 @@ app.get("/api/rulings", async (req, res) => {
           : {},
         sourceType ? { sourceType: { equals: sourceType as any } } : {},
         relatedKeyword ? { relatedKeyword: { contains: relatedKeyword, mode: "insensitive" } } : {},
+        title ? { title: { equals: title } } : {},
       ],
     },
     include: { card: true },
@@ -1840,11 +1843,18 @@ app.get("/api/rulings", async (req, res) => {
 
 app.get("/api/rulings/filters", async (_req, res) => {
   setPublicCache(res, 60, 300);
-  const [sourceRows, keywordRows] = await Promise.all([
+  const [sourceRows, keywordRows, titleRows, phaseRows] = await Promise.all([
     prisma.ruling.findMany({ select: { sourceType: true }, distinct: ["sourceType"], orderBy: { sourceType: "asc" } }),
     prisma.ruling.findMany({ select: { relatedKeyword: true }, distinct: ["relatedKeyword"], where: { relatedKeyword: { not: null } }, orderBy: { relatedKeyword: "asc" } }),
+    prisma.ruling.findMany({ select: { title: true }, distinct: ["title"], where: { isActive: true }, orderBy: { title: "asc" } }),
+    prisma.ruling.findMany({ select: { relatedPhase: true }, distinct: ["relatedPhase"], where: { relatedPhase: { not: null } }, orderBy: { relatedPhase: "asc" } }),
   ]);
-  res.json({ sourceTypes: sourceRows.map((item) => item.sourceType), relatedKeywords: keywordRows.map((item) => item.relatedKeyword).filter(Boolean) });
+  res.json({
+    sourceTypes: sourceRows.map((item) => item.sourceType),
+    relatedKeywords: keywordRows.map((item) => item.relatedKeyword).filter(Boolean),
+    titles: titleRows.map((item) => item.title).filter(Boolean),
+    relatedPhases: phaseRows.map((item) => item.relatedPhase).filter(Boolean),
+  });
 });
 
 app.get("/api/rulings/:id", async (req, res) => {

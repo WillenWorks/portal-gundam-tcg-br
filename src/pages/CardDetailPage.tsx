@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatCardText } from "@/lib/utils";
+import { translateRuleTitle } from "@/lib/ruleLabels";
 
 const RELATION_LABELS: Record<string, string> = {
   PILOT_OF: "Piloto",
@@ -130,7 +131,7 @@ export default function CardDetailPage() {
         </section>
 
         <section>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Fontes e rulings</h2><p className="text-sm text-slate-400">Rulings vinculadas a esta impressão: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">Abrir referência oficial <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => <Link key={rule.id} href={`/rules/${rule.id}`} className="block border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700">{rule.title}</Link>)}</div> : <p className="text-sm text-slate-500">Nenhuma ruling vinculada.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Fontes e rulings</h2><p className="text-sm text-slate-400">Rulings vinculadas a esta impressão: {card.rulings?.length || 0}</p>{card.officialUrl ? <a href={card.officialUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">Abrir referência oficial <ExternalLink className="size-4" /></a> : null}{card.rulings?.length ? <div className="grid gap-2 sm:grid-cols-2">{card.rulings.slice(0, 8).map((rule: any) => <Link key={rule.id} href={`/rules/${rule.id}`} className="block border border-white/10 p-3 text-sm hover:border-primary/50 dark:text-slate-200 light:text-slate-700"><span className="block text-[11px] uppercase tracking-[0.16em] text-slate-500">{translateRuleTitle(rule.title)}</span>{rule.questionPt || rule.title}</Link>)}</div> : <p className="text-sm text-slate-500">Nenhuma ruling vinculada.</p>}</CardContent></Card>
         </section>
       </> : null}
     </div>

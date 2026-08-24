@@ -48,6 +48,7 @@ type ArtVariantForm = {
   sourceUrl: string;
   rarity: string;
   isPrimary: boolean;
+  quantityInProduct: string;
 };
  
 type CardForm = {
@@ -122,6 +123,7 @@ function createArtVariant(seed: Partial<ArtVariantForm> = {}): ArtVariantForm {
     sourceUrl: seed.sourceUrl || "",
     rarity: seed.rarity || "C",
     isPrimary: Boolean(seed.isPrimary ?? false),
+    quantityInProduct: seed.quantityInProduct || "",
   };
 }
 
@@ -148,6 +150,7 @@ function mapCardArts(card?: AdminCard) {
     sourceUrl: String(print.imageSourceUrl || ""),
     rarity: String(print.rarity || card?.rarity || "C"),
     isPrimary: Boolean(print.isPrimaryPrint ?? prints.length === 1),
+    quantityInProduct: print.quantityInProduct != null ? String(print.quantityInProduct) : "",
   }));
   return normalizeArtState(mapped, undefined, String(card?.rarity || "C")).arts;
 }
@@ -465,7 +468,7 @@ export default function AdminPage() {
     if (!selectedArt || !cardForm.id) return;
     setSaving(true);
     try {
-      await api.updateCardPrint(selectedArt.id, { printLabel: selectedArt.label.trim() || null, imageUrl: selectedArt.url.trim() || null, thumbUrl: selectedArt.thumbUrl.trim() || null, imageSourceUrl: selectedArt.sourceUrl.trim() || null, rarity: selectedArt.rarity || null });
+      await api.updateCardPrint(selectedArt.id, { printLabel: selectedArt.label.trim() || null, imageUrl: selectedArt.url.trim() || null, thumbUrl: selectedArt.thumbUrl.trim() || null, imageSourceUrl: selectedArt.sourceUrl.trim() || null, rarity: selectedArt.rarity || null, quantityInProduct: selectedArt.quantityInProduct.trim() ? Number(selectedArt.quantityInProduct) : null });
       toast.success("Impressão atualizada.");
       await loadAdminCards();
     } catch (err: any) {
@@ -1122,6 +1125,7 @@ export default function AdminPage() {
                     <FieldBlock label="Imagem" hint="Aceita URL externa ou caminho local em /uploads/cards"><Input value={selectedArt?.url || ""} onChange={(e) => updateSelectedArt({ url: e.target.value })} placeholder="/uploads/cards/GD01-001.webp ou URL" className="rounded-none" /></FieldBlock>
                     <div className="grid gap-4 md:grid-cols-2">
                       <FieldBlock label="Raridade desta impressão"><select value={selectedArt?.rarity || cardForm.rarity} onChange={(e) => updateSelectedArt({ rarity: e.target.value })} className="field-shell h-10 w-full px-3 text-sm">{ART_RARITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select></FieldBlock>
+                      <FieldBlock label="Qtd. nesta coleção fechada"><input type="number" min={0} value={selectedArt?.quantityInProduct || ""} onChange={(e) => updateSelectedArt({ quantityInProduct: e.target.value })} placeholder="ex: 4 (starter/build box)" className="field-shell h-10 w-full px-3 text-sm" /></FieldBlock>
                       <FieldBlock label="Thumb"><Input value={selectedArt?.thumbUrl || ""} onChange={(e) => updateSelectedArt({ thumbUrl: e.target.value })} placeholder="opcional" className="rounded-none" /></FieldBlock>
                     </div>
                     <FieldBlock label="Fonte da imagem"><Input value={selectedArt?.sourceUrl || ""} onChange={(e) => updateSelectedArt({ sourceUrl: e.target.value })} placeholder="URL de origem da arte" className="rounded-none" /></FieldBlock>

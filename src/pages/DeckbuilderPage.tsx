@@ -1338,13 +1338,13 @@ export default function DeckbuilderPage() {
                   </select>
                   <div className="flex border border-white/15">
                     <button type="button" onClick={() => setMainViewMode("grid")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "grid" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Grade única</button>
-                    <button type="button" onClick={() => setMainViewMode("type")} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition ${mainViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
+                    <button type="button" onClick={() => setMainViewMode("type")} disabled={mainSortField !== "default"} title={mainSortField !== "default" ? "Desative a ordenação (\"Ordem de adição\") pra usar agrupamento por tipo" : undefined} className={`px-3 py-1.5 text-xs uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-40 ${mainViewMode === "type" ? "bg-primary text-primary-foreground" : "bg-white/5 text-soft hover:bg-white/10"}`}>Por tipo</button>
                   </div>
                   <Badge className={`rounded-none border ${stats.mainDeckCount === DECK_MAIN_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.mainDeckCount}/{DECK_MAIN_SIZE}</Badge>
                 </div>
               </div>
               <div className="mt-6 max-h-[440px] overflow-auto pr-1">
-                {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" ? (
+                {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" || mainSortField !== "default" ? (
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
                     {sortedMainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                   </div>

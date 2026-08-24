@@ -221,6 +221,7 @@ model Card {
   ap                Int?
   hp                Int?
   rarity            String?
+  quantityInProduct Int?
   isPrimaryPrint    Boolean  @default(false)
   printLabel        String?
   trait             String?

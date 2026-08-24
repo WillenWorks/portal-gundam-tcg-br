@@ -1,0 +1,167 @@
+[
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Turn Flow",
+    "relatedPhase": "turn_flow",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the five phases of a turn, in order?",
+    "answerEn": "Start Phase → Draw Phase → Resource Phase → Main Phase → End Phase, always in that order, every turn.",
+    "questionPt": "Quais são as 5 fases do turno, em ordem?",
+    "answerPt": "Fase de Início → Fase de Compra → Fase de Recurso → Fase Principal → Fase Final, sempre nessa ordem, todo turno."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Turn Flow",
+    "relatedPhase": "turn_flow",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Can the turn move to the next phase while there's still a triggered effect waiting to resolve?",
+    "answerEn": "No. Any effect triggered during a phase must fully resolve before the turn can advance to the next phase — the game never lets phases overlap with a pending effect.",
+    "questionPt": "O turno pode avançar de fase enquanto ainda tem efeito disparado esperando resolver?",
+    "answerPt": "Não. Qualquer efeito disparado durante uma fase precisa resolver por completo antes do turno avançar pra próxima — o jogo nunca deixa fases se sobreporem com efeito pendente."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Start Phase",
+    "relatedPhase": "start_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What happens during the Start Phase?",
+    "answerEn": "Two things, in order: first, every rested card you control (in the battle area, resource area, and base section) becomes active again — all at once, no particular order. Then, any effect that specifically says 'at the start of the turn' triggers.",
+    "questionPt": "O que acontece na Fase de Início?",
+    "answerPt": "Duas coisas, em ordem: primeiro, toda carta descansada que você controla (na área de batalha, de recurso, e a base) fica ativa de novo — tudo de uma vez, sem ordem específica. Depois, qualquer efeito que diz especificamente \"no início do turno\" dispara."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Draw Phase",
+    "relatedPhase": "draw_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How many cards do I draw during the Draw Phase?",
+    "answerEn": "Exactly 1, from the top of your deck into your hand.",
+    "questionPt": "Quantas cartas eu compro na Fase de Compra?",
+    "answerPt": "Exatamente 1, do topo do seu deck pra sua mão."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Draw Phase",
+    "relatedPhase": "draw_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What happens if I have to draw a card but my deck is empty?",
+    "answerEn": "You lose the game immediately — this is one of only two ways to lose (the other is taking battle damage with no shields left).",
+    "questionPt": "O que acontece se eu precisar comprar uma carta mas meu deck estiver vazio?",
+    "answerPt": "Você perde a partida imediatamente — essa é uma das únicas duas formas de perder o jogo (a outra é receber dano de batalha sem nenhum escudo restante)."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Resource Phase",
+    "relatedPhase": "resource_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What happens during the Resource Phase?",
+    "answerEn": "You place exactly 1 Resource card from your resource deck into your resource area, face up and active (untapped).",
+    "questionPt": "O que acontece na Fase de Recurso?",
+    "answerPt": "Você coloca exatamente 1 carta de Resource do seu deck de recursos na sua área de recurso, virada pra cima e ativa (não descansada)."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Playing Cards",
+    "relatedPhase": "main_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What actions can I take during my Main Phase, and in what order?",
+    "answerEn": "Three kinds of actions, in any order, any number of times each, as many as you can afford: play a card from your hand, activate an Activate·Main effect, and attack with a Unit. There's no fixed sequence — you choose the order.",
+    "questionPt": "Quais ações eu posso fazer na minha Fase Principal, e em que ordem?",
+    "answerPt": "Três tipos de ação, em qualquer ordem, quantas vezes você quiser (dentro do que consegue pagar): jogar uma carta da mão, ativar um efeito Activate·Main, e atacar com uma Unit. Não tem sequência fixa — você escolhe a ordem."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Playing Cards",
+    "relatedPhase": "main_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the exact steps to play a card from my hand?",
+    "answerEn": "Reveal the card you want to play, confirm you have enough Resources to meet its Level, choose which Resources to rest to pay its cost, then play it.",
+    "questionPt": "Quais são os passos exatos pra jogar uma carta da mão?",
+    "answerPt": "Revela a carta que você quer jogar, confirma que tem Resources suficientes pro Nível dela, escolhe quais Resources descansar pra pagar o custo, e joga."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Activating Card Effects",
+    "relatedPhase": "main_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "Can I activate a card effect while there's still a triggered ability waiting in line to resolve?",
+    "answerEn": "Generally no. With the exception of actions the ability itself permits, main-phase actions (playing cards, Activate·Main effects, attacking) can only happen when there's no pending triggered effect waiting to resolve.",
+    "questionPt": "Dá pra ativar um efeito de carta enquanto ainda tem uma habilidade disparada esperando na fila pra resolver?",
+    "answerPt": "Geralmente não. Com exceção de ações que a própria habilidade permite, as ações da fase principal (jogar carta, efeito Activate·Main, atacar) só podem acontecer quando não tem nenhum efeito disparado pendente esperando resolver."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "Main Phase: Unit Attacks",
+    "relatedPhase": "main_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "How do I end my Main Phase?",
+    "answerEn": "You simply declare it's over. As soon as you do, the turn moves immediately into the End Phase — there's no going back once declared.",
+    "questionPt": "Como eu termino minha Fase Principal?",
+    "answerPt": "Você simplesmente declara que acabou. Assim que faz isso, o turno entra direto na Fase Final — não tem como voltar atrás depois de declarado."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "End Phase",
+    "relatedPhase": "end_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What are the four steps of the End Phase, in order?",
+    "answerEn": "Action Step → End Step → Hand Step → Cleanup Step.",
+    "questionPt": "Quais são as 4 etapas da Fase Final, em ordem?",
+    "answerPt": "Etapa de Ação → Etapa Final → Etapa de Mão → Etapa de Limpeza."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "End Phase",
+    "relatedPhase": "end_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "During the Action Step, who acts first — the active player or the opponent?",
+    "answerEn": "The standby player (the one NOT taking their turn) acts first, then it alternates. This is the one moment in the whole turn where the opponent gets first say.",
+    "questionPt": "Na Etapa de Ação, quem age primeiro — o jogador ativo ou o oponente?",
+    "answerPt": "O jogador em espera (quem NÃO está jogando o turno) age primeiro, depois alterna. É o único momento do turno inteiro onde o oponente fala primeiro."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "End Phase",
+    "relatedPhase": "end_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "When exactly do 'at the end of the turn' effects like Repair trigger?",
+    "answerEn": "During the End Step, the second of the four End Phase steps — this is the precise moment Repair actually heals, and any other 'end of turn' effect fires.",
+    "questionPt": "Quando exatamente disparam efeitos de \"fim do turno\" tipo o Repair?",
+    "answerPt": "Durante a Etapa Final, a segunda das 4 etapas da Fase Final — é o momento exato em que o Repair realmente cura, e qualquer outro efeito de \"fim do turno\" dispara."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "End Phase",
+    "relatedPhase": "end_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "I have more than 10 cards in hand at the end of my turn — what happens?",
+    "answerEn": "During the Hand Step, you must discard down to exactly 10 cards, choosing yourself which ones to discard.",
+    "questionPt": "Eu tenho mais de 10 cartas na mão no fim do meu turno — o que acontece?",
+    "answerPt": "Durante a Etapa de Mão, você precisa descartar até ficar com exatamente 10 cartas, escolhendo você mesmo quais descartar."
+  },
+  {
+    "sourceType": "OFFICIAL_RULES",
+    "title": "End Phase",
+    "relatedPhase": "end_phase",
+    "originalUrl": "https://www.gundam-gcg.com/en/pdf/comprehensiverules_en.pdf",
+    "officialUpdatedAt": "2026-07-10",
+    "questionEn": "What happens to temporary effects (like a card that says 'during this turn') at the end of the turn?",
+    "answerEn": "They expire during the Cleanup Step, the very last step — temporary AP boosts, temporary restrictions, everything wears off before the turn officially passes to the opponent.",
+    "questionPt": "O que acontece com efeitos temporários (tipo uma carta que diz \"durante este turno\") no fim do turno?",
+    "answerPt": "Eles expiram na Etapa de Limpeza, a última etapa de todas — bônus de AP temporário, restrição temporária, tudo isso acaba antes do turno oficialmente passar pro oponente."
+  }
+]
