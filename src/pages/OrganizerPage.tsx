@@ -6,7 +6,7 @@
  * deck -- de mão única: uma vez travado, não tem "destravar" nem no front nem na API. */
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { CalendarClock, Lock, Plus, Trash2, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Lock, Plus, Swords, Trash2, Trophy, UserPlus, Users } from "lucide-react";
 
 import { api, type ApiDeck } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -25,6 +25,40 @@ type HostedEventParticipant = {
   deckLockedAt?: string | null;
 };
 
+// Fase C: participante enxuto dentro de um confronto -- os dados completos (deck,
+// deckSnapshot) já vêm pela lista de participants do próprio evento.
+type HostedEventMatchParticipant = { id: string; user: { id: string; username: string; displayName: string } };
+
+type HostedEventMatchResult = "PENDING" | "PLAYER_A_WIN" | "PLAYER_B_WIN" | "DRAW" | "BYE";
+
+type HostedEventMatch = {
+  id: string;
+  tableNumber?: number | null;
+  participantAId: string;
+  participantBId?: string | null;
+  participantA: HostedEventMatchParticipant;
+  participantB?: HostedEventMatchParticipant | null;
+  result: HostedEventMatchResult;
+};
+
+type HostedEventRound = {
+  id: string;
+  roundNumber: number;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+  matches: HostedEventMatch[];
+};
+
+type HostedEventStandingRow = {
+  participantId: string;
+  user: { id: string; username: string; displayName: string; avatarUrl?: string | null };
+  points: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  byes: number;
+  played: number;
+};
+
 type HostedEvent = {
   id: string;
   name: string;
@@ -38,6 +72,7 @@ type HostedEvent = {
   maxPlayers?: number | null;
   status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   participants?: HostedEventParticipant[];
+  rounds?: HostedEventRound[];
 };
 
 const STATUS_LABEL: Record<HostedEvent["status"], string> = {
@@ -46,6 +81,22 @@ const STATUS_LABEL: Record<HostedEvent["status"], string> = {
   IN_PROGRESS: "Em andamento",
   COMPLETED: "Concluído",
   CANCELLED: "Cancelado",
+};
+
+const ROUND_STATUS_LABEL: Record<HostedEventRound["status"], string> = {
+  PENDING: "Pendente",
+  IN_PROGRESS: "Em andamento",
+  COMPLETED: "Concluída",
+};
+
+// Fase C: rótulo do resultado do ponto de vista de quem está lendo a lista de
+// confrontos (não do participanteA/B especificamente).
+const MATCH_RESULT_LABEL: Record<HostedEventMatchResult, string> = {
+  PENDING: "Resultado pendente",
+  PLAYER_A_WIN: "Vitória do jogador A",
+  PLAYER_B_WIN: "Vitória do jogador B",
+  DRAW: "Empate",
+  BYE: "Bye (folga)",
 };
 
 const emptyForm = { id: "", name: "", description: "", format: "constructed", venueName: "", city: "", country: "", dateStart: "", maxPlayers: "", status: "DRAFT" as HostedEvent["status"] };
@@ -85,6 +136,17 @@ export default function OrganizerPage() {
   const [deckOptions, setDeckOptions] = useState<Record<string, ApiDeck[]>>({});
   const [deckChoice, setDeckChoice] = useState<Record<string, string>>({});
   const [lockingId, setLockingId] = useState<string | null>(null);
+
+  // Fase C: painel de rodadas/confrontos/classificação -- pareamento e resultado são
+  // sempre lançados manualmente pelo Hoster (ver comentário no topo do arquivo).
+  const [roundsEvent, setRoundsEvent] = useState<HostedEvent | null>(null);
+  const [standings, setStandings] = useState<HostedEventStandingRow[]>([]);
+  const [loadingStandings, setLoadingStandings] = useState(false);
+  const [creatingRound, setCreatingRound] = useState(false);
+  const [roundBusyId, setRoundBusyId] = useState<string | null>(null);
+  const [matchDraft, setMatchDraft] = useState<Record<string, { participantAId: string; participantBId: string; tableNumber: string }>>({});
+  const [creatingMatchRoundId, setCreatingMatchRoundId] = useState<string | null>(null);
+  const [matchBusyId, setMatchBusyId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -252,6 +314,125 @@ export default function OrganizerPage() {
     }
   };
 
+  const refreshRoundsEvent = async (id: string) => {
+    const [fresh, standingsResult] = await Promise.all([api.getHostedEvent(id), api.getHostedEventStandings(id)]);
+    setRoundsEvent(fresh);
+    setStandings(standingsResult);
+    setEvents((current) => current.map((item) => (item.id === id ? fresh : item)));
+  };
+
+  const openRounds = async (event: HostedEvent) => {
+    setMatchDraft({});
+    setRoundsEvent(event);
+    setLoadingStandings(true);
+    try {
+      await refreshRoundsEvent(event.id);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao carregar rodadas.");
+    } finally {
+      setLoadingStandings(false);
+    }
+  };
+
+  const addRound = async () => {
+    if (!roundsEvent) return;
+    setCreatingRound(true);
+    try {
+      await api.createHostedEventRound(roundsEvent.id);
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success("Rodada criada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar rodada.");
+    } finally {
+      setCreatingRound(false);
+    }
+  };
+
+  const updateRoundStatus = async (round: HostedEventRound, status: HostedEventRound["status"]) => {
+    if (!roundsEvent) return;
+    setRoundBusyId(round.id);
+    try {
+      await api.updateHostedEventRound(roundsEvent.id, round.id, status);
+      await refreshRoundsEvent(roundsEvent.id);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao atualizar a rodada.");
+    } finally {
+      setRoundBusyId(null);
+    }
+  };
+
+  const deleteRound = async (round: HostedEventRound) => {
+    if (!roundsEvent) return;
+    if (!window.confirm(`Remover a rodada ${round.roundNumber}? Só é possível se nenhum resultado tiver sido lançado.`)) return;
+    setRoundBusyId(round.id);
+    try {
+      await api.deleteHostedEventRound(roundsEvent.id, round.id);
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success("Rodada removida.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao remover a rodada.");
+    } finally {
+      setRoundBusyId(null);
+    }
+  };
+
+  const setDraftField = (roundId: string, field: "participantAId" | "participantBId" | "tableNumber", value: string) => {
+    setMatchDraft((current) => ({
+      ...current,
+      [roundId]: { participantAId: "", participantBId: "", tableNumber: "", ...current[roundId], [field]: value },
+    }));
+  };
+
+  const createMatch = async (round: HostedEventRound) => {
+    if (!roundsEvent) return;
+    const draft = matchDraft[round.id];
+    if (!draft?.participantAId) { toast.error("Escolha o participante A."); return; }
+    if (draft.participantBId && draft.participantAId === draft.participantBId) { toast.error("Os dois participantes precisam ser diferentes."); return; }
+    setCreatingMatchRoundId(round.id);
+    try {
+      await api.createHostedEventMatch(roundsEvent.id, round.id, {
+        participantAId: draft.participantAId,
+        participantBId: draft.participantBId || null,
+        tableNumber: draft.tableNumber ? Number(draft.tableNumber) : null,
+      });
+      setMatchDraft((current) => ({ ...current, [round.id]: { participantAId: "", participantBId: "", tableNumber: "" } }));
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success("Confronto adicionado.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao adicionar confronto.");
+    } finally {
+      setCreatingMatchRoundId(null);
+    }
+  };
+
+  const reportResult = async (round: HostedEventRound, match: HostedEventMatch, result: HostedEventMatchResult) => {
+    if (!roundsEvent) return;
+    setMatchBusyId(match.id);
+    try {
+      await api.reportHostedEventMatchResult(roundsEvent.id, round.id, match.id, result);
+      await refreshRoundsEvent(roundsEvent.id);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao lançar o resultado.");
+    } finally {
+      setMatchBusyId(null);
+    }
+  };
+
+  const deleteMatch = async (round: HostedEventRound, match: HostedEventMatch) => {
+    if (!roundsEvent) return;
+    if (!window.confirm("Remover este confronto?")) return;
+    setMatchBusyId(match.id);
+    try {
+      await api.deleteHostedEventMatch(roundsEvent.id, round.id, match.id);
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success("Confronto removido.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao remover confronto.");
+    } finally {
+      setMatchBusyId(null);
+    }
+  };
+
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Meus eventos" }]}>
       <div className="space-y-6">
@@ -292,6 +473,7 @@ export default function OrganizerPage() {
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="rounded-none" onClick={() => openModal(event)}>Editar</Button>
                   <Button variant="outline" className="rounded-none" onClick={() => openParticipants(event)}><Users className="mr-2 size-4" />Participantes{event.participants ? ` (${event.participants.length})` : ""}</Button>
+                  <Button variant="outline" className="rounded-none" onClick={() => openRounds(event)}><Swords className="mr-2 size-4" />Rodadas{event.rounds ? ` (${event.rounds.length})` : ""}</Button>
                   <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => removeEvent(event)}><Trash2 className="mr-2 size-4" />Cancelar</Button>
                 </div>
               </CardContent>
@@ -403,6 +585,138 @@ export default function OrganizerPage() {
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="rounded-none" onClick={() => setParticipantsEvent(null)}>Fechar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(roundsEvent)} onOpenChange={(open) => { if (!open) setRoundsEvent(null); }}>
+        <DialogContent className="panel-cut max-h-[85vh] max-w-3xl overflow-y-auto rounded-none surface-panel">
+          <DialogHeader>
+            <DialogTitle>Rodadas & resultados{roundsEvent ? ` — ${roundsEvent.name}` : ""}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500"><Trophy className="size-3.5" />Classificação</p>
+            {loadingStandings ? <p className="text-sm text-muted-portal">Carregando...</p> : null}
+            {!loadingStandings && !standings.length ? <p className="text-sm text-muted-portal">Nenhum ponto lançado ainda.</p> : null}
+            {standings.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-slate-500 uppercase tracking-wide">
+                      <th className="py-1 pr-2">Jogador</th>
+                      <th className="px-2">Pts</th>
+                      <th className="px-2">V</th>
+                      <th className="px-2">E</th>
+                      <th className="px-2">D</th>
+                      <th className="px-2">Byes</th>
+                      <th className="px-2">Jogos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings.map((row, index) => (
+                      <tr key={row.participantId} className="border-t border-primary/10">
+                        <td className="py-1.5 pr-2 text-soft">{index + 1}. {row.user.displayName}</td>
+                        <td className="px-2 font-semibold text-primary">{row.points}</td>
+                        <td className="px-2">{row.wins}</td>
+                        <td className="px-2">{row.draws}</td>
+                        <td className="px-2">{row.losses}</td>
+                        <td className="px-2">{row.byes}</td>
+                        <td className="px-2">{row.played}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-3 pt-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Rodadas ({roundsEvent?.rounds?.length ?? 0})</p>
+              <Button variant="outline" className="rounded-none" disabled={creatingRound} onClick={addRound}><Plus className="mr-2 size-4" />Nova rodada</Button>
+            </div>
+
+            {!roundsEvent?.rounds?.length ? (
+              <p className="text-sm text-muted-portal">Nenhuma rodada criada ainda.</p>
+            ) : (
+              <div className="space-y-4">
+                {roundsEvent.rounds.map((round) => {
+                  const pairedIds = new Set(round.matches.flatMap((m) => [m.participantAId, m.participantBId].filter(Boolean) as string[]));
+                  const available = (roundsEvent.participants || []).filter((p) => !pairedIds.has(p.id));
+                  const draft = matchDraft[round.id] || { participantAId: "", participantBId: "", tableNumber: "" };
+                  return (
+                    <div key={round.id} className="panel-cut border border-primary/20 bg-black/20 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-soft">Rodada {round.roundNumber}</p>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={round.status}
+                            disabled={roundBusyId === round.id}
+                            onChange={(e) => updateRoundStatus(round, e.target.value as HostedEventRound["status"])}
+                            className="field-shell h-8 px-2 text-xs"
+                          >
+                            {(Object.keys(ROUND_STATUS_LABEL) as HostedEventRound["status"][]).map((status) => <option key={status} value={status}>{ROUND_STATUS_LABEL[status]}</option>)}
+                          </select>
+                          <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" disabled={roundBusyId === round.id} onClick={() => deleteRound(round)}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 space-y-1.5">
+                        {!round.matches.length ? <p className="text-xs text-muted-portal">Nenhum confronto montado nesta rodada.</p> : null}
+                        {round.matches.map((match) => (
+                          <div key={match.id} className="flex flex-wrap items-center justify-between gap-2 border border-primary/10 bg-black/10 px-3 py-2">
+                            <div className="text-xs text-soft">
+                              {match.tableNumber ? <span className="mr-2 text-muted-portal">Mesa {match.tableNumber}</span> : null}
+                              <span>{match.participantA.user.displayName}</span>
+                              {match.participantB ? <span> vs {match.participantB.user.displayName}</span> : <span className="text-muted-portal"> (bye)</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {match.participantB ? (
+                                <select
+                                  value={match.result}
+                                  disabled={matchBusyId === match.id}
+                                  onChange={(e) => reportResult(round, match, e.target.value as HostedEventMatchResult)}
+                                  className="field-shell h-8 px-2 text-xs"
+                                >
+                                  {(["PENDING", "PLAYER_A_WIN", "PLAYER_B_WIN", "DRAW"] as HostedEventMatchResult[]).map((result) => <option key={result} value={result}>{MATCH_RESULT_LABEL[result]}</option>)}
+                                </select>
+                              ) : (
+                                <Badge variant="outline" className="rounded-none border-primary/40 text-primary">{MATCH_RESULT_LABEL.BYE}</Badge>
+                              )}
+                              <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" disabled={matchBusyId === match.id} onClick={() => deleteMatch(round, match)}>
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-primary/10 pt-3">
+                        <select value={draft.participantAId} onChange={(e) => setDraftField(round.id, "participantAId", e.target.value)} className="field-shell h-9 px-2 text-xs">
+                          <option value="">Participante A</option>
+                          {available.map((p) => <option key={p.id} value={p.id}>{p.user.displayName}</option>)}
+                        </select>
+                        <select value={draft.participantBId} onChange={(e) => setDraftField(round.id, "participantBId", e.target.value)} className="field-shell h-9 px-2 text-xs">
+                          <option value="">Bye (sem adversário)</option>
+                          {available.filter((p) => p.id !== draft.participantAId).map((p) => <option key={p.id} value={p.id}>{p.user.displayName}</option>)}
+                        </select>
+                        <Input value={draft.tableNumber} onChange={(e) => setDraftField(round.id, "tableNumber", e.target.value)} type="number" min={0} placeholder="Mesa" className="h-9 w-20 rounded-none text-xs" />
+                        <Button variant="outline" className="rounded-none" disabled={creatingMatchRoundId === round.id} onClick={() => createMatch(round)}>
+                          <Plus className="mr-2 size-4" />Adicionar confronto
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="rounded-none" onClick={() => setRoundsEvent(null)}>Fechar</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -2080,9 +2080,22 @@ const hostedEventParticipantInclude = {
   deckSnapshot: { include: { items: { include: { card: true } } } },
 } as const;
 
+// Fase C: participante enxuto (só id + usuário) pra exibir num confronto -- os dados
+// completos (deck/deckSnapshot) já vêm pela lista de participants do próprio evento,
+// não precisa duplicar aqui.
+const hostedEventMatchInclude = {
+  participantA: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+  participantB: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
+} as const;
+
+const hostedEventRoundInclude = {
+  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" as const }, { createdAt: "asc" as const }] },
+} as const;
+
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
   participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
+  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
 } as const;
 
 async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
@@ -2219,6 +2232,13 @@ app.delete("/api/hosted-events/:id/participants/:participantId", authRequired, h
   // Deck já travado -- o resultado passa a fazer parte do histórico do evento e não
   // pode mais sumir do registro (mesma lógica de "não pode ser desfeito" da trava).
   if (participant.deckLockedAt) return res.status(403).json({ error: "Não é possível remover um participante com deck já travado." });
+  // Fase C: idem se o participante já tem confronto registrado (mesmo sem resultado
+  // lançado ainda) -- remover ia deixar HostedEventMatch.participantAId/BId órfão de
+  // sentido na tabela de rodadas.
+  const matchCount = await prisma.hostedEventMatch.count({
+    where: { OR: [{ participantAId: participant.id }, { participantBId: participant.id }] },
+  });
+  if (matchCount > 0) return res.status(403).json({ error: "Não é possível remover um participante que já está em algum confronto." });
   await prisma.hostedEventParticipant.delete({ where: { id: participant.id } });
   res.status(204).send();
 });
@@ -2244,6 +2264,169 @@ app.post("/api/hosted-events/:id/participants/:participantId/deck", authRequired
     include: hostedEventParticipantInclude,
   });
   res.json(updated);
+});
+
+/* ---------------------------------------------------------------------------
+ * Fase C -- rodadas, confrontos e classificação de um HostedEvent. Pareamento e
+ * lançamento de resultado são manuais (o Hoster monta os confrontos e digita quem
+ * ganhou); o schema comporta um pareamento automático (Swiss) no futuro sem precisar
+ * ser reescrito. participantBId nulo = bye, que já nasce com resultado BYE fixo.
+ * ------------------------------------------------------------------------- */
+
+// Pontuação padrão de TCG: vitória=3, empate=1, derrota=0. Bye conta como vitória
+// automática (3 pts) sem afetar estatística de mais ninguém, já que não existe um
+// adversário de verdade. Fixo pro MVP (não configurável por evento ainda).
+const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
+
+async function computeHostedEventStandings(eventId: string) {
+  const participants = await prisma.hostedEventParticipant.findMany({
+    where: { eventId },
+    select: { id: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+  });
+  type Row = { participantId: string; user: (typeof participants)[number]["user"]; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
+  const stats = new Map<string, Row>();
+  for (const p of participants) {
+    stats.set(p.id, { participantId: p.id, user: p.user, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
+  }
+  const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
+  for (const m of matches) {
+    const a = stats.get(m.participantAId);
+    const b = m.participantBId ? stats.get(m.participantBId) : null;
+    if (!a) continue;
+    if (m.result === HostedEventMatchResult.BYE) {
+      a.points += HOSTED_EVENT_POINTS.win;
+      a.wins += 1;
+      a.byes += 1;
+      a.played += 1;
+    } else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) {
+      a.points += HOSTED_EVENT_POINTS.win;
+      a.wins += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.loss; b.losses += 1; b.played += 1; }
+    } else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) {
+      a.points += HOSTED_EVENT_POINTS.loss;
+      a.losses += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.win; b.wins += 1; b.played += 1; }
+    } else if (m.result === HostedEventMatchResult.DRAW) {
+      a.points += HOSTED_EVENT_POINTS.draw;
+      a.draws += 1;
+      a.played += 1;
+      if (b) { b.points += HOSTED_EVENT_POINTS.draw; b.draws += 1; b.played += 1; }
+    }
+    // PENDING: confronto ainda sem resultado lançado, não conta pra classificação.
+  }
+  return Array.from(stats.values()).sort((x, y) => y.points - x.points || y.wins - x.wins || x.losses - y.losses);
+}
+
+app.get("/api/hosted-events/:id/standings", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const standings = await computeHostedEventStandings(event.id);
+  res.json(standings);
+});
+
+app.post("/api/hosted-events/:id/rounds", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const last = await prisma.hostedEventRound.findFirst({ where: { eventId: event.id }, orderBy: [{ roundNumber: "desc" }] });
+  const round = await prisma.hostedEventRound.create({
+    data: { eventId: event.id, roundNumber: (last?.roundNumber ?? 0) + 1 },
+    include: hostedEventRoundInclude,
+  });
+  res.status(201).json(round);
+});
+
+app.put("/api/hosted-events/:id/rounds/:roundId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const body = req.body as { status?: HostedEventRoundStatus };
+  if (!body.status) return res.status(400).json({ error: "Status é obrigatório." });
+  const updated = await prisma.hostedEventRound.update({ where: { id: round.id }, data: { status: body.status }, include: hostedEventRoundInclude });
+  res.json(updated);
+});
+
+app.delete("/api/hosted-events/:id/rounds/:roundId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id }, include: { matches: true } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  // Impede apagar uma rodada com resultado já lançado -- os pontos já contam pra
+  // classificação, apagar silenciosamente reescreveria o histórico do evento.
+  if (round.matches.some((m) => m.result !== HostedEventMatchResult.PENDING)) {
+    return res.status(409).json({ error: "Não é possível remover uma rodada com resultados já lançados." });
+  }
+  await prisma.hostedEventRound.delete({ where: { id: round.id } });
+  res.status(204).send();
+});
+
+app.post("/api/hosted-events/:id/rounds/:roundId/matches", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const body = req.body as { participantAId?: string; participantBId?: string | null; tableNumber?: number | null };
+  if (!body.participantAId) return res.status(400).json({ error: "Participante A é obrigatório." });
+  if (body.participantBId && body.participantAId === body.participantBId) {
+    return res.status(400).json({ error: "Os dois participantes do confronto precisam ser diferentes." });
+  }
+  const participantIds = [body.participantAId, body.participantBId].filter((v): v is string => !!v);
+  const participants = await prisma.hostedEventParticipant.findMany({ where: { id: { in: participantIds }, eventId: event.id } });
+  if (participants.length !== participantIds.length) return res.status(404).json({ error: "Participante não encontrado neste evento." });
+  // Cada participante só pode aparecer em um confronto por rodada.
+  const alreadyPaired = await prisma.hostedEventMatch.findFirst({
+    where: { roundId: round.id, OR: [{ participantAId: { in: participantIds } }, { participantBId: { in: participantIds } }] },
+  });
+  if (alreadyPaired) return res.status(409).json({ error: "Um dos participantes já está em outro confronto nesta rodada." });
+  const match = await prisma.hostedEventMatch.create({
+    data: {
+      roundId: round.id,
+      tableNumber: body.tableNumber ?? null,
+      participantAId: body.participantAId,
+      participantBId: body.participantBId || null,
+      // Sem adversário = bye -- já nasce com resultado definido (vitória automática).
+      result: body.participantBId ? HostedEventMatchResult.PENDING : HostedEventMatchResult.BYE,
+      reportedAt: body.participantBId ? null : new Date(),
+    },
+    include: hostedEventMatchInclude,
+  });
+  res.status(201).json(match);
+});
+
+app.put("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const match = await prisma.hostedEventMatch.findFirst({ where: { id: String(req.params.matchId), roundId: round.id } });
+  if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
+  const body = req.body as { tableNumber?: number | null; result?: HostedEventMatchResult };
+  const data: Prisma.HostedEventMatchUpdateInput = {};
+  if (body.tableNumber !== undefined) data.tableNumber = body.tableNumber;
+  if (body.result !== undefined) {
+    // Bye (sem participantB) só pode continuar BYE -- não faz sentido lançar
+    // vitória/derrota/empate pra um confronto sem adversário de verdade.
+    if (!match.participantBId && body.result !== HostedEventMatchResult.BYE) {
+      return res.status(400).json({ error: "Confronto sem adversário só pode ter resultado de bye." });
+    }
+    data.result = body.result;
+    data.reportedAt = body.result === HostedEventMatchResult.PENDING ? null : new Date();
+  }
+  const updated = await prisma.hostedEventMatch.update({ where: { id: match.id }, data, include: hostedEventMatchInclude });
+  res.json(updated);
+});
+
+app.delete("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+  const round = await prisma.hostedEventRound.findFirst({ where: { id: String(req.params.roundId), eventId: event.id } });
+  if (!round) return res.status(404).json({ error: "Rodada não encontrada." });
+  const match = await prisma.hostedEventMatch.findFirst({ where: { id: String(req.params.matchId), roundId: round.id } });
+  if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
+  await prisma.hostedEventMatch.delete({ where: { id: match.id } });
+  res.status(204).send();
 });
 
 /* ---------------------------------------------------------------------------

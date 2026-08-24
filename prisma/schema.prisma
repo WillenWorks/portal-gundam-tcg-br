@@ -52,6 +52,26 @@ enum HostedEventStatus {
   CANCELLED
 }
 
+// Fase C: status de uma rodada dentro de um HostedEvent.
+enum HostedEventRoundStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Fase C: resultado de um confronto. BYE é o caso sem participantB (folga --
+// vitória automática pro participantA, sem afetar as estatísticas de ninguém
+// mais). O MVP é sempre lançado manualmente pelo Hoster; o schema não impede
+// que um pareamento automático (Swiss) venha a preencher essas mesmas tabelas
+// no futuro.
+enum HostedEventMatchResult {
+  PENDING
+  PLAYER_A_WIN
+  PLAYER_B_WIN
+  DRAW
+  BYE
+}
+
 enum SetKind {
   BOOSTER_PACK
   STARTER_DECK
@@ -471,6 +491,7 @@ model HostedEvent {
 
   hoster       User                      @relation(fields: [hosterId], references: [id], onDelete: Cascade)
   participants HostedEventParticipant[]
+  rounds       HostedEventRound[]
 
   @@index([hosterId])
   @@index([status])
@@ -497,9 +518,54 @@ model HostedEventParticipant {
   deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
   deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
 
+  matchesAsA HostedEventMatch[] @relation("MatchParticipantA")
+  matchesAsB HostedEventMatch[] @relation("MatchParticipantB")
+
   @@unique([eventId, userId])
   @@index([eventId])
   @@index([userId])
+}
+
+// Fase C: uma rodada de um HostedEvent. Pareamento é manual no MVP (o Hoster monta
+// os confrontos à mão) -- roundNumber + status servem tanto pra isso quanto pra uma
+// futura rodada gerada automaticamente (Swiss), sem precisar mudar o schema.
+model HostedEventRound {
+  id          String                 @id @default(cuid())
+  eventId     String
+  roundNumber Int
+  status      HostedEventRoundStatus @default(PENDING)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  event   HostedEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  matches HostedEventMatch[]
+
+  @@unique([eventId, roundNumber])
+  @@index([eventId])
+}
+
+// Fase C: um confronto dentro de uma rodada. participantB nulo = bye (folga) --
+// participantA ganha automaticamente sem afetar o adversário (que não existe).
+// O resultado é lançado manualmente pelo Hoster (result começa PENDING);
+// reportedAt marca quando o resultado foi de fato lançado.
+model HostedEventMatch {
+  id             String                 @id @default(cuid())
+  roundId        String
+  tableNumber    Int?
+  participantAId String
+  participantBId String?
+  result         HostedEventMatchResult @default(PENDING)
+  reportedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  round        HostedEventRound        @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participantA HostedEventParticipant  @relation("MatchParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB HostedEventParticipant? @relation("MatchParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([participantAId])
+  @@index([participantBId])
 }
 
 // Cópia congelada de uma decklist (cartas + quantidades) no momento em que ela foi

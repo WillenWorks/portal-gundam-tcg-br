@@ -333,6 +333,22 @@ export const api = {
   // o servidor recusa qualquer nova tentativa com 409).
   lockHostedEventParticipantDeck: (eventId: string, participantId: string, deckId: string) =>
     mutate<any>(`/hosted-events/${eventId}/participants/${participantId}/deck`, { method: "POST", body: JSON.stringify({ deckId }) }, ["/hosted-events"]),
+  // Fase C: rodadas, confrontos e classificação. Pareamento e resultado são lançados
+  // manualmente pelo Hoster -- toda mutação invalida o cache de /hosted-events pra
+  // refletir na tela do organizador imediatamente.
+  getHostedEventStandings: (eventId: string) => request<any[]>(`/hosted-events/${eventId}/standings`, undefined, { ttlMs: 5_000 }),
+  createHostedEventRound: (eventId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds`, { method: "POST" }, ["/hosted-events"]),
+  updateHostedEventRound: (eventId: string, roundId: string, status: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}`, { method: "PUT", body: JSON.stringify({ status }) }, ["/hosted-events"]),
+  deleteHostedEventRound: (eventId: string, roundId: string) =>
+    mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}`, { method: "DELETE" }, ["/hosted-events"]),
+  createHostedEventMatch: (eventId: string, roundId: string, payload: { participantAId: string; participantBId?: string | null; tableNumber?: number | null }) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}/matches`, { method: "POST", body: JSON.stringify(payload) }, ["/hosted-events"]),
+  reportHostedEventMatchResult: (eventId: string, roundId: string, matchId: string, result: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "PUT", body: JSON.stringify({ result }) }, ["/hosted-events"]),
+  deleteHostedEventMatch: (eventId: string, roundId: string, matchId: string) =>
+    mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "DELETE" }, ["/hosted-events"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
   listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>
