@@ -280,6 +280,12 @@ export const api = {
   createSet: (payload: any) => mutate<any>("/sets", { method: "POST", body: JSON.stringify(payload) }, ["/sets"]),
   updateSet: (id: string, payload: any) => mutate<any>(`/sets/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/sets", "/cards", "/cards/filters"]),
   deleteSet: (id: string) => mutate<void>(`/sets/${id}`, { method: "DELETE" }, ["/sets", "/cards", "/cards/filters"]),
+  // Season -- temporada de metagame de verdade (código/nome/datas + flag "atual").
+  listSeasons: () => request<Array<{ id: string; code: string; name: string; startDate?: string | null; endDate?: string | null; isCurrent: boolean; notes?: string | null }>>("/seasons", undefined, { ttlMs: 30_000 }),
+  createSeason: (payload: any) => mutate<any>("/seasons", { method: "POST", body: JSON.stringify(payload) }, ["/seasons"]),
+  updateSeason: (id: string, payload: any) => mutate<any>(`/seasons/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/seasons"]),
+  setCurrentSeason: (id: string) => mutate<any>(`/seasons/${id}/set-current`, { method: "PUT" }, ["/seasons", "/stats", "/tournaments", "/hosted-events"]),
+  deleteSeason: (id: string) => mutate<void>(`/seasons/${id}`, { method: "DELETE" }, ["/seasons", "/sets", "/tournaments", "/hosted-events"]),
   listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
   // Mesma lógica de listAdminSets, mas pra Traits/Séries.
   listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
@@ -294,6 +300,10 @@ export const api = {
   getCardRelations: (id: string) => request<{ outgoing: any[]; incoming: any[] }>(`/cards/${id}/relations`, undefined, { ttlMs: 20_000 }),
   getCardStats: (id: string) =>
     request<{ cardModelId: string; hasEnoughData: boolean; deckAppearances: number; totalDecks: number; usageRate: number | null; wins: number; losses: number; draws: number; totalMatches: number; winRate: number | null }>(`/cards/${id}/stats`, undefined, { ttlMs: 60_000 }),
+  // Metagame sourced só de decks travados em evento (DeckSnapshot) -- nunca de decks
+  // públicos. seasonId: "current" (default), "all", ou o id de uma season específica.
+  getMetagameStats: (params: { seasonId?: string; setId?: string } = {}) =>
+    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; totalDecks: number; topCards: Array<{ cardModelId: string; name: string; color: string | null; appearances: number; presenceRate: number | null }>; colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>; colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }> }>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),
   deleteCardRelation: (id: string, relationId: string) => mutate<void>(`/cards/${id}/relations/${relationId}`, { method: "DELETE" }, ["/cards"]),
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
@@ -322,6 +332,9 @@ export const api = {
   createTournamentEntry: (tournamentId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries`, { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournamentEntry: (tournamentId: string, entryId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
+  // Auditoria de troca de deck vinculado a um TournamentEntry -- só admin/editor.
+  getTournamentEntryDeckChangeLog: (tournamentId: string, entryId: string) =>
+    request<Array<{ id: string; previousDeckId: string | null; previousDeckSnapshotId: string | null; nextDeckId: string | null; nextDeckSnapshotId: string | null; createdAt: string; changedByUser: { id: string; username: string; displayName: string } | null }>>(`/tournaments/${tournamentId}/entries/${entryId}/deck-change-log`, undefined, { ttlMs: 5_000 }),
   // Pública -- eventos "ao vivo" (via /organizador) já finalizados, pra exibir junto
   // com os Tournament report na tela pública de Eventos.
   listCompletedHostedEvents: () => request<any[]>("/hosted-events/public", undefined, { ttlMs: 20_000 }),

@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
+import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +39,7 @@ const adminNav = [
   { href: "/admin/users", label: "Usuários", icon: Users },
   { href: "/admin/cards", label: "Cartas", icon: PanelsTopLeft },
   { href: "/admin/collections", label: "Coleções", icon: BookMarked },
+  { href: "/admin/seasons", label: "Temporadas", icon: CalendarRange },
   { href: "/admin/media", label: "Mídias", icon: Image },
   { href: "/admin/traits", label: "Traits", icon: Tags },
   { href: "/admin/rulings", label: "Rulings", icon: ScrollText },
@@ -54,6 +55,7 @@ const titles: Record<string, string> = {
   "/admin/users": "Gestão de usuários",
   "/admin/cards": "Cadastro de cartas",
   "/admin/collections": "Coleções",
+  "/admin/seasons": "Temporadas",
   "/admin/media": "Mídias",
   "/admin/traits": "Traits",
   "/admin/rulings": "Rulings",
