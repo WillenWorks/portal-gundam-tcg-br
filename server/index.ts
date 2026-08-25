@@ -123,6 +123,15 @@ type SetInput = {
   sourceTitles?: string[];
   starterDeckVariantOf?: string | null;
   metadataJson?: unknown;
+  seasonId?: string | null;
+};
+
+type SeasonInput = {
+  code: string;
+  name: string;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+  notes?: string | null;
 };
 
 type RulingImportInput = {
@@ -486,6 +495,7 @@ async function upsertSets(items: SetInput[]) {
         sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
         starterDeckVariantOf: set.starterDeckVariantOf || null,
         metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        seasonId: set.seasonId || null,
         isActive: true,
         deletedAt: null,
       },
@@ -507,6 +517,7 @@ async function upsertSets(items: SetInput[]) {
         sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
         starterDeckVariantOf: set.starterDeckVariantOf || null,
         metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        seasonId: set.seasonId || null,
       },
     });
     setMap.set(set.code, saved.id);
@@ -1314,6 +1325,7 @@ app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.ED
     sourceTitles: body.sourceTitles ?? existing.sourceTitles,
     starterDeckVariantOf: body.starterDeckVariantOf ?? existing.starterDeckVariantOf,
     metadataJson: body.metadataJson ?? existing.metadataJson,
+    seasonId: body.seasonId === undefined ? existing.seasonId : body.seasonId,
   };
   const setMap = await upsertSets([payload]);
   const updated = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
@@ -1325,6 +1337,80 @@ app.delete("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN]), async 
   const existing = await prisma.cardSet.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
   await prisma.cardSet.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Season -- temporada de metagame de verdade (código/nome/datas + flag "atual"),
+ * relacionada a CardSet (uma season pode juntar mais de um lançamento, ex: GD05 +
+ * starters de setembro) e a Tournament/HostedEvent. Só uma Season deve ter
+ * isCurrent=true por vez -- garantido aqui em transação, não em constraint SQL.
+ * Tudo que não pertence à season atual é tratado como "legado" nas leituras de
+ * metagame (GET /api/stats/metagame), sem precisar mover ou apagar nada.
+ * ------------------------------------------------------------------------- */
+
+app.get("/api/seasons", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasons = await prisma.season.findMany({ orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }] });
+  res.json(seasons);
+});
+
+app.post("/api/seasons", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const body = req.body as SeasonInput;
+  if (!body.code?.trim() || !body.name?.trim()) return res.status(400).json({ error: "Código e nome são obrigatórios." });
+  const season = await prisma.season.create({
+    data: {
+      code: body.code.trim(),
+      name: body.name.trim(),
+      startDate: toDateOrNull(body.startDate),
+      endDate: toDateOrNull(body.endDate),
+      notes: body.notes || null,
+    },
+  });
+  res.status(201).json(season);
+});
+
+app.put("/api/seasons/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  const body = req.body as Partial<SeasonInput>;
+  const season = await prisma.season.update({
+    where: { id },
+    data: {
+      code: body.code?.trim() || existing.code,
+      name: body.name?.trim() || existing.name,
+      startDate: body.startDate === undefined ? existing.startDate : toDateOrNull(body.startDate),
+      endDate: body.endDate === undefined ? existing.endDate : toDateOrNull(body.endDate),
+      notes: body.notes === undefined ? existing.notes : (body.notes || null),
+    },
+  });
+  res.json(season);
+});
+
+// Marca essa Season como a atual e desmarca qualquer outra -- ação explícita do
+// admin (ex: "saiu a GD06, agora é a season atual"). A partir daqui, tudo que
+// ficou associado a seasons anteriores passa a contar como legado nas leituras de
+// metagame, sem precisar mexer em nenhum registro histórico.
+app.put("/api/seasons/:id/set-current", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  const [, season] = await prisma.$transaction([
+    prisma.season.updateMany({ where: { isCurrent: true, id: { not: id } }, data: { isCurrent: false } }),
+    prisma.season.update({ where: { id }, data: { isCurrent: true } }),
+  ]);
+  res.json(season);
+});
+
+app.delete("/api/seasons/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  // Sem soft-delete aqui (Season não tem isActive/deletedAt, igual TournamentEntry) --
+  // CardSet/Tournament/HostedEvent vinculados ficam com seasonId=null (onDelete: SetNull),
+  // não perdem nenhum outro dado.
+  await prisma.season.delete({ where: { id } });
   res.status(204).send();
 });
 
@@ -1776,6 +1862,129 @@ app.get("/api/cards/:id/stats", async (req, res) => {
   });
 });
 
+// Metagame público sourced SOMENTE de decks travados em resultado real (TournamentEntry
+// ou HostedEventParticipant já finalizado) via DeckSnapshot -- nunca de Deck/DeckItem
+// público, que pode ser editado ou apagado livremente pelo dono a qualquer momento (ver
+// pedido do usuário: "decks públicos... não são considerados", metagame vem só das
+// versões travadas no momento do registro em evento). seasonId aceita "current"
+// (default -- usa a Season com isCurrent=true), "all" (ignora o filtro, mistura tudo
+// incluindo legado) ou um id específico (permite consultar uma season legada isolada,
+// depois que ela deixar de ser a atual). setId filtra pra só contar snapshots com pelo
+// menos 1 carta daquela coleção; dentro desse recorte, topCards e colorDistribution
+// focam nas cartas da coleção filtrada (pedido explícito: "cartas mais usadas daquela
+// coleção" e "cores mais usadas"). colorCombos sempre reflete a identidade de cor do
+// deck inteiro (não só da coleção filtrada), pra continuar fazendo sentido como
+// "assinatura de arquétipo".
+app.get("/api/stats/metagame", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+
+  let seasonId: string | null = null;
+  let season: { id: string; code: string; name: string } | null = null;
+  if (seasonParam === "all") {
+    seasonId = null;
+  } else if (seasonParam === "current") {
+    const current = await prisma.season.findFirst({ where: { isCurrent: true } });
+    seasonId = current?.id ?? null;
+    season = current ? { id: current.id, code: current.code, name: current.name } : null;
+  } else {
+    const found = await prisma.season.findUnique({ where: { id: seasonParam } });
+    if (!found) return res.status(404).json({ error: "Temporada não encontrada." });
+    seasonId = found.id;
+    season = { id: found.id, code: found.code, name: found.name };
+  }
+
+  const [reportSnapshots, hostedSnapshots] = await Promise.all([
+    prisma.tournamentEntry.findMany({
+      where: { deckSnapshotId: { not: null }, tournament: { isActive: true, ...(seasonId ? { seasonId } : {}) } },
+      select: { deckSnapshotId: true },
+    }),
+    prisma.hostedEventParticipant.findMany({
+      where: { deckSnapshotId: { not: null }, event: { status: HostedEventStatus.COMPLETED, isActive: true, ...(seasonId ? { seasonId } : {}) } },
+      select: { deckSnapshotId: true },
+    }),
+  ]);
+  const snapshotIds = Array.from(
+    new Set([...reportSnapshots, ...hostedSnapshots].map((row) => row.deckSnapshotId).filter((v): v is string => Boolean(v))),
+  );
+
+  const empty = { season, setId: setId ?? null, totalDecks: 0, topCards: [] as unknown[], colorDistribution: [] as unknown[], colorCombos: [] as unknown[] };
+  if (!snapshotIds.length) return res.json(empty);
+
+  const items = await prisma.deckSnapshotItem.findMany({
+    where: { deckSnapshotId: { in: snapshotIds }, section: { not: "token_reference" } },
+    select: {
+      deckSnapshotId: true,
+      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true } },
+    },
+  });
+
+  // Agrupa por snapshot pra poder aplicar o filtro de coleção (>=1 carta daquela
+  // coleção conta o deck inteiro pro recorte) antes de calcular presença "por deck"
+  // (não por cópia) em cada leitura.
+  const bySnapshot = new Map<string, typeof items>();
+  for (const item of items) {
+    const list = bySnapshot.get(item.deckSnapshotId) || [];
+    list.push(item);
+    bySnapshot.set(item.deckSnapshotId, list);
+  }
+
+  const eligibleSnapshotIds = setId
+    ? Array.from(bySnapshot.entries()).filter(([, list]) => list.some((entry) => entry.card?.setId === setId)).map(([id]) => id)
+    : Array.from(bySnapshot.keys());
+
+  const totalDecks = eligibleSnapshotIds.length;
+
+  const cardCount = new Map<string, { key: string; name: string; color: string | null; decks: number }>();
+  const colorCount = new Map<string, number>();
+  const comboCount = new Map<string, number>();
+
+  for (const snapshotId of eligibleSnapshotIds) {
+    const list = bySnapshot.get(snapshotId) || [];
+    const seenScopedCardKeys = new Set<string>();
+    const deckColorsScoped = new Set<string>();
+    const deckColorsFull = new Set<string>();
+    for (const item of list) {
+      const card = item.card;
+      if (!card) continue;
+      if (card.color) deckColorsFull.add(card.color);
+      if (setId && card.setId !== setId) continue;
+      if (card.color) deckColorsScoped.add(card.color);
+      const key = card.cardModelId || card.id;
+      if (seenScopedCardKeys.has(key)) continue;
+      seenScopedCardKeys.add(key);
+      const entry = cardCount.get(key) || { key, name: card.namePt || card.nameEn, color: card.color || null, decks: 0 };
+      entry.decks += 1;
+      cardCount.set(key, entry);
+    }
+    const colorsForDistribution = setId ? deckColorsScoped : deckColorsFull;
+    colorsForDistribution.forEach((color) => colorCount.set(color, (colorCount.get(color) ?? 0) + 1));
+    if (deckColorsFull.size) {
+      const combo = Array.from(deckColorsFull).sort().join(" + ");
+      comboCount.set(combo, (comboCount.get(combo) ?? 0) + 1);
+    }
+  }
+
+  const presenceRate = (decks: number) => (totalDecks > 0 ? Number(((decks / totalDecks) * 100).toFixed(1)) : null);
+
+  const topCards = Array.from(cardCount.values())
+    .sort((a, b) => b.decks - a.decks)
+    .slice(0, 10)
+    .map((entry) => ({ cardModelId: entry.key, name: entry.name, color: entry.color, appearances: entry.decks, presenceRate: presenceRate(entry.decks) }));
+
+  const colorDistribution = Array.from(colorCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([color, decks]) => ({ color, decks, presenceRate: presenceRate(decks) }));
+
+  const colorCombos = Array.from(comboCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([combo, decks]) => ({ combo, decks, presenceRate: presenceRate(decks) }));
+
+  res.json({ season, setId: setId ?? null, totalDecks, topCards, colorDistribution, colorCombos });
+});
+
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const payload = req.body as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
@@ -2120,6 +2329,7 @@ async function createDeckSnapshot(deckId: string) {
 // Fase B: deckSnapshot traz a decklist congelada no momento em que o deckId foi
 // vinculado, pra sobreviver a uma edição/exclusão do Deck original.
 const tournamentEntryInclude = {
+  seasonRef: true,
   entries: {
     include: {
       user: { select: { id: true, username: true, displayName: true } },
@@ -2188,31 +2398,53 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
   res.status(201).json(entry);
 });
 
-app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req: RequestWithUser, res) => {
   const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
   const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
   if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
   const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   const nextDeckId = body.deckId === undefined ? existing.deckId : (body.deckId || null);
+  const deckChanged = nextDeckId !== existing.deckId;
   // Fase B: só gera uma nova snapshot quando o deckId muda de fato -- evita recongelar
   // a decklist a cada edição de campo que não mexe no deck vinculado.
-  const deckSnapshotId = nextDeckId === existing.deckId
-    ? existing.deckSnapshotId
-    : (nextDeckId ? await createDeckSnapshot(nextDeckId) : null);
-  const entry = await prisma.tournamentEntry.update({
-    where: { id: entryId },
-    data: {
-      playerName: body.playerName?.trim() || existing.playerName,
-      placement: body.placement === undefined ? existing.placement : body.placement,
-      wins: body.wins === undefined ? existing.wins : body.wins,
-      losses: body.losses === undefined ? existing.losses : body.losses,
-      draws: body.draws === undefined ? existing.draws : body.draws,
-      archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
-      deckId: nextDeckId,
-      userId: body.userId === undefined ? existing.userId : (body.userId || null),
-      deckSnapshotId,
-    },
-  });
+  const deckSnapshotId = deckChanged
+    ? (nextDeckId ? await createDeckSnapshot(nextDeckId) : null)
+    : existing.deckSnapshotId;
+  // Fase D (pedido do usuário: "garantir que os decks utilizados em eventos jamais
+  // sejam modificados, para manter log"): TournamentEntry não trava de forma rígida
+  // como HostedEventParticipant (admin pode corrigir vínculo errado), mas toda troca
+  // de deckId fica auditada -- a snapshot antiga nunca é apagada nem sobrescrita, só
+  // deixa de ser a "atual" da entry, e o log abaixo preserva pra quem trocou e quando.
+  const [entry] = await prisma.$transaction([
+    prisma.tournamentEntry.update({
+      where: { id: entryId },
+      data: {
+        playerName: body.playerName?.trim() || existing.playerName,
+        placement: body.placement === undefined ? existing.placement : body.placement,
+        wins: body.wins === undefined ? existing.wins : body.wins,
+        losses: body.losses === undefined ? existing.losses : body.losses,
+        draws: body.draws === undefined ? existing.draws : body.draws,
+        archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
+        deckId: nextDeckId,
+        userId: body.userId === undefined ? existing.userId : (body.userId || null),
+        deckSnapshotId,
+      },
+    }),
+    ...(deckChanged
+      ? [
+          prisma.tournamentEntryDeckChangeLog.create({
+            data: {
+              tournamentEntryId: entryId,
+              previousDeckId: existing.deckId,
+              previousDeckSnapshotId: existing.deckSnapshotId,
+              nextDeckId,
+              nextDeckSnapshotId: deckSnapshotId,
+              changedByUserId: req.user!.userId,
+            },
+          }),
+        ]
+      : []),
+  ]);
   res.json(entry);
 });
 
@@ -2225,6 +2457,20 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
   // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
   await prisma.tournamentEntry.delete({ where: { id: entryId } });
   res.status(204).send();
+});
+
+// Auditoria de troca de deck do TournamentEntry (ver comentário na rota PUT acima) --
+// só admin/editor enxerga, não é exposta na leitura pública de torneios.
+app.get("/api/tournaments/:id/entries/:entryId/deck-change-log", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  const logs = await prisma.tournamentEntryDeckChangeLog.findMany({
+    where: { tournamentEntryId: entryId },
+    include: { changedByUser: { select: { id: true, username: true, displayName: true } } },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  res.json(logs);
 });
 
 /* ---------------------------------------------------------------------------
@@ -2259,6 +2505,7 @@ const hostedEventRoundInclude = {
 
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
+  seasonRef: true,
   participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
   rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
 } as const;
@@ -2306,8 +2553,9 @@ app.get("/api/hosted-events/public", async (_req, res) => {
     where: { isActive: true, status: HostedEventStatus.COMPLETED },
     select: {
       id: true, name: true, description: true, format: true, venueName: true, city: true, country: true,
-      dateStart: true, dateEnd: true, status: true,
+      dateStart: true, dateEnd: true, status: true, seasonId: true,
       hoster: { select: { id: true, username: true, displayName: true } },
+      seasonRef: true,
     },
     orderBy: [{ dateStart: "desc" }],
   });
@@ -2327,7 +2575,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
   const body = req.body as {
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
-    maxPlayers?: number | null; status?: HostedEventStatus;
+    maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
   };
   if (!body.name?.trim()) return res.status(400).json({ error: "Nome do evento é obrigatório." });
   if (!body.dateStart) return res.status(400).json({ error: "Data/hora de início é obrigatória." });
@@ -2344,6 +2592,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
       dateEnd: body.dateEnd ? new Date(body.dateEnd) : null,
       maxPlayers: body.maxPlayers ?? null,
       status: body.status ?? HostedEventStatus.DRAFT,
+      seasonId: body.seasonId || null,
     },
     include: hostedEventOwnerInclude,
   });
@@ -2356,7 +2605,7 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
   const body = req.body as {
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
-    maxPlayers?: number | null; status?: HostedEventStatus;
+    maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
   };
   const event = await prisma.hostedEvent.update({
     where: { id: existing.id },
@@ -2371,6 +2620,7 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
       dateEnd: body.dateEnd === undefined ? existing.dateEnd : (body.dateEnd ? new Date(body.dateEnd) : null),
       maxPlayers: body.maxPlayers === undefined ? existing.maxPlayers : body.maxPlayers,
       status: body.status ?? existing.status,
+      seasonId: body.seasonId === undefined ? existing.seasonId : (body.seasonId || null),
     },
     include: hostedEventOwnerInclude,
   });
