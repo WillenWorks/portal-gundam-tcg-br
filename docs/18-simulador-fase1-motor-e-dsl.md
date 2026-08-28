@@ -2,7 +2,8 @@
 
 ## Status
 
-**Em andamento — passo 1 do plano incremental concluído (motor puro + testes).**
+**Em andamento — passos 1 e 2 do plano incremental concluídos (motor puro +
+testes + partida de ponta a ponta validada).**
 Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
 sandbox solo que entende todas as regras do jogo e das cartas, pra testar
 jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
@@ -16,16 +17,23 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
   sequência de combate de 5 passos, e as 8 keywords/mecânicas oficiais
   (Blocker, First Strike, High-Maneuver, Support N, Repair N, Breach N,
   Suppression, 【Once per Turn】) implementadas e testadas via `pnpm test`
-  (69 testes, ver `src/modules/simulator/engine/*.test.ts`). Zero mudança em
+  (ver `src/modules/simulator/engine/*.test.ts`). Zero mudança em
   `prisma/schema.prisma` ou `server/index.ts`, como planejado.
 - ✅ Formalização da Camada 3 (Effect Spec) escrita como tipo/executor real
   em `src/modules/simulator/engine/effectSpec.ts` (ver seção própria abaixo)
   — só a tubulação, nenhum efeito de carta real ainda.
-- ⏳ **Passo 2 — validar contra o deck vanilla**: o deck de teste sintético
-  já existe (`src/modules/simulator/fixtures/vanillaDeck.ts`) e os testes do
-  passo 1 já rodam em cima dele; falta rodar uma partida "de ponta a ponta"
-  simulada por teste (não só por unidade de regra) antes de considerar isso
-  fechado.
+- ✅ **Passo 2 — validar contra o deck vanilla**: `fullGame.test.ts` roda
+  partidas completas de ponta a ponta (não só por unidade de regra) contra o
+  deck vanilla sintético, com 2 seeds diferentes — várias dezenas de ciclos
+  de Start/Draw/Resource/Main/End com combate real a cada turno, até bater
+  numa condição oficial de derrota (deck-out ou dano de batalha sem shield),
+  checando a cada turno que o limite de mão (10) e a contagem de shields
+  (0–6) nunca saem da faixa válida. Isso valida integração ao longo de
+  dezenas de ciclos — coisa que os testes unitários de fase/combate isolados
+  não pegam (acúmulo de descarte por limite de mão repetido, `cloneState`
+  chamado centenas de vezes sem vazar referência entre turnos, alternância
+  de turno correta por muitas rodadas). 71 testes no total agora
+  (`pnpm test`).
 - ⏳ Ainda não iniciado: passo 3 (deck de teste real + EffectSpecs
   bespoke), passo 4 (UI mínima de sandbox), passo 5 (critério de "Fase 1
   pronta").
@@ -295,12 +303,16 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   - `index.ts` — barrel export.
 - `src/modules/simulator/fixtures/vanillaDeck.ts` — deck sintético "vanilla"
   (50+10, dentro do limite de 4 cópias/code) usado pra validar o motor sem
-  nenhum efeito bespoke — passo 2 do plano incremental.
+  nenhum efeito bespoke — passo 2 do plano incremental, ✅ concluído.
+- `src/modules/simulator/engine/fullGame.test.ts` — passo 2: partida
+  completa de ponta a ponta contra o deck vanilla (2 seeds), com checagem de
+  invariantes de zona a cada turno até bater numa condição oficial de
+  derrota.
 - `src/modules/simulator/ui/` — ainda não existe (passo 4).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 69 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 71 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
-  keywords e a tubulação do EffectSpec.
+  keywords, a tubulação do EffectSpec e a partida de ponta a ponta.
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
