@@ -35,14 +35,18 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
   de turno correta por muitas rodadas). 71 testes no total agora
   (`pnpm test`).
 - 🔄 **Passo 3 — deck de teste real + EffectSpecs bespoke, em andamento**:
-  ST01 "Heroic Beginnings" escolhido (primeiro produto por ordem histórica
-  de lançamento, ver "Plano de implementação incremental"). 16 EffectSpecs
-  reais autorados cobrindo 10 das 16 cartas únicas — ver seção "Cobertura
-  real — ST01" abaixo pra tabela completa e o que ficou de fora (e por quê).
-  Descobriu e preencheu uma lacuna real na DSL: faltava uma primitiva de
-  "dano direto numa Unit" (`damageUnit`, agora em `effectSpec.ts`) —
-  exatamente o tipo de achado que a ordem "motor primeiro, conteúdo depois"
-  do plano queria baratear. 88 testes no total agora (`pnpm test`).
+  ST01 "Heroic Beginnings" (✅, 16 EffectSpecs, 10/16 cartas) e ST02
+  "Ruination Ablaze" (✅, 11 EffectSpecs, 7/16 cartas) — ordem histórica de
+  lançamento (ver "Plano de implementação incremental"). Ver "Cobertura real
+  — ST01" e "Cobertura real — ST02" abaixo pras tabelas completas.
+  Descobriu e preencheu duas lacunas reais: faltava uma primitiva de "dano
+  direto numa Unit" (`damageUnit`, ST01) e `keywordValue()` nunca lia
+  `keywordGrants` — uma keyword numérica concedida em tempo de jogo (ex.
+  `<Breach 3>` de ST02-012) nunca teria seu valor lido de volta pelo
+  combate (ST02, corrigido em `types.ts`, com teste de regressão rodando o
+  grant através do combate real). Exatamente o tipo de achado que a ordem
+  "motor primeiro, conteúdo depois" do plano queria baratear. 99 testes no
+  total agora (`pnpm test`).
 - ⏳ Ainda não iniciado: passo 4 (UI mínima de sandbox), passo 5 (critério
   de "Fase 1 pronta").
 
@@ -272,6 +276,62 @@ são conhecidas e documentadas aqui pra quando o passo 3 continuar (mais
 cartas do ST01/ST02-04/GD01) ou quando o passo 4 (dispatcher de trigger
 automático) começar.
 
+## Cobertura real — ST02 "Ruination Ablaze" (passo 3)
+
+16 cartas únicas no deck, mesmo padrão de sourcing do ST01: stats
+conferidos carta a carta contra `gundam-gcg.com/en/cards/detail.php?
+detailSearch=<code>` e texto/traits de `data/gcg-official-cards.json`, em
+2026-08-28.
+
+| Carta | Cobertura | Observação |
+|---|---|---|
+| ST02-001 Wing Gundam | Parcial | `<Breach 5>` automático (keyword de motor); "pode escolher Unit inimiga *active* Lv.4 ou menor como alvo" **fora de escopo** — relaxamento de legalidade de alvo de ataque, mesma categoria da restrição de ST01-009 Zowort, só que na direção oposta (lacuna #6, estendida) |
+| ST02-002 Wing Gundam (Bird Mode) | Parcial | `Deploy` autorado só como gatilho existente; "Place 1 EX Resource" **fora de escopo** — falta a mesma primitiva de "criar instância nova" da lacuna #3 |
+| ST02-003 Gundam Heavyarms | Parcial | `【During Pair】` marcado como keyword; o efeito em si (dano em **grupo** — "all enemy Units Lv.3 ou menor") **fora de escopo** — `TargetRef` só resolve 1 alvo (lacuna #5) |
+| ST02-004 Gundam Sandrock | ✅ Nenhum necessário | vanilla (só stats) |
+| ST02-005 Maganac | ✅ Nenhum necessário | vanilla |
+| ST02-006 Tallgeese | Parcial | `【Activate･Main】` autorado (`setActive`); custo "④" (pagar 4 recursos) não é cobrado — falta primitiva de custo de recurso genérico (lacuna #4) |
+| ST02-007 Leo | ✅ Nenhum necessário | vanilla |
+| ST02-008 Aries | ✅ Nenhum necessário | só `<Blocker>`, automático |
+| ST02-009 Tragos | ✅ Nenhum necessário | só `<Blocker>`, automático |
+| ST02-010 Heero Yuy | Parcial | `Burst` autorado; `【During Link】` (AP+1/HP+1 enquanto linkado) **fora de escopo** — efeito contínuo condicionado a Link, mesma lacuna #2 (estendida pra cobrir Link, não só Pair) |
+| ST02-011 Zechs Merquise | Parcial | `Burst` autorado; `【During Link】` (draw ao destruir em combate) **fora de escopo**, mesma razão de Heero Yuy |
+| ST02-012 Simultaneous Fire | ✅ EffectSpec | `Main` — concede `<Breach 3>` via `grantKeyword`; motivou a correção de `keywordValue()` em `types.ts` (ver Status). Requisito `【Pilot】[Trowa Barton]` pra jogar a carta fora de escopo (legalidade de jogo, não efeito) |
+| ST02-013 Peaceful Timbre | Parcial | keyword `Action` marcada; o efeito ("shields não podem receber dano de Units Lv.4 ou menor nesta batalha") **fora de escopo** — nenhuma primitiva modela prevenção/substituição de dano condicional (nova lacuna #7) |
+| ST02-014 Siege Ploy | ✅ EffectSpec ×3 | `Burst`/`Main`/`Action` — as 3 seções compilam pro mesmo evento (`rest` no alvo), confirmado por teste, mesmo padrão de ST01-014 |
+| ST02-015 Saint Gabriel Institute | Parcial | `Burst` + 1ª cláusula do `Deploy` (add 1 shield à mão) autorados; "olhe as 2 cartas do topo, devolva 1 pro topo e 1 pro fundo" **fora de escopo** — informação oculta (nova lacuna #8) |
+| ST02-016 Corsica Base | Parcial | `Burst` + 1ª cláusula do `Deploy` autorados; deploy condicional de token (Tallgeese ou 2x Leo, dependendo de carta no trash) **fora de escopo** — lacuna #3 + falta predicado de "carta com nome X no trash" |
+
+**Lacunas de DSL descobertas/estendidas nesta wave:**
+- Lacuna #2 (efeito contínuo condicional) confirmada como mais ampla do que
+  só `【During Pair】` — `【During Link】` (Heero Yuy, Zechs Merquise) é o
+  mesmo problema com outra condição de gatilho.
+- Lacuna #6 (restrições de legalidade) confirmada nas duas direções: Zowort
+  *restringe* quem pode ser alvo, Wing Gundam *relaxa* (permite atacar uma
+  Unit *active*, não só rested). Reforça que isso pertence a uma camada de
+  validação de legalidade, separada da DSL de efeito.
+- **#7 (nova)**: nenhuma primitiva modela prevenção/substituição de dano sob
+  condição (Peaceful Timbre — "shields não podem receber dano de Units
+  Lv.4 ou menor durante esta batalha"). Precisaria de um conceito de
+  "modificador de regra de dano", não um evento pontual.
+- **#8 (nova)**: nenhuma primitiva cobre "olhe as N cartas do topo do deck e
+  reordene" (Saint Gabriel Institute). Depende do Risco de "informação
+  oculta" já registrado antes do passo 3 começar — reordenar o topo do deck
+  exige que o motor tenha noção de visibilidade por jogador, não só mover
+  cartas entre zonas.
+
+Achado extra desta wave, fora da tabela de cobertura: `keywordValue()`
+(`types.ts`) nunca lia `card.keywordGrants`, só `card.def.keywordTags` — uma
+keyword numérica concedida em tempo de jogo (como o `<Breach 3>` de
+Simultaneous Fire) tinha `hasKeyword()` retornando `true` mas
+`keywordValue()` retornando `0` (ou `null`), o que quebraria silenciosamente
+o cálculo de dano de shield em `combat.ts`. Corrigido, com teste de
+regressão (`st02.test.ts`) rodando o grant através de uma sequência de
+combate real, não só verificando o evento gerado isoladamente — validação
+concreta de que a abordagem "motor primeiro, conteúdo real depois" vale a
+pena: esse bug só apareceu ao tentar autorar um efeito real contra o texto
+oficial de uma carta, não teria aparecido em nenhum teste sintético.
+
 ## Plano de implementação incremental (fatia vertical, não big-bang)
 
 1. **Motor de estado puro** (zonas + fases + sequência de combate) com
@@ -346,6 +406,9 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
 
 - `src/modules/simulator/engine/` — motor puro, sem depender de React:
   - `types.ts` — zonas, `CardDef`/`CardInstance`, `GameState`, `GameEvent`.
+    `keywordValue()` corrigido no passo 3 (wave ST02) pra checar
+    `card.keywordGrants` (concedida em tempo de jogo) antes de
+    `card.def.keywordTags` (estático) — ver "Cobertura real — ST02" acima.
   - `rng.ts` — PRNG seedado (mulberry32), nunca `Math.random()`.
   - `events.ts` — reducer `applyEvent`/`applyEvents`, nunca muta o estado
     recebido.
@@ -381,18 +444,27 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   autorados contra o `effect` oficial em inglês, cobrindo 10 das 16 cartas
   únicas do ST01. Ver "Cobertura real — ST01" acima pra tabela completa e
   lacunas de DSL descobertas.
+- `src/modules/simulator/fixtures/st02Deck.ts` — passo 3: deck real ST02
+  "Ruination Ablaze" (mesmo padrão de sourcing do ST01Deck.ts — stats
+  conferidos página a página, texto/traits de `data/gcg-official-cards.json`,
+  quantidade de cópias por carta é composição própria).
+- `src/modules/simulator/content/st02.ts` — passo 3: 11 `EffectSpec` reais
+  cobrindo 7 das 16 cartas únicas do ST02. Ver "Cobertura real — ST02" acima
+  pra tabela completa e lacunas de DSL descobertas/estendidas.
 - `src/modules/simulator/ui/` — ainda não existe (passo 4).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 88 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 99 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
   keywords, a tubulação do EffectSpec, a partida de ponta a ponta e os
-  EffectSpecs reais do ST01.
+  EffectSpecs reais do ST01 e do ST02 (incluindo o teste de regressão do
+  `keywordValue()` rodando um grant de Breach através de combate real).
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
   `hasMain`, `hasAction`, `oncePerTurn`) como fonte de dado — usado no passo
-  3 pra derivar os campos estruturados do `CardDef` de cada carta do ST01
-  (rodando o parser sobre o texto oficial e copiando o resultado como dado
-  estático em `st01Deck.ts`, sem chamar o parser em runtime).
+  3 pra derivar os campos estruturados do `CardDef` de cada carta do ST01 e
+  do ST02 (rodando o parser sobre o texto oficial e copiando o resultado
+  como dado estático em `st01Deck.ts`/`st02Deck.ts`, sem chamar o parser em
+  runtime).
 - Nenhuma alteração em `prisma/schema.prisma` ou `server/index.ts` foi
   necessária até aqui, como planejado.

@@ -115,8 +115,22 @@ export function hasKeyword(card: CardInstance, keyword: string): boolean {
   return fromDef || fromGrant;
 }
 
-/** Extrai o valor numérico de uma keyword tipo "Repair 2" -> 2. Retorna null se a keyword não existir. */
+/**
+ * Extrai o valor numérico de uma keyword tipo "Repair 2" -> 2. Retorna null
+ * se a keyword não existir. Checa `keywordGrants` (concedida em tempo de
+ * jogo, ex. `<Breach 3>` de um EffectSpec via GRANT_KEYWORD) antes de
+ * `def.keywordTags` (estático, da definição da carta) — sem isso, uma
+ * keyword numérica concedida dinamicamente teria `hasKeyword` retornando
+ * true mas `keywordValue` nunca achando o valor real (caía no fallback "0"
+ * por não olhar `keywordGrants" — bug encontrado ao autorar ST02-012
+ * "Simultaneous Fire", que concede `<Breach 3>` via Main).
+ */
 export function keywordValue(card: CardInstance, keyword: string): number | null {
+  const grant = card.keywordGrants.find((g) => g.keyword.toLowerCase().startsWith(keyword.toLowerCase()));
+  if (grant) {
+    const match = grant.keyword.match(/(-?\d+)/);
+    return match ? Number(match[1]) : 0;
+  }
   const tag = card.def.keywordTags?.find((t) => t.toLowerCase().startsWith(keyword.toLowerCase()));
   if (!tag) return hasKeyword(card, keyword) ? 0 : null;
   const match = tag.match(/(-?\d+)/);
