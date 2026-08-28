@@ -6,3 +6,5 @@ export * from "./phases";
 export * from "./combat";
 export * from "./keywords";
 export * from "./effectSpec";
+export * from "./deploy";
+export * from "./dispatcher";

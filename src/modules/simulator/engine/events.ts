@@ -233,6 +233,15 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       }
       return state;
     }
+    case "PAIR_CARDS": {
+      // Comprehensive Rules 3-3-1/5-9: Pilot é jogado direto pareado com uma
+      // Unit amiga na Battle Area — não existe Pilot despareado em campo.
+      const pilot = findCard(state, event.pilotId);
+      const unit = findCard(state, event.unitId);
+      pilot.pairedUnitId = event.unitId;
+      unit.pairedPilotId = event.pilotId;
+      return state;
+    }
     case "ATTACK_DECLARED": {
       state.combat = {
         step: "attack",

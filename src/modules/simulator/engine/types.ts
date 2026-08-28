@@ -214,6 +214,7 @@ export type GameEvent =
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
   | { type: "DISCARD_TO_HAND_LIMIT"; player: PlayerId; instanceIds: string[] }
+  | { type: "PAIR_CARDS"; pilotId: string; unitId: string }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }
