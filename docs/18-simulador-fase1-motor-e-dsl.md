@@ -2,11 +2,33 @@
 
 ## Status
 
-**Proposta, ainda não iniciada.** Este documento nasce da decisão de partir pro
-simulador em 3 fases — (1) sandbox solo que entende todas as regras do jogo e
-das cartas, pra testar jogadas sozinho; (2) IA simples; (3) PvP — começando
-pela Fase 1, escolhida de propósito por ter o menor impacto na arquitetura em
-produção. Nada aqui foi implementado ainda; é o desenho antes de começar.
+**Em andamento — passo 1 do plano incremental concluído (motor puro + testes).**
+Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
+sandbox solo que entende todas as regras do jogo e das cartas, pra testar
+jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
+de propósito por ter o menor impacto na arquitetura em produção.
+
+Plano de execução completo (ordem de waves por produto real, dev-only até
+segunda ordem, camadas de regra) confirmado com o Willen antes de começar
+(ago/2026). Progresso:
+
+- ✅ **Passo 1 — motor de estado puro**: zonas, as 5 fases de turno, a
+  sequência de combate de 5 passos, e as 8 keywords/mecânicas oficiais
+  (Blocker, First Strike, High-Maneuver, Support N, Repair N, Breach N,
+  Suppression, 【Once per Turn】) implementadas e testadas via `pnpm test`
+  (69 testes, ver `src/modules/simulator/engine/*.test.ts`). Zero mudança em
+  `prisma/schema.prisma` ou `server/index.ts`, como planejado.
+- ✅ Formalização da Camada 3 (Effect Spec) escrita como tipo/executor real
+  em `src/modules/simulator/engine/effectSpec.ts` (ver seção própria abaixo)
+  — só a tubulação, nenhum efeito de carta real ainda.
+- ⏳ **Passo 2 — validar contra o deck vanilla**: o deck de teste sintético
+  já existe (`src/modules/simulator/fixtures/vanillaDeck.ts`) e os testes do
+  passo 1 já rodam em cima dele; falta rodar uma partida "de ponta a ponta"
+  simulada por teste (não só por unidade de regra) antes de considerar isso
+  fechado.
+- ⏳ Ainda não iniciado: passo 3 (deck de teste real + EffectSpecs
+  bespoke), passo 4 (UI mínima de sandbox), passo 5 (critério de "Fase 1
+  pronta").
 
 ## Fonte
 
@@ -132,25 +154,53 @@ disso do zero — só consumir o que já existe em `CardModel`.
 | Link | condição de pareamento piloto→unit; Unit pareada ataca imediatamente ao ser deployada | **parcial** — `linkText` existe como texto livre; a condição em si (ex. "Pilot com trait X") não é estruturada | precisa de parser adicional antes de simular Link de verdade (ver Riscos) |
 | `【Burst】` | ao shield ser destruído, revela e pode ativar sem pagar custo, por escolha | sim que o *fato* de ter Burst está marcado (`hasBurst` + `burstEffectPt`) — o **conteúdo** do efeito continua texto livre | precisa de autoria manual em DSL, carta a carta |
 
-## DSL de efeitos — desenho proposto
+## DSL de efeitos — motor de eventos + Effect Spec (Camada 3 formalizada)
 
-- Um efeito é `{ trigger, cost?, condition?, resolve }`, onde `resolve` é uma
-  função pura que recebe o `GameState` atual e devolve uma lista de
-  `GameEvent` a aplicar — nunca muta o estado direto. Isso facilita testar
-  (comparar eventos gerados, não estado mutável), desfazer/depurar durante o
-  desenvolvimento, e serve de base pronta pra log/replay quando a Fase 3
-  precisar de histórico auditável de partida.
-- Primitivas de baixo nível propostas (o vocabulário mínimo que cobre a
-  maioria dos textos de efeito vistos no jogo): `draw(n)`, `discard(n,
-  selector)`, `damageShield(count, n)`, `destroy(target)`, `moveZone(card,
-  from, to)`, `modifyStat(target, {ap?, hp?}, duration)`, `grantKeyword(target,
-  keyword, duration)`, `searchDeck(predicate, count)`, `rest(target)`,
-  `setActive(target)`, `heal(target, n)`.
-- Toda keyword oficial vira uma primitiva **automática** — nunca precisa de
-  autoria manual, porque o dado já vem estruturado do `CardModel` (ver tabela
-  acima). O trabalho manual concentra-se só no texto bespoke dentro de cada
-  seção (`textSectionsJson[].text`), carta a carta — é aí que mora o "segundo
-  produto" mencionado no roadmap.
+**Nível motor** (implementado, `src/modules/simulator/engine/events.ts`):
+todo efeito — keyword automática ou bespoke — é expresso como uma lista de
+`GameEvent` (`DRAW_CARD`, `MOVE_CARD`, `DAMAGE_UNIT`, `DESTROY_CARD`,
+`DAMAGE_SHIELD`, `MODIFY_STAT`, `GRANT_KEYWORD`, etc.) aplicada por um
+reducer puro `applyEvent(state, event): GameState` que nunca muta o estado
+recebido. Isso facilita testar (comparar eventos gerados, não estado
+mutável) e já serve de base pronta pra log/replay quando a Fase 3 precisar
+de histórico auditável de partida. As 8 keywords oficiais viram eventos
+automaticamente (`combat.ts` pra Blocker/First Strike/High-
+Maneuver/Breach/Suppression, `keywords.ts` pra Support/Repair/Once per
+Turn) — nunca precisam de autoria manual, porque o dado já vem estruturado
+do `CardModel`.
+
+**Camada 3 formalizada** (implementado, `src/modules/simulator/engine/effectSpec.ts`):
+em vez de ir direto pra uma closure JS opaca, o texto bespoke de cada carta
+vira um `EffectSpec` — uma estrutura declarativa revisável lado a lado com
+o `effectEn` oficial, no mesmo espírito "validável e confiável" já usado no
+motor de estatísticas:
+
+```ts
+interface EffectSpec {
+  id: string;          // "<code>-<trigger>", ex.: "GD01-001-Deploy"
+  cardCode: string;
+  trigger: string;      // rótulo do textSectionsJson: "Deploy" | "Attack" | "Destroyed" | "Burst" | "Activate·Main" | ...
+  cost?: PrimitiveCall[];
+  condition?: { predicate: string; then: PrimitiveCall[]; else?: PrimitiveCall[] };
+  actions: PrimitiveCall[];
+  sourceText: string;   // effectEn da seção — nunca effectPt (ver "Cobertura de idioma" abaixo)
+}
+```
+
+Primitivas disponíveis hoje (`PrimitiveCall`, o vocabulário mínimo que cobre
+a maioria dos textos de efeito vistos no jogo): `draw`, `discard`,
+`damageShield`, `destroy`, `moveZone`, `modifyStat`, `grantKeyword`, `rest`,
+`setActive`, `heal` — cada uma compila pra 0+ `GameEvent` via
+`compilePrimitive()`. `resolveEffectSpec(spec, ctx, predicateResolver?)`
+roda cost → condition (via um `PredicateResolver` externo, plugável) →
+actions, na ordem.
+
+**O que isso NÃO é ainda**: nenhum `EffectSpec` de carta real existe — isso
+é só a tubulação testada (`effectSpec.test.ts`, com um exemplo sintético
+equivalente a "Deploy: Draw 1 card, then discard 1 card"). Autoria carta a
+carta é o passo 3 do plano incremental abaixo, e é ali que o "segundo
+produto" mencionado no roadmap de fato começa a ganhar corpo — cada
+`EffectSpec` novo é um checkpoint de cobertura por carta/por wave.
 
 ## Plano de implementação incremental (fatia vertical, não big-bang)
 
@@ -222,16 +272,39 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   camada bem diferente do request/response do Express monolítico de hoje.
   Tratada como decisão de arquitetura própria, quando chegar a hora.
 
-## Onde mexer (quando a implementação começar)
+## Onde mexer (atualizado com o que já existe)
 
-- Pasta nova: `src/modules/simulator/` (engine puro, sem depender de React)
-  + `src/modules/simulator/ui/` (tela, quando existir).
+- `src/modules/simulator/engine/` — motor puro, sem depender de React:
+  - `types.ts` — zonas, `CardDef`/`CardInstance`, `GameState`, `GameEvent`.
+  - `rng.ts` — PRNG seedado (mulberry32), nunca `Math.random()`.
+  - `events.ts` — reducer `applyEvent`/`applyEvents`, nunca muta o estado
+    recebido.
+  - `setup.ts` — `createGame()`: setup completo (Comprehensive Rules 6-2)
+    determinístico por seed — 5 cartas de mão, mulligan opcional, 6 shields,
+    EX Base (0 AP / **3 HP**, confirmado via fonte externa — não estava no
+    Comprehensive Rules PDF, só em cobertura de comunidade) pros dois
+    jogadores, EX Resource só pro segundo jogador.
+  - `phases.ts` — as 5 fases oficiais + `finishTurnAndAdvance()`.
+  - `combat.ts` — sequência de combate de 5 passos (Attack/Block/Action/
+    Damage/Battle End), incluindo Blocker, First Strike, High-Maneuver,
+    Breach, Suppression e a regra de Pilot seguindo a Unit destruída
+    (Comprehensive Rules 3-3-6).
+  - `keywords.ts` — Support N (ação de Main Phase) e Repair N (gatilho de
+    End Phase).
+  - `effectSpec.ts` — formalização da Camada 3 (ver seção acima).
+  - `index.ts` — barrel export.
+- `src/modules/simulator/fixtures/vanillaDeck.ts` — deck sintético "vanilla"
+  (50+10, dentro do limite de 4 cópias/code) usado pra validar o motor sem
+  nenhum efeito bespoke — passo 2 do plano incremental.
+- `src/modules/simulator/ui/` — ainda não existe (passo 4).
+- Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 69 testes no
+  total no momento desta atualização, cobrindo setup, fases, combate,
+  keywords e a tubulação do EffectSpec.
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
-  `hasMain`, `hasAction`, `oncePerTurn`) como fonte de dado — não recriar
-  esse parsing.
-- Testes: seguir o padrão `*.test.ts` + `vitest run` (`pnpm test`), já usado
-  em `server/deck-legality.test.ts`.
-- Nenhuma alteração em `prisma/schema.prisma` ou `server/index.ts` é
-  necessária pra esta fase.
+  `hasMain`, `hasAction`, `oncePerTurn`) como fonte de dado quando o passo 3
+  (deck real) começar — não recriar esse parsing.
+- Nenhuma alteração em `prisma/schema.prisma` ou `server/index.ts` foi
+  necessária até aqui, como planejado.
