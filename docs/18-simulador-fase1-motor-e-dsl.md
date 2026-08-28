@@ -2,8 +2,10 @@
 
 ## Status
 
-**Em andamento — passos 1 e 2 do plano incremental concluídos (motor puro +
-testes + partida de ponta a ponta validada).**
+**Em andamento — passos 1 e 2 concluídos; passo 3 (deck de teste real) com
+motor de jogo genuíno (jogar carta da mão + dispatcher automático de
+trigger) e partida real ST01×ST02 até GAME_OVER validada, cobrindo os 27
+EffectSpecs implementados.**
 Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
 sandbox solo que entende todas as regras do jogo e das cartas, pra testar
 jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
@@ -46,7 +48,51 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
   combate (ST02, corrigido em `types.ts`, com teste de regressão rodando o
   grant através do combate real). Exatamente o tipo de achado que a ordem
   "motor primeiro, conteúdo depois" do plano queria baratear. 99 testes no
-  total agora (`pnpm test`).
+  total naquele ponto (`pnpm test`).
+- ✅ **Motor de jogo real + gaps documentados** (decisão com o Willen,
+  2026-08-28): faltava a peça que liga "EffectSpec autorado" a "jogo de
+  verdade" — até então `st01.test.ts`/`st02.test.ts` montavam
+  `EffectContext` na mão, sem nunca de fato jogar uma carta da mão ou
+  disparar um trigger automaticamente. Implementado:
+  - `deploy.ts` — `deployCard()` (Unit/Pilot/Base: paga custo restando N
+    recursos, valida Level contra o total de recursos em campo, respeita o
+    limite de 6 Units na Battle Area, pareia Pilot com Unit amiga
+    imediatamente — nunca fica Pilot desparelhado em campo — e substitui a
+    Base existente, mandando-a pro trash via `MOVE_CARD`, nunca
+    `DESTROY_CARD`, porque a regra 11-5-2 explicitamente diz que isso não
+    conta como "destruída") e `playCommand()` (Command 【Main】/【Action】:
+    resolve o efeito, depois move a carta pro trash, regra 3-4-4).
+  - `dispatcher.ts` — `dispatchTrigger()` acha e resolve automaticamente
+    todo `EffectSpec` de uma carta pra um trigger dado (Deploy/When
+    Paired/Attack/Burst/Main/Action/Activate·Main), respeitando 【Once per
+    Turn】 genericamente via `CardDef.oncePerTurn` +
+    `usedKeywordsThisTurn`; `dispatchBurstForNewlyTrashedShields()` compara
+    o estado antes/depois de um Damage Step, acha shields recém-trashadas
+    com `hasBurst` + EffectSpec cadastrado, e oferece a ativação por
+    escolha de quem defende.
+  - `st01VsSt02Match.test.ts` — uma partida real, do `createGame` a um
+    `GAME_OVER` de verdade, jogada só com ações reais do motor
+    (`deployCard`/`playCommand`/`declareAttack`/.../`dispatchTrigger`,
+    nunca mutação direta de zona pra fingir uma jogada), cobrindo os 27
+    EffectSpecs hoje implementados (16 ST01 + 11 ST02) mais `<Repair 2>`,
+    `<Blocker>` e a concessão dinâmica de `<Breach 3>` em combate real.
+    Regra confirmada contra múltiplas fontes independentes antes de
+    implementar (custo/Level/pareamento de Pilot/substituição de Base).
+    130 testes no total agora (`pnpm test`), `tsc -b` e `eslint` limpos.
+  - Fora de escopo desta wave, como decidido: as 8 lacunas de DSL já
+    documentadas abaixo (efeito contínuo/estático, alvo em grupo, custo de
+    recurso genérico, criação de token, informação oculta, restrição de
+    legalidade de alvo) continuam "Parcial"/documentadas, não fingidas nem
+    fechadas.
+  - Achado novo (fora das 8 lacunas, registrado por transparência): o
+    `moveZone self->baseSection` usado pelos Burst de Base (`WHITE_BASE_BURST`,
+    `ASTICASSIA_BURST`, `SAINT_GABRIEL_INSTITUTE_BURST`, `CORSICA_BASE_BURST`)
+    é a primitiva genérica de movimento — ela não conhece a regra "máx. 1
+    Base" (só a lógica explícita de `deployCard` conhece). Na prática isso só
+    importa se um Burst de Base for ativado com uma Base já em campo; o teste
+    de partida real isola esse caso por fixture. Não é um dos 27 EffectSpecs
+    nem uma das 8 lacunas — é uma refinaria de regra pequena, deixada pra
+    quando (se) isso importar de verdade num fluxo de UI real.
 - ⏳ Ainda não iniciado: passo 4 (UI mínima de sandbox), passo 5 (critério
   de "Fase 1 pronta").
 
@@ -427,6 +473,14 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   - `effectSpec.ts` — formalização da Camada 3 (ver seção acima), com a
     primitiva `damageUnit` (dano direto numa Unit/Base) adicionada no passo
     3, descoberta ao autorar as cartas reais do ST01.
+  - `deploy.ts` — "jogar carta da mão" real: `deployCard()` (Unit/Pilot/
+    Base, custo/Level/limite de zona/pareamento de Pilot/substituição de
+    Base) e `playCommand()` (Command 【Main】/【Action】). Ver "Motor de jogo
+    real + gaps documentados" em Status.
+  - `dispatcher.ts` — dispatcher automático de trigger: `dispatchTrigger()`
+    (Deploy/When Paired/Attack/Burst/Main/Action/Activate·Main, com 【Once
+    per Turn】 genérico) e `dispatchBurstForNewlyTrashedShields()` (oferece
+    Burst pra shield recém-quebrada num Damage Step real).
   - `index.ts` — barrel export.
 - `src/modules/simulator/fixtures/vanillaDeck.ts` — deck sintético "vanilla"
   (50+10, dentro do limite de 4 cópias/code) usado pra validar o motor sem
@@ -451,13 +505,28 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
 - `src/modules/simulator/content/st02.ts` — passo 3: 11 `EffectSpec` reais
   cobrindo 7 das 16 cartas únicas do ST02. Ver "Cobertura real — ST02" acima
   pra tabela completa e lacunas de DSL descobertas/estendidas.
+- `src/modules/simulator/engine/deploy.test.ts` — testes unitários de
+  `deployCard`/`playCommand`/`canPayLevel` contra o deck vanilla, mais uma
+  integração com EffectSpecs reais do ST01 (Deploy do Guntank; When Paired
+  disparando dos dois lados — Pilot e Unit — numa única jogada real de
+  pareamento).
+- `src/modules/simulator/engine/dispatcher.test.ts` — testes unitários de
+  `findTriggerSpecs`/`dispatchTrigger` (incluindo 【Once per Turn】 genérico e
+  When Paired pelo lado do Pilot) e `dispatchBurstForNewlyTrashedShields`
+  (ativa e realoca, recusa e mantém no trash, ignora carta sem Burst).
+- `src/modules/simulator/engine/st01VsSt02Match.test.ts` — a partida real
+  ST01×ST02 completa (ver "Motor de jogo real + gaps documentados" em
+  Status): `createGame` até `GAME_OVER`, cobrindo os 27 EffectSpecs + as
+  keywords automáticas relevantes só com ações reais do motor.
 - `src/modules/simulator/ui/` — ainda não existe (passo 4).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 99 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 130 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
-  keywords, a tubulação do EffectSpec, a partida de ponta a ponta e os
-  EffectSpecs reais do ST01 e do ST02 (incluindo o teste de regressão do
-  `keywordValue()` rodando um grant de Breach através de combate real).
+  keywords, a tubulação do EffectSpec, a partida de ponta a ponta contra o
+  deck vanilla, os EffectSpecs reais do ST01 e do ST02 (incluindo o teste
+  de regressão do `keywordValue()` rodando um grant de Breach através de
+  combate real), o motor de jogar-carta-da-mão, o dispatcher automático de
+  trigger, e a partida real ST01×ST02 até GAME_OVER.
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
