@@ -34,9 +34,17 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
   chamado centenas de vezes sem vazar referência entre turnos, alternância
   de turno correta por muitas rodadas). 71 testes no total agora
   (`pnpm test`).
-- ⏳ Ainda não iniciado: passo 3 (deck de teste real + EffectSpecs
-  bespoke), passo 4 (UI mínima de sandbox), passo 5 (critério de "Fase 1
-  pronta").
+- 🔄 **Passo 3 — deck de teste real + EffectSpecs bespoke, em andamento**:
+  ST01 "Heroic Beginnings" escolhido (primeiro produto por ordem histórica
+  de lançamento, ver "Plano de implementação incremental"). 16 EffectSpecs
+  reais autorados cobrindo 10 das 16 cartas únicas — ver seção "Cobertura
+  real — ST01" abaixo pra tabela completa e o que ficou de fora (e por quê).
+  Descobriu e preencheu uma lacuna real na DSL: faltava uma primitiva de
+  "dano direto numa Unit" (`damageUnit`, agora em `effectSpec.ts`) —
+  exatamente o tipo de achado que a ordem "motor primeiro, conteúdo depois"
+  do plano queria baratear. 88 testes no total agora (`pnpm test`).
+- ⏳ Ainda não iniciado: passo 4 (UI mínima de sandbox), passo 5 (critério
+  de "Fase 1 pronta").
 
 ## Fonte
 
@@ -210,6 +218,60 @@ carta é o passo 3 do plano incremental abaixo, e é ali que o "segundo
 produto" mencionado no roadmap de fato começa a ganhar corpo — cada
 `EffectSpec` novo é um checkpoint de cobertura por carta/por wave.
 
+## Cobertura real — ST01 "Heroic Beginnings" (passo 3)
+
+16 cartas únicas no deck (confirmado via `gundam-gcg.com/en/products/st01.html`:
+"2 Legend Rare + 14 Common"). Stats e texto de efeito conferidos carta a
+carta contra `gundam-gcg.com/en/cards/detail.php?detailSearch=<code>` e
+`data/gcg-official-cards.json`, em 2026-08-28.
+
+| Carta | Cobertura | Observação |
+|---|---|---|
+| ST01-001 Gundam | Parcial | `<Repair 2>` automático (keyword de motor); `【During Pair】` AP+1 pra todas as Units **fora de escopo** — é efeito contínuo condicionado a permanecer pareado, e o EffectSpec de hoje só modela gatilho→ações pontuais, não "enquanto X for verdade, aplique Y" |
+| ST01-002 Gundam (MA Form) | ✅ EffectSpec | `When Paired` + trait do Piloto pareado, via `condition`/`PredicateResolver` |
+| ST01-003 Guncannon | ✅ Nenhum necessário | vanilla (só stats) |
+| ST01-004 Guntank | ✅ EffectSpec | `Deploy` |
+| ST01-005 GM | ✅ Nenhum necessário | vanilla |
+| ST01-006 Gundam Aerial (Score Six) | ✅ EffectSpec | `When Paired` |
+| ST01-007 Gundam Aerial (Bit Form) | ✅ Nenhum necessário | vanilla |
+| ST01-008 Demi Trainer | ✅ Nenhum necessário | só `<Blocker>`, automático |
+| ST01-009 Zowort | Parcial | `<Blocker>` automático; "não pode escolher o jogador inimigo como alvo" **fora de escopo** — é restrição de legalidade da própria declaração de ataque, não um efeito que produz `GameEvent` |
+| ST01-010 Amuro Ray | ✅ EffectSpec ×2 | `Burst` + `When Paired` |
+| ST01-011 Suletta Mercury | ✅ EffectSpec ×2 | `Burst` + `Attack`/Once per Turn (a trava de Once per Turn em si é responsabilidade de quem despacha) |
+| ST01-012 Thoroughly Damaged | Parcial | `Main` autorado (motivou a primitiva `damageUnit`); requisito `【Pilot】[Hayato Kobayashi]` pra jogar a carta **fora de escopo** — legalidade de jogo, não efeito |
+| ST01-013 Kai's Resolve | Parcial | `Main` autorado; mesmo requisito de Pilot **fora de escopo** |
+| ST01-014 Unforeseen Incident | ✅ EffectSpec ×3 | `Burst`/`Main`/`Action` — as 3 seções compilam pro mesmo evento, confirmado por teste |
+| ST01-015 White Base | Parcial | `Burst` + `Deploy` autorados; `【Activate･Main】【Once per Turn】` (deploy de token condicional por contagem de Units) **fora de escopo** — falta primitiva de "criar instância nova" (motor só instancia carta no setup, nunca via evento) e de "pagar custo de recurso genérico" |
+| ST01-016 Asticassia | Parcial | `Burst` + `Deploy` autorados; `【Activate･Main】` (buff em todas as Link Units) **fora de escopo** — falta primitiva de aplicar a mesma ação a um **grupo** de alvos (`TargetRef` hoje resolve 1 instanceId só, mesmo pra alvo nomeado) |
+
+**Lacunas de DSL descobertas nesta wave** (achado esperado — "é aqui que se
+descobre, cedo e barato, se o desenho da DSL aguenta a complexidade real",
+ver plano abaixo):
+1. Faltava primitiva de dano direto numa Unit (`damageUnit`) — **preenchida**
+   nesta wave (`effectSpec.ts`), com destruição automática se o dano bater o
+   HP efetivo (mesma checagem 5-5-2 já usada em `combat.ts`).
+2. Efeito contínuo condicional ("enquanto pareado, +1 AP em tudo") não tem
+   modelo — EffectSpec só cobre gatilho pontual → ações. Precisaria de um
+   conceito de "efeito estático" reavaliado a cada consulta de `effectiveAp`/
+   `effectiveHp`, não de eventos aplicados uma vez.
+3. Nenhuma primitiva cria instância nova a partir de um `CardDef` (deploy de
+   token por efeito) — hoje só `setup.ts` instancia carta, e só no setup.
+4. Nenhuma primitiva de "pagar custo de recurso genérico" (só existe `cost`
+   como `PrimitiveCall[]` arbitrário, sem noção de gastar recurso).
+5. `TargetRef`/`resolveTarget` resolvem sempre 1 `instanceId` só — não tem
+   como aplicar a mesma ação a um grupo inteiro de alvos ("all friendly Link
+   Units").
+6. Restrições de legalidade (quem pode ser alvo de ataque, requisito de
+   Pilot pra jogar uma carta) não são modeladas pelo EffectSpec — são regras
+   de "o que é permitido fazer", não "o que acontece quando algo é feito";
+   provavelmente pertencem a uma camada de validação separada, não à DSL de
+   efeito.
+
+Nenhuma dessas lacunas bloqueia o motor puro (passos 1-2, já validados) —
+são conhecidas e documentadas aqui pra quando o passo 3 continuar (mais
+cartas do ST01/ST02-04/GD01) ou quando o passo 4 (dispatcher de trigger
+automático) começar.
+
 ## Plano de implementação incremental (fatia vertical, não big-bang)
 
 1. **Motor de estado puro** (zonas + fases + sequência de combate) com
@@ -299,7 +361,9 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
     (Comprehensive Rules 3-3-6).
   - `keywords.ts` — Support N (ação de Main Phase) e Repair N (gatilho de
     End Phase).
-  - `effectSpec.ts` — formalização da Camada 3 (ver seção acima).
+  - `effectSpec.ts` — formalização da Camada 3 (ver seção acima), com a
+    primitiva `damageUnit` (dano direto numa Unit/Base) adicionada no passo
+    3, descoberta ao autorar as cartas reais do ST01.
   - `index.ts` — barrel export.
 - `src/modules/simulator/fixtures/vanillaDeck.ts` — deck sintético "vanilla"
   (50+10, dentro do limite de 4 cópias/code) usado pra validar o motor sem
@@ -308,15 +372,27 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   completa de ponta a ponta contra o deck vanilla (2 seeds), com checagem de
   invariantes de zona a cada turno até bater numa condição oficial de
   derrota.
+- `src/modules/simulator/fixtures/st01Deck.ts` — passo 3: deck real ST01
+  "Heroic Beginnings" (stats/efeito conferidos contra a página oficial de
+  cada carta e `data/gcg-official-cards.json`; quantidade de cópias por
+  carta é composição própria, não confirmada contra o produto físico — ver
+  comentário no topo do arquivo).
+- `src/modules/simulator/content/st01.ts` — passo 3: 16 `EffectSpec` reais
+  autorados contra o `effect` oficial em inglês, cobrindo 10 das 16 cartas
+  únicas do ST01. Ver "Cobertura real — ST01" acima pra tabela completa e
+  lacunas de DSL descobertas.
 - `src/modules/simulator/ui/` — ainda não existe (passo 4).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 71 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 88 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
-  keywords, a tubulação do EffectSpec e a partida de ponta a ponta.
+  keywords, a tubulação do EffectSpec, a partida de ponta a ponta e os
+  EffectSpecs reais do ST01.
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
-  `hasMain`, `hasAction`, `oncePerTurn`) como fonte de dado quando o passo 3
-  (deck real) começar — não recriar esse parsing.
+  `hasMain`, `hasAction`, `oncePerTurn`) como fonte de dado — usado no passo
+  3 pra derivar os campos estruturados do `CardDef` de cada carta do ST01
+  (rodando o parser sobre o texto oficial e copiando o resultado como dado
+  estático em `st01Deck.ts`, sem chamar o parser em runtime).
 - Nenhuma alteração em `prisma/schema.prisma` ou `server/index.ts` foi
   necessária até aqui, como planejado.

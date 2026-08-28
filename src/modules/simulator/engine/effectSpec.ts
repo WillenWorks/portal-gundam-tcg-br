@@ -1,5 +1,5 @@
 import type { Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { otherPlayer } from "./types";
+import { effectiveHp, otherPlayer } from "./types";
 import { findCard, findCardOwner } from "./events";
 
 /**
@@ -62,7 +62,9 @@ export type PrimitiveCall =
   | { op: "grantKeyword"; target: TargetRef; keyword: string; duration: Duration }
   | { op: "rest"; target: TargetRef }
   | { op: "setActive"; target: TargetRef }
-  | { op: "heal"; target: TargetRef; amount: number };
+  | { op: "heal"; target: TargetRef; amount: number }
+  /** dano direto numa Unit/Base (ex.: "Deal 1 damage to it") — destrói automaticamente se o dano acumulado bater o HP efetivo (Comprehensive Rules 5-5-2), igual à checagem já feita em combat.ts pro dano de batalha */
+  | { op: "damageUnit"; target: TargetRef; amount: number };
 
 export interface EffectContext {
   state: GameState;
@@ -136,6 +138,15 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "heal": {
       const instanceId = resolveTarget(call.target, ctx);
       return [{ type: "HEAL_UNIT", instanceId, amount: call.amount }];
+    }
+    case "damageUnit": {
+      const instanceId = resolveTarget(call.target, ctx);
+      const events: GameEvent[] = [{ type: "DAMAGE_UNIT", instanceId, amount: call.amount }];
+      const card = findCard(ctx.state, instanceId);
+      if (card.damage + call.amount >= effectiveHp(card)) {
+        events.push({ type: "DESTROY_CARD", instanceId });
+      }
+      return events;
     }
   }
 }
