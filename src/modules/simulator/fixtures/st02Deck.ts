@@ -28,6 +28,7 @@ const WING_GUNDAM: CardDef = {
   traits: ["Operation Meteor"],
   effectKeywords: ["Breach"],
   keywordTags: ["Breach 5"],
+  link: { kind: "pilotName", values: ["Heero Yuy"] },
   // + "This Unit may choose an active enemy Unit that is Lv.4 or lower as
   // its attack target." — relaxamento da legalidade de alvo de ataque
   // (normalmente só Units inimigas rested); mesma categoria de lacuna que a
@@ -46,6 +47,7 @@ const WING_GUNDAM_BIRD_MODE: CardDef = {
   traits: ["Operation Meteor"],
   triggerKeywords: ["Deploy"],
   keywordTags: ["Deploy"],
+  link: { kind: "pilotName", values: ["Heero Yuy"] },
   // + "【Deploy】Place 1 EX Resource." — fora de escopo: precisa da mesma
   // primitiva de "criar instância nova" que falta pro deploy de token de
   // ST01-015/016 (ver docs/18, lacuna #3).
@@ -63,6 +65,7 @@ const GUNDAM_HEAVYARMS: CardDef = {
   traits: ["Operation Meteor"],
   triggerKeywords: ["During Pair"],
   keywordTags: ["During Pair"],
+  link: { kind: "pilotName", values: ["Trowa Barton"] },
   // + "【During Pair】During your turn, when this Unit destroys an enemy
   // Unit with battle damage, deal 1 damage to all enemy Units that are
   // Lv.3 or lower." — fora de escopo: "all enemy Units ..." é ação em
@@ -80,6 +83,7 @@ const GUNDAM_SANDROCK: CardDef = {
   ap: 4,
   hp: 3,
   traits: ["Operation Meteor"],
+  link: { kind: "pilotName", values: ["Quatre Raberba Winner"] },
 };
 
 const MAGANAC: CardDef = {
@@ -107,6 +111,7 @@ const TALLGEESE: CardDef = {
   effectKeywords: ["Activate · Main", "Once per Turn"],
   keywordTags: ["Activate · Main", "Once per Turn"],
   oncePerTurn: true,
+  link: { kind: "pilotName", values: ["Zechs Merquise"] },
   // 【Activate･Main】【Once per Turn】④：Set this Unit as active. — a ação
   // (setActive em si) é autorada, mas o custo "④" (pagar 4 recursos) não é
   // cobrado — falta primitiva de "pagar custo de recurso genérico" (ver
@@ -123,6 +128,9 @@ const LEO: CardDef = {
   ap: 2,
   hp: 2,
   traits: ["OZ"],
+  // link "(OZ) Trait" — qualquer Pilot com o trait OZ (não um nome específico),
+  // ex. Zechs Merquise (ST02-011); Heero Yuy (Operation Meteor) não qualifica.
+  link: { kind: "trait", values: ["OZ"] },
 };
 
 const ARIES: CardDef = {

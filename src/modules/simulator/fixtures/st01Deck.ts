@@ -45,6 +45,7 @@ const GUNDAM: CardDef = {
   effectKeywords: ["Repair"],
   triggerKeywords: ["During Pair"],
   keywordTags: ["Repair 2", "During Pair"],
+  link: { kind: "pilotName", values: ["Amuro Ray"] },
 };
 
 const GUNDAM_MA_FORM: CardDef = {
@@ -59,6 +60,7 @@ const GUNDAM_MA_FORM: CardDef = {
   traits: ["Earth Federation", "White Base Team"],
   triggerKeywords: ["When Paired"],
   keywordTags: ["When Paired"],
+  link: { kind: "pilotName", values: ["Amuro Ray"] },
 };
 
 const GUNCANNON: CardDef = {
@@ -71,6 +73,7 @@ const GUNCANNON: CardDef = {
   ap: 2,
   hp: 4,
   traits: ["Earth Federation", "White Base Team"],
+  link: { kind: "pilotName", values: ["Kai Shiden"] },
 };
 
 const GUNTANK: CardDef = {
@@ -85,6 +88,7 @@ const GUNTANK: CardDef = {
   traits: ["Earth Federation", "White Base Team"],
   triggerKeywords: ["Deploy"],
   keywordTags: ["Deploy"],
+  link: { kind: "pilotName", values: ["Hayato Kobayashi"] },
 };
 
 const GM: CardDef = {
@@ -111,6 +115,7 @@ const AERIAL_SCORE_SIX: CardDef = {
   traits: ["Academy"],
   triggerKeywords: ["When Paired"],
   keywordTags: ["When Paired"],
+  link: { kind: "pilotName", values: ["Suletta Mercury"] },
 };
 
 const AERIAL_BIT_FORM: CardDef = {
@@ -123,6 +128,7 @@ const AERIAL_BIT_FORM: CardDef = {
   ap: 3,
   hp: 4,
   traits: ["Academy"],
+  link: { kind: "pilotName", values: ["Suletta Mercury"] },
 };
 
 const DEMI_TRAINER: CardDef = {

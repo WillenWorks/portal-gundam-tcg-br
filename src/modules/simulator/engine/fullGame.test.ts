@@ -38,7 +38,9 @@ function deployUnit(state: GameState, player: PlayerId, def: CardDef): string {
     statModifiers: [],
     keywordGrants: [],
     usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber,
+    // -1: unit já estabelecida em campo por padrão, pra poder atacar já no
+    // primeiro ciclo de combate do teste (ver combat.test.ts).
+    enteredZoneOnTurn: state.turnNumber - 1,
   };
   state.players[player].battleArea.push(card);
   return instanceId;

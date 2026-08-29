@@ -19,7 +19,8 @@ function place(state: GameState, player: PlayerId, def: CardDef, opts: Partial<C
     statModifiers: [],
     keywordGrants: [],
     usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber,
+    // -1: unit já estabelecida em campo por padrão (ver combat.test.ts).
+    enteredZoneOnTurn: state.turnNumber - 1,
     ...opts,
   };
   state.players[player].battleArea.push(card);

@@ -1,5 +1,5 @@
 import type { AttackTarget, CardInstance, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveAp, hasKeyword, keywordValue, otherPlayer } from "./types";
+import { effectiveAp, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 
 /**
@@ -25,6 +25,17 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
   if (attacker.rested) throw new Error("Unit rested não pode atacar");
   if (state.phase !== "main") throw new Error("Ataque só pode ser declarado na Main Phase");
   if (state.combat) throw new Error("Já existe um combate em andamento");
+  if (attacker.enteredZoneOnTurn === state.turnNumber) {
+    // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
+    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3).
+    const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
+    const isLinkUnit = pilot ? satisfiesLinkCondition(pilot.def, attacker.def) : false;
+    if (!isLinkUnit) {
+      throw new Error(
+        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3)",
+      );
+    }
+  }
 
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (typeof target === "object") {

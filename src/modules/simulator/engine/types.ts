@@ -53,6 +53,17 @@ export interface CardDef {
   oncePerTurn?: boolean;
   /** true para o EX Resource / EX Base gerados no setup, não fazem parte do deck de 50+10 */
   isToken?: boolean;
+  /**
+   * Link condition desta Unit (Comprehensive Rules 3-2-6) — só existe em Units,
+   * nunca em Pilot/Command/Base. Não restringe o pareamento em si (qualquer Pilot
+   * pode parear com qualquer Unit amiga, regra 3-3-1/3-3-4); só decide se o
+   * pareamento resultante vira "Link Unit", cujo único bônus mecânico é poder
+   * atacar no turno em que foi deployada (3-2-6-3), veja `isLinkUnit`.
+   * `kind: "pilotName"` casa por substring no nome do Pilot pareado (regra
+   * 3-2-6-4, ex. link "[Amuro Ray]"); `kind: "trait"` casa se o Pilot pareado
+   * tiver algum desses traits (ex. link "(OZ) Trait").
+   */
+  link?: { kind: "pilotName" | "trait"; values: string[] };
 }
 
 export type StatKey = "ap" | "hp";
@@ -91,6 +102,21 @@ export interface CardInstance {
   usedKeywordsThisTurn: string[];
   /** turno em que entrou na zona atual — usado por regras tipo "Link ataca imediato ao ser deployada" */
   enteredZoneOnTurn: number;
+}
+
+/**
+ * Comprehensive Rules 3-2-6: a Unit vira "Link Unit" quando o Pilot pareado
+ * satisfaz a link condition dela. Não tem efeito em pareamento (isso é livre,
+ * 3-3-1/3-3-4) — só decide se a Unit ganha a exceção de atacar no turno em
+ * que foi deployada (3-2-6-3, ver `combat.ts`/`declareAttack`).
+ */
+export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boolean {
+  const link = unitDef.link;
+  if (!link) return false;
+  if (link.kind === "pilotName") {
+    return link.values.some((name) => pilotDef.nameEn.includes(name));
+  }
+  return link.values.some((trait) => (pilotDef.traits ?? []).includes(trait));
 }
 
 export function effectiveAp(card: CardInstance): number {

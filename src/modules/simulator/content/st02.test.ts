@@ -41,7 +41,8 @@ function place(state: GameState, player: PlayerId, def: CardDef, zone: Zone, opt
     statModifiers: [],
     keywordGrants: [],
     usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber,
+    // -1: unit já estabelecida em campo por padrão (ver engine/combat.test.ts).
+    enteredZoneOnTurn: state.turnNumber - 1,
     ...opts,
   };
   state.players[player][zone].push(card);

@@ -5,7 +5,9 @@
 **Em andamento — passos 1 e 2 concluídos; passo 3 (deck de teste real) com
 motor de jogo genuíno (jogar carta da mão + dispatcher automático de
 trigger) e partida real ST01×ST02 até GAME_OVER validada, cobrindo os 27
-EffectSpecs implementados.**
+EffectSpecs implementados. Link condition (Comprehensive Rules 3-2-6) já
+estruturada e validada — ver "Link condition" abaixo. Passo 4 (UI mínima de
+sandbox, com sessão real multi-aba) em andamento.**
 Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
 sandbox solo que entende todas as regras do jogo e das cartas, pra testar
 jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
@@ -217,7 +219,7 @@ disso do zero — só consumir o que já existe em `CardModel`.
 | `<Breach N>` | destruiu Unit inimiga em combate no seu turno → N dano no 1º shield | sim | `onDestroyEnemyInBattle(() => damageShield(1, N))` |
 | `<Suppression>` | dano ao shield acerta os 2 primeiros shields simultaneamente | sim | `onShieldDamage(() => alsoDamage(secondShield, sameAmount))` |
 | `【Once per Turn】` | limita a ativação a 1x por turno, por instância de carta | sim (`oncePerTurn`) | contador de uso por turno, por instância, no `GameState` |
-| Link | condição de pareamento piloto→unit; Unit pareada ataca imediatamente ao ser deployada | **parcial** — `linkText` existe como texto livre; a condição em si (ex. "Pilot com trait X") não é estruturada | precisa de parser adicional antes de simular Link de verdade (ver Riscos) |
+| Link | Unit vira "Link Unit" se o Pilot pareado satisfaz a link condition dela (nome ou trait); único bônus mecânico é poder atacar no turno em que foi deployada | **sim** — `CardDef.link` estruturado (`kind: "pilotName" \| "trait"`) + `satisfiesLinkCondition()`/`declareAttack` (ver "Link condition" abaixo) | feito |
 | `【Burst】` | ao shield ser destruído, revela e pode ativar sem pagar custo, por escolha | sim que o *fato* de ter Burst está marcado (`hasBurst` + `burstEffectPt`) — o **conteúdo** do efeito continua texto livre | precisa de autoria manual em DSL, carta a carta |
 
 ## DSL de efeitos — motor de eventos + Effect Spec (Camada 3 formalizada)
@@ -400,15 +402,31 @@ oficial de uma carta, não teria aparecido em nenhum teste sintético.
    início ao fim, respeitando todas as regras acima, sem nenhuma trapaça
    manual (nada de "finge que esse efeito aconteceu").
 
+## Link condition (Comprehensive Rules 3-2-6, resolvido)
+
+Decisão com o Willen em 2026-08-28: implementar agora, não adiar. Verificado
+contra a fonte oficial (Comprehensive Rules v1.8.0) antes de implementar —
+o entendimento inicial (Link condition restringe o pareamento em si) estava
+**errado**: pareamento Pilot↔Unit é livre (3-3-1 a 3-3-5, qualquer Pilot
+pareia com qualquer Unit amiga). Link condition (3-2-6) só decide se o
+pareamento resultante vira "Link Unit" — e o único bônus mecânico disso é
+poder atacar no turno em que foi deployada (3-2-6-3), furando a restrição
+normal de 3-2-4 (Unit recém-deployada não ataca no turno em que entrou em
+campo — restrição que nem existia implementada no motor antes desta wave,
+gap descoberto durante a implementação, não um dos 8 já catalogados acima).
+
+Implementado: `CardDef.link?: { kind: "pilotName" | "trait"; values: string[] }`
+(dado já limpo em `data/gcg-official-cards.json`, campos `link`/`linkRefs`,
+copiado como dado estático pros fixtures ST01/ST02 — nenhum parser novo
+precisou ser escrito) + `satisfiesLinkCondition(pilotDef, unitDef)` em
+`types.ts` + checagem em `declareAttack` (`combat.ts`) usando o novo campo
+`CardInstance.enteredZoneOnTurn`. Testado em `combat.test.ts` (pilotName,
+trait, pareamento que não satisfaz, e a restrição-base sem pareamento) e na
+partida real ST01×ST02 (`st01VsSt02Match.test.ts`, MA Form + Amuro Ray e
+Tallgeese + Zechs Merquise atacando no turno de deploy).
+
 ## Riscos / desconhecidos
 
-- **Link condition não estruturada** — hoje é texto livre (`linkText`).
-  Sem extrair isso pra algo comparável programaticamente, o motor não
-  consegue validar sozinho se um Pilot satisfaz a condição de link de uma
-  Unit. Redução de escopo aceitável pro dia 1: simular sem Link (toda Unit
-  ataca só depois de esperar o turno normal, ninguém pareia piloto ainda) e
-  tratar o parser de link condition como um passo separado, quando o deck de
-  teste escolhido de fato depender disso.
 - **Efeitos de informação oculta** ("olhe as N cartas do topo", "revele",
   "escolha 1 dentre X sem o oponente ver") exigem que o motor tenha noção de
   "o que é visível pra quem" desde o desenho — mesmo numa Fase 1 sem

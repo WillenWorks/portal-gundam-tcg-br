@@ -8,7 +8,7 @@ import { activateBlocker, declareAttack, proceedToBlockStep, resolveBattleEndSte
 import { deployCard, playCommand } from "./deploy";
 import { dispatchBurstForNewlyTrashedShields, dispatchTrigger, type BurstChoiceFn } from "./dispatcher";
 import { findCard } from "./events";
-import { ST01_EFFECT_SPECS } from "../content/st01";
+import { GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { ST02_EFFECT_SPECS } from "../content/st02";
 import type { EffectContext, PredicateResolver } from "./effectSpec";
 
@@ -73,7 +73,8 @@ function mkInstance(state: GameState, player: PlayerId, def: CardDef, zone: Zone
     statModifiers: [],
     keywordGrants: [],
     usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber,
+    // -1: unit já estabelecida em campo por padrão (ver combat.test.ts).
+    enteredZoneOnTurn: state.turnNumber - 1,
     ...opts,
   };
   state.players[player][zone].push(card);
@@ -96,7 +97,9 @@ function setTopShields(state: GameState, player: PlayerId, defs: CardDef[]): str
       statModifiers: [],
       keywordGrants: [],
       usedKeywordsThisTurn: [],
-      enteredZoneOnTurn: state.turnNumber,
+      // -1: consistente com mkInstance — não é "recém-deployada" (shields não
+      // atacam de qualquer forma, mas mantém o mesmo padrão de fixture).
+      enteredZoneOnTurn: state.turnNumber - 1,
     };
     return card;
   });
@@ -143,15 +146,33 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     // Turno 1 (A) — desarma a EX Base de B (prova Base absorve dano de
     // "atacar o jogador" — Comprehensive Rules — sem isso todo ataque
     // contra B como jogador acertaria a EX Base, nunca os shields).
+    //
+    // MA Form ataca no mesmíssimo turno em que foi deployada — só é legal
+    // porque vira Link Unit ao ser pareada com Amuro Ray (Comprehensive
+    // Rules 3-2-6-3, ver combat.ts/declareAttack). Pareia com specs
+    // reduzido a só GUNDAM_MA_FORM_WHEN_PAIRED (lado da Unit, "compra 1" —
+    // sem alvo): o lado do Pilot (AMURO_RAY_WHEN_PAIRED, "resta 1 Unit
+    // inimiga") exige um alvo inimigo que ainda não existe no turno 1 (B só
+    // tem a EX Base em campo, que não é Unit) — essa parte da cobertura é
+    // testada mais adiante (turno 3), pareando outra cópia de Amuro Ray.
     // ------------------------------------------------------------------
     state = advanceToMainPhase(state);
-    giveResources(state, "A", 10);
+    giveResources(state, "A", 11);
 
     const maFormId = mkInstance(state, "A", ST01_CARD_DEFS.GUNDAM_MA_FORM, "hand");
     state = deployCard(state, "A", maFormId, { specs: ALL_SPECS }); // Unit, sem trigger próprio
 
+    const amuroId0 = mkInstance(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const handBeforeMaFormPair = state.players.A.hand.length;
+    state = deployCard(state, "A", amuroId0, {
+      pairWithUnitId: maFormId,
+      specs: [GUNDAM_MA_FORM_WHEN_PAIRED],
+      predicateResolver: pairedPilotHasTraitResolver,
+    });
+    expect(state.players.A.hand.length).toBe(handBeforeMaFormPair); // Amuro saiu da mão (-1), GUNDAM_MA_FORM_WHEN_PAIRED compra 1 (+1) -> líquido 0
+
     const bExBaseId = state.players.B.baseSection[0].instanceId;
-    state = runAttack(state, maFormId, "player"); // MA Form AP4 >= EX Base HP3 -> destrói a Base, não toca shields
+    state = runAttack(state, maFormId, "player"); // MA Form (agora Link Unit) AP4 >= EX Base HP3 -> destrói a Base, não toca shields
     expect(state.players.B.baseSection.length).toBe(0);
     expect(state.eventLog.some((e) => e.type === "DESTROY_CARD" && "instanceId" in e && e.instanceId === bExBaseId)).toBe(true);
 
@@ -168,13 +189,20 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     // Turno 2 (B) — desarma a EX Base de A, deploya os primeiros Units.
     // ------------------------------------------------------------------
     state = finishTurnAndAdvance(state);
-    giveResources(state, "B", 10);
+    giveResources(state, "B", 11);
 
     const tallgeeseId = mkInstance(state, "B", ST02_CARD_DEFS.TALLGEESE, "hand");
     state = deployCard(state, "B", tallgeeseId, { specs: ALL_SPECS }); // Unit, sem trigger próprio no Deploy
 
+    // mesma situação da MA Form no turno 1: só pode atacar no turno em que
+    // foi deployada por virar Link Unit. Zechs Merquise não tem trigger
+    // "When Paired" (só Burst/During Link) e Tallgeese também não — parear
+    // os dois não dispara nada, então não precisa de alvo nenhum aqui.
+    const zechsId0 = mkInstance(state, "B", ST02_CARD_DEFS.ZECHS_MERQUISE, "hand");
+    state = deployCard(state, "B", zechsId0, { pairWithUnitId: tallgeeseId, specs: ALL_SPECS });
+
     const aExBaseId = state.players.A.baseSection[0].instanceId;
-    state = runAttack(state, tallgeeseId, "player"); // Tallgeese AP4 >= EX Base HP3
+    state = runAttack(state, tallgeeseId, "player"); // Tallgeese (agora Link Unit) AP4 >= EX Base HP3
     expect(state.players.A.baseSection.length).toBe(0);
     expect(state.eventLog.some((e) => e.type === "DESTROY_CARD" && "instanceId" in e && e.instanceId === aExBaseId)).toBe(true);
 
@@ -193,16 +221,20 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     state = finishTurnAndAdvance(state);
     giveResources(state, "A", 10);
 
+    // maFormId já está pareada (com amuroId0, desde o turno 1 — ver ali) —
+    // essa 2ª cópia de Amuro Ray pareia com o GM (deployado turno 1, sem
+    // "When Paired" próprio) só pra testar o lado do Pilot
+    // (AMURO_RAY_WHEN_PAIRED), agora que B já tem o Tallgeese em campo como
+    // alvo válido.
     const amuroId1 = mkInstance(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const handBeforeAmuroPair = state.players.A.hand.length;
     state = deployCard(state, "A", amuroId1, {
-      pairWithUnitId: maFormId,
+      pairWithUnitId: gmId,
       specs: ALL_SPECS,
       targets: { target: [tallgeeseId] }, // AMURO_RAY_WHEN_PAIRED: Tallgeese (HP4 <= 5) fica rested
-      predicateResolver: pairedPilotHasTraitResolver,
     });
     expect(findCard(state, tallgeeseId).rested).toBe(true); // ST01-010 When Paired
-    const handBeforeDraw = state.players.A.hand.length;
-    // ST01-002 When Paired (+trait White Base Team do Amuro Ray): compra 1 — já refletido acima, confirmado pelo tamanho da mão adiante
+    expect(state.players.A.hand.length).toBe(handBeforeAmuroPair - 1); // Amuro saiu (-1); GM não tem "When Paired" próprio, sem draw compensando
 
     const sulettaId1 = mkInstance(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY, "hand");
     state = deployCard(state, "A", sulettaId1, {
@@ -211,7 +243,6 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
       targets: { target: [sandrockId] }, // AERIAL_SCORE_SIX_WHEN_PAIRED: Sandrock (Lv4) recebe AP-3
     });
     expect(findCard(state, sandrockId).statModifiers).toEqual([{ stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber }]);
-    expect(state.players.A.hand.length).toBe(handBeforeDraw); // Suletta saiu (-1) mas não tem draw — só o Amuro já tinha dado o +1 antes
 
     const guntankId = mkInstance(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
     state = deployCard(state, "A", guntankId, { specs: ALL_SPECS, targets: { target: [leoId] } }); // GUNTANK_DEPLOY: Leo (HP2) fica rested
@@ -244,17 +275,11 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     expect(findCard(state, restedResourceId).rested).toBe(false); // SULETTA_MERCURY_ATTACK: seta o recurso active de novo
     expect(state.players.B.shields.length).toBe(5); // consumiu 1 shield de B (sem Burst cadastrado pra Sandrock)
 
-    // 【Action】 UNFORESEEN_INCIDENT no próprio Action Step do ataque de Guntank contra B, com prioridade repassada pra A
-    const unforeseenActionId = mkInstance(state, "A", ST01_CARD_DEFS.UNFORESEEN_INCIDENT, "hand");
-    state = runAttack(state, guntankId, "player", {
-      runActionStep: (s, defending, attacking) => {
-        let n = passAction(s, defending); // B passa primeiro (jogador em espera) -> prioridade vai pra A
-        n = playCommand(n, "A", unforeseenActionId, "Action", ALL_SPECS, { targets: { target: [sandrockId] } }); // 3ª aplicação de AP-3
-        n = passAction(n, attacking);
-        return n;
-      },
-    });
-    expect(state.players.B.shields.length).toBe(4); // mais 1 shield de B consumido
+    // 【Action】 UNFORESEEN_INCIDENT no Action Step de um ataque de Guntank — mas
+    // Guntank foi deployado ESTE turno (turno 3) e seu link (Hayato Kobayashi)
+    // não existe como Pilot jogável neste deck (ver st01Deck.ts), então não
+    // vira Link Unit e não pode atacar ainda (Comprehensive Rules 3-2-4). Essa
+    // demo é feita mais adiante, no turno 5, junto do ataque real de Guntank.
 
     // ------------------------------------------------------------------
     // Turno 4 (B) — Simultaneous Fire concede <Breach 3> pro Tallgeese, que
@@ -336,7 +361,18 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     expect(restCountAfter - restCountBefore).toBe(3);
 
     state = runAttack(state, aerialId, "player", { chooseBurst: chooseBurstWithFallbackTarget(sandrockId) });
-    state = runAttack(state, guntankId, "player", { chooseBurst: chooseBurstWithFallbackTarget(sandrockId) });
+
+    // 【Action】 UNFORESEEN_INCIDENT no próprio Action Step do ataque de Guntank contra B, com prioridade repassada pra A
+    const unforeseenActionId = mkInstance(state, "A", ST01_CARD_DEFS.UNFORESEEN_INCIDENT, "hand");
+    state = runAttack(state, guntankId, "player", {
+      runActionStep: (s, defending, attacking) => {
+        let n = passAction(s, defending); // B passa primeiro (jogador em espera) -> prioridade vai pra A
+        n = playCommand(n, "A", unforeseenActionId, "Action", ALL_SPECS, { targets: { target: [sandrockId] } }); // mais 1 aplicação de AP-3
+        n = passAction(n, attacking);
+        return n;
+      },
+      chooseBurst: chooseBurstWithFallbackTarget(sandrockId),
+    });
     expect(burstsFired).toEqual(expect.arrayContaining(["ST02-014", "ST02-010", "ST02-011"])); // Siege Ploy / Heero Yuy / Zechs Merquise
     expect(state.players.B.hand.some((c) => c.def.code === "ST02-010")).toBe(true);
     expect(state.players.B.hand.some((c) => c.def.code === "ST02-011")).toBe(true);

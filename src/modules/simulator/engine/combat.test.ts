@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { buildVanillaDeckList, VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck";
+import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
+import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import type { CardDef, CardInstance, GameState, PlayerId } from "./types";
 import {
   activateBlocker,
@@ -34,7 +36,12 @@ function place(state: GameState, player: PlayerId, def: CardDef, opts: Partial<C
     statModifiers: [],
     keywordGrants: [],
     usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber,
+    // -1: por padrão, `place()` monta uma Unit já estabelecida em campo desde
+    // um turno anterior (não "recém-deployada"), pra não trombar com a regra
+    // 3-2-4 (ver combat.ts/declareAttack) à toa nos testes que só querem
+    // exercitar a sequência de combate em si. Testes que querem exatamente o
+    // caso "recém-deployada" passam `{ enteredZoneOnTurn: state.turnNumber }`.
+    enteredZoneOnTurn: state.turnNumber - 1,
     ...opts,
   };
   state.players[player].battleArea.push(card);
@@ -241,5 +248,53 @@ describe("<Support N> — ação de Main Phase (docs/18)", () => {
     state = { ...state, players: { ...state.players, A: { ...state.players.A, battleArea: state.players.A.battleArea.map((c) => (c.instanceId === sourceId ? { ...c, rested: false } : c)) } } };
 
     expect(() => activateSupport(state, sourceId, targetB)).toThrow(/Once per Turn/);
+  });
+});
+
+describe("Link Unit ataca no turno em que foi deployada (Comprehensive Rules 3-2-4 / 3-2-6-3)", () => {
+  it("Unit recém-deployada sem Pilot pareado não pode atacar no turno em que entrou em campo", () => {
+    const state = freshGame();
+    const maFormId = place(state, "A", ST01_CARD_DEFS.GUNDAM_MA_FORM, { enteredZoneOnTurn: state.turnNumber });
+
+    expect(() => declareAttack(state, maFormId, "player")).toThrow(/Comprehensive Rules 3-2-4/);
+  });
+
+  it("Unit recém-deployada pareada com Pilot que NÃO satisfaz a link condition ainda não pode atacar", () => {
+    const state = freshGame();
+    // Suletta Mercury não casa com o link "[Amuro Ray]" da MA Form — pareamento
+    // em si é livre (3-3-1/3-3-4), mas não vira Link Unit (3-2-6).
+    const sulettaId = place(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY);
+    const maFormId = place(state, "A", ST01_CARD_DEFS.GUNDAM_MA_FORM, {
+      enteredZoneOnTurn: state.turnNumber,
+      pairedPilotId: sulettaId,
+    });
+
+    expect(() => declareAttack(state, maFormId, "player")).toThrow(/Comprehensive Rules 3-2-4/);
+  });
+
+  it("Link Unit por nome de Pilot (kind: pilotName) pode atacar no turno em que foi deployada", () => {
+    const state = freshGame();
+    // ST01-002 Gundam (MA Form): link "[Amuro Ray]" — casa por substring no nome do Pilot pareado.
+    const amuroId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY);
+    const maFormId = place(state, "A", ST01_CARD_DEFS.GUNDAM_MA_FORM, {
+      enteredZoneOnTurn: state.turnNumber,
+      pairedPilotId: amuroId,
+    });
+
+    const next = declareAttack(state, maFormId, "player");
+    expect(next.combat?.attackerId).toBe(maFormId);
+  });
+
+  it("Link Unit por trait (kind: trait) pode atacar no turno em que foi deployada", () => {
+    const state = freshGame();
+    // ST02-007 Leo: link "(OZ) Trait" — casa por trait do Pilot pareado, não por nome específico.
+    const zechsId = place(state, "A", ST02_CARD_DEFS.ZECHS_MERQUISE); // trait OZ
+    const leoId = place(state, "A", ST02_CARD_DEFS.LEO, {
+      enteredZoneOnTurn: state.turnNumber,
+      pairedPilotId: zechsId,
+    });
+
+    const next = declareAttack(state, leoId, "player");
+    expect(next.combat?.attackerId).toBe(leoId);
   });
 });
