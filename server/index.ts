@@ -12,6 +12,13 @@ import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, Taxono
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
+import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
+import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
+import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
+import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
+import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
+import { applyAction, createMatch, getMatch, joinMatch, listMatches, MatchError, seatFor, subscribe } from "../src/modules/simulator/server/matchStore.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -193,6 +200,28 @@ function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) 
     try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
   }
   next();
+}
+
+/**
+ * Como authRequired, mas aceita o token via query string (`?token=`) além do
+ * header `Authorization`. Só existe pro endpoint de SSE do simulador
+ * (`/api/simulator/matches/:id/stream`, docs/18 passo 4) — a API nativa
+ * `EventSource` do navegador não deixa mandar headers customizados, então
+ * não tem como usar `Authorization: Bearer` nela. Todas as outras rotas
+ * continuam exigindo o header normal; isso é uma exceção pontual, não uma
+ * segunda forma "oficial" de autenticar.
+ */
+function authFromQueryOrHeader(req: RequestWithUser, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken;
+  if (!token) return res.status(401).json({ error: "Token ausente." });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Token inválido." });
+  }
 }
 
 function roleRequired(roles: UserRole[]) {
@@ -3126,6 +3155,133 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
   if (!existing) return res.status(404).json({ error: "Deck não encontrado." });
   await prisma.deck.delete({ where: { id: deckId } });
   res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Simulador — passo 4 (docs/18-simulador-fase1-motor-e-dsl.md): sandbox de
+ * teste restrito a admin/hoster, com match store EM MEMÓRIA (sem
+ * persistência — reiniciar a API derruba toda partida em andamento, decisão
+ * tomada com o Willen) e sincronização em tempo real por SSE. Decisão
+ * também do Willen: testar com 2 abas/2 contas reais logadas separadamente,
+ * pra provar que a redação de informação oculta por jogador
+ * (`viewStateFor`) é real e roda no servidor, não só "de mentirinha" no
+ * cliente. Por isso toda rota abaixo é `hosterRequired` — nenhuma delas
+ * serve pra jogador comum, é ferramenta de teste interno.
+ *
+ * O motor real (`GameState`) nunca sai daqui — só a visão redigida de cada
+ * jogador (`ViewGameState`). Ver `src/modules/simulator/server/matchStore.ts`
+ * e `src/modules/simulator/engine/viewState.ts`.
+ * ------------------------------------------------------------------------- */
+
+const SIMULATOR_DECKS: Record<string, () => DeckList> = {
+  ST01: buildSt01DeckList,
+  ST02: buildSt02DeckList,
+};
+
+function matchSummary(match: ReturnType<typeof getMatch>) {
+  if (!match) return null;
+  return {
+    id: match.id,
+    seats: {
+      A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
+      B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
+    },
+    turnNumber: match.state.turnNumber,
+    activePlayer: match.state.activePlayer,
+    phase: match.state.phase,
+    gameOver: match.state.gameOver,
+    createdAt: match.createdAt,
+    updatedAt: match.updatedAt,
+    version: match.version,
+  };
+}
+
+app.get("/api/simulator/matches", authRequired, hosterRequired, (_req, res) => {
+  res.json(listMatches().map((m) => matchSummary(m)));
+});
+
+app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number };
+  const deckAKey = (body.deckA || "ST01").toUpperCase();
+  const deckBKey = (body.deckB || "ST02").toUpperCase();
+  const deckA = SIMULATOR_DECKS[deckAKey];
+  const deckB = SIMULATOR_DECKS[deckBKey];
+  if (!deckA || !deckB) {
+    return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  }
+  const match = createMatch({
+    deckA: deckA(),
+    deckB: deckB(),
+    firstPlayer: body.firstPlayer === "B" ? "B" : "A",
+    seed: typeof body.seed === "number" ? body.seed : undefined,
+  });
+  res.status(201).json(matchSummary(match));
+});
+
+app.get("/api/simulator/matches/:id", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.json({ seated: false, ...matchSummary(match) });
+  res.json({ seated: true, seat, view: viewStateFor(match.state, seat) });
+});
+
+app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { seat?: PlayerId };
+  if (body.seat !== "A" && body.seat !== "B") return res.status(400).json({ error: "seat precisa ser 'A' ou 'B'." });
+  try {
+    const match = joinMatch(String(req.params.id), body.seat, { userId: req.user!.userId, displayName: req.user!.username });
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json({ seated: true, seat, view: viewStateFor(match.state, seat) });
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+app.post("/api/simulator/matches/:id/actions", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const action = req.body as PlayerAction;
+  if (!action || typeof action !== "object" || typeof action.kind !== "string") {
+    return res.status(400).json({ error: "Ação inválida." });
+  }
+  try {
+    const match = applyAction(String(req.params.id), req.user!.userId, action);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json({ seat, view: viewStateFor(match.state, seat) });
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
+app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, hosterRequired, (req: RequestWithUser, res) => {
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Entre num assento (join) antes de abrir o stream." });
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  const send = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  send("state", viewStateFor(match.state, seat));
+
+  const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
+  // mantém a conexão viva através de proxies que fecham stream ocioso
+  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

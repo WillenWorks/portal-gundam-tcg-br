@@ -7,7 +7,12 @@ motor de jogo genuíno (jogar carta da mão + dispatcher automático de
 trigger) e partida real ST01×ST02 até GAME_OVER validada, cobrindo os 27
 EffectSpecs implementados. Link condition (Comprehensive Rules 3-2-6) já
 estruturada e validada — ver "Link condition" abaixo. Passo 4 (UI mínima de
-sandbox, com sessão real multi-aba) em andamento.**
+sandbox, com sessão real multi-aba, decisão do Willen em 2026-08-28): a
+metade servidor está pronta — `PlayerAction`/`applyPlayerAction` (borda
+ação→motor com autorização), `viewStateFor` (redação de informação oculta
+por jogador) e as rotas HTTP/SSE (`/api/simulator/matches/...`, restritas a
+admin/hoster, match store em memória sem persistência) — ver "Servidor do
+sandbox" abaixo. Falta a UI React que consome isso (2 abas, 2 contas).**
 Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
 sandbox solo que entende todas as regras do jogo e das cartas, pra testar
 jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
@@ -425,16 +430,76 @@ trait, pareamento que não satisfaz, e a restrição-base sem pareamento) e na
 partida real ST01×ST02 (`st01VsSt02Match.test.ts`, MA Form + Amuro Ray e
 Tallgeese + Zechs Merquise atacando no turno de deploy).
 
+## Servidor do sandbox (passo 4, metade servidor — resolvido)
+
+Decisão do Willen (2026-08-28): testar o passo 4 já com 2 abas de navegador
+reais, logadas em 2 contas diferentes, pra provar que a separação de
+informação oculta por jogador é de verdade (roda no servidor, não é
+"fingida" no cliente). Arquitetura confirmada com o Willen antes de
+implementar: **Server-Sent Events** pra sincronização em tempo real,
+**acesso restrito a admin/hoster**, match store **em memória, sem
+persistência** (reiniciar a API derruba partidas em andamento — aceitável
+pro escopo de ferramenta de teste interno, não é o PvP real da Fase 3).
+
+Três peças novas, cada uma pura onde dá:
+
+- **`engine/actions.ts`** — `PlayerAction` (união serializável de toda ação
+  de jogador: deployCard, playCommand, declareAttack, activateBlocker,
+  skipBlock, passAction, finishTurn) + `applyPlayerAction()`, o reducer que
+  traduz cada uma pra função real do motor. Autorização mora aqui: funções
+  do motor que não recebem `player` explícito (`declareAttack`,
+  `activateBlocker`, `skipBlock`) são checadas contra `actingPlayer` antes
+  de chamar — sem isso, a sessão de um jogador poderia agir com cartas do
+  outro só sabendo o `instanceId`. Também encadeia automaticamente passos
+  que não são decisão de ninguém (Attack Step → Block Step ao declarar
+  ataque; Action Step → Damage Step → Battle End assim que os 2 passam),
+  do jeito que `runAttack()` já fazia em `st01VsSt02Match.test.ts`.
+  Escopo aceito por enquanto (documentado, não fingido): 【Burst】 de shield
+  sempre é recusado automaticamente — ativar por escolha real do jogador
+  precisa de um ponto de decisão na UI que ainda não existe; gatilhos que
+  dependem de alvo escolhido fora de Deploy/When Paired (`<Attack>` da
+  Suletta Mercury, `<Activate·Main>` do Tallgeese, Command 【Action】 fora do
+  fluxo padrão) não têm `PlayerAction` própria ainda. O núcleo jogável
+  (deploy, atacar, bloquear, passar turno) já basta pra validar a
+  arquitetura de sessão dupla, que é o objetivo desta wave.
+- **`engine/viewState.ts`** — `viewStateFor(state, viewer)`: troca toda
+  carta em zona oculta (`deck`/`resourceDeck`/`shields` sempre, dos dois
+  lados; `hand` só do adversário) por um `HiddenCard` sem `def` nenhum —
+  nada que identifique a carta sai no JSON. `battleArea`/`baseSection`/
+  `resourceArea`/`trash` continuam sempre públicas. Testado inclusive
+  serializando pra JSON e checando que o nome/código da carta oculta não
+  aparece na string (não só checando o tipo em memória).
+- **`server/matchStore.ts`** (Node, único módulo com estado de verdade) —
+  `Map<matchId, MatchRecord>` em memória; `createMatch`/`joinMatch` (2
+  assentos, rejeita o mesmo usuário nos 2 — "use 2 contas diferentes")/
+  `applyAction` (resolve `userId` → assento, chama `applyPlayerAction`)/
+  `subscribe` (pub/sub pra notificar SSE a cada mudança, já com as 2 visões
+  redigidas prontas). O `GameState` real nunca sai deste módulo.
+- **Rotas** (`server/index.ts`, bloco "Simulador" no fim do arquivo, todas
+  `authRequired + hosterRequired`): `POST /api/simulator/matches` (cria,
+  escolhe ST01/ST02 por enquanto — únicos decks reais existentes),
+  `POST .../join`, `POST .../actions`, `GET .../:id` (estado atual pra quem
+  já entrou), `GET /api/simulator/matches` (lista, pra picker de UI), e
+  `GET .../:id/stream` (SSE). Exceção pontual documentada: o stream usa
+  `authFromQueryOrHeader` (token por query string) em vez do header
+  `Authorization` de todas as outras rotas, porque a API nativa
+  `EventSource` do navegador não deixa mandar headers customizados.
+
+Falta só a UI React que consome isso (passo 4, metade cliente) — 2 sessões
+reais (2 abas, 2 contas) conectando no mesmo `matchId`, cada uma só
+enxergando sua própria visão via `EventSource` no endpoint de stream.
+
 ## Riscos / desconhecidos
 
 - **Efeitos de informação oculta** ("olhe as N cartas do topo", "revele",
-  "escolha 1 dentre X sem o oponente ver") exigem que o motor tenha noção de
-  "o que é visível pra quem" desde o desenho — mesmo numa Fase 1 sem
-  oponente real, porque isso é exatamente o que barateia a Fase 3 (PvP)
-  depois: se o `GameState` já separa informação pública de privada por
-  jogador desde o início, sincronizar estado entre dois clientes reais fica
-  muito mais simples do que se essa separação for adicionada depois, em cima
-  de um motor que assumia "estado único visível pra todo mundo".
+  "escolha 1 dentre X sem o oponente ver") — a ARQUITETURA de separação já
+  existe (`viewStateFor`, acima) e resolve o caso comum (zona oculta nunca
+  vaza `def` pra quem não pode ver). O que continua em aberto é o efeito em
+  si: nenhum EffectSpec implementado hoje "revela" uma carta oculta pro
+  oponente ou deixa o dono espiar o próprio deck — quando uma carta desses
+  aparecer, o motor precisa marcar isso no `GameState` (ex.: carta
+  "revelada") e `viewStateFor` passa a ler esse dado; não deve precisar
+  mudar a forma da redação em si.
 - **Tradução comunitária pode ser imprecisa** — cada efeito bespoke
   implementado na DSL deve ser conferido contra `effectEn` (inglês), não só
   `effectPt`, especialmente em cartas mais antigas.
@@ -499,7 +564,23 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
     (Deploy/When Paired/Attack/Burst/Main/Action/Activate·Main, com 【Once
     per Turn】 genérico) e `dispatchBurstForNewlyTrashedShields()` (oferece
     Burst pra shield recém-quebrada num Damage Step real).
+  - `actions.ts` — passo 4 (servidor): `PlayerAction` + `applyPlayerAction()`,
+    a borda ação→motor com autorização. Ver "Servidor do sandbox" acima.
+  - `viewState.ts` — passo 4 (servidor): `viewStateFor()`/
+    `viewStatesForBothPlayers()`, redação de informação oculta por jogador.
   - `index.ts` — barrel export.
+- `src/modules/simulator/content/predicates.ts` — passo 4: `PredicateResolver`
+  canônico (`pairedPilotHasTrait:<trait>`), extraído do que antes era
+  reimplementado ad-hoc em cada arquivo de teste que precisava dele.
+- `src/modules/simulator/content/index.ts` — passo 4: `ALL_EFFECT_SPECS`
+  (ST01+ST02 agregados) — usado pelo servidor, que despacha trigger pra
+  qualquer carta em jogo sem saber de qual produto ela é.
+- `src/modules/simulator/server/matchStore.ts` — passo 4: match store em
+  memória (Node, único módulo com estado real desta feature). Ver "Servidor
+  do sandbox" acima.
+- `server/index.ts` — passo 4: bloco de rotas "Simulador" no fim do arquivo
+  (`/api/simulator/matches/...`, `authRequired + hosterRequired`,
+  incluindo o endpoint SSE). Ver "Servidor do sandbox" acima.
 - `src/modules/simulator/fixtures/vanillaDeck.ts` — deck sintético "vanilla"
   (50+10, dentro do limite de 4 cópias/code) usado pra validar o motor sem
   nenhum efeito bespoke — passo 2 do plano incremental, ✅ concluído.
@@ -536,15 +617,18 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   ST01×ST02 completa (ver "Motor de jogo real + gaps documentados" em
   Status): `createGame` até `GAME_OVER`, cobrindo os 27 EffectSpecs + as
   keywords automáticas relevantes só com ações reais do motor.
-- `src/modules/simulator/ui/` — ainda não existe (passo 4).
+- `src/modules/simulator/ui/` — ainda não existe (metade cliente do passo
+  4, ver "Servidor do sandbox" acima — a metade servidor já está pronta).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 130 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 160 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
   keywords, a tubulação do EffectSpec, a partida de ponta a ponta contra o
   deck vanilla, os EffectSpecs reais do ST01 e do ST02 (incluindo o teste
   de regressão do `keywordValue()` rodando um grant de Breach através de
   combate real), o motor de jogar-carta-da-mão, o dispatcher automático de
-  trigger, e a partida real ST01×ST02 até GAME_OVER.
+  trigger, a partida real ST01×ST02 até GAME_OVER, a Link condition
+  (`combat.test.ts`), e a metade servidor do passo 4 (`actions.test.ts`,
+  `viewState.test.ts`, `server/matchStore.test.ts`).
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
@@ -553,5 +637,8 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   do ST02 (rodando o parser sobre o texto oficial e copiando o resultado
   como dado estático em `st01Deck.ts`/`st02Deck.ts`, sem chamar o parser em
   runtime).
-- Nenhuma alteração em `prisma/schema.prisma` ou `server/index.ts` foi
-  necessária até aqui, como planejado.
+- Nenhuma alteração em `prisma/schema.prisma` foi necessária até aqui, como
+  planejado. `server/index.ts` ganhou o bloco de rotas do simulador nesta
+  wave (passo 4) — a única mudança de servidor até agora em toda a Fase 1,
+  e só um bloco de rotas novo no fim do arquivo (nenhuma rota existente foi
+  tocada).
