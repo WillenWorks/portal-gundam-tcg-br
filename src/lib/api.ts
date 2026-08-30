@@ -1,4 +1,7 @@
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
+import type { PlayerAction } from "@/modules/simulator/engine/actions";
+import type { PlayerId } from "@/modules/simulator/engine/types";
+import type { ViewGameState } from "@/modules/simulator/engine/viewState";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
@@ -235,6 +238,32 @@ function toQuery(params: Record<string, string | undefined>) {
   return text ? `?${text}` : "";
 }
 
+// Simulador — sandbox admin/hoster (docs/18, passo 4: UI mínima). O tabuleiro em
+// si sincroniza via SSE (ver buildSimulatorStreamUrl), então essas chamadas HTTP
+// são só pra ações pontuais (listar/criar/entrar/agir) -- todas sem cache (o
+// estado de uma partida em memória muda a cada ação de qualquer um dos 2
+// jogadores, cachear aqui só causaria tela desatualizada).
+export type SimulatorMatchSummary = {
+  id: string;
+  seats: Record<PlayerId, { userId: string; displayName: string } | null>;
+  turnNumber: number;
+  activePlayer: PlayerId;
+  phase: "start" | "draw" | "resource" | "main" | "end";
+  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" } | null;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+};
+
+export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | { seated: true; seat: PlayerId; view: ViewGameState };
+
+/** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
+export function buildSimulatorStreamUrl(matchId: string): string | null {
+  const token = getStoredAuth().token;
+  if (!token) return null;
+  return `${API_BASE_URL}/simulator/matches/${matchId}/stream?token=${encodeURIComponent(token)}`;
+}
+
 export function getStoredAuth() {
   if (typeof window === "undefined") return { token: null, user: null as AuthUser | null };
   const token = window.localStorage.getItem(TOKEN_KEY);
@@ -390,6 +419,18 @@ export const api = {
   updateMyBinder: (id: string, payload: any) => mutate<ApiBinder>(`/binders/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
   deleteBinder: (id: string) => mutate<void>(`/binders/me/${id}`, { method: "DELETE" }, ["/binders/me", "/users/"]),
   getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
+  // Simulador — sandbox admin/hoster (docs/18, passo 4). listSimulatorMatches devolve
+  // TODAS as partidas em memória (não só as do usuário logado) de propósito -- é o que
+  // permite a 2ª conta, numa 2ª aba, achar e entrar na MESMA partida sem precisar
+  // compartilhar um link com matchId.
+  listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),
+  createSimulatorMatch: (payload: { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number }) =>
+    request<SimulatorMatchSummary>("/simulator/matches", { method: "POST", body: JSON.stringify(payload) }),
+  getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
+  joinSimulatorMatch: (id: string, seat: PlayerId) =>
+    request<{ seated: true; seat: PlayerId; view: ViewGameState }>(`/simulator/matches/${id}/join`, { method: "POST", body: JSON.stringify({ seat }) }),
+  sendSimulatorAction: (id: string, action: PlayerAction) =>
+    request<{ seat: PlayerId; view: ViewGameState }>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
 };
 
 export function mapApiCard(card: any): CardRecord {

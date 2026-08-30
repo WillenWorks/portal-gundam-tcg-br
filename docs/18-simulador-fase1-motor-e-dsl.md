@@ -7,12 +7,24 @@ motor de jogo genuíno (jogar carta da mão + dispatcher automático de
 trigger) e partida real ST01×ST02 até GAME_OVER validada, cobrindo os 27
 EffectSpecs implementados. Link condition (Comprehensive Rules 3-2-6) já
 estruturada e validada — ver "Link condition" abaixo. Passo 4 (UI mínima de
-sandbox, com sessão real multi-aba, decisão do Willen em 2026-08-28): a
-metade servidor está pronta — `PlayerAction`/`applyPlayerAction` (borda
-ação→motor com autorização), `viewStateFor` (redação de informação oculta
-por jogador) e as rotas HTTP/SSE (`/api/simulator/matches/...`, restritas a
-admin/hoster, match store em memória sem persistência) — ver "Servidor do
-sandbox" abaixo. Falta a UI React que consome isso (2 abas, 2 contas).**
+sandbox, com sessão real multi-aba, decisão do Willen em 2026-08-28)
+**concluído nas 2 metades**: servidor — `PlayerAction`/`applyPlayerAction`
+(borda ação→motor com autorização), `viewStateFor` (redação de informação
+oculta por jogador) e as rotas HTTP/SSE (`/api/simulator/matches/...`,
+restritas a admin/hoster, match store em memória sem persistência) — e
+cliente — `src/pages/SimulatorSandboxPage.tsx` (`/simulador`, hosterOnly):
+lobby de partidas + tabuleiro que conecta por `EventSource` e joga por
+clique (deploy/pareamento/ataque/bloqueio/passar turno). Ver "Sandbox de
+partida" abaixo pro detalhe das 2 metades e os escopos reduzidos
+documentados. **Pendência real, não escondida**: o teste manual com 2 abas
+reais (2 contas logadas separadamente) que motivou essa arquitetura inteira
+ainda não rodou de fato — o sandbox onde esta wave foi implementada não
+consegue subir a API (`tsx server/index.ts` falha ao importar
+`@prisma/client`, e `prisma generate` não baixa o engine binário nessa rede
+restrita; ver "Riscos" abaixo). `tsc -b`, `eslint` e `pnpm test` (160/160)
+estão limpos, e `vite build` produz o chunk da página normalmente — mas o
+teste de ponta a ponta com 2 sessões reais só pode rodar no ambiente do
+Willen, onde o Prisma client gera de verdade.**
 Este documento nasce da decisão de partir pro simulador em 3 fases — (1)
 sandbox solo que entende todas as regras do jogo e das cartas, pra testar
 jogadas sozinho; (2) IA simples; (3) PvP — começando pela Fase 1, escolhida
@@ -100,8 +112,12 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
     de partida real isola esse caso por fixture. Não é um dos 27 EffectSpecs
     nem uma das 8 lacunas — é uma refinaria de regra pequena, deixada pra
     quando (se) isso importar de verdade num fluxo de UI real.
-- ⏳ Ainda não iniciado: passo 4 (UI mínima de sandbox), passo 5 (critério
-  de "Fase 1 pronta").
+- ✅ **Passo 4 — UI mínima de sandbox**: servidor (match store em memória,
+  redação de informação por jogador, rotas HTTP/SSE) e cliente
+  (`SimulatorSandboxPage.tsx`, rota `/simulador`) — ver "Sandbox de partida"
+  abaixo. Falta validar com 2 abas/2 contas reais (bloqueado pelo sandbox de
+  implementação, não pela arquitetura — ver nota acima).
+- ⏳ Ainda não iniciado: passo 5 (critério de "Fase 1 pronta").
 
 ## Fonte
 
@@ -430,7 +446,7 @@ trait, pareamento que não satisfaz, e a restrição-base sem pareamento) e na
 partida real ST01×ST02 (`st01VsSt02Match.test.ts`, MA Form + Amuro Ray e
 Tallgeese + Zechs Merquise atacando no turno de deploy).
 
-## Servidor do sandbox (passo 4, metade servidor — resolvido)
+## Sandbox de partida (passo 4, resolvido — servidor + cliente)
 
 Decisão do Willen (2026-08-28): testar o passo 4 já com 2 abas de navegador
 reais, logadas em 2 contas diferentes, pra provar que a separação de
@@ -485,9 +501,43 @@ Três peças novas, cada uma pura onde dá:
   `Authorization` de todas as outras rotas, porque a API nativa
   `EventSource` do navegador não deixa mandar headers customizados.
 
-Falta só a UI React que consome isso (passo 4, metade cliente) — 2 sessões
-reais (2 abas, 2 contas) conectando no mesmo `matchId`, cada uma só
-enxergando sua própria visão via `EventSource` no endpoint de stream.
+### UI cliente (`src/pages/SimulatorSandboxPage.tsx`, rota `/simulador`, hosterOnly)
+
+Página única (lobby + tabuleiro), sem lib de estado externa — `useState`/
+`useEffect` locais, mesmo padrão de `OrganizerPage.tsx` (`PortalShell`,
+toasts via `sonner`, botão desabilitado com string de "ocupado" por ação em
+andamento). Fluxo:
+
+- **Lobby**: `GET /api/simulator/matches` lista **todas** as partidas em
+  memória (não só as do usuário logado) — de propósito: é assim que a 2ª
+  conta, numa 2ª aba, acha e entra na MESMA partida sem precisar de um link
+  com `matchId` compartilhado à parte. "Nova partida" escolhe ST01/ST02 por
+  jogador, quem começa e uma seed opcional.
+- **Entrar num assento**: `POST .../join` com `seat: "A" | "B"`; a partir daí
+  a página abre 1 `EventSource` (`buildSimulatorStreamUrl`, `src/lib/api.ts`)
+  pro endpoint de stream — a fonte de verdade da tela passa a ser o evento
+  `state` recebido por SSE, não mais o retorno de cada `POST` (que só é usado
+  pra feedback imediato antes do SSE confirmar).
+- **Ações**: `deployCard`/`playCommand`/`declareAttack`/`activateBlocker`/
+  `skipBlock`/`passAction`/`finishTurn`, uma requisição HTTP por ação (ver
+  `actions.ts` acima) — o cliente nunca decide regra nenhuma, só monta o
+  `PlayerAction` e manda.
+
+Escopo reduzido de propósito, documentado (não escondido) no topo do
+arquivo:
+
+- **Seleção de alvo por clique, genérica**: qualquer carta clicada durante um
+  deploy/Command vira candidata a alvo, mandada sob os 2 nomes de grupo
+  realmente usados pelos EffectSpec de ST01/ST02 (`target` e `shield`) — não
+  é um seletor de alvo de verdade (não sabe quantos alvos um efeito espera,
+  nem valida legalidade client-side antes de mandar). Suficiente porque
+  nenhum efeito das 2 decks de teste usa os 2 grupos ao mesmo tempo.
+- **Pareamento de Pilot reusa a mesma seleção**: a 1ª Unit própria elegível
+  marcada (Battle Area, sem Pilot pareado) vira `pairWithUnitId`.
+- Sem seletor de recursos pra pagar custo — sempre usa o auto-seleção do
+  motor (`resourceInstanceIds` omitido, `deploy.ts` escolhe os N primeiros
+  active).
+- Sem UI de apagar partida (a rota nem existe no servidor).
 
 ## Riscos / desconhecidos
 
@@ -507,6 +557,17 @@ enxergando sua própria visão via `EventSource` no endpoint de stream.
   sutil das regras de combate. Vale implementar isso com rigor já na Fase 1,
   mesmo sem oponente de verdade — é o pedaço que mais quebra se for
   "consertado" depois de já existir UI e conteúdo em cima dele.
+- **Teste manual com 2 abas/2 contas reais ainda não rodou** (passo 4):
+  bloqueado pelo ambiente onde esta wave foi implementada, não pela
+  arquitetura. `npx tsx server/index.ts` falha ao importar `@prisma/client`
+  (`SyntaxError: ... does not provide an export named 'CardLanguage'`) e
+  `npx prisma generate` não consegue baixar o engine binário nessa rede
+  (`403` ao buscar o checksum) — o mesmo limite de sandbox já documentado na
+  wave anterior (servidor). `tsc -b`/`eslint`/`pnpm test` (160/160)/`vite
+  build` estão todos limpos, mas isso valida só que o código compila e o
+  motor está correto — não substitui o teste real de sessão dupla que foi o
+  motivo original de pedir 2 contas. Fica pro Willen rodar no próprio
+  ambiente antes de considerar o passo 4 fechado de verdade.
 
 ## Risco aceito (decisão consciente, registrada pra referência futura)
 
@@ -617,18 +678,29 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   ST01×ST02 completa (ver "Motor de jogo real + gaps documentados" em
   Status): `createGame` até `GAME_OVER`, cobrindo os 27 EffectSpecs + as
   keywords automáticas relevantes só com ações reais do motor.
-- `src/modules/simulator/ui/` — ainda não existe (metade cliente do passo
-  4, ver "Servidor do sandbox" acima — a metade servidor já está pronta).
+- `src/pages/SimulatorSandboxPage.tsx` — passo 4 (cliente): lobby de
+  partidas + tabuleiro (`MatchBoard`), rota `/simulador` (hosterOnly,
+  lazy-importada em `src/App.tsx` igual a `OrganizerPage`). Ver "Sandbox de
+  partida" acima pro detalhe do fluxo e dos escopos reduzidos. Sem teste
+  unitário dedicado (mesmo padrão de `OrganizerPage.tsx` — nenhuma página
+  React deste projeto tem hoje; a cobertura de regra fica nos testes do
+  motor/servidor).
+- `src/lib/api.ts` — passo 4 (cliente): `listSimulatorMatches`/
+  `createSimulatorMatch`/`getSimulatorMatch`/`joinSimulatorMatch`/
+  `sendSimulatorAction` (todas sem cache — o tabuleiro sincroniza por SSE,
+  não por polling) e `buildSimulatorStreamUrl()` (monta a URL do stream com
+  `?token=`, já que `EventSource` não manda header `Authorization`).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
   test`), mesmo padrão de `server/deck-legality.test.ts`. 160 testes no
-  total no momento desta atualização, cobrindo setup, fases, combate,
-  keywords, a tubulação do EffectSpec, a partida de ponta a ponta contra o
-  deck vanilla, os EffectSpecs reais do ST01 e do ST02 (incluindo o teste
-  de regressão do `keywordValue()` rodando um grant de Breach através de
-  combate real), o motor de jogar-carta-da-mão, o dispatcher automático de
-  trigger, a partida real ST01×ST02 até GAME_OVER, a Link condition
-  (`combat.test.ts`), e a metade servidor do passo 4 (`actions.test.ts`,
-  `viewState.test.ts`, `server/matchStore.test.ts`).
+  total no momento desta atualização (inalterado desde a wave anterior — a
+  UI cliente desta wave não adicionou teste novo, ver acima), cobrindo
+  setup, fases, combate, keywords, a tubulação do EffectSpec, a partida de
+  ponta a ponta contra o deck vanilla, os EffectSpecs reais do ST01 e do
+  ST02 (incluindo o teste de regressão do `keywordValue()` rodando um grant
+  de Breach através de combate real), o motor de jogar-carta-da-mão, o
+  dispatcher automático de trigger, a partida real ST01×ST02 até GAME_OVER,
+  a Link condition (`combat.test.ts`), e a metade servidor do passo 4
+  (`actions.test.ts`, `viewState.test.ts`, `server/matchStore.test.ts`).
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
@@ -638,7 +710,10 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   como dado estático em `st01Deck.ts`/`st02Deck.ts`, sem chamar o parser em
   runtime).
 - Nenhuma alteração em `prisma/schema.prisma` foi necessária até aqui, como
-  planejado. `server/index.ts` ganhou o bloco de rotas do simulador nesta
-  wave (passo 4) — a única mudança de servidor até agora em toda a Fase 1,
-  e só um bloco de rotas novo no fim do arquivo (nenhuma rota existente foi
-  tocada).
+  planejado. `server/index.ts` ganhou o bloco de rotas do simulador na wave
+  anterior (passo 4, servidor) — única mudança de servidor até agora em
+  toda a Fase 1, só um bloco de rotas novo no fim do arquivo (nenhuma rota
+  existente foi tocada). Nesta wave (passo 4, cliente), as únicas mudanças
+  fora de `src/modules/simulator/` e `src/pages/` foram aditivas em
+  `src/lib/api.ts` (novos métodos + imports de tipo, nenhum método existente
+  tocado) e `src/App.tsx` (1 rota nova, mesmo padrão de `/organizador`).

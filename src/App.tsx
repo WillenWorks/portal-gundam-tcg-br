@@ -33,6 +33,7 @@ const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
+const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -95,6 +96,7 @@ function AppRouter() {
         <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/simulador">{() => <RequireAuth hosterOnly><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
