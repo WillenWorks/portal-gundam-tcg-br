@@ -1,16 +1,21 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildSt01DeckList } from "../fixtures/st01Deck";
 import { buildSt02DeckList } from "../fixtures/st02Deck";
 import {
   _resetAllMatchesForTests,
   applyAction,
+  claimAbandonWin,
   createMatch,
   deleteMatch,
   getMatch,
   joinMatch,
+  joinQueue,
+  leaveQueue,
   MatchError,
+  queueStatusFor,
   seatFor,
   subscribe,
+  touchPresence,
 } from "./matchStore";
 
 afterEach(() => {
@@ -119,10 +124,12 @@ describe("subscribe / notify", () => {
     applyAction(match.id, "user-1", { kind: "finishTurn" });
 
     expect(received).toHaveLength(1);
-    const views = received[0] as Record<"A" | "B", { activePlayer: string; viewer: string }>;
-    expect(views.A.viewer).toBe("A");
-    expect(views.B.viewer).toBe("B");
-    expect(views.A.activePlayer).toBe("B");
+    const views = received[0] as Record<"A" | "B", { seat: string; view: { activePlayer: string; viewer: string } }>;
+    expect(views.A.seat).toBe("A");
+    expect(views.B.seat).toBe("B");
+    expect(views.A.view.viewer).toBe("A");
+    expect(views.B.view.viewer).toBe("B");
+    expect(views.A.view.activePlayer).toBe("B");
 
     unsubscribe();
     applyAction(match.id, "user-2", { kind: "finishTurn" }); // agora é vez de B — não deve notificar mais ninguém
@@ -135,5 +142,139 @@ describe("deleteMatch", () => {
     const match = newMatch();
     deleteMatch(match.id);
     expect(getMatch(match.id)).toBeUndefined();
+  });
+});
+
+describe("fila de matchmaking (joinQueue / queueStatusFor / leaveQueue)", () => {
+  it("pareia automaticamente os 2 primeiros usuários diferentes da fila (FIFO), cada um com o próprio deck", () => {
+    const first = joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    expect(first.queued).toBe(true);
+    expect(first.matched).toBe(false);
+
+    const second = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(second.matched).toBe(true);
+    expect(second.matchId).toBeDefined();
+
+    const firstStatus = queueStatusFor("user-1");
+    expect(firstStatus.matched).toBe(true);
+    expect(firstStatus.matchId).toBe(second.matchId);
+    expect(firstStatus.seat).not.toBe(second.seat);
+
+    const match = getMatch(second.matchId!);
+    expect(match?.deckKeys).toEqual({ A: "ST01", B: "ST02" });
+  });
+
+  it("reentrar na fila com o mesmo usuário é idempotente — só atualiza o deck, nunca pareia consigo mesmo", () => {
+    const s1 = joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    expect(s1).toEqual({ queued: true, matched: false });
+
+    const s2 = joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(s2).toEqual({ queued: true, matched: false });
+  });
+
+  it("leaveQueue remove o usuário da fila — o próximo a entrar não pareia com quem saiu", () => {
+    joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    leaveQueue("user-1");
+    expect(queueStatusFor("user-1")).toEqual({ queued: false, matched: false });
+
+    const status = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(status).toEqual({ queued: true, matched: false });
+  });
+
+  it("joinQueue de quem já está numa partida ativa devolve ela direto (reconexão), sem enfileirar de novo", () => {
+    joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    const second = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(second.matched).toBe(true);
+
+    const reconnect = joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    expect(reconnect).toEqual({ queued: false, matched: true, matchId: second.matchId, seat: "A" });
+  });
+});
+
+describe("timer de turno (90s por decisão, passa automático)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("sem nenhuma ação em 90s, o servidor encerra o turno sozinho (finishTurn) e reagenda o próximo prazo", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    expect(getMatch(match.id)?.state.activePlayer).toBe("A");
+    expect(getMatch(match.id)?.turnDeadlineAt).not.toBeNull();
+
+    vi.advanceTimersByTime(90_000);
+
+    const after = getMatch(match.id)!;
+    expect(after.state.activePlayer).toBe("B");
+    expect(after.version).toBe(2);
+    expect(after.turnDeadlineAt).not.toBeNull();
+  });
+
+  it("uma ação real antes do prazo reagenda o timer — o prazo antigo não dispara mais nada", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    vi.advanceTimersByTime(80_000); // ainda dentro do prazo original de A
+    applyAction(match.id, "user-1", { kind: "finishTurn" }); // A age por conta própria
+
+    const afterAction = getMatch(match.id)!;
+    expect(afterAction.state.activePlayer).toBe("B");
+    expect(afterAction.version).toBe(2);
+
+    // passa da marca dos 90s originais (contados desde a criação), mas só 15s desde a ação real de A
+    vi.advanceTimersByTime(15_000);
+
+    const stillB = getMatch(match.id)!;
+    expect(stillB.state.activePlayer).toBe("B"); // o timer antigo (que estouraria aos 90s) foi cancelado, não duplicou o finishTurn
+    expect(stillB.version).toBe(2);
+  });
+});
+
+describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("rejeita declarar W.O. antes de 180s de inatividade do oponente", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    vi.advanceTimersByTime(179_000);
+
+    expect(() => claimAbandonWin(match.id, "user-1")).toThrow(MatchError);
+    expect(() => claimAbandonWin(match.id, "user-1")).toThrow(/W\.O\./);
+  });
+
+  it("aceita declarar W.O. depois de 180s sem nenhum sinal de vida do oponente", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    vi.advanceTimersByTime(180_000);
+
+    const after = claimAbandonWin(match.id, "user-1");
+    expect(after.state.gameOver).toEqual({ winner: "A", reason: "abandonment" });
+  });
+
+  it("touchPresence reseta o relógio de abandono do assento — sinal de vida recente barra o W.O.", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    vi.advanceTimersByTime(170_000); // quase lá
+    touchPresence(match.id, "user-2"); // B dá sinal de vida de novo (ex.: ping do cliente)
+
+    vi.advanceTimersByTime(15_000); // só 15s desde o touchPresence, não 185s
+
+    expect(() => claimAbandonWin(match.id, "user-1")).toThrow(/W\.O\./);
   });
 });

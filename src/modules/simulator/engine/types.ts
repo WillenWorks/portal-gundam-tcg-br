@@ -147,7 +147,7 @@ export function hasKeyword(card: CardInstance, keyword: string): boolean {
  * jogo, ex. `<Breach 3>` de um EffectSpec via GRANT_KEYWORD) antes de
  * `def.keywordTags` (estático, da definição da carta) — sem isso, uma
  * keyword numérica concedida dinamicamente teria `hasKeyword` retornando
- * true mas `keywordValue` nunca achando o valor real (caía no fallback "0"
+ * true mas `keywordValue` nunca achando o valor real (caia no fallback "0"
  * por não olhar `keywordGrants" — bug encontrado ao autorar ST02-012
  * "Simultaneous Fire", que concede `<Breach 3>` via Main).
  */
@@ -201,7 +201,16 @@ export interface PlayerState {
 
 export interface GameOverInfo {
   winner: PlayerId;
-  reason: "deckOut" | "noShieldsBattleDamage";
+  /**
+   * "abandonment" nunca é produzida pelo motor puro — só existe porque o
+   * servidor (matchStore.ts, passo 4 do docs/18) precisa encerrar uma
+   * partida por um motivo que não é regra de jogo (W.O. por 3min sem
+   * atividade do oponente). Mantida aqui, não num tipo à parte no servidor,
+   * porque `GameOverInfo` já é o único formato de "fim de jogo" que
+   * `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
+   * duplicaria a renderização de fim de jogo no cliente sem necessidade.
+   */
+  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment";
 }
 
 export interface GameState {
