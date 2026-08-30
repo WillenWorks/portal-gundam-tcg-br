@@ -147,7 +147,7 @@ export function hasKeyword(card: CardInstance, keyword: string): boolean {
  * jogo, ex. `<Breach 3>` de um EffectSpec via GRANT_KEYWORD) antes de
  * `def.keywordTags` (estático, da definição da carta) — sem isso, uma
  * keyword numérica concedida dinamicamente teria `hasKeyword` retornando
- * true mas `keywordValue` nunca achando o valor real (caia no fallback "0"
+ * true mas `keywordValue` nunca achando o valor real (caía no fallback "0"
  * por não olhar `keywordGrants" — bug encontrado ao autorar ST02-012
  * "Simultaneous Fire", que concede `<Breach 3>` via Main).
  */
