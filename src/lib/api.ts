@@ -238,24 +238,42 @@ function toQuery(params: Record<string, string | undefined>) {
   return text ? `?${text}` : "";
 }
 
-// Simulador — sandbox admin/hoster (docs/18, passo 4: UI mínima). O tabuleiro em
-// si sincroniza via SSE (ver buildSimulatorStreamUrl), então essas chamadas HTTP
-// são só pra ações pontuais (listar/criar/entrar/agir) -- todas sem cache (o
-// estado de uma partida em memória muda a cada ação de qualquer um dos 2
-// jogadores, cachear aqui só causaria tela desatualizada).
+// Simulador — "Simulador Beta" (docs/18, passo 4 + expansão 2026-08-30: fila de
+// matchmaking, timer de turno, W.O. por abandono, aberto a qualquer usuário
+// logado). O tabuleiro em si sincroniza via SSE (ver buildSimulatorStreamUrl),
+// então essas chamadas HTTP são só pra ações pontuais (fila/ping/agir/W.O.) --
+// todas sem cache (o estado de uma partida em memória muda a cada ação de
+// qualquer um dos 2 jogadores, cachear aqui só causaria tela desatualizada).
 export type SimulatorMatchSummary = {
   id: string;
   seats: Record<PlayerId, { userId: string; displayName: string } | null>;
+  deckKeys: Partial<Record<PlayerId, string>>;
   turnNumber: number;
   activePlayer: PlayerId;
   phase: "start" | "draw" | "resource" | "main" | "end";
-  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" } | null;
+  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" } | null;
   createdAt: number;
   updatedAt: number;
   version: number;
 };
 
-export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | { seated: true; seat: PlayerId; view: ViewGameState };
+/** Espelha `MatchView` do servidor (matchStore.ts) — visão redigida do motor + metadados de partida (timer, presença) que não são regra de jogo. */
+export type SimulatorMatchView = {
+  view: ViewGameState;
+  matchId: string;
+  seat: PlayerId;
+  deckKeys: Partial<Record<PlayerId, string>>;
+  /** epoch ms até quando a decisão atual pode ser tomada antes do servidor agir sozinho (90s) — null quando não há decisão pendente. */
+  turnDeadlineAt: number | null;
+  /** último sinal de vida (ping OU ação real) de cada assento — epoch ms — base do W.O. por abandono (3min). */
+  lastSeenAt: Partial<Record<PlayerId, number>>;
+  version: number;
+};
+
+export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
+
+/** Espelha `QueueStatus` do servidor (matchStore.ts). */
+export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?: string; seat?: PlayerId };
 
 /** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
 export function buildSimulatorStreamUrl(matchId: string): string | null {
@@ -419,18 +437,25 @@ export const api = {
   updateMyBinder: (id: string, payload: any) => mutate<ApiBinder>(`/binders/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
   deleteBinder: (id: string) => mutate<void>(`/binders/me/${id}`, { method: "DELETE" }, ["/binders/me", "/users/"]),
   getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
-  // Simulador — sandbox admin/hoster (docs/18, passo 4). listSimulatorMatches devolve
-  // TODAS as partidas em memória (não só as do usuário logado) de propósito -- é o que
-  // permite a 2ª conta, numa 2ª aba, achar e entrar na MESMA partida sem precisar
-  // compartilhar um link com matchId.
+  // Simulador Beta — fila de matchmaking (docs/18, expansão 2026-08-30): 1 botão só,
+  // sem escolher assento/adversário manualmente; cada lado escolhe o próprio deck.
+  joinSimulatorQueue: (deck: string) => request<SimulatorQueueStatus>("/simulator/queue/join", { method: "POST", body: JSON.stringify({ deck }) }),
+  leaveSimulatorQueue: () => request<{ ok: true }>("/simulator/queue/leave", { method: "POST" }),
+  getSimulatorQueueStatus: () => request<SimulatorQueueStatus>("/simulator/queue/status", undefined, { bypassCache: true }),
+  getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
+  sendSimulatorAction: (id: string, action: PlayerAction) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
+  /** Heartbeat de presença -- chamar periodicamente enquanto a aba está visível (alimenta o W.O. por abandono). */
+  pingSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/ping`, { method: "POST" }),
+  /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
+  claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
+  // Depuração/admin -- fora do fluxo normal (agora hosterRequired no servidor), mantidas
+  // só como fallback pra criar/entrar numa partida específica manualmente.
   listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),
   createSimulatorMatch: (payload: { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number }) =>
     request<SimulatorMatchSummary>("/simulator/matches", { method: "POST", body: JSON.stringify(payload) }),
-  getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
   joinSimulatorMatch: (id: string, seat: PlayerId) =>
-    request<{ seated: true; seat: PlayerId; view: ViewGameState }>(`/simulator/matches/${id}/join`, { method: "POST", body: JSON.stringify({ seat }) }),
-  sendSimulatorAction: (id: string, action: PlayerAction) =>
-    request<{ seat: PlayerId; view: ViewGameState }>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
+    request<{ seated: true } & SimulatorMatchView>(`/simulator/matches/${id}/join`, { method: "POST", body: JSON.stringify({ seat }) }),
 };
 
 export function mapApiCard(card: any): CardRecord {

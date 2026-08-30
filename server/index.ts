@@ -17,8 +17,22 @@ import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
-import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
-import { applyAction, createMatch, getMatch, joinMatch, listMatches, MatchError, seatFor, subscribe } from "../src/modules/simulator/server/matchStore.ts";
+import {
+  applyAction,
+  claimAbandonWin,
+  createMatch,
+  getMatch,
+  joinMatch,
+  joinQueue,
+  leaveQueue,
+  listMatches,
+  matchViewFor,
+  MatchError,
+  queueStatusFor,
+  seatFor,
+  subscribe,
+  touchPresence,
+} from "../src/modules/simulator/server/matchStore.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -3158,25 +3172,36 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
 });
 
 /* ---------------------------------------------------------------------------
- * Simulador — passo 4 (docs/18-simulador-fase1-motor-e-dsl.md): sandbox de
- * teste restrito a admin/hoster, com match store EM MEMÓRIA (sem
- * persistência — reiniciar a API derruba toda partida em andamento, decisão
- * tomada com o Willen) e sincronização em tempo real por SSE. Decisão
- * também do Willen: testar com 2 abas/2 contas reais logadas separadamente,
- * pra provar que a redação de informação oculta por jogador
- * (`viewStateFor`) é real e roda no servidor, não só "de mentirinha" no
- * cliente. Por isso toda rota abaixo é `hosterRequired` — nenhuma delas
- * serve pra jogador comum, é ferramenta de teste interno.
+ * Simulador — passo 4 (docs/18-simulador-fase1-motor-e-dsl.md). Wave
+ * original (2026-08-29): sandbox restrito a admin/hoster, criação/entrada
+ * manual de partida. Wave "Simulador Beta" (2026-08-30, decisão do Willen):
+ * aberto a QUALQUER usuário logado, 1 fila de matchmaking automática (cada
+ * jogador só escolhe o próprio deck — ST01/ST02, qualquer combinação — e
+ * espera; ao ter 2 na fila, a partida é criada e os 2 assentos preenchidos
+ * sozinhos), timer de 90s por decisão (o servidor age sozinho se estourar,
+ * ver `matchStore.ts`) e W.O. por abandono depois de 3min sem sinal de vida
+ * do oponente (nunca automático — só destrava um botão pro outro lado).
+ *
+ * As rotas de criar/entrar manualmente numa partida específica continuam
+ * existindo (usadas internamente pelo pareamento da fila, e como fallback
+ * de depuração), mas ficam `hosterRequired` — não fazem mais parte do fluxo
+ * normal de um jogador, que agora é só a fila.
  *
  * O motor real (`GameState`) nunca sai daqui — só a visão redigida de cada
- * jogador (`ViewGameState`). Ver `src/modules/simulator/server/matchStore.ts`
- * e `src/modules/simulator/engine/viewState.ts`.
+ * jogador mais os metadados de partida (timer/presença), via `MatchView`
+ * (ver `matchViewFor`, `src/modules/simulator/server/matchStore.ts`).
  * ------------------------------------------------------------------------- */
 
 const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
 };
+
+function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
+  const key = typeof raw === "string" ? raw.toUpperCase() : "";
+  const build = SIMULATOR_DECKS[key];
+  return build ? { key, build } : null;
+}
 
 function matchSummary(match: ReturnType<typeof getMatch>) {
   if (!match) return null;
@@ -3186,6 +3211,7 @@ function matchSummary(match: ReturnType<typeof getMatch>) {
       A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
       B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
     },
+    deckKeys: match.deckKeys,
     turnNumber: match.state.turnNumber,
     activePlayer: match.state.activePlayer,
     phase: match.state.phase,
@@ -3196,50 +3222,36 @@ function matchSummary(match: ReturnType<typeof getMatch>) {
   };
 }
 
-app.get("/api/simulator/matches", authRequired, hosterRequired, (_req, res) => {
-  res.json(listMatches().map((m) => matchSummary(m)));
+// --- Fila de matchmaking ("Simulador Beta") — qualquer usuário logado. ---
+
+app.post("/api/simulator/queue/join", authRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deck?: string };
+  const resolved = resolveDeckKey(body.deck);
+  if (!resolved) return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList: resolved.build() });
+  res.json(status);
 });
 
-app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWithUser, res) => {
-  const body = req.body as { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number };
-  const deckAKey = (body.deckA || "ST01").toUpperCase();
-  const deckBKey = (body.deckB || "ST02").toUpperCase();
-  const deckA = SIMULATOR_DECKS[deckAKey];
-  const deckB = SIMULATOR_DECKS[deckBKey];
-  if (!deckA || !deckB) {
-    return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
-  }
-  const match = createMatch({
-    deckA: deckA(),
-    deckB: deckB(),
-    firstPlayer: body.firstPlayer === "B" ? "B" : "A",
-    seed: typeof body.seed === "number" ? body.seed : undefined,
-  });
-  res.status(201).json(matchSummary(match));
+app.post("/api/simulator/queue/leave", authRequired, (req: RequestWithUser, res) => {
+  leaveQueue(req.user!.userId);
+  res.json({ ok: true });
 });
 
-app.get("/api/simulator/matches/:id", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res) => {
+  res.json(queueStatusFor(req.user!.userId));
+});
+
+// --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
+
+app.get("/api/simulator/matches/:id", authRequired, (req: RequestWithUser, res) => {
   const match = getMatch(String(req.params.id));
   if (!match) return res.status(404).json({ error: "Partida não encontrada." });
   const seat = seatFor(match, req.user!.userId);
   if (!seat) return res.json({ seated: false, ...matchSummary(match) });
-  res.json({ seated: true, seat, view: viewStateFor(match.state, seat) });
+  res.json({ seated: true, ...matchViewFor(match, seat) });
 });
 
-app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: RequestWithUser, res) => {
-  const body = req.body as { seat?: PlayerId };
-  if (body.seat !== "A" && body.seat !== "B") return res.status(400).json({ error: "seat precisa ser 'A' ou 'B'." });
-  try {
-    const match = joinMatch(String(req.params.id), body.seat, { userId: req.user!.userId, displayName: req.user!.username });
-    const seat = seatFor(match, req.user!.userId)!;
-    res.json({ seated: true, seat, view: viewStateFor(match.state, seat) });
-  } catch (err) {
-    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
-    throw err;
-  }
-});
-
-app.post("/api/simulator/matches/:id/actions", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/actions", authRequired, (req: RequestWithUser, res) => {
   const action = req.body as PlayerAction;
   if (!action || typeof action !== "object" || typeof action.kind !== "string") {
     return res.status(400).json({ error: "Ação inválida." });
@@ -3247,7 +3259,31 @@ app.post("/api/simulator/matches/:id/actions", authRequired, hosterRequired, (re
   try {
     const match = applyAction(String(req.params.id), req.user!.userId, action);
     const seat = seatFor(match, req.user!.userId)!;
-    res.json({ seat, view: viewStateFor(match.state, seat) });
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Heartbeat de presença — o cliente chama isso periodicamente enquanto a aba está visível
+// (ver SimulatorSandboxPage.tsx). Alimenta o W.O. por abandono (matchStore.claimAbandonWin).
+app.post("/api/simulator/matches/:id/ping", authRequired, (req: RequestWithUser, res) => {
+  try {
+    const match = touchPresence(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, (req: RequestWithUser, res) => {
+  try {
+    const match = claimAbandonWin(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
   } catch (err) {
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
     throw err;
@@ -3255,7 +3291,7 @@ app.post("/api/simulator/matches/:id/actions", authRequired, hosterRequired, (re
 });
 
 // EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
-app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, hosterRequired, (req: RequestWithUser, res) => {
+app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, (req: RequestWithUser, res) => {
   const match = getMatch(String(req.params.id));
   if (!match) return res.status(404).json({ error: "Partida não encontrada." });
   const seat = seatFor(match, req.user!.userId);
@@ -3272,7 +3308,7 @@ app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, hosterRequir
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
-  send("state", viewStateFor(match.state, seat));
+  send("state", matchViewFor(match, seat));
 
   const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
   // mantém a conexão viva através de proxies que fecham stream ocioso
@@ -3282,6 +3318,42 @@ app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, hosterRequir
     clearInterval(heartbeat);
     unsubscribe();
   });
+});
+
+// --- Depuração/admin: criar ou entrar numa partida específica manualmente (fora da fila). ---
+
+app.get("/api/simulator/matches", authRequired, hosterRequired, (_req, res) => {
+  res.json(listMatches().map((m) => matchSummary(m)));
+});
+
+app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number };
+  const deckA = resolveDeckKey(body.deckA || "ST01");
+  const deckB = resolveDeckKey(body.deckB || "ST02");
+  if (!deckA || !deckB) {
+    return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  }
+  const match = createMatch({
+    deckA: deckA.build(),
+    deckB: deckB.build(),
+    firstPlayer: body.firstPlayer === "B" ? "B" : "A",
+    seed: typeof body.seed === "number" ? body.seed : undefined,
+  });
+  match.deckKeys = { A: deckA.key, B: deckB.key };
+  res.status(201).json(matchSummary(match));
+});
+
+app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { seat?: PlayerId };
+  if (body.seat !== "A" && body.seat !== "B") return res.status(400).json({ error: "seat precisa ser 'A' ou 'B'." });
+  try {
+    const match = joinMatch(String(req.params.id), body.seat, { userId: req.user!.userId, displayName: req.user!.username });
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json({ seated: true, ...matchViewFor(match, seat) });
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
