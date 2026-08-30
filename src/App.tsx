@@ -96,7 +96,9 @@ function AppRouter() {
         <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
-        <Route path="/simulador">{() => <RequireAuth hosterOnly><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
+            de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
+        <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
