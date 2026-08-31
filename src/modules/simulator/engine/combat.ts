@@ -148,7 +148,13 @@ function shieldDamageEvents(defendingPlayer: PlayerId, count: number, state: Gam
 function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: GameState): GameEvent[] {
   const breachValue = keywordValue(attacker, "Breach");
   if (breachValue === null || breachValue <= 0) return [];
-  return shieldDamageEvents(defendingPlayer, breachValue, state);
+  // Comprehensive Rules: <Breach N> causa N de dano no 1º shield — mas um
+  // Shield que recebe 1+ de dano é destruído inteiro (Shield tem "1 HP"),
+  // então o valor de N nunca importa pra quantos shields caem: é sempre
+  // exatamente 1, igual ao dano de batalha comum sem Breach. N shields
+  // caírem de uma vez só (bug corrigido aqui) exigiria a carta dizer
+  // explicitamente algo como "descarte N shields" — não é o caso de Breach.
+  return shieldDamageEvents(defendingPlayer, 1, state);
 }
 
 export function resolveDamageStep(state: GameState): GameState {

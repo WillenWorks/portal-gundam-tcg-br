@@ -90,6 +90,7 @@ export interface ViewGameState {
   activePlayer: PlayerId;
   phase: GameState["phase"];
   combat: GameState["combat"];
+  endPhaseAction: GameState["endPhaseAction"];
   gameOver: GameState["gameOver"];
   eventLog: GameState["eventLog"];
   /** de quem é este ponto de vista — a UI usa isso pra saber "sou eu" sem precisar de mais contexto */
@@ -100,10 +101,10 @@ export interface ViewGameState {
 /**
  * Ponto de vista de `viewer` sobre `state`. Nunca devolve `CardInstance`
  * (com `def`) pra uma carta em zona oculta que não seja da própria mão do
- * viewer — devolve `HiddenCard` no lugar. `combat`/`eventLog` são
- * repassados como estão: nenhum dos dois embute `CardDef`/identidade de
- * carta oculta (só `instanceId`, que sozinho não revela nada pra quem não
- * tem acesso à `def` correspondente).
+ * viewer — devolve `HiddenCard` no lugar. `combat`/`endPhaseAction`/
+ * `eventLog` são repassados como estão: nenhum dos três embute
+ * `CardDef`/identidade de carta oculta (só `instanceId`, que sozinho não
+ * revela nada pra quem não tem acesso à `def` correspondente).
  */
 export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState {
   return {
@@ -111,6 +112,7 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     activePlayer: state.activePlayer,
     phase: state.phase,
     combat: state.combat,
+    endPhaseAction: state.endPhaseAction,
     gameOver: state.gameOver,
     eventLog: state.eventLog,
     viewer,

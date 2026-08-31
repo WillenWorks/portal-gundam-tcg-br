@@ -134,7 +134,9 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
       state = resolveDamageStep(state);
 
       expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
-      expect(state.players.B.shields).toHaveLength(shieldsBefore - 3);
+      // <Breach N> sempre acerta só o 1º shield (Shield tem "1 HP" — 1+ de dano já
+      // destrói o shield inteiro) — N nunca muda quantos shields caem.
+      expect(state.players.B.shields).toHaveLength(shieldsBefore - 1);
     });
   });
 

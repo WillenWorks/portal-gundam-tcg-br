@@ -165,8 +165,17 @@ export function playCommand(
     if (state.phase !== "main" || state.combat) throw new Error("Command 【Main】 só pode ser jogada na Main Phase, fora de combate");
     if (state.activePlayer !== player) throw new Error("Só o jogador ativo pode jogar Command 【Main】");
   } else {
-    if (!state.combat || state.combat.step !== "action") throw new Error("Command 【Action】 só pode ser jogada no Action Step");
-    if (state.combat.actionPriority !== player) throw new Error("Não é a prioridade desse jogador no Action Step");
+    // Command 【Action】 pode ser jogada em 2 momentos (Comprehensive Rules): o
+    // Action Step de uma batalha (combat.ts) ou o Action Step da End Phase
+    // (phases.ts, beginEndPhaseActionStep) — os dois usam a mesma mecânica de
+    // prioridade alternada, só a origem do "quem tem prioridade agora" muda.
+    const inBattleActionStep = state.combat?.step === "action";
+    const inEndPhaseActionStep = state.endPhaseAction !== null;
+    if (!inBattleActionStep && !inEndPhaseActionStep) {
+      throw new Error("Command 【Action】 só pode ser jogada no Action Step (de uma batalha ou do fim de turno)");
+    }
+    const priority = inBattleActionStep ? state.combat!.actionPriority : state.endPhaseAction!.priority;
+    if (priority !== player) throw new Error("Não é a prioridade desse jogador no Action Step");
   }
 
   if (!canPayLevel(state, player, card.def)) {

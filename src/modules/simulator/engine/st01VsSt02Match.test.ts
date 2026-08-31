@@ -283,10 +283,14 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
 
     // ------------------------------------------------------------------
     // Turno 4 (B) — Simultaneous Fire concede <Breach 3> pro Tallgeese, que
-    // ataca e destrói o GM de A (rested), estourando 3 shields de A de uma
-    // vez (Amuro Ray/Suletta Mercury/Unforeseen Incident — os 3 com
-    // 【Burst】 empilhados no topo). Depois arma os shields de B pro turno
-    // 5 (Siege Ploy/Heero Yuy/Zechs Merquise) e joga Siege Ploy 【Main】.
+    // ataca e destrói o GM de A (rested). Comprehensive Rules: <Breach N>
+    // sempre acerta só o 1º shield (Shield tem "1 HP" — 1+ de dano já
+    // destrói o shield inteiro, então N nunca muda quantos shields caem) —
+    // só Amuro Ray (topo) quebra; Suletta Mercury/Unforeseen Incident
+    // continuam empilhados como shield (os 【Burst】 deles são cobertos
+    // isoladamente em content/st01.test.ts). Depois arma os shields de B
+    // pro turno 5 (Siege Ploy/Heero Yuy/Zechs Merquise) e joga Siege Ploy
+    // 【Main】.
     // ------------------------------------------------------------------
     state = finishTurnAndAdvance(state);
     giveResources(state, "B", 10);
@@ -312,10 +316,11 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     const beforeBreach = state;
     state = runAttack(state, tallgeeseId, { unitId: gmId }, { chooseBurst: chooseBurstWithFallbackTarget(sandrockId) });
     expect(state.players.A.trash.some((c) => c.instanceId === gmId)).toBe(true); // GM (HP2) destruído pelo AP4 do Tallgeese
-    expect(beforeBreach.players.A.shields.length - state.players.A.shields.length).toBe(3); // <Breach 3> concedido -> 3 shields de A
-    expect(burstsFired.sort()).toEqual(["ST01-010", "ST01-011", "ST01-014"]); // Amuro Ray / Suletta Mercury / Unforeseen Incident
+    expect(beforeBreach.players.A.shields.length - state.players.A.shields.length).toBe(1); // <Breach N> sempre quebra só o 1º shield, não importa o N
+    expect(burstsFired.sort()).toEqual(["ST01-010"]); // só Amuro Ray (topo) -- Suletta Mercury/Unforeseen Incident não quebram
     expect(state.players.A.hand.some((c) => c.def.code === "ST01-010")).toBe(true); // AMURO_RAY_BURST: volta pra mão
-    expect(state.players.A.hand.some((c) => c.def.code === "ST01-011")).toBe(true); // SULETTA_MERCURY_BURST: volta pra mão
+    expect(state.players.A.shields.some((c) => c.def.code === "ST01-011")).toBe(true); // Suletta Mercury continua como shield -- Breach não estoura em cascata
+    expect(state.players.A.shields.some((c) => c.def.code === "ST01-014")).toBe(true); // Unforeseen Incident idem
 
     // Tallgeese atacou -> ficou rested. <Activate·Main><Once per Turn>: seta ele active de novo.
     expect(findCard(state, tallgeeseId).rested).toBe(true);

@@ -139,6 +139,7 @@ export function createGame(deckA: DeckList, deckB: DeckList, options: CreateGame
     activePlayer: options.firstPlayer,
     phase: "start",
     combat: null,
+    endPhaseAction: null,
     players,
     eventLog: [],
     gameOver: null,

@@ -187,6 +187,21 @@ export interface CombatState {
   actionPriority: PlayerId;
 }
 
+/**
+ * Action Step do fim de turno (Comprehensive Rules 7-6: a End Phase tem 4
+ * passos — action step, end step, hand step, cleanup step, nessa ordem).
+ * Mesma mecânica de prioridade alternada do Action Step de combate
+ * (combat.ts), só que sem attacker/defender — começa pelo jogador em espera
+ * (quem não é o `activePlayer`) e serve pra ativar Command 【Action】/efeitos
+ * 【Activate·Action】 antes do End Step (Repair)/Hand Step (descarte)/Cleanup
+ * Step (limpa modificadores) rodarem.
+ */
+export interface EndPhaseActionState {
+  passes: Record<PlayerId, boolean>;
+  /** jogador que deve agir agora (começa pelo jogador em espera, igual ao Action Step de combate) */
+  priority: PlayerId;
+}
+
 export interface PlayerState {
   id: PlayerId;
   deck: CardInstance[];
@@ -218,6 +233,8 @@ export interface GameState {
   activePlayer: PlayerId;
   phase: Phase;
   combat: CombatState | null;
+  /** não-nulo só durante o Action Step da End Phase (ver EndPhaseActionState) */
+  endPhaseAction: EndPhaseActionState | null;
   players: Record<PlayerId, PlayerState>;
   eventLog: GameEvent[];
   gameOver: GameOverInfo | null;
@@ -255,4 +272,7 @@ export type GameEvent =
   | { type: "ACTION_PASS"; player: PlayerId }
   | { type: "COMBAT_STEP_CHANGE"; step: CombatStep }
   | { type: "COMBAT_ENDED" }
+  | { type: "BEGIN_END_PHASE_ACTION_STEP"; priority: PlayerId }
+  | { type: "END_PHASE_ACTION_PASS"; player: PlayerId }
+  | { type: "END_END_PHASE_ACTION_STEP" }
   | { type: "GAME_OVER"; winner: PlayerId; reason: GameOverInfo["reason"] };

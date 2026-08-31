@@ -178,11 +178,27 @@ describe("applyPlayerAction — passAction encadeia Damage Step + Battle End aut
 });
 
 describe("applyPlayerAction — finishTurn", () => {
-  it("só o jogador ativo pode encerrar o próprio turno, e avança pra Main Phase do outro", () => {
+  it("só o jogador ativo pode encerrar o próprio turno, e entra no Action Step da End Phase (Comprehensive Rules 7-6) em vez de avançar direto", () => {
     const state = freshGame();
     expect(() => applyPlayerAction(state, "B", { kind: "finishTurn" }, ALL_EFFECT_SPECS, defaultPredicateResolver)).toThrow(/jogador ativo/);
 
     const next = applyPlayerAction(state, "A", { kind: "finishTurn" }, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    // ainda não trocou de turno -- só entrou no Action Step da End Phase, prioridade começa pelo jogador em espera (B)
+    expect(next.activePlayer).toBe("A");
+    expect(next.phase).toBe("end");
+    expect(next.endPhaseAction).toEqual({ passes: { A: false, B: false }, priority: "B" });
+  });
+
+  it("depois que os dois passam no Action Step da End Phase, o turno avança de verdade pra Main Phase do outro (bug reportado em teste: motor pulava esse passo)", () => {
+    const state = freshGame();
+    let next = applyPlayerAction(state, "A", { kind: "finishTurn" }, ALL_EFFECT_SPECS, defaultPredicateResolver);
+
+    next = applyPlayerAction(next, "B", { kind: "passEndPhaseAction" }, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.endPhaseAction).not.toBeNull(); // ainda falta A passar
+    expect(next.activePlayer).toBe("A"); // ainda não avançou
+
+    next = applyPlayerAction(next, "A", { kind: "passEndPhaseAction" }, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.endPhaseAction).toBeNull();
     expect(next.activePlayer).toBe("B");
     expect(next.phase).toBe("main");
   });

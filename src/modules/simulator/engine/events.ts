@@ -286,6 +286,24 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       state.combat = null;
       return state;
     }
+    case "BEGIN_END_PHASE_ACTION_STEP": {
+      state.endPhaseAction = { passes: { A: false, B: false }, priority: event.priority };
+      return state;
+    }
+    case "END_PHASE_ACTION_PASS": {
+      if (state.endPhaseAction) {
+        state.endPhaseAction.passes[event.player] = true;
+        const bothPassed = state.endPhaseAction.passes.A && state.endPhaseAction.passes.B;
+        if (!bothPassed) {
+          state.endPhaseAction.priority = event.player === "A" ? "B" : "A";
+        }
+      }
+      return state;
+    }
+    case "END_END_PHASE_ACTION_STEP": {
+      state.endPhaseAction = null;
+      return state;
+    }
     case "GAME_OVER": {
       state.gameOver = { winner: event.winner, reason: event.reason };
       return state;

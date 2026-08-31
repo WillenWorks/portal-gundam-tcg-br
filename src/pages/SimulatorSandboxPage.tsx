@@ -360,13 +360,17 @@ function MatchBoard({ matchId, seat, onExit }: { matchId: string; seat: PlayerId
   const view = matchView.view;
   const opponentSeat = otherPlayer(seat);
   const combat = view.combat;
+  const endPhaseAction = view.endPhaseAction;
   const myTurnMain = !combat && view.phase === "main" && view.activePlayer === seat;
-  const commandTrigger: "Main" | "Action" | null = combat?.step === "action" && combat.actionPriority === seat ? "Action" : myTurnMain ? "Main" : null;
   const iAmDefending = combat?.step === "block" && combat.defendingPlayer === seat;
   const iHavePriority = combat?.step === "action" && combat.actionPriority === seat;
+  // Action Step da End Phase (Comprehensive Rules 7-6) -- mesma mecânica do Action
+  // Step de combate, só que ao encerrar o turno em vez de durante uma batalha.
+  const iHaveEndPhasePriority = endPhaseAction !== null && endPhaseAction.priority === seat;
+  const commandTrigger: "Main" | "Action" | null = iHavePriority || iHaveEndPhasePriority ? "Action" : myTurnMain ? "Main" : null;
 
   const turnSecondsLeft = matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - now) / 1000)) : null;
-  const itsMyDecision = !view.gameOver && (myTurnMain || iAmDefending || iHavePriority);
+  const itsMyDecision = !view.gameOver && (myTurnMain || iAmDefending || iHavePriority || iHaveEndPhasePriority);
 
   const opponentLastSeen = matchView.lastSeenAt[opponentSeat];
   const opponentIdleMs = opponentLastSeen ? Math.max(0, now - opponentLastSeen) : null;
@@ -589,6 +593,7 @@ function MatchBoard({ matchId, seat, onExit }: { matchId: string; seat: PlayerId
             <p className="mt-1 text-lg heading-portal">
               {PHASE_LABEL[view.phase]} Phase · Vez de {view.activePlayer}
               {combat ? ` · Combate (${combat.step})` : ""}
+              {endPhaseAction ? ` · Action Step (prioridade: ${endPhaseAction.priority})` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -669,6 +674,17 @@ function MatchBoard({ matchId, seat, onExit }: { matchId: string; seat: PlayerId
           <CardContent className="flex flex-wrap items-center gap-2 p-4 text-sm text-soft">
             Action Step -- sua prioridade. Jogue uma Command 【Action】 da mão ou:
             <Button size="sm" variant="outline" className="rounded-none" disabled={busy} onClick={() => runAction({ kind: "passAction" })}>
+              Passar
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {iHaveEndPhasePriority ? (
+        <Card className="panel-cut rounded-none border-primary/30 surface-panel">
+          <CardContent className="flex flex-wrap items-center gap-2 p-4 text-sm text-soft">
+            Action Step do fim de turno -- sua prioridade. Jogue uma Command 【Action】 da mão ou:
+            <Button size="sm" variant="outline" className="rounded-none" disabled={busy} onClick={() => runAction({ kind: "passEndPhaseAction" })}>
               Passar
             </Button>
           </CardContent>

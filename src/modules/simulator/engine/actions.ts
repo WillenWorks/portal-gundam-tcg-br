@@ -3,7 +3,7 @@ import type { EffectSpec, PredicateResolver } from "./effectSpec";
 import { findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
-import { finishTurnAndAdvance } from "./phases";
+import { beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { dispatchBurstForNewlyTrashedShields } from "./dispatcher";
 
 /**
@@ -25,8 +25,10 @@ import { dispatchBurstForNewlyTrashedShields } from "./dispatcher";
  *
  * Auto-encadeamento: alguns passos do motor não são decisão nenhuma, só
  * avanço de estado (Attack Step -> Block Step ao declarar ataque; Action
- * Step -> Damage Step -> Battle End assim que os dois passam) — pra não
- * obrigar o cliente a fazer 3-4 requisições HTTP pra 1 ataque, essa borda já
+ * Step -> Damage Step -> Battle End assim que os dois passam de combate;
+ * Action Step da End Phase -> Repair/descarte/troca de turno assim que os
+ * dois passam de fim de turno) — pra não obrigar o cliente a fazer 3-4
+ * requisições HTTP pra 1 ataque (ou pra 1 fim de turno), essa borda já
  * encadeia isso, do mesmo jeito que `runAttack()` já fazia em
  * `st01VsSt02Match.test.ts`.
  *
@@ -60,7 +62,8 @@ export type PlayerAction =
   | { kind: "activateBlocker"; blockerId: string }
   | { kind: "skipBlock" }
   | { kind: "passAction" }
-  | { kind: "finishTurn" };
+  | { kind: "finishTurn" }
+  | { kind: "passEndPhaseAction" };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
@@ -137,7 +140,19 @@ export function applyPlayerAction(
       if (state.combat) throw new Error("Não é possível passar o turno durante um combate em andamento");
       if (state.phase !== "main") throw new Error("Só é possível passar o turno na Main Phase");
       if (state.activePlayer !== actingPlayer) throw new Error("Só o jogador ativo pode passar o turno");
-      return finishTurnAndAdvance(state);
+      // Não encerra o turno direto: entra no Action Step da End Phase (Comprehensive
+      // Rules 7-6), que dá a mesma chance de prioridade alternada que o Action Step
+      // de uma batalha tem — só depois que os dois passarem (`passEndPhaseAction`
+      // abaixo) é que Repair/descarte/troca de turno realmente rodam.
+      return beginEndPhaseActionStep(state);
+    }
+
+    case "passEndPhaseAction": {
+      // passEndPhaseAction() já valida internamente que `actingPlayer` tem a
+      // prioridade do Action Step da End Phase agora — não precisa checar de novo aqui.
+      const next = passEndPhaseAction(state, actingPlayer);
+      if (next.endPhaseAction) return next; // ainda falta o outro jogador passar
+      return finishEndPhaseAndAdvance(next);
     }
   }
 }

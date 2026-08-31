@@ -92,9 +92,17 @@ describe("applyAction", () => {
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
-    const updated = applyAction(match.id, "user-1", { kind: "finishTurn" });
-    expect(updated.state.activePlayer).toBe("B");
+    // finishTurn não avança direto -- entra no Action Step da End Phase (Comprehensive
+    // Rules 7-6), prioridade começa pelo jogador em espera (B, ver matchStore.ts/decisionOwner).
+    let updated = applyAction(match.id, "user-1", { kind: "finishTurn" });
+    expect(updated.state.phase).toBe("end");
+    expect(updated.state.activePlayer).toBe("A"); // ainda não trocou
     expect(updated.version).toBe(2);
+
+    updated = applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
+    updated = applyAction(match.id, "user-1", { kind: "passEndPhaseAction" });
+    expect(updated.state.activePlayer).toBe("B");
+    expect(updated.version).toBe(4);
   });
 
   it("erro do motor (ação ilegal) vira MatchError 400 com a mensagem original", () => {
@@ -129,11 +137,17 @@ describe("subscribe / notify", () => {
     expect(views.B.seat).toBe("B");
     expect(views.A.view.viewer).toBe("A");
     expect(views.B.view.viewer).toBe("B");
-    expect(views.A.view.activePlayer).toBe("B");
+    expect(views.A.view.activePlayer).toBe("A"); // ainda não trocou -- só entrou no Action Step da End Phase
+
+    // os dois passam o Action Step da End Phase -> aí sim o turno troca de verdade
+    applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
+    applyAction(match.id, "user-1", { kind: "passEndPhaseAction" });
+    expect(received).toHaveLength(3);
+    expect((received[2] as typeof views).A.view.activePlayer).toBe("B");
 
     unsubscribe();
     applyAction(match.id, "user-2", { kind: "finishTurn" }); // agora é vez de B — não deve notificar mais ninguém
-    expect(received).toHaveLength(1);
+    expect(received).toHaveLength(3);
   });
 });
 
@@ -205,11 +219,29 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     expect(getMatch(match.id)?.state.activePlayer).toBe("A");
     expect(getMatch(match.id)?.turnDeadlineAt).not.toBeNull();
 
+    // 1º prazo estoura: A não decidiu nada na Main Phase -> servidor chama finishTurn
+    // sozinho, que só ABRE o Action Step da End Phase (Comprehensive Rules 7-6) --
+    // não troca o jogador ativo ainda, só passa a prioridade pro jogador em espera (B).
     vi.advanceTimersByTime(90_000);
-
-    const after = getMatch(match.id)!;
-    expect(after.state.activePlayer).toBe("B");
+    let after = getMatch(match.id)!;
+    expect(after.state.activePlayer).toBe("A"); // ainda não trocou
+    expect(after.state.phase).toBe("end");
+    expect(after.state.endPhaseAction?.priority).toBe("B");
     expect(after.version).toBe(2);
+    expect(after.turnDeadlineAt).not.toBeNull();
+
+    // 2º prazo estoura: B não decidiu nada no Action Step -> passa sozinho -> prioridade volta pra A.
+    vi.advanceTimersByTime(90_000);
+    after = getMatch(match.id)!;
+    expect(after.state.endPhaseAction?.priority).toBe("A");
+    expect(after.version).toBe(3);
+
+    // 3º prazo estoura: A também passa sozinho -> os dois passaram -> o turno finalmente troca pra B.
+    vi.advanceTimersByTime(90_000);
+    after = getMatch(match.id)!;
+    expect(after.state.activePlayer).toBe("B");
+    expect(after.state.endPhaseAction).toBeNull();
+    expect(after.version).toBe(4);
     expect(after.turnDeadlineAt).not.toBeNull();
   });
 
@@ -220,18 +252,21 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
     vi.advanceTimersByTime(80_000); // ainda dentro do prazo original de A
-    applyAction(match.id, "user-1", { kind: "finishTurn" }); // A age por conta própria
+    applyAction(match.id, "user-1", { kind: "finishTurn" }); // A age por conta própria -- abre o Action Step da End Phase
 
     const afterAction = getMatch(match.id)!;
-    expect(afterAction.state.activePlayer).toBe("B");
+    expect(afterAction.state.activePlayer).toBe("A"); // ainda não trocou -- só entrou no Action Step
+    expect(afterAction.state.endPhaseAction?.priority).toBe("B");
     expect(afterAction.version).toBe(2);
 
-    // passa da marca dos 90s originais (contados desde a criação), mas só 15s desde a ação real de A
+    // passa da marca dos 90s originais (contados desde a criação), mas só 15s desde a ação real de A --
+    // o timer antigo (que estouraria aos 90s da Main Phase) foi cancelado, não duplicou o finishTurn;
+    // o timer novo (do Action Step, prioridade de B) só estoura aos 90s a partir da ação de A.
     vi.advanceTimersByTime(15_000);
 
-    const stillB = getMatch(match.id)!;
-    expect(stillB.state.activePlayer).toBe("B"); // o timer antigo (que estouraria aos 90s) foi cancelado, não duplicou o finishTurn
-    expect(stillB.version).toBe(2);
+    const stillWaitingOnB = getMatch(match.id)!;
+    expect(stillWaitingOnB.state.endPhaseAction?.priority).toBe("B"); // ainda não estourou de novo
+    expect(stillWaitingOnB.version).toBe(2);
   });
 });
 

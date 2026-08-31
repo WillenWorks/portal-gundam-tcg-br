@@ -15,7 +15,7 @@ import {
   skipBlock,
 } from "./combat";
 import { activateSupport } from "./keywords";
-import { findCard } from "./events";
+import { applyEvent, findCard } from "./events";
 
 let seq = 0;
 /**
@@ -181,6 +181,28 @@ describe("sequência de combate (Comprehensive Rules seção 8 / docs/18)", () =
     state = resolveDamageStep(state);
 
     expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
+    expect(state.players.B.shields).toHaveLength(before - 1);
+  });
+
+  it("<Breach N> com N > 1 ainda quebra só 1 shield (bug reportado em teste real: motor removia N shields de uma vez, ex. <Breach 3>/Simultaneous Fire)", () => {
+    let state = stripBase(freshGame(), "B");
+    const attackerId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_01); // AP1/HP1, sem Breach nativo
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true }); // AP1/HP1
+    state = applyEvent(state, {
+      type: "GRANT_KEYWORD",
+      instanceId: attackerId,
+      grant: { keyword: "Breach 3", duration: "endOfTurn", appliedOnTurn: state.turnNumber },
+    });
+    const before = state.players.B.shields.length;
+    expect(before).toBeGreaterThanOrEqual(3); // senão o teste não provaria nada (shield insuficiente pra distinguir 1 de 3)
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
+    // Comprehensive Rules: <Breach N> causa N de dano no 1º shield, mas um Shield
+    // que recebe 1+ de dano é destruído inteiro -- por isso sempre 1 shield cai,
+    // nunca N, não importa quão alto for N.
     expect(state.players.B.shields).toHaveLength(before - 1);
   });
 

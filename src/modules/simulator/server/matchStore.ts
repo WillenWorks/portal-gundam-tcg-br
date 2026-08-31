@@ -349,6 +349,10 @@ function decisionOwner(state: GameState): PlayerId | null {
     if (state.combat.step === "action") return state.combat.actionPriority;
     return null; // attack/damage/battleEnd são passos automáticos, nunca ficam "parados" esperando decisão
   }
+  // Action Step da End Phase (mesma mecânica do Action Step de combate, ver
+  // phases.ts/beginEndPhaseActionStep) — quem tem `endPhaseAction.priority`
+  // precisa agir (jogar Command 【Action】 ou passar) antes do turno realmente terminar.
+  if (state.endPhaseAction) return state.endPhaseAction.priority;
   if (state.phase === "main") return state.activePlayer;
   return null;
 }
@@ -357,6 +361,7 @@ function decisionOwner(state: GameState): PlayerId | null {
 function defaultActionFor(state: GameState): PlayerAction {
   if (state.combat?.step === "block") return { kind: "skipBlock" };
   if (state.combat?.step === "action") return { kind: "passAction" };
+  if (state.endPhaseAction) return { kind: "passEndPhaseAction" };
   return { kind: "finishTurn" };
 }
 

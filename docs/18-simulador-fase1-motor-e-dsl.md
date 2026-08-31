@@ -671,6 +671,116 @@ alheio a rede/matchmaking/timer, como o resto deste documento já estabelece:
   repositório (confirmado via busca — sem precedente antes desta wave).
   169 testes no total.
 
+## Correções pós-teste manual (2026-08-31) — Action Step da End Phase + `<Breach N>`
+
+O Willen testou o Simulador Beta de ponta a ponta (2 contas reais) pela
+primeira vez e reportou 2 problemas de regra. Os dois foram confirmados
+contra as **Comprehensive Rules oficiais** (`gundam-gcg.com/en/pdf/
+comprehensiverules_en.pdf`, v1.8.0) antes de corrigir — nenhum dos dois era
+ambíguo, os dois eram bug real do motor:
+
+1. **"Ao passar o turno, não é feita a verificação de action phase, igual na
+   batalha"** — a End Phase oficial tem **4 passos, nesta ordem**: *action
+   step*, *end step*, *hand step*, *cleanup step*. O action step funciona
+   exatamente como o Action Step de uma batalha (prioridade alternada,
+   começando pelo jogador em espera, até os dois passarem em sequência),
+   dando chance de ativar Command 【Action】/efeitos 【Activate·Action】 antes
+   do turno realmente terminar. O motor pulava esse passo inteiro — `finishTurn`
+   ia direto pro equivalente de end/hand/cleanup step (Repair + descarte por
+   limite de mão + limpeza de modificadores) e trocava de turno na hora,
+   sem dar nenhuma chance de decisão pro jogador em espera.
+2. **`<Breach N>` estourava N shields de uma vez** — por exemplo, `<Breach 3>`
+   (concedido por ST02-012 Simultaneous Fire) removia 3 shields do oponente
+   ao destruir uma Unit em combate. Pela regra oficial, `<Breach N>` causa N
+   de dano no **1º** shield (singular) — mas um Shield que recebe 1+ de dano
+   é destruído inteiro (Shield não acumula HP fracionado: qualquer dano ≥1 já
+   destrói o card inteiro), então o valor de N nunca muda quantos shields
+   caem. É sempre exatamente 1, igual a um ataque comum sem Breach — o `N`
+   é só o "tamanho" nominal do dano, irrelevante pra quantos shields somem.
+   Isso ficou visível no teste do Willen porque o oponente não tinha mais
+   Base: sem Base pra absorver, o dano foi parar direto nos shields e
+   revelou que 3 caíram de uma vez, quando só 1 deveria.
+
+### Fix 1 — Action Step da End Phase (Comprehensive Rules 7-6)
+
+Mesma mecânica de prioridade alternada que o Action Step de combate já
+tinha (`combat.ts`), só que sem attacker/defender/target — por isso ganhou
+uma estrutura de estado irmã, não reaproveitou `CombatState`:
+
+- **`engine/types.ts`** — novo `EndPhaseActionState` (`passes`/`priority`,
+  mesmo formato de `CombatState.actionPasses`/`actionPriority`) e
+  `GameState.endPhaseAction: EndPhaseActionState | null`. 3 eventos novos:
+  `BEGIN_END_PHASE_ACTION_STEP`, `END_PHASE_ACTION_PASS`,
+  `END_END_PHASE_ACTION_STEP` (handlers em `events.ts`, espelhando
+  `ATTACK_DECLARED`/`ACTION_PASS`/`COMBAT_ENDED`).
+- **`engine/phases.ts`** — `beginEndPhaseActionStep()` (entra na End Phase +
+  arma a prioridade no jogador em espera, igual ao Action Step de combate),
+  `passEndPhaseAction(state, player)` (mesma forma de `combat.ts/passAction`:
+  autovalida prioridade, e se os dois já passaram, já fecha o Action Step
+  sozinho) e `finishEndPhaseAndAdvance()` (o que já existia — Repair/descarte/
+  limpeza + troca de turno — agora só roda **depois** que o Action Step
+  fecha). `finishTurnAndAdvance()` (usada por scripts/testes que não se
+  importam com o Action Step) virou um atalho que passa os dois jogadores
+  automaticamente por cima dele — continua útil pra teste, mas passa pelo
+  caminho real por baixo, não pula mais nada.
+- **`engine/actions.ts`** (`applyPlayerAction`) — `finishTurn` não fecha o
+  turno mais: só chama `beginEndPhaseActionStep`. Nova `PlayerAction`
+  `passEndPhaseAction`, que encadeia pra `finishEndPhaseAndAdvance` assim
+  que os dois passam (mesmo padrão de auto-encadeamento que `passAction`/
+  combate já usava).
+- **`engine/deploy.ts`** (`playCommand`) — Command 【Action】 agora pode ser
+  jogada em 2 momentos: o Action Step de uma batalha OU o Action Step da
+  End Phase (a regra oficial permite os dois — `【Action】` não é exclusivo
+  de combate).
+- **`server/matchStore.ts`** — `decisionOwner`/`defaultActionFor` (timer de
+  90s) ganharam o caso `state.endPhaseAction`: se ninguém decide nada, o
+  servidor passa a vez sozinho no Action Step da End Phase, do mesmo jeito
+  que já fazia no Action Step de combate.
+- **`engine/viewState.ts`** — `ViewGameState` ganhou `endPhaseAction` (info
+  pública, sem carta oculta nenhuma, repassada como está — mesmo tratamento
+  de `combat`).
+- **`src/pages/SimulatorSandboxPage.tsx`** — novo card "Action Step do fim
+  de turno" (aparece só pra quem tem a prioridade agora), reaproveitando o
+  mesmo botão "Passar" e o mesmo caminho de jogar Command 【Action】 que o
+  Action Step de combate já tinha.
+- **Testes**: `actions.test.ts` (2, incluindo o caso "os dois passam ->
+  turno avança de verdade"), `matchStore.test.ts` (3 reescritos pra refletir
+  o novo fluxo em 2+ passos, incluindo o timer estourando 3x seguidas até o
+  turno passar sozinho).
+
+### Fix 2 — `<Breach N>` só quebra 1 shield
+
+- **`engine/combat.ts`** (`breachEvents`) — troca de `shieldDamageEvents(...,
+  breachValue, state)` pra `shieldDamageEvents(..., 1, state)`: o valor de
+  `<Breach N>` continua sendo lido certo (prova de regressão de
+  `keywordValue()` já existente, mantida), só não vira mais "N shields
+  removidos".
+- **Testes**: novo teste em `combat.test.ts` (`<Breach N>` com N > 1 ainda
+  quebra só 1 shield, cenário isolado com N=3 pra não deixar dúvida) +
+  ajuste dos testes que dependiam do comportamento antigo
+  (`st01VsSt02Match.test.ts`, `content/st02.test.ts` — ambos assumiam N
+  shields removidos; corrigidos pra 1, com nota explicando a regra).
+
+### Verificação
+
+`tsc -b`, `eslint` e `pnpm test` limpos (171 testes, 2 novos líquidos desde
+a wave anterior — ver acima), `pnpm run build` (client) ok. Sem mudança de
+schema/rota nova — os 2 fixes são só motor + o servidor reagindo ao novo
+passo do motor.
+
+### Combinado com o Willen pra próxima rodada
+
+Essa correção foi tratada como **rodada 1** de um pedido maior: o Willen
+também pediu pra o Simulador Beta ganhar uma tela de partida própria — com
+arte real das cartas (`Card.imageUrl`/`thumbUrl`, já no schema, hoje não
+usados no sandbox — só nome em texto) e HUD dedicado, **separada** do
+sandbox atual (`SimulatorSandboxPage.tsx` continua existindo — o botão
+"Simulador Beta" no menu continua levando pra lá pra fila/deck; só quando 2
+jogadores são pareados de verdade é que a experiência deveria virar uma
+tela nova, pensada pra partida real, não pra debug). Sequenciamento
+confirmado com o Willen: bugs de regra primeiro (esta seção), visual depois
+— ainda não iniciado, fica pra próxima wave deste documento.
+
 ## Riscos / desconhecidos
 
 - **Efeitos de informação oculta** ("olhe as N cartas do topo", "revele",
@@ -842,7 +952,7 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   "Simulador Beta": rota `/simulador` deixou de ter `hosterOnly`, e
   "Simulador Beta" entrou no menu de todo mundo (`userNav`).
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 169 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 171 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
   keywords, a tubulação do EffectSpec, a partida de ponta a ponta contra o
   deck vanilla, os EffectSpecs reais do ST01 e do ST02 (incluindo o teste de
@@ -851,8 +961,9 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   trigger, a partida real ST01×ST02 até GAME_OVER, a Link condition
   (`combat.test.ts`), a metade servidor do passo 4 (`actions.test.ts`,
   `viewState.test.ts`) e, em `server/matchStore.test.ts`, tanto o passo 4
-  (join/apply/subscribe/delete) quanto os 13 testes novos da wave "Simulador
-  Beta" (fila, timer de turno com fake timers, W.O. por abandono).
+  (join/apply/subscribe/delete) quanto os testes da wave "Simulador Beta"
+  (fila, timer de turno com fake timers, W.O. por abandono) e da correção
+  "Action Step da End Phase + `<Breach N>`" (ver seção dedicada acima).
 - Reaproveitar `parseCardEffects()` (`src/lib/gundam-card-effects.ts`) e os
   campos já estruturados de `CardModel` (`triggerKeywords`,
   `effectKeywords`, `keywordTags`, `textSectionsJson`, `hasBurst`,
