@@ -184,6 +184,16 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       player.trash.push(card);
       return state;
     }
+    // "Removido do jogo" — diferente de DESTROY_CARD, a carta não vai pro trash nem pra
+    // nenhuma outra zona, deixa de existir de vez. Hoje usado só pelo EX Resource (regra
+    // oficial: "When an EX Resource is used to pay a cost, that EX Resource is removed
+    // from the game", ver deploy.ts/payCostEvents), mas o evento é genérico o bastante
+    // pra qualquer token/carta que precise do mesmo destino no futuro.
+    case "REMOVE_CARD_FROM_GAME": {
+      const owner = findCardOwner(state, event.instanceId);
+      removeFromZone(state.players[owner], event.instanceId);
+      return state;
+    }
     case "DAMAGE_SHIELD": {
       const player = state.players[event.player];
       for (let i = 0; i < event.count && player.shields.length > 0; i++) {

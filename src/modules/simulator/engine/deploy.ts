@@ -2,6 +2,7 @@ import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
+import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 
 /**
  * "Jogar carta da mão" (Main Phase) — a peça que faltava desde o passo 2
@@ -68,7 +69,16 @@ function payCostEvents(state: GameState, player: PlayerId, def: CardDef, resourc
       throw new Error(`Recurso ${id} já está rested, não pode pagar custo de novo`);
     }
   }
-  return payWith.map((id): GameEvent => ({ type: "REST_CARD", instanceId: id }));
+  // EX Resource sai do jogo de vez ao ser usado pra pagar custo, nunca fica só rested em
+  // campo como um Recurso normal (regra oficial: "When an EX Resource is used to pay a
+  // cost, that EX Resource is removed from the game" — confirmado contra o Comprehensive
+  // Rules oficial). Recurso normal (do resource deck) só é REST_CARD mesmo.
+  return payWith.map((id): GameEvent => {
+    const resource = findCard(state, id);
+    return resource.def.code === TOKEN_EX_RESOURCE_CODE
+      ? { type: "REMOVE_CARD_FROM_GAME", instanceId: id }
+      : { type: "REST_CARD", instanceId: id };
+  });
 }
 
 /** Joga uma carta Unit/Pilot/Base da mão (Comprehensive Rules 7 — Main Phase). */

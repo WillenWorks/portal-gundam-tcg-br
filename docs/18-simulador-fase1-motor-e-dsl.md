@@ -844,6 +844,57 @@ validar") continua bloqueado neste sandbox de implementação pelo mesmo
 limite já documentado (`npx tsx server/index.ts` não sobe aqui) — precisa
 rodar no ambiente do Willen.
 
+## Correção pós-teste visual (2026-08-31, rodada 3) — EX Resource não saía do jogo ao ser usado
+
+Com a tela de partida real (rodada 2 acima) no ar, o Willen jogou de verdade
+com 2 sessões e reportou 3 observações sobre a Resource Area. Investigadas
+uma a uma contra o Comprehensive Rules oficial (fonte: `gundam-gcg.com`,
+seção de Resource/EX Resource):
+
+- **Real: `EX Resource` ficava só `rested` ao pagar custo, nunca saía do
+  jogo.** A regra oficial é explícita: *"When an EX Resource is used to pay
+  a cost, that EX Resource is removed from the game."* — diferente de um
+  Recurso normal, que só fica rested e volta a ficar active no Start Phase
+  seguinte. O motor (`deploy.ts`, `payCostEvents()`) tratava os dois tipos
+  de recurso do mesmo jeito (sempre `REST_CARD`), então o segundo jogador
+  nunca perdia de fato o bônus de 1 recurso extra — ficava rested pra
+  sempre em vez de sumir, inflando a Resource Area dele permanentemente
+  contra a regra. Corrigido: novo evento `REMOVE_CARD_FROM_GAME` (genérico —
+  tira a carta de qualquer zona sem realocar pra nenhuma outra, diferente de
+  `DESTROY_CARD` que vai pro trash), disparado em `payCostEvents()` quando o
+  recurso pago tem `code === TOKEN_EX_RESOURCE_CODE` (constante agora
+  exportada de `setup.ts`). Coberto por teste novo em `deploy.test.ts`
+  ("EX Resource sai do jogo... ao pagar custo").
+- **Aparente, não é bug: "recursos não aumentam a cada turno".** Simulado
+  turno a turno via `advanceToMainPhase`/`finishTurnAndAdvance` (script
+  isolado, não faz parte da suíte) pra conferir sem depender de UI: a
+  Resource Area de cada jogador cresce exatamente 1 por *turno próprio*
+  (Resource Step só roda pro jogador ativo, Comprehensive Rules — "The
+  active player places one Resource card... into their resource area"),
+  nunca por turno global. Como o HUD mostra um contador de turno
+  compartilhado ("Turno N"), é fácil ler errado — no Turno 3 (a *2ª* vez do
+  jogador A, já que o Turno 2 foi do B), A tem 2 recursos, não 3, e isso é o
+  esperado. Motor confirmado correto por simulação linha a linha; nenhuma
+  mudança de código aqui.
+- **Aparente, não é bug: carta de level maior jogável enquanto uma de level
+  menor não.** `deployCard`/`canPayLevel` já eram (desde a wave anterior)
+  dois requisitos independentes por design oficial: Nível = total de
+  recursos EM CAMPO (rested ou não, `resourceArea.length >= level`), Custo =
+  N recursos ACTIVE especificamente (`payCostEvents`). Uma carta de level
+  alto e custo baixo pode passar no requisito de nível (tem recursos
+  suficientes em campo) e no de custo (poucos active bastam), enquanto uma
+  de level baixo e custo alto falha no custo se já não sobram active
+  suficientes no momento — comportamento correto, já documentado no topo de
+  `deploy.ts` desde a wave "motor de jogo real". Sem mudança de código.
+
+### Verificação
+
+`tsc -b`, `eslint` e `pnpm test` limpos (172/172 — 1 teste novo pro fix do
+EX Resource), `pnpm run build` ok. Mudança isolada ao motor
+(`types.ts`/`events.ts`/`setup.ts`/`deploy.ts`) — nenhuma mudança de UI ou
+servidor: a Resource Area passa a refletir a remoção sozinha, já que a tela
+só espelha `resourceArea.length`/conteúdo real vindo do servidor.
+
 ## Riscos / desconhecidos
 
 - **Efeitos de informação oculta** ("olhe as N cartas do topo", "revele",
@@ -1026,7 +1077,7 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   "Simulador Beta" entrou no menu de todo mundo (`userNav`). Rodada 2: nova
   rota `/simulador/partida/:matchId` → `SimulatorMatchPage`.
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
-  test`), mesmo padrão de `server/deck-legality.test.ts`. 171 testes no
+  test`), mesmo padrão de `server/deck-legality.test.ts`. 172 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
   keywords, a tubulação do EffectSpec, a partida de ponta a ponta contra o
   deck vanilla, os EffectSpecs reais do ST01 e do ST02 (incluindo o teste de

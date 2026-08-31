@@ -8,6 +8,7 @@ import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { AMURO_RAY_WHEN_PAIRED, GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { findCard } from "./events";
+import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 
 /**
  * "Jogar carta da mão" (docs/18, wave "motor de jogo real + gaps
@@ -136,6 +137,20 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
       expect(next.players.A.resourceArea.find((r) => r.instanceId === resources[2])!.rested).toBe(true);
       expect(next.players.A.resourceArea.find((r) => r.instanceId === resources[0])!.rested).toBe(true);
       expect(next.players.A.resourceArea.find((r) => r.instanceId === resources[1])!.rested).toBe(false);
+    });
+
+    it("EX Resource sai do jogo (não fica só rested) ao pagar custo — regra oficial confirmada contra o Comprehensive Rules", () => {
+      const state = freshMainPhase();
+      const normalResource = giveResources(state, "A", 1)[0];
+      const exResourceId = place(state, "A", { ...VANILLA_CARD_DEFS.RESOURCE_01, code: TOKEN_EX_RESOURCE_CODE, isToken: true }, "resourceArea");
+      const cardId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "hand"); // cost 2, level 2
+
+      const next = deployCard(state, "A", cardId, { resourceInstanceIds: [normalResource, exResourceId] });
+
+      // o Recurso normal continua em campo, só rested — o EX Resource desaparece de vez
+      expect(next.players.A.resourceArea.some((r) => r.instanceId === normalResource && r.rested)).toBe(true);
+      expect(next.players.A.resourceArea.some((r) => r.instanceId === exResourceId)).toBe(false);
+      expect(next.players.A.resourceArea).toHaveLength(1);
     });
   });
 

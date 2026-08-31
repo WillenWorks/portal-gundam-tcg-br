@@ -27,8 +27,11 @@ const EX_BASE_TOKEN: CardDef = {
   isToken: true,
 };
 
+/** Exportado pra deploy.ts poder reconhecer o token na hora de pagar custo — ver payCostEvents(). */
+export const TOKEN_EX_RESOURCE_CODE = "TOKEN-EX-RESOURCE";
+
 const EX_RESOURCE_TOKEN: CardDef = {
-  code: "TOKEN-EX-RESOURCE",
+  code: TOKEN_EX_RESOURCE_CODE,
   nameEn: "EX Resource",
   cardType: "RESOURCE",
   color: "colorless",

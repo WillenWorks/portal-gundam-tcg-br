@@ -259,6 +259,7 @@ export type GameEvent =
   | { type: "DAMAGE_UNIT"; instanceId: string; amount: number }
   | { type: "HEAL_UNIT"; instanceId: string; amount: number }
   | { type: "DESTROY_CARD"; instanceId: string }
+  | { type: "REMOVE_CARD_FROM_GAME"; instanceId: string }
   | { type: "DAMAGE_SHIELD"; player: PlayerId; count: number }
   | { type: "DAMAGE_BASE"; instanceId: string; amount: number }
   | { type: "MODIFY_STAT"; instanceId: string; modifier: StatModifier }
