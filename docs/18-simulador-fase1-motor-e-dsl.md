@@ -779,7 +779,70 @@ sandbox atual (`SimulatorSandboxPage.tsx` continua existindo — o botão
 jogadores são pareados de verdade é que a experiência deveria virar uma
 tela nova, pensada pra partida real, não pra debug). Sequenciamento
 confirmado com o Willen: bugs de regra primeiro (esta seção), visual depois
-— ainda não iniciado, fica pra próxima wave deste documento.
+— **rodada 2, ver seção abaixo**.
+
+## Simulador Beta — tela de partida dedicada, arte real e HUD (rodada 2, 2026-08-31)
+
+Rodada 2 do pedido do Willen (seção anterior): "pode seguir para essa parte
+visual". Implementa a tela nova combinada acima, sem mexer no motor
+(`engine/*` intocado nesta rodada — puramente cliente/rota).
+
+### O que mudou
+
+- **`src/pages/SimulatorMatchPage.tsx` (novo)** — a tela de partida de
+  verdade. Rota `/simulador/partida/:matchId`, só o `matchId` — o assento
+  (`seat`) não precisa vir na URL, é resolvido no servidor a partir do
+  usuário logado (`seatFor()`, já existente em `GET /api/simulator/matches/:id`
+  e nas outras rotas de ação) e chega embutido em `SimulatorMatchView.seat`
+  a cada evento do stream SSE, então o cliente nunca precisa "saber" o
+  próprio assento antes de conectar.
+  - **Arte real**: busca `GET /api/cards?setCode=ST01` e `?setCode=ST02`
+    (sem `page`/`pageSize` → devolve o catálogo inteiro sem paginação, ver
+    `getPagination()`/`enabled` em `server/index.ts`) uma vez ao montar a
+    tela, monta um lookup `code -> { imageUrl, imageSmallUrl }` e casa pelo
+    `CardDef.code` de cada `CardInstance` (os códigos dos fixtures ST01/ST02
+    já são os códigos reais de produção). Carta sem entrada no lookup cai
+    num fallback "sem arte" (mesmo padrão visual já usado em
+    `CardsPage.tsx`) — nunca quebra a tela, só mostra nome em texto.
+  - **Layout por zona**: painel do oponente em cima, seu painel embaixo, as
+    duas Battle Areas encostando uma na outra no meio (mais perto de um
+    tabuleiro físico do que a lista de texto anterior). Cada painel:
+    Battle Area (maior), Base + Shields lado a lado, Resource Area, e (só o
+    seu) a Mão com as cartas maiores e o botão "Jogar". Mão do oponente
+    aparece como pilha de cartas viradas com a contagem — puramente visual,
+    a redação de informação (`viewState.ts`) já garantia isso, só não era
+    desenhada antes.
+  - **HUD dedicado**: barra fixa no topo com turno/fase/vez de quem, badge
+    de combate/Action Step quando aplicável, timer de decisão (90s,
+    contagem regressiva só informativa — quem decide de verdade continua
+    sendo o servidor), indicador de sincronização SSE e botão "Sair".
+  - Mesma lógica de ações do `MatchBoard` antigo, reaproveitada 1:1 (seleção
+    de alvo por clique, Pilot pareado pela 1ª Unit própria marcada, W.O. por
+    abandono depois de 3min sem presença, todas as `PlayerAction` já
+    existentes) — só a composição visual mudou. **Sem animações ainda**,
+    por decisão do Willen ("Funcional com arte real", via AskUserQuestion).
+- **`src/pages/SimulatorSandboxPage.tsx` (reduzido)** — agora cuida só de
+  fila/escolha de deck/tela de espera. O antigo `MatchBoard` (tabuleiro em
+  texto puro, renderizado inline nesta mesma página) foi removido inteiro;
+  assim que a fila pareia (no clique de entrar, no polling da tela de
+  espera, ou na checagem de reconexão ao abrir a página), a página navega
+  (`wouter`, `useLocation()`) pra `/simulador/partida/:matchId` em vez de
+  trocar estado local pra desenhar o tabuleiro.
+- **`src/App.tsx`** — nova rota lazy `/simulador/partida/:matchId` →
+  `SimulatorMatchPage`, ao lado da rota `/simulador` já existente (que
+  continua abrindo `SimulatorSandboxPage`).
+
+### Verificação
+
+`tsc -b`, `eslint` e `pnpm test` limpos (171/171 — nenhum teste novo nesta
+rodada, motor não mudou), `pnpm run build` (client) ok, com os dois chunks
+lazy (`SimulatorSandboxPage`, `SimulatorMatchPage`) gerados separados. Sem
+mudança de schema/rota de servidor — tudo cliente + 1 rota de front nova.
+Teste manual de 2 sessões reais logadas (o motivo original do pedido:
+"com informações reais de identidade visual fica mais fácil testar e
+validar") continua bloqueado neste sandbox de implementação pelo mesmo
+limite já documentado (`npx tsx server/index.ts` não sobe aqui) — precisa
+rodar no ambiente do Willen.
 
 ## Riscos / desconhecidos
 
@@ -929,17 +992,25 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   ST01×ST02 completa (ver "Motor de jogo real + gaps documentados" em
   Status): `createGame` até `GAME_OVER`, cobrindo os 27 EffectSpecs + as
   keywords automáticas relevantes só com ações reais do motor.
-- `src/pages/SimulatorSandboxPage.tsx` — passo 4 (cliente): lobby de
-  partidas + tabuleiro (`MatchBoard`), rota `/simulador` (lazy-importada em
-  `src/App.tsx` igual a `OrganizerPage`). Reescrita por completo na wave
-  "Simulador Beta" (2026-08-30) — fila de matchmaking (escolher deck →
-  aguardar oponente → tabuleiro), sem seleção manual de assento; ganhou
-  countdown do timer de turno, indicador de presença do oponente e o botão
-  de W.O. por abandono. Ver seção "Simulador Beta" acima; a subseção "UI
-  cliente" logo acima dela é só o registro histórico do fluxo original. Sem
+- `src/pages/SimulatorSandboxPage.tsx` — passo 4 (cliente): originalmente
+  lobby de partidas + tabuleiro (`MatchBoard`) num só arquivo, rota
+  `/simulador` (lazy-importada em `src/App.tsx` igual a `OrganizerPage`).
+  Reescrita por completo na wave "Simulador Beta" (2026-08-30) — fila de
+  matchmaking (escolher deck → aguardar oponente → tabuleiro), sem seleção
+  manual de assento; ganhou countdown do timer de turno, indicador de
+  presença do oponente e o botão de W.O. por abandono. **Reduzida na rodada
+  2 (2026-08-31, ver seção "tela de partida dedicada" acima)**: o
+  `MatchBoard` inline foi removido — esta página cuida só de fila/escolha de
+  deck/tela de espera, e navega pra `/simulador/partida/:matchId`
+  (`SimulatorMatchPage.tsx`) assim que os 2 jogadores são pareados. Sem
   teste unitário dedicado (mesmo padrão de `OrganizerPage.tsx` — nenhuma
   página React deste projeto tem hoje; a cobertura de regra fica nos testes
   do motor/servidor).
+- `src/pages/SimulatorMatchPage.tsx` (novo, rodada 2) — a tela de partida em
+  si: arte real das cartas, layout por zona, HUD dedicado. Rota
+  `/simulador/partida/:matchId`, lazy-importada igual às demais. Ver seção
+  "tela de partida dedicada" acima pra detalhe completo. Mesma observação de
+  cobertura de teste do item acima (sem teste unitário de página React).
 - `src/lib/api.ts` — passo 4 (cliente): métodos do simulador (todos sem
   cache — o tabuleiro sincroniza por SSE, não por polling) e
   `buildSimulatorStreamUrl()` (monta a URL do stream com `?token=`, já que
@@ -947,10 +1018,13 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   `joinSimulatorQueue`/`leaveSimulatorQueue`/`getSimulatorQueueStatus`/
   `pingSimulatorMatch`/`claimSimulatorAbandonWin` na wave "Simulador Beta";
   `listSimulatorMatches`/`createSimulatorMatch`/`joinSimulatorMatch`
-  mantidos só pro fallback de depuração/admin.
+  mantidos só pro fallback de depuração/admin. `listCards({ setCode })`
+  (já existente, usado no catálogo público) reaproveitado na rodada 2 pra
+  buscar a arte real das cartas do simulador.
 - `src/App.tsx` / `src/components/layout/private/PortalShell.tsx` — wave
   "Simulador Beta": rota `/simulador` deixou de ter `hosterOnly`, e
-  "Simulador Beta" entrou no menu de todo mundo (`userNav`).
+  "Simulador Beta" entrou no menu de todo mundo (`userNav`). Rodada 2: nova
+  rota `/simulador/partida/:matchId` → `SimulatorMatchPage`.
 - Testes: `*.test.ts` colocalizados com o código + `vitest run` (`pnpm
   test`), mesmo padrão de `server/deck-legality.test.ts`. 171 testes no
   total no momento desta atualização, cobrindo setup, fases, combate,
