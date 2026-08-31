@@ -63,6 +63,7 @@ function buildPlayer(id: PlayerId, deck: DeckList, rng: Rng, seqRef: { n: number
     battleArea: [],
     baseSection: [],
     trash: [],
+    exile: [],
     hand: [],
   };
 

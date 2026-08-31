@@ -25,6 +25,7 @@ function findCardIn(player: PlayerState, instanceId: string): CardInstance | und
     "battleArea",
     "baseSection",
     "trash",
+    "exile",
     "hand",
   ];
   for (const zone of zones) {
@@ -47,6 +48,7 @@ function removeFromZone(player: PlayerState, instanceId: string): CardInstance |
     "battleArea",
     "baseSection",
     "trash",
+    "exile",
     "hand",
   ];
   for (const zone of zones) {
@@ -87,6 +89,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     battleArea: player.battleArea.map(cloneCard),
     baseSection: player.baseSection.map(cloneCard),
     trash: player.trash.map(cloneCard),
+    exile: player.exile.map(cloneCard),
     hand: player.hand.map(cloneCard),
   };
 }
@@ -184,14 +187,25 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       player.trash.push(card);
       return state;
     }
-    // "Removido do jogo" — diferente de DESTROY_CARD, a carta não vai pro trash nem pra
-    // nenhuma outra zona, deixa de existir de vez. Hoje usado só pelo EX Resource (regra
-    // oficial: "When an EX Resource is used to pay a cost, that EX Resource is removed
-    // from the game", ver deploy.ts/payCostEvents), mas o evento é genérico o bastante
-    // pra qualquer token/carta que precise do mesmo destino no futuro.
+    // "Removido do jogo" — diferente de DESTROY_CARD, a carta não vai pro trash, vai pra
+    // zona `exile` (área de exílio, sempre pública — rodada 5, pedido do Willen de ter essa
+    // zona visível no tabuleiro em vez da carta só "sumir"). Hoje usado só pelo EX Resource
+    // (regra oficial: "When an EX Resource is used to pay a cost, that EX Resource is
+    // removed from the game", ver deploy.ts/payCostEvents), mas o evento é genérico o
+    // bastante pra qualquer token/carta que precise do mesmo destino no futuro.
     case "REMOVE_CARD_FROM_GAME": {
       const owner = findCardOwner(state, event.instanceId);
-      removeFromZone(state.players[owner], event.instanceId);
+      const player = state.players[owner];
+      const card = removeFromZone(player, event.instanceId);
+      if (!card) return state;
+      card.zone = "exile";
+      card.rested = false;
+      card.damage = 0;
+      card.statModifiers = [];
+      card.keywordGrants = [];
+      card.pairedPilotId = undefined;
+      card.pairedUnitId = undefined;
+      player.exile.push(card);
       return state;
     }
     case "DAMAGE_SHIELD": {

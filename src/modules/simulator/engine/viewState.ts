@@ -63,13 +63,14 @@ export interface ViewPlayerState {
   battleArea: ViewCardInstance[];
   baseSection: ViewCardInstance[];
   trash: ViewCardInstance[];
+  exile: ViewCardInstance[];
   hand: ViewCardInstance[];
   /** contagens redundantes com o tamanho dos arrays acima — conveniência pra UI não ter que contar `HiddenCard[]` */
   counts: Record<Zone, number>;
 }
 
 function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerState {
-  const zones: Zone[] = ["deck", "resourceDeck", "shields", "resourceArea", "battleArea", "baseSection", "trash", "hand"];
+  const zones: Zone[] = ["deck", "resourceDeck", "shields", "resourceArea", "battleArea", "baseSection", "trash", "exile", "hand"];
   const counts = Object.fromEntries(zones.map((zone) => [zone, player[zone].length])) as Record<Zone, number>;
   return {
     id: player.id,
@@ -80,6 +81,7 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     battleArea: player.battleArea.map((c) => redactCard(c, viewer)),
     baseSection: player.baseSection.map((c) => redactCard(c, viewer)),
     trash: player.trash.map((c) => redactCard(c, viewer)),
+    exile: player.exile.map((c) => redactCard(c, viewer)), // sempre pública, igual trash
     hand: player.hand.map((c) => redactCard(c, viewer)),
     counts,
   };

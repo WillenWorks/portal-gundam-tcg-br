@@ -147,10 +147,12 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
 
       const next = deployCard(state, "A", cardId, { resourceInstanceIds: [normalResource, exResourceId] });
 
-      // o Recurso normal continua em campo, só rested — o EX Resource desaparece de vez
+      // o Recurso normal continua em campo, só rested — o EX Resource vai pra área de exílio (zona `exile`, sempre pública)
       expect(next.players.A.resourceArea.some((r) => r.instanceId === normalResource && r.rested)).toBe(true);
       expect(next.players.A.resourceArea.some((r) => r.instanceId === exResourceId)).toBe(false);
       expect(next.players.A.resourceArea).toHaveLength(1);
+      expect(next.players.A.exile.some((c) => c.instanceId === exResourceId)).toBe(true);
+      expect(next.players.A.exile.find((c) => c.instanceId === exResourceId)!.zone).toBe("exile");
     });
   });
 

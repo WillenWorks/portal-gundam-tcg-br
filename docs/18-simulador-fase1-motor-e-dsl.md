@@ -1105,3 +1105,168 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   fora de `src/modules/simulator/` e `src/pages/` foram aditivas em
   `src/lib/api.ts` (novos métodos + imports de tipo, nenhum método existente
   tocado) e `src/App.tsx` (1 rota nova, mesmo padrão de `/organizador`).
+
+## Correção pós-teste visual (2026-08-31, rodada 4) — "botão Jogar bloqueado" não era bug de motor
+
+Willen reportou, com print: jogador no Turno 2, com EX Resource + 1 Resource
+normal em campo (2 recursos), tentando jogar "Demi Trainer" (ST01-008,
+level 1, custo 1) — o botão "Jogar" aparecia bloqueado.
+
+Investigação (simulação direta do motor via `applyPlayerAction`, reproduzindo
+exatamente o Turno 2 do segundo jogador): confirmado que `myTurnMain`/
+`commandTrigger` (SimulatorMatchPage.tsx) e o gate de level/custo do motor
+(`deploy.ts`) continuam corretos — não existe, nem existiu nesta wave, checagem
+de level/custo no cliente antes de habilitar o botão (isso é decisão do
+servidor no momento do clique). O padrão visual do print (Units cinza, só a
+Command com gatilho disponível destacada) bate exatamente com o estado
+simulado de **Action Step de fim de turno** (`endPhaseAction` não-nulo): nesse
+estado, `view.turnNumber` já pode mostrar o número do turno novo mas
+`view.phase` ainda é `"end"`, não `"main"` — e só cartas Command 【Action】
+podem ser jogadas ali, por regra oficial (Comprehensive Rules 7-6). Isto é,
+diagnóstico inicial: **não é bug**, é o jogador (ou o oponente) tendo clicado
+em "Encerrar turno" antes de perceber que ainda queria jogar a Demi Trainer.
+
+Willen mandou um segundo print (Turno com 4 recursos) contestando essa
+leitura ("era Main Phase, sem botão de confirmação de action") e, ao tentar
+clicar de novo prestando atenção, confirmou o motivo real:
+
+> "consegui clicar, mas como o botão está minúsculo e difícil de ver (o
+> hover não ajuda), não deu pra jogar ele."
+
+Ou seja: o botão "Jogar" (`h-5 ... text-[8px]`, um retângulo de poucos
+pixels embaixo de cada carta da mão) tinha alvo de clique pequeno demais e
+nenhum feedback visual forte de jogável/não-jogável — o que fazia qualquer
+tentativa de clique real (num celular ou trackpad, sem precisão de mouse de
+laboratório) falhar silenciosamente, e o Action Step de fim de turno
+(problema real, mas correto por regra) piorar a confusão porque nesse
+estado boa parte dos botões "Jogar" fica cinza mesmo. As duas coisas juntas
+motivaram o pedido de redesenho abaixo.
+
+## Plano de redesenho da tela de partida (rodada 5, 2026-08-31) — "Fase 1" implementada, Fase 2/3 no roadmap
+
+Pedido completo do Willen (resumo — mensagem original tem mais detalhe):
+tela cheia responsiva (com rotação automática em celular na vertical),
+playmat com posições oficiais de zona, indicadores numéricos visíveis,
+mensagem de troca de fase, cartas da mão com máscara (em vez de botão
+minúsculo) + preview em modal, 3 modos de automação de turno (manual/
+semi-automático/total, estilo Master Duel), seleção explícita de modalidade
+em cartas piloto-ou-comando, arte genérica de recursos/bases por set (ST01/
+ST02) reservando arte própria só pra deck construído pelo próprio jogador,
+e consistência do HUD/hub independente do tema do site.
+
+Decisões confirmadas com o Willen antes de codar (`AskUserQuestion`):
+1. **Automação por jogador, não global**: em modo automação total, cada
+   jogador só pula a PRÓPRIA confirmação — se eu ataco e o oponente tem
+   Blocker, quem escolhe o Blocker continua sendo o oponente (a automação
+   dele é decisão dele); se me atacam e eu estou em automação total como
+   defensor, meu Blocker nunca ativa sozinho (dano passa direto).
+2. **Zona `exile` persistente no motor** (não só contador visual) — cartas
+   removidas do jogo (hoje só o EX Resource usado pra pagar custo, rodada
+   3) passam a viver numa zona de verdade, inspecionável, em vez de só
+   desaparecer da memória. Aprovado apesar de ser mudança de modelo de
+   dado, não só de UI.
+3. **Organização em fases, começando pela Fase 1** nesta mesma rodada.
+4. **Fidelidade visual**: só a ESTRUTURA da referência que o Willen anexou
+   (print de outro simulador, tema claro, estilo Master Duel) — zonas e
+   posições —, mantendo o visual escuro "panel-cut" que o resto do Portal
+   Gundam já usa. Nenhuma tentativa de clonar o tema claro da referência.
+
+### Fases propostas
+
+- **Fase 1 (implementada nesta rodada, ver abaixo)**: tela cheia sem
+  `PortalShell`, playmat com posições oficiais, cartas da mão com
+  máscara+preview (sem mais botão minúsculo), zona `exile` de verdade no
+  motor e visível no tabuleiro, indicadores numéricos (recursos em campo =
+  nível, shields, deck, trash, exílio), flash de fase ao trocar de turno,
+  destaque forte pro Action Step (a causa real da confusão da rodada 4),
+  rotação automática em celular na vertical.
+- **Fase 2 (não iniciada)**: os 3 modos de automação de turno
+  (manual/semi-automático/total). Exige estado novo por jogador (preferência
+  de automação, provavelmente em `matchStore.ts`/`GameState` ou numa tabela
+  separada) e lógica de auto-resolução em `actions.ts` pra `finishTurn`
+  (perguntar só se há carta jogável), `declareAttack`/Action Step (só
+  perguntar se há Command 【Action】 disponível) e `activateBlocker`
+  (comportamento por jogador conforme decisão nº1 acima). Maior risco de
+  regra da leva toda — merece rodada própria com testes de motor dedicados
+  antes de tocar UI.
+- **Fase 3 (não iniciada)**: seleção explícita de modalidade em cartas
+  modais/piloto-ou-comando além do fluxo já existente (hoje: Pilot só pareia
+  se houver Unit sem piloto em campo, do contrário vira Command — regra já
+  respeitada, mas sem UI de escolha explícita quando cabem os dois);
+  arte genérica única de recurso/base por ST (ST01/ST02 hoje são os únicos
+  decks jogáveis, todos com a MESMA arte de recurso/base — só passa a fazer
+  sentido "arte própria aleatória" quando existir deck construído pelo
+  jogador com cartas de fontes diferentes, funcionalidade que ainda não
+  existe no simulador).
+
+### O que foi implementado na Fase 1
+
+Motor (`src/modules/simulator/engine/`):
+- `types.ts` — nona zona `Zone` = `"exile"`, campo `exile: CardInstance[]`
+  em `PlayerState`.
+- `events.ts` — `REMOVE_CARD_FROM_GAME` agora move a carta pra `player.exile`
+  (limpando dano/modificadores/pareamento, igual `DESTROY_CARD` faz pro
+  trash) em vez de só tirá-la de todas as zonas sem guardar em lugar
+  nenhum; `findCardIn`/`removeFromZone` passam a enxergar `exile`.
+- `setup.ts` — `exile: []` no `PlayerState` inicial.
+- `viewState.ts` — `exile` entra em `ViewPlayerState`/`counts`, sempre
+  pública (mesma regra do `trash`, nunca redigida).
+- `deploy.test.ts` — teste de regressão do EX Resource (rodada 3) atualizado
+  pra também confirmar que a carta aparece em `exile` com `zone: "exile"`,
+  não só que sumiu de `resourceArea`.
+
+UI (`src/pages/SimulatorMatchPage.tsx`, reescrita quase completa):
+- Sem `PortalShell` — a rota já é protegida por `RequireAuth` no
+  `App.tsx`, independente do Shell, então tirar o Shell não abre brecha de
+  autenticação.
+- Playmat por jogador em grid de 3 colunas: esquerda (Base, Shields,
+  Resource Deck), centro (Battle Area, 6 slots fixos), direita (Exílio,
+  Trash, Deck) — Resource Area numa faixa cheia abaixo da Battle Area, mão
+  na faixa mais externa. Oponente espelhado (mão virada/contador em cima,
+  Battle Area encostando na divisória do meio, igual à sua), menor e com
+  opacidade reduzida pra não competir visualmente com o seu lado.
+- Cartas da mão (`renderHandCard`): sem botão "Jogar" embutido — jogável
+  fica em cor cheia, não-jogável fica com `grayscale` + ícone de bloqueio
+  sobreposto. Clicar em qualquer carta da mão abre um preview compacto
+  (arte ampliada, nome, código, nível/custo) com "Fechar" sempre e "Jogar"
+  só quando jogável — quando não, mostra o motivo curto (ex.: "Action Step
+  de fim de turno -- só dá pra jogar Command 【Action】 agora.", "Não é sua
+  vez.", "Fora da sua Main Phase."). Resolve o relato original: alvo de
+  clique agora é a carta inteira (não um retângulo de 8px), e o motivo fica
+  explícito em vez de só ficar cinza sem explicação.
+- Aviso de Action Step (combate ou fim de turno) ganhou destaque forte
+  (âmbar, pulsante, com o botão "Passar" embutido) — antes era um card
+  discreto igual aos outros avisos, o que ajudou a mascarar a real causa
+  da confusão da rodada 4.
+- Flash de fase ao trocar de turno: sequência simulada "Fase de Manutenção
+  → Fase de Compra → Fase de Recurso → Main Phase" (~550ms cada). É
+  simulada porque o servidor roda Start/Draw/Resource numa única transição
+  (`advanceToMainPhase`, `phases.ts`) e só transmite o estado final de Main
+  Phase por SSE — não existe hoje um estado de rede real pra "Draw Phase
+  isolada" pro cliente observar. Uma versão com fases realmente
+  sequenciadas (servidor atrasando cada broadcast) é possível numa Fase
+  2/3 futura, se o Willen quiser esse nível de fidelidade.
+- Indicadores numéricos: "Recursos em campo (N) · Nível N" (deixa explícito
+  que o gate de nível usa TODOS os recursos em campo, rested ou não — ver
+  seção da rodada 3), contagem em Base/Exílio/Trash/Deck/Resource Deck/
+  Shields, tudo visível nos dois lados do tabuleiro.
+- Rotação automática em celular na vertical: `useIsPortraitMobile()` (media
+  query `(max-width: 900px) and (orientation: portrait)`) + wrapper com
+  `transform: rotate(90deg)` (truque de CSS — a Screen Orientation API real
+  exige fullscreen em vários browsers, então não é confiável aqui).
+
+Escopo consciente desta Fase 1 (não é regressão, é o que ficou pra Fase
+2/3, ver acima): sem modos de automação de turno, sem seleção explícita de
+modalidade em cartas piloto-ou-comando além do fluxo já existente, sem arte
+genérica compartilhada de recurso/base (`RESOURCE`/`TOKEN-EX-*` continuam
+caindo no fallback "sem arte" quando a busca em `/api/cards` não acha o
+`code` — não é regressão desta rodada, já era assim antes).
+
+Verificação: `tsc -b` limpo, `eslint` limpo nos arquivos tocados, `vitest
+run` 172/172 (mesma contagem — só uma asserção nova num teste já existente,
+não um teste novo), `vite build` OK. Sem teste unitário de página React
+(mesma limitação de sempre, documentada nas rodadas anteriores) — validação
+visual real depende de 2 sessões no ambiente do próprio Willen, já que este
+sandbox não consegue subir `server/index.ts` (falha importando
+`@prisma/client`, `prisma generate` não alcança o binário da engine pela
+rede restrita daqui).

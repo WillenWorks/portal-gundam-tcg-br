@@ -14,7 +14,13 @@ export function otherPlayer(player: PlayerId): PlayerId {
   return player === "A" ? "B" : "A";
 }
 
-/** As 8 zonas oficiais (ver docs/18, "Modelo de zonas"). */
+/**
+ * As 9 zonas do motor (ver docs/18, "Modelo de zonas"). `exile` foi
+ * adicionada na rodada 5 (pedido do Willen de mostrar uma "área de exílio"
+ * visível no tabuleiro) — antes disso, `REMOVE_CARD_FROM_GAME` tirava a
+ * carta de qualquer zona sem guardar em lugar nenhum (ela só "desaparecia").
+ * Continua sendo uma zona sempre pública (igual trash), ver viewState.ts.
+ */
 export type Zone =
   | "deck"
   | "resourceDeck"
@@ -23,6 +29,7 @@ export type Zone =
   | "battleArea"
   | "baseSection"
   | "trash"
+  | "exile"
   | "hand";
 
 export type CardType = "UNIT" | "PILOT" | "COMMAND" | "BASE" | "RESOURCE";
@@ -211,6 +218,8 @@ export interface PlayerState {
   battleArea: CardInstance[];
   baseSection: CardInstance[];
   trash: CardInstance[];
+  /** Cartas removidas do jogo (ex.: EX Resource usado pra pagar custo) — sempre pública, nunca some de vez. */
+  exile: CardInstance[];
   hand: CardInstance[];
 }
 
