@@ -71,6 +71,65 @@ export interface CardDef {
    * tiver algum desses traits (ex. link "(OZ) Trait").
    */
   link?: { kind: "pilotName" | "trait"; values: string[] };
+
+  /**
+   * Modificador estático contínuo (Comprehensive Rules 10-2) — ao contrário
+   * de `StatModifier` (aplicado uma vez, via evento, quando algo acontece),
+   * isto é reavaliado a cada consulta de `effectiveAp`/`effectiveHp`: vale
+   * enquanto a condição for verdadeira, some sozinho quando deixar de ser
+   * (ex.: Pilot desparelha, Link deixa de ser satisfeito), sem precisar de
+   * `CLEAR_TURN_MODIFIERS` nem de nenhum evento de "remover buff".
+   * `condition` é sobre a carta que TEM esta ability (a fonte); `scope`
+   * decide quem recebe o bônus:
+   * - "self": a própria fonte (só faz sentido se a fonte for uma Unit).
+   * - "pairedUnit": a Unit pareada com esta carta (ability definida no
+   *   Pilot, ex. ST02-010 Heero Yuy — "This Unit" no texto é a Unit pareada).
+   * - "allFriendlyUnits": toda Unit amiga na Battle Area do controller da
+   *   fonte (ex. ST01-001 Gundam — "all your Units").
+   */
+  staticAbilities?: StaticAbility[];
+
+  /**
+   * Habilidade condicionada a 【During Link】 que reage a um evento de
+   * combate (não é modificador de stat contínuo — ver `staticAbilities`
+   * acima pra isso). Hoje só cobre "destruiu inimigo em batalha" (o único
+   * gatilho usado por ST02-003/ST02-011), mas o desenho é genérico o
+   * bastante pra outro gatilho futuro reaproveitar. Pode estar tanto numa
+   * Unit (`condition: "duringPair"`, ex. ST02-003 Heavyarms) quanto num
+   * Pilot (`condition: "duringLink"`, ex. ST02-011 Zechs — "this Unit" =
+   * a Unit pareada com o Pilot que tem o campo).
+   */
+  combatTriggers?: CombatTrigger[];
+
+  /**
+   * Restrições/relaxamentos de legalidade da própria declaração de ataque
+   * (Attack Step) — não são efeitos que produzem `GameEvent`, são regras de
+   * "o que é permitido escolher como alvo" (ver docs/18, lacuna #6).
+   */
+  attackTargetRules?: {
+    /** ex. ST01-009 Zowort: "This Unit can't choose the enemy player as its attack target." */
+    cannotTargetPlayer?: boolean;
+    /** ex. ST02-001 Wing Gundam: pode escolher Unit inimiga ACTIVE (não só rested) até este level */
+    mayTargetActiveEnemyUnit?: { maxLevel: number };
+  };
+}
+
+export type StaticEffectCondition = "duringPair" | "duringLink";
+export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
+
+export interface StaticAbility {
+  condition: StaticEffectCondition;
+  scope: StaticEffectScope;
+  stat: StatKey;
+  amount: number;
+  /** ex. ST01-001 Gundam: "During Pair, DURING YOUR TURN, all your Units get AP+1" — só vale enquanto for o turno do controller da fonte. Omitido/false = vale sempre (ex. ST02-010 Heero Yuy, sem essa qualificação no texto). */
+  duringYourTurnOnly?: boolean;
+}
+
+export interface CombatTrigger {
+  condition: StaticEffectCondition;
+  on: "destroyEnemyInBattle";
+  action: { kind: "draw"; amount: number } | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number };
 }
 
 export type StatKey = "ap" | "hp";
@@ -126,20 +185,71 @@ export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boo
   return link.values.some((trait) => (pilotDef.traits ?? []).includes(trait));
 }
 
-export function effectiveAp(card: CardInstance): number {
+/** Busca só dentro da Battle Area de `owner` — pareamento (Pilot<->Unit) só existe ali, então isso evita depender de `findCard` (events.ts), que importaria de volta `types.ts` (ciclo). */
+function findInBattleArea(state: GameState, owner: PlayerId, instanceId: string): CardInstance | undefined {
+  return state.players[owner].battleArea.find((c) => c.instanceId === instanceId);
+}
+
+function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
+  if (condition === "duringPair") {
+    if (source.def.cardType === "UNIT") return !!source.pairedPilotId;
+    if (source.def.cardType === "PILOT") return !!source.pairedUnitId;
+    return false;
+  }
+  // duringLink: precisa achar o outro lado do pareamento e checar satisfiesLinkCondition (3-2-6)
+  if (source.def.cardType === "UNIT" && source.pairedPilotId) {
+    const pilot = findInBattleArea(state, source.owner, source.pairedPilotId);
+    return !!pilot && satisfiesLinkCondition(pilot.def, source.def);
+  }
+  if (source.def.cardType === "PILOT" && source.pairedUnitId) {
+    const unit = findInBattleArea(state, source.owner, source.pairedUnitId);
+    return !!unit && satisfiesLinkCondition(source.def, unit.def);
+  }
+  return false;
+}
+
+function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
+  let bonus = 0;
+  const owner = state.players[target.owner];
+  for (const source of owner.battleArea) {
+    for (const ability of source.def.staticAbilities ?? []) {
+      if (ability.stat !== stat) continue;
+      if (!isStaticAbilityActive(state, source, ability.condition)) continue;
+      if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      const includesTarget =
+        ability.scope === "allFriendlyUnits"
+          ? target.def.cardType === "UNIT"
+          : ability.scope === "pairedUnit"
+            ? source.pairedUnitId === target.instanceId
+            : source.instanceId === target.instanceId; // "self"
+      if (includesTarget) bonus += ability.amount;
+    }
+  }
+  return bonus;
+}
+
+/**
+ * `state` é opcional só pra não quebrar callers que ainda não têm acesso a
+ * ele (ex. algum teste sintético isolado) — sempre que disponível, passe-o:
+ * sem `state`, bônus estáticos (`staticAbilities`, ex. 【During Pair】/【During
+ * Link】) não são computados, e o resultado fica incompleto.
+ */
+export function effectiveAp(card: CardInstance, state?: GameState): number {
   const base = card.def.ap ?? 0;
   const bonus = card.statModifiers
     .filter((m) => m.stat === "ap")
     .reduce((sum, m) => sum + m.amount, 0);
-  return Math.max(0, base + bonus);
+  const staticBonus = state ? computeStaticStatBonus(card, state, "ap") : 0;
+  return Math.max(0, base + bonus + staticBonus);
 }
 
-export function effectiveHp(card: CardInstance): number {
+export function effectiveHp(card: CardInstance, state?: GameState): number {
   const base = card.def.hp ?? 0;
   const bonus = card.statModifiers
     .filter((m) => m.stat === "hp")
     .reduce((sum, m) => sum + m.amount, 0);
-  return Math.max(0, base + bonus);
+  const staticBonus = state ? computeStaticStatBonus(card, state, "hp") : 0;
+  return Math.max(0, base + bonus + staticBonus);
 }
 
 export function hasKeyword(card: CardInstance, keyword: string): boolean {
@@ -178,6 +288,42 @@ export type CombatStep = "attack" | "block" | "action" | "damage" | "battleEnd";
 
 export type AttackTarget = "player" | { unitId: string };
 
+/**
+ * Decisão interativa pendente de UM jogador (docs/19, Sessão 2). O motor
+ * puro PAUSA e escreve isto em `GameState.pendingDecision[player]` quando
+ * chega num ponto que exige escolha real de quem está jogando (ativar Burst
+ * de uma shield quebrada, ordenar gatilhos simultâneos, escolher alvo de uma
+ * habilidade). Enquanto `pendingDecision[player]` não for `null`, é a vez
+ * DAQUELE jogador resolver — nenhuma outra ação avança o estado. O
+ * `server/matchStore.ts` lê isto em `decisionOwner()` pra saber de quem é o
+ * relógio; o `viewState` repassa pros dois lados (o oponente vê que há uma
+ * decisão pendente, mas o conteúdo só embute `instanceId`/carta já pública).
+ */
+export type PendingDecision =
+  | {
+      kind: "burst";
+      /** shield quebrada agora, com 【Burst】, aguardando ativar ou mandar pro trash */
+      cardInstanceId: string;
+      cardDef: CardDef;
+      /** rótulos de sub-efeito quando o Burst tem modos (hoje sempre `[]` — Burst é ativar/recusar) */
+      choices: string[];
+      /** outras shields quebradas no MESMO Damage Step, ainda por decidir (fila FIFO) — resolvida uma por vez */
+      queuedInstanceIds: string[];
+    }
+  | {
+      kind: "triggerOrder";
+      /** `trigger` = rótulo do textSectionsJson ("Deploy"/"Destroyed"/...) que o dispatcher usa; `label` = texto pra UI. */
+      triggers: Array<{ instanceId: string; specId: string; trigger: string; label: string }>;
+    }
+  | {
+      kind: "targetSelection";
+      sourceInstanceId: string;
+      /** trigger/habilidade que pediu o alvo — pra quem resolve saber o que continuar */
+      specId: string;
+      validTargetIds: string[];
+      count: number;
+    };
+
 export interface CombatState {
   step: CombatStep;
   attackerId: string;
@@ -192,6 +338,15 @@ export interface CombatState {
   actionPasses: Record<PlayerId, boolean>;
   /** jogador que deve agir no Action Step agora (começa pelo jogador em espera) */
   actionPriority: PlayerId;
+  /**
+   * ST02-013 Peaceful Timbre: "During this battle, your shield area cards
+   * can't receive damage from enemy Units that are Lv.4 or lower." Vive em
+   * `combat`, não em `GameState` direto, porque dura só "esta batalha" — some
+   * sozinho quando `COMBAT_ENDED` zera `state.combat` (Battle End Step), sem
+   * precisar de mais nenhuma limpeza. Só protege `defendingPlayer` (o único
+   * jogador cujos shields podem receber dano nesta batalha).
+   */
+  shieldProtection?: { maxAttackerLevel: number } | null;
 }
 
 /**
@@ -244,6 +399,13 @@ export interface GameState {
   combat: CombatState | null;
   /** não-nulo só durante o Action Step da End Phase (ver EndPhaseActionState) */
   endPhaseAction: EndPhaseActionState | null;
+  /**
+   * Decisão interativa pendente por jogador (docs/19, Sessão 2 — ver
+   * `PendingDecision`). `null` pros dois = ninguém tem decisão travada.
+   * No máximo um lado tem decisão pendente por vez no fluxo atual (Burst só
+   * do defensor; triggerOrder/targetSelection só de quem controla o efeito).
+   */
+  pendingDecision: Record<PlayerId, PendingDecision | null>;
   players: Record<PlayerId, PlayerState>;
   eventLog: GameEvent[];
   gameOver: GameOverInfo | null;
@@ -277,6 +439,12 @@ export type GameEvent =
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
   | { type: "DISCARD_TO_HAND_LIMIT"; player: PlayerId; instanceIds: string[] }
   | { type: "PAIR_CARDS"; pilotId: string; unitId: string }
+  /** Cria uma instância nova em jogo a partir de um `CardDef` (token) — CR 3-1. Nunca usado no setup (setup.ts instancia direto); só por efeito de carta em tempo de jogo. */
+  | { type: "SPAWN_TOKEN"; player: PlayerId; def: CardDef; zone: Zone; rested?: boolean }
+  /** Reordena 1 carta dentro do próprio deck do jogador (ex.: "look at the top N, return 1 to the top and 1 to the bottom") sem trocar de zona. */
+  | { type: "MOVE_WITHIN_DECK"; instanceId: string; position: "top" | "bottom" }
+  /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
+  | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }
@@ -285,4 +453,7 @@ export type GameEvent =
   | { type: "BEGIN_END_PHASE_ACTION_STEP"; priority: PlayerId }
   | { type: "END_PHASE_ACTION_PASS"; player: PlayerId }
   | { type: "END_END_PHASE_ACTION_STEP" }
+  /** docs/19 Sessão 2 — grava/limpa a decisão interativa pendente de um jogador (ver `PendingDecision`). */
+  | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
+  | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
   | { type: "GAME_OVER"; winner: PlayerId; reason: GameOverInfo["reason"] };

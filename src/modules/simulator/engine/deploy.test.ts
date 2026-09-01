@@ -207,6 +207,32 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
       const moveEvent = next.eventLog.find((e) => e.type === "MOVE_CARD" && "instanceId" in e && e.instanceId === oldBaseId);
       expect(moveEvent).toBeDefined();
     });
+
+    it("Base real (ST01-015 White Base): o 【Deploy】 'add 1 shield to hand' dispara sozinho, sem precisar escolher shield", () => {
+      const state = freshMainPhase();
+      giveResources(state, "A", 6);
+      const firstShieldId = state.players.A.shields[0].instanceId;
+      const handBefore = state.players.A.hand.length;
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "hand");
+
+      const next = deployCard(state, "A", baseId, { specs: ST01_EFFECT_SPECS }); // sem `targets`
+
+      expect(next.players.A.baseSection.map((c) => c.instanceId)).toEqual([baseId]);
+      expect(findCard(next, firstShieldId).zone).toBe("hand");
+      // mão = handBefore (+1 pelo `place` da base, -1 base deployada, +1 shield que entrou)
+      expect(next.players.A.hand.length).toBe(handBefore + 1);
+    });
+
+    it("Base real com 0 shields: deploya normalmente, o 【Deploy】 só não move nada", () => {
+      const state = freshMainPhase();
+      giveResources(state, "A", 6);
+      state.players.A.shields = [];
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "hand");
+
+      const next = deployCard(state, "A", baseId, { specs: ST01_EFFECT_SPECS });
+
+      expect(next.players.A.baseSection.map((c) => c.instanceId)).toEqual([baseId]);
+    });
   });
 
   describe("Pilot — nunca despareado em campo (Comprehensive Rules 3-3-1/5-9)", () => {

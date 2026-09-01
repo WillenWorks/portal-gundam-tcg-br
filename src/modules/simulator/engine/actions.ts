@@ -1,10 +1,12 @@
 import type { AttackTarget, GameState, PlayerId } from "./types";
 import type { EffectSpec, PredicateResolver } from "./effectSpec";
-import { findCard } from "./events";
+import { applyEvent, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
-import { dispatchBurstForNewlyTrashedShields } from "./dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
+import { activateSupport } from "./keywords";
+import { hasKeyword, otherPlayer } from "./types";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -32,16 +34,16 @@ import { dispatchBurstForNewlyTrashedShields } from "./dispatcher";
  * encadeia isso, do mesmo jeito que `runAttack()` já fazia em
  * `st01VsSt02Match.test.ts`.
  *
- * Escopo desta wave (documentado, não fingido — mesma convenção do resto do
- * docs/18): 【Burst】 de shield sempre é recusado automaticamently
- * (`chooseBurst` default `() => false` de `dispatcher.ts`) — ativar Burst por
- * escolha real do jogador exige um ponto de decisão na UI que ainda não
- * existe. Do mesmo jeito, gatilhos que dependem de alvo escolhido fora de
- * Deploy/When Paired (ex. `<Attack>` da Suletta Mercury, `<Activate·Main>` do
- * Tallgeese, Command 【Action】além do fluxo padrão) não têm `PlayerAction`
- * própria ainda — o núcleo jogável (deploy, ataque, bloqueio, passar turno)
- * já é suficiente pra validar a arquitetura de sessão dupla/redação de
- * informação, que é o objetivo desta wave.
+ * docs/19, Sessão 2 — decisões interativas: 【Burst】 de shield quebrada
+ * agora PAUSA o Damage Step e vira uma `PendingDecision` do defensor
+ * (`GameState.pendingDecision`), resolvida por `resolveBurstDecision`
+ * (ativar/recusar) em vez do `chooseBurst` fixo `() => false` de antes.
+ * Habilidades ativadas (【Activate·Main】 de Tallgeese/White Base/Asticassia,
+ * `<Support N>`) têm `activateAbility`. `resolveTriggerOrder` existe pro
+ * caso de gatilhos simultâneos, mas nenhum EffectSpec de ST01/ST02 dispara
+ * 2 triggers de cartas diferentes no mesmo evento ainda, então o motor
+ * nunca chega a emitir esse `PendingDecision` na prática (o tipo está
+ * pronto pra quando um card assim entrar).
  */
 export type PlayerAction =
   | {
@@ -63,7 +65,19 @@ export type PlayerAction =
   | { kind: "skipBlock" }
   | { kind: "passAction" }
   | { kind: "finishTurn" }
-  | { kind: "passEndPhaseAction" };
+  | { kind: "passEndPhaseAction" }
+  /**
+   * 【Activate·Main】 / `<Support N>` de uma carta em campo. Se a carta tem um
+   * EffectSpec de trigger "Activate·Main", ele é despachado (com `targets`);
+   * senão, se tiver `<Support>`, cai em `activateSupport()` (alvo em
+   * `targets.target[0]`). `abilityIndex` reservado pra cartas com mais de
+   * uma habilidade ativada (nenhuma de ST01/ST02 tem — default 0).
+   */
+  | { kind: "activateAbility"; sourceInstanceId: string; abilityIndex?: number; targets?: Record<string, string[]> }
+  /** Resolve a `PendingDecision` de 【Burst】 do defensor (ver `passAction`). `activate: false` = manda a shield pro trash. */
+  | { kind: "resolveBurstDecision"; activate: boolean; targets?: Record<string, string[]> }
+  /** Resolve a `PendingDecision` de ordenação de gatilhos simultâneos (ordem em que os efeitos resolvem). */
+  | { kind: "resolveTriggerOrder"; orderedSpecIds: string[] };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
@@ -77,6 +91,22 @@ export function applyPlayerAction(
   specs: EffectSpec[],
   predicateResolver?: PredicateResolver,
 ): GameState {
+  // Decisão interativa pendente trava tudo (docs/19, Sessão 2): enquanto o
+  // defensor não resolve o Burst (ou quem controla não ordena os gatilhos),
+  // nenhuma outra ação — de nenhum dos dois — avança o estado.
+  if (state.pendingDecision[otherPlayer(actingPlayer)]) {
+    throw new Error("Aguardando o oponente resolver uma decisão pendente (Burst / ordem de gatilhos)");
+  }
+  const myPending = state.pendingDecision[actingPlayer];
+  if (myPending) {
+    if (myPending.kind === "burst" && action.kind !== "resolveBurstDecision") {
+      throw new Error("Resolva a decisão de 【Burst】 pendente antes de qualquer outra ação");
+    }
+    if (myPending.kind === "triggerOrder" && action.kind !== "resolveTriggerOrder") {
+      throw new Error("Ordene os gatilhos simultâneos pendentes antes de qualquer outra ação");
+    }
+  }
+
   switch (action.kind) {
     case "deployCard":
       return deployCard(state, actingPlayer, action.cardInstanceId, {
@@ -132,7 +162,13 @@ export function applyPlayerAction(
       if (next.gameOver) return next; // GAME_OVER pode disparar dentro do próprio Damage Step
 
       const defendingPlayer = beforeDamage.combat!.defendingPlayer;
-      next = dispatchBurstForNewlyTrashedShields(beforeDamage, next, defendingPlayer, specs, () => false, predicateResolver);
+      const burstIds = burstEligibleShieldIds(beforeDamage, next, defendingPlayer, specs);
+      if (burstIds.length > 0) {
+        // PAUSA autoritativa (docs/19, Sessão 2): combate fica parado no Damage
+        // Step, o defensor decide via `resolveBurstDecision`. O Battle End só
+        // roda quando a fila de Burst esvazia.
+        return setPendingBurst(next, defendingPlayer, burstIds);
+      }
       return resolveBattleEndStep(next);
     }
 
@@ -154,5 +190,125 @@ export function applyPlayerAction(
       if (next.endPhaseAction) return next; // ainda falta o outro jogador passar
       return finishEndPhaseAndAdvance(next);
     }
+
+    case "activateAbility": {
+      const source = findCard(state, action.sourceInstanceId);
+      if (source.owner !== actingPlayer) throw new Error("Só dá pra ativar habilidade de uma carta própria");
+
+      // 【Activate·Main】 (fora de combate) ou 【Activate·Action】 (no Action Step de combate).
+      const inActionStep = state.combat?.step === "action";
+      const trigger = inActionStep ? "Activate·Action" : "Activate·Main";
+      if (!inActionStep) {
+        if (state.phase !== "main") throw new Error("【Activate·Main】 só pode ser ativado na Main Phase");
+        if (state.combat) throw new Error("【Activate·Main】 não pode ser ativado durante um combate");
+        if (state.activePlayer !== actingPlayer) throw new Error("Só o jogador ativo pode ativar 【Activate·Main】");
+      } else if (state.combat!.actionPriority !== actingPlayer) {
+        throw new Error("Não é a prioridade desse jogador no Action Step");
+      }
+
+      const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
+      if (abilitySpecs.length > 0) {
+        return dispatchTrigger(state, action.sourceInstanceId, trigger, specs, {
+          targets: action.targets,
+          predicateResolver,
+        });
+      }
+
+      // Sem EffectSpec de 【Activate·Main】 — cai em `<Support N>` (keyword de motor).
+      if (hasKeyword(source, "Support")) {
+        const supportTargetId = action.targets?.target?.[0];
+        if (!supportTargetId) throw new Error("<Support> precisa de uma Unit amiga alvo (targets.target[0])");
+        return activateSupport(state, action.sourceInstanceId, supportTargetId);
+      }
+
+      throw new Error(`${source.def.code} não tem 【Activate·Main】 nem <Support> pra ativar`);
+    }
+
+    case "resolveBurstDecision": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "burst") {
+        throw new Error("Não há decisão de 【Burst】 pendente pra esse jogador");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      if (action.activate) {
+        next = dispatchTrigger(next, decision.cardInstanceId, "Burst", specs, {
+          targets: action.targets ?? {},
+          predicateResolver,
+        });
+      }
+      if (decision.queuedInstanceIds.length > 0) {
+        return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds);
+      }
+      // Fila esvaziou: fecha o combate se ele ainda está parado no Damage Step.
+      if (!next.gameOver && next.combat?.step === "damage") {
+        next = resolveBattleEndStep(next);
+      }
+      return next;
+    }
+
+    case "resolveTriggerOrder": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "triggerOrder") {
+        throw new Error("Não há gatilhos simultâneos pendentes pra ordenar");
+      }
+      const pending = [...decision.triggers.map((t) => t.specId)].sort();
+      const given = [...action.orderedSpecIds].sort();
+      if (pending.length !== given.length || pending.some((id, i) => id !== given[i])) {
+        throw new Error("A ordem precisa listar exatamente os gatilhos pendentes, sem repetir nem faltar");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      for (const specId of action.orderedSpecIds) {
+        const trig = decision.triggers.find((t) => t.specId === specId)!;
+        // filtra `specs` pro spec exato — dispatchTrigger roda todos os specs de
+        // (cardCode, trigger); aqui a gente já sabe qual é a ordem escolhida.
+        next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
+          predicateResolver,
+        });
+      }
+      return next;
+    }
   }
+}
+
+/**
+ * `player` tem alguma jogada REAL disponível no Action Step atual (combate ou
+ * fim de turno)? Usado pelo auto-pass inteligente (docs/19, Sessão 2, tarefa
+ * 4 — CR 7-6 / 8-4): se o jogador com prioridade optou por `autoPassActionStep`
+ * E não tem nada pra fazer aqui, o servidor passa na hora, sem esperar o
+ * timer de 90s. "Jogada real" = Command 【Action】 jogável agora (nível +
+ * custo pagáveis) ou 【Activate·Action】 de carta em campo ainda não usado.
+ */
+export function playerHasActionStepPlay(state: GameState, player: PlayerId, specs: EffectSpec[]): boolean {
+  const p = state.players[player];
+  const activeResources = p.resourceArea.filter((r) => !r.rested).length;
+  const totalResources = p.resourceArea.length;
+
+  for (const card of p.hand) {
+    if (card.def.cardType !== "COMMAND") continue;
+    if (!card.def.triggerKeywords?.includes("Action")) continue;
+    if (totalResources < (card.def.level ?? 0)) continue;
+    if (activeResources < (card.def.cost ?? 0)) continue;
+    return true;
+  }
+
+  for (const zone of ["battleArea", "baseSection"] as const) {
+    for (const card of p[zone]) {
+      if (findTriggerSpecs(specs, card.def.code, "Activate·Action").length === 0) continue;
+      if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Activate·Action")) continue;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Grava a decisão de 【Burst】 do defensor pra 1ª shield da fila; o resto fica em `queuedInstanceIds`. */
+function setPendingBurst(state: GameState, player: PlayerId, shieldIds: string[]): GameState {
+  const [first, ...rest] = shieldIds;
+  const card = findCard(state, first);
+  return applyEvent(state, {
+    type: "SET_PENDING_DECISION",
+    player,
+    decision: { kind: "burst", cardInstanceId: first, cardDef: card.def, choices: [], queuedInstanceIds: rest },
+  });
 }

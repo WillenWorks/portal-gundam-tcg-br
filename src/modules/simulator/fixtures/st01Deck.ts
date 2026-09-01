@@ -46,6 +46,12 @@ const GUNDAM: CardDef = {
   triggerKeywords: ["During Pair"],
   keywordTags: ["Repair 2", "During Pair"],
   link: { kind: "pilotName", values: ["Amuro Ray"] },
+  // 【During Pair】During your turn, all your Units get AP+1. — modificador
+  // estático (Comprehensive Rules 10-2, docs/18 lacuna #2): ativo sempre que
+  // esta Unit tiver QUALQUER Pilot pareado (não precisa satisfazer Link),
+  // aplica +1 AP a TODA Unit amiga (não só a si mesma). Ver
+  // effectiveAp()/computeStaticStatBonus() em engine/types.ts.
+  staticAbilities: [{ condition: "duringPair", scope: "allFriendlyUnits", stat: "ap", amount: 1, duringYourTurnOnly: true }],
 };
 
 const GUNDAM_MA_FORM: CardDef = {
@@ -157,10 +163,9 @@ const ZOWORT: CardDef = {
   traits: ["Academy"],
   effectKeywords: ["Blocker"],
   keywordTags: ["Blocker"],
-  // + "This Unit can't choose the enemy player as its attack target." — restrição
-  // estática de alvo de ataque, não modelada ainda (nem keyword de motor nem
-  // EffectSpec cobrem "restringir a legalidade da própria declaração de
-  // ataque" hoje — ver docs/18, tabela de cobertura ST01).
+  // "This Unit can't choose the enemy player as its attack target." — legalidade
+  // de ataque (docs/18, lacuna #6), aplicada em combat.ts/declareAttack.
+  attackTargetRules: { cannotTargetPlayer: true },
 };
 
 const AMURO_RAY: CardDef = {
@@ -243,13 +248,44 @@ const WHITE_BASE: CardDef = {
   keywordTags: ["Burst", "Deploy", "Activate · Main", "Once per Turn"],
   hasBurst: true,
   oncePerTurn: true,
-  // 【Activate･Main】【Once per Turn】②：deploy token condicional por
-  // quantidade de Units em campo — fora do escopo desta wave: precisa de (a)
-  // uma primitiva de "criar instância nova a partir de um CardDef" (hoje só
-  // `setup.ts` instancia carta, e só no setup inicial — nenhum GameEvent
-  // cobre "criar token"), e (b) uma primitiva de "pagar custo de recurso
-  // genérico" (hoje só existe custo expresso como PrimitiveCall[], sem
-  // noção de gastar recurso). Ver docs/18, tabela de cobertura ST01.
+  // 【Activate･Main】【Once per Turn】②：Deploy 1 [Gundam] token se 0 Units em
+  // campo, [Guncannon] token se 1 Unit, ou [Guntank] token se 2+ Units — ver
+  // WHITE_BASE_ACTIVATE_MAIN em content/st01.ts (usa `spawnTokenByOwnUnitCount`
+  // + `payResourceCost`, docs/18 lacunas #3/#4, agora fechadas).
+};
+
+/** Tokens do 【Activate･Main】 de White Base — códigos oficiais T-001/T-002/T-003 (data/gcg-official-cards.json), stats "genéricos" (mais fracos que as versões reais ST01-001/003/004, sem keyword nem link). */
+export const TOKEN_GUNDAM: CardDef = {
+  code: "T-001",
+  nameEn: "Gundam",
+  cardType: "UNIT",
+  color: "blue",
+  ap: 3,
+  hp: 3,
+  traits: ["White Base Team"],
+  isToken: true,
+};
+
+export const TOKEN_GUNCANNON: CardDef = {
+  code: "T-002",
+  nameEn: "Guncannon",
+  cardType: "UNIT",
+  color: "blue",
+  ap: 2,
+  hp: 2,
+  traits: ["White Base Team"],
+  isToken: true,
+};
+
+export const TOKEN_GUNTANK: CardDef = {
+  code: "T-003",
+  nameEn: "Guntank",
+  cardType: "UNIT",
+  color: "blue",
+  ap: 1,
+  hp: 1,
+  traits: ["White Base Team"],
+  isToken: true,
 };
 
 const ASTICASSIA: CardDef = {
@@ -266,11 +302,8 @@ const ASTICASSIA: CardDef = {
   keywordTags: ["Burst", "Deploy", "Activate · Main"],
   hasBurst: true,
   // 【Activate･Main】Rest this Base：All friendly Link Units get AP+1 during
-  // this turn — fora do escopo desta wave: `TargetRef`/`resolveTarget` hoje
-  // só resolvem 1 instanceId por primitiva (mesmo `{kind:"named"}` usa só
-  // `group[0]`), não têm um jeito de aplicar a mesma primitiva a um GRUPO
-  // inteiro de alvos ("all friendly Link Units"). Ver docs/18, tabela de
-  // cobertura ST01.
+  // this turn — ver ASTICASSIA_ACTIVATE_MAIN em content/st01.ts (usa
+  // `TargetRef.kind: "group"`, docs/18 lacuna #5, agora fechada).
 };
 
 const RESOURCE: CardDef = {
@@ -333,4 +366,7 @@ export const ST01_CARD_DEFS = {
   WHITE_BASE,
   ASTICASSIA,
   RESOURCE,
+  TOKEN_GUNDAM,
+  TOKEN_GUNCANNON,
+  TOKEN_GUNTANK,
 };

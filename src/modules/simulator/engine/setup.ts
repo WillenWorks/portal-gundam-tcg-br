@@ -27,10 +27,11 @@ const EX_BASE_TOKEN: CardDef = {
   isToken: true,
 };
 
-/** Exportado pra deploy.ts poder reconhecer o token na hora de pagar custo — ver payCostEvents(). */
+/** Exportado pra costs.ts poder reconhecer o token na hora de pagar custo — ver payResourceCostEvents(). */
 export const TOKEN_EX_RESOURCE_CODE = "TOKEN-EX-RESOURCE";
 
-const EX_RESOURCE_TOKEN: CardDef = {
+/** Exportado pra content/st02.ts poder instanciar 1 via `spawnToken` (ST02-002 Wing Gundam Bird Mode — "Place 1 EX Resource"). */
+export const EX_RESOURCE_TOKEN: CardDef = {
   code: TOKEN_EX_RESOURCE_CODE,
   nameEn: "EX Resource",
   cardType: "RESOURCE",
@@ -144,6 +145,7 @@ export function createGame(deckA: DeckList, deckB: DeckList, options: CreateGame
     phase: "start",
     combat: null,
     endPhaseAction: null,
+    pendingDecision: { A: null, B: null },
     players,
     eventLog: [],
     gameOver: null,

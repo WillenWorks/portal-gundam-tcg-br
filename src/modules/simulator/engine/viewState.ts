@@ -87,12 +87,29 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
   };
 }
 
+/**
+ * Quantos eventos do `eventLog` vão pra rede por visão (docs/19, Sessão 4 —
+ * "sem memory leak / performance"). O `eventLog` real cresce o jogo inteiro
+ * e é reenviado a cada ação via SSE; um jogo longo passa de centenas de
+ * eventos. 150 cobre o feed de batalha (que é um histórico recente, não um
+ * replay) com folga. O histórico COMPLETO ainda vai no relatório de bug
+ * (`reportSituation` no servidor, que loga `match.state` inteiro).
+ */
+const EVENT_LOG_WINDOW = 150;
+
 export interface ViewGameState {
   turnNumber: number;
   activePlayer: PlayerId;
   phase: GameState["phase"];
   combat: GameState["combat"];
   endPhaseAction: GameState["endPhaseAction"];
+  /**
+   * Decisão interativa pendente por jogador (docs/19, Sessão 2). Repassado
+   * como está: o `cardDef` embutido numa decisão de 【Burst】 é de uma shield
+   * que já foi pro trash (zona pública), e as outras variantes só carregam
+   * `instanceId`/`specId` — nada que revele carta oculta pro oponente.
+   */
+  pendingDecision: GameState["pendingDecision"];
   gameOver: GameState["gameOver"];
   eventLog: GameState["eventLog"];
   /** de quem é este ponto de vista — a UI usa isso pra saber "sou eu" sem precisar de mais contexto */
@@ -115,8 +132,9 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     phase: state.phase,
     combat: state.combat,
     endPhaseAction: state.endPhaseAction,
+    pendingDecision: state.pendingDecision,
     gameOver: state.gameOver,
-    eventLog: state.eventLog,
+    eventLog: state.eventLog.slice(-EVENT_LOG_WINDOW),
     viewer,
     players: {
       [viewer]: redactPlayerState(state.players[viewer], viewer),

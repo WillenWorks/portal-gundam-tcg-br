@@ -38,19 +38,58 @@
  * automação (manual/semi/total, estilo Master Duel), arte genérica de
  * recursos/bases compartilhada por set, seleção explícita de modalidade em
  * cartas modais/piloto-ou-comando além do fluxo já existente.
+ *
+ * docs/19, Sessão 3 (2026-09-01) — layout "nível arena": a camada visual
+ * agora é montada a partir de componentes dedicados em
+ * `src/modules/simulator/ui/` (BattleSlot com 6 slots fixos + Piloto
+ * acoplado + badge LINK, ShieldStack, ResourceTray com ativo/rested/EX,
+ * BaseCardGauge com barra de HP, CardInspectorModal, BurstModal,
+ * TriggerOrderModal, CombatLane, MobileHandDrawer). Esta página ficou só
+ * como orquestrador de estado/ações — decide quem é alvo legal do quê e
+ * encaminha os cliques. Regressão corrigida de passagem: a Battle Area
+ * agora filtra só Units pros 6 slots (Pilots pareados aparecem acoplados,
+ * não ocupam slot próprio — antes `battleArea[i]` interleava os dois).
+ * Polimento da Sessão 3 (2026-09-01): `CombatLane` agora desenha a LINHA DE
+ * MIRA ponto-a-ponto (SVG `fixed` que liga o card atacante ao alvo real,
+ * medido via `useBoardElements` + `getBoundingClientRect`, re-medido no
+ * scroll/resize com throttle de rAF), e a `MobileHandDrawer` abre/fecha por
+ * SWIPE vertical na aba além do toque.
+ *
+ * docs/19, Sessão 4 (2026-09-01) — telemetria/QA: feed de log de batalha
+ * (`BattleLogDrawer` + `battleLog.ts` traduz `GameEvent` → PT), botão
+ * "Reportar bug/dúvida de regra" no HUD (`api.reportSimulatorSituation` —
+ * o servidor loga o `GameState` real + histórico). O `eventLog` que vai pra
+ * rede agora é janelado (últimos 150, `viewState.ts`) e o match store do
+ * servidor faz GC oportunista de partidas terminadas.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { AlertTriangle, Ban, Clock, LogOut, RefreshCw, Shield, Swords } from "lucide-react";
+import { AlertTriangle, Bug, Clock, LogOut, RefreshCw, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { effectiveAp, effectiveHp, hasKeyword, otherPlayer, type AttackTarget, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
+import { otherPlayer, type AttackTarget, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
+import {
+  BaseCardGauge,
+  BattleLogDrawer,
+  BattleSlot,
+  buildBattleLog,
+  BurstModal,
+  CardFace,
+  CardInspectorModal,
+  CombatLane,
+  MobileHandDrawer,
+  playerAreaKey,
+  ResourceTray,
+  ShieldStack,
+  TriggerOrderModal,
+  useBoardElements,
+} from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
 /** Sequência simulada mostrada ao começar um turno novo -- ver comentário no topo do arquivo. */
@@ -155,7 +194,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [preview, setPreview] = useState<HandPreview | null>(null);
+  /** carta de tabuleiro aberta no inspetor (zoom) — docs/19, Sessão 3. */
+  const [inspect, setInspect] = useState<CardInstance | null>(null);
+  const [handOpen, setHandOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const [phaseFlash, setPhaseFlash] = useState<string | null>(null);
+
+  const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const lastTurnRef = useRef<number | null>(null);
@@ -240,6 +285,31 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     [matchId],
   );
 
+  const toggleAutoPass = async (value: boolean) => {
+    try {
+      const res = await api.setSimulatorAutoPass(matchId, value);
+      setMatchView(res);
+    } catch (err) {
+      toast.error(errorMessage(err, "Não deu pra mudar o auto-pass."));
+    }
+  };
+
+  const reportSituation = async () => {
+    const note = window.prompt("Descreva rapidamente a dúvida/bug de regra (opcional):") ?? undefined;
+    try {
+      const { reportId } = await api.reportSimulatorSituation(matchId, note);
+      // fallback local: também copia a visão redigida + id pro clipboard, caso o dev precise.
+      try {
+        await navigator.clipboard.writeText(JSON.stringify({ reportId, matchView }, null, 2));
+      } catch {
+        /* clipboard pode falhar sem HTTPS/foco — o log do servidor já basta */
+      }
+      toast.success(`Relatório enviado (#${reportId}). O dev vê o estado completo nos logs.`);
+    } catch (err) {
+      toast.error(errorMessage(err, "Não deu pra enviar o relatório."));
+    }
+  };
+
   const claimAbandon = async () => {
     setBusy(true);
     try {
@@ -266,6 +336,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const view = matchView.view;
   const seat = matchView.seat;
   const opponentSeat = otherPlayer(seat);
+  const battleLog = buildBattleLog(view); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
   const combat = view.combat;
   const endPhaseAction = view.endPhaseAction;
   const myTurnMain = !combat && view.phase === "main" && view.activePlayer === seat;
@@ -290,8 +361,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? "Fora da sua Main Phase."
           : undefined;
 
+  // Decisão interativa pendente (docs/19, Sessão 2) — Burst de shield quebrada, sobretudo.
+  const myPendingDecision = view.pendingDecision[seat];
+  const oppPendingDecision = view.pendingDecision[opponentSeat];
+  const myBurstDecision = myPendingDecision?.kind === "burst" ? myPendingDecision : null;
+
   const turnSecondsLeft = matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - now) / 1000)) : null;
-  const itsMyDecision = !view.gameOver && (myTurnMain || iAmDefending || iHavePriority || iHaveEndPhasePriority);
+  const itsMyDecision =
+    !view.gameOver && (myTurnMain || iAmDefending || iHavePriority || iHaveEndPhasePriority || myPendingDecision !== null);
 
   const opponentLastSeen = matchView.lastSeenAt[opponentSeat];
   const opponentIdleMs = opponentLastSeen ? Math.max(0, now - opponentLastSeen) : null;
@@ -343,213 +420,158 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
 
   // ---------------------------------------------------------------------------
-  // Uma carta de zona de tabuleiro (Battle Area/Base/Shields/Resource/Trash/Exílio)
-  // desenhada com arte real. A mão usa `renderHandCard` (máscara + preview), não esta.
+  // docs/19, Sessão 3 — o tabuleiro "nível arena" é montado a partir dos
+  // componentes de `modules/simulator/ui/`. Esta página só decide QUEM é
+  // alvo legal do quê e encaminha os cliques pras ações do motor.
   // ---------------------------------------------------------------------------
-  function renderCard(
-    card: ViewCardInstance,
-    opts: { selectableAsTarget?: boolean; showAttack?: boolean; showAttackTarget?: boolean; showBlocker?: boolean; size?: "xs" | "sm" | "md" },
-  ) {
-    const key = card.instanceId;
-    const selectable = Boolean(pending) && opts.selectableAsTarget;
-    const isSelected = selected.includes(key);
-    const size = opts.size ?? "md";
-    const widthClass = size === "xs" ? "w-10" : size === "sm" ? "w-14" : "w-20";
+  const selecting = Boolean(pending);
 
-    if (isHidden(card)) {
-      return (
-        <button
-          key={key}
-          type="button"
-          disabled={!selectable}
-          onClick={() => toggleSelect(key)}
-          className={`group relative ${widthClass} shrink-0 overflow-hidden panel-cut border transition-colors ${
-            isSelected ? "border-primary ring-2 ring-primary/60" : "border-white/10"
-          } ${selectable ? "cursor-pointer hover:border-primary/50" : "cursor-default"}`}
-        >
-          <div className="flex aspect-[63/88] w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-black">
-            <Shield className="size-1/3 text-primary/25" />
-          </div>
-        </button>
-      );
-    }
+  /** Pilot pareado com `unit` (mesma Battle Area, achado por `pairedPilotId`). */
+  function pairedPilotOf(player: ViewPlayerState, unit: CardInstance): CardInstance | null {
+    if (!unit.pairedPilotId) return null;
+    const found = player.battleArea.find((c) => !isHidden(c) && c.instanceId === unit.pairedPilotId);
+    return found && !isHidden(found) ? (found as CardInstance) : null;
+  }
 
-    const c = card as CardInstance;
-    const isAttacker = attackerId === c.instanceId;
-    const cardArt = art[c.def.code];
-    const imgSrc = size === "md" ? (cardArt?.imageUrl ?? cardArt?.imageSmallUrl) : (cardArt?.imageSmallUrl ?? cardArt?.imageUrl);
+  const publicUnits = (player: ViewPlayerState): CardInstance[] =>
+    player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def.cardType === "UNIT") as CardInstance[];
+
+  /** Battle Area: 6 slots fixos, só Units (Pilots pareados aparecem acoplados via DockedPilot). */
+  function renderBattleArea(player: ViewPlayerState, isSelf: boolean) {
+    const units = publicUnits(player);
+    const canAttackFrom = isSelf && myTurnMain && !attackerId && !selecting;
+    const canBeTargeted = !isSelf && attackerId !== null && combat === null;
+    const canBlockWith = isSelf && iAmDefending;
 
     return (
-      <div
-        key={key}
-        className={`relative ${widthClass} shrink-0 overflow-hidden panel-cut border transition-colors ${
-          isSelected || isAttacker ? "border-primary ring-2 ring-primary/60" : "border-white/10"
-        } ${c.rested ? "opacity-55" : ""}`}
-      >
-        <button type="button" disabled={!selectable} onClick={() => toggleSelect(c.instanceId)} className={`block w-full ${selectable ? "cursor-pointer" : "cursor-default"}`}>
-          <div className="aspect-[63/88] w-full bg-black/40">
-            {imgSrc ? (
-              <img src={imgSrc} alt={c.def.nameEn} className="h-full w-full object-cover" loading="lazy" />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-1 bg-slate-950/70 px-1 text-center">
-                <p className="text-[8px] font-semibold uppercase leading-tight text-slate-300">{c.def.nameEn}</p>
-              </div>
-            )}
-          </div>
-          {c.def.cardType === "UNIT" ? (
-            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/70 px-1 py-0.5 text-[8px] font-semibold text-white">
-              <span>AP{effectiveAp(c)}</span>
-              <span>HP{Math.max(0, effectiveHp(c) - c.damage)}</span>
-            </div>
-          ) : null}
-          {c.pairedPilotId ? <span className="absolute right-0.5 top-0.5 rounded-none bg-primary/80 px-1 text-[7px] font-bold text-black">P</span> : null}
-          {c.rested ? <span className="absolute left-0.5 top-0.5 rounded-none bg-black/70 px-1 text-[7px] uppercase text-slate-300">rest</span> : null}
-        </button>
-        {(opts.showAttack || opts.showAttackTarget || opts.showBlocker) ? (
-          <div className="flex flex-wrap gap-0.5 p-0.5">
-            {opts.showAttack && !c.rested && c.def.cardType === "UNIT" ? (
-              <Button size="sm" variant="outline" className="h-5 w-full rounded-none px-1 text-[8px]" disabled={busy} onClick={() => setAttackerId(c.instanceId)}>
-                Atacar
-              </Button>
-            ) : null}
-            {opts.showAttackTarget && c.rested && c.def.cardType === "UNIT" ? (
-              <Button size="sm" variant="outline" className="h-5 w-full rounded-none px-1 text-[8px]" disabled={busy} onClick={() => declareAttack({ unitId: c.instanceId })}>
-                Alvo
-              </Button>
-            ) : null}
-            {opts.showBlocker && !c.rested && hasKeyword(c, "Blocker") ? (
-              <Button size="sm" variant="outline" className="h-5 w-full rounded-none px-1 text-[8px]" disabled={busy} onClick={() => runAction({ kind: "activateBlocker", blockerId: c.instanceId })}>
-                Blocker
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+      <div className="grid grid-cols-6 gap-1">
+        {Array.from({ length: 6 }).map((_, i) => {
+          const unit = units[i] ?? null;
+          const actions =
+            unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith)
+              ? {
+                  onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
+                  onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
+                  onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
+                }
+              : undefined;
+          return (
+            <BattleSlot
+              key={unit?.instanceId ?? `empty-${i}`}
+              unit={unit}
+              pilot={unit ? pairedPilotOf(player, unit) : null}
+              art={art}
+              legalTarget={Boolean(unit && selecting)}
+              selected={Boolean(unit && selected.includes(unit.instanceId))}
+              isAttacker={Boolean(unit && attackerId === unit.instanceId)}
+              busy={busy}
+              onSelect={(u) => toggleSelect(u.instanceId)}
+              onInspect={setInspect}
+              actions={actions}
+              registerRef={unit ? board.register(unit.instanceId) : undefined}
+            />
+          );
+        })}
       </div>
     );
   }
 
-  /** Uma carta da MÃO própria -- máscara quando não-jogável, sem botão embutido; clique abre o preview compacto (`HandPreview`). */
-  function renderHandCard(c: CardInstance) {
-    const isCommand = c.def.cardType === "COMMAND";
-    const canPlay = isCommand ? Boolean(commandTrigger) && (c.def.triggerKeywords?.includes(commandTrigger!) ?? false) : myTurnMain;
-    const blockedReason = canPlay ? undefined : isCommand ? "Esta Command não tem gatilho disponível agora." : notMainPhaseReason;
-    const cardArt = art[c.def.code];
-    const imgSrc = cardArt?.imageUrl ?? cardArt?.imageSmallUrl;
-
-    return (
-      <button
-        key={c.instanceId}
-        type="button"
-        onClick={() => setPreview({ card: c, canPlay, blockedReason, onPlay: () => playFromPreview(c, isCommand) })}
-        className={`relative w-[4.5rem] shrink-0 overflow-hidden panel-cut border transition-all sm:w-24 ${
-          canPlay ? "border-primary/50 hover:border-primary hover:-translate-y-1" : "border-white/10"
-        }`}
-      >
-        <div className={`aspect-[63/88] w-full bg-black/40 ${canPlay ? "" : "grayscale"}`}>
-          {imgSrc ? (
-            <img src={imgSrc} alt={c.def.nameEn} className={`h-full w-full object-cover ${canPlay ? "" : "opacity-45"}`} loading="lazy" />
-          ) : (
-            <div className={`flex h-full flex-col items-center justify-center gap-1 bg-slate-950/70 px-1 text-center ${canPlay ? "" : "opacity-45"}`}>
-              <p className="text-[9px] font-semibold uppercase leading-tight text-slate-300">{c.def.nameEn}</p>
-            </div>
-          )}
-        </div>
-        {c.def.cardType === "UNIT" ? (
-          <div className="absolute inset-x-0 bottom-5 flex items-center justify-between bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">
-            <span>AP{c.def.ap ?? 0}</span>
-            <span>HP{c.def.hp ?? 0}</span>
-          </div>
-        ) : null}
-        {!canPlay ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <Ban className="size-5 text-slate-300/80" />
-          </div>
-        ) : null}
-        <p className="truncate bg-black/60 px-1 py-0.5 text-[8px] text-muted-portal">{c.def.code}</p>
-      </button>
-    );
-  }
-
-  /** Coluna esquerda/direita compacta: Base ou Exílio/Trash -- rótulo + contagem + até 3 miniaturas. */
-  function renderMiniZone(label: string, cards: ViewCardInstance[], opts: Parameters<typeof renderCard>[1]) {
+  /** Pilha compacta de trash/exílio: contagem + até 3 miniaturas, clique inspeciona. */
+  function renderPile(label: string, cards: ViewCardInstance[]) {
+    const publics = cards.filter((c) => !isHidden(c)) as CardInstance[];
     return (
       <div>
         <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
           {label} ({cards.length})
         </p>
-        {!cards.length ? (
-          <div className="aspect-[63/88] w-10 border border-dashed border-white/10" />
+        {publics.length === 0 ? (
+          <div className="aspect-[63/88] w-9 border border-dashed border-white/10" />
         ) : (
-          <div className="flex flex-wrap gap-1">{cards.slice(0, 3).map((card) => renderCard(card, { ...opts, size: "xs" }))}</div>
+          <div className="flex -space-x-4">
+            {publics.slice(-3).map((c) => (
+              <button key={c.instanceId} type="button" onClick={() => setInspect(c)} className="border border-white/10">
+                <CardFace nameEn={c.def.nameEn} code={c.def.code} art={art} size="xs" />
+              </button>
+            ))}
+          </div>
         )}
       </div>
     );
   }
 
-  /** Deck/Resource Deck -- só a contagem, carta virada pra baixo (nunca mostramos identidade). */
   function renderDeckTile(label: string, count: number) {
     return (
       <div>
         <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-        <div className="flex aspect-[63/88] w-10 items-center justify-center border border-white/15 bg-gradient-to-br from-slate-900 to-black text-xs font-bold text-slate-300">
+        <div className="flex aspect-[63/88] w-9 items-center justify-center border border-white/15 bg-gradient-to-br from-slate-900 to-black text-xs font-bold text-slate-300">
           {count}
         </div>
       </div>
     );
   }
 
-  function renderShieldsCompact(shields: ViewCardInstance[]) {
+  /** Uma carta da MÃO própria -- máscara quando não-jogável; clique abre o inspetor (com botão "Jogar"). */
+  function renderHandCard(c: CardInstance) {
+    const isCommand = c.def.cardType === "COMMAND";
+    const canPlay = isCommand ? Boolean(commandTrigger) && (c.def.triggerKeywords?.includes(commandTrigger!) ?? false) : myTurnMain;
+    const blockedReason = canPlay ? undefined : isCommand ? "Esta Command não tem gatilho disponível agora." : notMainPhaseReason;
+
     return (
-      <div>
-        <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">Shields ({shields.length})</p>
-        <div className="grid grid-cols-3 gap-0.5">
-          {shields.slice(0, 6).map((card) => renderCard(card, { selectableAsTarget: true, size: "xs" }))}
-        </div>
+      <button
+        key={c.instanceId}
+        type="button"
+        onClick={() => setPreview({ card: c, canPlay, blockedReason, onPlay: () => playFromPreview(c, isCommand) })}
+        className={`relative shrink-0 border transition-all ${
+          canPlay ? "border-primary/60 hover:-translate-y-1.5 hover:border-primary" : "border-white/10"
+        }`}
+      >
+        <CardFace nameEn={c.def.nameEn} code={c.def.code} art={art} size="md" dimmed={!canPlay}>
+          {c.def.cardType === "UNIT" ? (
+            <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
+              <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{c.def.ap ?? 0}</span>
+              <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{c.def.hp ?? 0}</span>
+            </div>
+          ) : null}
+          {c.def.cost !== undefined ? (
+            <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
+              {c.def.cost}
+            </span>
+          ) : null}
+        </CardFace>
+      </button>
+    );
+  }
+
+  /** Coluna lateral esquerda: Base (com gauge de HP), pilha de Shields, Resource Deck. */
+  function renderLeftColumn(player: ViewPlayerState) {
+    const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
+    return (
+      <div className="flex flex-col gap-2">
+        <BaseCardGauge
+          base={base}
+          art={art}
+          legalTarget={selecting && Boolean(base)}
+          selected={Boolean(base && selected.includes(base.instanceId))}
+          onSelect={(b) => toggleSelect(b.instanceId)}
+          onInspect={setInspect}
+        />
+        <ShieldStack
+          shields={player.shields}
+          selectable={selecting}
+          selectedIds={selected}
+          onSelect={toggleSelect}
+        />
+        {renderDeckTile("Recurso", player.counts.resourceDeck)}
       </div>
     );
   }
 
-  /** Faixa de zonas em posição oficial: esquerda (Base/Shields/Resource Deck) — Battle Area — direita (Exílio/Trash/Deck). */
-  function renderZoneRow(player: ViewPlayerState, opts: { showAttack: boolean; showAttackTarget: boolean; showBlocker: boolean }) {
+  function renderRightColumn(player: ViewPlayerState) {
     return (
-      <div className="grid grid-cols-[minmax(2.75rem,3.5rem)_1fr_minmax(2.75rem,3.5rem)] gap-1.5 sm:gap-2">
-        <div className="space-y-1.5">
-          {renderMiniZone("Base", player.baseSection, { selectableAsTarget: true })}
-          {renderShieldsCompact(player.shields)}
-          {renderDeckTile("Recurso", player.counts.resourceDeck)}
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-center text-[8px] uppercase tracking-[0.2em] text-slate-500">Battle Area</p>
-          <div className="grid grid-cols-6 gap-1">
-            {Array.from({ length: 6 }).map((_, i) =>
-              player.battleArea[i] ? (
-                renderCard(player.battleArea[i], { selectableAsTarget: true, size: "sm", ...opts })
-              ) : (
-                <div key={i} className="aspect-[63/88] w-full border border-dashed border-white/10" />
-              ),
-            )}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          {renderMiniZone("Exílio", player.exile, {})}
-          {renderMiniZone("Trash", player.trash, {})}
-          {renderDeckTile("Deck", player.counts.deck)}
-        </div>
-      </div>
-    );
-  }
-
-  function renderResourceRow(player: ViewPlayerState) {
-    return (
-      <div className="space-y-0.5">
-        <p className="text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Recursos em campo ({player.counts.resourceArea}) · Nível {player.counts.resourceArea}
-        </p>
-        {!player.resourceArea.length ? (
-          <p className="text-[10px] text-muted-portal">Nenhum.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1">{player.resourceArea.map((card) => renderCard(card, { size: "xs" }))}</div>
-        )}
+      <div className="flex flex-col gap-2">
+        {renderPile("Trash", player.trash)}
+        {renderPile("Exílio", player.exile)}
+        {renderDeckTile("Deck", player.counts.deck)}
       </div>
     );
   }
@@ -558,40 +580,43 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return (
       <div className="flex items-center gap-2">
         <p className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mão ({count})</p>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
-            <div key={i} className="aspect-[63/88] w-8 border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black" />
+            <div key={i} className="-ml-3 aspect-[63/88] w-7 border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black first:ml-0" />
           ))}
         </div>
       </div>
     );
   }
 
-  function renderMyHand(player: ViewPlayerState) {
-    return (
-      <div className="space-y-1">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">Sua mão ({player.hand.length})</p>
-        {!player.hand.length ? (
-          <p className="text-[10px] text-muted-portal">Vazia.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {(player.hand as ViewCardInstance[]).map((card) => (isHidden(card) ? null : renderHandCard(card as CardInstance)))}
-          </div>
-        )}
-      </div>
-    );
+  function renderMyHandCards(player: ViewPlayerState) {
+    const cards = (player.hand as ViewCardInstance[]).filter((c) => !isHidden(c)) as CardInstance[];
+    if (!cards.length) return <p className="text-[10px] text-muted-portal">Mão vazia.</p>;
+    return cards.map((c) => renderHandCard(c));
   }
 
-  /** Um lado inteiro do tabuleiro. `mirrored` (oponente) inverte a ordem: mão(virada)/recursos/zonas de cima pra baixo, com a Battle Area sempre encostando na divisória do meio. */
+  /** Um lado inteiro do tabuleiro. `mirrored` (oponente): a Battle Area sempre encosta na divisória do meio. */
   function renderPlaymat(pid: PlayerId, isSelf: boolean, mirrored: boolean) {
     const player = view.players[pid];
-    const zoneRow = renderZoneRow(player, {
-      showAttack: isSelf && myTurnMain && !attackerId,
-      showAttackTarget: !isSelf && attackerId !== null && combat === null,
-      showBlocker: isSelf && iAmDefending,
-    });
-    const resourceRow = renderResourceRow(player);
-    const handRow = isSelf ? renderMyHand(player) : renderOpponentHandBacks(player.hand.length);
+
+    const boardGrid = (
+      <div className="grid grid-cols-[auto_1fr_auto] gap-2">
+        {renderLeftColumn(player)}
+        {/* ref registrado pro CombatLane mirar a Battle Area quando o ataque é "no jogador". */}
+        <div ref={board.register(playerAreaKey(pid))} className="space-y-1">
+          <p className="text-center text-[8px] uppercase tracking-[0.24em] text-cyan-500/70">Battle Area</p>
+          {renderBattleArea(player, isSelf)}
+          <ResourceTray player={player} />
+        </div>
+        {renderRightColumn(player)}
+      </div>
+    );
+
+    const hand = isSelf ? (
+      <div className="flex flex-wrap gap-1.5">{renderMyHandCards(player)}</div>
+    ) : (
+      renderOpponentHandBacks(player.hand.length)
+    );
 
     return (
       <div className={`panel-cut border p-2 sm:p-3 ${isSelf ? "hero-surface border-primary/30" : "surface-panel border-white/10"}`}>
@@ -613,32 +638,48 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           )}
         </div>
         {mirrored ? (
-          <div className="space-y-1.5">
-            {handRow}
-            {resourceRow}
-            {zoneRow}
+          <div className="space-y-2">
+            {isSelf ? null : hand}
+            {boardGrid}
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {zoneRow}
-            {resourceRow}
-            {handRow}
+          <div className="space-y-2">
+            {boardGrid}
+            {/* no desktop a mão fica aqui; no mobile em retrato ela vai pra MobileHandDrawer. */}
+            {isSelf && !isPortraitMobile ? hand : null}
           </div>
         )}
       </div>
     );
   }
 
-  const attacker = attackerId ? findPublicCard(view, attackerId) : null;
+  const attacker = attackerId
+    ? findPublicCard(view, attackerId)
+    : combat
+      ? findPublicCard(view, combat.attackerId)
+      : null;
+  const combatTargetUnit =
+    combat && typeof combat.currentTarget === "object" ? findPublicCard(view, combat.currentTarget.unitId) : null;
 
   const content = (
     <div className="flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
       {/* HUD -- sem PortalShell nesta tela (rodada 5): usa o viewport inteiro. */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-primary/20 hero-surface px-3 py-2">
-        <Button variant="outline" size="sm" className="rounded-none" onClick={exitToLobby}>
-          <LogOut className="mr-1.5 size-3.5" />
-          Sair
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" className="rounded-none" onClick={exitToLobby}>
+            <LogOut className="mr-1.5 size-3.5" />
+            Sair
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-none border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+            onClick={reportSituation}
+            title="Reportar bug ou dúvida de regra — envia o estado da partida pro dev"
+          >
+            <Bug className="size-3.5" />
+          </Button>
+        </div>
         <div className="text-center">
           <p className="text-[9px] uppercase tracking-[0.24em] text-muted-portal">Turno {view.turnNumber}</p>
           <p className="mt-0.5 text-sm heading-portal sm:text-base">
@@ -689,6 +730,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           </div>
         ) : null}
 
+        {oppPendingDecision ? (
+          <div className="panel-cut flex items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
+            <Sparkles className="size-4 text-primary" />
+            Aguardando o oponente resolver {oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...
+          </div>
+        ) : null}
+
         {inActionStep ? (
           <div className="panel-cut animate-pulse border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
             {iHavePriority ? "Action Step de combate" : "Action Step de fim de turno"} -- sua prioridade. Não dá pra jogar
@@ -702,6 +750,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             >
               Passar
             </Button>
+            <button
+              type="button"
+              className="ml-2 inline-flex items-center gap-1 text-[10px] font-normal text-amber-300/80 underline decoration-dotted hover:text-amber-200"
+              onClick={() => toggleAutoPass(!matchView.autoPassActionStep)}
+            >
+              <Zap className="size-3" />
+              {matchView.autoPassActionStep ? "auto-pass: LIGADO" : "auto-passar quando eu não tiver jogada"}
+            </button>
           </div>
         ) : null}
 
@@ -752,45 +808,69 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         ) : null}
       </div>
 
-      {/* Tabuleiro -- oponente em cima (menor, mão virada), você embaixo, as Battle Areas se encostando no meio. */}
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-3 sm:px-3">
-        <div className="scale-[0.92] opacity-90">{renderPlaymat(opponentSeat, false, true)}</div>
-        <div className="mx-auto h-px w-full max-w-3xl bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+      {/* Tabuleiro -- oponente em cima (menor, mão virada), você embaixo, as Battle Areas encostando no meio. */}
+      <div className="relative min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-24 sm:px-3 sm:pb-3">
+        <div className="scale-[0.94] opacity-95">{renderPlaymat(opponentSeat, false, true)}</div>
+        <div className="mx-auto h-px w-full max-w-3xl bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
         {renderPlaymat(seat, true, false)}
       </div>
 
-      {/* Preview compacto de uma carta da mão -- "Ver" (é o próprio preview) + "Jogar"/motivo. */}
+      {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do
+          container que rola/escala, pra o `fixed` cobrir o viewport inteiro. */}
+      {combat ? (
+        <CombatLane
+          combat={combat}
+          attacker={attacker}
+          targetUnit={combatTargetUnit}
+          viewerSeat={seat}
+          rectOf={board.rectOf}
+        />
+      ) : null}
+
+      {/* Inspetor de carta (zoom) -- da mão (com botão "Jogar") ou de qualquer carta pública do tabuleiro. */}
       {preview ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setPreview(null)}>
-          <div className="panel-cut hero-surface w-full max-w-[15rem] border border-primary/30 p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-3 w-32 overflow-hidden panel-cut border border-white/10">
-              <div className="aspect-[63/88] w-full bg-black/40">
-                {art[preview.card.def.code]?.imageUrl ? (
-                  <img src={art[preview.card.def.code]!.imageUrl} alt={preview.card.def.nameEn} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center px-2 text-center text-[10px] uppercase text-slate-400">{preview.card.def.nameEn}</div>
-                )}
-              </div>
-            </div>
-            <p className="text-center text-sm font-semibold text-soft">{preview.card.def.nameEn}</p>
-            <p className="text-center text-[10px] text-muted-portal">
-              {preview.card.def.code}
-              {preview.card.def.level !== undefined ? ` · Nível ${preview.card.def.level}` : ""}
-              {preview.card.def.cost !== undefined ? ` · Custo ${preview.card.def.cost}` : ""}
-            </p>
-            {!preview.canPlay && preview.blockedReason ? <p className="mt-2 text-center text-xs text-amber-400">{preview.blockedReason}</p> : null}
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1 rounded-none" onClick={() => setPreview(null)}>
-                Fechar
+        <CardInspectorModal
+          card={preview.card}
+          art={art}
+          blockedReason={preview.blockedReason}
+          onClose={() => setPreview(null)}
+          footer={
+            preview.canPlay ? (
+              <Button className="flex-1 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={preview.onPlay}>
+                Jogar
               </Button>
-              {preview.canPlay ? (
-                <Button className="flex-1 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={preview.onPlay}>
-                  Jogar
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        </div>
+            ) : undefined
+          }
+        />
+      ) : inspect ? (
+        <CardInspectorModal card={inspect} art={art} inPlay onClose={() => setInspect(null)} />
+      ) : null}
+
+      {/* docs/19, Sessão 2/3 — decisões interativas. */}
+      {myBurstDecision ? (
+        <BurstModal
+          decision={myBurstDecision}
+          art={art}
+          busy={busy}
+          onResolve={(activate) => runAction({ kind: "resolveBurstDecision", activate })}
+        />
+      ) : null}
+      {myPendingDecision?.kind === "triggerOrder" ? (
+        <TriggerOrderModal
+          decision={myPendingDecision}
+          busy={busy}
+          onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
+        />
+      ) : null}
+
+      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral / gaveta). */}
+      <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
+
+      {/* Mobile em retrato: a mão vira gaveta na base (docs/19, Sessão 3). */}
+      {isPortraitMobile ? (
+        <MobileHandDrawer count={view.players[seat].hand.length} open={handOpen} onToggle={() => setHandOpen((o) => !o)}>
+          {renderMyHandCards(view.players[seat])}
+        </MobileHandDrawer>
       ) : null}
     </div>
   );

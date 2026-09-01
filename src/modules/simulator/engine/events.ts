@@ -1,11 +1,30 @@
 import type {
+  CardDef,
   CardInstance,
   GameEvent,
   GameState,
+  PlayerId,
   PlayerState,
   Zone,
 } from "./types";
 import { effectiveHp } from "./types";
+
+function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
+  const instance: CardInstance = {
+    instanceId: `${owner}-${state.nextInstanceSeq}`,
+    def,
+    owner,
+    zone,
+    rested,
+    damage: 0,
+    statModifiers: [],
+    keywordGrants: [],
+    usedKeywordsThisTurn: [],
+    enteredZoneOnTurn: state.turnNumber,
+  };
+  state.nextInstanceSeq += 1;
+  return instance;
+}
 
 /** Acha uma carta em qualquer zona de qualquer jogador. Lança se não achar. */
 export function findCard(state: GameState, instanceId: string): CardInstance {
@@ -69,6 +88,7 @@ export function cloneState(state: GameState): GameState {
     ...state,
     players,
     combat: state.combat ? { ...state.combat, actionPasses: { ...state.combat.actionPasses } } : null,
+    pendingDecision: { ...state.pendingDecision },
     eventLog: [...state.eventLog],
   };
 }
@@ -332,6 +352,39 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       state.gameOver = { winner: event.winner, reason: event.reason };
       return state;
     }
+    case "SPAWN_TOKEN": {
+      // Nenhuma checagem de limite de zona (máx. 6 Units/1 Base) aqui de propósito —
+      // mesma limitação já aceita pro `moveZone self->baseSection` dos Burst de Base
+      // (docs/18): a primitiva de criação é genérica, quem autora o EffectSpec é
+      // responsável por só usá-la onde a regra realmente permite.
+      const player = state.players[event.player];
+      player[event.zone].push(instantiateToken(state, event.player, event.def, event.zone, event.rested ?? false));
+      return state;
+    }
+    case "MOVE_WITHIN_DECK": {
+      const owner = findCardOwner(state, event.instanceId);
+      const deck = state.players[owner].deck;
+      const idx = deck.findIndex((c) => c.instanceId === event.instanceId);
+      if (idx === -1) return state;
+      const [card] = deck.splice(idx, 1);
+      if (event.position === "top") deck.unshift(card);
+      else deck.push(card);
+      return state;
+    }
+    case "SET_SHIELD_PROTECTION": {
+      if (state.combat) {
+        state.combat.shieldProtection = { maxAttackerLevel: event.maxAttackerLevel };
+      }
+      return state;
+    }
+    case "SET_PENDING_DECISION": {
+      state.pendingDecision[event.player] = event.decision;
+      return state;
+    }
+    case "CLEAR_PENDING_DECISION": {
+      state.pendingDecision[event.player] = null;
+      return state;
+    }
     default:
       return state;
   }
@@ -349,6 +402,6 @@ export function findCardOwner(state: GameState, instanceId: string) {
 }
 
 /** Uma Unit/Base é destruída quando dano marcado >= HP efetivo (Comprehensive Rules 5-5-2). */
-export function isLethallyDamaged(card: CardInstance): boolean {
-  return card.damage >= effectiveHp(card);
+export function isLethallyDamaged(card: CardInstance, state?: GameState): boolean {
+  return card.damage >= effectiveHp(card, state);
 }

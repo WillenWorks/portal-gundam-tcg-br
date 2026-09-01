@@ -133,6 +133,55 @@ segunda ordem, camadas de regra) confirmado com o Willen antes de começar
     de partida real isola esse caso por fixture. Não é um dos 27 EffectSpecs
     nem uma das 8 lacunas — é uma refinaria de regra pequena, deixada pra
     quando (se) isso importar de verdade num fluxo de UI real.
+- ✅ **Agente 1 — DSL completa / 8 lacunas fechadas** (docs/19, Sessão 1,
+  2026-09-01): `spawnToken`/`spawnTokenByOwnUnitCount`, `payResourceCost`
+  (extraído pra `engine/costs.ts`), `TargetRef.kind: "group"`,
+  `preventShieldDamage`, `peekAndReorderDeck` + `moveWithinDeck` como
+  primitivas de `EffectSpec`; `staticAbilities` (During Pair/Link contínuo),
+  `combatTriggers` (During Link reage a combate) e `attackTargetRules`
+  (legalidade de alvo) como campo estruturado de `CardDef`. Cobertura ST01/ST02
+  agora 100%. 188 testes (`content/st01.test.ts`, `content/st02.test.ts`,
+  `engine/agente1Additions.test.ts` novo). Ver "Agente 1 — fechamento das 8
+  lacunas de DSL" abaixo.
+- ✅ **Agente 2 — decisões interativas** (docs/19, Sessão 2, 2026-09-01):
+  `PendingDecision` no `GameState`, pausa autoritativa de 【Burst】 +
+  `resolveBurstDecision`, `activateAbility` (【Activate·Main】 / `<Support>`),
+  `resolveTriggerOrder` (tipo pronto, sem card que dispare ainda), auto-pass
+  inteligente do Action Step (`autoPassActionStep` por assento). Rota
+  `POST .../auto-pass`, `api.setSimulatorAutoPass`, modal de Burst + toggle
+  de auto-pass em `SimulatorMatchPage.tsx`. 203 testes. Ver "Agente 2 —
+  decisões interativas" abaixo.
+- ✅ **Agente 3 — layout "nível arena"** (docs/19, Sessão 3, 2026-09-01):
+  componentes visuais dedicados em `src/modules/simulator/ui/`
+  (`BattleSlot` com 6 slots fixos + `DockedPilot` com badge LINK,
+  `ShieldStack`, `ResourceTray` ativo/rested/EX, `BaseCardGauge` com barra
+  de HP, `CardInspectorModal`, `BurstModal`, `TriggerOrderModal`,
+  `CombatLane`, `MobileHandDrawer`, `CardFace`). `SimulatorMatchPage.tsx`
+  virou só orquestrador. Corrigiu de passagem o interleave de Pilots nos
+  slots da Battle Area. Polimento no mesmo dia: `CombatLane` desenha a
+  **linha de mira ponto-a-ponto** (SVG `fixed` fora do container que
+  rola/escala, mede DOM real via `useBoardElements` + `getBoundingClientRect`,
+  re-mede no scroll/resize com throttle de rAF); `MobileHandDrawer` abre/
+  fecha por **swipe vertical** na aba além do toque. Falta só a validação
+  visual com 2 sessões reais (bloqueada pelo sandbox, ver "Pendência real"
+  no topo). 207 testes, `build` OK.
+- 🔄 **Agente 4 — telemetria & QA** (docs/19, Sessão 4, 2026-09-01):
+  `BattleLogDrawer` + `battleLog.ts` (traduz cada `GameEvent` numa linha PT;
+  painel lateral no desktop, gaveta no mobile); botão "Reportar bug/dúvida
+  de regra" no HUD → `POST /api/simulator/matches/:id/report` →
+  `reportSituation()` loga o `GameState` real + histórico no console do
+  servidor com um `reportId` curto. Perf/leak: `viewStateFor` agora janela o
+  `eventLog` (últimos 150) em vez de reenviar o log inteiro a cada SSE; o
+  match store faz GC oportunista (partida terminada some 10min depois, na
+  próxima escrita) — o stream SSE em si já estava limpo (unsubscribe +
+  clearInterval no `req.on("close")`). Teste e2e novo
+  `st01VsSt02Actions.e2e.test.ts` joga uma partida de vários turnos pela
+  borda `applyPlayerAction` até `GAME_OVER`, passando por Burst pausado,
+  `activateAbility` e fim de turno. 207 testes, `build` OK. Falta: a
+  atualização do `st01VsSt02Match.test.ts` pra "100% dos EffectSpecs numa
+  partida só" (o e2e novo cobre o fluxo de decisões; a cobertura ampla de
+  EffectSpec segue no teste de motor existente) e validação com 2 sessões
+  reais (bloqueada pelo sandbox).
 - ✅ **Passo 4 — UI mínima de sandbox**: servidor (match store em memória,
   redação de informação por jogador, rotas HTTP/SSE) e cliente
   (lobby + tabuleiro) — ver "Sandbox de partida" abaixo.
@@ -425,6 +474,173 @@ combate real, não só verificando o evento gerado isoladamente — validação
 concreta de que a abordagem "motor primeiro, conteúdo real depois" vale a
 pena: esse bug só apareceu ao tentar autorar um efeito real contra o texto
 oficial de uma carta, não teria aparecido em nenhum teste sintético.
+
+## Agente 1 — fechamento das 8 lacunas de DSL (docs/19, 2026-09-01)
+
+> [!NOTE]
+> As tabelas "Cobertura real — ST01/ST02" acima ainda descrevem cada carta
+> "Parcial" com o motivo original de estar fora de escopo. **Todas as 8
+> lacunas listadas nelas foram fechadas nesta wave** — a coluna "Cobertura"
+> das linhas de ST01-001/009/015/016 e ST02-001/002/003/006/010/011/013/015/016
+> deve ser lida junto com esta seção. Cobertura ST01/ST02 agora é 100%
+> (efeito bespoke coberto por `EffectSpec` ou por campo estruturado de
+> `CardDef`; o restante é vanilla/só-keyword-automática, que o motor já cobre).
+
+Wave "Motor de Regras, Modificadores Estáticos & DSL Completa" (docs/19,
+Sessão 1). Cada lacuna foi fechada de um de dois jeitos, conforme a natureza
+do efeito:
+
+**Primitivas novas de `EffectSpec`** (gatilho pontual → ação), em
+`engine/effectSpec.ts`:
+
+- **#3 (criar instância nova / token)** — `spawnToken` (instancia 1+ `CardDef`
+  numa zona) e `spawnTokenByOwnUnitCount` (escolhe qual `CardDef` por contagem
+  de Units próprias). Evento `SPAWN_TOKEN` novo em `events.ts` (usa
+  `state.nextInstanceSeq`, nunca no setup — só por efeito em jogo).
+  Cartas: ST02-002 Wing Gundam (Bird Mode) "Place 1 EX Resource", ST01-015
+  White Base (Gundam/Guncannon/Guntank token por 0/1/2+ Units), ST02-016
+  Corsica Base (Tallgeese token, ou 2× Leo se "Corsica Base" no trash).
+  Tokens: códigos oficiais `T-001..T-005`, stats genéricos (mais fracos que
+  as Units reais, sem keyword/link) — ver `fixtures/st01Deck.ts` /
+  `fixtures/st02Deck.ts`.
+- **#4 (custo de recurso genérico)** — `payResourceCost` (resta N Recursos
+  active; EX Resource sai do jogo, mesma regra de `deployCard`). O
+  pagamento foi extraído de `deploy.ts` pra `engine/costs.ts`
+  (`payResourceCostEvents`), reaproveitado pelos dois usos (custo de jogar
+  carta e custo de habilidade ativada). Cartas: ST02-006 Tallgeese "④",
+  ST01-015 White Base "②".
+- **#5 (alvo em grupo)** — `TargetRef.kind: "group"` + `TargetGroup`
+  (`allFriendlyLinkUnits`, `allEnemyUnits` com `maxLevel` opcional). Toda
+  primitiva que consome `TargetRef` agora passa por `resolveTargetIds`
+  (0+ instanceIds), não `resolveTarget` (1 só). Cartas: ST01-016 Asticassia
+  "All friendly Link Units get AP+1". (O grupo de ST02-003 Heavyarms virou
+  `combatTrigger`, ver abaixo.)
+- **#7 (prevenção de dano condicional)** — `preventShieldDamage`
+  (`maxAttackerLevel`), evento `SET_SHIELD_PROTECTION` → `CombatState.shieldProtection`
+  (vive em `combat`, some sozinho no Battle End Step). O Damage Step de
+  `combat.ts` checa isso antes de gerar dano de shield. Carta: ST02-013
+  Peaceful Timbre.
+- **#8 (informação oculta / peek-and-reorder)** — `peekAndReorderDeck(state,
+  player, n)` (leitura pura das N cartas do topo, sem evento) +
+  `moveWithinDeck` (reordena 1 carta já revelada pro topo/fundo, evento
+  `MOVE_WITHIN_DECK`). Quem despacha o efeito chama `peekAndReorderDeck`,
+  deixa a decisão de reordenação em `ctx.targets.toTop`/`toBottom` (mesmo
+  padrão "named" de "target"/"shield"), e o `EffectSpec` só compila a
+  reordenação já decidida. Carta: ST02-015 Saint Gabriel Institute.
+
+- **`addShieldToHand`** (primitiva, 2026-09-01) — "Add N of your Shields to
+  your hand", o 【Deploy】 que **TODA Base do jogo tem** (91/91 cartas
+  `cardType: BASE` no dataset oficial, sem exceção — verificado; as EX Base
+  só têm o texto de setup). Antes era `{ op: "moveZone", target: {kind:
+  "named", name: "shield"}, ... }`, que **exigia** o `ctx.targets.shield` e
+  lançava se não viesse — ou seja, deployar uma Base com 0 shields (ou sem o
+  jogador clicar num shield na UI) quebrava a jogada inteira. Como shields
+  são face-down e o dono **não vê a identidade** (`viewState.ts`), "qual
+  shield" é escolha cega e carrega zero informação: a primitiva usa
+  `ctx.targets.shield` se vier, senão pega os N primeiros, e é **no-op se o
+  jogador não tem shield** (a Base deploya normalmente). Aplicada em
+  ST01-015/016 e ST02-015/016. Candidata a virar 【Deploy】 genérico de
+  `cardType: BASE` quando GD01+ entrarem (hoje ainda é 1 EffectSpec por
+  carta, consistente com a filosofia de autoria carta-a-carta).
+
+**Campos estruturados de `CardDef`** (não é gatilho→ação, é
+modificador/regra contínua), em `engine/types.ts`:
+
+- **#2 (efeito contínuo condicional — During Pair / During Link)** —
+  `staticAbilities: StaticAbility[]`, reavaliado a cada consulta de
+  `effectiveAp`/`effectiveHp` (que agora recebem `state` opcional pra
+  computar o bônus estático). `condition` = `duringPair` | `duringLink`;
+  `scope` = `self` | `pairedUnit` | `allFriendlyUnits`; `duringYourTurnOnly`
+  pro caso de ST01-001. Some sozinho quando a condição deixa de valer (Pilot
+  desparelha, Link quebra), sem nenhum evento de "remover buff". Cartas:
+  ST01-001 Gundam ("During Pair, during your turn, all your Units AP+1"),
+  ST02-010 Heero Yuy ("During Link, this Unit AP+1/HP+1" — `scope: pairedUnit`,
+  ability no Pilot).
+- **#2 estendida (During Link que reage a evento de combate)** —
+  `combatTriggers: CombatTrigger[]`, resolvido em `combat.ts/combatTriggerEvents`
+  no Damage Step, só pro atacante ("during your turn" nunca é satisfeito pelo
+  defensor). `on: "destroyEnemyInBattle"`; `action` = `draw` |
+  `damageAllEnemyUnits` (com `maxLevel`). Cartas: ST02-011 Zechs Merquise
+  (During Link: draw 1), ST02-003 Gundam Heavyarms (During Pair: 1 dano em
+  toda Unit inimiga Lv.3 ou menos).
+- **#6 (legalidade de alvo de ataque)** — `attackTargetRules`
+  (`cannotTargetPlayer`, `mayTargetActiveEnemyUnit: { maxLevel }`), checado em
+  `combat.ts/declareAttack`. Cartas: ST01-009 Zowort (não pode escolher o
+  jogador), ST02-001 Wing Gundam (pode atacar Unit inimiga *active* Lv.4 ou
+  menos). O requisito `【Pilot】[X]` pra *jogar* a carta (ST01-012/013,
+  ST02-012/013) continua fora de escopo — é legalidade de jogo, nunca foi uma
+  das 8 lacunas.
+
+**#1** (dano direto numa Unit, `damageUnit`) já tinha sido preenchida na wave
+anterior.
+
+**Cobertura de testes**: primitivas de `EffectSpec` em `content/st01.test.ts`
+/ `content/st02.test.ts` (contra texto oficial da carta); modelo estático de
+`CardDef` em `engine/agente1Additions.test.ts` (`staticAbilities`,
+`combatTriggers`, `attackTargetRules` avaliados direto pelo motor). O
+`st01VsSt02Match.test.ts` foi atualizado pra passar `predicateResolver` +
+`peekAndReorderDeck` no Deploy de Saint Gabriel / Corsica Base. Suíte:
+188/188, `tsc -b` limpo, `eslint src/modules/simulator/` limpo. A partida
+ponta-a-ponta que exercita as 8 lacunas juntas num jogo real é trabalho da
+Sessão 4 (docs/19, Agente-Sync-QA).
+
+## Agente 2 — decisões interativas: Burst, auto-pass, habilidades ativadas (docs/19, 2026-09-01)
+
+Wave "Fluxo de Decisões, Modais & Auto-Pass" (docs/19, Sessão 2). O que foi
+implementado no motor + borda + servidor + UI:
+
+- **`PendingDecision` + `GameState.pendingDecision`** (`engine/types.ts`):
+  união `burst | triggerOrder | targetSelection`, `Record<PlayerId,
+  PendingDecision | null>` no estado. Eventos `SET_PENDING_DECISION` /
+  `CLEAR_PENDING_DECISION`. Enquanto um lado tem decisão pendente, nenhuma
+  ação — de nenhum dos dois — avança o estado (`applyPlayerAction` recusa
+  logo no topo).
+- **Pausa autoritativa de 【Burst】** (`engine/actions.ts` +
+  `dispatcher.burstEligibleShieldIds`): quando o Damage Step trasha shields
+  com `hasBurst` + EffectSpec de "Burst", o combate PARA no Damage Step e o
+  defensor recebe `pendingDecision.burst` (fila FIFO se mais de uma quebrou
+  junto). `resolveBurstDecision { activate, targets? }` ativa (dispara o
+  EffectSpec de Burst) ou manda pro trash; quando a fila esvazia, o Battle
+  End roda. Substitui o `chooseBurst: () => false` fixo de antes.
+- **`activateAbility { sourceInstanceId, abilityIndex?, targets? }}`**:
+  despacha o EffectSpec de 【Activate·Main】 (Tallgeese ④, White Base ②,
+  Asticassia) ou 【Activate·Action】; se a carta não tiver EffectSpec desse
+  trigger, cai em `<Support N>` (`keywords.activateSupport`, alvo em
+  `targets.target[0]`). Valida dono + fase + prioridade.
+- **`resolveTriggerOrder { orderedSpecIds }}`**: resolve `pendingDecision.
+  triggerOrder` na ordem escolhida. O tipo e o caminho existem, mas nenhum
+  EffectSpec de ST01/ST02 dispara 2 triggers de cartas diferentes no mesmo
+  evento hoje, então o motor ainda não chega a emitir esse `PendingDecision`.
+- **Auto-pass inteligente do Action Step** (`MatchSeat.autoPassActionStep` +
+  `actions.playerHasActionStepPlay` + `matchStore.settleAutoPasses`): o
+  assento liga a opção (`setAutoPass` / rota `POST .../auto-pass` /
+  `api.setSimulatorAutoPass`); se ele tem a prioridade num Action Step
+  (combate OU fim de turno) e não tem nenhuma jogada 【Action】 real
+  (Command 【Action】 pagável ou 【Activate·Action】 disponível), o servidor
+  passa na hora, sem cobrar os 90s do timer.
+- **`viewState`**: `pendingDecision` repassado pros dois lados (o `cardDef`
+  do Burst é de shield já pública no trash; as outras variantes só têm
+  `instanceId`/`specId`). `MatchView.autoPassActionStep` = valor do assento
+  do viewer.
+- **UI** (`SimulatorMatchPage.tsx`): modal de 【Burst】 ("Ativar efeito" /
+  "Enviar ao descarte", com a fila indicada), aviso "aguardando o oponente
+  resolver um 【Burst】", e um toggle discreto de auto-pass no aviso de
+  Action Step. Bursts que pedem alvo escolhido (ex. Siege Ploy) ainda não
+  coletam alvo no modal — o servidor recusa e o jogador cai no "Enviar ao
+  descarte" (limitação conhecida, some quando `targetSelection` for
+  cabeada de verdade).
+
+Cobertura de teste nova: `engine/pendingDecision.test.ts` (12 casos —
+pausa/resolução de Burst, guardas de decisão pendente, `activateAbility`
+Tallgeese/Support + 【Once per Turn】, `playerHasActionStepPlay`) e
+`server/matchStore.test.ts` (auto-pass do Action Step da End Phase, e o
+caso negativo com Command 【Action】 na mão). Suíte: 203/203, `tsc -b` limpo,
+`eslint src/modules/simulator` limpo.
+
+Fora do escopo desta wave (Sessão 3+): o modal de ordenação de gatilhos
+(`TriggerOrderModal`), a coleta de alvo dentro do modal de Burst
+(`targetSelection`), e o redesenho de layout "nível arena" (Sessão 3 do
+docs/19).
 
 ## Plano de implementação incremental (fatia vertical, não big-bang)
 

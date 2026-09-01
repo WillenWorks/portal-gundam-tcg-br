@@ -29,7 +29,9 @@ import {
   matchViewFor,
   MatchError,
   queueStatusFor,
+  reportSituation,
   seatFor,
+  setAutoPass,
   subscribe,
   touchPresence,
 } from "../src/modules/simulator/server/matchStore.ts";
@@ -3271,6 +3273,32 @@ app.post("/api/simulator/matches/:id/actions", authRequired, (req: RequestWithUs
 app.post("/api/simulator/matches/:id/ping", authRequired, (req: RequestWithUser, res) => {
   try {
     const match = touchPresence(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4) — loga o
+// GameState real + histórico no console do servidor pra diagnóstico. Não persiste.
+app.post("/api/simulator/matches/:id/report", authRequired, (req: RequestWithUser, res) => {
+  const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+  try {
+    res.json(reportSituation(String(req.params.id), req.user!.userId, note));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).
+app.post("/api/simulator/matches/:id/auto-pass", authRequired, (req: RequestWithUser, res) => {
+  const value = (req.body as { value?: unknown })?.value;
+  if (typeof value !== "boolean") return res.status(400).json({ error: "`value` precisa ser booleano." });
+  try {
+    const match = setAutoPass(String(req.params.id), req.user!.userId, value);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {

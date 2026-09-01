@@ -1,6 +1,7 @@
-import type { Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, otherPlayer } from "./types";
+import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
+import { effectiveHp, otherPlayer, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
+import { payResourceCostEvents } from "./costs";
 
 /**
  * "Effect Spec" — formalização da Camada 3 (texto livre → lógica) proposta
@@ -33,10 +34,39 @@ function resolvePlayerRef(ref: PlayerRef, controller: PlayerId): PlayerId {
 export type TargetRef =
   | { kind: "self" }
   | { kind: "instance"; instanceId: string }
-  /** grupo de alvo nomeado, resolvido antes pelo seletor de UI/IA e colocado em EffectContext.targets */
-  | { kind: "named"; name: string };
+  /** grupo de alvo nomeado, resolvido antes pelo seletor de UI/IA e colocado em EffectContext.targets — sempre usa só group[0], mesmo que o array tenha mais de 1 entrada (ver docs/18, escopo do seletor de UI). */
+  | { kind: "named"; name: string }
+  /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
+  | { kind: "group"; group: TargetGroup };
 
-function resolveTarget(ref: TargetRef, ctx: EffectContext): string {
+/**
+ * Padrões de alvo em grupo hoje usados por cartas reais: ST01-016 Asticassia
+ * ("All friendly Link Units") e ST02-003 Gundam Heavyarms ("all enemy Units
+ * that are Lv.3 or lower"). Novo padrão = novo membro desta union, não uma
+ * reescrita do desenho — mesma filosofia dos outros campos estruturados do
+ * DSL (`link`, `staticAbilities`).
+ */
+export type TargetGroup = { kind: "allFriendlyLinkUnits" } | { kind: "allEnemyUnits"; maxLevel?: number };
+
+function isLinkUnit(state: GameState, unit: CardInstance): boolean {
+  if (!unit.pairedPilotId) return false;
+  const pilot = findCard(state, unit.pairedPilotId);
+  return satisfiesLinkCondition(pilot.def, unit.def);
+}
+
+function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
+  if (group.kind === "allFriendlyLinkUnits") {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea.filter((u) => u.def.cardType === "UNIT" && isLinkUnit(ctx.state, u)).map((u) => u.instanceId);
+  }
+  const opponent = ctx.state.players[otherPlayer(ctx.controller)];
+  return opponent.battleArea
+    .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+    .map((u) => u.instanceId);
+}
+
+/** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "instance", "named"). */
+function resolveTarget(ref: Exclude<TargetRef, { kind: "group" }>, ctx: EffectContext): string {
   switch (ref.kind) {
     case "self":
       return ctx.sourceInstanceId;
@@ -52,6 +82,12 @@ function resolveTarget(ref: TargetRef, ctx: EffectContext): string {
   }
 }
 
+/** Resolve pra 0+ instanceIds — usado por toda primitiva que consome `TargetRef` (única fonte de verdade pra aplicar a mesma ação a um GRUPO inteiro de alvos, não só a 1). */
+function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
+  if (ref.kind === "group") return resolveTargetGroup(ref.group, ctx);
+  return [resolveTarget(ref, ctx)];
+}
+
 export type PrimitiveCall =
   | { op: "draw"; player: PlayerRef; n: number }
   | { op: "discard"; player: PlayerRef; instanceIds: string[] }
@@ -64,7 +100,28 @@ export type PrimitiveCall =
   | { op: "setActive"; target: TargetRef }
   | { op: "heal"; target: TargetRef; amount: number }
   /** dano direto numa Unit/Base (ex.: "Deal 1 damage to it") — destrói automaticamente se o dano acumulado bater o HP efetivo (Comprehensive Rules 5-5-2), igual à checagem já feita em combat.ts pro dano de batalha */
-  | { op: "damageUnit"; target: TargetRef; amount: number };
+  | { op: "damageUnit"; target: TargetRef; amount: number }
+  /** custo de recurso genérico (docs/18, lacuna #4) — resta N Recursos active do controller (ou os instanceIds dados), EX Resource sai do jogo (mesma regra de deploy.ts/costs.ts). Ex.: ST02-006 Tallgeese "④", ST01-015 White Base "②". */
+  | { op: "payResourceCost"; player: PlayerRef; n: number; resourceInstanceIds?: string[] }
+  /** cria 1+ instância nova a partir de um CardDef (docs/18, lacuna #3 — "criar instância nova"). Ex.: ST02-002 Wing Gundam (Bird Mode) "Place 1 EX Resource". */
+  | { op: "spawnToken"; def: CardDef; player: PlayerRef; zone: Zone; count?: number; rested?: boolean }
+  /** variante de spawnToken que escolhe QUAL CardDef instanciar contando as próprias Units em campo (ex.: ST01-015 White Base — Gundam/Guncannon/Guntank token conforme 0/1/2+ Units já em jogo). `thresholds` é avaliado em ordem crescente de `maxUnits`; o 1º cuja contagem atual seja <= maxUnits vence. */
+  | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
+  /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. */
+  | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" }
+  /**
+   * "Add N of your Shields to your hand" — o 【Deploy】 que TODA Base do jogo
+   * tem (91/91 no dataset oficial, sem exceção; ver docs/18). Como shields
+   * são face-down e o dono não vê a identidade (`viewState.ts`), a escolha de
+   * "qual shield" não carrega informação nenhuma: usa `ctx.targets.shield` se
+   * vier (permite a UI oferecer a escolha no futuro), senão pega os N
+   * primeiros. **No-op se o jogador não tem shield — a Base ainda é
+   * deployada normalmente** (o texto não é "may", mas "não dá pra fazer" =
+   * pula).
+   */
+  | { op: "addShieldToHand"; player: PlayerRef; count: number }
+  /** ST02-013 Peaceful Timbre — impede que shields recebam dano de Units inimigas até o level dado, durante esta batalha (docs/18, lacuna #7). Não-op fora de combate. */
+  | { op: "preventShieldDamage"; maxAttackerLevel: number };
 
 export interface EffectContext {
   state: GameState;
@@ -100,55 +157,98 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return [{ type: "DAMAGE_SHIELD", player, count: call.count }];
     }
     case "destroy": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [{ type: "DESTROY_CARD", instanceId }];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "DESTROY_CARD", instanceId }));
     }
     case "moveZone": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [{ type: "MOVE_CARD", instanceId, toZone: call.toZone }];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_CARD", instanceId, toZone: call.toZone }));
     }
     case "modifyStat": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [
-        {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({
           type: "MODIFY_STAT",
           instanceId,
           modifier: { stat: call.stat, amount: call.amount, duration: call.duration, appliedOnTurn: ctx.turnNumber },
-        },
-      ];
+        }),
+      );
     }
     case "grantKeyword": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [
-        {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({
           type: "GRANT_KEYWORD",
           instanceId,
           grant: { keyword: call.keyword, duration: call.duration, appliedOnTurn: ctx.turnNumber },
-        },
-      ];
+        }),
+      );
     }
     case "rest": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [{ type: "REST_CARD", instanceId }];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "REST_CARD", instanceId }));
     }
     case "setActive": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [{ type: "SET_ACTIVE", instanceId }];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "SET_ACTIVE", instanceId }));
     }
     case "heal": {
-      const instanceId = resolveTarget(call.target, ctx);
-      return [{ type: "HEAL_UNIT", instanceId, amount: call.amount }];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "HEAL_UNIT", instanceId, amount: call.amount }));
     }
     case "damageUnit": {
-      const instanceId = resolveTarget(call.target, ctx);
-      const events: GameEvent[] = [{ type: "DAMAGE_UNIT", instanceId, amount: call.amount }];
-      const card = findCard(ctx.state, instanceId);
-      if (card.damage + call.amount >= effectiveHp(card)) {
-        events.push({ type: "DESTROY_CARD", instanceId });
+      const events: GameEvent[] = [];
+      for (const instanceId of resolveTargetIds(call.target, ctx)) {
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: call.amount });
+        const card = findCard(ctx.state, instanceId);
+        if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
+          events.push({ type: "DESTROY_CARD", instanceId });
+        }
       }
       return events;
     }
+    case "payResourceCost": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      return payResourceCostEvents(ctx.state, player, call.n, call.resourceInstanceIds);
+    }
+    case "spawnToken": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const count = call.count ?? 1;
+      return Array.from({ length: count }, (): GameEvent => ({ type: "SPAWN_TOKEN", player, def: call.def, zone: call.zone, rested: call.rested }));
+    }
+    case "spawnTokenByOwnUnitCount": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const unitCount = ctx.state.players[player].battleArea.filter((c) => c.def.cardType === "UNIT").length;
+      const sorted = [...call.thresholds].sort((a, b) => a.maxUnits - b.maxUnits);
+      const match = sorted.find((t) => unitCount <= t.maxUnits);
+      if (!match) return [];
+      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone }];
+    }
+    case "moveWithinDeck": {
+      // Reordenar o topo do deck é uma decisão OPCIONAL de quem controla (ver
+      // `peekAndReorderDeck`): se ninguém decidiu (`ctx.targets` sem a entrada
+      // nomeada — ex. dispatcher do servidor antes da camada de decisão da
+      // Sessão 2), é no-op, o deck fica como está — resultado legal, não erro.
+      if (call.target.kind === "named" && !ctx.targets[call.target.name]?.length) return [];
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_WITHIN_DECK", instanceId, position: call.position }));
+    }
+    case "preventShieldDamage": {
+      return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel }];
+    }
+    case "addShieldToHand": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const shields = ctx.state.players[player].shields;
+      const chosen = ctx.targets.shield?.length
+        ? ctx.targets.shield.slice(0, call.count)
+        : shields.slice(0, call.count).map((s) => s.instanceId);
+      return chosen.map((instanceId): GameEvent => ({ type: "MOVE_CARD", instanceId, toZone: "hand" }));
+    }
   }
+}
+
+/**
+ * "Look at the top N cards of your deck" (ex.: ST02-015 Saint Gabriel
+ * Institute) — leitura pura, sem evento: só devolve as N cartas do topo pra
+ * quem for decidir a reordenação (UI/IA/teste) montar `ctx.targets` antes de
+ * chamar `resolveEffectSpec` (mesmo padrão de "named" já usado por
+ * "target"/"shield" em toda carta com escolha externa). A reordenação em si
+ * é feita depois, via a primitiva `moveWithinDeck` (docs/18, lacuna #8).
+ */
+export function peekAndReorderDeck(state: GameState, player: PlayerId, n: number): CardInstance[] {
+  return state.players[player].deck.slice(0, n);
 }
 
 export function compileActions(calls: PrimitiveCall[], ctx: EffectContext): GameEvent[] {

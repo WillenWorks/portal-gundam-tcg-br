@@ -9,6 +9,7 @@ import {
   AERIAL_SCORE_SIX_WHEN_PAIRED,
   AMURO_RAY_BURST,
   AMURO_RAY_WHEN_PAIRED,
+  ASTICASSIA_ACTIVATE_MAIN,
   ASTICASSIA_BURST,
   ASTICASSIA_DEPLOY,
   GUNDAM_MA_FORM_WHEN_PAIRED,
@@ -21,6 +22,7 @@ import {
   UNFORESEEN_INCIDENT_ACTION,
   UNFORESEEN_INCIDENT_BURST,
   UNFORESEEN_INCIDENT_MAIN,
+  WHITE_BASE_ACTIVATE_MAIN,
   WHITE_BASE_BURST,
   WHITE_BASE_DEPLOY,
 } from "./st01";
@@ -69,9 +71,9 @@ const pairedPilotHasTraitResolver: PredicateResolver = (predicate, ctx) => {
 };
 
 describe("EffectSpecs reais do ST01 (docs/18 passo 3)", () => {
-  it("16 EffectSpecs cadastrados, cobrindo 10 das 16 cartas únicas do ST01", () => {
+  it("18 EffectSpecs cadastrados, cobrindo 10 das 16 cartas únicas do ST01", () => {
     const codes = new Set(ST01_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST01_EFFECT_SPECS).toHaveLength(16);
+    expect(ST01_EFFECT_SPECS).toHaveLength(18);
     expect(codes.size).toBe(10);
   });
 
@@ -276,5 +278,90 @@ describe("EffectSpecs reais do ST01 (docs/18 passo 3)", () => {
 
       expect(findCard(next, shieldId).zone).toBe("hand");
     });
+
+    it("Deploy sem escolha de shield: pega o 1º shield automaticamente (escolha cega — shields são face-down)", () => {
+      const state = freshGame();
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+      const firstShieldId = state.players.A.shields[0].instanceId;
+      const handBefore = state.players.A.hand.length;
+      const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+
+      const next = applyEvents(state, resolveEffectSpec(WHITE_BASE_DEPLOY, ctx));
+
+      expect(findCard(next, firstShieldId).zone).toBe("hand");
+      expect(next.players.A.hand.length).toBe(handBefore + 1);
+    });
+
+    it("Deploy com 0 shields: não lança, só não move nada (a Base ainda deploya)", () => {
+      const state = freshGame();
+      state.players.A.shields = [];
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+      const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+
+      expect(() => resolveEffectSpec(WHITE_BASE_DEPLOY, ctx)).not.toThrow();
+      expect(resolveEffectSpec(WHITE_BASE_DEPLOY, ctx)).toEqual([]);
+    });
+  });
+
+  describe("ST01-015 White Base — Activate·Main ②: deploy de token condicional por Units em campo (docs/18 lacunas #3/#4)", () => {
+    it("custo ④②: resta 2 Recursos active e, com 0 Units em campo, deploya 1 token [Gundam] (AP3/HP3)", () => {
+      const state = freshGame();
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+      const r1 = place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      const r2 = place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+
+      const next = applyEvents(state, resolveEffectSpec(WHITE_BASE_ACTIVATE_MAIN, ctx));
+
+      expect(findCard(next, r1).rested).toBe(true);
+      expect(findCard(next, r2).rested).toBe(true);
+      const tokens = next.players.A.battleArea.filter((c) => c.def.isToken);
+      expect(tokens).toHaveLength(1);
+      expect(tokens[0].def.nameEn).toBe("Gundam");
+      expect(tokens[0].def.ap).toBe(3);
+    });
+
+    it("com 1 Unit em campo deploya [Guncannon]; com 2+ deploya [Guntank]", () => {
+      const state = freshGame();
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+      place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+      const ctx1: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+      const afterFirst = applyEvents(state, resolveEffectSpec(WHITE_BASE_ACTIVATE_MAIN, ctx1));
+      expect(afterFirst.players.A.battleArea.filter((c) => c.def.isToken).map((c) => c.def.nameEn)).toEqual(["Guncannon"]);
+
+      const ctx2: EffectContext = { state: afterFirst, controller: "A", sourceInstanceId: baseId, turnNumber: afterFirst.turnNumber, targets: {} };
+      const afterSecond = applyEvents(afterFirst, resolveEffectSpec(WHITE_BASE_ACTIVATE_MAIN, ctx2));
+      expect(afterSecond.players.A.battleArea.filter((c) => c.def.isToken).map((c) => c.def.nameEn)).toEqual(["Guncannon", "Guntank"]);
+    });
+
+    it("custo ② sem Recursos active suficientes: lança", () => {
+      const state = freshGame();
+      const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+      place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea");
+      const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+
+      expect(() => resolveEffectSpec(WHITE_BASE_ACTIVATE_MAIN, ctx)).toThrow(/Recursos active insuficientes/);
+    });
+  });
+
+  it("ST01-016 Asticassia — Activate·Main: resta a Base e dá AP+1 a toda Unit amiga com Link ativo (docs/18 lacuna #5)", () => {
+    const state = freshGame();
+    const baseId = place(state, "A", ST01_CARD_DEFS.ASTICASSIA, "baseSection");
+    const amuroId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "battleArea");
+    const linkedId = place(state, "A", ST01_CARD_DEFS.GUNDAM, "battleArea", { pairedPilotId: amuroId });
+    const unlinkedId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
+
+    const next = applyEvents(state, resolveEffectSpec(ASTICASSIA_ACTIVATE_MAIN, ctx));
+
+    expect(findCard(next, baseId).rested).toBe(true);
+    expect(findCard(next, linkedId).statModifiers).toEqual([
+      { stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: state.turnNumber },
+    ]);
+    expect(findCard(next, unlinkedId).statModifiers).toEqual([]);
   });
 });

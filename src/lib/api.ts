@@ -268,6 +268,8 @@ export type SimulatorMatchView = {
   /** último sinal de vida (ping OU ação real) de cada assento — epoch ms — base do W.O. por abandono (3min). */
   lastSeenAt: Partial<Record<PlayerId, number>>;
   version: number;
+  /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2). */
+  autoPassActionStep: boolean;
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
@@ -447,6 +449,12 @@ export const api = {
     request<SimulatorMatchView>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
   /** Heartbeat de presença -- chamar periodicamente enquanto a aba está visível (alimenta o W.O. por abandono). */
   pingSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/ping`, { method: "POST" }),
+  /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */
+  setSimulatorAutoPass: (id: string, value: boolean) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/auto-pass`, { method: "POST", body: JSON.stringify({ value }) }),
+  /** "Reportar Situação de Regra" (docs/19, Sessão 4) — o servidor loga o estado real + histórico e devolve um id curto. */
+  reportSimulatorSituation: (id: string, note?: string) =>
+    request<{ reportId: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
   /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
   claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
   // Depuração/admin -- fora do fluxo normal (agora hosterRequired no servidor), mantidas

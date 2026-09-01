@@ -10,7 +10,8 @@ import { dispatchBurstForNewlyTrashedShields, dispatchTrigger, type BurstChoiceF
 import { findCard } from "./events";
 import { GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { ST02_EFFECT_SPECS } from "../content/st02";
-import type { EffectContext, PredicateResolver } from "./effectSpec";
+import { defaultPredicateResolver } from "../content/predicates";
+import { peekAndReorderDeck } from "./effectSpec";
 
 /**
  * "Partida real" ST01 vs ST02 (docs/18, wave "motor de jogo real + gaps
@@ -24,8 +25,9 @@ import type { EffectContext, PredicateResolver } from "./effectSpec";
  * deliberadamente, e essa é a mesma convenção já documentada em
  * `st01.test.ts`/`fullGame.test.ts`).
  *
- * Cobertura visada — todos os 27 EffectSpec reais cadastrados até agora
- * (16 ST01 + 11 ST02, ver docs/18 "Cobertura real"):
+ * Cobertura visada — o núcleo dos EffectSpec reais de ST01/ST02 (ver docs/18
+ * "Cobertura real"; as 8 lacunas de DSL foram fechadas na wave de Agente 1,
+ * docs/19):
  *
  * ST01: GUNDAM_MA_FORM_WHEN_PAIRED, GUNTANK_DEPLOY,
  * AERIAL_SCORE_SIX_WHEN_PAIRED, AMURO_RAY_BURST, AMURO_RAY_WHEN_PAIRED,
@@ -36,29 +38,27 @@ import type { EffectContext, PredicateResolver } from "./effectSpec";
  * ST02: TALLGEESE_ACTIVATE_MAIN, HEERO_YUY_BURST, ZECHS_MERQUISE_BURST,
  * SIMULTANEOUS_FIRE_MAIN (o grant de `<Breach 3>` que motivou o fix de
  * `keywordValue()`), SIEGE_PLOY_{BURST,MAIN,ACTION},
- * SAINT_GABRIEL_INSTITUTE_{BURST,DEPLOY}, CORSICA_BASE_{BURST,DEPLOY}.
+ * SAINT_GABRIEL_INSTITUTE_{BURST,DEPLOY} (com peek-and-reorder do deck),
+ * CORSICA_BASE_{BURST,DEPLOY} (com deploy de token condicional).
  *
  * + keywords automáticas: `<Repair 2>` (ST01 Gundam), `<Blocker>` (ST02
  * Aries), `<Breach>` concedida dinamicamente (regressão do bug real
  * encontrado na wave anterior).
  *
- * Fora de escopo (documentado, não fingido): as ~15 cartas "Parcial" e as 8
- * lacunas de DSL já registradas em docs/18 — efeito contínuo condicional
- * (During Pair/Link), alvo em grupo, custo de recurso genérico em
- * habilidades ativadas, criar token, informação oculta, restrição de
- * legalidade de alvo. Nada disso é simulado "de mentirinha" aqui.
+ * Cobertura das lacunas fechadas na wave de Agente 1 (docs/19) — modificador
+ * estático During Pair/Link, combat trigger During Link, alvo em grupo,
+ * `payResourceCost`, spawn de token, peek-and-reorder, `attackTargetRules`,
+ * prevenção de dano de shield — vive nos testes focados de `content/st01.test.ts`,
+ * `content/st02.test.ts` e nos testes de engine (`combat.test.ts` etc.); a
+ * partida ponta-a-ponta que exercita tudo junto num jogo real é a Sessão 4
+ * (docs/19, Agente-Sync-QA).
  */
 
 const ALL_SPECS = [...ST01_EFFECT_SPECS, ...ST02_EFFECT_SPECS];
 
-const pairedPilotHasTraitResolver: PredicateResolver = (predicate, ctx: EffectContext) => {
-  const match = predicate.match(/^pairedPilotHasTrait:(.+)$/);
-  if (!match) return false;
-  const source = findCard(ctx.state, ctx.sourceInstanceId);
-  if (!source.pairedPilotId) return false;
-  const pilot = findCard(ctx.state, source.pairedPilotId);
-  return pilot.def.traits?.includes(match[1]) ?? false;
-};
+// mesma função usada pelo dispatcher real do servidor (`server/matchStore.ts`) —
+// cobre `pairedPilotHasTrait:` (ST01-002) e `cardInTrashNamed:` (ST02-016).
+const predicateResolver = defaultPredicateResolver;
 
 let seq = 0;
 function mkInstance(state: GameState, player: PlayerId, def: CardDef, zone: Zone, opts: Partial<CardInstance> = {}): string {
@@ -167,7 +167,7 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     state = deployCard(state, "A", amuroId0, {
       pairWithUnitId: maFormId,
       specs: [GUNDAM_MA_FORM_WHEN_PAIRED],
-      predicateResolver: pairedPilotHasTraitResolver,
+      predicateResolver,
     });
     expect(state.players.A.hand.length).toBe(handBeforeMaFormPair); // Amuro saiu da mão (-1), GUNDAM_MA_FORM_WHEN_PAIRED compra 1 (+1) -> líquido 0
 
@@ -470,12 +470,23 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     giveResources(state, "B", 5);
     state.activePlayer = "B";
     const bShieldToMoveId = state.players.B.shields[0]?.instanceId;
+    // SAINT_GABRIEL_INSTITUTE_DEPLOY: além do shield, olha o topo 2 do deck e escolhe
+    // qual volta pro topo / pro fundo (docs/18 lacuna #8) — quem controla decide, aqui
+    // mantém a ordem (1ª carta olhada volta pro topo, 2ª pro fundo).
+    const [bTop1, bTop2] = peekAndReorderDeck(state, "B", 2);
     state = deployCard(state, "B", saintGabrielId, {
       specs: ALL_SPECS,
-      targets: bShieldToMoveId ? { shield: [bShieldToMoveId] } : {},
+      predicateResolver,
+      targets: {
+        ...(bShieldToMoveId ? { shield: [bShieldToMoveId] } : {}),
+        toTop: [bTop1.instanceId],
+        toBottom: [bTop2.instanceId],
+      },
     });
     expect(state.players.B.baseSection.some((c) => c.instanceId === saintGabrielId)).toBe(true); // SAINT_GABRIEL_INSTITUTE_DEPLOY
     if (bShieldToMoveId) expect(findCard(state, bShieldToMoveId).zone).toBe("hand");
+    expect(state.players.B.deck[0].instanceId).toBe(bTop1.instanceId);
+    expect(state.players.B.deck[state.players.B.deck.length - 1].instanceId).toBe(bTop2.instanceId);
 
     const saintGabrielShieldId = mkInstance(state, "B", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "shields");
     state = dispatchTrigger(state, saintGabrielShieldId, "Burst", ALL_SPECS);
@@ -487,12 +498,22 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
 
     const corsicaBaseId = mkInstance(state, "B", ST02_CARD_DEFS.CORSICA_BASE, "hand");
     const bShieldToMoveId2 = state.players.B.shields[0]?.instanceId;
+    const bUnitsBeforeCorsica = state.players.B.battleArea.filter((c) => c.def.cardType === "UNIT").length;
     state = deployCard(state, "B", corsicaBaseId, {
       specs: ALL_SPECS,
+      predicateResolver,
       targets: bShieldToMoveId2 ? { shield: [bShieldToMoveId2] } : {},
     });
     expect(state.players.B.baseSection.map((c) => c.instanceId)).toEqual([corsicaBaseId]); // CORSICA_BASE_DEPLOY
     if (bShieldToMoveId2) expect(findCard(state, bShieldToMoveId2).zone).toBe("hand");
+    // CORSICA_BASE_DEPLOY deploya token condicional (docs/18 lacuna #3): 2x [Leo] se já
+    // houver uma carta "Corsica Base" no trash de B, senão 1x [Tallgeese].
+    const corsicaInTrash = state.players.B.trash.some((c) => c.def.nameEn.includes("Corsica Base"));
+    const bTokens = state.players.B.battleArea.filter((c) => c.def.isToken);
+    expect(bTokens.map((c) => c.def.nameEn)).toEqual(corsicaInTrash ? ["Leo", "Leo"] : ["Tallgeese"]);
+    expect(state.players.B.battleArea.filter((c) => c.def.cardType === "UNIT").length).toBe(
+      bUnitsBeforeCorsica + (corsicaInTrash ? 2 : 1),
+    );
 
     const corsicaBaseShieldId = mkInstance(state, "B", ST02_CARD_DEFS.CORSICA_BASE, "shields");
     state = dispatchTrigger(state, corsicaBaseShieldId, "Burst", ALL_SPECS);

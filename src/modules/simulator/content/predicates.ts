@@ -22,5 +22,10 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const pilot = findCard(ctx.state, source.pairedPilotId);
     return pilot.def.traits?.includes(pairedPilotHasTrait[1]) ?? false;
   }
+  // ST02-016 Corsica Base — "if ... a card with 'Corsica Base' in its card name is in your trash".
+  const cardInTrashNamed = predicate.match(/^cardInTrashNamed:(.+)$/);
+  if (cardInTrashNamed) {
+    return ctx.state.players[ctx.controller].trash.some((c) => c.def.nameEn.includes(cardInTrashNamed[1]));
+  }
   return false;
 };

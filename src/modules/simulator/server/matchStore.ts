@@ -1,7 +1,7 @@
 import type { GameState, PlayerId } from "../engine/types";
 import { createGame, type DeckList } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
-import { applyPlayerAction, type PlayerAction } from "../engine/actions";
+import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "../engine/actions";
 import { applyEvents } from "../engine/events";
 import { viewStateFor, type ViewGameState } from "../engine/viewState";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
@@ -26,6 +26,13 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
 export interface MatchSeat {
   userId: string;
   displayName: string;
+  /**
+   * docs/19, Sessão 2, tarefa 4: quando ligado, o servidor passa
+   * automaticamente o Action Step (de combate ou de fim de turno) por este
+   * assento se ele não tiver nenhuma jogada 【Action】 real disponível — sem
+   * esperar o timer de 90s. Default `false` (o jogador confirma cada passe).
+   */
+  autoPassActionStep?: boolean;
 }
 
 /** 90s por decisão (não por turno inteiro) — decisão do Willen em 2026-08-30. Estourou, o servidor age sozinho (ver `onTurnTimeout`). */
@@ -75,6 +82,8 @@ export interface MatchView {
   turnDeadlineAt: number | null;
   lastSeenAt: Partial<Record<PlayerId, number>>;
   version: number;
+  /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2) — pra UI renderizar o toggle. */
+  autoPassActionStep: boolean;
 }
 
 export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
@@ -86,6 +95,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     turnDeadlineAt: match.turnDeadlineAt,
     lastSeenAt: match.lastSeenAt,
     version: match.version,
+    autoPassActionStep: match.seats[seat]?.autoPassActionStep ?? false,
   };
 }
 
@@ -129,6 +139,26 @@ export function createMatch(opts: CreateMatchOptions): MatchRecord {
   };
   matches.set(match.id, match);
   return match;
+}
+
+/**
+ * "GC" oportunista do store em memória (docs/19, Sessão 4 — evitar acúmulo
+ * indefinido): partida terminada some 10min depois da última atualização
+ * (tempo de sobra pros 2 lados verem o resultado); partida que nunca teve os
+ * 2 assentos ocupados some depois de 15min. Chamado das rotas de escrita
+ * (`applyAction`, `joinQueue`, `onTurnTimeout`) — sem `setInterval` de fundo,
+ * pra não vazar timer nem interferir em teste.
+ */
+const FINISHED_MATCH_TTL_MS = 10 * 60_000;
+const UNSEATED_MATCH_TTL_MS = 15 * 60_000;
+
+function sweepStaleMatches(): void {
+  const now = Date.now();
+  for (const [id, m] of matches) {
+    const finishedStale = !!m.state.gameOver && now - m.updatedAt > FINISHED_MATCH_TTL_MS;
+    const neverSeated = !m.seats.A && !m.seats.B && now - m.createdAt > UNSEATED_MATCH_TTL_MS;
+    if (finishedStale || neverSeated) deleteMatch(id);
+  }
 }
 
 export function getMatch(matchId: string): MatchRecord | undefined {
@@ -183,6 +213,7 @@ export function joinMatch(matchId: string, seat: PlayerId, player: MatchSeat): M
 
 /** Aplica a ação do usuário (identificado por `userId`, não por `PlayerId` — o assento é resolvido aqui). */
 export function applyAction(matchId: string, userId: string, action: PlayerAction): MatchRecord {
+  sweepStaleMatches();
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
   if (!seat) throw new MatchError("Esse usuário não é jogador desta partida (precisa entrar num assento primeiro).", 403);
@@ -212,6 +243,42 @@ export function touchPresence(matchId: string, userId: string): MatchRecord {
   match.lastSeenAt[seat] = Date.now();
   notify(match);
   return match;
+}
+
+/**
+ * Liga/desliga o auto-pass de Action Step pro assento desse usuário (docs/19,
+ * Sessão 2). Reavalia na hora — se o jogador já está num Action Step sem
+ * jogada e acabou de ligar a opção, o `armTurnTimer` abaixo já passa por ele.
+ */
+export function setAutoPass(matchId: string, userId: string, value: boolean): MatchRecord {
+  const match = requireMatch(matchId);
+  const seat = seatFor(match, userId);
+  if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
+  match.seats[seat] = { ...match.seats[seat]!, autoPassActionStep: value };
+  match.updatedAt = Date.now();
+  armTurnTimer(match);
+  notify(match);
+  return match;
+}
+
+/**
+ * Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4). Não
+ * persiste em banco — só emite um `console.warn` estruturado com o
+ * `GameState` REAL (não redigido) + histórico de eventos, pra diagnóstico
+ * pelo dev nos logs do servidor. Devolve um `reportId` curto que o jogador
+ * vê na tela (e que aparece no log), pra casar o relato com a linha certa.
+ */
+export function reportSituation(matchId: string, userId: string, note?: string): { reportId: string } {
+  const match = requireMatch(matchId);
+  const seat = seatFor(match, userId);
+  if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
+
+  const reportId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  console.warn(
+    `[SIMULADOR][RULE-REPORT ${reportId}] match=${matchId} seat=${seat} version=${match.state.turnNumber}t note=${JSON.stringify(note ?? "")}\n` +
+      JSON.stringify({ reportId, matchId, seat, note, at: Date.now(), deckKeys: match.deckKeys, state: match.state }),
+  );
+  return { reportId };
 }
 
 /** Partida ainda não terminada onde esse usuário já ocupa um assento, se alguma — usado pra "reconectar" direto em vez de enfileirar de novo. */
@@ -287,6 +354,7 @@ const pendingMatches = new Map<string, QueueStatus>();
 
 /** Idempotente: chamar de novo com o mesmo usuário só atualiza o deck escolhido, nunca duplica a entrada. Se o usuário já está numa partida ativa (reconexão), devolve ela direto em vez de enfileirar de novo. */
 export function joinQueue(input: QueueJoinInput): QueueStatus {
+  sweepStaleMatches();
   const alreadyPlaying = activeMatchForUser(input.userId);
   if (alreadyPlaying) {
     return { queued: false, matched: true, matchId: alreadyPlaying.match.id, seat: alreadyPlaying.seat };
@@ -344,6 +412,11 @@ export function leaveQueue(userId: string): void {
 /** Quem precisa agir agora, se algum — `null` quando o passo é transitório (resolvido sozinho por `applyPlayerAction`) ou não há decisão pendente. */
 function decisionOwner(state: GameState): PlayerId | null {
   if (state.gameOver) return null;
+  // Decisão interativa pendente (docs/19, Sessão 2) tem prioridade sobre
+  // qualquer passo — é a vez DAQUELE jogador resolver (Burst / ordem de gatilhos).
+  for (const p of ["A", "B"] as PlayerId[]) {
+    if (state.pendingDecision[p]) return p;
+  }
   if (state.combat) {
     if (state.combat.step === "block") return state.combat.defendingPlayer;
     if (state.combat.step === "action") return state.combat.actionPriority;
@@ -359,6 +432,15 @@ function decisionOwner(state: GameState): PlayerId | null {
 
 /** A ação que o timer executa sozinho quando estoura, pro passo atual — sempre a opção "não fazer nada de especial" de cada passo. */
 function defaultActionFor(state: GameState): PlayerAction {
+  // Decisão interativa pendente: a opção "não fazer nada de especial" é
+  // recusar o Burst / manter a ordem de gatilhos como está.
+  for (const p of ["A", "B"] as PlayerId[]) {
+    const pending = state.pendingDecision[p];
+    if (pending?.kind === "burst") return { kind: "resolveBurstDecision", activate: false };
+    if (pending?.kind === "triggerOrder") {
+      return { kind: "resolveTriggerOrder", orderedSpecIds: pending.triggers.map((t) => t.specId) };
+    }
+  }
   if (state.combat?.step === "block") return { kind: "skipBlock" };
   if (state.combat?.step === "action") return { kind: "passAction" };
   if (state.endPhaseAction) return { kind: "passEndPhaseAction" };
@@ -373,8 +455,41 @@ function clearTurnTimer(matchId: string): void {
   }
 }
 
+/**
+ * Auto-pass inteligente do Action Step (docs/19, Sessão 2, tarefa 4): se o
+ * jogador com prioridade num Action Step (combate OU fim de turno) ligou
+ * `autoPassActionStep` e não tem nenhuma jogada 【Action】 real, passa na
+ * hora — sem cobrar os 90s do timer. Loop limitado: cada passe ou vira a
+ * prioridade uma vez ou encerra o step, então converge em poucas iterações
+ * (e para assim que o outro lado não tem auto-pass ligado, ou surge uma
+ * decisão de Burst, ou o step termina).
+ */
+function settleAutoPasses(match: MatchRecord): void {
+  for (let i = 0; i < 6; i++) {
+    if (match.state.gameOver) return;
+    const owner = decisionOwner(match.state);
+    if (!owner) return;
+
+    const inCombatActionStep = match.state.combat?.step === "action";
+    const inEndPhaseActionStep = match.state.endPhaseAction != null;
+    if (!inCombatActionStep && !inEndPhaseActionStep) return;
+    if (!match.seats[owner]?.autoPassActionStep) return;
+    if (playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
+
+    const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
+    try {
+      match.state = applyPlayerAction(match.state, owner, pass, ALL_EFFECT_SPECS, defaultPredicateResolver);
+      match.version += 1;
+      match.updatedAt = Date.now();
+    } catch {
+      return;
+    }
+  }
+}
+
 /** Cancela e reagenda o timer de turno pro estado atual da partida — chamar depois de QUALQUER mutação de `match.state`. */
 function armTurnTimer(match: MatchRecord): void {
+  settleAutoPasses(match);
   clearTurnTimer(match.id);
 
   if (match.state.gameOver || !match.seats.A || !match.seats.B || !decisionOwner(match.state)) {
@@ -390,6 +505,7 @@ function armTurnTimer(match: MatchRecord): void {
 
 function onTurnTimeout(matchId: string, expectedDeadline: number): void {
   turnTimeouts.delete(matchId);
+  sweepStaleMatches();
   const match = matches.get(matchId);
   if (!match) return;
   // a partida já mudou de estado (ação real, ou já tinha sido reagendada) desde que este timeout foi criado — não faz nada, quem reagendou já cuidou.

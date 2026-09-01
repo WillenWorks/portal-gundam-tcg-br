@@ -2,7 +2,7 @@ import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
-import { TOKEN_EX_RESOURCE_CODE } from "./setup";
+import { payResourceCostEvents } from "./costs";
 
 /**
  * "Jogar carta da mão" (Main Phase) — a peça que faltava desde o passo 2
@@ -51,34 +51,11 @@ export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): b
   return state.players[player].resourceArea.length >= (def.level ?? 0);
 }
 
+// Pagamento de custo de recurso (EX Resource sai do jogo, Recurso normal só resta) foi
+// extraído pra costs.ts (payResourceCostEvents) — reaproveitado também pela primitiva de
+// DSL `payResourceCost` (ver effectSpec.ts, docs/18 lacuna #4, ex. ST02-006 Tallgeese "④").
 function payCostEvents(state: GameState, player: PlayerId, def: CardDef, resourceInstanceIds?: string[]): GameEvent[] {
-  const cost = def.cost ?? 0;
-  const resourceArea = state.players[player].resourceArea;
-  const activeResources = resourceArea.filter((r) => !r.rested);
-  const payWith = resourceInstanceIds ?? activeResources.slice(0, cost).map((r) => r.instanceId);
-
-  if (payWith.length < cost) {
-    throw new Error(`Recursos active insuficientes pra pagar custo ${cost}: só ${activeResources.length} active`);
-  }
-  for (const id of payWith) {
-    const resource = findCard(state, id);
-    if (resource.owner !== player || resource.zone !== "resourceArea") {
-      throw new Error(`Recurso ${id} inválido pra pagar custo (precisa ser Recurso do próprio jogador na Resource Area)`);
-    }
-    if (resource.rested) {
-      throw new Error(`Recurso ${id} já está rested, não pode pagar custo de novo`);
-    }
-  }
-  // EX Resource sai do jogo de vez ao ser usado pra pagar custo, nunca fica só rested em
-  // campo como um Recurso normal (regra oficial: "When an EX Resource is used to pay a
-  // cost, that EX Resource is removed from the game" — confirmado contra o Comprehensive
-  // Rules oficial). Recurso normal (do resource deck) só é REST_CARD mesmo.
-  return payWith.map((id): GameEvent => {
-    const resource = findCard(state, id);
-    return resource.def.code === TOKEN_EX_RESOURCE_CODE
-      ? { type: "REMOVE_CARD_FROM_GAME", instanceId: id }
-      : { type: "REST_CARD", instanceId: id };
-  });
+  return payResourceCostEvents(state, player, def.cost ?? 0, resourceInstanceIds);
 }
 
 /** Joga uma carta Unit/Pilot/Base da mão (Comprehensive Rules 7 — Main Phase). */

@@ -1,23 +1,25 @@
 import type { EffectSpec, PrimitiveCall } from "../engine/effectSpec";
+import { TOKEN_GUNCANNON, TOKEN_GUNDAM, TOKEN_GUNTANK } from "../fixtures/st01Deck";
 
 /**
- * Passo 3 do plano incremental (docs/18): primeira leva real de EffectSpec,
- * autorada carta a carta contra o `effect` oficial em inglês de
- * `data/gcg-official-cards.json` (nunca a tradução — ver docs/18, "Cobertura
- * de idioma"). Cobre 10 das 16 cartas únicas do ST01 (as que têm efeito
- * bespoke E cabem no vocabulário de primitivas de hoje); as 3 vanilla
- * (Guncannon/GM/Aerial Bit Form) e as 2 só-keyword-automática (Demi
- * Trainer/Zowort, `<Blocker>`) não precisam de EffectSpec — o motor já
- * cobre sozinho. O que ficou de fora, e por quê, está documentado em
- * `st01Deck.ts` (comentários nos `CardDef` de ST01-001, 009, 012, 013, 015,
- * 016) e resumido em docs/18.
+ * Passo 3 do plano incremental (docs/18): EffectSpec real, autorada carta a
+ * carta contra o `effect` oficial em inglês de `data/gcg-official-cards.json`
+ * (nunca a tradução — ver docs/18, "Cobertura de idioma"). Cobre agora as 10
+ * cartas com efeito bespoke das 16 únicas do ST01 (as outras 6 são vanilla ou
+ * só-keyword-automática, o motor já cobre sozinho sem EffectSpec) — cobertura
+ * 100%, fechando as lacunas de DSL antes documentadas aqui (ver "8 lacunas"
+ * em docs/18): ST01-001 Gundam (`staticAbilities`, 【During Pair】) e
+ * ST01-009 Zowort (`attackTargetRules`) são modeladas como campo estruturado
+ * de `CardDef`, não como `EffectSpec` (não são gatilho→ação, são modificador
+ * contínuo/restrição de legalidade — ver `st01Deck.ts`); ST01-012/013
+ * ("【Pilot】[X]" pra poder jogar a carta) continuam fora de escopo — é
+ * requisito de jogo, não efeito, nunca fez parte das 8 lacunas.
  *
- * Nenhum disparo automático existe ainda (nenhum "quando este Unit é
- * deployado, rode os EffectSpec de trigger Deploy dele" — isso é trabalho
- * de dispatcher, ortogonal a autoria de conteúdo). Cada `EffectSpec` aqui é
- * testado chamando `resolveEffectSpec` diretamente com um `EffectContext`
- * montado à mão, do mesmo jeito que `effectSpec.test.ts` já testava o
- * exemplo sintético — só que agora contra texto de carta real.
+ * Nenhum disparo automático existe ainda no sentido de "descobrir sozinho
+ * qual EffectSpec rodar" fora do que `dispatcher.ts` já cobre — os testes
+ * deste arquivo continuam chamando `resolveEffectSpec` diretamente com um
+ * `EffectContext` montado à mão, do mesmo jeito que `effectSpec.test.ts` já
+ * testava o exemplo sintético — só que agora contra texto de carta real.
  */
 
 // ST01-002 Gundam (MA Form) — 【When Paired･(White Base Team) Pilot】Draw 1.
@@ -162,11 +164,35 @@ export const WHITE_BASE_DEPLOY: EffectSpec = {
   id: "ST01-015-Deploy",
   cardCode: "ST01-015",
   trigger: "Deploy",
-  actions: [{ op: "moveZone", target: { kind: "named", name: "shield" }, toZone: "hand" }],
+  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
-// 【Activate･Main】【Once per Turn】②：deploy de token condicional — fora do
-// escopo desta wave, ver comentário em st01Deck.ts (WHITE_BASE).
+
+// ST01-015 White Base — 【Activate･Main】【Once per Turn】②：Deploy 1 [Gundam]
+// token se 0 Units em campo, [Guncannon] token se 1 Unit, ou [Guntank] token
+// se 2+ Units. Fecha docs/18 lacuna #3 (criar instância nova) + #4 (custo de
+// recurso genérico) — 【Once per Turn】 é responsabilidade de quem despacha
+// (dispatcher.ts), igual às outras cartas com essa tag.
+export const WHITE_BASE_ACTIVATE_MAIN: EffectSpec = {
+  id: "ST01-015-ActivateMain",
+  cardCode: "ST01-015",
+  trigger: "Activate·Main",
+  cost: [{ op: "payResourceCost", player: "controller", n: 2 }],
+  actions: [
+    {
+      op: "spawnTokenByOwnUnitCount",
+      player: "controller",
+      zone: "battleArea",
+      thresholds: [
+        { maxUnits: 0, def: TOKEN_GUNDAM },
+        { maxUnits: 1, def: TOKEN_GUNCANNON },
+        { maxUnits: Infinity, def: TOKEN_GUNTANK },
+      ],
+    },
+  ],
+  sourceText:
+    "【Activate･Main】【Once per Turn】②：Deploy 1 [Gundam]((White Base Team)･AP3･HP3) Unit token if you have no Units in play, deploy 1 [Guncannon]((White Base Team)･AP2･HP2) Unit token if you have only 1 Unit in play, or deploy 1 [Guntank]((White Base Team)･AP1･HP1) Unit token if you have 2 or more Units in play.",
+};
 
 // ST01-016 Asticassia — 【Burst】Deploy this card.
 export const ASTICASSIA_BURST: EffectSpec = {
@@ -182,11 +208,23 @@ export const ASTICASSIA_DEPLOY: EffectSpec = {
   id: "ST01-016-Deploy",
   cardCode: "ST01-016",
   trigger: "Deploy",
-  actions: [{ op: "moveZone", target: { kind: "named", name: "shield" }, toZone: "hand" }],
+  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
-// 【Activate･Main】Rest this Base：All friendly Link Units get AP+1 — fora
-// do escopo desta wave, ver comentário em st01Deck.ts (ASTICASSIA).
+
+// ST01-016 Asticassia — 【Activate･Main】Rest this Base：All friendly Link
+// Units get AP+1 during this turn. Fecha docs/18 lacuna #5 (alvo em grupo) —
+// `TargetRef.kind: "group"` resolve "All friendly Link Units" dinamicamente.
+export const ASTICASSIA_ACTIVATE_MAIN: EffectSpec = {
+  id: "ST01-016-ActivateMain",
+  cardCode: "ST01-016",
+  trigger: "Activate·Main",
+  cost: [{ op: "rest", target: { kind: "self" } }],
+  actions: [
+    { op: "modifyStat", target: { kind: "group", group: { kind: "allFriendlyLinkUnits" } }, stat: "ap", amount: 1, duration: "endOfTurn" },
+  ],
+  sourceText: "【Activate･Main】Rest this Base：All friendly Link Units get AP+1 during this turn.",
+};
 
 export const ST01_EFFECT_SPECS: EffectSpec[] = [
   GUNDAM_MA_FORM_WHEN_PAIRED,
@@ -203,6 +241,8 @@ export const ST01_EFFECT_SPECS: EffectSpec[] = [
   UNFORESEEN_INCIDENT_ACTION,
   WHITE_BASE_BURST,
   WHITE_BASE_DEPLOY,
+  WHITE_BASE_ACTIVATE_MAIN,
   ASTICASSIA_BURST,
   ASTICASSIA_DEPLOY,
+  ASTICASSIA_ACTIVATE_MAIN,
 ];

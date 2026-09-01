@@ -12,8 +12,11 @@ import {
   joinQueue,
   leaveQueue,
   MatchError,
+  matchViewFor,
   queueStatusFor,
+  reportSituation,
   seatFor,
+  setAutoPass,
   subscribe,
   touchPresence,
 } from "./matchStore";
@@ -311,5 +314,103 @@ describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente
     vi.advanceTimersByTime(15_000); // só 15s desde o touchPresence, não 185s
 
     expect(() => claimAbandonWin(match.id, "user-1")).toThrow(/W\.O\./);
+  });
+});
+
+describe("setAutoPass — auto-pass inteligente do Action Step (docs/19, Sessão 2)", () => {
+  it("passa o Action Step da End Phase sozinho pra quem ligou o auto-pass e não tem Command 【Action】", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+    // ninguém tem carta jogável no Action Step
+    match.state.players.A.hand = [];
+    match.state.players.B.hand = [];
+
+    let m = applyAction(match.id, "user-1", { kind: "finishTurn" });
+    expect(m.state.endPhaseAction?.priority).toBe("B");
+
+    m = setAutoPass(match.id, "user-2", true); // B liga -> passa na hora, prioridade vai pra A
+    expect(m.state.endPhaseAction?.priority).toBe("A");
+    expect(matchViewFor(m, "B").autoPassActionStep).toBe(true);
+
+    m = setAutoPass(match.id, "user-1", true); // A liga -> passa -> os 2 passaram -> turno avança de verdade
+    expect(m.state.endPhaseAction).toBeNull();
+    expect(m.state.activePlayer).toBe("B");
+    expect(m.state.turnNumber).toBe(2);
+  });
+
+  it("NÃO passa sozinho se o jogador tem um Command 【Action】 jogável na mão", () => {
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A" });
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+    match.state.players.A.hand = [];
+    // B tem Unforeseen Incident (Command 【Action】, nível 3 / custo 1) + 3 recursos
+    const seq = match.state.nextInstanceSeq;
+    match.state.players.B.hand = [
+      {
+        instanceId: `B-t-${seq}`,
+        def: { code: "ST01-014", nameEn: "Unforeseen Incident", cardType: "COMMAND", color: "white", level: 3, cost: 1, triggerKeywords: ["Action"] },
+        owner: "B", zone: "hand", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 1,
+      },
+    ];
+    match.state.players.B.resourceArea = [0, 1, 2].map((i) => ({
+      instanceId: `B-r-${i}`, def: { code: "R", nameEn: "R", cardType: "RESOURCE", color: "colorless" } as const,
+      owner: "B" as const, zone: "resourceArea" as const, rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 1,
+    }));
+
+    let m = applyAction(match.id, "user-1", { kind: "finishTurn" });
+    m = setAutoPass(match.id, "user-2", true);
+    // B tem jogada real -> auto-pass NÃO dispara, continua sendo a vez dele
+    expect(m.state.endPhaseAction?.priority).toBe("B");
+  });
+});
+
+describe("reportSituation — ferramenta in-game de relatório (docs/19, Sessão 4)", () => {
+  it("devolve um reportId curto pra quem é jogador da partida", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+      const { reportId } = reportSituation(match.id, "user-1", "o botão de atacar sumiu");
+      expect(reportId).toMatch(/^[A-Z0-9]{6}$/);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(reportId));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("recusa quem não é jogador da partida", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      expect(() => reportSituation(match.id, "estranho", "oi")).toThrow(/não é jogador/);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+describe("GC oportunista do store (docs/19, Sessão 4)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("partida terminada some 10min depois, na próxima escrita no store", () => {
+    vi.useFakeTimers();
+    const finished = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A" });
+    joinMatch(finished.id, "A", { userId: "u1", displayName: "A" });
+    joinMatch(finished.id, "B", { userId: "u2", displayName: "B" });
+    finished.state = { ...finished.state, gameOver: { winner: "A", reason: "deckOut" } };
+    finished.updatedAt = Date.now();
+
+    vi.advanceTimersByTime(11 * 60_000);
+
+    // uma escrita qualquer no store dispara o sweep
+    joinQueue({ userId: "u3", displayName: "C", deckKey: "ST01", deckList: buildSt01DeckList() });
+
+    expect(getMatch(finished.id)).toBeUndefined();
   });
 });

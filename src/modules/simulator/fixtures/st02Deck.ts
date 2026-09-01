@@ -29,10 +29,10 @@ const WING_GUNDAM: CardDef = {
   effectKeywords: ["Breach"],
   keywordTags: ["Breach 5"],
   link: { kind: "pilotName", values: ["Heero Yuy"] },
-  // + "This Unit may choose an active enemy Unit that is Lv.4 or lower as
-  // its attack target." — relaxamento da legalidade de alvo de ataque
-  // (normalmente só Units inimigas rested); mesma categoria de lacuna que a
-  // restrição de ST01-009 Zowort, só que na direção oposta. Ver docs/18.
+  // "This Unit may choose an active enemy Unit that is Lv.4 or lower as its
+  // attack target." — legalidade de ataque (docs/18, lacuna #6), aplicada em
+  // combat.ts/declareAttack.
+  attackTargetRules: { mayTargetActiveEnemyUnit: { maxLevel: 4 } },
 };
 
 const WING_GUNDAM_BIRD_MODE: CardDef = {
@@ -48,9 +48,8 @@ const WING_GUNDAM_BIRD_MODE: CardDef = {
   triggerKeywords: ["Deploy"],
   keywordTags: ["Deploy"],
   link: { kind: "pilotName", values: ["Heero Yuy"] },
-  // + "【Deploy】Place 1 EX Resource." — fora de escopo: precisa da mesma
-  // primitiva de "criar instância nova" que falta pro deploy de token de
-  // ST01-015/016 (ver docs/18, lacuna #3).
+  // 【Deploy】Place 1 EX Resource. — ver WING_GUNDAM_BIRD_MODE_DEPLOY em
+  // content/st02.ts (usa `spawnToken`, docs/18 lacuna #3, agora fechada).
 };
 
 const GUNDAM_HEAVYARMS: CardDef = {
@@ -66,11 +65,12 @@ const GUNDAM_HEAVYARMS: CardDef = {
   triggerKeywords: ["During Pair"],
   keywordTags: ["During Pair"],
   link: { kind: "pilotName", values: ["Trowa Barton"] },
-  // + "【During Pair】During your turn, when this Unit destroys an enemy
-  // Unit with battle damage, deal 1 damage to all enemy Units that are
-  // Lv.3 or lower." — fora de escopo: "all enemy Units ..." é ação em
-  // GRUPO de alvos, e `TargetRef`/`resolveTarget` só resolvem 1 instanceId
-  // por primitiva hoje (ver docs/18, lacuna #5).
+  // 【During Pair】During your turn, when this Unit destroys an enemy Unit
+  // with battle damage, deal 1 damage to all enemy Units that are Lv.3 or
+  // lower. — combate-triggered (não é modificador de stat contínuo, ver
+  // `CombatTrigger`), resolvido em combat.ts/combatTriggerEvents (docs/18
+  // lacuna #5, agora fechada).
+  combatTriggers: [{ condition: "duringPair", on: "destroyEnemyInBattle", action: { kind: "damageAllEnemyUnits", amount: 1, maxLevel: 3 } }],
 };
 
 const GUNDAM_SANDROCK: CardDef = {
@@ -112,10 +112,9 @@ const TALLGEESE: CardDef = {
   keywordTags: ["Activate · Main", "Once per Turn"],
   oncePerTurn: true,
   link: { kind: "pilotName", values: ["Zechs Merquise"] },
-  // 【Activate･Main】【Once per Turn】④：Set this Unit as active. — a ação
-  // (setActive em si) é autorada, mas o custo "④" (pagar 4 recursos) não é
-  // cobrado — falta primitiva de "pagar custo de recurso genérico" (ver
-  // docs/18, lacuna #4).
+  // 【Activate･Main】【Once per Turn】④：Set this Unit as active. — custo
+  // agora cobrado via `payResourceCost` (docs/18 lacuna #4, ver
+  // TALLGEESE_ACTIVATE_MAIN em content/st02.ts).
 };
 
 const LEO: CardDef = {
@@ -172,9 +171,14 @@ const HEERO_YUY: CardDef = {
   triggerKeywords: ["Burst", "During Link"],
   keywordTags: ["Burst", "During Link"],
   hasBurst: true,
-  // + "【During Link】This Unit gets AP+1 and HP+1." — efeito contínuo
-  // condicionado a permanecer com Link ativo; mesma lacuna de ST01-001
-  // "During Pair" (ver docs/18, lacuna #2 — cobre tanto Pair quanto Link).
+  // 【During Link】This Unit gets AP+1 and HP+1. — "This Unit" = a Unit
+  // pareada com este Pilot (Heero Yuy não tem AP/HP próprio); modelado como
+  // `staticAbilities` com scope "pairedUnit" (docs/18 lacuna #2, agora
+  // fechada pra During Pair/During Link como modificador contínuo).
+  staticAbilities: [
+    { condition: "duringLink", scope: "pairedUnit", stat: "ap", amount: 1 },
+    { condition: "duringLink", scope: "pairedUnit", stat: "hp", amount: 1 },
+  ],
 };
 
 const ZECHS_MERQUISE: CardDef = {
@@ -188,6 +192,11 @@ const ZECHS_MERQUISE: CardDef = {
   triggerKeywords: ["Burst", "During Link"],
   keywordTags: ["Burst", "During Link"],
   hasBurst: true,
+  // 【During Link】During your turn, when this Unit destroys an enemy Unit
+  // with battle damage, draw 1. — "This Unit" = a Unit pareada com este
+  // Pilot (Tallgeese); combate-triggered, resolvido em
+  // combat.ts/combatTriggerEvents (docs/18 lacuna #2, agora fechada).
+  combatTriggers: [{ condition: "duringLink", on: "destroyEnemyInBattle", action: { kind: "draw", amount: 1 } }],
 };
 
 const SIMULTANEOUS_FIRE: CardDef = {
@@ -212,10 +221,10 @@ const PEACEFUL_TIMBRE: CardDef = {
   cost: 1,
   triggerKeywords: ["Action"],
   keywordTags: ["Action"],
-  // + "【Action】During this battle, your shield area cards can't receive
-  // damage from enemy Units that are Lv.4 or lower." — efeito de prevenção/
-  // substituição de dano condicional; nenhuma primitiva modela "impedir
-  // dano sob uma condição" hoje (nova lacuna, #7 — ver docs/18).
+  // 【Action】During this battle, your shield area cards can't receive
+  // damage from enemy Units that are Lv.4 or lower. — ver
+  // PEACEFUL_TIMBRE_ACTION em content/st02.ts (usa `preventShieldDamage`,
+  // docs/18 lacuna #7, agora fechada).
   // + "【Pilot】[Quatre Raberba Winner]" — requisito de jogo, fora de escopo.
 };
 
@@ -243,10 +252,10 @@ const SAINT_GABRIEL_INSTITUTE: CardDef = {
   triggerKeywords: ["Burst", "Deploy"],
   keywordTags: ["Burst", "Deploy"],
   hasBurst: true,
-  // + "Then, look at the top 2 cards of your deck and return 1 to the top
-  // and 1 to the bottom." — efeito de informação oculta ("olhe N cartas do
-  // topo"), já sinalizado como Risco/desconhecido em docs/18 antes mesmo do
-  // passo 3 começar; nova lacuna #8 (peek-and-reorder no deck).
+  // "Then, look at the top 2 cards of your deck and return 1 to the top and
+  // 1 to the bottom." — ver SAINT_GABRIEL_INSTITUTE_DEPLOY em
+  // content/st02.ts (usa `peekAndReorderDeck` + `moveWithinDeck`, docs/18
+  // lacuna #8, agora fechada).
 };
 
 const CORSICA_BASE: CardDef = {
@@ -262,10 +271,33 @@ const CORSICA_BASE: CardDef = {
   effectKeywords: ["Tallgeese", "Leo"],
   keywordTags: ["Burst", "Deploy", "Tallgeese", "Leo"],
   hasBurst: true,
-  // + deploy condicional de token (Tallgeese ou 2x Leo, dependendo de carta
-  // "Corsica Base" no trash) — mesma lacuna #3 de ST01-015/016 (criar
-  // instância nova via efeito), mais um predicado extra ("carta com nome X
-  // no trash") que também não existe ainda.
+  // Deploy condicional de token (Tallgeese ou 2x Leo, dependendo de carta
+  // "Corsica Base" no trash) — ver CORSICA_BASE_DEPLOY em content/st02.ts
+  // (usa `spawnToken` + predicado `cardInTrashNamed`, docs/18 lacuna #3,
+  // agora fechada).
+};
+
+/** Tokens do 【Deploy】 condicional de Corsica Base — códigos oficiais T-004/T-005 (data/gcg-official-cards.json), stats mais fracos que as Units reais (sem keyword nem link). */
+export const TOKEN_LEO: CardDef = {
+  code: "T-004",
+  nameEn: "Leo",
+  cardType: "UNIT",
+  color: "blue",
+  ap: 1,
+  hp: 1,
+  traits: ["OZ"],
+  isToken: true,
+};
+
+export const TOKEN_TALLGEESE: CardDef = {
+  code: "T-005",
+  nameEn: "Tallgeese",
+  cardType: "UNIT",
+  color: "blue",
+  ap: 4,
+  hp: 2,
+  traits: ["OZ"],
+  isToken: true,
 };
 
 const RESOURCE: CardDef = {
@@ -328,4 +360,6 @@ export const ST02_CARD_DEFS = {
   SAINT_GABRIEL_INSTITUTE,
   CORSICA_BASE,
   RESOURCE,
+  TOKEN_LEO,
+  TOKEN_TALLGEESE,
 };

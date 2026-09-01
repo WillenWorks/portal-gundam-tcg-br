@@ -96,6 +96,27 @@ export type BurstChoiceFn = (card: CardInstance, specs: EffectSpec[]) => false |
  * `AMURO_RAY_BURST`) — se ele não mover, a carta continua no trash (mesmo
  * resultado de não ter ativado).
  */
+/**
+ * Versão "pura, sem escolha" de `dispatchBurstForNewlyTrashedShields`: só
+ * diz QUAIS shields recém-trashadas de `defendingPlayer` têm 【Burst】 real
+ * (flag `hasBurst` + EffectSpec de trigger "Burst" cadastrado). O
+ * `actions.ts` usa isso pra decidir se PAUSA o Damage Step e pede a decisão
+ * de Burst ao defensor (docs/19, Sessão 2 — "Pausa Autoritativa de Burst"),
+ * em vez de resolver na hora com um `chooseBurst` fixo.
+ */
+export function burstEligibleShieldIds(
+  before: GameState,
+  after: GameState,
+  defendingPlayer: PlayerId,
+  specs: EffectSpec[],
+): string[] {
+  const wasInShields = new Set(before.players[defendingPlayer].shields.map((c) => c.instanceId));
+  return after.players[defendingPlayer].trash
+    .filter((c) => wasInShields.has(c.instanceId))
+    .filter((c) => c.def.hasBurst && findTriggerSpecs(specs, c.def.code, "Burst").length > 0)
+    .map((c) => c.instanceId);
+}
+
 export function dispatchBurstForNewlyTrashedShields(
   before: GameState,
   after: GameState,
