@@ -42,9 +42,10 @@
  * docs/19, Sessão 3 (2026-09-01) — layout "nível arena": a camada visual
  * agora é montada a partir de componentes dedicados em
  * `src/modules/simulator/ui/` (BattleSlot com 6 slots fixos + Piloto
- * acoplado + badge LINK, ShieldStack, ResourceTray com ativo/rested/EX,
- * BaseCardGauge com barra de HP, CardInspectorModal, BurstModal,
- * TriggerOrderModal, CombatLane, HandDrawer). Esta página ficou só
+ * acoplado + badge LINK, ShieldStack/ResourceTray — trocados nas Fases C/D
+ * por ShieldRail/ResourceMeter/PileTray/CounterChip/HandFan, ver bloco no fim
+ * deste cabeçalho —, BaseCardGauge com barra de HP, CardInspectorModal,
+ * BurstModal, TriggerOrderModal, CombatLane, HandDrawer). Esta página ficou só
  * como orquestrador de estado/ações — decide quem é alvo legal do quê e
  * encaminha os cliques. Regressão corrigida de passagem: a Battle Area
  * agora filtra só Units pros 6 slots (Pilots pareados aparecem acoplados,
