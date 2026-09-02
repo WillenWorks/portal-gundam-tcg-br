@@ -1405,10 +1405,16 @@ Decisões confirmadas com o Willen antes de codar (`AskUserQuestion`):
   (comportamento por jogador conforme decisão nº1 acima). Maior risco de
   regra da leva toda — merece rodada própria com testes de motor dedicados
   antes de tocar UI.
-- **Fase 3 (não iniciada)**: seleção explícita de modalidade em cartas
-  modais/piloto-ou-comando além do fluxo já existente (hoje: Pilot só pareia
-  se houver Unit sem piloto em campo, do contrário vira Command — regra já
-  respeitada, mas sem UI de escolha explícita quando cabem os dois);
+- **~~Fase 3~~ FEITO (2026-09-01)**: modificador impresso de AP/HP do Pilot na
+  Unit pareada (`CardDef.ap`/`hp` pra `cardType: "PILOT"`, somado em
+  `effectiveAp`/`effectiveHp` via `pilotStatModifier`, Comprehensive Rules
+  3-3-5) e seleção explícita de modalidade em cards Command/Pilot
+  (`CardDef.pilotMode` + `CardInstance.asPilot`; `deployCard` aceita o modo
+  Piloto, `playCommand` segue no modo Command; a UI mostra os dois botões no
+  preview da carta). Fecha a verificação registrada nessa data (Pilot AP/HP
+  não era aplicado; ST01-012/013 e ST02-012/013 não podiam ser pareados, o
+  que deixava os links de Guntank/Guncannon inalcançáveis).
+- **Fase 3 (não iniciada)**:
   arte genérica única de recurso/base por ST (ST01/ST02 hoje são os únicos
   decks jogáveis, todos com a MESMA arte de recurso/base — só passa a fazer
   sentido "arte própria aleatória" quando existir deck construído pelo

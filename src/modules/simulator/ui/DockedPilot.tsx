@@ -3,7 +3,7 @@
  * (Comprehensive Rules 3-2-6) está satisfeita. */
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
-import { satisfiesLinkCondition } from "@/modules/simulator/engine/types";
+import { effectivePilotDef, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup } from "./cardArt";
 
 interface DockedPilotProps {
@@ -14,7 +14,9 @@ interface DockedPilotProps {
 }
 
 export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
-  const linked = satisfiesLinkCondition(pilot.def, unit.def);
+  // card Command/Pilot no modo Piloto responde pelo nome do bloco 【Pilot】
+  const pilotDef = effectivePilotDef(pilot);
+  const linked = satisfiesLinkCondition(pilotDef, unit.def);
   const src = artSrc(art, pilot.def.code, "xs");
 
   return (
@@ -27,9 +29,9 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
       )}
     >
       <span className="size-4 shrink-0 overflow-hidden rounded-full border border-white/20 bg-black/40">
-        {src ? <img src={src} alt={pilot.def.nameEn} className="h-full w-full object-cover" /> : null}
+        {src ? <img src={src} alt={pilotDef.nameEn} className="h-full w-full object-cover" /> : null}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[8px] font-medium text-slate-200">{pilot.def.nameEn}</span>
+      <span className="min-w-0 flex-1 truncate text-[8px] font-medium text-slate-200">{pilotDef.nameEn}</span>
       {linked ? (
         <span className="shrink-0 animate-pulse rounded-none bg-amber-400 px-1 text-[7px] font-black uppercase tracking-wide text-black shadow-[0_0_8px_rgba(251,191,36,0.6)]">
           Link

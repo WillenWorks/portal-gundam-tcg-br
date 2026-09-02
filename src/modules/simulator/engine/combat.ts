@@ -1,5 +1,5 @@
 import type { AttackTarget, CardInstance, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveAp, effectiveHp, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 
 /**
@@ -29,7 +29,7 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
     // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3).
     const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
-    const isLinkUnit = pilot ? satisfiesLinkCondition(pilot.def, attacker.def) : false;
+    const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
     if (!isLinkUnit) {
       throw new Error(
         "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3)",
@@ -194,7 +194,7 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState): GameEven
     for (const trigger of def.combatTriggers ?? []) {
       if (trigger.on !== "destroyEnemyInBattle") continue;
       const conditionMet =
-        trigger.condition === "duringPair" ? !!pilot : !!pilot && satisfiesLinkCondition(pilot.def, attacker.def);
+        trigger.condition === "duringPair" ? !!pilot : !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def);
       if (!conditionMet) continue;
 
       if (trigger.action.kind === "draw") {

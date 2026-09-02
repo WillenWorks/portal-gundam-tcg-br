@@ -11,9 +11,10 @@ import { TOKEN_GUNCANNON, TOKEN_GUNDAM, TOKEN_GUNTANK } from "../fixtures/st01De
  * em docs/18): ST01-001 Gundam (`staticAbilities`, 【During Pair】) e
  * ST01-009 Zowort (`attackTargetRules`) são modeladas como campo estruturado
  * de `CardDef`, não como `EffectSpec` (não são gatilho→ação, são modificador
- * contínuo/restrição de legalidade — ver `st01Deck.ts`); ST01-012/013
- * ("【Pilot】[X]" pra poder jogar a carta) continuam fora de escopo — é
- * requisito de jogo, não efeito, nunca fez parte das 8 lacunas.
+ * contínuo/restrição de legalidade — ver `st01Deck.ts`). ST01-012/013 são
+ * cards Command/Pilot: o EffectSpec aqui cobre só o lado 【Main】; o lado
+ * 【Pilot】[X] é o modo alternativo de jogo (parear como o Pilot nomeado),
+ * modelado em `CardDef.pilotMode` + `deployCard`, não como EffectSpec.
  *
  * Nenhum disparo automático existe ainda no sentido de "descobrir sozinho
  * qual EffectSpec rodar" fora do que `dispatcher.ts` já cobre — os testes
@@ -103,8 +104,9 @@ export const THOROUGHLY_DAMAGED_MAIN: EffectSpec = {
   id: "ST01-012-Main",
   cardCode: "ST01-012",
   trigger: "Main",
-  // legalidade do alvo ("rested") e o requisito 【Pilot】[Hayato Kobayashi]
-  // pra poder jogar a carta são responsabilidade de fora do EffectSpec.
+  // legalidade do alvo ("rested") é responsabilidade de fora do EffectSpec.
+  // O lado 【Pilot】[Hayato Kobayashi] é modo de jogo alternativo (pilotMode),
+  // não afeta esta seção 【Main】.
   actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
   sourceText: "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.",
 };

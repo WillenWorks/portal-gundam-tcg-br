@@ -203,6 +203,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.keywordGrants = [];
       card.pairedPilotId = undefined;
       card.pairedUnitId = undefined;
+      card.asPilot = undefined;
       // se destruir uma Unit com Pilot pareado, o Pilot também vai pro trash (ver combat.ts)
       player.trash.push(card);
       return state;
@@ -225,6 +226,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.keywordGrants = [];
       card.pairedPilotId = undefined;
       card.pairedUnitId = undefined;
+      card.asPilot = undefined;
       player.exile.push(card);
       return state;
     }
@@ -284,6 +286,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const unit = findCard(state, event.unitId);
       pilot.pairedUnitId = event.unitId;
       unit.pairedPilotId = event.pilotId;
+      // card Command/Pilot jogado no modo Pilot (ver CardDef.pilotMode)
+      if (event.asPilotMode) pilot.asPilot = true;
       return state;
     }
     case "ATTACK_DECLARED": {

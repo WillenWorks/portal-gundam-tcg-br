@@ -457,6 +457,8 @@ export const api = {
     request<{ reportId: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
   /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
   claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
+  /** "Sair da partida" = desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch. */
+  resignSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/resign`, { method: "POST" }),
   // Depuração/admin -- fora do fluxo normal (agora hosterRequired no servidor), mantidas
   // só como fallback pra criar/entrar numa partida específica manualmente.
   listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),

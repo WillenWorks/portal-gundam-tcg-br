@@ -74,21 +74,24 @@ describe("modificadores estáticos contínuos (Comprehensive Rules 10-2, docs/18
     expect(effectiveAp(findCard(enemyTurn, gundamId), enemyTurn)).toBe(ST01_CARD_DEFS.GUNDAM.ap ?? 0);
   });
 
-  it("ST02-010 Heero Yuy 【During Link】: +1 AP / +1 HP na Unit pareada, só enquanto a Link Condition for satisfeita", () => {
+  it("ST02-010 Heero Yuy: AP+2/HP+1 impresso (sempre que pareado) + AP+1/HP+1 EXTRA de 【During Link】", () => {
     const state = freshGame();
     const wingId = place(state, "A", ST02_CARD_DEFS.WING_GUNDAM, "battleArea");
     const heeroId = place(state, "A", ST02_CARD_DEFS.HEERO_YUY, "battleArea");
-    pair(state, wingId, heeroId);
+    pair(state, wingId, heeroId); // link da Wing Gundam = [Heero Yuy] -> satisfeita
 
-    expect(effectiveAp(findCard(state, wingId), state)).toBe((ST02_CARD_DEFS.WING_GUNDAM.ap ?? 0) + 1);
-    expect(effectiveHp(findCard(state, wingId), state)).toBe((ST02_CARD_DEFS.WING_GUNDAM.hp ?? 0) + 1);
+    // impresso (+2/+1) + During Link (+1/+1) = +3 AP / +2 HP
+    expect(effectiveAp(findCard(state, wingId), state)).toBe((ST02_CARD_DEFS.WING_GUNDAM.ap ?? 0) + 3);
+    expect(effectiveHp(findCard(state, wingId), state)).toBe((ST02_CARD_DEFS.WING_GUNDAM.hp ?? 0) + 2);
 
-    // Pilot que NÃO satisfaz a link condition da Wing Gundam (link = [Heero Yuy]) -> sem bônus
+    // Zechs NÃO satisfaz a link condition da Wing Gundam, mas o modificador
+    // impresso do Pilot (AP+2/HP+1) vale enquanto pareado, sem depender de Link.
     const other = freshGame();
     const wing2Id = place(other, "A", ST02_CARD_DEFS.WING_GUNDAM, "battleArea");
     const zechsId = place(other, "A", ST02_CARD_DEFS.ZECHS_MERQUISE, "battleArea");
     pair(other, wing2Id, zechsId);
-    expect(effectiveAp(findCard(other, wing2Id), other)).toBe(ST02_CARD_DEFS.WING_GUNDAM.ap ?? 0);
+    expect(effectiveAp(findCard(other, wing2Id), other)).toBe((ST02_CARD_DEFS.WING_GUNDAM.ap ?? 0) + 2);
+    expect(effectiveHp(findCard(other, wing2Id), other)).toBe((ST02_CARD_DEFS.WING_GUNDAM.hp ?? 0) + 1);
   });
 });
 

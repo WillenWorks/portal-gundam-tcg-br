@@ -47,9 +47,23 @@ export interface CardDef {
   color: string;
   level?: number;
   cost?: number;
+  /**
+   * Pilot nativo (`cardType: "PILOT"`): modificador impresso de AP que a Unit
+   * pareada ganha enquanto pareada (Comprehensive Rules 3-3-5, sem depender de
+   * Link). Unit: AP base. Command: não usado.
+   */
   ap?: number;
   hp?: number;
   traits?: string[];
+  /**
+   * Card Command/Pilot (Comprehensive Rules — carta com 【Command】 e 【Pilot】):
+   * `cardType` é "COMMAND", mas a carta pode ser jogada como Command OU pareada
+   * como Pilot. Quando pareada, ela age como um Pilot com este nome/stats (o
+   * `nameEn`/`ap`/`hp` da carta seguem sendo os do lado Command). A instância
+   * jogada nesse modo é marcada com `CardInstance.asPilot`. Ex.: ST01-012
+   * Thoroughly Damaged → Pilot "Hayato Kobayashi" AP+0/HP+1.
+   */
+  pilotMode?: { pilotName: string; ap?: number; hp?: number };
   /** Ex.: ["Deploy", "Attack"] — de CardModel.triggerKeywords */
   triggerKeywords?: string[];
   /** Ex.: ["Blocker", "Repair"] — de CardModel.effectKeywords */
@@ -162,6 +176,8 @@ export interface CardInstance {
   pairedPilotId?: string;
   /** pra Pilots: instanceId da Unit pareada, se houver */
   pairedUnitId?: string;
+  /** true quando um card Command/Pilot (`def.pilotMode`) foi jogado no modo Pilot (pareado), não no modo Command. Sempre limpo ao sair da Battle Area. */
+  asPilot?: boolean;
   statModifiers: StatModifier[];
   keywordGrants: KeywordGrant[];
   /** nomes de keyword [Once per Turn] já usados nesta instância, neste turno */
@@ -176,6 +192,46 @@ export interface CardInstance {
  * 3-3-1/3-3-4) — só decide se a Unit ganha a exceção de atacar no turno em
  * que foi deployada (3-2-6-3, ver `combat.ts`/`declareAttack`).
  */
+/** true se esta instância age como Pilot: `cardType: "PILOT"` nativo, ou card Command/Pilot jogado no modo Pilot. */
+export function isActingAsPilot(card: CardInstance): boolean {
+  return card.def.cardType === "PILOT" || card.asPilot === true;
+}
+
+/**
+ * `CardDef` "efetivo" de uma carta agindo como Pilot. Um card Command/Pilot
+ * jogado no modo Pilot (`asPilot`) responde pelo nome/stats/tipo do bloco
+ * 【Pilot】 (`def.pilotMode`) — relevante pra link condition (3-2-6-4) e efeitos
+ * que citam um "specified pilot". Pilot nativo devolve o próprio `def`.
+ */
+export function effectivePilotDef(pilot: CardInstance): CardDef {
+  if (pilot.asPilot && pilot.def.pilotMode) {
+    return {
+      ...pilot.def,
+      cardType: "PILOT",
+      nameEn: pilot.def.pilotMode.pilotName,
+      ap: pilot.def.pilotMode.ap,
+      hp: pilot.def.pilotMode.hp,
+    };
+  }
+  return pilot.def;
+}
+
+/**
+ * Modificador de AP/HP que um Pilot pareado concede à Unit (Comprehensive
+ * Rules 3-3-5): enquanto pareada, a Unit ganha o AP/HP impresso do Pilot, sem
+ * depender de Link. Pilot nativo usa `def.ap`/`def.hp`; um card Command/Pilot
+ * no modo Pilot (`asPilot`) usa o bloco `def.pilotMode`.
+ */
+export function pilotStatModifier(pilot: CardInstance, stat: StatKey): number {
+  if (pilot.asPilot && pilot.def.pilotMode) {
+    return (stat === "ap" ? pilot.def.pilotMode.ap : pilot.def.pilotMode.hp) ?? 0;
+  }
+  if (pilot.def.cardType === "PILOT") {
+    return (stat === "ap" ? pilot.def.ap : pilot.def.hp) ?? 0;
+  }
+  return 0;
+}
+
 export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boolean {
   const link = unitDef.link;
   if (!link) return false;
@@ -193,17 +249,17 @@ function findInBattleArea(state: GameState, owner: PlayerId, instanceId: string)
 function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
   if (condition === "duringPair") {
     if (source.def.cardType === "UNIT") return !!source.pairedPilotId;
-    if (source.def.cardType === "PILOT") return !!source.pairedUnitId;
+    if (isActingAsPilot(source)) return !!source.pairedUnitId;
     return false;
   }
   // duringLink: precisa achar o outro lado do pareamento e checar satisfiesLinkCondition (3-2-6)
   if (source.def.cardType === "UNIT" && source.pairedPilotId) {
     const pilot = findInBattleArea(state, source.owner, source.pairedPilotId);
-    return !!pilot && satisfiesLinkCondition(pilot.def, source.def);
+    return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), source.def);
   }
-  if (source.def.cardType === "PILOT" && source.pairedUnitId) {
+  if (isActingAsPilot(source) && source.pairedUnitId) {
     const unit = findInBattleArea(state, source.owner, source.pairedUnitId);
-    return !!unit && satisfiesLinkCondition(source.def, unit.def);
+    return !!unit && satisfiesLinkCondition(effectivePilotDef(source), unit.def);
   }
   return false;
 }
@@ -229,27 +285,49 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
 }
 
 /**
+ * Bônus de AP/HP do Pilot pareado (Comprehensive Rules 3-3-5 — sempre ativo
+ * enquanto pareado, não depende de Link). O Pilot é resolvido a partir de
+ * `state` (Battle Area do dono); a UI, que às vezes chama sem `state`, pode
+ * passar o Pilot direto em `pairedPilot` (ele já o tem em mãos, ver BattleSlot).
+ */
+function resolvePilotStatBonus(
+  card: CardInstance,
+  stat: StatKey,
+  state?: GameState,
+  pairedPilot?: CardInstance | null,
+): number {
+  if (card.def.cardType !== "UNIT" || !card.pairedPilotId) return 0;
+  const pilot =
+    pairedPilot ??
+    (state ? state.players[card.owner].battleArea.find((c) => c.instanceId === card.pairedPilotId) : undefined);
+  return pilot ? pilotStatModifier(pilot, stat) : 0;
+}
+
+/**
  * `state` é opcional só pra não quebrar callers que ainda não têm acesso a
  * ele (ex. algum teste sintético isolado) — sempre que disponível, passe-o:
- * sem `state`, bônus estáticos (`staticAbilities`, ex. 【During Pair】/【During
- * Link】) não são computados, e o resultado fica incompleto.
+ * sem `state` (e sem `pairedPilot`), bônus estáticos (`staticAbilities`, ex.
+ * 【During Pair】/【During Link】) e o modificador do Pilot pareado não são
+ * computados, e o resultado fica incompleto.
  */
-export function effectiveAp(card: CardInstance, state?: GameState): number {
+export function effectiveAp(card: CardInstance, state?: GameState, pairedPilot?: CardInstance | null): number {
   const base = card.def.ap ?? 0;
   const bonus = card.statModifiers
     .filter((m) => m.stat === "ap")
     .reduce((sum, m) => sum + m.amount, 0);
   const staticBonus = state ? computeStaticStatBonus(card, state, "ap") : 0;
-  return Math.max(0, base + bonus + staticBonus);
+  const pilotBonus = resolvePilotStatBonus(card, "ap", state, pairedPilot);
+  return Math.max(0, base + bonus + staticBonus + pilotBonus);
 }
 
-export function effectiveHp(card: CardInstance, state?: GameState): number {
+export function effectiveHp(card: CardInstance, state?: GameState, pairedPilot?: CardInstance | null): number {
   const base = card.def.hp ?? 0;
   const bonus = card.statModifiers
     .filter((m) => m.stat === "hp")
     .reduce((sum, m) => sum + m.amount, 0);
   const staticBonus = state ? computeStaticStatBonus(card, state, "hp") : 0;
-  return Math.max(0, base + bonus + staticBonus);
+  const pilotBonus = resolvePilotStatBonus(card, "hp", state, pairedPilot);
+  return Math.max(0, base + bonus + staticBonus + pilotBonus);
 }
 
 export function hasKeyword(card: CardInstance, keyword: string): boolean {
@@ -438,7 +516,7 @@ export type GameEvent =
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
   | { type: "DISCARD_TO_HAND_LIMIT"; player: PlayerId; instanceIds: string[] }
-  | { type: "PAIR_CARDS"; pilotId: string; unitId: string }
+  | { type: "PAIR_CARDS"; pilotId: string; unitId: string; asPilotMode?: boolean }
   /** Cria uma instância nova em jogo a partir de um `CardDef` (token) — CR 3-1. Nunca usado no setup (setup.ts instancia direto); só por efeito de carta em tempo de jogo. */
   | { type: "SPAWN_TOKEN"; player: PlayerId; def: CardDef; zone: Zone; rested?: boolean }
   /** Reordena 1 carta dentro do próprio deck do jogador (ex.: "look at the top N, return 1 to the top and 1 to the bottom") sem trocar de zona. */

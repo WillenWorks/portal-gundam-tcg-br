@@ -31,8 +31,12 @@ import { payResourceCostEvents } from "./costs";
  *   nessa zona (mesma convenção já usada nos testes existentes, ver
  *   `st01.test.ts`), então o limite conta só `cardType === "UNIT"`, nunca
  *   Pilots.
- * - Command não usa esta função — ver `playCommand()` abaixo (ele resolve o
- *   efeito e só depois vai pro trash, Comprehensive Rules 3-4-4).
+ * - Command puro não usa esta função — ver `playCommand()` abaixo (ele resolve
+ *   o efeito e só depois vai pro trash, Comprehensive Rules 3-4-4). Já um card
+ *   Command/Pilot (`CardDef.pilotMode`, ex. ST01-012) pode vir por aqui QUANDO
+ *   o jogador escolhe o modo Pilot (pareado) — o modo Command dele continua
+ *   indo por `playCommand()`. Quem decide o modo é a UI/o teste (ao passar ou
+ *   não `pairWithUnitId`), o motor não infere.
  */
 
 export interface DeployOptions {
@@ -69,7 +73,10 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   if (card.zone !== "hand") throw new Error("Carta precisa estar na mão pra ser jogada");
 
   const def = card.def;
-  if (def.cardType === "COMMAND") throw new Error("Command não usa deployCard — ver playCommand()");
+  // Command/Pilot (CardDef.pilotMode): `deployCard` só é o modo Pilot (pareado);
+  // o modo Command continua indo por `playCommand`. Command puro nunca passa aqui.
+  const playAsPilot = def.cardType === "PILOT" || (def.cardType === "COMMAND" && !!def.pilotMode);
+  if (def.cardType === "COMMAND" && !def.pilotMode) throw new Error("Command não usa deployCard — ver playCommand()");
   if (def.cardType === "RESOURCE") throw new Error("Resource não é jogado da mão via deployCard — é comprado na Resource Phase");
 
   if (!canPayLevel(state, player, def)) {
@@ -92,7 +99,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       events.push({ type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" });
     }
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "baseSection" });
-  } else if (def.cardType === "PILOT") {
+  } else if (playAsPilot) {
     if (!options.pairWithUnitId) throw new Error("Pilot precisa de uma Unit amiga escolhida pra parear ao ser jogado (Comprehensive Rules 3-3-1)");
     const unit = findCard(state, options.pairWithUnitId);
     if (unit.owner !== player || unit.zone !== "battleArea") {
@@ -101,7 +108,12 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     if (unit.def.cardType !== "UNIT") throw new Error("Só dá pra parear Pilot com Unit");
     if (unit.pairedPilotId) throw new Error("Essa Unit já tem um Pilot pareado");
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "battleArea" });
-    events.push({ type: "PAIR_CARDS", pilotId: cardInstanceId, unitId: options.pairWithUnitId });
+    events.push({
+      type: "PAIR_CARDS",
+      pilotId: cardInstanceId,
+      unitId: options.pairWithUnitId,
+      asPilotMode: def.cardType === "COMMAND",
+    });
   }
 
   let next = applyEvents(state, events);
@@ -109,7 +121,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   const specs = options.specs ?? [];
   if (specs.length > 0) {
     next = dispatchTrigger(next, cardInstanceId, "Deploy", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
-    if (def.cardType === "PILOT" && options.pairWithUnitId) {
+    if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 pode estar na Unit ou no Pilot (ST01-002 vs ST01-010) — dispara os dois lados.
       next = dispatchTrigger(next, options.pairWithUnitId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
       next = dispatchTrigger(next, cardInstanceId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });

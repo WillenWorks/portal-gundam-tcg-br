@@ -9,7 +9,12 @@ import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine
 export type BattleLogKind = "turn" | "phase" | "play" | "combat" | "damage" | "effect" | "system";
 
 export interface BattleLogEntry {
-  /** índice do evento no `eventLog` — chave estável pra lista do React. */
+  /**
+   * Posição do evento DENTRO da janela recebida (`view.eventLog`, já cortada
+   * nos últimos N pelo servidor) — não é o índice absoluto no `eventLog`
+   * completo. O `BattleLogDrawer` usa a posição da lista renderizada como
+   * `key`, não isto; mantido só como referência de ordem.
+   */
   seq: number;
   kind: BattleLogKind;
   text: string;

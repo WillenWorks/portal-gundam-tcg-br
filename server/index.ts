@@ -30,6 +30,7 @@ import {
   MatchError,
   queueStatusFor,
   reportSituation,
+  resignMatch,
   seatFor,
   setAutoPass,
   subscribe,
@@ -3310,6 +3311,18 @@ app.post("/api/simulator/matches/:id/auto-pass", authRequired, (req: RequestWith
 app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, (req: RequestWithUser, res) => {
   try {
     const match = claimAbandonWin(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// "Sair da partida" -> desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch.
+app.post("/api/simulator/matches/:id/resign", authRequired, (req: RequestWithUser, res) => {
+  try {
+    const match = resignMatch(String(req.params.id), req.user!.userId);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {

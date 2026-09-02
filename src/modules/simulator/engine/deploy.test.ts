@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { buildVanillaDeckList, VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
+import { effectiveAp, effectiveHp } from "./types";
 import { advanceToMainPhase } from "./phases";
 import { declareAttack, proceedToBlockStep, skipBlock } from "./combat";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
@@ -376,3 +377,64 @@ describe("deployCard + dispatcher — integração com EffectSpec real do ST01",
 function findTriggerSpecsFired<T extends { cardCode: string; trigger: string }>(specs: T[], cardCode: string, trigger: string): T[] {
   return specs.filter((s) => s.cardCode === cardCode && s.trigger === trigger);
 }
+
+describe("Pilot — modificador impresso de AP/HP + card Command/Pilot (verificação 2026-09-01)", () => {
+  function freshSt01(): GameState {
+    return advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 7, firstPlayer: "A" }));
+  }
+
+  it("Pilot nativo (ST01-010 Amuro Ray): a Unit pareada ganha o AP+2/HP+1 impresso enquanto pareada", () => {
+    const state = freshSt01();
+    giveResources(state, "A", 6);
+    const unitId = place(state, "A", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+    const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const apBefore = effectiveAp(findCard(state, unitId), state);
+
+    const next = deployCard(state, "A", pilotId, { pairWithUnitId: unitId }); // sem specs — só o pareamento
+
+    const unit = findCard(next, unitId);
+    expect(effectiveAp(unit, next)).toBe(apBefore + 2);
+    expect(effectiveHp(unit, next)).toBe((ST01_CARD_DEFS.GUNCANNON.hp ?? 0) + 1);
+  });
+
+  it("card Command/Pilot (ST01-013 Kai's Resolve) — modo Command: playCommand resolve o 【Main】 e a carta vai pro trash", () => {
+    const state = freshSt01();
+    giveResources(state, "A", 6);
+    const unitId = place(state, "A", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+    findCard(state, unitId).damage = 2;
+    const cardId = place(state, "A", ST01_CARD_DEFS.KAIS_RESOLVE, "hand");
+
+    const next = playCommand(state, "A", cardId, "Main", ST01_EFFECT_SPECS, { targets: { target: [unitId] } });
+
+    expect(findCard(next, unitId).damage).toBe(0); // heal 3, tinha 2
+    expect(next.players.A.trash.some((c) => c.instanceId === cardId)).toBe(true);
+    expect(next.players.A.battleArea.some((c) => c.instanceId === cardId)).toBe(false); // NÃO ficou em campo como Pilot
+  });
+
+  it("card Command/Pilot (ST01-013) — modo Piloto: pareia como 'Kai Shiden', dá AP+1/HP+0, e satisfaz a link da Guncannon", () => {
+    const state = freshSt01();
+    giveResources(state, "A", 6);
+    const unitId = place(state, "A", ST01_CARD_DEFS.GUNCANNON, "battleArea", { enteredZoneOnTurn: state.turnNumber });
+    const cardId = place(state, "A", ST01_CARD_DEFS.KAIS_RESOLVE, "hand");
+
+    const next = deployCard(state, "A", cardId, { pairWithUnitId: unitId });
+
+    const pilot = findCard(next, cardId);
+    const unit = findCard(next, unitId);
+    expect(pilot.zone).toBe("battleArea");
+    expect(pilot.asPilot).toBe(true);
+    expect(unit.pairedPilotId).toBe(cardId);
+    expect(effectiveAp(unit, next)).toBe((ST01_CARD_DEFS.GUNCANNON.ap ?? 0) + 1);
+    expect(effectiveHp(unit, next)).toBe(ST01_CARD_DEFS.GUNCANNON.hp ?? 0); // Kai Shiden HP+0
+
+    // Guncannon (link [Kai Shiden]) virou Link Unit -> pode atacar no turno em que foi pareada
+    expect(() => declareAttack(next, unitId, "player")).not.toThrow();
+  });
+
+  it("card Command/Pilot — modo Piloto sem Unit amiga pra parear: recusa", () => {
+    const state = freshSt01();
+    giveResources(state, "A", 6);
+    const cardId = place(state, "A", ST01_CARD_DEFS.KAIS_RESOLVE, "hand");
+    expect(() => deployCard(state, "A", cardId, {})).toThrow(/Unit amiga/);
+  });
+});

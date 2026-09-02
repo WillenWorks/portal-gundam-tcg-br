@@ -320,6 +320,33 @@ export function claimAbandonWin(matchId: string, userId: string): MatchRecord {
   return match;
 }
 
+/**
+ * Desistência imediata ("Sair da partida"): o próprio jogador encerra o duelo
+ * e concede a vitória ao oponente por abandono. Diferente de `claimAbandonWin`
+ * (que exige 3min de inatividade do OUTRO lado) — aqui não há espera nem
+ * checagem de turno/prioridade. Se a partida já acabou, é no-op (sair vira só
+ * navegação). Se o oponente nunca entrou, não há pra quem conceder — lança
+ * 409 e o chamador só navega embora.
+ */
+export function resignMatch(matchId: string, userId: string): MatchRecord {
+  const match = requireMatch(matchId);
+  const seat = seatFor(match, userId);
+  if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
+  if (match.state.gameOver) return match;
+
+  const opponentSeat: PlayerId = seat === "A" ? "B" : "A";
+  if (!match.seats[opponentSeat]) {
+    throw new MatchError("A partida não tem oponente — nada a conceder.", 409);
+  }
+
+  match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+  match.updatedAt = Date.now();
+  match.version += 1;
+  armTurnTimer(match);
+  notify(match);
+  return match;
+}
+
 // ---------------------------------------------------------------------------
 // Fila de matchmaking ("Simulador Beta") — decisão do Willen em 2026-08-30:
 // 1 botão só, sem escolher adversário/assento manualmente; cada jogador

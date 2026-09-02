@@ -51,8 +51,10 @@ export function BattleSlot({
     return <div className="aspect-[63/108] w-full border border-dashed border-white/10 bg-white/[0.015]" />;
   }
 
-  const ap = effectiveAp(unit);
-  const hpRemaining = Math.max(0, effectiveHp(unit) - unit.damage);
+  // passa o Pilot pareado direto (BattleSlot não tem o GameState) pra que o
+  // modificador impresso de AP/HP dele (Comprehensive Rules 3-3-5) apareça nos badges.
+  const ap = effectiveAp(unit, undefined, pilot);
+  const hpRemaining = Math.max(0, effectiveHp(unit, undefined, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
 

@@ -1,6 +1,10 @@
 /* docs/19, Sessão 3 — bandeja de Recursos: cada recurso é um card individual.
  * Ativos brilhantes, rested opacos/rotacionados, EX Resource destacado
- * (dourado). HUD: "Ativos: X / Nível: Y (total em campo)". */
+ * (dourado). HUD: "Ativos: X / Nível: Y (total em campo)".
+ *
+ * 2026-09-01: seleção manual de quais recursos restar pra pagar um custo
+ * (`selectable`/`selectedIds`/`onSelect`). Só recursos ATIVOS são clicáveis;
+ * o EX Resource ganha aviso reforçado (ele SAI DO JOGO ao pagar, não volta). */
 import { cn } from "@/lib/utils";
 import { Zap } from "lucide-react";
 import type { ViewPlayerState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
@@ -13,13 +17,18 @@ function isHidden(card: ViewCardInstance): boolean {
 interface ResourceTrayProps {
   player: ViewPlayerState;
   compact?: boolean;
+  /** liga a seleção manual de recursos pra pagar custo (só faz sentido na bandeja do próprio jogador). */
+  selectable?: boolean;
+  selectedIds?: string[];
+  onSelect?: (instanceId: string) => void;
 }
 
-export function ResourceTray({ player, compact }: ResourceTrayProps) {
+export function ResourceTray({ player, compact, selectable, selectedIds, onSelect }: ResourceTrayProps) {
   const resources = player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[];
   const active = resources.filter((r) => !r.rested).length;
   const total = player.counts.resourceArea;
   const level = total;
+  const selected = selectedIds ?? [];
 
   return (
     <div className="space-y-0.5">
@@ -36,20 +45,29 @@ export function ResourceTray({ player, compact }: ResourceTrayProps) {
         <div className="flex flex-wrap gap-0.5">
           {resources.map((r) => {
             const ex = r.def.isToken;
-            return (
-              <span
-                key={r.instanceId}
-                title={ex ? "EX Resource" : "Recurso"}
-                className={cn(
-                  "block border",
-                  compact ? "h-4 w-3" : "h-6 w-4",
-                  ex
-                    ? "border-amber-400/80 bg-amber-500/25 shadow-[0_0_5px_rgba(251,191,36,0.5)]"
-                    : r.rested
-                      ? "rotate-[18deg] border-white/10 bg-slate-700/40"
-                      : "border-cyan-400/50 bg-cyan-500/25",
-                )}
-              />
+            const isSelected = selected.includes(r.instanceId);
+            const pickable = Boolean(selectable && onSelect && !r.rested);
+            const cls = cn(
+              "block border transition-all",
+              compact ? "h-4 w-3" : "h-6 w-4",
+              isSelected
+                ? "scale-110 border-emerald-400 bg-emerald-500/40 shadow-[0_0_7px_rgba(52,211,153,0.7)]"
+                : ex
+                  ? "border-amber-400/80 bg-amber-500/25 shadow-[0_0_5px_rgba(251,191,36,0.5)]"
+                  : r.rested
+                    ? "rotate-[18deg] border-white/10 bg-slate-700/40"
+                    : "border-cyan-400/50 bg-cyan-500/25",
+              pickable && "cursor-pointer hover:border-emerald-300",
+            );
+            const title = ex
+              ? "EX Resource — SAI DO JOGO se usado pra pagar custo (não volta)"
+              : r.rested
+                ? "Recurso (rested)"
+                : "Recurso ativo";
+            return pickable ? (
+              <button key={r.instanceId} type="button" title={title} onClick={() => onSelect!(r.instanceId)} className={cls} />
+            ) : (
+              <span key={r.instanceId} title={title} className={cls} />
             );
           })}
         </div>

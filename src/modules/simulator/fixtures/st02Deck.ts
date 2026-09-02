@@ -167,14 +167,19 @@ const HEERO_YUY: CardDef = {
   color: "green",
   level: 4,
   cost: 1,
+  // modificador impresso do Pilot: AP+2/HP+1 enquanto pareado (independente de
+  // Link). O AP+1/HP+1 EXTRA de 【During Link】 abaixo soma por cima quando a
+  // Link condition está satisfeita (total AP+3/HP+2 numa Link Unit).
+  ap: 2,
+  hp: 1,
   traits: ["Operation Meteor"],
   triggerKeywords: ["Burst", "During Link"],
   keywordTags: ["Burst", "During Link"],
   hasBurst: true,
   // 【During Link】This Unit gets AP+1 and HP+1. — "This Unit" = a Unit
-  // pareada com este Pilot (Heero Yuy não tem AP/HP próprio); modelado como
-  // `staticAbilities` com scope "pairedUnit" (docs/18 lacuna #2, agora
-  // fechada pra During Pair/During Link como modificador contínuo).
+  // pareada com este Pilot; modelado como `staticAbilities` com scope
+  // "pairedUnit" (docs/18 lacuna #2). É ADICIONAL ao modificador impresso
+  // `ap`/`hp` acima, não substitui.
   staticAbilities: [
     { condition: "duringLink", scope: "pairedUnit", stat: "ap", amount: 1 },
     { condition: "duringLink", scope: "pairedUnit", stat: "hp", amount: 1 },
@@ -188,6 +193,9 @@ const ZECHS_MERQUISE: CardDef = {
   color: "blue",
   level: 5,
   cost: 1,
+  // modificador impresso do Pilot: AP+2/HP+1 enquanto pareado.
+  ap: 2,
+  hp: 1,
   traits: ["OZ"],
   triggerKeywords: ["Burst", "During Link"],
   keywordTags: ["Burst", "During Link"],
@@ -208,8 +216,9 @@ const SIMULTANEOUS_FIRE: CardDef = {
   cost: 1,
   triggerKeywords: ["Main"],
   keywordTags: ["Main"],
-  // + "【Pilot】[Trowa Barton]" — mesma observação de ST01-012/013: requisito
-  // de jogo, não efeito, fora do escopo do EffectSpec.
+  // Card Command/Pilot — modo Pilot: "Trowa Barton" AP+1/HP+1. Ver nota em
+  // ST01-012 (o 【Pilot】[X] é modo alternativo, não requisito do Command).
+  pilotMode: { pilotName: "Trowa Barton", ap: 1, hp: 1 },
 };
 
 const PEACEFUL_TIMBRE: CardDef = {
@@ -225,7 +234,8 @@ const PEACEFUL_TIMBRE: CardDef = {
   // damage from enemy Units that are Lv.4 or lower. — ver
   // PEACEFUL_TIMBRE_ACTION em content/st02.ts (usa `preventShieldDamage`,
   // docs/18 lacuna #7, agora fechada).
-  // + "【Pilot】[Quatre Raberba Winner]" — requisito de jogo, fora de escopo.
+  // Card Command/Pilot — modo Pilot: "Quatre Raberba Winner" AP+1/HP+1.
+  pilotMode: { pilotName: "Quatre Raberba Winner", ap: 1, hp: 1 },
 };
 
 const SIEGE_PLOY: CardDef = {

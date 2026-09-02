@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectiveHp, effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 
@@ -51,7 +51,7 @@ export type TargetGroup = { kind: "allFriendlyLinkUnits" } | { kind: "allEnemyUn
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
   const pilot = findCard(state, unit.pairedPilotId);
-  return satisfiesLinkCondition(pilot.def, unit.def);
+  return satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
 }
 
 function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {

@@ -68,6 +68,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Bug, Clock, LogOut, RefreshCw, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -103,6 +104,10 @@ const ABANDON_THRESHOLD_MS = 180_000;
 const PRESENCE_PING_MS = 15_000;
 /** Abaixo disso (e retrato), a tela gira 90° via CSS -- ver `useIsPortraitMobile`. */
 const MOBILE_ROTATE_QUERY = "(max-width: 900px) and (orientation: portrait)";
+/** Rota pra onde "Sair"/fim de jogo devolvem o jogador (a "Minha Área" do portal, com o shell/nav normal). */
+const EXIT_ROUTE = "/portal";
+/** Ao encerrar a partida (fim de jogo por qualquer motivo), o jogador é levado de volta ao site depois disso. */
+const GAME_OVER_REDIRECT_MS = 8_000;
 
 function isHidden(card: ViewCardInstance): card is HiddenCard {
   return "hidden" in card && (card as HiddenCard).hidden === true;
@@ -180,8 +185,10 @@ function useIsPortraitMobile(): boolean {
 // -----------------------------------------------------------------------------
 
 type PendingAction = { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action" };
+/** Um jeito de jogar a carta em preview. Cards Command/Pilot (`def.pilotMode`) têm 2 modos ("Jogar como Comando" / "Parear como Piloto"); o resto tem 1. */
+type HandPlayMode = { label: string; run: () => void };
 /** Preview compacto aberto ao clicar numa carta da mão -- substitui o antigo botão "Jogar" minúsculo. */
-type HandPreview = { card: CardInstance; canPlay: boolean; blockedReason?: string; onPlay: () => void };
+type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlayMode[] };
 
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
@@ -192,6 +199,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  /** instanceIds dos Recursos ativos escolhidos pra restar/pagar o custo da carta em `pending` (seleção manual — 2026-09-01). */
+  const [selectedResources, setSelectedResources] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [preview, setPreview] = useState<HandPreview | null>(null);
   /** carta de tabuleiro aberta no inspetor (zoom) — docs/19, Sessão 3. */
@@ -199,6 +208,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [handOpen, setHandOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [phaseFlash, setPhaseFlash] = useState<string | null>(null);
+  /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
+  const [redirectAt, setRedirectAt] = useState<number | null>(null);
 
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
@@ -266,6 +277,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const clearSelection = () => {
     setPending(null);
     setSelected([]);
+    setSelectedResources([]);
     setAttackerId(null);
   };
 
@@ -323,7 +335,44 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   };
 
-  const exitToLobby = () => setLocation("/simulador");
+  const leaveMatchScreen = useCallback(() => {
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+    setLocation(EXIT_ROUTE);
+  }, [setLocation]);
+
+  const exitToLobby = async () => {
+    // "Sair" = desistir da partida: encerra o duelo e concede a vitória a quem
+    // ficou. Se a partida já acabou (ou nunca teve oponente), só navega embora.
+    if (!matchView?.view.gameOver) {
+      const ok = window.confirm(
+        "Sair agora encerra o duelo e concede a vitória ao oponente (abandono). Sair mesmo assim?",
+      );
+      if (!ok) return;
+      try {
+        await api.resignSimulatorMatch(matchId);
+      } catch {
+        /* já acabou / sem oponente — navega mesmo assim */
+      }
+    }
+    leaveMatchScreen();
+  };
+
+  // Fim de jogo (por qualquer motivo: vitória normal, abandono, W.O.) -> encerra o
+  // stream e devolve o jogador ao site depois de GAME_OVER_REDIRECT_MS (com botão
+  // pra voltar na hora). Sem isso o jogador ficava preso na tela de "Fim de jogo".
+  const gameOver = matchView?.view.gameOver ?? null;
+  useEffect(() => {
+    if (!gameOver) {
+      setRedirectAt(null);
+      return;
+    }
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+    setRedirectAt(Date.now() + GAME_OVER_REDIRECT_MS);
+    const timer = setTimeout(() => setLocation(EXIT_ROUTE), GAME_OVER_REDIRECT_MS);
+    return () => clearTimeout(timer);
+  }, [gameOver, setLocation]);
 
   if (!matchView || artLoading) {
     return (
@@ -369,6 +418,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const turnSecondsLeft = matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - now) / 1000)) : null;
   const itsMyDecision =
     !view.gameOver && (myTurnMain || iAmDefending || iHavePriority || iHaveEndPhasePriority || myPendingDecision !== null);
+  const redirectSecondsLeft = redirectAt !== null ? Math.max(0, Math.ceil((redirectAt - now) / 1000)) : null;
+  const gameOverResult = view.gameOver
+    ? {
+        won: view.gameOver.winner === seat,
+        reasonLabel:
+          { deckOut: "deck vazio", noShieldsBattleDamage: "dano de batalha sem shields", abandonment: "abandono" }[
+            view.gameOver.reason
+          ] ?? view.gameOver.reason,
+      }
+    : null;
 
   const opponentLastSeen = matchView.lastSeenAt[opponentSeat];
   const opponentIdleMs = opponentLastSeen ? Math.max(0, now - opponentLastSeen) : null;
@@ -380,6 +439,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setSelected((current) => (current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId]));
   };
 
+  /** clique num Recurso ativo pra incluí-lo/tirá-lo do pagamento manual do custo. */
+  const toggleResource = (instanceId: string) => {
+    if (!pending) return;
+    setSelectedResources((current) =>
+      current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId],
+    );
+  };
+
+  // carta em `pending` (ainda na mão) + custo dela — pra saber quantos Recursos pedir.
+  const pendingCard: CardInstance | undefined = pending
+    ? (view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId) as CardInstance | undefined)
+    : undefined;
+  const pendingCost = pendingCard?.def.cost ?? 0;
+  const resourcesReady = selectedResources.length === pendingCost;
+
   const startDeploy = (card: CardInstance) => setPending({ kind: "deploy", cardInstanceId: card.instanceId });
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
@@ -388,11 +462,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const confirmPending = () => {
     if (!pending) return;
+    // Pagamento manual do custo: o jogador escolhe exatamente `cost` Recursos ativos
+    // pra restar. Sem isso o motor pegava os N primeiros do array — e o EX Resource,
+    // que fica sempre no índice 0, era gasto (e SAI DO JOGO) sem o jogador querer.
+    if (pendingCost > 0 && selectedResources.length !== pendingCost) {
+      toast.error(`Selecione exatamente ${pendingCost} recurso(s) ativo(s) para pagar o custo (clique na sua bandeja de Recursos).`);
+      return;
+    }
+    const resourceInstanceIds = pendingCost > 0 ? selectedResources : undefined;
     const myBattleArea = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
     if (pending.kind === "deploy") {
-      const card = view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId) as CardInstance | undefined;
+      const card = pendingCard;
       let pairWithUnitId: string | undefined;
-      if (card?.def.cardType === "PILOT") {
+      // Pilot nativo OU card Command/Pilot jogado no modo Piloto (def.pilotMode).
+      if (card?.def.cardType === "PILOT" || !!card?.def.pilotMode) {
         pairWithUnitId = selected.find((id) => myBattleArea.some((u) => u.instanceId === id && u.def.cardType === "UNIT" && !u.pairedPilotId));
         if (!pairWithUnitId) {
           toast.error("Selecione (clicando na Battle Area) a Unit própria pra parear com este Pilot.");
@@ -401,10 +484,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
       const targetIds = selected.filter((id) => id !== pairWithUnitId);
       const targets = targetIds.length ? { target: targetIds, shield: targetIds } : undefined;
-      runAction({ kind: "deployCard", cardInstanceId: pending.cardInstanceId, pairWithUnitId, targets });
+      runAction({ kind: "deployCard", cardInstanceId: pending.cardInstanceId, pairWithUnitId, targets, resourceInstanceIds });
     } else {
       const targets = selected.length ? { target: selected, shield: selected } : undefined;
-      runAction({ kind: "playCommand", cardInstanceId: pending.cardInstanceId, trigger: pending.trigger ?? "Main", targets });
+      runAction({
+        kind: "playCommand",
+        cardInstanceId: pending.cardInstanceId,
+        trigger: pending.trigger ?? "Main",
+        targets,
+        resourceInstanceIds,
+      });
     }
   };
 
@@ -413,10 +502,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     runAction({ kind: "declareAttack", attackerId, target });
   };
 
-  const playFromPreview = (card: CardInstance, isCommand: boolean) => {
-    setPreview(null);
-    if (isCommand) startCommand(card);
-    else startDeploy(card);
+  /** Modos de jogo de uma carta da mão (1, ou 2 pra Command/Pilot). Vazio = injogável agora. */
+  const handPlayModes = (c: CardInstance): HandPlayMode[] => {
+    const isCommandType = c.def.cardType === "COMMAND";
+    const isDual = isCommandType && !!c.def.pilotMode;
+    const canCommand = Boolean(commandTrigger) && (c.def.triggerKeywords?.includes(commandTrigger!) ?? false);
+    const canPair = myTurnMain; // o motor valida se há Unit amiga sem Piloto ao confirmar
+    const asCommand: HandPlayMode = { label: `Jogar como Comando (${commandTrigger ?? "Main"})`, run: () => { setPreview(null); startCommand(c); } };
+    const asPilot: HandPlayMode = { label: "Parear como Piloto", run: () => { setPreview(null); startDeploy(c); } };
+    const plain = (fn: (card: CardInstance) => void): HandPlayMode => ({ label: "Jogar", run: () => { setPreview(null); fn(c); } });
+
+    if (isDual) {
+      const modes: HandPlayMode[] = [];
+      if (canCommand) modes.push(asCommand);
+      if (canPair) modes.push(asPilot);
+      return modes;
+    }
+    if (isCommandType) return canCommand ? [plain(startCommand)] : [];
+    return canPair ? [plain(startDeploy)] : [];
   };
 
   // ---------------------------------------------------------------------------
@@ -513,14 +616,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** Uma carta da MÃO própria -- máscara quando não-jogável; clique abre o inspetor (com botão "Jogar"). */
   function renderHandCard(c: CardInstance) {
     const isCommand = c.def.cardType === "COMMAND";
-    const canPlay = isCommand ? Boolean(commandTrigger) && (c.def.triggerKeywords?.includes(commandTrigger!) ?? false) : myTurnMain;
-    const blockedReason = canPlay ? undefined : isCommand ? "Esta Command não tem gatilho disponível agora." : notMainPhaseReason;
+    const isDual = isCommand && !!c.def.pilotMode;
+    const modes = handPlayModes(c);
+    const canPlay = modes.length > 0;
+    const blockedReason = canPlay
+      ? undefined
+      : isDual
+        ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
+        : isCommand
+          ? "Esta Command não tem gatilho disponível agora."
+          : notMainPhaseReason;
 
     return (
       <button
         key={c.instanceId}
         type="button"
-        onClick={() => setPreview({ card: c, canPlay, blockedReason, onPlay: () => playFromPreview(c, isCommand) })}
+        onClick={() => setPreview({ card: c, blockedReason, modes })}
         className={`relative shrink-0 border transition-all ${
           canPlay ? "border-primary/60 hover:-translate-y-1.5 hover:border-primary" : "border-white/10"
         }`}
@@ -606,7 +717,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <div ref={board.register(playerAreaKey(pid))} className="space-y-1">
           <p className="text-center text-[8px] uppercase tracking-[0.24em] text-cyan-500/70">Battle Area</p>
           {renderBattleArea(player, isSelf)}
-          <ResourceTray player={player} />
+          <ResourceTray
+            player={player}
+            selectable={isSelf && Boolean(pending) && pendingCost > 0}
+            selectedIds={isSelf ? selectedResources : undefined}
+            onSelect={isSelf ? toggleResource : undefined}
+          />
         </div>
         {renderRightColumn(player)}
       </div>
@@ -666,7 +782,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* HUD -- sem PortalShell nesta tela (rodada 5): usa o viewport inteiro. */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-primary/20 hero-surface px-3 py-2">
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="rounded-none" onClick={exitToLobby}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-none"
+            disabled={busy}
+            onClick={exitToLobby}
+            title={
+              matchView?.view.gameOver
+                ? "Voltar ao lobby do simulador"
+                : "Sair e desistir do duelo (concede a vitória ao oponente)"
+            }
+          >
             <LogOut className="mr-1.5 size-3.5" />
             Sair
           </Button>
@@ -689,9 +816,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {view.gameOver ? (
-            <Badge variant="outline" className="rounded-none border-primary/40 text-primary">
-              Fim de jogo -- vitória de {view.gameOver.winner} ({view.gameOver.reason})
+          {gameOverResult ? (
+            <Badge
+              variant="outline"
+              className={`rounded-none ${gameOverResult.won ? "border-emerald-500/50 text-emerald-400" : "border-red-500/50 text-red-400"}`}
+            >
+              {gameOverResult.won ? "Você venceu" : "Você perdeu"} · {gameOverResult.reasonLabel}
             </Badge>
           ) : turnSecondsLeft !== null ? (
             <Badge variant="outline" className={`rounded-none ${itsMyDecision && turnSecondsLeft <= 15 ? "border-red-500/60 text-red-400" : "border-primary/40 text-primary"}`}>
@@ -715,97 +845,171 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
-      {/* Avisos de decisão -- Action Step (combate ou fim de turno) é a causa nº1 de confusão
-          reportada em teste real ("botão bloqueado" quando na verdade Units não podem ser jogadas
-          fora da Main Phase, rodada 4): por isso o destaque forte (âmbar, pulsante) em vez de um
-          card discreto igual aos outros avisos. */}
-      <div className="shrink-0 space-y-1.5 overflow-y-auto px-2 py-1.5 sm:px-3">
-        {canClaimAbandon ? (
-          <div className="panel-cut flex flex-wrap items-center gap-2 border border-amber-500/40 surface-panel px-3 py-2 text-xs text-soft">
-            <AlertTriangle className="size-4 text-amber-400" />
-            Oponente sem responder há {opponentIdleSeconds}s.
-            <Button size="sm" variant="outline" className="rounded-none border-amber-500/50 text-amber-400 hover:bg-amber-500/10" disabled={busy} onClick={claimAbandon}>
-              Declarar vitória por abandono
-            </Button>
-          </div>
-        ) : null}
-
-        {oppPendingDecision ? (
-          <div className="panel-cut flex items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
-            <Sparkles className="size-4 text-primary" />
-            Aguardando o oponente resolver {oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...
-          </div>
-        ) : null}
-
-        {inActionStep ? (
-          <div className="panel-cut animate-pulse border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
-            {iHavePriority ? "Action Step de combate" : "Action Step de fim de turno"} -- sua prioridade. Não dá pra jogar
-            Units/Pilots/Bases agora, só Command 【Action】.{" "}
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-2 rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/20"
-              disabled={busy}
-              onClick={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
+      {/* Avisos de decisão / informação -- 2026-09-01: movidos pro CENTRO da tela
+          (antes ficavam numa faixa no topo, fácil de não notar). Wrapper sem
+          pointer-events pra o tabuleiro continuar clicável atrás; cada card
+          reativa os próprios cliques. */}
+      <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-4">
+        <div className="flex w-full max-w-sm flex-col items-stretch gap-2 text-center">
+          {gameOverResult ? (
+            <div
+              className={`pointer-events-auto panel-cut border bg-slate-950/97 px-4 py-4 text-soft shadow-2xl ${
+                gameOverResult.won ? "border-emerald-500/60" : "border-red-500/60"
+              }`}
             >
-              Passar
-            </Button>
-            <button
-              type="button"
-              className="ml-2 inline-flex items-center gap-1 text-[10px] font-normal text-amber-300/80 underline decoration-dotted hover:text-amber-200"
-              onClick={() => toggleAutoPass(!matchView.autoPassActionStep)}
-            >
-              <Zap className="size-3" />
-              {matchView.autoPassActionStep ? "auto-pass: LIGADO" : "auto-passar quando eu não tiver jogada"}
-            </button>
-          </div>
-        ) : null}
+              <p className={`text-lg font-black ${gameOverResult.won ? "text-emerald-400" : "text-red-400"}`}>
+                {gameOverResult.won ? "Você venceu!" : "Você perdeu"}
+              </p>
+              <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-muted-portal">
+                Fim de jogo · {gameOverResult.reasonLabel}
+              </p>
+              <Button
+                size="sm"
+                className="mt-3 rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={leaveMatchScreen}
+              >
+                Voltar ao site {redirectSecondsLeft !== null ? `(${redirectSecondsLeft}s)` : ""}
+              </Button>
+            </div>
+          ) : null}
 
-        {attackerId ? (
-          <div className="panel-cut flex flex-wrap items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
-            <Swords className="size-4 text-primary" />
-            Atacando com {attacker?.def.nameEn ?? attackerId}.
-            <Button size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={() => declareAttack("player")}>
-              Atacar o jogador
-            </Button>
-            <span className="text-[10px] text-muted-portal">ou clique em "Alvo" numa Unit rested do oponente.</span>
-            <Button size="sm" variant="outline" className="rounded-none" onClick={() => setAttackerId(null)}>
-              Cancelar
-            </Button>
-          </div>
-        ) : null}
+          {!gameOverResult && canClaimAbandon ? (
+            <div className="pointer-events-auto panel-cut border border-amber-500/50 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
+              <p className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
+                <AlertTriangle className="size-4" /> Oponente sem responder há {opponentIdleSeconds}s
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 rounded-none border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                disabled={busy}
+                onClick={claimAbandon}
+              >
+                Declarar vitória por abandono
+              </Button>
+            </div>
+          ) : null}
 
-        {pending ? (
-          <div className="panel-cut flex flex-wrap items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
-            <Shield className="size-4 text-primary" />
-            {pending.kind === "deploy" ? "Jogando carta." : `Jogando Command (${pending.trigger}).`} Se pedir alvo (ou pareamento de Pilot), clique nas cartas
-            do tabuleiro -- {selected.length} selecionada(s).
-            <Button size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={confirmPending}>
-              Confirmar
-            </Button>
-            <Button size="sm" variant="outline" className="rounded-none" onClick={clearSelection}>
-              Cancelar
-            </Button>
-          </div>
-        ) : null}
+          {!gameOverResult && oppPendingDecision ? (
+            <div className="pointer-events-auto panel-cut flex items-center justify-center gap-2 border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
+              <Sparkles className="size-4 text-primary" />
+              Aguardando o oponente resolver {oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...
+            </div>
+          ) : null}
 
-        {iAmDefending ? (
-          <div className="panel-cut flex flex-wrap items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
-            Defendendo. Ative um <strong>&lt;Blocker&gt;</strong> (botão na Unit) ou:
-            <Button size="sm" variant="outline" className="rounded-none" disabled={busy} onClick={() => runAction({ kind: "skipBlock" })}>
-              Não bloquear
-            </Button>
-          </div>
-        ) : null}
+          {!gameOverResult && inActionStep ? (
+            <div className="pointer-events-auto panel-cut animate-pulse border border-amber-500/70 bg-slate-950/95 px-3 py-2.5 text-xs font-semibold text-amber-300 shadow-2xl">
+              <p>
+                {iHavePriority ? "Action Step de combate" : "Action Step de fim de turno"} — sua prioridade. Só Command
+                【Action】 pode ser jogada agora.
+              </p>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/20"
+                  disabled={busy}
+                  onClick={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
+                >
+                  Passar
+                </Button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-[10px] font-normal text-amber-300/80 underline decoration-dotted hover:text-amber-200"
+                  onClick={() => toggleAutoPass(!matchView.autoPassActionStep)}
+                >
+                  <Zap className="size-3" />
+                  {matchView.autoPassActionStep ? "auto-pass: LIGADO" : "auto-passar sem jogada"}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
-        {myTurnMain ? (
-          <div className="panel-cut flex flex-wrap items-center gap-2 border border-primary/30 surface-panel px-3 py-2 text-xs text-soft">
-            Sua Main Phase.
-            <Button size="sm" variant="outline" className="rounded-none" disabled={busy} onClick={() => runAction({ kind: "finishTurn" })}>
-              Encerrar turno
-            </Button>
-          </div>
-        ) : null}
+          {!gameOverResult && attackerId ? (
+            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
+              <p className="flex items-center justify-center gap-1.5 font-semibold text-primary">
+                <Swords className="size-4" /> Atacando com {attacker?.def.nameEn ?? attackerId}
+              </p>
+              <p className="mt-1 text-[10px] text-muted-portal">ou clique em "Alvo" numa Unit rested do oponente.</p>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <Button
+                  size="sm"
+                  className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={busy}
+                  onClick={() => declareAttack("player")}
+                >
+                  Atacar o jogador
+                </Button>
+                <Button size="sm" variant="outline" className="rounded-none" onClick={() => setAttackerId(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {!gameOverResult && pending ? (
+            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
+              <p className="flex items-center justify-center gap-1.5 font-semibold text-primary">
+                <Shield className="size-4" />
+                {pending.kind === "deploy" ? "Jogando carta" : `Jogando Command (${pending.trigger})`}
+                {pendingCard ? ` — ${pendingCard.def.nameEn}` : ""}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-portal">
+                Se pedir alvo/pareamento, clique nas cartas do tabuleiro — {selected.length} selecionada(s).
+              </p>
+              {pendingCost > 0 ? (
+                <p className={cn("mt-1 text-[11px] font-semibold", resourcesReady ? "text-emerald-300" : "text-amber-300")}>
+                  Recursos p/ pagar o custo: {selectedResources.length}/{pendingCost} — clique nos seus Recursos ativos.
+                </p>
+              ) : null}
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <Button
+                  size="sm"
+                  className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={busy || (pendingCost > 0 && !resourcesReady)}
+                  onClick={confirmPending}
+                >
+                  Confirmar
+                </Button>
+                <Button size="sm" variant="outline" className="rounded-none" onClick={clearSelection}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {!gameOverResult && iAmDefending ? (
+            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
+              <p>
+                Defendendo. Ative um <strong>&lt;Blocker&gt;</strong> (botão na Unit) ou:
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 rounded-none"
+                disabled={busy}
+                onClick={() => runAction({ kind: "skipBlock" })}
+              >
+                Não bloquear
+              </Button>
+            </div>
+          ) : null}
+
+          {!gameOverResult && myTurnMain ? (
+            <div className="pointer-events-auto panel-cut flex items-center justify-center gap-3 border border-primary/30 bg-slate-950/90 px-3 py-2 text-xs text-soft shadow-xl">
+              Sua Main Phase.
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-none"
+                disabled={busy}
+                onClick={() => runAction({ kind: "finishTurn" })}
+              >
+                Encerrar turno
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Tabuleiro -- oponente em cima (menor, mão virada), você embaixo, as Battle Areas encostando no meio. */}
@@ -835,10 +1039,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           blockedReason={preview.blockedReason}
           onClose={() => setPreview(null)}
           footer={
-            preview.canPlay ? (
-              <Button className="flex-1 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={preview.onPlay}>
-                Jogar
-              </Button>
+            preview.modes.length > 0 ? (
+              <div className="flex flex-1 flex-col gap-1.5">
+                {preview.modes.map((m) => (
+                  <Button
+                    key={m.label}
+                    className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={busy}
+                    onClick={m.run}
+                  >
+                    {m.label}
+                  </Button>
+                ))}
+              </div>
             ) : undefined
           }
         />

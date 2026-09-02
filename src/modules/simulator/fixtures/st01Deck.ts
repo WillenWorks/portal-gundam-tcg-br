@@ -175,6 +175,10 @@ const AMURO_RAY: CardDef = {
   color: "blue",
   level: 4,
   cost: 1,
+  // modificador impresso do Pilot (gundam-gcg.com / data/apitcg-gundam.json):
+  // enquanto pareado, a Unit ganha AP+2/HP+1 (Comprehensive Rules 3-3-5).
+  ap: 2,
+  hp: 1,
   traits: ["Earth Federation", "White Base Team", "Newtype"],
   triggerKeywords: ["Burst", "When Paired"],
   keywordTags: ["Burst", "When Paired"],
@@ -188,6 +192,9 @@ const SULETTA_MERCURY: CardDef = {
   color: "white",
   level: 4,
   cost: 1,
+  // modificador impresso do Pilot: enquanto pareado, a Unit ganha AP+1/HP+2.
+  ap: 1,
+  hp: 2,
   traits: ["Academy"],
   triggerKeywords: ["Burst", "Attack"],
   effectKeywords: ["Once per Turn"],
@@ -205,9 +212,11 @@ const THOROUGHLY_DAMAGED: CardDef = {
   cost: 1,
   triggerKeywords: ["Main"],
   keywordTags: ["Main"],
-  // + "【Pilot】[Hayato Kobayashi]" — exige Hayato Kobayashi pareado pra poder
-  // jogar a carta; é uma restrição de legalidade de jogo (não um efeito que
-  // produz GameEvent), fora do escopo do EffectSpec — ver docs/18.
+  // Card Command/Pilot: "【Main】... / 【Pilot】[Hayato Kobayashi]". O 【Pilot】[X]
+  // NÃO é requisito pra jogar o Command — é o modo alternativo (parear como o
+  // Pilot "Hayato Kobayashi", AP+0/HP+1). É o único jeito de obter esse Pilot
+  // neste deck, então é o que satisfaz a link condition da Guntank (ST01-004).
+  pilotMode: { pilotName: "Hayato Kobayashi", ap: 0, hp: 1 },
 };
 
 const KAIS_RESOLVE: CardDef = {
@@ -219,7 +228,9 @@ const KAIS_RESOLVE: CardDef = {
   cost: 1,
   triggerKeywords: ["Main"],
   keywordTags: ["Main"],
-  // + "【Pilot】[Kai Shiden]" — mesma observação de ST01-012.
+  // Card Command/Pilot — modo Pilot: "Kai Shiden" AP+1/HP+0 (satisfaz a link
+  // condition da Guncannon, ST01-003). Ver nota em ST01-012.
+  pilotMode: { pilotName: "Kai Shiden", ap: 1, hp: 0 },
 };
 
 const UNFORESEEN_INCIDENT: CardDef = {

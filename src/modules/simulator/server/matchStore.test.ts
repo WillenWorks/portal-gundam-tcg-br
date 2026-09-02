@@ -15,6 +15,7 @@ import {
   matchViewFor,
   queueStatusFor,
   reportSituation,
+  resignMatch,
   seatFor,
   setAutoPass,
   subscribe,
@@ -314,6 +315,41 @@ describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente
     vi.advanceTimersByTime(15_000); // só 15s desde o touchPresence, não 185s
 
     expect(() => claimAbandonWin(match.id, "user-1")).toThrow(/W\.O\./);
+  });
+});
+
+describe("resignMatch (Sair da partida = desistência imediata)", () => {
+  it("concede a vitória ao oponente por abandono, na hora, sem espera", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    const after = resignMatch(match.id, "user-1"); // A sai
+    expect(after.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
+  });
+
+  it("a partida encerrada some de activeMatchForUser / queueStatusFor (não puxa o jogador de volta)", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    resignMatch(match.id, "user-1");
+
+    expect(queueStatusFor("user-1")).toEqual({ queued: false, matched: false });
+    expect(queueStatusFor("user-2")).toEqual({ queued: false, matched: false });
+  });
+
+  it("no-op se a partida já acabou; 403 pra quem não é jogador; 409 se não há oponente", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+
+    expect(() => resignMatch(match.id, "user-1")).toThrow(/oponente/); // B nunca entrou
+    expect(() => resignMatch(match.id, "estranho")).toThrow(MatchError);
+
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+    resignMatch(match.id, "user-1");
+    const again = resignMatch(match.id, "user-2"); // já acabou -> no-op, sem lançar
+    expect(again.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
   });
 });
 
