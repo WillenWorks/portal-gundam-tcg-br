@@ -44,7 +44,7 @@
  * `src/modules/simulator/ui/` (BattleSlot com 6 slots fixos + Piloto
  * acoplado + badge LINK, ShieldStack, ResourceTray com ativo/rested/EX,
  * BaseCardGauge com barra de HP, CardInspectorModal, BurstModal,
- * TriggerOrderModal, CombatLane, MobileHandDrawer). Esta página ficou só
+ * TriggerOrderModal, CombatLane, HandDrawer). Esta página ficou só
  * como orquestrador de estado/ações — decide quem é alvo legal do quê e
  * encaminha os cliques. Regressão corrigida de passagem: a Battle Area
  * agora filtra só Units pros 6 slots (Pilots pareados aparecem acoplados,
@@ -52,7 +52,7 @@
  * Polimento da Sessão 3 (2026-09-01): `CombatLane` agora desenha a LINHA DE
  * MIRA ponto-a-ponto (SVG `fixed` que liga o card atacante ao alvo real,
  * medido via `useBoardElements` + `getBoundingClientRect`, re-medido no
- * scroll/resize com throttle de rAF), e a `MobileHandDrawer` abre/fecha por
+ * scroll/resize com throttle de rAF), e a `HandDrawer` abre/fecha por
  * SWIPE vertical na aba além do toque.
  *
  * docs/19, Sessão 4 (2026-09-01) — telemetria/QA: feed de log de batalha
@@ -84,7 +84,7 @@ import {
   CardFace,
   CardInspectorModal,
   CombatLane,
-  MobileHandDrawer,
+  HandDrawer,
   playerAreaKey,
   ResourceTray,
   ShieldStack,
@@ -454,9 +454,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const pendingCost = pendingCard?.def.cost ?? 0;
   const resourcesReady = selectedResources.length === pendingCost;
 
-  const startDeploy = (card: CardInstance) => setPending({ kind: "deploy", cardInstanceId: card.instanceId });
+  // Ao começar a jogar uma carta, recolhe a mão: a gaveta cobre a base do board
+  // (Recursos/Base/Shields) e é justo isso que o jogador precisa ver pra pagar
+  // custo / escolher alvo.
+  const startDeploy = (card: CardInstance) => {
+    setHandOpen(false);
+    setPending({ kind: "deploy", cardInstanceId: card.instanceId });
+  };
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
+    setHandOpen(false);
     setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger });
   };
 
@@ -547,7 +554,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const canBlockWith = isSelf && iAmDefending;
 
     return (
-      <div className="grid justify-center gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card))" }}>
+      <div className="grid justify-center gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}>
         {Array.from({ length: 6 }).map((_, i) => {
           const unit = units[i] ?? null;
           const actions =
@@ -701,8 +708,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   }
 
-  function renderMyHandCards(player: ViewPlayerState) {
-    const cards = (player.hand as ViewCardInstance[]).filter((c) => !isHidden(c)) as CardInstance[];
+  function renderMyHandCards(cards: CardInstance[]) {
     if (!cards.length) return <p className="text-[10px] text-muted-portal">Mão vazia.</p>;
     return cards.map((c) => renderHandCard(c));
   }
@@ -765,15 +771,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       </div>
     );
 
-    // Mão numa faixa própria: scroll horizontal em vez de quebrar em 2 linhas (não
-    // empurra mais o board a cada compra/descarte). Retrato → MobileHandDrawer.
-    const hand =
-      isSelf && !isPortraitMobile ? (
-        <div className="flex shrink-0 overflow-x-auto px-1 pb-1 pt-2">
-          <div className="mx-auto flex min-w-max gap-1.5">{renderMyHandCards(player)}</div>
-        </div>
-      ) : null;
-
+    // A mão NÃO fica numa faixa do board (espremeria a Battle Area — bug do QA da
+    // Fase A): fica recolhida na `HandDrawer` na base da tela e sobe por cima do
+    // board sob demanda, pros dois lados do board terem altura cheia.
     return (
       <div
         className={`flex min-h-0 flex-1 flex-col gap-1 border p-1.5 sm:p-2 ${
@@ -784,7 +784,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <>
             {battle}
             {frontStrip}
-            {hand}
             {sideHeader}
           </>
         ) : (
@@ -797,6 +796,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       </div>
     );
   }
+
+  // Mão própria (sem cartas ocultas) + quantas dão pra jogar agora — alimenta a
+  // aba da HandDrawer ("N jogáveis").
+  const myHandCards = (view.players[seat].hand as ViewCardInstance[]).filter((c) => !isHidden(c)) as CardInstance[];
+  const myPlayableCount = myHandCards.filter((c) => handPlayModes(c).length > 0).length;
 
   const attacker = attackerId
     ? findPublicCard(view, attackerId)
@@ -1047,7 +1051,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       <div className="relative min-h-0 flex-1 overflow-hidden px-1 sm:px-2">
         <div
           className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-1 overflow-hidden"
-          style={{ "--card": "clamp(2.75rem, 7.5vw, 6.5rem)", paddingBottom: isPortraitMobile ? "3rem" : undefined } as CSSProperties}
+          style={{ "--card": "clamp(2.75rem, 7.5vw, 6.5rem)", paddingBottom: "3.25rem" } as CSSProperties}
         >
           {renderSide(opponentSeat, false)}
           <div className="mx-auto h-0.5 w-full shrink-0 bg-gradient-to-r from-transparent via-red-500/45 to-transparent" />
@@ -1115,12 +1119,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
 
-      {/* Mobile em retrato: a mão vira gaveta na base (docs/19, Sessão 3). */}
-      {isPortraitMobile ? (
-        <MobileHandDrawer count={view.players[seat].hand.length} open={handOpen} onToggle={() => setHandOpen((o) => !o)}>
-          {renderMyHandCards(view.players[seat])}
-        </MobileHandDrawer>
-      ) : null}
+      {/* Fase A: a mão fica na gaveta da base em TODA tela (no board em grid ela não
+          cabe numa faixa sem espremer a Battle Area). */}
+      <HandDrawer
+        count={myHandCards.length}
+        subtitle={myPlayableCount > 0 ? `${myPlayableCount} ${myPlayableCount === 1 ? "jogável" : "jogáveis"}` : "nada jogável agora"}
+        open={handOpen}
+        onToggle={() => setHandOpen((o) => !o)}
+      >
+        {renderMyHandCards(myHandCards)}
+      </HandDrawer>
     </div>
   );
 

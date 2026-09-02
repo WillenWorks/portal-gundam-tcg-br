@@ -402,25 +402,42 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 | Fase | Estado | Branch | Notas |
 |---|---|---|---|
 | Setup | ✅ feito | — | `.planning/design-config.md`, `.planning/specs/` criados. `.spartan/ai.env` = usuário. `/spartan:e2e` pendente. |
-| **A — Grid + escala** | ✅ **FEITA** — commitada 2026-09-01. Falta só QA visual (§10) + PR. | `feature/simulador-fase-a-grid-board` | commit `feat(simulador): Fase A do redesenho visual` |
-| B — Action Dock | ⬜ **bloqueada** até A passar no QA e mergear em `dev` | — | — |
-| C — Ler o estado | ⬜ bloqueada até A mergeada | — | — |
-| D — Mão + inspetor + log | ⬜ bloqueada até A mergeada | — | — |
+| **A — Grid + escala** | ✅ **FEITA** · Gate 3.5 ✅ ACCEPT (2026-09-02). Falta só re-QA da gaveta (§10) + PR. | `feature/simulador-fase-a-grid-board` | 2 commits (grid + fix da mão/review) |
+| B — Action Dock | ⬜ **bloqueada** até A passar no re-QA e mergear em `dev` | — | — |
+| C — Ler o estado | ⬜ bloqueada até A mergeada | — | itens 1–2 do Gate 3.5 (dedupe de `myHandCards`/`handPlayModes`) podem ir junto |
+| D — Mão + inspetor + log | ⬜ bloqueada até A mergeada | — | traz o leque sempre-visível (substitui a `HandDrawer`) |
 | E — Portrait + fim da rotação | ⬜ sempre por último | — | — |
 
 ### Fase A — o que foi feito (commitado)
 
-- Spec: `.planning/specs/simulador-fase-a-grid-de-board.md`
+- Spec: `.planning/specs/simulador-fase-a-grid-de-board.md` (inclui a seção "Desvio" da mão).
 - `SimulatorMatchPage.tsx`: `renderPlaymat` → `renderSide`; board vira grid de 5 faixas
-  sem rolagem (`--card: clamp(2.75rem, 7.5vw, 6.5rem)`, `max-w-[1400px]` centrado, seam
-  central); `renderLeftColumn`/`renderRightColumn` horizontais; mão em faixa própria com
-  scroll horizontal (não quebra mais em 2 linhas); recursos do oponente agora aparecem.
+  **sem rolagem** (`--card: clamp(2.75rem, 7.5vw, 6.5rem)`, `max-w-[1400px]` centrado, seam
+  central); `renderLeftColumn`/`renderRightColumn` horizontais; **recursos do oponente
+  agora aparecem** (read-only). `renderMyHandCards` recebe as cartas prontas (dedupe).
 - `BattleSlot.tsx`: slot vazio `aspect-[63/108]` → `aspect-[63/88]`.
-- Deletado: `overflow-y-auto`+`pb-24`, wrapper `scale-[0.94]`, grid `auto_1fr_auto`,
-  `flex-wrap` da mão. Net **−57 linhas**.
-- Motor / `viewState` / `server` **não tocados**. Sem mudança funcional.
-- Verificação automática: `pnpm build` ✅ · `pnpm test` 237/237 ✅ · `eslint` limpo ✅.
-- Registro também em `docs/18-simulador-fase1-motor-e-dsl.md` (seção "Redesenho visual (2026-09-01)").
+- **Mão** → `HandDrawer` (renomeada de `MobileHandDrawer`, agora em **toda tela**):
+  gaveta de 44 px na base, sobe por cima do board, recolhe sozinha ao jogar uma carta.
+  Transições da gaveta ≤ 120 ms + `motion-reduce:transition-none`.
+- Removido: o container que rolava (`overflow-y-auto`+`pb-24`), wrapper `scale-[0.94]`,
+  grid `grid-cols-[auto_1fr_auto]`, `flex-wrap` da mão, `renderPlaymat`,
+  `MobileHandDrawer.tsx`. Saldo em `src/`: **≈ +53 linhas** (o `renderSide` é mais
+  explícito que o `renderPlaymat`; a `HandDrawer` ganhou `subtitle` + `motion-reduce`).
+- Motor / `viewState` / `server` **não tocados**. **Sem mudança funcional** — seleção,
+  ataque, block, pagamento de custo, refs do `CombatLane` intactos.
+- Verificação: `pnpm build` ✅ · `pnpm test` 237/237 ✅ · `eslint` limpo ✅ · Gate 3.5 ✅.
+- Registro também em `docs/18-simulador-fase1-motor-e-dsl.md`.
+
+### Gate 3.5 — issues aceitas como estão / deferidas
+
+| # | Sev | Item | Decisão |
+|---|---|---|---|
+| 1 | rec | `myHandCards` duplicava filtro de `renderMyHandCards` | **corrigido** (arg) |
+| 2 | rec | `handPlayModes(c)` avaliado 2×/carta/render | deferido — impacto baixo (poucas cartas), Fase D reescreve `renderHandCard` |
+| 3 | rec | transições da `HandDrawer` > 120 ms, sem `prefers-reduced-motion` | **corrigido** |
+| 4 | nit | nomes `renderLeftColumn`/`renderRightColumn` stale | deferido — Fase C substitui |
+| 5 | nit | `HandDrawer` × `BattleLogDrawer` z-40 no canto | deferido — Fase B/D mexe no z-stack |
+| 6 | nit | `overflow-hidden` no `battle` corta rodapé em viewport baixo | aceito na spec — Fase E |
 
 ---
 
@@ -428,6 +445,10 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 
 A Fase A só mexe em layout/CSS — o risco é **100% visual** e a tela de partida só
 renderiza com um match pareado. Precisa de olho humano.
+
+> **Status:** 1ª rodada de QA (2026-09-02) achou 1 bug — a mão espremia/cobria a
+> Battle Area no notebook. Corrigido: a mão virou a `HandDrawer` (gaveta na base).
+> Falta **re-testar a gaveta** com o roteiro abaixo.
 
 ### Subir o ambiente
 1. `pnpm dev:full`  (Vite `:5173` + API `:8787`)
@@ -444,10 +465,18 @@ renderiza com um match pareado. Precisa de olho humano.
       preenche as laterais). Não pode esticar até as bordas.
 - [ ] Slots de unidade: vazios e preenchidos têm a **mesma altura** (nada "pula" ao
       deployar / perder unit).
-- [ ] Mão com 7+ cartas: rola na **horizontal**, nunca quebra em 2 linhas, nunca
-      empurra o board.
+- [ ] **Battle Area do seu lado NÃO é coberta** por nada — a mão está recolhida na aba
+      da base (`✋ Mão (N) · M jogáveis`), não em cima do campo.
+- [ ] Aba da mão: tocar/clicar/arrastar pra cima abre a gaveta por cima do board;
+      arrastar pra baixo (ou tocar de novo) fecha. Com 7+ cartas, a gaveta rola na
+      horizontal.
+- [ ] Ao clicar "Jogar" numa carta, a gaveta **recolhe sozinha** e a base do board
+      (Recursos/Base/Shields) fica visível pra pagar o custo.
+- [ ] `prefers-reduced-motion` ligado (DevTools → Rendering): a gaveta abre/fecha
+      **sem** animação de slide.
 - [ ] Recursos do oponente aparecem (bandeja read-only na faixa dele).
-- [ ] Jogar carta com custo: clicar carta → "Jogar" → clicar recursos ativos → Confirmar.
+- [ ] Jogar carta com custo: abrir a mão → clicar carta → "Jogar" → clicar recursos
+      ativos → Confirmar.
 - [ ] Declarar ataque: a **linha de mira** (SVG vermelho tracejado) liga o atacante ao
       alvo. Testar mirar unit rested do oponente e "o jogador".
 - [ ] Do outro lado: Blocker / "Não bloquear" funcionam.
@@ -463,9 +492,10 @@ Screenshot em `tests/e2e/screenshots/fase-a/` + passos. Bug de **layout puro**
 **funcional** (clique não responde, ação falha) → provavelmente não é da Fase A
 (nenhuma lógica mudou), mas reportar mesmo assim.
 
-### Quando o QA passar
-`/spartan:pr-ready` → PR de `feature/simulador-fase-a-grid-board` **contra `dev`**.
-**Só depois do merge**: começar a Fase B (Action Dock) — §6.2 em diante.
+### Quando o re-QA passar
+`/spartan:pr-ready` → PR de `feature/simulador-fase-a-grid-board` **contra `dev`**
+(Gate 3.5 já passou — ver §9). **Só depois do merge**: começar a Fase B (Action Dock)
+— §6.2 em diante.
 
 ---
 

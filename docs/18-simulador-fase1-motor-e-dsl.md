@@ -1513,21 +1513,25 @@ clamp(2.75rem, 7.5vw, 6.5rem)` (`aspect 63/88`), board com largura-teto `1400px`
 centrado.
 
 - `SimulatorMatchPage.tsx`: `renderPlaymat` → `renderSide`; container de board
-  reescrito; `renderLeftColumn`/`renderRightColumn` viram faixa horizontal; mão em
-  faixa própria com **scroll horizontal** em vez de `flex-wrap` (não empurra mais o
-  board a cada compra/descarte); recursos do oponente passam a aparecer (read-only).
+  reescrito; `renderLeftColumn`/`renderRightColumn` viram faixa horizontal; recursos
+  do oponente passam a aparecer (read-only).
 - `BattleSlot.tsx`: slot vazio `aspect-[63/108]` → `aspect-[63/88]` (a linha não
   "pula" mais ao deployar/perder unit).
-- **Deletado**: `overflow-y-auto`+`pb-24` do board, o wrapper `scale-[0.94]`, o grid
-  `grid-cols-[auto_1fr_auto]`, o `flex-wrap` da mão. Net: −57 linhas.
+- **Mão** → `HandDrawer` (renomeada de `MobileHandDrawer`, agora em **toda tela**):
+  gaveta de 44 px na base que sobe por cima do board sob demanda e recolhe sozinha ao
+  jogar uma carta. Motivo: como faixa de flow ela espremia a Battle Area e cobria o
+  campo (bug do 1º QA no notebook, 2026-09-02). Leque sempre-visível fica pra Fase D.
+- **Removido**: `overflow-y-auto`+`pb-24` do board, wrapper `scale-[0.94]`, grid
+  `grid-cols-[auto_1fr_auto]`, `flex-wrap` da mão, `renderPlaymat`,
+  `MobileHandDrawer.tsx`. Saldo em `src/`: ~+53 linhas (`renderSide` mais explícito).
 - **Sem mudança funcional** — seleção, ataque, block, Action Step, pagamento de
   recurso, refs do `CombatLane` intactos. Motor (`engine/*`), `viewState.ts` e
   `server/index.ts` **não tocados**.
 
-Verificação: `pnpm build` OK (`tsc -b` + `vite build`), `pnpm test` 237/237,
-`eslint` limpo nos 2 arquivos. Validação **visual** (board não rola em S/M/L/XL,
-seam alinhada, linha de mira, pagamento de recurso) depende de 2 sessões reais —
-próximo passo é `/spartan:qa` com 2 contexts de browser (ver
-`INSTRUCOES_AGENTES_SIMULADOR.md` §6.8).
+Verificação: `pnpm build` OK, `pnpm test` 237/237, `eslint` limpo, **Gate 3.5 ✅
+ACCEPT** (`phase-reviewer`, 2026-09-02 — 2 correções aplicadas: dedupe de
+`myHandCards`, transições da gaveta ≤ 120 ms + `motion-reduce`). Validação **visual**
+final (board não rola, seam, gaveta da mão, linha de mira) depende de 2 sessões
+reais — ver `INSTRUCOES_AGENTES_SIMULADOR.md` §10.
 
 Próximo: Fase B (Action Dock) — ver o faseamento no guia.

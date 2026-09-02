@@ -12,7 +12,7 @@ export { BurstModal } from "./BurstModal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
 export { CardInspectorModal } from "./CardInspectorModal";
 export { CombatLane } from "./CombatLane";
-export { MobileHandDrawer } from "./MobileHandDrawer";
+export { HandDrawer } from "./HandDrawer";
 export { useBoardElements, playerAreaKey, type BoardElements } from "./useBoardElements";
 export { BattleLogDrawer } from "./BattleLogDrawer";
 export { buildBattleLog, describeEvent, makeNameResolver, type BattleLogEntry, type BattleLogKind } from "./battleLog";

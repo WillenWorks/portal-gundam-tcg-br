@@ -122,3 +122,29 @@ pnpm exec eslint src/pages/SimulatorMatchPage.tsx src/modules/simulator/ui/Battl
 
 Checagem manual (redimensionar janela): board não rola em S/M/L/XL · seam alinhada ·
 mão não quebra · combate desenha a linha de mira · pagamento de recurso funciona.
+
+## Desvio — a mão vira gaveta em toda tela (QA da Fase A, 2026-09-02)
+
+O QA no notebook apontou: no grid, a mão como **faixa de flow** (`shrink-0`, ~120 px)
+espremia a Battle Area (`flex-1`) e cobria o campo inferior. A ideia original de "mão
+em faixa própria com scroll horizontal" não fecha a conta de altura enquanto Shields /
+Recursos / pilhas ainda ocupam o tamanho atual (Fase C é que os enxuga).
+
+**Correção:** a mão sai do fluxo do board e vira a `HandDrawer` (renomeada de
+`MobileHandDrawer` — agora usada em **todas** as telas, não só retrato):
+
+- Gaveta recolhida numa aba de 44 px na base (`✋ Mão (N) · M jogáveis`), sobe por
+  cima do board (`max-h-[38vh]`) ao tocar/clicar/arrastar.
+- O board recupera a altura cheia pros dois lados → Battle Areas não são mais
+  espremidas.
+- Recolhe sozinha ao começar a jogar uma carta (`setHandOpen(false)` em
+  `startDeploy`/`startCommand`) — aí a base do board (Recursos/Base/Shields) fica
+  visível pro pagamento de custo / escolha de alvo.
+- `--card` ganhou fallback `var(--card, 3.5rem)` no `grid-template-columns`.
+
+Trade-off aceito: a mão deixa de ser glanceável o tempo todo nesta fase. A aba mostra
+`M jogáveis` e abrir é 1 gesto. A **Fase D** traz o leque sempre-visível, quando a
+Fase C já tiver liberado a altura vertical.
+
+Arquivos extra tocados: `HandDrawer.tsx` (novo), `MobileHandDrawer.tsx` (deletado),
+`ui/index.ts` (rename do export).
