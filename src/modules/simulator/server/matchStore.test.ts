@@ -222,6 +222,20 @@ describe("fila de matchmaking (joinQueue / queueStatusFor / leaveQueue)", () => 
     expect(queueStatusFor("user-1")).toEqual({ queued: false, matched: false });
     expect(queueStatusFor("user-2")).toEqual({ queued: false, matched: false });
   });
+
+  it("deleteMatch limpa o pendingMatches do pareamento — quem reentra na fila não reconecta na partida sumida", () => {
+    joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    const paired = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(paired.matched).toBe(true);
+
+    deleteMatch(paired.matchId!);
+
+    // sem o sweep de pendingMatches no deleteMatch, isso reconectaria numa partida que não existe mais
+    expect(joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() })).toEqual({
+      queued: true,
+      matched: false,
+    });
+  });
 });
 
 describe("timer de turno (90s por decisão, passa automático)", () => {
@@ -359,6 +373,11 @@ describe("resignMatch (Sair da partida = desistência imediata)", () => {
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
     expect(() => resignMatch(match.id, "estranho")).toThrow(MatchError);
+    try {
+      resignMatch(match.id, "estranho");
+    } catch (err) {
+      expect((err as MatchError).status).toBe(403);
+    }
   });
 
   it("sem oponente: descarta a partida (não lança 409, não deixa zumbi)", () => {

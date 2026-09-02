@@ -325,8 +325,8 @@ export function claimAbandonWin(matchId: string, userId: string): MatchRecord {
  * e concede a vitória ao oponente por abandono. Diferente de `claimAbandonWin`
  * (que exige 3min de inatividade do OUTRO lado) — aqui não há espera nem
  * checagem de turno/prioridade. Se a partida já acabou, é no-op (sair vira só
- * navegação). Se o oponente nunca entrou, não há pra quem conceder — lança
- * 409 e o chamador só navega embora.
+ * navegação). Se o oponente nunca entrou, não há pra quem conceder — a partida
+ * é descartada (nunca começou de verdade) e o chamador só navega embora.
  */
 export function resignMatch(matchId: string, userId: string): MatchRecord {
   const match = requireMatch(matchId);
@@ -339,6 +339,10 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
     // Sem oponente pra conceder a vitória — a partida nunca começou de verdade.
     // Descarta em vez de deixar um zumbi que `activeMatchForUser` reconecta pra
     // sempre (era isso que fazia "entrar no simulador" cair na partida velha).
+    // Ainda seta GAME_OVER no `state` antes de descartar pra o registro devolvido
+    // ficar consistente com as irmãs (`claimAbandonWin`/`onTurnTimeout`): quem
+    // consome o retorno nunca vê um tabuleiro "vivo" de uma partida que já não existe.
+    match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
     deleteMatch(matchId);
     return match;
   }
