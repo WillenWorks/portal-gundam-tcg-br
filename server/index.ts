@@ -11,7 +11,7 @@ import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 
 const prisma = new PrismaClient();
 const app = express();
@@ -1760,7 +1760,7 @@ app.get("/api/cards/:id", async (req, res) => {
   // aparece. Não depende de torneio, só do corpus de decks com visibility=PUBLIC.
   const printIds = model.prints.map((print) => print.id);
   const publicDeckCount = printIds.length
-    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { not: "token_reference" } } } } })
+    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { notIn: NON_STATS_SECTIONS } } } } })
     : 0;
 
   const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
@@ -1798,7 +1798,7 @@ app.get("/api/cards/:id/stats", async (req, res) => {
   // Snapshots (de qualquer um dos dois sistemas) que realmente incluem essa carta em
   // alguma cópia jogável -- fora token de referência, mesmo critério do publicDeckCount acima.
   const snapshotsWithCard = await prisma.deckSnapshotItem.findMany({
-    where: { cardId: { in: printIds }, section: { not: "token_reference" } },
+    where: { cardId: { in: printIds }, section: { notIn: NON_STATS_SECTIONS } },
     select: { deckSnapshotId: true },
     distinct: ["deckSnapshotId"],
   });
@@ -1913,10 +1913,10 @@ app.get("/api/stats/metagame", async (req, res) => {
   if (!snapshotIds.length) return res.json(empty);
 
   const items = await prisma.deckSnapshotItem.findMany({
-    where: { deckSnapshotId: { in: snapshotIds }, section: { not: "token_reference" } },
+    where: { deckSnapshotId: { in: snapshotIds }, section: { notIn: NON_STATS_SECTIONS } },
     select: {
       deckSnapshotId: true,
-      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true } },
+      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true, cardType: true } },
     },
   });
 
@@ -1948,6 +1948,7 @@ app.get("/api/stats/metagame", async (req, res) => {
     for (const item of list) {
       const card = item.card;
       if (!card) continue;
+      if (NON_STATS_CARD_TYPES.includes(card.cardType)) continue;
       if (card.color) deckColorsFull.add(card.color);
       if (setId && card.setId !== setId) continue;
       if (card.color) deckColorsScoped.add(card.color);

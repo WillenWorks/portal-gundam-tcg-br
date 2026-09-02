@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from "@/components/ui/chart";
 import { api } from "@/lib/api";
+import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 
 const chartConfig = {
@@ -71,13 +72,18 @@ export default function StatsPage() {
    * está montando), nunca como dado de metagame competitivo (ver metagame acima, que é
    * a única fonte tratada como "resultado real"). Cartas de referência de token não
    * contam pra nenhuma leitura por carta. */
-  const relevantItems = (deck: any) => (deck.items || []).filter((item: any) => item.section !== "token_reference" && item.card);
+  const relevantItems = (deck: any) =>
+    (deck.items || []).filter((item: any) => item.card && !NON_STATS_SECTIONS.includes(item.section) && !NON_STATS_CARD_TYPES.includes(item.card.cardType));
 
   // Recorte pelo filtro de coleção escolhido -- filtra o banco de cartas direto
   // (Card.setId). Um deck público só entra no recorte se tiver pelo menos uma carta
   // daquela coleção -- do contrário toda leitura "por coleção" ficaria vazia (a maioria
   // dos decks mistura cartas de várias expansões).
   const filteredCards = useMemo(() => (selectedSetId === ALL_VALUE ? cards : cards.filter((card) => card.setId === selectedSetId)), [cards, selectedSetId]);
+  // Recurso, Recurso EX e Base EX são componente fixo do jogo, não conteúdo de
+  // deckbuilding — ficam de fora de qualquer leitura por cor/tipo (o total bruto de
+  // "cartas cadastradas" continua usando filteredCards).
+  const statsCards = useMemo(() => filteredCards.filter((card) => !NON_STATS_CARD_TYPES.includes(card.cardType)), [filteredCards]);
   const filteredDecks = useMemo(
     () => (selectedSetId === ALL_VALUE ? publicDecks : publicDecks.filter((deck) => relevantItems(deck).some((item: any) => item.card.setId === selectedSetId))),
     [publicDecks, selectedSetId],
@@ -106,15 +112,15 @@ export default function StatsPage() {
 
   const colorChart = useMemo(() => {
     const map = new Map<string, number>();
-    filteredCards.forEach((card) => map.set(card.color || "Sem cor", (map.get(card.color || "Sem cor") ?? 0) + 1));
+    statsCards.forEach((card) => map.set(card.color || "Sem cor", (map.get(card.color || "Sem cor") ?? 0) + 1));
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [filteredCards]);
+  }, [statsCards]);
 
   const typeChart = useMemo(() => {
     const map = new Map<string, number>();
-    filteredCards.forEach((card) => map.set(card.cardType || "Sem tipo", (map.get(card.cardType || "Sem tipo") ?? 0) + 1));
+    statsCards.forEach((card) => map.set(card.cardType || "Sem tipo", (map.get(card.cardType || "Sem tipo") ?? 0) + 1));
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name: typeLabel(name), value }));
-  }, [filteredCards]);
+  }, [statsCards]);
 
   const deckColorMeta = useMemo(() => {
     const map = new Map<string, number>();

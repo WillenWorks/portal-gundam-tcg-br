@@ -32,6 +32,15 @@ export type DeckLegalityItem = {
  *  sempre), não uma escolha de quantidade/deckbuilding de verdade. */
 export const NON_COUNTED_SECTIONS = new Set(["ex_base", "ex_resource"]);
 
+/** Componentes fixos do jogo — deck de recursos (10 cópias iguais em todo deck),
+ *  EX Base e EX Resource (1 de cada, sempre) — mais o token de referência. Nenhum é
+ *  escolha de deckbuilding: todo deck tem exatamente os mesmos. Por isso não entram
+ *  em NENHUMA estatística de uso/metagame — senão apareceriam como "as cartas mais
+ *  jogadas" com 100% de presença. Filtra tanto por seção (dados novos) quanto por
+ *  tipo de carta (defesa contra snapshots antigos com seção divergente). */
+export const NON_STATS_SECTIONS = ["resource", "ex_base", "ex_resource", "token_reference"];
+export const NON_STATS_CARD_TYPES = ["RESOURCE", "EX_BASE", "EX_RESOURCE"];
+
 export type DeckLegalityIssue = { type: string; message: string; cardModelId?: string };
 
 /** items: uma linha por DeckItem já carregado com o cardModel e a cor/tipo do card.
