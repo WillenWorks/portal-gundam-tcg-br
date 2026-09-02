@@ -62,7 +62,7 @@
  * rede agora é janelado (últimos 150, `viewState.ts`) e o match store do
  * servidor faz GC oportunista de partidas terminadas.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { AlertTriangle, Bug, Clock, LogOut, RefreshCw, Shield, Sparkles, Swords, Zap } from "lucide-react";
@@ -547,7 +547,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const canBlockWith = isSelf && iAmDefending;
 
     return (
-      <div className="grid grid-cols-6 gap-1">
+      <div className="grid justify-center gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card))" }}>
         {Array.from({ length: 6 }).map((_, i) => {
           const unit = units[i] ?? null;
           const actions =
@@ -653,11 +653,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   }
 
-  /** Coluna lateral esquerda: Base (com gauge de HP), pilha de Shields, Resource Deck. */
+  /** Coluna lateral: Base (com gauge de HP), pilha de Shields, Resource Deck.
+   *  Fase A: horizontal — entra na "front strip" de cada lado. */
   function renderLeftColumn(player: ViewPlayerState) {
     const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-row items-end gap-2">
         <BaseCardGauge
           base={base}
           art={art}
@@ -679,7 +680,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   function renderRightColumn(player: ViewPlayerState) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-row items-end gap-2">
         {renderPile("Trash", player.trash)}
         {renderPile("Exílio", player.exile)}
         {renderDeckTile("Deck", player.counts.deck)}
@@ -706,64 +707,92 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return cards.map((c) => renderHandCard(c));
   }
 
-  /** Um lado inteiro do tabuleiro. `mirrored` (oponente): a Battle Area sempre encosta na divisória do meio. */
-  function renderPlaymat(pid: PlayerId, isSelf: boolean, mirrored: boolean) {
+  /** Um lado inteiro do board (Fase A — plano visual §02). Cada lado é uma faixa
+   *  `flex-1` do grid de 5 faixas; a Battle Area encosta na seam central
+   *  (oponente: base do bloco dele; você: topo do seu). Sem rolagem — o board
+   *  cresce/encolhe com o viewport, `--card` dá a escala. */
+  function renderSide(pid: PlayerId, isSelf: boolean) {
     const player = view.players[pid];
 
-    const boardGrid = (
-      <div className="grid grid-cols-[auto_1fr_auto] gap-2">
-        {renderLeftColumn(player)}
-        {/* ref registrado pro CombatLane mirar a Battle Area quando o ataque é "no jogador". */}
-        <div ref={board.register(playerAreaKey(pid))} className="space-y-1">
-          <p className="text-center text-[8px] uppercase tracking-[0.24em] text-cyan-500/70">Battle Area</p>
-          {renderBattleArea(player, isSelf)}
-          <ResourceTray
-            player={player}
-            selectable={isSelf && Boolean(pending) && pendingCost > 0}
-            selectedIds={isSelf ? selectedResources : undefined}
-            onSelect={isSelf ? toggleResource : undefined}
-          />
-        </div>
-        {renderRightColumn(player)}
+    const sideHeader = (
+      <div className="flex shrink-0 items-center justify-between gap-2 px-1">
+        <p className="text-xs font-semibold text-soft">
+          {isSelf ? "Você" : "Oponente"} ({pid}){matchView!.deckKeys[pid] ? ` · ${matchView!.deckKeys[pid]}` : ""}{" "}
+          {view.activePlayer === pid ? (
+            <Badge variant="outline" className="ml-1 rounded-none border-primary/40 text-primary">
+              Ativo
+            </Badge>
+          ) : null}
+        </p>
+        {!isSelf ? (
+          <p className={`text-[9px] uppercase tracking-[0.18em] ${canClaimAbandon ? "text-amber-400" : "text-slate-500"}`}>
+            {opponentIdleSeconds === null ? "presença desconhecida" : opponentIdleSeconds < 10 ? "presente" : `inativo há ${opponentIdleSeconds}s`}
+          </p>
+        ) : (
+          <p className="text-[9px] uppercase tracking-[0.18em] text-slate-500">Deck {player.counts.deck}</p>
+        )}
       </div>
     );
 
-    const hand = isSelf ? (
-      <div className="flex flex-wrap gap-1.5">{renderMyHandCards(player)}</div>
-    ) : (
-      renderOpponentHandBacks(player.hand.length)
+    // Faixa horizontal com Base / Shields / Resource Deck / Trash / Exílio / Deck e a
+    // bandeja de Recursos. No oponente entra também a mão virada. (Fase C troca isto
+    // por shield rail + medidor + chips.)
+    const frontStrip = (
+      <div className="flex shrink-0 flex-wrap items-end justify-center gap-x-3 gap-y-1 px-1">
+        {!isSelf ? renderOpponentHandBacks(player.hand.length) : null}
+        {renderLeftColumn(player)}
+        {renderRightColumn(player)}
+        <ResourceTray
+          player={player}
+          compact={!isSelf}
+          selectable={isSelf && Boolean(pending) && pendingCost > 0}
+          selectedIds={isSelf ? selectedResources : undefined}
+          onSelect={isSelf ? toggleResource : undefined}
+        />
+      </div>
     );
 
-    return (
-      <div className={`panel-cut border p-2 sm:p-3 ${isSelf ? "hero-surface border-primary/30" : "surface-panel border-white/10"}`}>
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-soft sm:text-sm">
-            {isSelf ? "Você" : "Oponente"} ({pid}){matchView!.deckKeys[pid] ? ` · ${matchView!.deckKeys[pid]}` : ""}{" "}
-            {view.activePlayer === pid ? (
-              <Badge variant="outline" className="ml-1 rounded-none border-primary/40 text-primary">
-                Ativo
-              </Badge>
-            ) : null}
-          </p>
-          {!isSelf ? (
-            <p className={`text-[9px] uppercase tracking-[0.18em] ${canClaimAbandon ? "text-amber-400" : "text-slate-500"}`}>
-              {opponentIdleSeconds === null ? "presença desconhecida" : opponentIdleSeconds < 10 ? "presente" : `inativo há ${opponentIdleSeconds}s`}
-            </p>
-          ) : (
-            <p className="text-[9px] uppercase tracking-[0.18em] text-slate-500">Deck {player.counts.deck}</p>
-          )}
+    // ref pro CombatLane mirar a Battle Area quando o ataque é "no jogador".
+    const battle = (
+      <div
+        ref={board.register(playerAreaKey(pid))}
+        className={`flex min-h-0 flex-1 justify-center overflow-hidden py-1 ${isSelf ? "items-start" : "items-end"}`}
+      >
+        <div className="flex flex-col gap-0.5">
+          <p className="text-center text-[8px] uppercase tracking-[0.24em] text-cyan-500/70">Battle Area</p>
+          {renderBattleArea(player, isSelf)}
         </div>
-        {mirrored ? (
-          <div className="space-y-2">
-            {isSelf ? null : hand}
-            {boardGrid}
-          </div>
+      </div>
+    );
+
+    // Mão numa faixa própria: scroll horizontal em vez de quebrar em 2 linhas (não
+    // empurra mais o board a cada compra/descarte). Retrato → MobileHandDrawer.
+    const hand =
+      isSelf && !isPortraitMobile ? (
+        <div className="flex shrink-0 overflow-x-auto px-1 pb-1 pt-2">
+          <div className="mx-auto flex min-w-max gap-1.5">{renderMyHandCards(player)}</div>
+        </div>
+      ) : null;
+
+    return (
+      <div
+        className={`flex min-h-0 flex-1 flex-col gap-1 border p-1.5 sm:p-2 ${
+          isSelf ? "border-primary/25 bg-primary/[0.04]" : "border-white/10 bg-white/[0.02]"
+        }`}
+      >
+        {isSelf ? (
+          <>
+            {battle}
+            {frontStrip}
+            {hand}
+            {sideHeader}
+          </>
         ) : (
-          <div className="space-y-2">
-            {boardGrid}
-            {/* no desktop a mão fica aqui; no mobile em retrato ela vai pra MobileHandDrawer. */}
-            {isSelf && !isPortraitMobile ? hand : null}
-          </div>
+          <>
+            {sideHeader}
+            {frontStrip}
+            {battle}
+          </>
         )}
       </div>
     );
@@ -1012,11 +1041,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       </div>
 
-      {/* Tabuleiro -- oponente em cima (menor, mão virada), você embaixo, as Battle Areas encostando no meio. */}
-      <div className="relative min-h-0 flex-1 space-y-1.5 overflow-y-auto px-2 pb-24 sm:px-3 sm:pb-3">
-        <div className="scale-[0.94] opacity-95">{renderPlaymat(opponentSeat, false, true)}</div>
-        <div className="mx-auto h-px w-full max-w-3xl bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
-        {renderPlaymat(seat, true, false)}
+      {/* Board -- grid de 5 faixas, SEM rolagem (Fase A, plano visual §02): as duas
+          Battle Areas dividem 1fr 1fr e se encontram na seam central. `--card` dá a
+          escala de toda carta a partir do viewport; largura-teto 1400px, centrado. */}
+      <div className="relative min-h-0 flex-1 overflow-hidden px-1 sm:px-2">
+        <div
+          className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-1 overflow-hidden"
+          style={{ "--card": "clamp(2.75rem, 7.5vw, 6.5rem)", paddingBottom: isPortraitMobile ? "3rem" : undefined } as CSSProperties}
+        >
+          {renderSide(opponentSeat, false)}
+          <div className="mx-auto h-0.5 w-full shrink-0 bg-gradient-to-r from-transparent via-red-500/45 to-transparent" />
+          {renderSide(seat, true)}
+        </div>
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do

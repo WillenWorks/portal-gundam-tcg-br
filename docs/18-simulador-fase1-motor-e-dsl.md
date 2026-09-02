@@ -1492,3 +1492,42 @@ visual real depende de 2 sessões no ambiente do próprio Willen, já que este
 sandbox não consegue subir `server/index.ts` (falha importando
 `@prisma/client`, `prisma generate` não alcança o binário da engine pela
 rede restrita daqui).
+
+## Redesenho visual (2026-09-01) — Fase A concluída
+
+Continuação da "Fase 2/3 de layout" citada na rodada 5. Agora tem plano próprio e
+não vive mais só neste doc:
+
+- **Plano visual completo** (diagnóstico, grid de board, zona a zona, breakpoints,
+  refs Master Duel / Mobile Suit Arena / Hearthstone, faseamento A–E):
+  <https://claude.ai/code/artifact/430f4738-bd56-4da7-9dc9-62f026fa81a9>
+- **Guia de execução com agentes**: `INSTRUCOES_AGENTES_SIMULADOR.md` (raiz).
+- **Design config**: `.planning/design-config.md`. **Specs**: `.planning/specs/`.
+
+### Fase A — grid de board + escala (branch `feature/simulador-fase-a-grid-board`)
+
+Troca os **dois playmats espelhados empilhados num container que rolava** por **um
+board em grid de 5 faixas que não rola**: as duas Battle Areas dividem `1fr 1fr` e se
+encontram numa seam central; tamanho de carta dirigido por `--card:
+clamp(2.75rem, 7.5vw, 6.5rem)` (`aspect 63/88`), board com largura-teto `1400px`
+centrado.
+
+- `SimulatorMatchPage.tsx`: `renderPlaymat` → `renderSide`; container de board
+  reescrito; `renderLeftColumn`/`renderRightColumn` viram faixa horizontal; mão em
+  faixa própria com **scroll horizontal** em vez de `flex-wrap` (não empurra mais o
+  board a cada compra/descarte); recursos do oponente passam a aparecer (read-only).
+- `BattleSlot.tsx`: slot vazio `aspect-[63/108]` → `aspect-[63/88]` (a linha não
+  "pula" mais ao deployar/perder unit).
+- **Deletado**: `overflow-y-auto`+`pb-24` do board, o wrapper `scale-[0.94]`, o grid
+  `grid-cols-[auto_1fr_auto]`, o `flex-wrap` da mão. Net: −57 linhas.
+- **Sem mudança funcional** — seleção, ataque, block, Action Step, pagamento de
+  recurso, refs do `CombatLane` intactos. Motor (`engine/*`), `viewState.ts` e
+  `server/index.ts` **não tocados**.
+
+Verificação: `pnpm build` OK (`tsc -b` + `vite build`), `pnpm test` 237/237,
+`eslint` limpo nos 2 arquivos. Validação **visual** (board não rola em S/M/L/XL,
+seam alinhada, linha de mira, pagamento de recurso) depende de 2 sessões reais —
+próximo passo é `/spartan:qa` com 2 contexts de browser (ver
+`INSTRUCOES_AGENTES_SIMULADOR.md` §6.8).
+
+Próximo: Fase B (Action Dock) — ver o faseamento no guia.
