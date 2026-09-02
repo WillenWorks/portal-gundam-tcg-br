@@ -13,6 +13,7 @@ export { TriggerOrderModal } from "./TriggerOrderModal";
 export { CardInspectorModal } from "./CardInspectorModal";
 export { CombatLane } from "./CombatLane";
 export { HandDrawer } from "./HandDrawer";
+export { ActionDock, type ActionDockState } from "./ActionDock";
 export { useBoardElements, playerAreaKey, type BoardElements } from "./useBoardElements";
 export { BattleLogDrawer } from "./BattleLogDrawer";
 export { buildBattleLog, describeEvent, makeNameResolver, type BattleLogEntry, type BattleLogKind } from "./battleLog";
