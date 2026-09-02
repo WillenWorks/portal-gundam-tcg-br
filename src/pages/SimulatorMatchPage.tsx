@@ -70,6 +70,14 @@
  * (`busy`, custo), só num lugar previsível que nunca cobre o centro do board.
  * O cue de troca de turno via flash saiu (era 1 das 3 camadas de mensagem que
  * colidiam) — a troca já aparece no HUD e no dock `idle`.
+ *
+ * Fases C + D do redesenho visual (2026-09-02, plano visual §03) — as zonas que
+ * carregavam estado escondido à vista viraram componentes dedicados de `ui/`:
+ * `ShieldStack` → `ShieldRail` (trilha de pips), `ResourceTray` → `ResourceMeter`
+ * (medidor `◆◆◆◇`), `renderPile`/`renderDeckTile` → `PileTray` (chip → bandeja
+ * overlay) / `CounterChip`. A mão virou `HandFan` (leque com lift em foco) dentro
+ * da `HandDrawer`. `describeHandCard()` centraliza "jogável? por quê não?". Sem
+ * mudança funcional. Diferido: opp shields no HUD e inspetor no painel do XL.
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
@@ -91,13 +99,15 @@ import {
   BattleSlot,
   buildBattleLog,
   BurstModal,
-  CardFace,
   CardInspectorModal,
   CombatLane,
+  CounterChip,
   HandDrawer,
+  HandFan,
+  PileTray,
   playerAreaKey,
-  ResourceTray,
-  ShieldStack,
+  ResourceMeter,
+  ShieldRail,
   TriggerOrderModal,
   useBoardElements,
 } from "@/modules/simulator/ui";
@@ -576,82 +586,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   }
 
-  /** Pilha compacta de trash/exílio: contagem + até 3 miniaturas, clique inspeciona. */
-  function renderPile(label: string, cards: ViewCardInstance[]) {
-    const publics = cards.filter((c) => !isHidden(c)) as CardInstance[];
-    return (
-      <div>
-        <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-          {label} ({cards.length})
-        </p>
-        {publics.length === 0 ? (
-          <div className="aspect-[63/88] w-9 border border-dashed border-white/10" />
-        ) : (
-          <div className="flex -space-x-4">
-            {publics.slice(-3).map((c) => (
-              <button key={c.instanceId} type="button" onClick={() => setInspect(c)} className="border border-white/10">
-                <CardFace nameEn={c.def.nameEn} code={c.def.code} art={art} size="xs" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function renderDeckTile(label: string, count: number) {
-    return (
-      <div>
-        <p className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-        <div className="flex aspect-[63/88] w-9 items-center justify-center border border-white/15 bg-gradient-to-br from-slate-900 to-black text-xs font-bold text-slate-300">
-          {count}
-        </div>
-      </div>
-    );
-  }
-
-  /** Uma carta da MÃO própria -- máscara quando não-jogável; clique abre o inspetor (com botão "Jogar"). */
-  function renderHandCard(c: CardInstance) {
+  /** Classifica uma carta da mão: jogável? por quê não? quais modos de jogo?
+   *  Usado tanto pra montar o `HandFan` quanto no `onPeek` dele (Fase D). */
+  function describeHandCard(c: CardInstance) {
     const isCommand = c.def.cardType === "COMMAND";
     const isDual = isCommand && !!c.def.pilotMode;
     const modes = handPlayModes(c);
-    const canPlay = modes.length > 0;
-    const blockedReason = canPlay
+    const playable = modes.length > 0;
+    const blockedReason = playable
       ? undefined
       : isDual
         ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
         : isCommand
           ? "Esta Command não tem gatilho disponível agora."
           : notMainPhaseReason;
-
-    return (
-      <button
-        key={c.instanceId}
-        type="button"
-        onClick={() => setPreview({ card: c, blockedReason, modes })}
-        className={`relative shrink-0 border transition-all ${
-          canPlay ? "border-primary/60 hover:-translate-y-1.5 hover:border-primary" : "border-white/10"
-        }`}
-      >
-        <CardFace nameEn={c.def.nameEn} code={c.def.code} art={art} size="md" dimmed={!canPlay}>
-          {c.def.cardType === "UNIT" ? (
-            <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
-              <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{c.def.ap ?? 0}</span>
-              <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{c.def.hp ?? 0}</span>
-            </div>
-          ) : null}
-          {c.def.cost !== undefined ? (
-            <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
-              {c.def.cost}
-            </span>
-          ) : null}
-        </CardFace>
-      </button>
-    );
+    return { modes, playable, blockedReason };
   }
 
-  /** Coluna lateral: Base (com gauge de HP), pilha de Shields, Resource Deck.
-   *  Fase A: horizontal — entra na "front strip" de cada lado. */
+  /** Índices dos shields de `player` que estão na seleção atual (adapter: a página
+   *  seleciona por instanceId, o `ShieldRail` é index-based). */
+  function selectedShieldIndexes(player: ViewPlayerState): number[] {
+    return player.shields
+      .map((s, i) => (selected.includes(s.instanceId) ? i : -1))
+      .filter((i) => i >= 0);
+  }
+
+  /** Faixa esquerda de cada lado (Fase C): Base + trilha de Shields + chip do Resource Deck. */
   function renderLeftColumn(player: ViewPlayerState) {
     const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
     return (
@@ -664,23 +624,40 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onSelect={(b) => toggleSelect(b.instanceId)}
           onInspect={setInspect}
         />
-        <ShieldStack
-          shields={player.shields}
+        <ShieldRail
+          count={player.counts.shields}
           selectable={selecting}
-          selectedIds={selected}
-          onSelect={toggleSelect}
+          selectedIndexes={selectedShieldIndexes(player)}
+          onSelectIndex={(i) => {
+            const s = player.shields[i];
+            if (s) toggleSelect(s.instanceId);
+          }}
         />
-        {renderDeckTile("Recurso", player.counts.resourceDeck)}
+        <CounterChip label="Recurso" count={player.counts.resourceDeck} />
       </div>
     );
   }
 
+  /** Faixa direita de cada lado (Fase C): Trash + Exílio (bandeja) + chip do Deck. */
   function renderRightColumn(player: ViewPlayerState) {
+    const deckCount = player.counts.deck;
     return (
       <div className="flex flex-row items-end gap-2">
-        {renderPile("Trash", player.trash)}
-        {renderPile("Exílio", player.exile)}
-        {renderDeckTile("Deck", player.counts.deck)}
+        <PileTray
+          label="Trash"
+          count={player.trash.length}
+          cards={player.trash.filter((c) => !isHidden(c)) as CardInstance[]}
+          art={art}
+          onInspect={setInspect}
+        />
+        <PileTray
+          label="Exílio"
+          count={player.exile.length}
+          cards={player.exile.filter((c) => !isHidden(c)) as CardInstance[]}
+          art={art}
+          onInspect={setInspect}
+        />
+        <CounterChip label="Deck" count={deckCount} tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"} />
       </div>
     );
   }
@@ -696,11 +673,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       </div>
     );
-  }
-
-  function renderMyHandCards(cards: CardInstance[]) {
-    if (!cards.length) return <p className="text-[10px] text-muted-portal">Mão vazia.</p>;
-    return cards.map((c) => renderHandCard(c));
   }
 
   /** Um lado inteiro do board (Fase A — plano visual §02). Cada lado é uma faixa
@@ -730,20 +702,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       </div>
     );
 
-    // Faixa horizontal com Base / Shields / Resource Deck / Trash / Exílio / Deck e a
-    // bandeja de Recursos. No oponente entra também a mão virada. (Fase C troca isto
-    // por shield rail + medidor + chips.)
+    // Faixa horizontal (Fase C): Base + trilha de Shields + chips de Deck/Resource Deck
+    // + bandejas de Trash/Exílio + o medidor de Recursos. No oponente entra a mão virada
+    // e o medidor fica read-only.
+    const resources = (player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).map((r) => ({
+      instanceId: r.instanceId,
+      rested: r.rested,
+      isEx: r.def.isToken ?? false,
+    }));
     const frontStrip = (
       <div className="flex shrink-0 flex-wrap items-end justify-center gap-x-3 gap-y-1 px-1">
         {!isSelf ? renderOpponentHandBacks(player.hand.length) : null}
         {renderLeftColumn(player)}
         {renderRightColumn(player)}
-        <ResourceTray
-          player={player}
-          compact={!isSelf}
+        <ResourceMeter
+          resources={resources}
+          level={player.counts.resourceArea}
+          readOnly={!isSelf}
           selectable={isSelf && Boolean(pending) && pendingCost > 0}
           selectedIds={isSelf ? selectedResources : undefined}
           onSelect={isSelf ? toggleResource : undefined}
+          costProgress={
+            isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
+          }
         />
       </div>
     );
@@ -975,15 +956,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
 
-      {/* Fase A: a mão fica na gaveta da base em TODA tela (no board em grid ela não
-          cabe numa faixa sem espremer a Battle Area). */}
+      {/* Fase A: a mão fica na gaveta da base em TODA tela. Fase D: o conteúdo é o
+          `HandFan` (leque com lift em foco, aresta ciano = jogável). */}
       <HandDrawer
         count={myHandCards.length}
         subtitle={myPlayableCount > 0 ? `${myPlayableCount} ${myPlayableCount === 1 ? "jogável" : "jogáveis"}` : "nada jogável agora"}
         open={handOpen}
         onToggle={() => setHandOpen((o) => !o)}
       >
-        {renderMyHandCards(myHandCards)}
+        <HandFan
+          cards={myHandCards.map((c) => {
+            const { playable, blockedReason } = describeHandCard(c);
+            return { card: c, playable, blockedReason };
+          })}
+          art={art}
+          onPeek={(c) => {
+            const { modes, blockedReason } = describeHandCard(c);
+            setPreview({ card: c, blockedReason, modes });
+          }}
+        />
       </HandDrawer>
 
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
