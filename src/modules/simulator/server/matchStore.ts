@@ -336,7 +336,11 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
 
   const opponentSeat: PlayerId = seat === "A" ? "B" : "A";
   if (!match.seats[opponentSeat]) {
-    throw new MatchError("A partida não tem oponente — nada a conceder.", 409);
+    // Sem oponente pra conceder a vitória — a partida nunca começou de verdade.
+    // Descarta em vez de deixar um zumbi que `activeMatchForUser` reconecta pra
+    // sempre (era isso que fazia "entrar no simulador" cair na partida velha).
+    deleteMatch(matchId);
+    return match;
   }
 
   match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
@@ -419,7 +423,16 @@ export function joinQueue(input: QueueJoinInput): QueueStatus {
 
 export function queueStatusFor(userId: string): QueueStatus {
   const pending = pendingMatches.get(userId);
-  if (pending) return pending;
+  if (pending?.matchId) {
+    // O `pendingMatches` é só o sinal one-shot "você foi pareado, vá pra essa
+    // partida" (lido no polling). Ele NÃO é limpo quando a partida termina ou
+    // é descartada, então precisa validar aqui: se a partida sumiu ou já
+    // acabou (fim de jogo / abandono), o pareamento está consumido — descarta
+    // e cai no fluxo normal, senão o jogador reentra sempre na partida velha.
+    const match = matches.get(pending.matchId);
+    if (match && !match.state.gameOver) return pending;
+    pendingMatches.delete(userId);
+  }
   const alreadyPlaying = activeMatchForUser(userId);
   if (alreadyPlaying) return { queued: false, matched: true, matchId: alreadyPlaying.match.id, seat: alreadyPlaying.seat };
   return { queued: queue.some((entry) => entry.userId === userId), matched: false };
@@ -579,6 +592,12 @@ export function deleteMatch(matchId: string): void {
   clearTurnTimer(matchId);
   matches.delete(matchId);
   listeners.delete(matchId);
+  // Não deixa `pendingMatches` apontando pra uma partida que não existe mais —
+  // senão `queueStatusFor` mandaria o jogador de volta pra ela (agora tem um
+  // guard lá também, mas limpar na fonte evita entrada morta na memória).
+  for (const [userId, status] of pendingMatches) {
+    if (status.matchId === matchId) pendingMatches.delete(userId);
+  }
 }
 
 /** Só pra teste — evita vazar estado de um `it()` pro outro (o store é module-level, não por-request). */
