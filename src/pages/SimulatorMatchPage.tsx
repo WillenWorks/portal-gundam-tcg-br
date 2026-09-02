@@ -61,14 +61,22 @@
  * o servidor loga o `GameState` real + histórico). O `eventLog` que vai pra
  * rede agora é janelado (últimos 150, `viewState.ts`) e o match store do
  * servidor faz GC oportunista de partidas terminadas.
+ *
+ * Fase B do redesenho visual (2026-09-02, plano visual §03) — os ~7 cards de
+ * decisão centralizados (`absolute inset-0 z-30`, que cobriam o board) + o
+ * flash de fase que atravessava a tela viraram UM `ActionDock` (`ui/`) fixo no
+ * canto. `computeDockState()` mapeia a situação → um `ActionDockState` (8
+ * `kind`s, por precedência). Sem mudança funcional: mesmas ações, mesmos gates
+ * (`busy`, custo), só num lugar previsível que nunca cobre o centro do board.
+ * O cue de troca de turno via flash saiu (era 1 das 3 camadas de mensagem que
+ * colidiam) — a troca já aparece no HUD e no dock `idle`.
  */
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { AlertTriangle, Bug, Clock, LogOut, RefreshCw, Shield, Sparkles, Swords, Zap } from "lucide-react";
+import { Bug, Clock, LogOut, RefreshCw } from "lucide-react";
 
 import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -76,6 +84,8 @@ import { otherPlayer, type AttackTarget, type CardInstance, type PlayerId } from
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import {
+  ActionDock,
+  type ActionDockState,
   BaseCardGauge,
   BattleLogDrawer,
   BattleSlot,
@@ -93,9 +103,6 @@ import {
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
-/** Sequência simulada mostrada ao começar um turno novo -- ver comentário no topo do arquivo. */
-const PHASE_FLASH_SEQUENCE = ["Fase de Manutenção", "Fase de Compra", "Fase de Recurso", "Main Phase"];
-const PHASE_FLASH_STEP_MS = 550;
 /** Espelha `DECK_OPTIONS` de SimulatorSandboxPage.tsx -- os únicos sets jogáveis hoje, usados pra buscar a arte real de cada carta por `code`. Se um novo set entrar no simulador, precisa entrar aqui também. */
 const ART_SET_CODES = ["ST01", "ST02"];
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
@@ -207,15 +214,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [inspect, setInspect] = useState<CardInstance | null>(null);
   const [handOpen, setHandOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
-  const [phaseFlash, setPhaseFlash] = useState<string | null>(null);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
 
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const lastTurnRef = useRef<number | null>(null);
-  const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const { art, artLoading } = useCardArtLookup();
   const isPortraitMobile = useIsPortraitMobile();
 
@@ -259,20 +263,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       document.removeEventListener("visibilitychange", ping);
     };
   }, [matchId]);
-
-  // Flash de fase ao começar um turno novo -- ver comentário no topo do arquivo sobre por que é
-  // uma sequência simulada (Start/Draw/Resource rodam no servidor numa transição só).
-  const turnNumberForFlash = matchView?.view.turnNumber ?? null;
-  useEffect(() => {
-    if (turnNumberForFlash === null) return;
-    if (lastTurnRef.current !== null && lastTurnRef.current !== turnNumberForFlash) {
-      for (const t of flashTimersRef.current) clearTimeout(t);
-      flashTimersRef.current = PHASE_FLASH_SEQUENCE.map((label, i) => setTimeout(() => setPhaseFlash(label), i * PHASE_FLASH_STEP_MS));
-      flashTimersRef.current.push(setTimeout(() => setPhaseFlash(null), PHASE_FLASH_SEQUENCE.length * PHASE_FLASH_STEP_MS + 900));
-    }
-    lastTurnRef.current = turnNumberForFlash;
-  }, [turnNumberForFlash]);
-  useEffect(() => () => { for (const t of flashTimersRef.current) clearTimeout(t); }, []);
 
   const clearSelection = () => {
     setPending(null);
@@ -810,6 +800,48 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const combatTargetUnit =
     combat && typeof combat.currentTarget === "object" ? findPublicCard(view, combat.currentTarget.unitId) : null;
 
+  // Fase B (plano visual §03) — os ~7 cards de decisão centralizados + o flash de fase
+  // viram UM `ActionDock` fixo no canto. Precedência: o 1º que casar vence (1 state por vez).
+  // `matchView` já foi estreitado pelo guard de loading acima, mas o narrowing não
+  // atravessa pra dentro da função aninhada — daí a leitura hoistada.
+  const dockAutoPass = matchView.autoPassActionStep;
+  function computeDockState(): ActionDockState {
+    if (gameOverResult) {
+      return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: redirectSecondsLeft };
+    }
+    if (pending) {
+      return {
+        kind: "pending",
+        verb: pending.kind === "deploy" ? "Jogando" : `Jogando Command (${pending.trigger})`,
+        cardName: pendingCard?.def.nameEn,
+        selectedCount: selected.length,
+        hint: "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.",
+        cost: pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : null,
+        canConfirm: !(pendingCost > 0 && !resourcesReady),
+      };
+    }
+    if (attackerId) return { kind: "attacking", attackerName: attacker?.def.nameEn ?? attackerId };
+    if (iAmDefending) return { kind: "defending" };
+    if (inActionStep) {
+      return { kind: "actionStep", scope: iHavePriority ? "combat" : "endPhase", autoPass: dockAutoPass };
+    }
+    // Só domina o dock quando você NÃO é quem deve agir — na sua Main Phase o dock
+    // mostra "Encerrar turno" (o servidor cuida do oponente ausente sozinho).
+    if (canClaimAbandon && !myTurnMain) return { kind: "abandonAvailable", idleSeconds: opponentIdleSeconds ?? 0 };
+    if (oppPendingDecision) {
+      return {
+        kind: "oppDecision",
+        label: `Aguardando o oponente resolver ${oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...`,
+      };
+    }
+    return {
+      kind: "idle",
+      yourTurn: myTurnMain,
+      phaseLabel: PHASE_LABEL[view.phase] ?? view.phase,
+      timerSeconds: turnSecondsLeft,
+    };
+  }
+
   const content = (
     <div className="flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
       {/* HUD -- sem PortalShell nesta tela (rodada 5): usa o viewport inteiro. */}
@@ -866,182 +898,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             <RefreshCw className={`size-3 ${connected ? "text-primary" : "animate-pulse text-slate-500"}`} />
             {connected ? "sincronizado" : "conectando"} · assento {seat}
           </p>
-        </div>
-      </div>
-
-      {/* Flash de fase -- ver comentário no topo do arquivo. */}
-      {phaseFlash ? (
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-40 flex justify-center">
-          <p className="animate-in fade-in slide-in-from-top-2 panel-cut border border-primary/40 bg-slate-950/90 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-            {phaseFlash}
-          </p>
-        </div>
-      ) : null}
-
-      {/* Avisos de decisão / informação -- 2026-09-01: movidos pro CENTRO da tela
-          (antes ficavam numa faixa no topo, fácil de não notar). Wrapper sem
-          pointer-events pra o tabuleiro continuar clicável atrás; cada card
-          reativa os próprios cliques. */}
-      <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-4">
-        <div className="flex w-full max-w-sm flex-col items-stretch gap-2 text-center">
-          {gameOverResult ? (
-            <div
-              className={`pointer-events-auto panel-cut border bg-slate-950/97 px-4 py-4 text-soft shadow-2xl ${
-                gameOverResult.won ? "border-emerald-500/60" : "border-red-500/60"
-              }`}
-            >
-              <p className={`text-lg font-black ${gameOverResult.won ? "text-emerald-400" : "text-red-400"}`}>
-                {gameOverResult.won ? "Você venceu!" : "Você perdeu"}
-              </p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-muted-portal">
-                Fim de jogo · {gameOverResult.reasonLabel}
-              </p>
-              <Button
-                size="sm"
-                className="mt-3 rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={leaveMatchScreen}
-              >
-                Voltar ao site {redirectSecondsLeft !== null ? `(${redirectSecondsLeft}s)` : ""}
-              </Button>
-            </div>
-          ) : null}
-
-          {!gameOverResult && canClaimAbandon ? (
-            <div className="pointer-events-auto panel-cut border border-amber-500/50 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
-              <p className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
-                <AlertTriangle className="size-4" /> Oponente sem responder há {opponentIdleSeconds}s
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 rounded-none border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
-                disabled={busy}
-                onClick={claimAbandon}
-              >
-                Declarar vitória por abandono
-              </Button>
-            </div>
-          ) : null}
-
-          {!gameOverResult && oppPendingDecision ? (
-            <div className="pointer-events-auto panel-cut flex items-center justify-center gap-2 border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
-              <Sparkles className="size-4 text-primary" />
-              Aguardando o oponente resolver {oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...
-            </div>
-          ) : null}
-
-          {!gameOverResult && inActionStep ? (
-            <div className="pointer-events-auto panel-cut animate-pulse border border-amber-500/70 bg-slate-950/95 px-3 py-2.5 text-xs font-semibold text-amber-300 shadow-2xl">
-              <p>
-                {iHavePriority ? "Action Step de combate" : "Action Step de fim de turno"} — sua prioridade. Só Command
-                【Action】 pode ser jogada agora.
-              </p>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/20"
-                  disabled={busy}
-                  onClick={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
-                >
-                  Passar
-                </Button>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-[10px] font-normal text-amber-300/80 underline decoration-dotted hover:text-amber-200"
-                  onClick={() => toggleAutoPass(!matchView.autoPassActionStep)}
-                >
-                  <Zap className="size-3" />
-                  {matchView.autoPassActionStep ? "auto-pass: LIGADO" : "auto-passar sem jogada"}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {!gameOverResult && attackerId ? (
-            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
-              <p className="flex items-center justify-center gap-1.5 font-semibold text-primary">
-                <Swords className="size-4" /> Atacando com {attacker?.def.nameEn ?? attackerId}
-              </p>
-              <p className="mt-1 text-[10px] text-muted-portal">ou clique em "Alvo" numa Unit rested do oponente.</p>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <Button
-                  size="sm"
-                  className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
-                  disabled={busy}
-                  onClick={() => declareAttack("player")}
-                >
-                  Atacar o jogador
-                </Button>
-                <Button size="sm" variant="outline" className="rounded-none" onClick={() => setAttackerId(null)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
-          {!gameOverResult && pending ? (
-            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
-              <p className="flex items-center justify-center gap-1.5 font-semibold text-primary">
-                <Shield className="size-4" />
-                {pending.kind === "deploy" ? "Jogando carta" : `Jogando Command (${pending.trigger})`}
-                {pendingCard ? ` — ${pendingCard.def.nameEn}` : ""}
-              </p>
-              <p className="mt-1 text-[11px] text-muted-portal">
-                Se pedir alvo/pareamento, clique nas cartas do tabuleiro — {selected.length} selecionada(s).
-              </p>
-              {pendingCost > 0 ? (
-                <p className={cn("mt-1 text-[11px] font-semibold", resourcesReady ? "text-emerald-300" : "text-amber-300")}>
-                  Recursos p/ pagar o custo: {selectedResources.length}/{pendingCost} — clique nos seus Recursos ativos.
-                </p>
-              ) : null}
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <Button
-                  size="sm"
-                  className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
-                  disabled={busy || (pendingCost > 0 && !resourcesReady)}
-                  onClick={confirmPending}
-                >
-                  Confirmar
-                </Button>
-                <Button size="sm" variant="outline" className="rounded-none" onClick={clearSelection}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
-          {!gameOverResult && iAmDefending ? (
-            <div className="pointer-events-auto panel-cut border border-primary/40 bg-slate-950/95 px-3 py-2.5 text-xs text-soft shadow-2xl">
-              <p>
-                Defendendo. Ative um <strong>&lt;Blocker&gt;</strong> (botão na Unit) ou:
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 rounded-none"
-                disabled={busy}
-                onClick={() => runAction({ kind: "skipBlock" })}
-              >
-                Não bloquear
-              </Button>
-            </div>
-          ) : null}
-
-          {!gameOverResult && myTurnMain ? (
-            <div className="pointer-events-auto panel-cut flex items-center justify-center gap-3 border border-primary/30 bg-slate-950/90 px-3 py-2 text-xs text-soft shadow-xl">
-              Sua Main Phase.
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-none"
-                disabled={busy}
-                onClick={() => runAction({ kind: "finishTurn" })}
-              >
-                Encerrar turno
-              </Button>
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -1129,6 +985,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       >
         {renderMyHandCards(myHandCards)}
       </HandDrawer>
+
+      {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
+          os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board. */}
+      <ActionDock
+        state={computeDockState()}
+        busy={busy}
+        logTail={battleLog[battleLog.length - 1]?.text}
+        onConfirm={confirmPending}
+        onCancel={clearSelection}
+        onEndTurn={() => runAction({ kind: "finishTurn" })}
+        onDeclareAttackPlayer={() => declareAttack("player")}
+        onCancelAttack={() => setAttackerId(null)}
+        onSkipBlock={() => runAction({ kind: "skipBlock" })}
+        onPass={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
+        onToggleAutoPass={(next) => toggleAutoPass(next)}
+        onClaimAbandon={() => claimAbandon()}
+        onLeaveAfterGameOver={leaveMatchScreen}
+      />
     </div>
   );
 

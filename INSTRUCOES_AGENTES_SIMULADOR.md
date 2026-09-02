@@ -533,6 +533,14 @@ de criar o componente do zero, o agente:
 - `CounterChip`/`ResourceMeter`: `aria-label` em `<div>` não-interativo (ignorado por leitores).
 - `ResourceMeter`: peça `pickable` fica 44×44 e destoa visualmente da peça não-clicável (menor).
 
+### DÍVIDA — z-stack do canto inferior (Fase A #5, Fase B #1)
+
+`HandDrawer`, `ActionDock` e `BattleLogDrawer` são todos `fixed` perto de `bottom-0` **em
+`z-40`**, sem offset combinado — empate de z-index resolvido só por ordem de DOM → colisões
+recorrentes. Fase B mitigou (dock em `bottom-11`/`sm:bottom-14`, acima da aba da mão). A **Fase
+C** (que reformula o HUD) deve resolver de vez: um sistema de z + offsets explícito pros 3
+(ex.: hand `z-40`, dock `z-45` acima da aba, log `z-50` como overlay).
+
 ---
 
 _Gerado como apoio ao redesenho visual do Simulador Beta. Plano completo no artifact
