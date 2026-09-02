@@ -402,10 +402,10 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 | Fase | Estado | Branch | Notas |
 |---|---|---|---|
 | Setup | ✅ feito | — | `.planning/design-config.md`, `.planning/specs/` criados. `.spartan/ai.env` = usuário. `/spartan:e2e` pendente. |
-| **A — Grid + escala** | ✅ **FEITA** · Gate 3.5 ✅ ACCEPT (2026-09-02). Falta só re-QA da gaveta (§10) + PR. | `feature/simulador-fase-a-grid-board` | 2 commits (grid + fix da mão/review) |
-| B — Action Dock | ⬜ **bloqueada** até A passar no re-QA e mergear em `dev` | — | — |
-| C — Ler o estado | ⬜ bloqueada até A mergeada | — | itens 1–2 do Gate 3.5 (dedupe de `myHandCards`/`handPlayModes`) podem ir junto |
-| D — Mão + inspetor + log | ⬜ bloqueada até A mergeada | — | traz o leque sempre-visível (substitui a `HandDrawer`) |
+| **A — Grid + escala** | ✅ **MERGEADA em `dev`** — PR #4, merge `fa6715a` (2026-09-02). Gate 3.5 ✅, QA ✅. | — (branch apagada) | — |
+| **B — Action Dock** | 🟡 **componente pré-construído** (`ActionDock.tsx` + teste). Falta: spec → ux/critic → plan → **fiação na página** → gate-review → PR. | `feat/simulador-componentes-bcd` | ver §11 |
+| **C — Ler o estado** | 🟡 **componentes pré-construídos** (`CounterChip`, `ShieldRail`, `ResourceMeter`, `PileTray` + testes). Falta: mesmo pipeline + trocar `ShieldStack`/`ResourceTray`. | `feat/simulador-componentes-bcd` | itens 1–2 do Gate 3.5 da Fase A podem ir junto |
+| **D — Mão + inspetor + log** | 🟡 `HandFan.tsx` **pré-construído** (+ teste). Falta: pipeline + fiação (`HandFan` como conteúdo da `HandDrawer`, depois leque sempre-visível) + inspetor no painel XL + eco de log. | `feat/simulador-componentes-bcd` | — |
 | E — Portrait + fim da rotação | ⬜ sempre por último | — | — |
 
 ### Fase A — o que foi feito (commitado)
@@ -441,14 +441,14 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 
 ---
 
-## 10. QA visual — Fase A  (fazer ANTES de mergear e de começar a Fase B)
+## 10. QA visual — Fase A  ✅ concluído (mantido como referência p/ o QA das próximas fases)
 
-A Fase A só mexe em layout/CSS — o risco é **100% visual** e a tela de partida só
-renderiza com um match pareado. Precisa de olho humano.
+A Fase A só mexeu em layout/CSS — risco **100% visual**, tela só renderiza com match pareado.
 
-> **Status:** 1ª rodada de QA (2026-09-02) achou 1 bug — a mão espremia/cobria a
-> Battle Area no notebook. Corrigido: a mão virou a `HandDrawer` (gaveta na base).
-> Falta **re-testar a gaveta** com o roteiro abaixo.
+> **Status:** 1ª rodada (2026-09-02) achou 1 bug — a mão espremia/cobria a Battle Area
+> no notebook. Corrigido: mão → `HandDrawer` (gaveta na base). Re-QA da gaveta OK.
+> **PR #4 mergeado em `dev`** (`fa6715a`). Roteiro abaixo continua válido como base
+> pro QA das Fases B–E.
 
 ### Subir o ambiente
 1. `pnpm dev:full`  (Vite `:5173` + API `:8787`)
@@ -492,10 +492,46 @@ Screenshot em `tests/e2e/screenshots/fase-a/` + passos. Bug de **layout puro**
 **funcional** (clique não responde, ação falha) → provavelmente não é da Fase A
 (nenhuma lógica mudou), mas reportar mesmo assim.
 
-### Quando o re-QA passar
-`/spartan:pr-ready` → PR de `feature/simulador-fase-a-grid-board` **contra `dev`**
-(Gate 3.5 já passou — ver §9). **Só depois do merge**: começar a Fase B (Action Dock)
-— §6.2 em diante.
+---
+
+## 11. Componentes B/C/D pré-construídos — branch `feat/simulador-componentes-bcd`
+
+3 agentes paralelos (worktrees) construíram só os **componentes novos de `ui/`** —
+**sem fiação na página**. Commit `d60b12c`, pushado. `pnpm build` ✅ · `pnpm test`
+291/291 ✅ · `eslint` limpo nos 12 arquivos.
+
+| Fase | Componente(s) | API (resumo) |
+|---|---|---|
+| B | `ActionDock.tsx` | prop `state`: união de 8 `kind` (`idle · pending · attacking · defending · actionStep · oppDecision · abandonAvailable · gameOver`) + `busy?` + `logTail?` + callbacks. Sem import do motor — a página extrai as strings do `CardInstance` e monta o `state`. |
+| C | `CounterChip` · `ShieldRail` · `ResourceMeter` · `PileTray` | `ShieldRail`: `{count, max?, selectable?, selectedIndexes?, onSelectIndex?, justBroken?}`. `ResourceMeter`: `{resources:{instanceId,rested,isEx}[], level, selectable?, selectedIds?, onSelect?, readOnly?, costProgress?}`. `PileTray`: `{label, count, icon?, tone?, cards, art, onInspect?}` (abre overlay). `CounterChip`: `{label, count, tone?, icon?, onClick?}`. |
+| D | `HandFan.tsx` | `{cards:{card,playable,blockedReason?}[], art, onPeek, overlap?, emptyLabel?}`. Leque plano, lift em foco, aresta ciano = jogável. |
+
+### Infra de teste (decisão desta rodada)
+
+O projeto declarava "Vitest + Testing Library" mas **não tinha RTL instalado** (só
+testes de engine em `.test.ts`). Adicionado como devDeps na branch:
+`@testing-library/react` · `@testing-library/dom` · `@testing-library/jest-dom` ·
+`jsdom`. Testes de componente usam `// @vitest-environment jsdom` por arquivo
+(`vitest.config.ts` intacto). O `ActionDock.test.tsx` (agente B) usa
+`renderToStaticMarkup` + walker, sem RTL — inconsistente com os outros; normalizar
+no gate-review da Fase B.
+
+### Como cada fase consome isto
+
+O pipeline normal de cada fase continua valendo (spec → `/spartan:ux prototype` →
+plan → build → gate-review → PR próprio contra `dev`). Na etapa de **build**, em vez
+de criar o componente do zero, o agente:
+1. Branca de `dev`, faz `git checkout feat/simulador-componentes-bcd -- <arquivos da fase>` (ou merge da branch).
+2. **Ajusta a API** se a spec/prototype pedir diferente (esses componentes são rascunho).
+3. **Faz a fiação** em `SimulatorMatchPage.tsx` + `ui/index.ts` + remove o componente antigo (`ShieldStack`/`ResourceTray`/os cards de decisão/etc.).
+4. Gate 3.5 + QA + PR.
+
+### Polimento já identificado (pro gate-review de cada fase)
+
+- `ShieldRail`: em modo `selectable` os pips viram `<button>` e quebram o `role="list"/listitem`.
+- `PileTray`: `role="dialog"` sem focus-trap / Escape / backdrop.
+- `CounterChip`/`ResourceMeter`: `aria-label` em `<div>` não-interativo (ignorado por leitores).
+- `ResourceMeter`: peça `pickable` fica 44×44 e destoa visualmente da peça não-clicável (menor).
 
 ---
 
