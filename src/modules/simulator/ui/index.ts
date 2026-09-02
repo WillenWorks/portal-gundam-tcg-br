@@ -5,9 +5,12 @@ export { artSrc, type ArtLookup, type CardArt, type CardFaceSize } from "./cardA
 export { CardFace, CardBack } from "./CardFace";
 export { BattleSlot, type BattleSlotActions } from "./BattleSlot";
 export { DockedPilot } from "./DockedPilot";
-export { ShieldStack } from "./ShieldStack";
-export { ResourceTray } from "./ResourceTray";
 export { BaseCardGauge } from "./BaseCardGauge";
+export { ShieldRail } from "./ShieldRail";
+export { ResourceMeter } from "./ResourceMeter";
+export { CounterChip } from "./CounterChip";
+export { PileTray } from "./PileTray";
+export { HandFan } from "./HandFan";
 export { BurstModal } from "./BurstModal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
 export { CardInspectorModal } from "./CardInspectorModal";

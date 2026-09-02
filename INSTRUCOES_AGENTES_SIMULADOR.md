@@ -402,11 +402,10 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 | Fase | Estado | Branch | Notas |
 |---|---|---|---|
 | Setup | ✅ feito | — | `.planning/design-config.md`, `.planning/specs/` criados. `.spartan/ai.env` = usuário. `/spartan:e2e` pendente. |
-| **A — Grid + escala** | ✅ **MERGEADA em `dev`** — PR #4, merge `fa6715a` (2026-09-02). Gate 3.5 ✅, QA ✅. | — (branch apagada) | — |
-| **B — Action Dock** | 🟡 **componente pré-construído** (`ActionDock.tsx` + teste). Falta: spec → ux/critic → plan → **fiação na página** → gate-review → PR. | `feat/simulador-componentes-bcd` | ver §11 |
-| **C — Ler o estado** | 🟡 **componentes pré-construídos** (`CounterChip`, `ShieldRail`, `ResourceMeter`, `PileTray` + testes). Falta: mesmo pipeline + trocar `ShieldStack`/`ResourceTray`. | `feat/simulador-componentes-bcd` | itens 1–2 do Gate 3.5 da Fase A podem ir junto |
-| **D — Mão + inspetor + log** | 🟡 `HandFan.tsx` **pré-construído** (+ teste). Falta: pipeline + fiação (`HandFan` como conteúdo da `HandDrawer`, depois leque sempre-visível) + inspetor no painel XL + eco de log. | `feat/simulador-componentes-bcd` | — |
-| E — Portrait + fim da rotação | ⬜ sempre por último | — | — |
+| **A — Grid + escala** | ✅ **MERGEADA** — PR #4, `fa6715a`. Gate 3.5 ✅, QA ✅. | — | — |
+| **B — Action Dock** | ✅ **MERGEADA** — PR #6, `690cbca` (2026-09-02). Gate 3.5 ✅ (rodada 2), re-QA ✅. | — | eco de log = `ActionDock logTail` (já feito) |
+| **C + D — Zonas + leque de mão** | ✅ **Gate 3.5 ACCEPT** (2026-09-02, retry após rate-limit). PR #7 → merge. build/test 291 ✅. 9 itens, 0 bloqueante (2 rec → Fase E, resto nit/deferido). | `feature/simulador-fase-cd-zonas-e-mao` | Diferido → E: opp shields no HUD, inspetor no painel XL, popover no CounterChip, Esc/focus-trap + overlap dos `PileTray` |
+| E — Portrait + fim da rotação | ⬜ última — depende de C+D em `dev` | — | inclui o inspetor no painel do XL |
 
 ### Fase A — o que foi feito (commitado)
 
@@ -526,12 +525,17 @@ de criar o componente do zero, o agente:
 3. **Faz a fiação** em `SimulatorMatchPage.tsx` + `ui/index.ts` + remove o componente antigo (`ShieldStack`/`ResourceTray`/os cards de decisão/etc.).
 4. Gate 3.5 + QA + PR.
 
-### Polimento já identificado (pro gate-review de cada fase)
+### Polimento já identificado
 
 - `ShieldRail`: em modo `selectable` os pips viram `<button>` e quebram o `role="list"/listitem`.
-- `PileTray`: `role="dialog"` sem focus-trap / Escape / backdrop.
+- `PileTray`: `role="dialog"` sem focus-trap / Escape / backdrop → **Fase E**.
+- `PileTray`: Trash e Exílio são 2 trays com `open` interno — abrir um não fecha o outro
+  (2 overlays sobrepostos, `z-50`). Gate 3.5 C+D #1. Fix: `open`/`onOpenChange` controlado
+  com 1 `openPile` na página, OU tray único compartilhado → **Fase E**.
 - `CounterChip`/`ResourceMeter`: `aria-label` em `<div>` não-interativo (ignorado por leitores).
 - `ResourceMeter`: peça `pickable` fica 44×44 e destoa visualmente da peça não-clicável (menor).
+- `renderLeftColumn`/`renderRightColumn` (`SimulatorMatchPage.tsx`): nome "column" mas são
+  `flex-row` desde a Fase A. Renomear num PR próprio (evita ruído de diff nas fases).
 
 ### DÍVIDA — z-stack do canto inferior (Fase A #5, Fase B #1)
 
