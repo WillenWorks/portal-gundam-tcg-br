@@ -1492,3 +1492,46 @@ visual real depende de 2 sessões no ambiente do próprio Willen, já que este
 sandbox não consegue subir `server/index.ts` (falha importando
 `@prisma/client`, `prisma generate` não alcança o binário da engine pela
 rede restrita daqui).
+
+## Redesenho visual (2026-09-01) — Fase A concluída
+
+Continuação da "Fase 2/3 de layout" citada na rodada 5. Agora tem plano próprio e
+não vive mais só neste doc:
+
+- **Plano visual completo** (diagnóstico, grid de board, zona a zona, breakpoints,
+  refs Master Duel / Mobile Suit Arena / Hearthstone, faseamento A–E):
+  <https://claude.ai/code/artifact/430f4738-bd56-4da7-9dc9-62f026fa81a9>
+- **Guia de execução com agentes**: `INSTRUCOES_AGENTES_SIMULADOR.md` (raiz).
+- **Design config**: `.planning/design-config.md`. **Specs**: `.planning/specs/`.
+
+### Fase A — grid de board + escala (branch `feature/simulador-fase-a-grid-board`)
+
+Troca os **dois playmats espelhados empilhados num container que rolava** por **um
+board em grid de 5 faixas que não rola**: as duas Battle Areas dividem `1fr 1fr` e se
+encontram numa seam central; tamanho de carta dirigido por `--card:
+clamp(2.75rem, 7.5vw, 6.5rem)` (`aspect 63/88`), board com largura-teto `1400px`
+centrado.
+
+- `SimulatorMatchPage.tsx`: `renderPlaymat` → `renderSide`; container de board
+  reescrito; `renderLeftColumn`/`renderRightColumn` viram faixa horizontal; recursos
+  do oponente passam a aparecer (read-only).
+- `BattleSlot.tsx`: slot vazio `aspect-[63/108]` → `aspect-[63/88]` (a linha não
+  "pula" mais ao deployar/perder unit).
+- **Mão** → `HandDrawer` (renomeada de `MobileHandDrawer`, agora em **toda tela**):
+  gaveta de 44 px na base que sobe por cima do board sob demanda e recolhe sozinha ao
+  jogar uma carta. Motivo: como faixa de flow ela espremia a Battle Area e cobria o
+  campo (bug do 1º QA no notebook, 2026-09-02). Leque sempre-visível fica pra Fase D.
+- **Removido**: `overflow-y-auto`+`pb-24` do board, wrapper `scale-[0.94]`, grid
+  `grid-cols-[auto_1fr_auto]`, `flex-wrap` da mão, `renderPlaymat`,
+  `MobileHandDrawer.tsx`. Saldo em `src/`: ~+53 linhas (`renderSide` mais explícito).
+- **Sem mudança funcional** — seleção, ataque, block, Action Step, pagamento de
+  recurso, refs do `CombatLane` intactos. Motor (`engine/*`), `viewState.ts` e
+  `server/index.ts` **não tocados**.
+
+Verificação: `pnpm build` OK, `pnpm test` 237/237, `eslint` limpo, **Gate 3.5 ✅
+ACCEPT** (`phase-reviewer`, 2026-09-02 — 2 correções aplicadas: dedupe de
+`myHandCards`, transições da gaveta ≤ 120 ms + `motion-reduce`). Validação **visual**
+final (board não rola, seam, gaveta da mão, linha de mira) depende de 2 sessões
+reais — ver `INSTRUCOES_AGENTES_SIMULADOR.md` §10.
+
+Próximo: Fase B (Action Dock) — ver o faseamento no guia.

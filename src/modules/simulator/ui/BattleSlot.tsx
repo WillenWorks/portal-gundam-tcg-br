@@ -48,7 +48,7 @@ export function BattleSlot({
   registerRef,
 }: BattleSlotProps) {
   if (!unit) {
-    return <div className="aspect-[63/108] w-full border border-dashed border-white/10 bg-white/[0.015]" />;
+    return <div className="aspect-[63/88] w-full border border-dashed border-white/10 bg-white/[0.015]" />;
   }
 
   // passa o Pilot pareado direto (BattleSlot não tem o GameState) pra que o
