@@ -404,8 +404,8 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 | Setup | ✅ feito | — | `.planning/design-config.md`, `.planning/specs/` criados. `.spartan/ai.env` = usuário. `/spartan:e2e` pendente. |
 | **A — Grid + escala** | ✅ **MERGEADA** — PR #4, `fa6715a`. Gate 3.5 ✅, QA ✅. | — | — |
 | **B — Action Dock** | ✅ **MERGEADA** — PR #6, `690cbca` (2026-09-02). Gate 3.5 ✅ (rodada 2), re-QA ✅. | — | eco de log = `ActionDock logTail` (já feito) |
-| **C + D — Zonas + leque de mão** | ✅ **Gate 3.5 ACCEPT** (2026-09-02, retry após rate-limit). PR #7 → merge. build/test 291 ✅. 9 itens, 0 bloqueante (2 rec → Fase E, resto nit/deferido). | `feature/simulador-fase-cd-zonas-e-mao` | Diferido → E: opp shields no HUD, inspetor no painel XL, popover no CounterChip, Esc/focus-trap + overlap dos `PileTray` |
-| E — Portrait + fim da rotação | ⬜ última — depende de C+D em `dev` | — | inclui o inspetor no painel do XL |
+| **C + D — Zonas + leque de mão** | ✅ **MERGEADA** — PR #7, `007c050` (2026-09-02). Gate 3.5 ✅ ACCEPT, build/test 291 ✅. | — | re-QA visual ainda não feito pelo Willen |
+| **E — Portrait + fim da rotação 90°** | ⬜ **próxima** (única restante). Escopo além do nome: deletar `MOBILE_ROTATE_QUERY` + `useIsPortraitMobile` + wrapper `rotate(90deg)`; board portrait compacto p/ XS; **inspetor no painel lateral do XL** + **opp shields no HUD** + **Esc/focus-trap/overlap dos `PileTray`** (herdados de C+D); rename de `renderLeftColumn`/`renderRightColumn` (ou PR próprio). | — | ver §11 "Polimento" |
 
 ### Fase A — o que foi feito (commitado)
 
