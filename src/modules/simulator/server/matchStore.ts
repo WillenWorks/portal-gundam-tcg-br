@@ -469,11 +469,12 @@ export function defaultActionFor(state: GameState): PlayerAction {
     if (pending?.kind === "triggerOrder") {
       return { kind: "resolveTriggerOrder", orderedSpecIds: pending.triggers.map((t) => t.specId) };
     }
-    if (pending?.kind === "whenPaired") {
-      // AFK durante o 【When Paired】: resolve os efeitos OPTATIVOS como "pular" e
-      // os mandatórios sem alvo (o motor trata `targetIds: []` como "nada acontece").
+    if (pending?.kind === "abilityResolution") {
+      // AFK durante a resolução de habilidade (When Paired / Attack / …): pula os
+      // optativos e resolve os mandatórios sem alvo (o motor trata `targetIds: []`
+      // como "nada acontece").
       return {
-        kind: "resolveWhenPaired",
+        kind: "resolveAbility",
         resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: [] })),
       };
     }

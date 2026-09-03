@@ -290,11 +290,16 @@ export interface EffectSpec {
   /** effectEn da seção correspondente — nunca effectPt (ver docs/18, cobertura de idioma) */
   sourceText: string;
   /**
-   * Etapa 4 — `true` quando o texto oficial diz "You may ..." (o jogador
-   * escolhe ativar ou pular). Default `false` = mandatório (resolve, ou não
-   * faz nada se não há alvo legal). Nenhum efeito de ST01/ST02 é opcional.
+   * `true` quando o texto oficial diz "You may ..." (o jogador escolhe ativar
+   * ou pular). Default `false` = mandatório (resolve, ou não faz nada se não há
+   * alvo legal). Nenhum efeito de ST01/ST02 é opcional.
    */
   optional?: boolean;
+  /**
+   * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
+   * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
+   */
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit";
 }
 
 /**

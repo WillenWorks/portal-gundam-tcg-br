@@ -284,17 +284,27 @@ describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (reg
     const match = newMatch();
     const state = match.state;
     state.pendingDecision.A = {
-      kind: "whenPaired",
-      queue: [{ sourceInstanceId: "x", specId: "SPEC-1", label: "Choose 1 enemy Unit. Rest it.", optional, needsTarget: true }],
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "x",
+          specId: "SPEC-1",
+          label: "Choose 1 enemy Unit. Rest it.",
+          optional,
+          needsTarget: true,
+          targetScope: "enemyUnit",
+        },
+      ],
     };
     return state;
   }
 
-  it("com whenPaired pendente: dono da decisão = A, ação-padrão = resolveWhenPaired (não finishTurn)", () => {
+  it("com whenPaired pendente: dono da decisão = A, ação-padrão = resolveAbility (não finishTurn)", () => {
     const state = stateWithWhenPaired(false);
     expect(decisionOwner(state)).toBe("A");
     const action = defaultActionFor(state);
-    expect(action.kind).toBe("resolveWhenPaired");
+    expect(action.kind).toBe("resolveAbility");
     // mandatório sem alvo escolhido -> targetIds: [] -> "nada acontece" (não lança)
     const next = applyPlayerAction(state, "A", action, ALL_EFFECT_SPECS, defaultPredicateResolver);
     expect(next.pendingDecision.A).toBeNull();
@@ -302,7 +312,7 @@ describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (reg
 
   it("efeito optativo AFK: ação-padrão pula (activate: false)", () => {
     const action = defaultActionFor(stateWithWhenPaired(true));
-    expect(action.kind === "resolveWhenPaired" && action.resolutions[0].activate).toBe(false);
+    expect(action.kind === "resolveAbility" && action.resolutions[0].activate).toBe(false);
   });
 });
 

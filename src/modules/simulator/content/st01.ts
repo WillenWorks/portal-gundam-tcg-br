@@ -96,6 +96,7 @@ export const SULETTA_MERCURY_ATTACK: EffectSpec = {
   // marcar usedKeywordsThisTurn na instância, igual `keywords.ts` já faz
   // pra `<Support N>`) — o EffectSpec em si não teria como se auto-impedir.
   actions: [{ op: "setActive", target: { kind: "named", name: "target" } }],
+  targetScope: "ownResource",
   sourceText: "【Attack】【Once per Turn】Choose 1 of your Resources. Set it as active.",
 };
 

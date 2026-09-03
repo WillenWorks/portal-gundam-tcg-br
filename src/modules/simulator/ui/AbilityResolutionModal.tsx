@@ -1,23 +1,33 @@
-/* Sprint 6 · Etapa 4 — resolução do 【When Paired】 NUM MOMENTO SEPARADO da
- * escolha da Unit. A fila pode ter 1+ efeitos (When Paired da Unit + do Piloto
- * ao mesmo tempo): o jogador ordena (não é cadeia, é ordenação de eventos),
- * escolhe o alvo de cada um e, pra efeito `optional`, ativa ou pula.
- * "Confirmar" envia `resolveWhenPaired` na ordem montada aqui. */
+/* Resolução de gatilho(s) de habilidade NUM MOMENTO SEPARADO da ação que os
+ * disparou (【When Paired】 ao parear, 【Attack】 ao declarar ataque, …). A fila
+ * pode ter 1+ efeitos simultâneos: o jogador ordena (não é cadeia, é ordenação
+ * de eventos), escolhe o alvo de cada um (Unit inimiga / Recurso próprio / Unit
+ * amiga) e, pra efeito `optional`, ativa ou pula. "Confirmar" envia
+ * `resolveAbility` na ordem montada aqui. */
 import { useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Link2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
 
-interface WhenPairedModalProps {
-  decision: Extract<PendingDecision, { kind: "whenPaired" }>;
-  /** alvos possíveis pra efeitos com `needsTarget` (Units inimigas em campo). */
-  targetOptions: Array<{ instanceId: string; label: string }>;
+type Decision = Extract<PendingDecision, { kind: "abilityResolution" }>;
+type TargetScope = Decision["queue"][number]["targetScope"];
+type TargetOption = { instanceId: string; label: string };
+
+interface AbilityResolutionModalProps {
+  decision: Decision;
+  /** opções de alvo por escopo — o pai monta a partir do `view`. */
+  targetsByScope: Record<TargetScope, TargetOption[]>;
   busy?: boolean;
   onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>) => void;
 }
 
-export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: WhenPairedModalProps) {
+const TRIGGER_LABEL: Record<string, string> = {
+  "When Paired": "Vínculo resolvido — 【When Paired】",
+  Attack: "Ataque declarado — 【Attack】",
+};
+
+export function AbilityResolutionModal({ decision, targetsByScope, busy, onResolve }: AbilityResolutionModalProps) {
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
   const [activate, setActivate] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
@@ -25,6 +35,7 @@ export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: Wh
   const [target, setTarget] = useState<Record<string, string>>({});
 
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
+  const optionsFor = (specId: string) => targetsByScope[itemFor(specId).targetScope] ?? [];
 
   const move = (index: number, dir: -1 | 1) => {
     setOrder((current) => {
@@ -39,8 +50,7 @@ export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: Wh
   const canConfirm = order.every((specId) => {
     const q = itemFor(specId);
     if (!activate[specId]) return true;
-    // needsTarget + há alvos => precisa escolher 1. Sem alvos disponíveis => ok (não faz nada).
-    if (q.needsTarget && targetOptions.length > 0) return Boolean(target[specId]);
+    if (q.needsTarget && optionsFor(specId).length > 0) return Boolean(target[specId]);
     return true;
   });
 
@@ -56,8 +66,8 @@ export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: Wh
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
       <div className="panel-cut hero-surface w-full max-w-sm border border-amber-400/50 p-4">
-        <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-amber-300">
-          <Link2 className="size-4" /> Vínculo resolvido — 【When Paired】
+        <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-300">
+          <Sparkles className="size-4" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
         </p>
         {order.length > 1 ? (
           <p className="mt-1 text-center text-[10px] text-muted-portal">
@@ -69,6 +79,7 @@ export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: Wh
           {order.map((specId, i) => {
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
+            const opts = optionsFor(specId);
             return (
               <li key={specId} className="border border-white/10 bg-black/40 p-2">
                 <div className="flex items-center gap-2">
@@ -102,9 +113,9 @@ export function WhenPairedModal({ decision, targetOptions, busy, onResolve }: Wh
                 ) : null}
 
                 {on && q.needsTarget ? (
-                  targetOptions.length > 0 ? (
+                  opts.length > 0 ? (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {targetOptions.map((opt) => (
+                      {opts.map((opt) => (
                         <Toggle
                           key={opt.instanceId}
                           active={target[specId] === opt.instanceId}

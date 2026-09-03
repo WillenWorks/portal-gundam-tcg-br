@@ -392,13 +392,13 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     expect(findCard(next, pilotId).pairedUnitId).toBe(unitId); // pareamento aconteceu
     expect(findCard(next, enemyId).rested).toBe(false); // efeito NÃO resolveu ainda
     const decision = next.pendingDecision.A;
-    expect(decision?.kind).toBe("whenPaired");
-    expect(decision?.kind === "whenPaired" && decision.queue).toEqual([
+    expect(decision?.kind).toBe("abilityResolution");
+    expect(decision?.kind === "abilityResolution" && decision.queue).toEqual([
       expect.objectContaining({ specId: "ST01-010-WhenPaired", needsTarget: true, optional: false }),
     ]);
   });
 
-  it("resolveWhenPaired com alvo: resta o alvo e limpa a decisão", () => {
+  it("resolveAbility com alvo: resta o alvo e limpa a decisão", () => {
     const state = freshSt01MainPhase();
     giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
     const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
@@ -409,7 +409,7 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     const next = applyPlayerAction(
       paused,
       "A",
-      { kind: "resolveWhenPaired", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [enemyId] }] },
+      { kind: "resolveAbility", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [enemyId] }] },
       ST01_EFFECT_SPECS,
     );
 
@@ -417,7 +417,7 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     expect(next.pendingDecision.A).toBeNull();
   });
 
-  it("resolveWhenPaired sem alvo legal (targetIds vazio): nada acontece, decisão limpa", () => {
+  it("resolveAbility sem alvo legal (targetIds vazio): nada acontece, decisão limpa", () => {
     const state = freshSt01MainPhase();
     giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
     const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
@@ -427,7 +427,7 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     const next = applyPlayerAction(
       paused,
       "A",
-      { kind: "resolveWhenPaired", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }] },
+      { kind: "resolveAbility", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }] },
       ST01_EFFECT_SPECS,
     );
 

@@ -135,7 +135,7 @@ import {
   ShieldRail,
   TriggerOrderModal,
   useBoardElements,
-  WhenPairedModal,
+  AbilityResolutionModal,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
@@ -1117,15 +1117,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
         />
       ) : null}
-      {myPendingDecision?.kind === "whenPaired" ? (
-        <WhenPairedModal
+      {myPendingDecision?.kind === "abilityResolution" ? (
+        <AbilityResolutionModal
           decision={myPendingDecision}
-          targetOptions={publicUnits(view.players[opponentSeat]).map((u) => ({
-            instanceId: u.instanceId,
-            label: u.def.nameEn,
-          }))}
+          targetsByScope={{
+            enemyUnit: publicUnits(view.players[opponentSeat]).map((u) => ({ instanceId: u.instanceId, label: u.def.nameEn })),
+            friendlyUnit: publicUnits(view.players[seat]).map((u) => ({ instanceId: u.instanceId, label: u.def.nameEn })),
+            ownResource: (view.players[seat].resourceArea.filter((c) => !isHidden(c)) as CardInstance[])
+              .filter((r) => r.rested)
+              .map((r, i) => ({ instanceId: r.instanceId, label: `Recurso ${i + 1} (gasto)` })),
+          }}
           busy={busy}
-          onResolve={(resolutions) => runAction({ kind: "resolveWhenPaired", resolutions })}
+          onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
         />
       ) : null}
 

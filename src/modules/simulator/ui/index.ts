@@ -13,7 +13,7 @@ export { PileTray } from "./PileTray";
 export { HandFan } from "./HandFan";
 export { BurstModal } from "./BurstModal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
-export { WhenPairedModal } from "./WhenPairedModal";
+export { AbilityResolutionModal } from "./AbilityResolutionModal";
 export { CardInspectorModal, type LinkedPilot } from "./CardInspectorModal";
 export { CardInspectorPanel } from "./CardInspectorPanel";
 export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";

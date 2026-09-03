@@ -403,13 +403,16 @@ export type PendingDecision =
     }
   | {
       /**
-       * Etapa 4 — 【When Paired】 de um pareamento de Piloto, resolvido num
-       * momento SEPARADO da escolha da Unit. A fila pode ter mais de 1 efeito
-       * (When Paired da Unit + do Piloto ao mesmo tempo): o jogador escolhe a
-       * ORDEM (não é cadeia, é ordenação de eventos) e, pra efeito `optional`,
-       * se ativa ou pula. `needsTarget` = o efeito consome um alvo nomeado.
+       * Gatilho(s) de habilidade resolvidos num momento SEPARADO da ação que os
+       * disparou (【When Paired】 ao parear Piloto, 【Attack】 ao declarar ataque,
+       * …). A fila pode ter mais de 1 efeito simultâneo (When Paired da Unit +
+       * do Piloto): o jogador escolhe a ORDEM (não é cadeia, é ordenação de
+       * eventos) e, pra efeito `optional`, se ativa ou pula. `needsTarget` = o
+       * efeito consome `ctx.targets.target`; `targetScope` diz o que o alvo pode
+       * ser (a UI monta a lista).
        */
-      kind: "whenPaired";
+      kind: "abilityResolution";
+      trigger: string;
       queue: Array<{
         sourceInstanceId: string;
         specId: string;
@@ -417,6 +420,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
       }>;
     };
 
