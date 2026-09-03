@@ -9,6 +9,7 @@
  * selecionada = realce esmeralda. Com `costProgress`, uma barra "{paid}/{total}
  * pago" aparece abaixo. `readOnly` (medidor do oponente): sem clique, compacto. */
 import { cn } from "@/lib/utils";
+import { cardBackUrl } from "./cardArt";
 
 interface ResourceMeterItem {
   instanceId: string;
@@ -60,19 +61,33 @@ export function ResourceMeter({
             : r.rested
               ? "Recurso gasto"
               : "Recurso ativo";
+          // arte padrão do verso (Sprint 6) + moldura/tint que carrega o estado.
           const shape = cn(
-            "block shrink-0 border transition-all duration-100 motion-reduce:transition-none",
+            "relative block shrink-0 overflow-hidden border transition-all duration-100 motion-reduce:transition-none",
             readOnly
               ? "h-[calc(var(--card,3.5rem)*0.5)] w-[calc(var(--card,3.5rem)*0.34)]"
               : "h-[calc(var(--card,3.5rem)*0.7)] w-[calc(var(--card,3.5rem)*0.5)]",
             selected
-              ? "border-emerald-400 bg-emerald-500/30 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+              ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
               : r.isEx
-                ? "border-accent bg-accent/20 shadow-[0_0_6px_rgba(234,179,8,0.35)]"
+                ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
                 : r.rested
-                  ? "rotate-90 border-white/10 bg-slate-700/40 opacity-60"
-                  : "border-primary/50 bg-primary/15",
+                  ? "rotate-90 border-white/10 opacity-60"
+                  : "border-primary/50",
             pickable && "cursor-pointer hover:border-emerald-300",
+          );
+          const tint = selected
+            ? "bg-emerald-500/35"
+            : r.isEx
+              ? "bg-accent/30"
+              : r.rested
+                ? "bg-slate-950/40"
+                : "bg-primary/15";
+          const inner = (
+            <>
+              <img src={cardBackUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              <span className={cn("absolute inset-0", tint)} />
+            </>
           );
           return pickable ? (
             <button
@@ -83,9 +98,13 @@ export function ResourceMeter({
               aria-pressed={selected}
               onClick={() => onSelect?.(r.instanceId)}
               className={cn(shape, "min-h-11 min-w-11")}
-            />
+            >
+              {inner}
+            </button>
           ) : (
-            <span key={r.instanceId} title={title} aria-label={title} className={shape} />
+            <span key={r.instanceId} title={title} aria-label={title} className={shape}>
+              {inner}
+            </span>
           );
         })}
       </div>

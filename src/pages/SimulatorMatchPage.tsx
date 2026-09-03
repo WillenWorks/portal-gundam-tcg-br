@@ -120,6 +120,7 @@ import {
   BattleSlot,
   buildBattleLog,
   BurstModal,
+  cardBackUrl,
   CardInspectorModal,
   CardInspectorPanel,
   type LinkedPilot,
@@ -695,7 +696,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <p className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mão ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
-            <div key={i} className="-ml-3 aspect-[63/88] w-7 border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-black first:ml-0" />
+            <img
+              key={i}
+              src={cardBackUrl}
+              alt=""
+              loading="lazy"
+              className="-ml-3 aspect-[63/88] w-7 border border-white/10 object-cover first:ml-0"
+            />
           ))}
         </div>
       </div>
@@ -728,31 +735,33 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ),
       base: (
-        <div className="flex flex-col items-start gap-1">
-          <BaseCardGauge
-            base={base}
-            art={art}
-            legalTarget={selecting && Boolean(base)}
-            selected={Boolean(base && selected.includes(base.instanceId))}
-            onSelect={(b) => toggleSelect(b.instanceId)}
-            onInspect={setInspect}
-            onHoverCard={isWide ? setHoveredCard : undefined}
-          />
-          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} hideCount={!isSelf} />
-        </div>
-      ),
-      resources: (
-        <ResourceMeter
-          resources={resources}
-          level={player.counts.resourceArea}
-          readOnly={!isSelf}
-          selectable={isSelf && Boolean(pending) && pendingCost > 0}
-          selectedIds={isSelf ? selectedResources : undefined}
-          onSelect={isSelf ? toggleResource : undefined}
-          costProgress={
-            isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
-          }
+        <BaseCardGauge
+          base={base}
+          art={art}
+          legalTarget={selecting && Boolean(base)}
+          selected={Boolean(base && selected.includes(base.instanceId))}
+          onSelect={(b) => toggleSelect(b.instanceId)}
+          onInspect={setInspect}
+          onHoverCard={isWide ? setHoveredCard : undefined}
         />
+      ),
+      // Deck de Recursos + a linha de recursos, juntos e centrados abaixo/acima
+      // da Battle Area (o `ArenaPlaymat` centraliza este bloco no teatro).
+      resources: (
+        <div className="flex items-end justify-center gap-2">
+          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} hideCount={!isSelf} />
+          <ResourceMeter
+            resources={resources}
+            level={player.counts.resourceArea}
+            readOnly={!isSelf}
+            selectable={isSelf && Boolean(pending) && pendingCost > 0}
+            selectedIds={isSelf ? selectedResources : undefined}
+            onSelect={isSelf ? toggleResource : undefined}
+            costProgress={
+              isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
+            }
+          />
+        </div>
       ),
       deck: (
         <CounterChip

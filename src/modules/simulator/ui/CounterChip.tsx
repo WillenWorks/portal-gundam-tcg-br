@@ -9,6 +9,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { cardBackUrl } from "./cardArt";
 
 type CounterChipTone = "normal" | "warn" | "crit";
 
@@ -57,7 +58,7 @@ export function CounterChip({
         <span className="absolute inset-0 translate-x-[3px] translate-y-[3px] border border-white/5 bg-slate-950" aria-hidden />
         <span className="absolute inset-0 translate-x-[1.5px] translate-y-[1.5px] border border-white/10 bg-slate-950" aria-hidden />
         <span className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
-          {face ?? <span className="absolute left-1/2 top-1/2 size-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/20 bg-primary/5" />}
+          {face ?? <img src={cardBackUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
         </span>
         {!hideCount ? (
           <span

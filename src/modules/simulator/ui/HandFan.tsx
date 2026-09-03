@@ -14,7 +14,7 @@ import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardFace } from "./CardFace";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 
 export interface HandFanCard {
   card: CardInstance;
@@ -93,7 +93,14 @@ export function HandFan({
                   : "border-transparent [filter:grayscale(1)_brightness(0.65)]",
               )}
             >
-              <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="md" style={{ width: "var(--card, 3.5rem)" }}>
+              <CardFace
+                nameEn={card.def.nameEn}
+                code={card.def.code}
+                art={art}
+                size="md"
+                style={{ width: "var(--card, 3.5rem)" }}
+                backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+              >
                 {cost !== undefined ? (
                   <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
                     {cost}

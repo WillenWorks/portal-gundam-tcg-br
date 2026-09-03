@@ -148,23 +148,23 @@ function DeckStation({ side }: { side: ArenaSide }) {
   );
 }
 
-/** Centro da metade do oponente: resumo da mão + recursos COLADOS acima da Battle Area. */
+/** Centro da metade do oponente: resumo da mão + recursos COLADOS e centrados acima da Battle Area. */
 function OpponentTheater({ side }: { side: ArenaSide }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1 pb-1">
       {side.handSummary ? <div className="flex justify-center">{side.handSummary}</div> : null}
-      <div className="w-full min-w-0">{side.resources}</div>
+      <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
     </div>
   );
 }
 
-/** Centro da metade do jogador: Battle Area + recursos COLADOS logo abaixo. */
+/** Centro da metade do jogador: Battle Area + recursos COLADOS e centrados logo abaixo. */
 function SelfTheater({ side }: { side: ArenaSide }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center justify-start gap-1 pt-1">
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
-      <div className="w-full min-w-0">{side.resources}</div>
+      <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
     </div>
   );
 }

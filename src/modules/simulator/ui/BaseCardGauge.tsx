@@ -7,7 +7,7 @@
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveHp } from "@/modules/simulator/engine/types";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 
 interface BaseCardGaugeProps {
@@ -62,7 +62,14 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
               : "border-amber-500/25",
       )}
     >
-      <CardFace nameEn={base.def.nameEn} code={base.def.code} art={art} size="sm" className="w-full" />
+      <CardFace
+        nameEn={base.def.nameEn}
+        code={base.def.code}
+        art={art}
+        size="sm"
+        className="w-full"
+        backFallback={isGenericArtCard(base.def.cardType, base.def.isToken)}
+      />
       {base.damage > 0 ? (
         <span className="absolute right-0 top-0 z-10 bg-red-600/95 px-1 py-0.5 text-[8px] font-black tabular-nums text-white">
           -{base.damage}

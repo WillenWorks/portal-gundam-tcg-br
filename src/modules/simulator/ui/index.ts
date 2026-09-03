@@ -1,7 +1,7 @@
 /* docs/19, Sessão 3 — componentes visuais do tabuleiro do simulador,
  * extraídos de `SimulatorMatchPage.tsx` (que virou só o orquestrador de
  * estado/ações). Cada um é apresentacional e prop-driven. */
-export { artSrc, type ArtLookup, type CardArt, type CardFaceSize } from "./cardArt";
+export { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup, type CardArt, type CardFaceSize } from "./cardArt";
 export { CardFace, CardBack } from "./CardFace";
 export { BattleSlot, type BattleSlotActions } from "./BattleSlot";
 export { DockedPilot } from "./DockedPilot";

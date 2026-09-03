@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
 
@@ -101,7 +101,15 @@ export function BattleSlot({
         onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
         className={cn("relative block h-full w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
       >
-        <CardFace nameEn={unit.def.nameEn} code={unit.def.code} art={art} size="sm" className="h-full w-full" dimmed={unit.rested}>
+        <CardFace
+          nameEn={unit.def.nameEn}
+          code={unit.def.code}
+          art={art}
+          size="sm"
+          className="h-full w-full"
+          dimmed={unit.rested}
+          backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
+        >
           {/* AP / HP efetivos — badges de canto (sobem quando há Piloto acoplado) */}
           <span
             className={cn(

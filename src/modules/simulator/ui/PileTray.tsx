@@ -8,7 +8,7 @@ import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { X } from "lucide-react";
 import type { CardInstance } from "@/modules/simulator/engine/types";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { CounterChip } from "./CounterChip";
 
@@ -37,7 +37,14 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
         onClick={() => setOpen(true)}
         face={
           topCard ? (
-            <CardFace nameEn={topCard.def.nameEn} code={topCard.def.code} art={art} size="sm" className="w-full" />
+            <CardFace
+              nameEn={topCard.def.nameEn}
+              code={topCard.def.code}
+              art={art}
+              size="sm"
+              className="w-full"
+              backFallback={isGenericArtCard(topCard.def.cardType, topCard.def.isToken)}
+            />
           ) : undefined
         }
       />
@@ -71,7 +78,14 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
                   aria-label={card.def.nameEn}
                   className="block rounded-none border border-white/10 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
                 >
-                  <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="sm" className="w-full" />
+                  <CardFace
+                    nameEn={card.def.nameEn}
+                    code={card.def.code}
+                    art={art}
+                    size="sm"
+                    className="w-full"
+                    backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+                  />
                 </button>
               ))}
             </div>
