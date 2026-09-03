@@ -1,26 +1,22 @@
-# Plano de Implementação: Pivot Visual do Simulador Gundam TCG (Nível Arena)
+# Plano de Implementação: Refinamento Arena 3D, Ergonomia e Espelhamento
 
-Proposta de redesenho e pivot visual do simulador PvP do Gundam TCG, corrigindo a dispersão de elementos e falta de coesão do layout responsivo atual, adotando uma arquitetura de **Virtual Canvas 16:9** (Master Duel) com a **topologia oficial de zonas** do Gundam TCG (Mobile Suit Arena) e **estética tática mecha**.
+Baseado na análise forense das 10 imagens enviadas pelo usuário, este plano estabelece os refinamentos críticos para corrigir a dispersão de elementos em monitores widescreen, eliminar colisões verticais na Battle Area e modernizar o inspetor de cartas com suporte a telemetria lateral e hover de pilotos linkados.
 
 ---
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Decisão Chave: Adoção do Virtual Canvas 16:9 com Landscape Obrigatório no Mobile**
-> Como evidenciado em jogos digitais de alta performance tática (*Master Duel*, *MTG Arena*), arenas de card game com 6 colunas de batalha, escudos, bases e recursos não funcionam bem com flexbox livre que quebra linhas. Propomos fixar a proporção da arena em **16:9 / 16:10**, exigindo que dispositivos móveis joguem na horizontal ("tela deitada", padrão Master Duel), substituindo o antigo truque de rotação CSS de 90°.
+> **Decisão Chave 1: Reagrupamento Espacial (Fim do `justify-between`)**
+> Os recursos deixam de ficar nas extremidades do canvas e passam a ficar **colados diretamente às suas respectivas Battle Areas** (recursos do oponente logo acima dos slots inimigos; seus recursos logo abaixo dos seus slots), eliminando o abismo central vazio (destacado na Imagem 2).
 
-> [!NOTE]
-> **Invariante Crítica:** Toda a alteração é restrita à **camada de apresentação (UI)**. O motor de regras puro (`src/modules/simulator/engine/*`), a serialização de rede (`viewState.ts`), as APIs e o servidor (`matchStore.ts`) permanecem **100% intactos**.
+> [!IMPORTANT]
+> **Decisão Chave 2: Espelhamento Completo do Oponente**
+> Conforme a Imagem 8: No lado do jogador, Base/Shields ficam na **esquerda** e Deck/Trash na **direita**. No lado do oponente, a disposição é espelhada: Base/Shields na **direita** e Deck/Trash na **esquerda**, simulando a perspectiva real de dois jogadores frente a frente.
 
----
-
-## Open Questions
-
-1. **Posicionamento do Inspetor de Cartas em Telas Menores (Laptops e Tablets)**:
-   - Em telas Widescreen (>16:9), o inspetor de cartas ficará fixo na lateral esquerda em tempo real (hover/click). Em telas 16:9 justas ou tablets, prefere que o clique em uma carta abra um painel retrátil lateral (slide-over) ou mantenha um modal compacto de overlay?
-2. **Representação dos Recursos no Campo**:
-   - Prefere que os recursos continuem com a opção de tokens geométricos minimalistas (`◆◆◇` estilizados como mini-cartas) ou que renderizem as ilustrações reais de verso de carta com selo de facção?
+> [!IMPORTANT]
+> **Decisão Chave 3: Botões de Ação em Overlay**
+> Os botões `Atacar`, `Mirar aqui` e `Blocker` no `BattleSlot.tsx` deixam de ser uma div abaixo da carta (que aumentava a altura em 44px e causava a colisão da Imagem 1) e viram **overlays flutuantes no rodapé da própria carta**, mantendo a altura externa travada em `aspect-[63/88]`.
 
 ---
 
@@ -28,85 +24,61 @@ Proposta de redesenho e pivot visual do simulador PvP do Gundam TCG, corrigindo 
 
 ### Camada de Apresentação e Tabuleiro (`src/modules/simulator/ui/`)
 
-O layout será desacoplado da orquestração da página, introduzindo componentes dedicados que garantem proporção estável e zonas bem delineadas.
-
 ---
 
-#### [NEW] [ArenaPlaymat.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ArenaPlaymat.tsx)
-- Container de proporção virtual 16:9 (`aspect-[16/9] max-w-full max-h-full`).
-- Define as regiões táticas oficiais de forma estática (sem quebras de linha acidentais):
-  - **Coluna Esquerda:** `ShieldRail` vertical + `BaseCardGauge`.
-  - **Teatro Central:** Battle Area do oponente (6 slots), Linha Central (*The Seam*), Battle Area do jogador (6 slots), Linha de Recursos horizontal.
-  - **Coluna Direita:** Deck (com profundidade 3D), Descarte (Trash com preview da última carta) e Exílio.
-  - **Rodapé:** Leque de cartas da mão (`HandFan`) ancorado e acessível.
-
-#### [MODIFY] [ShieldRail.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ShieldRail.tsx)
-- Suporte a orientação vertical em cascata mecha (borda esquerda da arena).
-- Estados visuais aprimorados para escudos intactos, quebrados e animação de alerta de Burst.
-
-#### [MODIFY] [ResourceMeter.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ResourceMeter.tsx)
-- Reorganizar a disposição de recursos para que nunca transborde ou flutue sobre os slots de batalha.
-- Apresentar mini-cartas de recursos (ativos em pé, gastos em 90°, EX Resource com acabamento dourado `--accent`).
-- Feedback explícito de pagamento de custos (`Pago: X / Y`).
+#### [MODIFY] [ArenaPlaymat.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ArenaPlaymat.tsx)
+- Reorganizar a estrutura em 3 colunas principais:
+  - **Coluna Esquerda:** Base no topo + Cascata vertical de 6 Shields sobrepostos.
+  - **Coluna Central (Teatro de Batalha):**
+    - Linha de Recursos do oponente (horizontal, colada no topo dos slots dele).
+    - Battle Area do oponente (6 slots).
+    - Linha Central (The Seam).
+    - Battle Area do jogador (6 slots).
+    - Linha de Recursos do jogador (horizontal, colada na base dos slots dele).
+  - **Coluna Direita:** Coluna tática vertical com Exílio, Lixo (Trash) e Deck.
+- Implementar o espelhamento do oponente (Base/Shields na direita do oponente, Deck na esquerda).
+- Elevar a escala base `--card` para `clamp(3.5rem, 6.5vw, 6.2rem)` para preencher o espaço do monitor com impacto visual.
 
 #### [MODIFY] [BattleSlot.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/BattleSlot.tsx)
-- Melhorar a textura de fundo do slot (moldura de acoplamento de Mobile Suit).
-- Refinar a renderização do piloto acoplado (`DockedPilot`) para que pareça uma extensão natural da unidade.
-- Badges de combate de alta visibilidade: AP e HP efetivos calculados dinamicamente com cores de status tático.
+- Transformar botões de combate em overlay absoluto (`absolute bottom-1 inset-x-1 z-20`) sem alterar a altura do slot.
+- Exibir AP e HP nos cantos inferiores da carta sem rótulos textuais redundantes.
 
-#### [NEW] [CardInspectorPanel.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/CardInspectorPanel.tsx)
-- Painel lateral fixo nas asas de telas widescreen.
-- Mostra instantaneamente a arte em alta resolução, atributos, traços e texto de habilidade da carta sob foco, sem interrupção de jogo.
+#### [MODIFY] [DockedPilot.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/DockedPilot.tsx)
+- Posicionar a carta do piloto acoplada por baixo da Unit, mostrando apenas a faixa do rosto e bônus de combate `+AP/+HP` (estilo Mobile Suit Arena).
 
-#### [MODIFY] [ActionDock.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ActionDock.tsx)
-- Integrar harmoniosamente o console de ações com o botão de avanço/fim de turno no estilo Master Duel.
-- Manter clareza cirúrgica dos estados (jogando, atacando, defendendo, prioridade de action step).
+#### [MODIFY] [ShieldRail.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ShieldRail.tsx) & [BaseCardGauge.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/BaseCardGauge.tsx)
+- Eliminar textos redundantes (`"6 SHIELDS"`, `"BASE EX"`, etc.).
+- Cascata vertical sobreposta de 6 escudos de cima para baixo.
 
-#### [NEW] [RotateDevicePrompt.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/RotateDevicePrompt.tsx)
-- Overlay amigável para dispositivos móveis no modo retrato convidando a girar a tela para a horizontal, eliminando o hack instável de CSS `transform: rotate(90deg)`.
+#### [MODIFY] [CardInspectorModal.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/CardInspectorModal.tsx)
+- Renderizar a arte da carta em tamanho grande no centro da tela (70-80% do viewport).
+- Botão flutuante na lateral da carta que abre uma gaveta deslizante (*slide-out*) com telemetria, traits e regras.
+- Link de Piloto interativo: passar o mouse sobre o nome do piloto (ex: `Suletta Mercury`) abre um popover flutuante exibindo a carta do piloto correspondente e sinaliza se está disponível no deck do jogador.
 
----
-
-### Orquestração da Página de Partida (`src/pages/`)
-
----
-
-#### [MODIFY] [SimulatorMatchPage.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/pages/SimulatorMatchPage.tsx)
-- Remover o antigo grid de 5 faixas fragmentado (`renderLeftColumn`, `renderRightColumn`, `frontStrip` com `flex-wrap`).
-- Integrar o novo `ArenaPlaymat` passando as props de estado puro já disponíveis (`view`, `art`, `selected`, `attackerId`, `combat`, etc.).
-- Remover o `MOBILE_ROTATE_QUERY` legado em favor do `RotateDevicePrompt`.
-- Redução líquida de linhas e complexidade na página principal.
+#### [MODIFY] [HandFan.tsx](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/HandFan.tsx)
+- Cartas injogáveis: filtro preto e branco (`grayscale(100%) brightness(0.65)`).
+- Cartas jogáveis: cores vivas + glow ciano.
+- Clique em cartas de ação direta inicia o deploy/pagamento sem abrir modal intermediário burocrático.
 
 ---
 
 ## Verification Plan
 
 ### Automated Tests
-Execução da suíte completa de testes para garantir que nenhuma lógica funcional ou de renderização foi quebrada:
 ```bash
-# Rodar todos os 295 testes de motor, lógica e UI
+# Execução da suíte completa de testes (317+ testes devem passar)
 pnpm test
 
-# Validação estrita de tipos TypeScript (zero erros)
+# Validação estrita de tipos TypeScript
 pnpm run check:types
 
-# Checagem de lint do módulo do simulador
+# Checagem de linter no simulador
 pnpm run lint:simulator
 ```
 
 ### Manual Verification
-1. **Inspeção nos Breakpoints (Playwright / Browser DevTools)**:
-   - **4K / Full HD (1920x1080)**: Arena perfeitamente centralizada em 16:9; painel esquerdo exibe o inspetor de carta ao passar o mouse; painel direito exibe o log de batalha; zero quebras de linha no medidor de recursos.
-   - **Notebook (1366x768 / 1440x900)**: Arena escala suavemente sem rolagem vertical ou horizontal; cartas e textos permanecem 100% nítidos.
-   - **Mobile Paisagem (844x390 landscape)**: Arena ocupa toda a tela; botões de ação e cartas mantêm área de toque >= 44px.
-   - **Mobile Retrato (390x844 portrait)**: Tela exibe prompt mecha orientando a girar o aparelho.
-2. **Validação do Fluxo PvP Real (2 Contas Conectadas)**:
-   - Iniciar sessão com duas contas pareadas em `/simulador`.
-   - Executar ciclo completo de jogo:
-     - Comprar carta na Draw Phase.
-     - Pagar recurso ativo e fazer deploy de Mobile Suit.
-     - Acoplar Piloto e verificar o badge `LINK` e cálculo de AP/HP.
-     - Declarar ataque com feixe de mira `CombatLane`.
-     - Responder com Blocker ou tomar dano no Shield.
-     - Verificar quebra de shield e resolução de Burst.
-     - Encerrar turno e passar prioridade no `ActionDock`.
+1. **Widescreen e Notebook 14"**: Verificar que o vazio central desapareceu e as cartas preenchem o campo de forma proporcional.
+2. **Colisão de Unidades**: Confirmar que o botão "Atacar" não empurra a unidade para a linha central.
+3. **Espelhamento do Oponente**: Checar que os Shields e Base do oponente estão no lado direito do campo dele, e o Deck na esquerda.
+4. **Deck do Oponente Oculto**: Confirmar que o deck do oponente não exibe contagem numérica de cartas.
+5. **Modal com Gaveta Lateral & Pilot Link**: Abrir uma unidade com link (ex: Aerial), alternar a gaveta lateral e passar o mouse sobre o nome do piloto para ver a carta flutuante da Suletta.
