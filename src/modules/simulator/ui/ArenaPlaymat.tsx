@@ -2,6 +2,14 @@
  * jogo. Referência: o playmat fixo de Master Duel + a topologia oficial de zonas
  * do Gundam TCG (Mobile Suit Arena).
  *
+ * Sprint 6 · P2 (escala widescreen + alinhamento de zonas):
+ *  - o canvas continua travado em `aspect-[16/9]` (Virtual Canvas), mas o
+ *    espaço lateral que sobra em monitor ultrawide agora é USADO pela página:
+ *    o `CardInspectorPanel` cresce (`flex-1`) pra preencher a asa esquerda, com
+ *    um espelho `flex-1` à direita mantendo a arena centrada.
+ *  - `ShieldStation`/`DeckStation` têm largura EXPLÍCITA comum (`--card * 0.62`):
+ *    Base, cascata de Shields e as 3 pilhas alinham na mesma coluna.
+ *
  * Sprint 5.1 (reestruturação do playmat) — 3 colunas, sem `justify-between` (que
  * abria o vazio central):
  *   ┌───────────┬────────────────────────────┬───────────┐
@@ -88,7 +96,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
     >
       <div className="flex min-h-0 flex-1 flex-col" style={TABLE_STYLE}>
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
-        <div className="flex min-h-0 flex-1 items-end gap-1 px-2 opacity-90" style={OPPONENT_STYLE}>
+        <div className="flex min-h-0 flex-1 items-end gap-1 px-1 opacity-90" style={OPPONENT_STYLE}>
           <DeckStation side={opponent} />
           <OpponentTheater side={opponent} />
           <ShieldStation side={opponent} />
@@ -97,7 +105,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
         <Seam />
 
         {/* ── Metade do jogador (primeiro plano, ancorada na seam) ──────── */}
-        <div className="flex min-h-0 flex-1 items-start gap-1 px-2">
+        <div className="flex min-h-0 flex-1 items-start gap-1 px-1">
           <ShieldStation side={self} />
           <SelfTheater side={self} />
           <DeckStation side={self} />
@@ -112,10 +120,13 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
   );
 }
 
+/** largura comum das colunas laterais — Base, cascata de Shields e pilhas alinham nela. */
+const STATION_WIDTH = "w-[calc(var(--card,3.5rem)*0.62)]";
+
 /** Coluna Base + Shields (topo do lado; pro jogador fica à esquerda, pro oponente à direita). */
 function ShieldStation({ side }: { side: ArenaSide }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1 py-1">
+    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {side.base}
       {side.shields}
     </div>
@@ -125,7 +136,7 @@ function ShieldStation({ side }: { side: ArenaSide }) {
 /** Coluna Exílio / Trash / Deck (pro jogador à direita, pro oponente à esquerda). */
 function DeckStation({ side }: { side: ArenaSide }) {
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1 py-1">
+    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {side.exile}
       {side.trash}
       {side.deck}

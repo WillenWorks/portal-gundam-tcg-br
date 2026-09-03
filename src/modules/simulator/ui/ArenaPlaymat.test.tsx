@@ -97,6 +97,26 @@ describe("ArenaPlaymat", () => {
     ).toBe(true);
   });
 
+  it("recursos e Battle Area são irmãos ADJACENTES no teatro (sem nó de padding no meio)", () => {
+    renderArena();
+    for (const tag of ["opp", "me"] as const) {
+      // wrapper do slot dos recursos e o grid da Battle Area
+      const resWrapper = screen.getByText(`${tag}-resources`).parentElement!;
+      const grid = screen.getAllByTestId(`${tag}-slot`)[0].parentElement!;
+      expect(resWrapper.parentElement).toBe(grid.parentElement); // mesmo container (o teatro)
+      const kids = Array.from(resWrapper.parentElement!.children);
+      expect(Math.abs(kids.indexOf(resWrapper) - kids.indexOf(grid))).toBe(1); // adjacentes
+    }
+  });
+
+  it("colunas laterais têm largura explícita comum (Base/Shields e pilhas alinham)", () => {
+    renderArena();
+    const shieldStation = screen.getByText("me-base").parentElement!;
+    const deckStation = screen.getByText("me-deck").parentElement!;
+    expect(shieldStation.className).toMatch(/w-\[calc\(var\(--card/);
+    expect(deckStation.className).toMatch(/w-\[calc\(var\(--card/);
+  });
+
   it("aplica a perspectiva 3D no canvas", () => {
     const { container } = renderArena();
     expect((container.firstElementChild as HTMLElement).style.perspective).toBe("1200px");

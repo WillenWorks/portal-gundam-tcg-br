@@ -55,12 +55,12 @@ export function ShieldRail({
         const full = i < count;
         const selected = selectedIndexes.includes(i);
         const pickable = Boolean(selectable && full && onSelectIndex);
-        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card,3.5rem)*0.42)]" : undefined;
+        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card,3.5rem)*0.62)]" : undefined;
 
         const piece = vertical ? (
           <span
             className={cn(
-              "block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.46)] border transition-colors duration-100 motion-reduce:transition-none",
+              "block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.62)] border transition-colors duration-100 motion-reduce:transition-none",
               full
                 ? selected
                   ? "border-emerald-400 bg-emerald-500/30"

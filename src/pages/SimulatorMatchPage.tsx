@@ -917,14 +917,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       </div>
 
-      {/* Sprint 4 (redesenho "Nível Arena") — o board é UM `ArenaPlaymat` de
-          proporção travada 16:9. Em telas largas (> 1400px) as sobras laterais
-          viram asas: inspetor de carta à esquerda (segue o hover), log à direita. */}
-      <div className="relative flex min-h-0 flex-1 items-stretch justify-center gap-2 overflow-hidden px-1 sm:px-3 py-2">
+      {/* Sprint 4/6 (redesenho "Nível Arena") — o board é UM `ArenaPlaymat`
+          travado em 16:9. Em telas largas (> 1400px) o espaço lateral que sobra
+          vira asa: o inspetor de carta CRESCE (`flex-1`) pra preencher a
+          esquerda, e um espelho `flex-1` invisível à direita mantém a arena
+          centrada. */}
+      <div className="relative flex min-h-0 flex-1 items-stretch justify-center gap-3 overflow-hidden px-1 sm:px-3 py-2">
         {isWide ? (
-          <CardInspectorPanel card={hoveredCard} art={art} inPlay className="w-64 shrink-0 self-center max-h-full overflow-hidden" />
+          <CardInspectorPanel
+            card={hoveredCard}
+            art={art}
+            inPlay
+            className="min-w-0 max-w-[22rem] flex-1 self-center max-h-full overflow-hidden"
+          />
         ) : null}
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 shrink-0 justify-center">
           <ArenaPlaymat
             opponent={arenaSide(opponentSeat, false)}
             self={arenaSide(seat, true)}
@@ -956,6 +963,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           />
         </div>
+        {/* espelho da asa esquerda — mantém a arena centrada quando o inspetor cresce */}
+        {isWide ? <div className="min-w-0 max-w-[22rem] flex-1" aria-hidden /> : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do
