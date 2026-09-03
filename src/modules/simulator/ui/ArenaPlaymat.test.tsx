@@ -52,7 +52,7 @@ describe("ArenaPlaymat", () => {
     const { container } = renderArena();
     const canvas = container.firstElementChild as HTMLElement;
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
-    expect(canvas.style.getPropertyValue("--card")).toBe("clamp(3.25rem, 6.2vw, 6rem)");
+    expect(canvas.style.getPropertyValue("--card")).toBe("clamp(3.5rem, 6.5vw, 6.2rem)");
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {
@@ -60,14 +60,41 @@ describe("ArenaPlaymat", () => {
     expect(screen.getByText("mira-lane")).toBeInTheDocument();
   });
 
-  it("espelha o oponente: pilhas antes de Base/Shields; jogador o inverso", () => {
+  const before = (a: string, b: string) =>
+    Boolean(screen.getByText(a).compareDocumentPosition(screen.getByText(b)) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it("espelha o oponente: coluna Deck à esquerda / Base+Shields à direita; jogador o inverso", () => {
     renderArena();
-    const pos = (a: string, b: string) =>
-      screen.getByText(a).compareDocumentPosition(screen.getByText(b)) & Node.DOCUMENT_POSITION_FOLLOWING;
-    // oponente: deck (pilha) vem ANTES de shields (Base/Shields à direita)
-    expect(pos("opp-deck", "opp-shields")).toBeTruthy();
-    // jogador: shields vem ANTES de deck (Base/Shields à esquerda)
-    expect(pos("me-shields", "me-deck")).toBeTruthy();
+    // oponente (topo): [Deck/Trash/Exílio] ... [Base/Shields]
+    expect(before("opp-deck", "opp-resources")).toBe(true);
+    expect(before("opp-resources", "opp-shields")).toBe(true);
+    // jogador (base): [Base/Shields] ... [Deck/Trash/Exílio]
+    expect(before("me-shields", "me-resources")).toBe(true);
+    expect(before("me-resources", "me-deck")).toBe(true);
+  });
+
+  it("DeckStation empilha Exílio → Trash → Deck", () => {
+    renderArena();
+    expect(before("me-exile", "me-trash")).toBe(true);
+    expect(before("me-trash", "me-deck")).toBe(true);
+  });
+
+  it("ShieldStation: Base no topo, Shields logo abaixo", () => {
+    renderArena();
+    expect(before("me-base", "me-shields")).toBe(true);
+  });
+
+  it("recursos ficam COLADOS à Battle Area (oponente acima, jogador abaixo)", () => {
+    renderArena();
+    const slot = (tag: string) => screen.getAllByTestId(`${tag}-slot`)[0];
+    // oponente: recursos ANTES dos slots
+    expect(
+      Boolean(screen.getByText("opp-resources").compareDocumentPosition(slot("opp")) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    // jogador: slots ANTES dos recursos
+    expect(
+      Boolean(slot("me").compareDocumentPosition(screen.getByText("me-resources")) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
   });
 
   it("aplica a perspectiva 3D no canvas", () => {
