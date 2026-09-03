@@ -48,4 +48,24 @@ describe("ShieldRail", () => {
     render(<ShieldRail count={3} />);
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("orientation vertical empilha os pips em coluna e mantém contagem + avisos", () => {
+    render(<ShieldRail count={1} orientation="vertical" />);
+    const list = screen.getByRole("list", { name: "1 de 6 shields" });
+    expect(list.className).toMatch(/flex-col/);
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("1 golpe do lethal")).toBeInTheDocument();
+  });
+
+  it("vertical + selectable preserva o hit-area de 44px por pip cheio", () => {
+    render(<ShieldRail count={2} orientation="vertical" selectable onSelectIndex={() => {}} />);
+    const pips = screen.getAllByRole("button", { name: /^Shield \d$/ });
+    expect(pips).toHaveLength(2);
+    expect(pips[0].className).toMatch(/size-11/);
+  });
+
+  it("horizontal (padrão) não empilha os pips", () => {
+    render(<ShieldRail count={3} />);
+    expect(screen.getByRole("list", { name: "3 de 6 shields" }).className).not.toMatch(/flex-col/);
+  });
 });

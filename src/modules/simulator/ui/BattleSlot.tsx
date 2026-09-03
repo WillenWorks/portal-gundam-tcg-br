@@ -2,7 +2,12 @@
  * escura com acento ciano/dourado; Unit com badges de AP efetivo / HP
  * restante; overlay "RESTED"; Piloto acoplado (DockedPilot) com badge LINK;
  * realce verde/dourado quando é alvo legal de uma ação. Botões de ação com
- * área de toque de 44px+ (era ~20px antes — o relato original do Willen). */
+ * área de toque de 44px+ (era ~20px antes — o relato original do Willen).
+ *
+ * Sprint 2 (redesenho "Nível Arena") — slot vazio ganha textura de hangar
+ * (moldura ciano tracejada de alta visibilidade); AP/HP viram badges de canto
+ * (inferior esquerdo / direito) com indicador de dano acumulado; botões de
+ * combate crescem pra >= 44px. */
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/modules/simulator/engine/types";
@@ -48,7 +53,11 @@ export function BattleSlot({
   registerRef,
 }: BattleSlotProps) {
   if (!unit) {
-    return <div className="aspect-[63/88] w-full border border-dashed border-white/10 bg-white/[0.015]" />;
+    return (
+      <div className="relative aspect-[63/88] w-full border border-dashed border-cyan-500/20 bg-slate-900/40">
+        <div className="absolute inset-1 border border-cyan-500/10" aria-hidden />
+      </div>
+    );
   }
 
   // passa o Pilot pareado direto (BattleSlot não tem o GameState) pra que o
@@ -76,15 +85,26 @@ export function BattleSlot({
         className={cn("relative block w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
       >
         <CardFace nameEn={unit.def.nameEn} code={unit.def.code} art={art} size="sm" className="w-full" dimmed={unit.rested}>
-          {/* AP / HP efetivos */}
-          <div className="absolute inset-x-0 bottom-0 flex items-stretch text-[9px] font-black">
-            <span className={cn("flex-1 py-0.5 text-center", apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/90 text-white")}>
-              {ap}
-            </span>
-            <span className={cn("flex-1 py-0.5 text-center", hpDamaged ? "bg-red-600/90 text-white" : "bg-slate-700/90 text-white")}>
-              {hpRemaining}
-            </span>
-          </div>
+          {/* AP / HP efetivos — badges de canto (Sprint 2) */}
+          <span
+            className={cn(
+              "absolute bottom-0 left-0 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
+              apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
+            )}
+            aria-label={`AP ${ap}`}
+          >
+            {ap}
+          </span>
+          <span
+            className={cn(
+              "absolute bottom-0 right-0 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
+              hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
+            )}
+            aria-label={`HP ${hpRemaining}`}
+          >
+            {hpRemaining}
+            {hpDamaged ? <span className="text-[7px] font-bold text-red-200">-{unit.damage}</span> : null}
+          </span>
           {unit.rested ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45">
               <span className="rotate-[-12deg] border border-slate-300/60 bg-black/70 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-slate-200">
@@ -103,17 +123,17 @@ export function BattleSlot({
       {(actions?.onAttack || actions?.onDeclareTarget || actions?.onBlocker) ? (
         <div className="flex flex-col gap-0.5 p-0.5">
           {actions.onAttack && !unit.rested ? (
-            <Button size="sm" variant="outline" className="h-8 w-full rounded-none px-1 text-[10px]" disabled={busy} onClick={() => actions.onAttack!(unit)}>
+            <Button size="sm" variant="outline" className="h-11 w-full rounded-none px-1 text-[11px]" disabled={busy} onClick={() => actions.onAttack!(unit)}>
               Atacar
             </Button>
           ) : null}
           {actions.onDeclareTarget ? (
-            <Button size="sm" className="h-8 w-full rounded-none bg-emerald-600 px-1 text-[10px] text-white hover:bg-emerald-500" disabled={busy} onClick={() => actions.onDeclareTarget!(unit)}>
+            <Button size="sm" className="h-11 w-full rounded-none bg-emerald-600 px-1 text-[11px] text-white hover:bg-emerald-500" disabled={busy} onClick={() => actions.onDeclareTarget!(unit)}>
               Mirar aqui
             </Button>
           ) : null}
           {actions.onBlocker && !unit.rested && hasKeyword(unit, "Blocker") ? (
-            <Button size="sm" variant="outline" className="h-8 w-full rounded-none border-sky-500/50 px-1 text-[10px] text-sky-300" disabled={busy} onClick={() => actions.onBlocker!(unit)}>
+            <Button size="sm" variant="outline" className="h-11 w-full rounded-none border-sky-500/50 px-1 text-[11px] text-sky-300" disabled={busy} onClick={() => actions.onBlocker!(unit)}>
               Blocker
             </Button>
           ) : null}

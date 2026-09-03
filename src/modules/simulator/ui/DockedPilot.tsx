@@ -1,6 +1,10 @@
 /* docs/19, Sessão 3 — Piloto "acoplado" (docking) visualmente na base da
  * Unit pareada. Badge LINK dourado brilhante quando a Link Condition
- * (Comprehensive Rules 3-2-6) está satisfeita. */
+ * (Comprehensive Rules 3-2-6) está satisfeita.
+ *
+ * Sprint 2 (redesenho "Nível Arena") — mostra também o modificador impresso de
+ * combate do Piloto (`+AP/+HP`, Comprehensive Rules 3-3-5) pra o acoplamento
+ * parecer uma extensão natural da Unit. */
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectivePilotDef, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
@@ -18,6 +22,9 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
   const pilotDef = effectivePilotDef(pilot);
   const linked = satisfiesLinkCondition(pilotDef, unit.def);
   const src = artSrc(art, pilot.def.code, "xs");
+  const modAp = pilotDef.ap ?? 0;
+  const modHp = pilotDef.hp ?? 0;
+  const mod = modAp || modHp ? `+${modAp}/+${modHp}` : null;
 
   return (
     <button
@@ -32,6 +39,9 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
         {src ? <img src={src} alt={pilotDef.nameEn} className="h-full w-full object-cover" /> : null}
       </span>
       <span className="min-w-0 flex-1 truncate text-[8px] font-medium text-slate-200">{pilotDef.nameEn}</span>
+      {mod ? (
+        <span className="shrink-0 font-mono text-[8px] font-bold tabular-nums text-emerald-300">{mod}</span>
+      ) : null}
       {linked ? (
         <span className="shrink-0 animate-pulse rounded-none bg-amber-400 px-1 text-[7px] font-black uppercase tracking-wide text-black shadow-[0_0_8px_rgba(251,191,36,0.6)]">
           Link

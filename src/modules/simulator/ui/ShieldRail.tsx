@@ -1,8 +1,12 @@
-/* Fase C (docs/19) — trilha horizontal de pips de Shield (substitui a pilha
- * sobreposta do ShieldStack). Sem versos, sem stack: é só a leitura da
- * contagem. Pip cheio = glifo de escudo preenchido; pip vazio = contorno
- * tracejado. O número grande fica sempre visível ao lado e vira vermelho em
- * `count <= 2`, com um aviso hairline quando o lethal está a 1 golpe.
+/* Fase C (docs/19) — trilha de pips de Shield (substitui a pilha sobreposta do
+ * ShieldStack). Sem versos, sem stack: é só a leitura da contagem. Pip cheio =
+ * glifo de escudo preenchido; pip vazio = contorno tracejado. O número grande
+ * fica sempre visível ao lado e vira vermelho em `count <= 2`, com um aviso
+ * hairline quando o lethal está a 1 golpe.
+ *
+ * Sprint 2 (redesenho "Nível Arena") — `orientation="vertical"` empilha os pips
+ * numa coluna tática na borda esquerda da arena (topologia Mobile Suit Arena).
+ * O padrão continua "horizontal" (nada muda pros callers atuais).
  *
  * `selectable` (ex.: efeito que mira uma shield): cada pip CHEIO vira um
  * <button> com hit-area >= 44px, mesmo com o glifo pequeno. */
@@ -17,6 +21,8 @@ interface ShieldRailProps {
   onSelectIndex?: (index: number) => void;
   /** realce transitório de dano recém-tomado (o pai controla por quanto tempo). */
   justBroken?: boolean;
+  /** "vertical" = cascata na borda esquerda da arena; "horizontal" (padrão) = linha. */
+  orientation?: "horizontal" | "vertical";
 }
 
 export function ShieldRail({
@@ -26,14 +32,16 @@ export function ShieldRail({
   selectedIndexes = [],
   onSelectIndex,
   justBroken,
+  orientation = "horizontal",
 }: ShieldRailProps) {
   const total = Math.max(max, count);
   const low = count <= 2;
   const pips = Array.from({ length: total }, (_, i) => i < count);
+  const vertical = orientation === "vertical";
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center gap-1.5">
+    <div className={cn("flex flex-col", vertical ? "items-center gap-1" : "gap-0.5")}>
+      <div className={cn("flex gap-1.5", vertical ? "flex-col items-center" : "items-center")}>
         <span
           className={cn(
             "font-mono text-lg font-black leading-none tabular-nums",
@@ -45,7 +53,8 @@ export function ShieldRail({
         <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">Shields</span>
         <div
           className={cn(
-            "flex items-center gap-0.5 rounded-none",
+            "flex gap-0.5 rounded-none",
+            vertical ? "flex-col items-center" : "items-center",
             justBroken && "ring-1 ring-red-500/60",
           )}
           role="list"

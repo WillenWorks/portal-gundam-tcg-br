@@ -6,6 +6,10 @@
  * A leitura rápida é uma linha segmentada em mono (`◆◆◆◆◇`) + "{ativos}
  * ativos · nível {level}".
  *
+ * Sprint 2 (redesenho "Nível Arena") — a fileira de peças NÃO quebra mais linha
+ * (`flex-wrap` saía flutuando sobre a Battle Area). Agora é uma linha contínua
+ * e compacta que rola no eixo X se estourar; aceita `className` do pai.
+ *
  * `selectable` (pagamento de custo): só as peças ATIVAS viram <button>;
  * selecionada = realce esmeralda. Com `costProgress`, uma barra "{paid}/{total}
  * pago" aparece abaixo. `readOnly` (medidor do oponente): sem clique, compacto. */
@@ -25,6 +29,7 @@ interface ResourceMeterProps {
   onSelect?: (instanceId: string) => void;
   readOnly?: boolean;
   costProgress?: { paid: number; total: number };
+  className?: string;
 }
 
 export function ResourceMeter({
@@ -35,12 +40,13 @@ export function ResourceMeter({
   onSelect,
   readOnly,
   costProgress,
+  className,
 }: ResourceMeterProps) {
   const active = resources.filter((r) => !r.rested).length;
   const segments = resources.length ? resources.map((r) => (r.rested ? "◇" : "◆")).join("") : "—";
 
   return (
-    <div className={cn("flex flex-col gap-1", readOnly && "opacity-90")}>
+    <div className={cn("flex flex-col gap-1", readOnly && "opacity-90", className)}>
       <p className="font-mono text-xs font-bold tabular-nums text-slate-200">
         <span className={cn("mr-1 tracking-tight", readOnly ? "text-sm" : "text-base")}>{segments}</span>
         <span className="text-cyan-300">{active}</span> ativos
@@ -51,7 +57,12 @@ export function ResourceMeter({
       {resources.length === 0 ? (
         <p className="text-[9px] text-muted-portal">Nenhum recurso.</p>
       ) : (
-        <div className={cn("flex flex-wrap items-center gap-1", readOnly && "gap-0.5")}>
+        <div
+          className={cn(
+            "flex min-w-0 items-end gap-1 overflow-x-auto overscroll-x-contain pb-0.5",
+            readOnly && "gap-0.5",
+          )}
+        >
           {resources.map((r) => {
             const selected = selectedIds.includes(r.instanceId);
             const pickable = Boolean(selectable && !readOnly && !r.rested && onSelect);
@@ -66,9 +77,9 @@ export function ResourceMeter({
                 ? "h-[calc(var(--card,3.5rem)*0.5)] w-[calc(var(--card,3.5rem)*0.34)]"
                 : "h-[calc(var(--card,3.5rem)*0.7)] w-[calc(var(--card,3.5rem)*0.5)]",
               selected
-                ? "border-emerald-400 bg-emerald-500/30"
+                ? "border-emerald-400 bg-emerald-500/30 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
                 : r.isEx
-                  ? "border-accent bg-accent/20"
+                  ? "border-accent bg-accent/20 shadow-[0_0_6px_rgba(234,179,8,0.35)]"
                   : r.rested
                     ? "rotate-90 border-white/10 bg-slate-700/40 opacity-60"
                     : "border-primary/50 bg-primary/15",
