@@ -10,25 +10,25 @@
  *  - `ShieldStation`/`DeckStation` têm largura EXPLÍCITA comum (`--card * 0.62`):
  *    Base, cascata de Shields e as 3 pilhas alinham na mesma coluna.
  *
- * Sprint 5.1 (reestruturação do playmat) — 3 colunas, sem `justify-between` (que
- * abria o vazio central):
+ * Espelhamento 180° do playmat oficial (rodada Willen 2026-09-03) — o lado do
+ * oponente é o do jogador GIRADO 180°: colunas trocam de lado E invertem a
+ * ordem vertical.
  *   ┌───────────┬────────────────────────────┬───────────┐
- *   │ ESQUERDA  │        CENTRO (flex-1)      │  DIREITA  │
- *   │ (largura  │  metade do oponente:       │ (largura  │
- *   │  fixa)    │   [resumo mão]             │  fixa)    │
- *   │           │   [recursos] ── colados ── │           │
- *   │  opp:     │   [Battle Area oponente]   │  opp:     │
- *   │  Deck     │  ═══════ THE SEAM ═══════  │  Base+    │
- *   │  station  │   [Battle Area jogador]    │  Shields  │
- *   │           │   [recursos] ── colados ── │           │
- *   │  self:    │                            │  self:    │
- *   │  Base+    │                            │  Deck     │
- *   │  Shields  │                            │  station  │
+ *   │ ESQUERDA  │        CENTRO              │  DIREITA  │
+ *   │  opp:     │   [recursos do oponente]  │  opp:     │
+ *   │  Deck     │   [Battle Area oponente]  │  Shields  │
+ *   │  Trash    │  ═══════ THE SEAM ═══════ │  Base     │
+ *   │  Exílio   │   [Battle Area jogador]   │  Shields  │
+ *   │           │   [recursos do jogador]   │  Base     │
+ *   │  self:    │                           │  self:    │
+ *   │  Exílio   │                           │  Base     │
+ *   │  Trash    │                           │  Shields  │
+ *   │  Deck     │                           │           │
  *   └───────────┴────────────────────────────┴───────────┘
- * Espelhamento: a coluna Base/Shields fica à ESQUERDA pro jogador e à DIREITA
- * pro oponente; a coluna Deck/Trash/Exílio, o inverso. Cada metade é `flex-1` e
- * alinha o conteúdo à seam (`items-end` no oponente, `items-start` no jogador),
- * então recursos + unidades ficam grudados no centro, sem buracos.
+ * Cada metade alinha o conteúdo à seam (`items-end` no oponente, `items-start`
+ * no jogador): as duas Battle Areas ficam coladas no centro; os recursos do
+ * oponente sobem pro TOPO da tela. `ShieldStation`/`DeckStation` recebem
+ * `mirrored` pra inverter a ordem dos filhos no lado do oponente.
  *
  * Perspectiva 3D (Sprint 5): `perspective` no canvas + `rotateX(8°)` na mesa; a
  * metade do oponente recua (`scale .95 / opacity .9`). Se a mira do `CombatLane`
@@ -99,9 +99,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
         {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
             pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
         <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
-          <DeckStation side={opponent} />
+          <DeckStation side={opponent} mirrored />
           <OpponentTheater side={opponent} />
-          <ShieldStation side={opponent} />
+          <ShieldStation side={opponent} mirrored />
         </div>
 
         <Seam />
@@ -129,44 +129,88 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
 /** largura comum das colunas laterais — Base, cascata de Shields e pilhas alinham nela. */
 const STATION_WIDTH = "w-[calc(var(--card,3.5rem)*0.62)]";
 
-/** Coluna Base + Shields (topo do lado; pro jogador fica à esquerda, pro oponente à direita). */
-function ShieldStation({ side }: { side: ArenaSide }) {
+/** largura da fileira de 6 slots (`repeat(6, --card)` + 5 gaps de `gap-1`) — a
+ * linha de recursos usa a MESMA largura pra alinhar com a Battle Area. */
+const BATTLE_ROW_WIDTH = "calc(var(--card, 3.5rem) * 6 + 1.25rem)";
+
+/** trilha de recursos: centrada, travada na largura da Battle Area, scroll fantasma. */
+function ResourceLane({ children }: { children: ReactNode }) {
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
-      {side.base}
-      {side.shields}
+    <div
+      className="scrollbar-ghost mx-auto flex min-w-0 max-w-full justify-center overflow-x-auto overscroll-x-contain"
+      style={{ width: BATTLE_ROW_WIDTH }}
+    >
+      {children}
     </div>
   );
 }
 
-/** Coluna Exílio / Trash / Deck (pro jogador à direita, pro oponente à esquerda). */
-function DeckStation({ side }: { side: ArenaSide }) {
+/**
+ * Coluna Base + Shields. Jogador (não-espelhado): Base no topo, Shields
+ * descendo. Oponente (`mirrored`, rotação 180° do playmat): Shields no topo,
+ * Base embaixo — encostada na seam, entre os shields e a Battle Area dele.
+ */
+function ShieldStation({ side, mirrored }: { side: ArenaSide; mirrored?: boolean }) {
   return (
     <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
-      {side.exile}
-      {side.trash}
-      {side.deck}
+      {mirrored ? (
+        <>
+          {side.shields}
+          {side.base}
+        </>
+      ) : (
+        <>
+          {side.base}
+          {side.shields}
+        </>
+      )}
     </div>
   );
 }
 
-/** Centro da metade do oponente: resumo da mão + recursos COLADOS e centrados acima da Battle Area. */
+/**
+ * Coluna Exílio / Trash / Deck. Jogador: Exílio no topo, Deck embaixo (perto de
+ * você). Oponente (`mirrored`): Deck no topo, Exílio embaixo (perto da seam) —
+ * o playmat dele girado 180°.
+ */
+function DeckStation({ side, mirrored }: { side: ArenaSide; mirrored?: boolean }) {
+  return (
+    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
+      {mirrored ? (
+        <>
+          {side.deck}
+          {side.trash}
+          {side.exile}
+        </>
+      ) : (
+        <>
+          {side.exile}
+          {side.trash}
+          {side.deck}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Centro da metade do oponente (espelho 180°): recursos NO TOPO, Battle Area
+ *  encostada na seam. */
 function OpponentTheater({ side }: { side: ArenaSide }) {
   return (
     <div className="flex min-w-0 shrink-0 flex-col items-center justify-end gap-1 pb-1">
       {side.handSummary ? <div className="flex justify-center">{side.handSummary}</div> : null}
-      <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
+      <ResourceLane>{side.resources}</ResourceLane>
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
     </div>
   );
 }
 
-/** Centro da metade do jogador: Battle Area + recursos COLADOS e centrados logo abaixo. */
+/** Centro da metade do jogador: Battle Area encostada na seam + recursos logo abaixo. */
 function SelfTheater({ side }: { side: ArenaSide }) {
   return (
     <div className="flex min-w-0 shrink-0 flex-col items-center justify-start gap-1 pt-1">
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
-      <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
+      <ResourceLane>{side.resources}</ResourceLane>
     </div>
   );
 }

@@ -836,7 +836,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // da Battle Area (o `ArenaPlaymat` centraliza este bloco no teatro).
       resources: (
         <div className="flex items-end justify-center gap-2">
-          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} hideCount={!isSelf} />
+          {/* deck de recursos / deck: contagem visível dos 2 lados (decisão do
+              Willen 2026-09-03 — sim de teste, não PvP com info oculta). */}
+          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} />
           <ResourceMeter
             resources={resources}
             level={player.counts.resourceArea}
@@ -856,7 +858,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           variant="stack"
           label="Deck"
           count={deckCount}
-          hideCount={!isSelf}
           tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"}
         />
       ),

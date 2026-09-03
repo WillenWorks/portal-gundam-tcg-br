@@ -145,6 +145,38 @@
 }
 
 @layer utilities {
+  /* Simulador — barra de rolagem "fantasma": fina e quase invisível em repouso,
+   * um fio discreto no hover. Pra linhas que PODEM transbordar (recursos, mão)
+   * sem que a scrollbar quebre o visual da arena. */
+  .scrollbar-ghost {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.12) transparent;
+  }
+  .scrollbar-ghost:hover {
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
+  .scrollbar-ghost::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+  .scrollbar-ghost::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-ghost::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.12);
+    border-radius: 9999px;
+  }
+  .scrollbar-ghost:hover::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+  }
+  /* Some totalmente com a scrollbar sem tirar o overflow (Firefox + WebKit). */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .surface-panel {
     @apply border-white/10 bg-white/5 text-white transition-colors duration-200 dark:border-white/10 dark:bg-white/5 dark:text-white light:border-slate-300/80 light:bg-white/90 light:text-slate-950 light:shadow-[0_16px_44px_rgba(15,23,42,0.08)];
   }

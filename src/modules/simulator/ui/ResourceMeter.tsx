@@ -54,7 +54,7 @@ export function ResourceMeter({
     >
       <div
         className={cn(
-          "flex min-w-0 items-end gap-1 overflow-x-auto overscroll-x-contain pb-0.5",
+          "scrollbar-ghost flex min-w-0 items-end gap-1 overflow-x-auto overscroll-x-contain pb-0.5",
           readOnly && "gap-0.5",
         )}
       >

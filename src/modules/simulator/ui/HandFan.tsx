@@ -67,7 +67,7 @@ export function HandFan({
     : "hover:-translate-y-4 focus-within:-translate-y-4";
 
   return (
-    <div className="w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
+    <div className="scrollbar-ghost w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
       <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-8 pb-1" : "pb-2 pt-9")}>
         {cards.map((entry, index) => {
           const { card, playable, blockedReason } = entry;

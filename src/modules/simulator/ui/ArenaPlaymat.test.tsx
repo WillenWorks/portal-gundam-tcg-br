@@ -73,15 +73,31 @@ describe("ArenaPlaymat", () => {
     expect(before("me-resources", "me-deck")).toBe(true);
   });
 
-  it("DeckStation empilha Exílio → Trash → Deck", () => {
+  it("DeckStation do jogador empilha Exílio → Trash → Deck", () => {
     renderArena();
     expect(before("me-exile", "me-trash")).toBe(true);
     expect(before("me-trash", "me-deck")).toBe(true);
   });
 
-  it("ShieldStation: Base no topo, Shields logo abaixo", () => {
+  it("ShieldStation do jogador: Base no topo, Shields logo abaixo", () => {
     renderArena();
     expect(before("me-base", "me-shields")).toBe(true);
+  });
+
+  it("oponente é o playmat girado 180°: DeckStation empilha Deck → Trash → Exílio", () => {
+    renderArena();
+    expect(before("opp-deck", "opp-trash")).toBe(true);
+    expect(before("opp-trash", "opp-exile")).toBe(true);
+  });
+
+  it("oponente girado 180°: ShieldStation empilha Shields → Base (base encostada na seam)", () => {
+    renderArena();
+    expect(before("opp-shields", "opp-base")).toBe(true);
+  });
+
+  it("recursos do oponente vão pro TOPO (antes da Battle Area dele)", () => {
+    renderArena();
+    expect(before("opp-resources", "opp-base")).toBe(true);
   });
 
   it("recursos ficam COLADOS à Battle Area (oponente acima, jogador abaixo)", () => {
