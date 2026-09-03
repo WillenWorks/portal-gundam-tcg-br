@@ -13,9 +13,11 @@ interface BaseCardGaugeProps {
   selected?: boolean;
   onSelect?: (base: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
+  /** hover / foco na Base (ou `null` ao sair) — alimenta o inspetor lateral (Sprint 3). */
+  onHoverCard?: (card: CardInstance | null) => void;
 }
 
-export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onInspect }: BaseCardGaugeProps) {
+export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onInspect, onHoverCard }: BaseCardGaugeProps) {
   if (!base) {
     return (
       <div>
@@ -39,6 +41,10 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
       <button
         type="button"
         onClick={() => (legalTarget && onSelect ? onSelect(base) : onInspect?.(base))}
+        onMouseEnter={onHoverCard ? () => onHoverCard(base) : undefined}
+        onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
+        onFocus={onHoverCard ? () => onHoverCard(base) : undefined}
+        onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
         className={cn(
           "relative block w-11 border",
           legalTarget

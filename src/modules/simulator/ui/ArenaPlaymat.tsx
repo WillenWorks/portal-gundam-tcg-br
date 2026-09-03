@@ -12,7 +12,11 @@
  * (`ReactNode`) que o `SimulatorMatchPage` preenche com os componentes de zona
  * já existentes (`ShieldRail`, `ResourceMeter`, `BattleSlot`, `PileTray`,
  * `HandFan`, ...). O `overlay` cobre o canvas inteiro (feixe de mira do
- * `CombatLane`). */
+ * `CombatLane`).
+ *
+ * Hover → inspetor lateral (Sprint 3): não passa por aqui — o pai liga o
+ * `onHoverCard` de cada leaf (`BattleSlot`, `BaseCardGauge`, `HandFan`) ao
+ * estado que alimenta o `CardInspectorPanel` das asas. */
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 

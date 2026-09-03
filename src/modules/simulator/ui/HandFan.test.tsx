@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
 import { HandFan, type HandFanCard } from "./HandFan";
@@ -103,5 +104,28 @@ describe("HandFan", () => {
     hand([{ card: unit("Gundam", { ap: 5, hp: 6 }), playable: true }]);
     expect(screen.getByText("5")).toBeTruthy();
     expect(screen.getByText("6")).toBeTruthy();
+  });
+
+  it("carta jogável ganha o brilho de prontidão ciano", () => {
+    hand([{ card: unit("Gundam"), playable: true }]);
+    expect(screen.getByRole("button", { name: /Gundam/ }).className).toMatch(/shadow-\[0_0_10px_rgba\(6,182,212,0\.4\)\]/);
+  });
+
+  it("modo anchored: lift maior (-1.5rem) no hover/foco", () => {
+    render(<HandFan cards={[{ card: unit("Gundam"), playable: true }]} art={{}} onPeek={vi.fn()} anchored />);
+    const btn = screen.getByRole("button", { name: /Gundam/ });
+    expect(btn.className).toMatch(/hover:-translate-y-6/);
+    expect(btn.className).toMatch(/focus-visible:-translate-y-6/);
+  });
+
+  it("onHoverCard dispara com a carta no mouseenter e com null no mouseleave", () => {
+    const onHoverCard = vi.fn();
+    const gundam = unit("Gundam");
+    render(<HandFan cards={[{ card: gundam, playable: true }]} art={{}} onPeek={vi.fn()} onHoverCard={onHoverCard} />);
+    const btn = screen.getByRole("button", { name: /Gundam/ });
+    fireEvent.mouseEnter(btn);
+    expect(onHoverCard).toHaveBeenLastCalledWith(gundam);
+    fireEvent.mouseLeave(btn);
+    expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
 });

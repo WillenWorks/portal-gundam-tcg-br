@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
 import { BattleSlot } from "./BattleSlot";
 
@@ -63,5 +63,16 @@ describe("BattleSlot", () => {
   it("piloto acoplado aparece na base do slot", () => {
     render(<BattleSlot unit={unit()} pilot={inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 1, hp: 1 })} art={{}} />);
     expect(screen.getByText("Amuro Ray")).toBeInTheDocument();
+  });
+
+  it("onHoverCard dispara com a Unit no hover e null ao sair", () => {
+    const onHoverCard = vi.fn();
+    const u = unit();
+    render(<BattleSlot unit={u} pilot={null} art={{}} onHoverCard={onHoverCard} onInspect={vi.fn()} />);
+    const face = screen.getAllByRole("button")[0];
+    fireEvent.mouseEnter(face);
+    expect(onHoverCard).toHaveBeenLastCalledWith(u);
+    fireEvent.mouseLeave(face);
+    expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
 });

@@ -34,6 +34,8 @@ interface BattleSlotProps {
   busy?: boolean;
   onSelect?: (unit: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
+  /** hover / foco na Unit (ou `null` ao sair) — alimenta o inspetor lateral (Sprint 3). */
+  onHoverCard?: (card: CardInstance | null) => void;
   actions?: BattleSlotActions;
   /** ref-callback pra o CombatLane medir a posição desta Unit (linha de mira). */
   registerRef?: (el: HTMLElement | null) => void;
@@ -49,6 +51,7 @@ export function BattleSlot({
   busy,
   onSelect,
   onInspect,
+  onHoverCard,
   actions,
   registerRef,
 }: BattleSlotProps) {
@@ -82,6 +85,10 @@ export function BattleSlot({
       <button
         type="button"
         onClick={() => (legalTarget && onSelect ? onSelect(unit) : onInspect?.(unit))}
+        onMouseEnter={onHoverCard ? () => onHoverCard(unit) : undefined}
+        onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
+        onFocus={onHoverCard ? () => onHoverCard(unit) : undefined}
+        onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
         className={cn("relative block w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
       >
         <CardFace nameEn={unit.def.nameEn} code={unit.def.code} art={art} size="sm" className="w-full" dimmed={unit.rested}>
