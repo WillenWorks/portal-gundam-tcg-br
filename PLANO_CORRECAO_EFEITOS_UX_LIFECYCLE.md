@@ -56,6 +56,6 @@ P0 → P1 → P2 → P3 → P4. Cada fase: implementa → `pnpm test && check:ty
 |---|---|---|
 | P0 — loop whenPaired | ✅ | `6ac0e47` — `defaultActionFor` resolve `abilityResolution` (era `finishTurn` rejeitado → loop) |
 | P1 — efeito Attack + abilityResolution | ✅ | `b9c2f91` — `abilityDispatch.ts`; `whenPaired`→`abilityResolution` (+`trigger`/`targetScope`); `declareAttack` despacha "Attack" do atacante+Piloto; `AbilityResolutionModal` |
-| P2 — botões flutuantes | ⬜ | |
-| P3 — jogabilidade contextual | ⬜ | |
+| P2 — botões flutuantes | ✅ | `f5b54f2` — `BattleSlot` tira vertical de ícones (`size-6`) na borda direita; `HandFan` ícones Play/Eye no topo (`-top-5`), AP/HP de volta ao `bottom-0` |
+| P3 — jogabilidade contextual | ✅ | `ui/handPlayability.ts` (puro): `playableModes` checa custo (recursos ativos), nível (recursos em campo), fase (Main vs Action Step), Unit amiga livre pra parear, alvo legal por escopo pra efeitos "Choose 1 …". `SimulatorMatchPage.handPlayModes` roteia por ele → só carta jogável colorida; `describeHandCard` dá motivo específico (nível/recurso/sem alvo/sem Unit livre). `ActionDock` actionStep: `hasPlay?` — sem Command 【Action】 jogável, "Passar (nada a fazer)" vira botão primário. +10 testes |
 | P4 — ciclo de vida / link | ⬜ | |

@@ -111,6 +111,7 @@ import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
+import { playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import {
   ActionDock,
   type ActionDockState,
@@ -611,24 +612,43 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     runAction({ kind: "declareAttack", attackerId, target });
   };
 
-  /** Modos de jogo de uma carta da mão (1, ou 2 pra Command/Pilot). Vazio = injogável agora. */
+  // P3 — contexto de jogabilidade: recursos, fase, Unit livre pra parear, alvos.
+  const playabilityCtx = (): PlayabilityContext => {
+    const mine = view.players[seat];
+    const myUnits = mine.battleArea.filter((c) => !isHidden(c)) as CardInstance[];
+    const oppUnits = (view.players[opponentSeat].battleArea.filter((c) => !isHidden(c)) as CardInstance[]).filter(
+      (u) => u.def.cardType === "UNIT",
+    );
+    return {
+      myTurnMain,
+      inActionStep,
+      activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
+      totalResources: mine.counts.resourceArea,
+      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def.cardType === "UNIT" && !u.pairedPilotId),
+      targetCounts: {
+        enemyUnit: oppUnits.length,
+        friendlyUnit: myUnits.filter((u) => u.def.cardType === "UNIT").length,
+        ownResource: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).length,
+      },
+    };
+  };
+
+  /** Modos de jogo de uma carta da mão AGORA (considerando custo/nível/fase/alvo). Vazio = injogável. */
   const handPlayModes = (c: CardInstance): HandPlayMode[] => {
-    const isCommandType = c.def.cardType === "COMMAND";
-    const isDual = isCommandType && !!c.def.pilotMode;
-    const canCommand = Boolean(commandTrigger) && (c.def.triggerKeywords?.includes(commandTrigger!) ?? false);
-    const canPair = myTurnMain; // o motor valida se há Unit amiga sem Piloto ao confirmar
+    const modes = playableModes(c.def, playabilityCtx());
     const asCommand: HandPlayMode = { label: `Jogar como Comando (${commandTrigger ?? "Main"})`, run: () => { setPreview(null); startCommand(c); } };
     const asPilot: HandPlayMode = { label: "Parear como Piloto", run: () => { setPreview(null); startDeploy(c); } };
-    const plain = (fn: (card: CardInstance) => void): HandPlayMode => ({ label: "Jogar", run: () => { setPreview(null); fn(c); } });
+    const plain = (label: string, fn: (card: CardInstance) => void): HandPlayMode => ({ label, run: () => { setPreview(null); fn(c); } });
+    const isDual = c.def.cardType === "COMMAND" && !!c.def.pilotMode;
 
     if (isDual) {
-      const modes: HandPlayMode[] = [];
-      if (canCommand) modes.push(asCommand);
-      if (canPair) modes.push(asPilot);
-      return modes;
+      const out: HandPlayMode[] = [];
+      if (modes.includes("commandMain") || modes.includes("commandAction")) out.push(asCommand);
+      if (modes.includes("deploy")) out.push(asPilot);
+      return out;
     }
-    if (isCommandType) return canCommand ? [plain(startCommand)] : [];
-    return canPair ? [plain(startDeploy)] : [];
+    if (c.def.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
+    return modes.includes("deploy") ? [plain("Jogar", startDeploy)] : [];
   };
 
   // ---------------------------------------------------------------------------
@@ -727,13 +747,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const isDual = isCommand && !!c.def.pilotMode;
     const modes = handPlayModes(c);
     const playable = modes.length > 0;
+    const ctx = playabilityCtx();
+    const shortOnResources = ctx.activeResources < (c.def.cost ?? 0);
+    const shortOnLevel = ctx.totalResources < (c.def.level ?? 0);
     const blockedReason = playable
       ? undefined
-      : isDual
-        ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
-        : isCommand
-          ? "Esta Command não tem gatilho disponível agora."
-          : notMainPhaseReason;
+      : shortOnLevel
+        ? `Nível insuficiente — precisa de ${c.def.level} recursos em campo.`
+        : shortOnResources
+          ? `Recursos insuficientes — custo ${c.def.cost}, você tem ${ctx.activeResources} ativos.`
+          : isDual
+            ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
+            : isCommand
+              ? "Esta Command não tem gatilho disponível agora."
+              : c.def.cardType === "PILOT" || c.def.pilotMode
+                ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
+                : notMainPhaseReason;
     return { modes, playable, blockedReason };
   }
 
@@ -918,7 +947,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (attackerId) return { kind: "attacking", attackerName: attacker?.def.nameEn ?? attackerId };
     if (iAmDefending) return { kind: "defending" };
     if (inActionStep) {
-      return { kind: "actionStep", scope: iHavePriority ? "combat" : "endPhase", autoPass: dockAutoPass };
+      const ctx = playabilityCtx();
+      const hasPlay = myHandCards.some((c) => playableModes(c.def, ctx).includes("commandAction"));
+      return { kind: "actionStep", scope: iHavePriority ? "combat" : "endPhase", autoPass: dockAutoPass, hasPlay };
     }
     // Só domina o dock quando você NÃO é quem deve agir — na sua Main Phase o dock
     // mostra "Encerrar turno" (o servidor cuida do oponente ausente sozinho).

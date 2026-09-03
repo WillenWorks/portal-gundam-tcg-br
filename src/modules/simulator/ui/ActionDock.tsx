@@ -23,7 +23,7 @@ export type ActionDockState =
     }
   | { kind: "attacking"; attackerName: string }
   | { kind: "defending" }
-  | { kind: "actionStep"; scope: "combat" | "endPhase"; autoPass: boolean }
+  | { kind: "actionStep"; scope: "combat" | "endPhase"; autoPass: boolean; hasPlay?: boolean }
   | { kind: "oppDecision"; label: string }
   | { kind: "abandonAvailable"; idleSeconds: number }
   | { kind: "gameOver"; won: boolean; reasonLabel: string; redirectSeconds: number | null };
@@ -184,21 +184,28 @@ export function ActionDock({
           </div>
         );
 
-      case "actionStep":
+      case "actionStep": {
+        const nothingToDo = state.hasPlay === false;
         return (
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-              <Zap className="size-3.5 shrink-0" /> Action Step ({SCOPE_LABEL[state.scope]}) — só Command 【Action】
+              <Zap className="size-3.5 shrink-0" /> Action Step ({SCOPE_LABEL[state.scope]}) —{" "}
+              {nothingToDo ? "nada a jogar agora" : "só Command 【Action】"}
             </p>
             <div className="flex items-center gap-3">
               <Button
                 size="sm"
-                variant="outline"
-                className="rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/15"
+                variant={nothingToDo ? "default" : "outline"}
+                className={cn(
+                  "rounded-none",
+                  nothingToDo
+                    ? "bg-amber-500 text-black hover:bg-amber-400"
+                    : "border-amber-500/60 text-amber-300 hover:bg-amber-500/15",
+                )}
                 disabled={busy}
                 onClick={onPass}
               >
-                Passar
+                {nothingToDo ? "Passar (nada a fazer)" : "Passar"}
               </Button>
               <button
                 type="button"
@@ -210,6 +217,7 @@ export function ActionDock({
             </div>
           </div>
         );
+      }
 
       case "oppDecision":
         return (
