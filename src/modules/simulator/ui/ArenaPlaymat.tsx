@@ -36,6 +36,8 @@ export interface ArenaSide {
   exile: ReactNode;
   /** os 6 slots de batalha, renderizados pelo pai (fragmento com 6 filhos). */
   battleRow: ReactNode;
+  /** ref-callback pra o `CombatLane` medir a Battle Area (alvo "no jogador"). */
+  battleAreaRef?: (el: HTMLElement | null) => void;
   /** só o oponente: leitura da mão (contagem de cartas). */
   handSummary?: ReactNode;
 }
@@ -65,13 +67,13 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
     >
       {/* ── Zona superior: oponente ─────────────────────────────────────── */}
       <StateZone side={opponent} orientation="opponent" />
-      <BattleRow>{opponent.battleRow}</BattleRow>
+      <BattleRow gridRef={opponent.battleAreaRef}>{opponent.battleRow}</BattleRow>
 
       {/* ── The Seam: canal de combate ──────────────────────────────────── */}
       <Seam />
 
       {/* ── Zona inferior: jogador ──────────────────────────────────────── */}
-      <BattleRow>{self.battleRow}</BattleRow>
+      <BattleRow gridRef={self.battleAreaRef}>{self.battleRow}</BattleRow>
       <StateZone side={self} orientation="self" />
 
       {/* ── Rodapé: mão ancorada ────────────────────────────────────────── */}
@@ -114,10 +116,17 @@ function StateZone({ side, orientation }: { side: ArenaSide; orientation: "oppon
   );
 }
 
-function BattleRow({ children }: { children: ReactNode }) {
+function BattleRow({
+  children,
+  gridRef,
+}: {
+  children: ReactNode;
+  gridRef?: (el: HTMLElement | null) => void;
+}) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-2">
       <div
+        ref={gridRef}
         className="grid gap-1"
         style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}
       >

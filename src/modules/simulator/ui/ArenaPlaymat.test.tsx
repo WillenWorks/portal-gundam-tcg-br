@@ -59,4 +59,11 @@ describe("ArenaPlaymat", () => {
     renderArena({ overlay: <div>mira-lane</div> });
     expect(screen.getByText("mira-lane")).toBeInTheDocument();
   });
+
+  it("battleAreaRef recebe o elemento do grid de slots", () => {
+    const refs: (HTMLElement | null)[] = [];
+    const withRef: ArenaSide = { ...side("me"), battleAreaRef: (el) => refs.push(el) };
+    render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>h</div>} />);
+    expect(refs.some((el) => el instanceof HTMLElement)).toBe(true);
+  });
 });

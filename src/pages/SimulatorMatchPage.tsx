@@ -79,8 +79,18 @@
  * overlay) / `CounterChip`. A mão virou `HandFan` (leque com lift em foco) dentro
  * da `HandDrawer`. `describeHandCard()` centraliza "jogável? por quê não?". Sem
  * mudança funcional. Diferido: opp shields no HUD e inspetor no painel do XL.
+ *
+ * Sprint 4 do redesenho visual "Nível Arena" (2026-09-02) — o board disperso em
+ * 5 faixas (`renderSide`/`renderLeftColumn`/`renderRightColumn` + `flex-wrap`)
+ * virou UM `<ArenaPlaymat>` de proporção travada 16:9. A página só monta o
+ * `ArenaSide` de cada jogador (`arenaSide()`) e segue decidindo QUEM é alvo
+ * legal do quê. A `HandDrawer` saiu: a mão é o `HandFan anchored` no rodapé da
+ * arena. O truque de `rotate(90deg)` no mobile retrato saiu: agora é o
+ * `RotateDevicePrompt`. Em telas > 1400px a asa esquerda mostra o
+ * `CardInspectorPanel` seguindo o hover (`onHoverCard`), sem modal. Sem
+ * mudança de lógica de estado/ações. Redução líquida de ~75 linhas.
  */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bug, Clock, LogOut, RefreshCw } from "lucide-react";
@@ -95,19 +105,22 @@ import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } fro
 import {
   ActionDock,
   type ActionDockState,
+  ArenaPlaymat,
+  type ArenaSide,
   BaseCardGauge,
   BattleLogDrawer,
   BattleSlot,
   buildBattleLog,
   BurstModal,
   CardInspectorModal,
+  CardInspectorPanel,
   CombatLane,
   CounterChip,
-  HandDrawer,
   HandFan,
   PileTray,
   playerAreaKey,
   ResourceMeter,
+  RotateDevicePrompt,
   ShieldRail,
   TriggerOrderModal,
   useBoardElements,
@@ -120,8 +133,11 @@ const ART_SET_CODES = ["ST01", "ST02"];
 const ABANDON_THRESHOLD_MS = 180_000;
 /** Intervalo do heartbeat de presença do cliente -- bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
 const PRESENCE_PING_MS = 15_000;
-/** Abaixo disso (e retrato), a tela gira 90° via CSS -- ver `useIsPortraitMobile`. */
-const MOBILE_ROTATE_QUERY = "(max-width: 900px) and (orientation: portrait)";
+/** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
+ *  mostramos o `RotateDevicePrompt` pedindo o modo paisagem (Sprint 4). */
+const PORTRAIT_QUERY = "(max-width: 900px) and (orientation: portrait)";
+/** A partir daqui há folga lateral pras asas (inspetor de carta + log). */
+const WIDE_QUERY = "(min-width: 1400px)";
 /** Rota pra onde "Sair"/fim de jogo devolvem o jogador (a "Minha Área" do portal, com o shell/nav normal). */
 const EXIT_ROUTE = "/portal";
 /** Ao encerrar a partida (fim de jogo por qualquer motivo), o jogador é levado de volta ao site depois disso. */
@@ -184,18 +200,18 @@ function useCardArtLookup(): { art: Record<string, CardArt>; artLoading: boolean
   return { art, artLoading };
 }
 
-/** Detecta celular em retrato pra girar a tela via CSS (ver `MOBILE_ROTATE_QUERY`). */
-function useIsPortraitMobile(): boolean {
-  const [isPortraitMobile, setIsPortraitMobile] = useState(false);
+/** Acompanha uma media query (retrato pequeno / tela larga). */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia(MOBILE_ROTATE_QUERY);
-    const update = () => setIsPortraitMobile(mq.matches);
+    const mq = window.matchMedia(query);
+    const update = () => setMatches(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, []);
-  return isPortraitMobile;
+  }, [query]);
+  return matches;
 }
 
 // -----------------------------------------------------------------------------
@@ -221,9 +237,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [preview, setPreview] = useState<HandPreview | null>(null);
-  /** carta de tabuleiro aberta no inspetor (zoom) — docs/19, Sessão 3. */
+  /** carta de tabuleiro aberta no inspetor (zoom, modal) — clique explícito. */
   const [inspect, setInspect] = useState<CardInstance | null>(null);
-  const [handOpen, setHandOpen] = useState(false);
+  /** carta sob o cursor/foco — alimenta o `CardInspectorPanel` das asas largas (Sprint 3/4). */
+  const [hoveredCard, setHoveredCard] = useState<CardInstance | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
@@ -232,7 +249,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const { art, artLoading } = useCardArtLookup();
-  const isPortraitMobile = useIsPortraitMobile();
+  const isPortrait = useMediaQuery(PORTRAIT_QUERY);
+  const isWide = useMediaQuery(WIDE_QUERY);
 
   useEffect(() => {
     const url = buildSimulatorStreamUrl(matchId);
@@ -455,16 +473,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const pendingCost = pendingCard?.def.cost ?? 0;
   const resourcesReady = selectedResources.length === pendingCost;
 
-  // Ao começar a jogar uma carta, recolhe a mão: a gaveta cobre a base do board
-  // (Recursos/Base/Shields) e é justo isso que o jogador precisa ver pra pagar
-  // custo / escolher alvo.
   const startDeploy = (card: CardInstance) => {
-    setHandOpen(false);
     setPending({ kind: "deploy", cardInstanceId: card.instanceId });
   };
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
-    setHandOpen(false);
     setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger });
   };
 
@@ -547,44 +560,42 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const publicUnits = (player: ViewPlayerState): CardInstance[] =>
     player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def.cardType === "UNIT") as CardInstance[];
 
-  /** Battle Area: 6 slots fixos, só Units (Pilots pareados aparecem acoplados via DockedPilot). */
-  function renderBattleArea(player: ViewPlayerState, isSelf: boolean) {
+  /** Os 6 slots fixos de uma Battle Area (fragmento — o `ArenaPlaymat` monta o grid).
+   *  Só Units; Pilots pareados aparecem acoplados via `DockedPilot`. */
+  function renderBattleSlots(player: ViewPlayerState, isSelf: boolean) {
     const units = publicUnits(player);
     const canAttackFrom = isSelf && myTurnMain && !attackerId && !selecting;
     const canBeTargeted = !isSelf && attackerId !== null && combat === null;
     const canBlockWith = isSelf && iAmDefending;
 
-    return (
-      <div className="grid justify-center gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}>
-        {Array.from({ length: 6 }).map((_, i) => {
-          const unit = units[i] ?? null;
-          const actions =
-            unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith)
-              ? {
-                  onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
-                  onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
-                  onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
-                }
-              : undefined;
-          return (
-            <BattleSlot
-              key={unit?.instanceId ?? `empty-${i}`}
-              unit={unit}
-              pilot={unit ? pairedPilotOf(player, unit) : null}
-              art={art}
-              legalTarget={Boolean(unit && selecting)}
-              selected={Boolean(unit && selected.includes(unit.instanceId))}
-              isAttacker={Boolean(unit && attackerId === unit.instanceId)}
-              busy={busy}
-              onSelect={(u) => toggleSelect(u.instanceId)}
-              onInspect={setInspect}
-              actions={actions}
-              registerRef={unit ? board.register(unit.instanceId) : undefined}
-            />
-          );
-        })}
-      </div>
-    );
+    return Array.from({ length: 6 }).map((_, i) => {
+      const unit = units[i] ?? null;
+      const actions =
+        unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith)
+          ? {
+              onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
+              onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
+              onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
+            }
+          : undefined;
+      return (
+        <BattleSlot
+          key={unit?.instanceId ?? `empty-${i}`}
+          unit={unit}
+          pilot={unit ? pairedPilotOf(player, unit) : null}
+          art={art}
+          legalTarget={Boolean(unit && selecting)}
+          selected={Boolean(unit && selected.includes(unit.instanceId))}
+          isAttacker={Boolean(unit && attackerId === unit.instanceId)}
+          busy={busy}
+          onSelect={(u) => toggleSelect(u.instanceId)}
+          onInspect={setInspect}
+          onHoverCard={isWide ? setHoveredCard : undefined}
+          actions={actions}
+          registerRef={unit ? board.register(unit.instanceId) : undefined}
+        />
+      );
+    });
   }
 
   /** Classifica uma carta da mão: jogável? por quê não? quais modos de jogo?
@@ -612,58 +623,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       .filter((i) => i >= 0);
   }
 
-  /** Faixa esquerda de cada lado (Fase C): Base + trilha de Shields + chip do Resource Deck. */
-  function renderLeftColumn(player: ViewPlayerState) {
-    const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
-    return (
-      <div className="flex flex-row items-end gap-2">
-        <BaseCardGauge
-          base={base}
-          art={art}
-          legalTarget={selecting && Boolean(base)}
-          selected={Boolean(base && selected.includes(base.instanceId))}
-          onSelect={(b) => toggleSelect(b.instanceId)}
-          onInspect={setInspect}
-        />
-        <ShieldRail
-          count={player.counts.shields}
-          selectable={selecting}
-          selectedIndexes={selectedShieldIndexes(player)}
-          onSelectIndex={(i) => {
-            const s = player.shields[i];
-            if (s) toggleSelect(s.instanceId);
-          }}
-        />
-        <CounterChip label="Recurso" count={player.counts.resourceDeck} />
-      </div>
-    );
-  }
-
-  /** Faixa direita de cada lado (Fase C): Trash + Exílio (bandeja) + chip do Deck. */
-  function renderRightColumn(player: ViewPlayerState) {
-    const deckCount = player.counts.deck;
-    return (
-      <div className="flex flex-row items-end gap-2">
-        <PileTray
-          label="Trash"
-          count={player.trash.length}
-          cards={player.trash.filter((c) => !isHidden(c)) as CardInstance[]}
-          art={art}
-          onInspect={setInspect}
-        />
-        <PileTray
-          label="Exílio"
-          count={player.exile.length}
-          cards={player.exile.filter((c) => !isHidden(c)) as CardInstance[]}
-          art={art}
-          onInspect={setInspect}
-        />
-        <CounterChip label="Deck" count={deckCount} tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"} />
-      </div>
-    );
-  }
-
-  function renderOpponentHandBacks(count: number) {
+  /** Versos da mão do oponente (leitura de contagem, no topo da zona dele). */
+  function opponentHandBacks(count: number) {
     return (
       <div className="flex items-center gap-2">
         <p className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mão ({count})</p>
@@ -676,46 +637,46 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   }
 
-  /** Um lado inteiro do board (Fase A — plano visual §02). Cada lado é uma faixa
-   *  `flex-1` do grid de 5 faixas; a Battle Area encosta na seam central
-   *  (oponente: base do bloco dele; você: topo do seu). Sem rolagem — o board
-   *  cresce/encolhe com o viewport, `--card` dá a escala. */
-  function renderSide(pid: PlayerId, isSelf: boolean) {
+  /** Monta o `ArenaSide` de um jogador pro `ArenaPlaymat` (Sprint 4). A página segue
+   *  só decidindo QUEM é alvo legal do quê; o layout é do `ArenaPlaymat`. */
+  function arenaSide(pid: PlayerId, isSelf: boolean): ArenaSide {
     const player = view.players[pid];
-
-    const sideHeader = (
-      <div className="flex shrink-0 items-center justify-between gap-2 px-1">
-        <p className="text-xs font-semibold text-soft">
-          {isSelf ? "Você" : "Oponente"} ({pid}){matchView!.deckKeys[pid] ? ` · ${matchView!.deckKeys[pid]}` : ""}{" "}
-          {view.activePlayer === pid ? (
-            <Badge variant="outline" className="ml-1 rounded-none border-primary/40 text-primary">
-              Ativo
-            </Badge>
-          ) : null}
-        </p>
-        {!isSelf ? (
-          <p className={`text-[9px] uppercase tracking-[0.18em] ${canClaimAbandon ? "text-amber-400" : "text-slate-500"}`}>
-            {opponentIdleSeconds === null ? "presença desconhecida" : opponentIdleSeconds < 10 ? "presente" : `inativo há ${opponentIdleSeconds}s`}
-          </p>
-        ) : (
-          <p className="text-[9px] uppercase tracking-[0.18em] text-slate-500">Deck {player.counts.deck}</p>
-        )}
-      </div>
-    );
-
-    // Faixa horizontal (Fase C): Base + trilha de Shields + chips de Deck/Resource Deck
-    // + bandejas de Trash/Exílio + o medidor de Recursos. No oponente entra a mão virada
-    // e o medidor fica read-only.
+    const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
+    const deckCount = player.counts.deck;
     const resources = (player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).map((r) => ({
       instanceId: r.instanceId,
       rested: r.rested,
       isEx: r.def.isToken ?? false,
     }));
-    const frontStrip = (
-      <div className="flex shrink-0 flex-wrap items-end justify-center gap-x-3 gap-y-1 px-1">
-        {!isSelf ? renderOpponentHandBacks(player.hand.length) : null}
-        {renderLeftColumn(player)}
-        {renderRightColumn(player)}
+
+    return {
+      shields: (
+        <ShieldRail
+          orientation="vertical"
+          count={player.counts.shields}
+          selectable={selecting}
+          selectedIndexes={selectedShieldIndexes(player)}
+          onSelectIndex={(i) => {
+            const s = player.shields[i];
+            if (s) toggleSelect(s.instanceId);
+          }}
+        />
+      ),
+      base: (
+        <div className="flex flex-col items-start gap-1">
+          <BaseCardGauge
+            base={base}
+            art={art}
+            legalTarget={selecting && Boolean(base)}
+            selected={Boolean(base && selected.includes(base.instanceId))}
+            onSelect={(b) => toggleSelect(b.instanceId)}
+            onInspect={setInspect}
+            onHoverCard={isWide ? setHoveredCard : undefined}
+          />
+          <CounterChip label="Recurso" count={player.counts.resourceDeck} />
+        </div>
+      ),
+      resources: (
         <ResourceMeter
           resources={resources}
           level={player.counts.resourceArea}
@@ -727,52 +688,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             isSelf && pending && pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : undefined
           }
         />
-      </div>
-    );
-
-    // ref pro CombatLane mirar a Battle Area quando o ataque é "no jogador".
-    const battle = (
-      <div
-        ref={board.register(playerAreaKey(pid))}
-        className={`flex min-h-0 flex-1 justify-center overflow-hidden py-1 ${isSelf ? "items-start" : "items-end"}`}
-      >
-        <div className="flex flex-col gap-0.5">
-          <p className="text-center text-[8px] uppercase tracking-[0.24em] text-cyan-500/70">Battle Area</p>
-          {renderBattleArea(player, isSelf)}
-        </div>
-      </div>
-    );
-
-    // A mão NÃO fica numa faixa do board (espremeria a Battle Area — bug do QA da
-    // Fase A): fica recolhida na `HandDrawer` na base da tela e sobe por cima do
-    // board sob demanda, pros dois lados do board terem altura cheia.
-    return (
-      <div
-        className={`flex min-h-0 flex-1 flex-col gap-1 border p-1.5 sm:p-2 ${
-          isSelf ? "border-primary/25 bg-primary/[0.04]" : "border-white/10 bg-white/[0.02]"
-        }`}
-      >
-        {isSelf ? (
-          <>
-            {battle}
-            {frontStrip}
-            {sideHeader}
-          </>
-        ) : (
-          <>
-            {sideHeader}
-            {frontStrip}
-            {battle}
-          </>
-        )}
-      </div>
-    );
+      ),
+      deck: (
+        <CounterChip label="Deck" count={deckCount} tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"} />
+      ),
+      trash: (
+        <PileTray
+          label="Trash"
+          count={player.trash.length}
+          cards={player.trash.filter((c) => !isHidden(c)) as CardInstance[]}
+          art={art}
+          onInspect={setInspect}
+        />
+      ),
+      exile: (
+        <PileTray
+          label="Exílio"
+          count={player.exile.length}
+          cards={player.exile.filter((c) => !isHidden(c)) as CardInstance[]}
+          art={art}
+          onInspect={setInspect}
+        />
+      ),
+      battleRow: renderBattleSlots(player, isSelf),
+      battleAreaRef: board.register(playerAreaKey(pid)),
+      handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
+    };
   }
 
-  // Mão própria (sem cartas ocultas) + quantas dão pra jogar agora — alimenta a
-  // aba da HandDrawer ("N jogáveis").
+  // Mão própria (sem cartas ocultas) — alimenta o `HandFan` ancorado no rodapé da arena.
   const myHandCards = (view.players[seat].hand as ViewCardInstance[]).filter((c) => !isHidden(c)) as CardInstance[];
-  const myPlayableCount = myHandCards.filter((c) => handPlayModes(c).length > 0).length;
 
   const attacker = attackerId
     ? findPublicCard(view, attackerId)
@@ -883,17 +828,33 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       </div>
 
-      {/* Board -- grid de 5 faixas, SEM rolagem (Fase A, plano visual §02): as duas
-          Battle Areas dividem 1fr 1fr e se encontram na seam central. `--card` dá a
-          escala de toda carta a partir do viewport; largura-teto 1400px, centrado. */}
-      <div className="relative min-h-0 flex-1 overflow-hidden px-1 sm:px-2">
-        <div
-          className="mx-auto flex h-full w-full max-w-[1400px] flex-col gap-1 overflow-hidden"
-          style={{ "--card": "clamp(2.75rem, 7.5vw, 6.5rem)", paddingBottom: "3.25rem" } as CSSProperties}
-        >
-          {renderSide(opponentSeat, false)}
-          <div className="mx-auto h-0.5 w-full shrink-0 bg-gradient-to-r from-transparent via-red-500/45 to-transparent" />
-          {renderSide(seat, true)}
+      {/* Sprint 4 (redesenho "Nível Arena") — o board é UM `ArenaPlaymat` de
+          proporção travada 16:9. Em telas largas (> 1400px) as sobras laterais
+          viram asas: inspetor de carta à esquerda (segue o hover), log à direita. */}
+      <div className="relative flex min-h-0 flex-1 items-stretch justify-center gap-2 overflow-hidden px-1 sm:px-3 py-2">
+        {isWide ? (
+          <CardInspectorPanel card={hoveredCard} art={art} inPlay className="w-64 shrink-0 self-center max-h-full overflow-hidden" />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <ArenaPlaymat
+            opponent={arenaSide(opponentSeat, false)}
+            self={arenaSide(seat, true)}
+            hand={
+              <HandFan
+                anchored
+                cards={myHandCards.map((c) => {
+                  const { playable, blockedReason } = describeHandCard(c);
+                  return { card: c, playable, blockedReason };
+                })}
+                art={art}
+                onPeek={(c) => {
+                  const { modes, blockedReason } = describeHandCard(c);
+                  setPreview({ card: c, blockedReason, modes });
+                }}
+                onHoverCard={isWide ? setHoveredCard : undefined}
+              />
+            }
+          />
         </div>
       </div>
 
@@ -954,29 +915,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
 
-      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral / gaveta). */}
+      {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
-
-      {/* Fase A: a mão fica na gaveta da base em TODA tela. Fase D: o conteúdo é o
-          `HandFan` (leque com lift em foco, aresta ciano = jogável). */}
-      <HandDrawer
-        count={myHandCards.length}
-        subtitle={myPlayableCount > 0 ? `${myPlayableCount} ${myPlayableCount === 1 ? "jogável" : "jogáveis"}` : "nada jogável agora"}
-        open={handOpen}
-        onToggle={() => setHandOpen((o) => !o)}
-      >
-        <HandFan
-          cards={myHandCards.map((c) => {
-            const { playable, blockedReason } = describeHandCard(c);
-            return { card: c, playable, blockedReason };
-          })}
-          art={art}
-          onPeek={(c) => {
-            const { modes, blockedReason } = describeHandCard(c);
-            setPreview({ card: c, blockedReason, modes });
-          }}
-        />
-      </HandDrawer>
 
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
           os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board. */}
@@ -998,17 +938,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     </div>
   );
 
-  if (!isPortraitMobile) {
-    return <div className="fixed inset-0">{content}</div>;
-  }
-
-  // Celular em retrato -- gira 90° via CSS (a Screen Orientation API real exige fullscreen em
-  // vários browsers, então preferimos o truque de transform, que funciona sempre).
   return (
-    <div className="fixed inset-0 overflow-hidden bg-slate-950">
-      <div className="absolute left-1/2 top-1/2" style={{ width: "100vh", height: "100vw", transform: "translate(-50%, -50%) rotate(90deg)" }}>
-        {content}
-      </div>
+    <div className="fixed inset-0">
+      {content}
+      {/* Sprint 4 — celular em retrato: em vez de girar o board via CSS (bugava
+          toque/overflow), pede o modo paisagem. */}
+      {isPortrait ? <RotateDevicePrompt /> : null}
     </div>
   );
 }
