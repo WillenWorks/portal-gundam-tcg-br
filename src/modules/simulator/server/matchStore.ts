@@ -437,7 +437,8 @@ export function leaveQueue(userId: string): void {
 // ---------------------------------------------------------------------------
 
 /** Quem precisa agir agora, se algum — `null` quando o passo é transitório (resolvido sozinho por `applyPlayerAction`) ou não há decisão pendente. */
-function decisionOwner(state: GameState): PlayerId | null {
+/** exportado só pra teste — quem precisa agir agora (`null` se o passo é transitório). */
+export function decisionOwner(state: GameState): PlayerId | null {
   if (state.gameOver) return null;
   // Decisão interativa pendente (docs/19, Sessão 2) tem prioridade sobre
   // qualquer passo — é a vez DAQUELE jogador resolver (Burst / ordem de gatilhos).
@@ -458,7 +459,8 @@ function decisionOwner(state: GameState): PlayerId | null {
 }
 
 /** A ação que o timer executa sozinho quando estoura, pro passo atual — sempre a opção "não fazer nada de especial" de cada passo. */
-function defaultActionFor(state: GameState): PlayerAction {
+/** exportado só pra teste — a ação-padrão que o timer executa pro passo atual. */
+export function defaultActionFor(state: GameState): PlayerAction {
   // Decisão interativa pendente: a opção "não fazer nada de especial" é
   // recusar o Burst / manter a ordem de gatilhos como está.
   for (const p of ["A", "B"] as PlayerId[]) {
@@ -466,6 +468,14 @@ function defaultActionFor(state: GameState): PlayerAction {
     if (pending?.kind === "burst") return { kind: "resolveBurstDecision", activate: false };
     if (pending?.kind === "triggerOrder") {
       return { kind: "resolveTriggerOrder", orderedSpecIds: pending.triggers.map((t) => t.specId) };
+    }
+    if (pending?.kind === "whenPaired") {
+      // AFK durante o 【When Paired】: resolve os efeitos OPTATIVOS como "pular" e
+      // os mandatórios sem alvo (o motor trata `targetIds: []` como "nada acontece").
+      return {
+        kind: "resolveWhenPaired",
+        resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: [] })),
+      };
     }
   }
   if (state.combat?.step === "block") return { kind: "skipBlock" };

@@ -6,6 +6,8 @@ import {
   applyAction,
   claimAbandonWin,
   createMatch,
+  decisionOwner,
+  defaultActionFor,
   deleteMatch,
   getMatch,
   joinMatch,
@@ -21,6 +23,9 @@ import {
   subscribe,
   touchPresence,
 } from "./matchStore";
+import { applyPlayerAction } from "../engine/actions";
+import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
+import type { GameState } from "../engine/types";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -271,6 +276,33 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     const stillWaitingOnB = getMatch(match.id)!;
     expect(stillWaitingOnB.state.endPhaseAction?.priority).toBe("B"); // ainda não estourou de novo
     expect(stillWaitingOnB.version).toBe(2);
+  });
+});
+
+describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (regressão P0)", () => {
+  function stateWithWhenPaired(optional: boolean): GameState {
+    const match = newMatch();
+    const state = match.state;
+    state.pendingDecision.A = {
+      kind: "whenPaired",
+      queue: [{ sourceInstanceId: "x", specId: "SPEC-1", label: "Choose 1 enemy Unit. Rest it.", optional, needsTarget: true }],
+    };
+    return state;
+  }
+
+  it("com whenPaired pendente: dono da decisão = A, ação-padrão = resolveWhenPaired (não finishTurn)", () => {
+    const state = stateWithWhenPaired(false);
+    expect(decisionOwner(state)).toBe("A");
+    const action = defaultActionFor(state);
+    expect(action.kind).toBe("resolveWhenPaired");
+    // mandatório sem alvo escolhido -> targetIds: [] -> "nada acontece" (não lança)
+    const next = applyPlayerAction(state, "A", action, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("efeito optativo AFK: ação-padrão pula (activate: false)", () => {
+    const action = defaultActionFor(stateWithWhenPaired(true));
+    expect(action.kind === "resolveWhenPaired" && action.resolutions[0].activate).toBe(false);
   });
 });
 
