@@ -34,6 +34,17 @@ describe("CardInspectorModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("o botão da gaveta NÃO fica sob nenhum ancestral com overflow-hidden (Sprint 6 · P4)", () => {
+    render(<CardInspectorModal card={card({ nameEn: "Zaku", cardType: "UNIT" })} art={{}} onClose={vi.fn()} />);
+    const btn = screen.getByRole("button", { name: "Abrir telemetria" });
+    const root = btn.closest(".fixed")!;
+    let el: HTMLElement | null = btn.parentElement;
+    while (el && el !== root) {
+      expect(el.className).not.toMatch(/overflow-hidden/);
+      el = el.parentElement;
+    }
+  });
+
   it("a gaveta de telemetria abre/fecha pelo botão e lista os atributos", () => {
     render(
       <CardInspectorModal

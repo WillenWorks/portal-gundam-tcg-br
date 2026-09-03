@@ -60,47 +60,52 @@ export function CardInspectorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
       <div className="relative flex items-stretch" onClick={(e) => e.stopPropagation()}>
         {/* ── Carta grande ─────────────────────────────────────────────── */}
-        <div className="panel-cut relative h-[78vh] max-h-[80vh] shrink-0 overflow-hidden border border-white/15 bg-black/70 aspect-[63/88]">
-          {src ? (
-            <img src={src} alt={def.nameEn} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-slate-800 via-slate-900 to-black p-4 text-center">
-              <p className="text-lg font-bold uppercase tracking-wide text-slate-200">{def.nameEn}</p>
-              <p className="text-xs text-slate-500">{def.code}</p>
-            </div>
-          )}
+        {/* Sprint 6 · P4 — este wrapper NÃO tem `overflow-hidden` (só a arte tem,
+            pra recortar no aspect-ratio). O botão da gaveta mora AQUI, fora do
+            recorte, senão o `translate-x-full` cai no clip e some. */}
+        <div className="relative shrink-0">
+          <div className="panel-cut relative h-[78vh] max-h-[80vh] overflow-hidden border border-white/15 bg-black/70 aspect-[63/88]">
+            {src ? (
+              <img src={src} alt={def.nameEn} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-slate-800 via-slate-900 to-black p-4 text-center">
+                <p className="text-lg font-bold uppercase tracking-wide text-slate-200">{def.nameEn}</p>
+                <p className="text-xs text-slate-500">{def.code}</p>
+              </div>
+            )}
 
-          {pilots.length ? (
-            <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-1 bg-black/65 px-2 py-1.5">
-              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-amber-400/80">Link</span>
-              {pilots.map((p) => (
-                <PilotLinkChip key={p.name} pilot={p} />
-              ))}
-            </div>
-          ) : null}
+            {pilots.length ? (
+              <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-1 bg-black/65 px-2 py-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-amber-400/80">Link</span>
+                {pilots.map((p) => (
+                  <PilotLinkChip key={p.name} pilot={p} />
+                ))}
+              </div>
+            ) : null}
 
-          {inPlay && (ap !== undefined || hp !== undefined) ? (
-            <div className="absolute inset-x-0 bottom-0 flex text-sm font-black">
-              {ap !== undefined ? <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">AP {ap}</span> : null}
-              {hp !== undefined ? <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">HP {hp}</span> : null}
-            </div>
-          ) : null}
+            {inPlay && (ap !== undefined || hp !== undefined) ? (
+              <div className="absolute inset-x-0 bottom-0 flex text-sm font-black">
+                {ap !== undefined ? <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">AP {ap}</span> : null}
+                {hp !== undefined ? <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">HP {hp}</span> : null}
+              </div>
+            ) : null}
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-            className="absolute left-1 top-1 z-10 flex size-8 items-center justify-center bg-black/70 text-slate-300 hover:text-white"
-          >
-            <X className="size-4" />
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fechar"
+              className="absolute left-1 top-1 z-10 flex size-8 items-center justify-center bg-black/70 text-slate-300 hover:text-white"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
 
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
             aria-label={drawerOpen ? "Fechar telemetria" : "Abrir telemetria"}
             aria-expanded={drawerOpen}
-            className="absolute right-0 top-1/2 z-10 flex h-16 w-6 -translate-y-1/2 translate-x-full items-center justify-center border border-l-0 border-primary/40 bg-slate-950/95 text-primary transition-colors hover:bg-slate-900 motion-reduce:transition-none"
+            className="absolute right-0 top-1/2 z-20 flex h-16 w-6 -translate-y-1/2 translate-x-full items-center justify-center border border-l-0 border-primary/40 bg-slate-950/95 text-primary transition-colors hover:bg-slate-900 motion-reduce:transition-none"
           >
             {drawerOpen ? <ChevronRight className="size-4" /> : <Info className="size-4" />}
           </button>
@@ -108,7 +113,7 @@ export function CardInspectorModal({
 
         {/* ── Gaveta de telemetria ─────────────────────────────────────── */}
         {drawerOpen ? (
-          <aside className="panel-cut surface-panel ml-6 flex max-h-[80vh] w-72 flex-col overflow-y-auto border border-primary/25 p-3">
+          <aside className="panel-cut surface-panel ml-8 flex max-h-[80vh] w-72 flex-col overflow-y-auto border border-primary/25 p-3">
             <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>
             <p className="text-[10px] text-muted-portal">
               {def.code} · {def.cardType}
