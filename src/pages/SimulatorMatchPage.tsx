@@ -109,6 +109,7 @@ import { Button } from "@/components/ui/button";
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
+import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import {
   ActionDock,
   type ActionDockState,
@@ -528,19 +529,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const resourceInstanceIds = pendingCost > 0 ? selectedResources : undefined;
     const myBattleArea = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
     if (pending.kind === "deploy") {
-      const card = pendingCard;
-      let pairWithUnitId: string | undefined;
-      // Pilot nativo OU card Command/Pilot jogado no modo Piloto (def.pilotMode).
-      if (card?.def.cardType === "PILOT" || !!card?.def.pilotMode) {
-        pairWithUnitId = selected.find((id) => myBattleArea.some((u) => u.instanceId === id && u.def.cardType === "UNIT" && !u.pairedPilotId));
-        if (!pairWithUnitId) {
-          toast.error("Selecione (clicando na Battle Area) a Unit própria pra parear com este Pilot.");
-          return;
-        }
+      const ownBattleUnits = myBattleArea
+        .filter((c) => c.def.cardType === "UNIT")
+        .map((u) => ({ instanceId: u.instanceId, code: u.def.code, paired: !!u.pairedPilotId }));
+      const sel = resolveDeploySelection({ card: pendingCard, selected, ownBattleUnits });
+      if (sel.error) {
+        toast.error(sel.error);
+        return;
       }
-      const targetIds = selected.filter((id) => id !== pairWithUnitId);
-      const targets = targetIds.length ? { target: targetIds, shield: targetIds } : undefined;
-      runAction({ kind: "deployCard", cardInstanceId: pending.cardInstanceId, pairWithUnitId, targets, resourceInstanceIds });
+      const targets = sel.targetIds.length ? { target: sel.targetIds, shield: sel.targetIds } : undefined;
+      runAction({
+        kind: "deployCard",
+        cardInstanceId: pending.cardInstanceId,
+        pairWithUnitId: sel.pairWithUnitId,
+        targets,
+        resourceInstanceIds,
+      });
     } else {
       const targets = selected.length ? { target: selected, shield: selected } : undefined;
       runAction({
@@ -799,6 +803,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // `matchView` já foi estreitado pelo guard de loading acima, mas o narrowing não
   // atravessa pra dentro da função aninhada — daí a leitura hoistada.
   const dockAutoPass = matchView.autoPassActionStep;
+
+  // Sprint 6 · PROMPT 1 — dica dinâmica: parear um Piloto cujo 【When Paired】
+  // (ou o da Unit escolhida) exige alvo pede um 2º clique numa Unit inimiga.
+  const pendingDeployHint: string | undefined = (() => {
+    if (pending?.kind !== "deploy" || !pendingCard) return undefined;
+    const isPilot = pendingCard.def.cardType === "PILOT" || !!pendingCard.def.pilotMode;
+    if (!isPilot) return undefined;
+    const selectedOwnUnitCodes = (view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[])
+      .filter((u) => u.def.cardType === "UNIT" && selected.includes(u.instanceId))
+      .map((u) => u.def.code);
+    const needs =
+      pairingNeedsExtraTarget(pendingCard.def.code) ||
+      selectedOwnUnitCodes.some((code) => pairingNeedsExtraTarget(undefined, code));
+    return needs
+      ? "Pareamento com 【When Paired】: escolha a Unit pra parear E clique em 1 Unit inimiga como alvo."
+      : undefined;
+  })();
+
   function computeDockState(): ActionDockState {
     if (gameOverResult) {
       return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: redirectSecondsLeft };
@@ -809,7 +831,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         verb: pending.kind === "deploy" ? "Jogando" : `Jogando Command (${pending.trigger})`,
         cardName: pendingCard?.def.nameEn,
         selectedCount: selected.length,
-        hint: "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.",
+        hint: pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.",
         cost: pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : null,
         canConfirm: !(pendingCost > 0 && !resourcesReady),
       };
