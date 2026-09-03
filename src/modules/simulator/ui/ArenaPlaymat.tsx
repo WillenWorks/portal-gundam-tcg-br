@@ -96,7 +96,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
     >
       <div className="flex min-h-0 flex-1 flex-col" style={TABLE_STYLE}>
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
-        <div className="flex min-h-0 flex-1 items-end gap-1 px-1 opacity-90" style={OPPONENT_STYLE}>
+        {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
+            pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
+        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
           <DeckStation side={opponent} />
           <OpponentTheater side={opponent} />
           <ShieldStation side={opponent} />
@@ -105,7 +107,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
         <Seam />
 
         {/* ── Metade do jogador (primeiro plano, ancorada na seam) ──────── */}
-        <div className="flex min-h-0 flex-1 items-start gap-1 px-1">
+        <div className="flex min-h-0 flex-1 items-start justify-center gap-2 px-1">
           <ShieldStation side={self} />
           <SelfTheater side={self} />
           <DeckStation side={self} />
@@ -151,7 +153,7 @@ function DeckStation({ side }: { side: ArenaSide }) {
 /** Centro da metade do oponente: resumo da mão + recursos COLADOS e centrados acima da Battle Area. */
 function OpponentTheater({ side }: { side: ArenaSide }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1 pb-1">
+    <div className="flex min-w-0 shrink-0 flex-col items-center justify-end gap-1 pb-1">
       {side.handSummary ? <div className="flex justify-center">{side.handSummary}</div> : null}
       <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
@@ -162,7 +164,7 @@ function OpponentTheater({ side }: { side: ArenaSide }) {
 /** Centro da metade do jogador: Battle Area + recursos COLADOS e centrados logo abaixo. */
 function SelfTheater({ side }: { side: ArenaSide }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center justify-start gap-1 pt-1">
+    <div className="flex min-w-0 shrink-0 flex-col items-center justify-start gap-1 pt-1">
       <BattleRow gridRef={side.battleAreaRef}>{side.battleRow}</BattleRow>
       <div className="flex w-full min-w-0 justify-center overflow-x-auto">{side.resources}</div>
     </div>
