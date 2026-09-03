@@ -945,17 +945,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 art={art}
                 onPeek={(c) => {
                   const { modes, blockedReason } = describeHandCard(c);
-                  // Sprint 5 — modo único: joga direto (o ActionDock guia alvo/custo).
+                  // "Jogar" (Sprint 5) — modo único: joga direto (o ActionDock guia alvo/custo).
                   if (modes.length === 1) {
                     modes[0].run();
                     return;
                   }
-                  // Injogável: só avisa o motivo (o inspetor lateral já mostra a arte).
+                  // Injogável: só avisa o motivo (use "Ver" pra abrir a arte).
                   if (modes.length === 0) {
                     toast(blockedReason ?? "Carta indisponível agora.");
                     return;
                   }
                   // Carta dual (Comando vs Piloto): modal só pra escolher o modo.
+                  setPreview({ card: c, blockedReason, modes });
+                }}
+                onViewCard={(c) => {
+                  // "Ver" (Sprint 6 · P3) — abre a modal de zoom pra leitura; se
+                  // a carta for jogável, o footer de ação continua disponível.
+                  const { modes, blockedReason } = describeHandCard(c);
                   setPreview({ card: c, blockedReason, modes });
                 }}
                 onHoverCard={isWide ? setHoveredCard : undefined}

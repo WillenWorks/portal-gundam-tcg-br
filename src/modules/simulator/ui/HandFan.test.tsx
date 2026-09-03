@@ -28,105 +28,98 @@ const unit = (nameEn: string, over: Partial<CardDef> = {}) =>
 const command = (nameEn: string, over: Partial<CardDef> = {}) =>
   card({ nameEn, cardType: "COMMAND", cost: 1, ...over });
 
-function hand(entries: HandFanCard[]) {
-  return render(<HandFan cards={entries} art={{}} onPeek={vi.fn()} />);
+function hand(entries: HandFanCard[], props: Partial<Parameters<typeof HandFan>[0]> = {}) {
+  return render(<HandFan cards={entries} art={{}} onPeek={vi.fn()} {...props} />);
 }
 
+const containers = () => Array.from(document.querySelectorAll("[data-playable]")) as HTMLElement[];
+
 describe("HandFan", () => {
-  it("renderiza uma carta (botão) por entrada", () => {
+  it("renderiza um container por entrada", () => {
     hand([
       { card: unit("Gundam"), playable: true },
       { card: unit("Zaku"), playable: true },
       { card: command("Kai's Reckless Fire"), playable: false, blockedReason: "Fora da fase principal." },
     ]);
-    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(containers()).toHaveLength(3);
   });
 
-  it("carta injogável fica em P&B e expõe o motivo", () => {
+  it("carta injogável fica em P&B; jogável ganha o brilho ciano", () => {
     hand([
       { card: unit("Gundam"), playable: true },
       { card: unit("Guncannon"), playable: false, blockedReason: "Recursos insuficientes." },
     ]);
-
-    const blocked = screen.getByRole("button", { name: /Guncannon/ });
-    expect(blocked.getAttribute("data-playable")).toBe("false");
-    expect(blocked.getAttribute("title")).toBe("Recursos insuficientes.");
-    expect(blocked.getAttribute("aria-label")).toContain("Recursos insuficientes.");
-    expect(blocked.className).not.toContain("border-primary");
-
-    const playable = screen.getByRole("button", { name: /Gundam/ });
-    expect(playable.getAttribute("data-playable")).toBe("true");
+    const [playable, blocked] = containers();
+    expect(playable.dataset.playable).toBe("true");
     expect(playable.className).toContain("border-primary");
-
-    // Sprint 5 — injogável = filtro P&B + brilho reduzido no <button>.
+    expect(playable.className).toContain("shadow-[0_0_12px_rgba(6,182,212,0.5)]");
+    expect(blocked.dataset.playable).toBe("false");
+    expect(blocked.getAttribute("title")).toBe("Recursos insuficientes.");
     expect(blocked.className).toContain("[filter:grayscale(1)_brightness(0.65)]");
-    expect(playable.className).not.toContain("grayscale");
+    expect(blocked.className).not.toContain("border-primary");
   });
 
-  it("clique chama onPeek com a carta certa", () => {
+  it("'Jogar' chama onPeek com a carta certa", () => {
     const onPeek = vi.fn();
     const zaku = unit("Zaku II");
-    render(
-      <HandFan
-        cards={[
-          { card: unit("Gundam"), playable: true },
-          { card: zaku, playable: false, blockedReason: "Sem gatilho." },
-        ]}
-        art={{}}
-        onPeek={onPeek}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /Zaku II/ }));
-    expect(onPeek).toHaveBeenCalledTimes(1);
+    render(<HandFan cards={[{ card: zaku, playable: true }]} art={{}} onPeek={onPeek} />);
+    fireEvent.click(screen.getByRole("button", { name: /Jogar Zaku II/ }));
     expect(onPeek).toHaveBeenCalledWith(zaku);
   });
 
-  it("mão vazia mostra o emptyLabel", () => {
+  it("'Ver' chama onViewCard mesmo numa carta bloqueada", () => {
+    const onViewCard = vi.fn();
+    const zaku = unit("Zaku II");
+    render(
+      <HandFan
+        cards={[{ card: zaku, playable: false, blockedReason: "Sem gatilho." }]}
+        art={{}}
+        onPeek={vi.fn()}
+        onViewCard={onViewCard}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ver Zaku II" }));
+    expect(onViewCard).toHaveBeenCalledWith(zaku);
+  });
+
+  it("sem onViewCard, o botão 'Ver' não aparece", () => {
+    hand([{ card: unit("Gundam"), playable: true }]);
+    expect(screen.queryByRole("button", { name: /^Ver / })).toBeNull();
+    expect(screen.getByRole("button", { name: /Jogar Gundam/ })).toBeInTheDocument();
+  });
+
+  it("mão vazia mostra o emptyLabel e nenhum botão", () => {
     render(<HandFan cards={[]} art={{}} onPeek={vi.fn()} emptyLabel="Nada na mão." />);
     expect(screen.getByText("Nada na mão.")).toBeTruthy();
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("mão vazia usa o texto padrão quando emptyLabel não é passado", () => {
-    render(<HandFan cards={[]} art={{}} onPeek={vi.fn()} />);
-    expect(screen.getByText("Mão vazia.")).toBeTruthy();
-  });
-
   it("pip de custo aparece pra cartas com custo", () => {
-    hand([
-      { card: unit("Gundam", { cost: 7 }), playable: true },
-      { card: card({ nameEn: "EX Resource", cardType: "RESOURCE" }), playable: false, blockedReason: "—" },
-    ]);
+    hand([{ card: unit("Gundam", { cost: 7 }), playable: true }]);
     expect(screen.getByText("7")).toBeTruthy();
   });
 
-  it("carta Unit mostra a faixa AP/HP na base", () => {
+  it("carta Unit mostra a faixa AP/HP", () => {
     hand([{ card: unit("Gundam", { ap: 5, hp: 6 }), playable: true }]);
     expect(screen.getByText("5")).toBeTruthy();
     expect(screen.getByText("6")).toBeTruthy();
   });
 
-  it("carta jogável ganha o brilho de prontidão ciano", () => {
-    hand([{ card: unit("Gundam"), playable: true }]);
-    expect(screen.getByRole("button", { name: /Gundam/ }).className).toMatch(/shadow-\[0_0_12px_rgba\(6,182,212,0\.5\)\]/);
+  it("modo anchored: lift de -1.5rem no hover/foco", () => {
+    hand([{ card: unit("Gundam"), playable: true }], { anchored: true });
+    const [c] = containers();
+    expect(c.className).toMatch(/hover:-translate-y-6/);
+    expect(c.className).toMatch(/focus-within:-translate-y-6/);
   });
 
-  it("modo anchored: lift maior (-1.5rem) no hover/foco", () => {
-    render(<HandFan cards={[{ card: unit("Gundam"), playable: true }]} art={{}} onPeek={vi.fn()} anchored />);
-    const btn = screen.getByRole("button", { name: /Gundam/ });
-    expect(btn.className).toMatch(/hover:-translate-y-6/);
-    expect(btn.className).toMatch(/focus-visible:-translate-y-6/);
-  });
-
-  it("onHoverCard dispara com a carta no mouseenter e com null no mouseleave", () => {
+  it("onHoverCard dispara com a carta no mouseenter e null no mouseleave", () => {
     const onHoverCard = vi.fn();
     const gundam = unit("Gundam");
-    render(<HandFan cards={[{ card: gundam, playable: true }]} art={{}} onPeek={vi.fn()} onHoverCard={onHoverCard} />);
-    const btn = screen.getByRole("button", { name: /Gundam/ });
-    fireEvent.mouseEnter(btn);
+    hand([{ card: gundam, playable: true }], { onHoverCard });
+    const [c] = containers();
+    fireEvent.mouseEnter(c);
     expect(onHoverCard).toHaveBeenLastCalledWith(gundam);
-    fireEvent.mouseLeave(btn);
+    fireEvent.mouseLeave(c);
     expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
 });

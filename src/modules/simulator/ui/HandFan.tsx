@@ -3,18 +3,14 @@
  * A carta em foco (hover / teclado) sobe e ganha z-index, desencobrindo a
  * vizinha. Referência: leque com hover-lift de Hearthstone / Master Duel.
  *
- * Sprint 3 (redesenho "Nível Arena") — modo `anchored`: prateleira de comando
- * permanente na base da arena. Em repouso só o terço superior da carta aparece
- * (custo, cor, nome, nível); no hover/foco/toque ela sobe ~1.5rem revelando a
- * arte, sem cobrir os slots da Battle Area. Cartas jogáveis pulsam com o brilho
- * de prontidão ciano; injogáveis ficam atenuadas com um selo de bloqueio.
- * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas.
- *
- * Componente apresentacional puro: recebe as cartas já classificadas
- * (`playable` + `blockedReason`) e só encaminha clique/Enter via `onPeek` e
- * hover/foco via `onHoverCard`. */
+ * Sprint 6 · P3 — modo `anchored` (prateleira de comando na base da arena): a
+ * carta NÃO é mais cortada no rodapé (só overlap + hover-lift dão o efeito de
+ * prateleira); custo/nome/nível e a arte ficam legíveis em repouso, sem hover.
+ * Cada carta tem 2 controles sempre visíveis (touch-friendly, sem depender de
+ * hover): "Jogar" (dispara `onPeek` — joga direto / avisa / abre modal dual) e
+ * "Ver" (`onViewCard` — abre a modal de zoom SÓ pra ler, jogável ou não).
+ * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
-import { Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardFace } from "./CardFace";
@@ -30,14 +26,16 @@ export interface HandFanCard {
 interface HandFanProps {
   cards: HandFanCard[];
   art: ArtLookup;
-  /** clique / Enter numa carta — o pai abre o preview (e os modos de jogo). */
+  /** botão "Jogar" — o pai joga direto / avisa / abre modal dual. */
   onPeek: (card: CardInstance) => void;
+  /** botão "Ver" — o pai abre a modal de zoom só pra leitura (jogável ou não). */
+  onViewCard?: (card: CardInstance) => void;
   /** hover / foco numa carta (ou `null` ao sair) — alimenta o inspetor lateral. */
   onHoverCard?: (card: CardInstance | null) => void;
   /** fração de sobreposição entre cartas vizinhas (0..1). */
   overlap?: number;
   emptyLabel?: string;
-  /** prateleira ancorada na base da arena: só o topo da carta aparece em repouso. */
+  /** prateleira ancorada na base da arena (overlap + hover-lift, sem corte). */
   anchored?: boolean;
 }
 
@@ -49,6 +47,7 @@ export function HandFan({
   cards,
   art,
   onPeek,
+  onViewCard,
   onHoverCard,
   overlap = DEFAULT_OVERLAP,
   emptyLabel = "Mão vazia.",
@@ -62,87 +61,77 @@ export function HandFan({
 
   const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(0, overlap));
   const overlapMargin = `calc(var(--card, 3.5rem) * -${clampedOverlap})`;
-
   const lift = anchored
-    ? "hover:-translate-y-6 focus-visible:-translate-y-6"
-    : "hover:-translate-y-4 focus-visible:-translate-y-4";
+    ? "hover:-translate-y-6 focus-within:-translate-y-6"
+    : "hover:-translate-y-4 focus-within:-translate-y-4";
 
   return (
-    // `anchored`: `overflow-hidden` + `pt-10` dá folga pro lift; o `-mb` negativo
-    // puxa a base do trilho pra cima, deixando só o topo da carta visível em
-    // repouso. Sem `anchored`: rola no eixo X quando o leque não cabe.
-    <div className={cn("w-full", anchored ? "overflow-hidden" : "overflow-x-auto overscroll-x-contain")}>
-      <div
-        className={cn(
-          "mx-auto flex w-max min-w-max items-end px-4",
-          anchored ? "pt-10 -mb-[calc(var(--card,3.5rem)*0.62)]" : "pb-2 pt-9",
-        )}
-      >
+    <div className="w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
+      <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-8 pb-1" : "pb-2 pt-9")}>
         {cards.map((entry, index) => {
           const { card, playable, blockedReason } = entry;
           const cost = card.def.cost;
-          const label = [
-            card.def.nameEn,
-            cost !== undefined ? `custo ${cost}` : null,
-            playable ? "jogável" : (blockedReason ?? "indisponível"),
-          ]
-            .filter(Boolean)
-            .join(" · ");
-
+          const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
           return (
-            <button
+            <div
               key={card.instanceId}
-              type="button"
-              onClick={() => onPeek(card)}
+              data-playable={playable}
+              title={blockedReason}
+              style={style}
               onMouseEnter={onHoverCard ? () => onHoverCard(card) : undefined}
               onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
               onFocus={onHoverCard ? () => onHoverCard(card) : undefined}
               onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
-              title={blockedReason}
-              aria-label={label}
-              data-playable={playable}
-              style={style}
               className={cn(
-                "relative block shrink-0 border-t-2 bg-slate-950/80 transition-transform duration-100 ease-out",
-                "hover:z-20 focus-visible:z-20",
+                "group/hc relative block shrink-0 border-t-2 bg-slate-950/80 transition-transform duration-100 ease-out",
+                "hover:z-20 focus-within:z-20 motion-reduce:transition-none",
                 lift,
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                "motion-reduce:transition-none",
                 playable
                   ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]"
                   : "border-transparent [filter:grayscale(1)_brightness(0.65)]",
               )}
             >
-              <CardFace
-                nameEn={card.def.nameEn}
-                code={card.def.code}
-                art={art}
-                size="md"
-                style={{ width: "var(--card, 3.5rem)" }}
-              >
+              <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="md" style={{ width: "var(--card, 3.5rem)" }}>
                 {cost !== undefined ? (
                   <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
                     {cost}
                   </span>
                 ) : null}
-                {!playable ? (
-                  <span
-                    className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-none bg-black/75 text-amber-400"
-                    aria-hidden
-                  >
-                    <Ban className="size-2.5" />
-                  </span>
-                ) : null}
                 {card.def.cardType === "UNIT" ? (
-                  <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
+                  <div className="absolute inset-x-0 bottom-6 flex text-[9px] font-black">
                     <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def.ap ?? 0}</span>
                     <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def.hp ?? 0}</span>
                   </div>
                 ) : null}
               </CardFace>
-            </button>
+
+              {/* Controles — sempre visíveis (funcionam em touch, sem hover). */}
+              <div className="absolute inset-x-0 bottom-0 z-20 flex h-6 text-[9px] font-bold uppercase tracking-wide">
+                <button
+                  type="button"
+                  onClick={() => onPeek(card)}
+                  aria-label={`Jogar ${card.def.nameEn} · ${cost !== undefined ? `custo ${cost} · ` : ""}${state}`}
+                  className={cn(
+                    "flex flex-1 items-center justify-center border-r border-black/40",
+                    playable ? "bg-primary/90 text-black hover:bg-primary" : "bg-slate-800/90 text-slate-300 hover:bg-slate-700",
+                  )}
+                >
+                  Jogar
+                </button>
+                {onViewCard ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewCard(card)}
+                    aria-label={`Ver ${card.def.nameEn}`}
+                    className="flex flex-1 items-center justify-center bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-primary"
+                  >
+                    Ver
+                  </button>
+                ) : null}
+              </div>
+            </div>
           );
         })}
       </div>
