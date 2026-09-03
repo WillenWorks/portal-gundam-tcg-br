@@ -1,13 +1,12 @@
 /* docs/19, Sessão 3 — um dos 6 slots fixos da Battle Area. Moldura tática
  * escura com acento ciano/dourado; Unit com badges de AP efetivo / HP
  * restante; overlay "RESTED"; Piloto acoplado (DockedPilot) com badge LINK;
- * realce verde/dourado quando é alvo legal de uma ação. Botões de ação com
- * área de toque de 44px+ (era ~20px antes — o relato original do Willen).
+ * realce verde/dourado quando é alvo legal de uma ação.
  *
- * Sprint 2 (redesenho "Nível Arena") — slot vazio ganha textura de hangar
- * (moldura ciano tracejada de alta visibilidade); AP/HP viram badges de canto
- * (inferior esquerdo / direito) com indicador de dano acumulado; botões de
- * combate crescem pra >= 44px. */
+ * Sprint 5 (refinamento Arena 3D) — o slot é RIGOROSAMENTE `aspect-[63/88]`:
+ * os botões de ação rápida ("Atacar" / "Mirar aqui" / "Blocker") viraram
+ * OVERLAY absoluto sobre a carta (não somam mais 44px de altura, que fazia as
+ * Units colidirem na seam). O Piloto acoplado também é overlay na base. */
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/modules/simulator/engine/types";
@@ -69,12 +68,19 @@ export function BattleSlot({
   const hpRemaining = Math.max(0, effectiveHp(unit, undefined, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
+  // com Piloto acoplado, a faixa dele ocupa a base — os números sobem um degrau.
+  const badgeBottom = pilot ? "bottom-[1.1rem]" : "bottom-0";
+
+  const showAttack = actions?.onAttack && !unit.rested;
+  const showTarget = Boolean(actions?.onDeclareTarget);
+  const showBlocker = actions?.onBlocker && !unit.rested && hasKeyword(unit, "Blocker");
+  const showActions = showAttack || showTarget || showBlocker;
 
   return (
     <div
       ref={registerRef}
       className={cn(
-        "relative flex flex-col border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
+        "relative aspect-[63/88] w-full border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
         legalTarget
           ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.55)]"
           : selected || isAttacker
@@ -89,13 +95,14 @@ export function BattleSlot({
         onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
         onFocus={onHoverCard ? () => onHoverCard(unit) : undefined}
         onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
-        className={cn("relative block w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
+        className={cn("relative block h-full w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
       >
-        <CardFace nameEn={unit.def.nameEn} code={unit.def.code} art={art} size="sm" className="w-full" dimmed={unit.rested}>
-          {/* AP / HP efetivos — badges de canto (Sprint 2) */}
+        <CardFace nameEn={unit.def.nameEn} code={unit.def.code} art={art} size="sm" className="h-full w-full" dimmed={unit.rested}>
+          {/* AP / HP efetivos — badges de canto (sobem quando há Piloto acoplado) */}
           <span
             className={cn(
-              "absolute bottom-0 left-0 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
+              "absolute left-0 z-10 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
+              badgeBottom,
               apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
             )}
             aria-label={`AP ${ap}`}
@@ -104,7 +111,8 @@ export function BattleSlot({
           </span>
           <span
             className={cn(
-              "absolute bottom-0 right-0 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
+              "absolute right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
+              badgeBottom,
               hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
             )}
             aria-label={`HP ${hpRemaining}`}
@@ -127,20 +135,20 @@ export function BattleSlot({
 
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
-      {(actions?.onAttack || actions?.onDeclareTarget || actions?.onBlocker) ? (
-        <div className="flex flex-col gap-0.5 p-0.5">
-          {actions.onAttack && !unit.rested ? (
-            <Button size="sm" variant="outline" className="h-11 w-full rounded-none px-1 text-[11px]" disabled={busy} onClick={() => actions.onAttack!(unit)}>
+      {showActions ? (
+        <div className="absolute inset-x-1 bottom-1 z-20 flex flex-col gap-0.5">
+          {showAttack ? (
+            <Button size="sm" variant="outline" className="h-7 w-full rounded-none border-primary/60 bg-slate-950/90 px-1 text-[10px] shadow-lg" disabled={busy} onClick={() => actions!.onAttack!(unit)}>
               Atacar
             </Button>
           ) : null}
-          {actions.onDeclareTarget ? (
-            <Button size="sm" className="h-11 w-full rounded-none bg-emerald-600 px-1 text-[11px] text-white hover:bg-emerald-500" disabled={busy} onClick={() => actions.onDeclareTarget!(unit)}>
+          {showTarget ? (
+            <Button size="sm" className="h-7 w-full rounded-none bg-emerald-600 px-1 text-[10px] text-white shadow-lg hover:bg-emerald-500" disabled={busy} onClick={() => actions!.onDeclareTarget!(unit)}>
               Mirar aqui
             </Button>
           ) : null}
-          {actions.onBlocker && !unit.rested && hasKeyword(unit, "Blocker") ? (
-            <Button size="sm" variant="outline" className="h-11 w-full rounded-none border-sky-500/50 px-1 text-[11px] text-sky-300" disabled={busy} onClick={() => actions.onBlocker!(unit)}>
+          {showBlocker ? (
+            <Button size="sm" variant="outline" className="h-7 w-full rounded-none border-sky-500/60 bg-slate-950/90 px-1 text-[10px] text-sky-300 shadow-lg" disabled={busy} onClick={() => actions!.onBlocker!(unit)}>
               Blocker
             </Button>
           ) : null}

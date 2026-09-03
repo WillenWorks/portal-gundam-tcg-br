@@ -13,16 +13,17 @@ const res = (instanceId: string, over: { rested?: boolean; isEx?: boolean } = {}
 });
 
 describe("ResourceMeter", () => {
-  it("leitura segmentada: conta ativos e mostra o nível", () => {
+  it("leitura só via aria-label/title (sem texto '◆◆◇ N ativos · nível')", () => {
     render(<ResourceMeter resources={[res("a"), res("b", { rested: true }), res("c")]} level={3} />);
-    expect(screen.getByText("2")).toBeInTheDocument(); // ativos
-    expect(screen.getByText("3")).toBeInTheDocument(); // nível
-    expect(screen.getByText(/◆◇◆/)).toBeInTheDocument();
+    expect(screen.getByLabelText("2 recurso(s) ativo(s) de 3 · nível 3")).toBeInTheDocument();
+    expect(screen.queryByText(/ativos/)).toBeNull();
+    expect(screen.queryByText(/◆/)).toBeNull();
   });
 
-  it("estado vazio", () => {
+  it("estado vazio: sem texto, só o rótulo acessível", () => {
     render(<ResourceMeter resources={[]} level={0} />);
-    expect(screen.getByText("Nenhum recurso.")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 recurso(s) ativo(s) de 0 · nível 0")).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum recurso/)).toBeNull();
   });
 
   it("recurso gasto aparece girado (forma, não só cor)", () => {

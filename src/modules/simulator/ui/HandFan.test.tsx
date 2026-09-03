@@ -42,8 +42,8 @@ describe("HandFan", () => {
     expect(screen.getAllByRole("button")).toHaveLength(3);
   });
 
-  it("carta injogável fica dimmed (grayscale) e expõe o motivo", () => {
-    const { container } = hand([
+  it("carta injogável fica em P&B e expõe o motivo", () => {
+    hand([
       { card: unit("Gundam"), playable: true },
       { card: unit("Guncannon"), playable: false, blockedReason: "Recursos insuficientes." },
     ]);
@@ -58,8 +58,9 @@ describe("HandFan", () => {
     expect(playable.getAttribute("data-playable")).toBe("true");
     expect(playable.className).toContain("border-primary");
 
-    // CardFace aplica `grayscale` só na carta marcada como dimmed.
-    expect(container.querySelectorAll(".grayscale")).toHaveLength(1);
+    // Sprint 5 — injogável = filtro P&B + brilho reduzido no <button>.
+    expect(blocked.className).toContain("[filter:grayscale(1)_brightness(0.65)]");
+    expect(playable.className).not.toContain("grayscale");
   });
 
   it("clique chama onPeek com a carta certa", () => {
@@ -108,7 +109,7 @@ describe("HandFan", () => {
 
   it("carta jogável ganha o brilho de prontidão ciano", () => {
     hand([{ card: unit("Gundam"), playable: true }]);
-    expect(screen.getByRole("button", { name: /Gundam/ }).className).toMatch(/shadow-\[0_0_10px_rgba\(6,182,212,0\.4\)\]/);
+    expect(screen.getByRole("button", { name: /Gundam/ }).className).toMatch(/shadow-\[0_0_12px_rgba\(6,182,212,0\.5\)\]/);
   });
 
   it("modo anchored: lift maior (-1.5rem) no hover/foco", () => {

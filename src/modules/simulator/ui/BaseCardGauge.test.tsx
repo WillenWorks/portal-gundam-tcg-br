@@ -27,14 +27,22 @@ function inst(def: Partial<CardDef> & Pick<CardDef, "nameEn" | "cardType">, over
 const base = (over: Partial<CardInstance> = {}) => inst({ nameEn: "EX Base", cardType: "BASE", hp: 3 }, over);
 
 describe("BaseCardGauge", () => {
-  it("sem base: placeholder 'sem base'", () => {
+  it("sem base: placeholder só com tooltip (sem texto na tela)", () => {
     render(<BaseCardGauge base={null} art={{}} />);
-    expect(screen.getByText("sem base")).toBeInTheDocument();
+    expect(screen.getByTitle("Base: nenhuma em jogo")).toBeInTheDocument();
+    expect(screen.queryByText(/sem base/i)).toBeNull();
   });
 
-  it("com base: mostra HP restante / máximo", () => {
+  it("com base: HP restante/máximo e dano só no aria-label/title (sem rótulo)", () => {
     render(<BaseCardGauge base={base({ damage: 1 })} art={{}} />);
-    expect(screen.getByText("2/3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /2\/3 HP/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /1 de dano/ })).toBeInTheDocument();
+    expect(screen.queryByText("2/3")).toBeNull();
+  });
+
+  it("dano > 0 mostra o badge -N sobreposto", () => {
+    render(<BaseCardGauge base={base({ damage: 2 })} art={{}} />);
+    expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
   it("onHoverCard dispara com a Base no hover e null ao sair", () => {

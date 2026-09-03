@@ -89,6 +89,13 @@
  * `RotateDevicePrompt`. Em telas > 1400px a asa esquerda mostra o
  * `CardInspectorPanel` seguindo o hover (`onHoverCard`), sem modal. Sem
  * mudança de lógica de estado/ações. Redução líquida de ~75 linhas.
+ *
+ * Sprint 5 do redesenho visual "Nível Arena" (2026-09-02) — refinamento pós
+ * teste real: clique em carta da mão de modo único joga DIRETO (sem o modal
+ * burocrático); modal só pra carta dual (Comando vs Piloto); injogável só dá um
+ * toast com o motivo. Deck/pilhas agora são visuais (`CounterChip
+ * variant="stack"`), com o deck do oponente escondendo a contagem
+ * (`hideCount`). Layout 3D + espelhamento do oponente moram no `ArenaPlaymat`.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -673,7 +680,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             onInspect={setInspect}
             onHoverCard={isWide ? setHoveredCard : undefined}
           />
-          <CounterChip label="Recurso" count={player.counts.resourceDeck} />
+          <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} hideCount={!isSelf} />
         </div>
       ),
       resources: (
@@ -690,7 +697,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ),
       deck: (
-        <CounterChip label="Deck" count={deckCount} tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"} />
+        <CounterChip
+          variant="stack"
+          label="Deck"
+          count={deckCount}
+          hideCount={!isSelf}
+          tone={deckCount <= 2 ? "crit" : deckCount <= 5 ? "warn" : "normal"}
+        />
       ),
       trash: (
         <PileTray
@@ -849,6 +862,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 art={art}
                 onPeek={(c) => {
                   const { modes, blockedReason } = describeHandCard(c);
+                  // Sprint 5 — modo único: joga direto (o ActionDock guia alvo/custo).
+                  if (modes.length === 1) {
+                    modes[0].run();
+                    return;
+                  }
+                  // Injogável: só avisa o motivo (o inspetor lateral já mostra a arte).
+                  if (modes.length === 0) {
+                    toast(blockedReason ?? "Carta indisponível agora.");
+                    return;
+                  }
+                  // Carta dual (Comando vs Piloto): modal só pra escolher o modo.
                   setPreview({ card: c, blockedReason, modes });
                 }}
                 onHoverCard={isWide ? setHoveredCard : undefined}

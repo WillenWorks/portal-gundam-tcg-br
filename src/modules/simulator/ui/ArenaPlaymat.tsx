@@ -4,31 +4,33 @@
  *
  * Acaba com o `flex-wrap` do layout antigo: as zonas são posicionadas de forma
  * ESTÁTICA num container de proporção travada (`aspect-[16/9]`) que escala
- * uniformemente pelo viewport via a variável de escala única `--card`. Nenhuma
- * transformação CSS arbitrária no tabuleiro (o `CombatLane` mede posições reais
- * com `getBoundingClientRect`).
+ * uniformemente pelo viewport via a variável de escala única `--card`.
+ *
+ * Sprint 5 (refinamento Arena 3D):
+ *  - camada de perspectiva (`perspective: 1200px` + `rotateX(8deg)`) dá
+ *    profundidade de mesa; o lado do oponente recua (`scale .95 / opacity .9`).
+ *  - o `StateZone` do oponente é ESPELHADO: pilhas à esquerda, Base/Shields à
+ *    direita (o inverso do lado do jogador), como o usuário pediu.
+ *  - o `CombatLane` mede posições com `getBoundingClientRect`; a inclinação de
+ *    8° desloca os centros de forma mínima — se a mira sair de eixo em QA,
+ *    basta reduzir/remover o `rotateX` aqui.
  *
  * Componente apresentacional puro e prop-driven: cada região é um slot
  * (`ReactNode`) que o `SimulatorMatchPage` preenche com os componentes de zona
- * já existentes (`ShieldRail`, `ResourceMeter`, `BattleSlot`, `PileTray`,
- * `HandFan`, ...). O `overlay` cobre o canvas inteiro (feixe de mira do
- * `CombatLane`).
- *
- * Hover → inspetor lateral (Sprint 3): não passa por aqui — o pai liga o
- * `onHoverCard` de cada leaf (`BattleSlot`, `BaseCardGauge`, `HandFan`) ao
- * estado que alimenta o `CardInspectorPanel` das asas. */
+ * já existentes. O hover → inspetor lateral não passa por aqui (o pai liga o
+ * `onHoverCard` de cada leaf). */
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** As zonas de um lado da arena (oponente ou jogador). */
 export interface ArenaSide {
-  /** trilha de escudos em cascata vertical (borda esquerda). */
+  /** trilha de escudos em cascata vertical. */
   shields: ReactNode;
   /** carta de Base + medidor de durabilidade. */
   base: ReactNode;
   /** linha horizontal de recursos (ativos / rested / EX). */
   resources: ReactNode;
-  /** pilha do deck com profundidade. */
+  /** pilha do deck. */
   deck: ReactNode;
   /** pilha de descarte (última carta no topo). */
   trash: ReactNode;
@@ -52,31 +54,42 @@ interface ArenaPlaymatProps {
   className?: string;
 }
 
-/** escala única de toda carta a partir do viewport — sem overflow, proporção travada. */
-const CANVAS_STYLE = { "--card": "clamp(2.5rem, 5.2vw, 5.2rem)" } as CSSProperties;
+/** escala única de toda carta + perspectiva da mesa. */
+const CANVAS_STYLE = {
+  "--card": "clamp(3.25rem, 6.2vw, 6rem)",
+  perspective: "1200px",
+  perspectiveOrigin: "50% 65%",
+} as CSSProperties;
+
+/** inclinação tática da mesa (Master Duel). */
+const TABLE_STYLE: CSSProperties = { transform: "rotateX(8deg)", transformStyle: "preserve-3d" };
+/** o lado do oponente recua em profundidade. */
+const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.95)" };
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className }: ArenaPlaymatProps) {
   return (
     <div
       className={cn(
-        "relative mx-auto flex aspect-[16/9] max-h-full max-w-full flex-col justify-between overflow-hidden",
+        "relative mx-auto flex aspect-[16/9] max-h-full max-w-full flex-col overflow-hidden",
         "panel-cut hero-surface border border-primary/20",
         className,
       )}
       style={CANVAS_STYLE}
     >
-      {/* ── Zona superior: oponente ─────────────────────────────────────── */}
-      <StateZone side={opponent} orientation="opponent" />
-      <BattleRow gridRef={opponent.battleAreaRef}>{opponent.battleRow}</BattleRow>
+      {/* ── A mesa (inclinada) ──────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col justify-between" style={TABLE_STYLE}>
+        <div className="shrink-0 opacity-90" style={OPPONENT_STYLE}>
+          <StateZone side={opponent} orientation="opponent" />
+          <BattleRow gridRef={opponent.battleAreaRef}>{opponent.battleRow}</BattleRow>
+        </div>
 
-      {/* ── The Seam: canal de combate ──────────────────────────────────── */}
-      <Seam />
+        <Seam />
 
-      {/* ── Zona inferior: jogador ──────────────────────────────────────── */}
-      <BattleRow gridRef={self.battleAreaRef}>{self.battleRow}</BattleRow>
-      <StateZone side={self} orientation="self" />
+        <BattleRow gridRef={self.battleAreaRef}>{self.battleRow}</BattleRow>
+        <StateZone side={self} orientation="self" />
+      </div>
 
-      {/* ── Rodapé: mão ancorada ────────────────────────────────────────── */}
+      {/* ── Rodapé: mão ancorada (fora da inclinação, pra leitura) ───────── */}
       <div className="shrink-0 border-t border-primary/15 bg-slate-950/40">{hand}</div>
 
       {overlay ? <div className="pointer-events-none absolute inset-0 z-30">{overlay}</div> : null}
@@ -85,33 +98,37 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
 }
 
 function StateZone({ side, orientation }: { side: ArenaSide; orientation: "opponent" | "self" }) {
+  const isOpponent = orientation === "opponent";
+
+  const baseShields = (
+    <div className="flex items-start gap-2">
+      {side.shields}
+      {side.base}
+    </div>
+  );
+  const piles = (
+    <div className="flex items-start gap-2">
+      {side.deck}
+      {side.trash}
+      {side.exile}
+    </div>
+  );
+
+  // Espelhamento (Sprint 5): oponente = pilhas à esquerda / Base+Shields à direita.
   const row = (
-    <div className="grid grid-cols-[auto_1fr_auto] items-start gap-2 px-2 py-1.5">
-      <div className="flex items-start gap-2">
-        <div>{side.shields}</div>
-        <div>{side.base}</div>
-      </div>
+    <div className="grid grid-cols-[auto_1fr_auto] items-start gap-2 px-3 py-1.5">
+      {isOpponent ? piles : baseShields}
       <div className="min-w-0">{side.resources}</div>
-      <div className="flex items-start gap-2">
-        {side.deck}
-        {side.trash}
-        {side.exile}
-      </div>
+      {isOpponent ? baseShields : piles}
     </div>
   );
 
   return (
     <div className="shrink-0">
-      {orientation === "opponent" ? (
-        <>
-          {side.handSummary ? (
-            <div className="flex justify-center px-2 pt-1.5 pb-0.5">{side.handSummary}</div>
-          ) : null}
-          {row}
-        </>
-      ) : (
-        row
-      )}
+      {isOpponent && side.handSummary ? (
+        <div className="flex justify-center px-2 pt-1.5 pb-0.5">{side.handSummary}</div>
+      ) : null}
+      {row}
     </div>
   );
 }
@@ -125,11 +142,7 @@ function BattleRow({
 }) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-      <div
-        ref={gridRef}
-        className="grid gap-1"
-        style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}
-      >
+      <div ref={gridRef} className="grid gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}>
         {children}
       </div>
     </div>

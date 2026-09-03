@@ -1,15 +1,16 @@
-/* Fase C (docs/19) — trilha de pips de Shield (substitui a pilha sobreposta do
- * ShieldStack). Sem versos, sem stack: é só a leitura da contagem. Pip cheio =
- * glifo de escudo preenchido; pip vazio = contorno tracejado. O número grande
- * fica sempre visível ao lado e vira vermelho em `count <= 2`, com um aviso
- * hairline quando o lethal está a 1 golpe.
+/* Fase C (docs/19) — trilha de Shields.
  *
- * Sprint 2 (redesenho "Nível Arena") — `orientation="vertical"` empilha os pips
- * numa coluna tática na borda esquerda da arena (topologia Mobile Suit Arena).
- * O padrão continua "horizontal" (nada muda pros callers atuais).
+ * Sprint 5 (refinamento Arena 3D) — SEM textos redundantes ("6 SHIELDS", o
+ * número grande, os avisos de lethal): a contagem se lê pelas próprias peças.
+ * `title` carrega a informação como tooltip.
+ *  - vertical: 6 versos de carta em CASCATA sobreposta, de cima pra baixo
+ *    (topologia Mobile Suit Arena). Peça viva = moldura ciano; quebrada =
+ *    fantasma tracejado; `count <= 2` tinge as vivas de vermelho.
+ *  - horizontal: glifos de escudo em linha (mantém o formato antigo pros
+ *    callers que não pedem orientação).
  *
- * `selectable` (ex.: efeito que mira uma shield): cada pip CHEIO vira um
- * <button> com hit-area >= 44px, mesmo com o glifo pequeno. */
+ * `selectable` (efeito que mira uma shield): cada peça VIVA vira <button> com
+ * hit-area >= 44px. */
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ interface ShieldRailProps {
   onSelectIndex?: (index: number) => void;
   /** realce transitório de dano recém-tomado (o pai controla por quanto tempo). */
   justBroken?: boolean;
-  /** "vertical" = cascata na borda esquerda da arena; "horizontal" (padrão) = linha. */
+  /** "vertical" = cascata na coluna lateral; "horizontal" (padrão) = linha de glifos. */
   orientation?: "horizontal" | "vertical";
 }
 
@@ -36,73 +37,77 @@ export function ShieldRail({
 }: ShieldRailProps) {
   const total = Math.max(max, count);
   const low = count <= 2;
-  const pips = Array.from({ length: total }, (_, i) => i < count);
   const vertical = orientation === "vertical";
+  const label = `${count} de ${total} shields${count <= 1 ? " — lethal a 1 golpe" : ""}`;
 
   return (
-    <div className={cn("flex flex-col", vertical ? "items-center gap-1" : "gap-0.5")}>
-      <div className={cn("flex gap-1.5", vertical ? "flex-col items-center" : "items-center")}>
-        <span
-          className={cn(
-            "font-mono text-lg font-black leading-none tabular-nums",
-            low ? "text-red-400" : "text-slate-200",
-          )}
-        >
-          {count}
-        </span>
-        <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">Shields</span>
-        <div
-          className={cn(
-            "flex gap-0.5 rounded-none",
-            vertical ? "flex-col items-center" : "items-center",
-            justBroken && "ring-1 ring-red-500/60",
-          )}
-          role="list"
-          aria-label={`${count} de ${total} shields`}
-        >
-          {pips.map((full, i) => {
-            const selected = selectedIndexes.includes(i);
-            const pickable = Boolean(selectable && full && onSelectIndex);
-            const pip = (
-              <span
-                className={cn(
-                  "flex size-3.5 items-center justify-center border transition-colors duration-100 motion-reduce:transition-none",
-                  full
-                    ? selected
-                      ? "border-emerald-400 bg-emerald-500/30 text-emerald-300"
-                      : low
-                        ? "border-red-500/70 text-red-400"
-                        : "border-primary/50 text-primary"
-                    : "border-dashed border-white/15 text-transparent",
-                )}
-              >
-                <Shield className="size-2.5" aria-hidden fill={full ? "currentColor" : "none"} />
-              </span>
-            );
-            return pickable ? (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onSelectIndex?.(i)}
-                aria-pressed={selected}
-                aria-label={`Shield ${i + 1}`}
-                className="flex size-11 items-center justify-center rounded-none hover:bg-white/5"
-              >
-                {pip}
-              </button>
-            ) : (
-              <span key={i} role="listitem">
-                {pip}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      {count === 1 ? (
-        <p className="text-[8px] font-semibold uppercase tracking-wide text-red-400">1 golpe do lethal</p>
-      ) : count === 0 ? (
-        <p className="text-[8px] font-semibold uppercase tracking-wide text-red-400">sem shields — dano direto</p>
-      ) : null}
+    <div
+      role="list"
+      aria-label={label}
+      title={label}
+      className={cn(
+        "rounded-none",
+        vertical ? "flex flex-col items-center" : "flex items-center gap-0.5",
+        justBroken && "ring-1 ring-red-500/60",
+      )}
+    >
+      {Array.from({ length: total }, (_, i) => {
+        const full = i < count;
+        const selected = selectedIndexes.includes(i);
+        const pickable = Boolean(selectable && full && onSelectIndex);
+        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card,3.5rem)*0.42)]" : undefined;
+
+        const piece = vertical ? (
+          <span
+            className={cn(
+              "block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.46)] border transition-colors duration-100 motion-reduce:transition-none",
+              full
+                ? selected
+                  ? "border-emerald-400 bg-emerald-500/30"
+                  : low
+                    ? "border-red-500/70 bg-red-500/10"
+                    : "border-primary/60 bg-primary/15"
+                : "border-dashed border-white/12 bg-transparent",
+            )}
+          />
+        ) : (
+          <span
+            className={cn(
+              "flex size-3.5 items-center justify-center border transition-colors duration-100 motion-reduce:transition-none",
+              full
+                ? selected
+                  ? "border-emerald-400 bg-emerald-500/30 text-emerald-300"
+                  : low
+                    ? "border-red-500/70 text-red-400"
+                    : "border-primary/50 text-primary"
+                : "border-dashed border-white/15 text-transparent",
+            )}
+          >
+            <Shield className="size-2.5" aria-hidden fill={full ? "currentColor" : "none"} />
+          </span>
+        );
+
+        return pickable ? (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSelectIndex?.(i)}
+            aria-pressed={selected}
+            aria-label={`Shield ${i + 1}`}
+            className={cn(
+              "relative flex items-center justify-center rounded-none hover:brightness-125",
+              vertical ? "min-h-11 w-full" : "size-11",
+              cascade,
+            )}
+          >
+            {piece}
+          </button>
+        ) : (
+          <span key={i} role="listitem" className={cn(vertical && "flex w-full justify-center", cascade)}>
+            {piece}
+          </span>
+        );
+      })}
     </div>
   );
 }

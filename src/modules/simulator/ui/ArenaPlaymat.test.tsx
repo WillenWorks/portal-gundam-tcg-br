@@ -52,12 +52,27 @@ describe("ArenaPlaymat", () => {
     const { container } = renderArena();
     const canvas = container.firstElementChild as HTMLElement;
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
-    expect(canvas.style.getPropertyValue("--card")).toBe("clamp(2.5rem, 5.2vw, 5.2rem)");
+    expect(canvas.style.getPropertyValue("--card")).toBe("clamp(3.25rem, 6.2vw, 6rem)");
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {
     renderArena({ overlay: <div>mira-lane</div> });
     expect(screen.getByText("mira-lane")).toBeInTheDocument();
+  });
+
+  it("espelha o oponente: pilhas antes de Base/Shields; jogador o inverso", () => {
+    renderArena();
+    const pos = (a: string, b: string) =>
+      screen.getByText(a).compareDocumentPosition(screen.getByText(b)) & Node.DOCUMENT_POSITION_FOLLOWING;
+    // oponente: deck (pilha) vem ANTES de shields (Base/Shields à direita)
+    expect(pos("opp-deck", "opp-shields")).toBeTruthy();
+    // jogador: shields vem ANTES de deck (Base/Shields à esquerda)
+    expect(pos("me-shields", "me-deck")).toBeTruthy();
+  });
+
+  it("aplica a perspectiva 3D no canvas", () => {
+    const { container } = renderArena();
+    expect((container.firstElementChild as HTMLElement).style.perspective).toBe("1200px");
   });
 
   it("battleAreaRef recebe o elemento do grid de slots", () => {

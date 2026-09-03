@@ -51,18 +51,23 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it("ações de combate: botão 'Atacar' com hit-area de 44px", () => {
+  it("ações de combate: botão 'Atacar' é overlay compacto (não estica o slot)", () => {
     const onAttack = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack }} />);
     const btn = screen.getByRole("button", { name: "Atacar" });
-    expect(btn.className).toMatch(/h-11/);
+    expect(btn.closest("div")?.className).toMatch(/absolute/);
     btn.click();
     expect(onAttack).toHaveBeenCalledTimes(1);
   });
 
-  it("piloto acoplado aparece na base do slot", () => {
+  it("slot ocupado mantém a proporção estrita aspect-[63/88]", () => {
+    const { container } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    expect((container.firstElementChild as HTMLElement).className).toMatch(/aspect-\[63\/88\]/);
+  });
+
+  it("piloto acoplado é overlay na base, com o nome no tooltip", () => {
     render(<BattleSlot unit={unit()} pilot={inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 1, hp: 1 })} art={{}} />);
-    expect(screen.getByText("Amuro Ray")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Amuro Ray/ }).className).toMatch(/absolute/);
   });
 
   it("onHoverCard dispara com a Unit no hover e null ao sair", () => {

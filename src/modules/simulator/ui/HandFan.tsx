@@ -110,7 +110,9 @@ export function HandFan({
                 lift,
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 "motion-reduce:transition-none",
-                playable ? "border-primary shadow-[0_0_10px_rgba(6,182,212,0.4)]" : "border-transparent",
+                playable
+                  ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]"
+                  : "border-transparent [filter:grayscale(1)_brightness(0.65)]",
               )}
             >
               <CardFace
@@ -118,7 +120,6 @@ export function HandFan({
                 code={card.def.code}
                 art={art}
                 size="md"
-                dimmed={!playable}
                 style={{ width: "var(--card, 3.5rem)" }}
               >
                 {cost !== undefined ? (
