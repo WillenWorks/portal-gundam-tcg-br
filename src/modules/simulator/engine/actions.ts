@@ -73,7 +73,14 @@ export type PlayerAction =
    * `targets.target[0]`). `abilityIndex` reservado pra cartas com mais de
    * uma habilidade ativada (nenhuma de ST01/ST02 tem — default 0).
    */
-  | { kind: "activateAbility"; sourceInstanceId: string; abilityIndex?: number; targets?: Record<string, string[]> }
+  | {
+      kind: "activateAbility";
+      sourceInstanceId: string;
+      abilityIndex?: number;
+      targets?: Record<string, string[]>;
+      /** recursos escolhidos pra pagar o custo `④`/`②` da habilidade (evita gastar o EX Resource). */
+      resourceInstanceIds?: string[];
+    }
   /** Resolve a `PendingDecision` de 【Burst】 do defensor (ver `passAction`). `activate: false` = manda a shield pro trash. */
   | { kind: "resolveBurstDecision"; activate: boolean; targets?: Record<string, string[]> }
   /** Resolve a `PendingDecision` de ordenação de gatilhos simultâneos (ordem em que os efeitos resolvem). */
@@ -210,6 +217,7 @@ export function applyPlayerAction(
       if (abilitySpecs.length > 0) {
         return dispatchTrigger(state, action.sourceInstanceId, trigger, specs, {
           targets: action.targets,
+          costResourceIds: action.resourceInstanceIds,
           predicateResolver,
         });
       }

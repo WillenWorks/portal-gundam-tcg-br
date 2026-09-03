@@ -131,6 +131,23 @@ describe("activateAbility (docs/19, Sessão 2)", () => {
     expect(next.players.A.resourceArea.filter((r) => r.rested)).toHaveLength(4);
   });
 
+  it("resourceInstanceIds: paga com os recursos escolhidos e POUPA o EX Resource não escolhido", () => {
+    const state = freshSt02();
+    state.players.A.resourceArea = [];
+    const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
+    const exId = place(state, "A", { code: "TOKEN-EX-RESOURCE", nameEn: "EX Resource", cardType: "RESOURCE", color: "colorless", isToken: true }, "resourceArea");
+    giveResources(state, "A", 5);
+    const chosen = state.players.A.resourceArea.filter((r) => r.instanceId !== exId).slice(0, 4).map((r) => r.instanceId);
+
+    const next = apply(state, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId, resourceInstanceIds: chosen });
+
+    expect(findCard(next, tallgeeseId).rested).toBe(false);
+    // EX Resource continua em jogo e active (não foi escolhido)
+    const ex = next.players.A.resourceArea.find((r) => r.instanceId === exId);
+    expect(ex && !ex.rested).toBe(true);
+    expect(next.players.A.resourceArea.filter((r) => r.rested).map((r) => r.instanceId).sort()).toEqual([...chosen].sort());
+  });
+
   it("Activate·Main só do dono, na própria Main Phase", () => {
     const state = freshSt02();
     const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });

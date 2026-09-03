@@ -19,6 +19,8 @@ export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
   onDeclareTarget?: (unit: CardInstance) => void;
   onBlocker?: (unit: CardInstance) => void;
+  /** 【Activate·Main】 de carta em campo (ex.: Tallgeese "Set active") — Etapa 3. */
+  onActivate?: (unit: CardInstance) => void;
 }
 
 /** botão de ação em overlay: sólido de alto contraste, compacto, não estica o slot. */
@@ -78,7 +80,8 @@ export function BattleSlot({
   const showAttack = actions?.onAttack && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
   const showBlocker = actions?.onBlocker && !unit.rested && hasKeyword(unit, "Blocker");
-  const showActions = showAttack || showTarget || showBlocker;
+  const showActivate = Boolean(actions?.onActivate);
+  const showActions = showAttack || showTarget || showBlocker || showActivate;
 
   return (
     <div
@@ -167,6 +170,16 @@ export function BattleSlot({
           {showBlocker ? (
             <Button size="sm" className={ACTION_BTN} disabled={busy} onClick={() => actions!.onBlocker!(unit)}>
               Blocker
+            </Button>
+          ) : null}
+          {showActivate ? (
+            <Button
+              size="sm"
+              className={cn(ACTION_BTN, "bg-accent hover:bg-accent/90")}
+              disabled={busy}
+              onClick={() => actions!.onActivate!(unit)}
+            >
+              Ativar
             </Button>
           ) : null}
         </div>

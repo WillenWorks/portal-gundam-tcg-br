@@ -130,6 +130,14 @@ export interface EffectContext {
   turnNumber: number;
   /** grupos de alvo já resolvidos (por seletor externo) antes de rodar o efeito */
   targets: Record<string, string[]>;
+  /**
+   * Recursos escolhidos pelo jogador pra pagar `payResourceCost` de uma
+   * habilidade ativada (`activateAbility`) — evita o motor pegar os N primeiros
+   * active (que inclui o EX Resource, sempre no índice 0). `undefined` =
+   * comportamento antigo (auto-pick). O `resourceInstanceIds` da própria
+   * primitiva (raro) ainda tem prioridade.
+   */
+  costResourceIds?: string[];
 }
 
 /**
@@ -202,7 +210,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "payResourceCost": {
       const player = resolvePlayerRef(call.player, ctx.controller);
-      return payResourceCostEvents(ctx.state, player, call.n, call.resourceInstanceIds);
+      return payResourceCostEvents(ctx.state, player, call.n, call.resourceInstanceIds ?? ctx.costResourceIds);
     }
     case "spawnToken": {
       const player = resolvePlayerRef(call.player, ctx.controller);

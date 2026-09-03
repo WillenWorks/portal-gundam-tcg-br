@@ -110,6 +110,7 @@ import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type P
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
+import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import {
   ActionDock,
   type ActionDockState,
@@ -271,7 +272,10 @@ function useMediaQuery(query: string): boolean {
 // Tela de partida -- conecta o SSE, mostra timer/presença/HUD, joga.
 // -----------------------------------------------------------------------------
 
-type PendingAction = { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action" };
+type PendingAction =
+  | { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action" }
+  /** 【Activate·Main】 de carta em campo (Etapa 3) — `cardInstanceId` = a carta em campo. */
+  | { kind: "activateAbility"; cardInstanceId: string; abilityCost: number; abilityNeedsTarget: boolean; cardName: string };
 /** Um jeito de jogar a carta em preview. Cards Command/Pilot (`def.pilotMode`) têm 2 modos ("Jogar como Comando" / "Parear como Piloto"); o resto tem 1. */
 type HandPlayMode = { label: string; run: () => void };
 /** Preview compacto aberto ao clicar numa carta da mão -- substitui o antigo botão "Jogar" minúsculo. */
@@ -519,11 +523,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   };
 
-  // carta em `pending` (ainda na mão) + custo dela — pra saber quantos Recursos pedir.
+  // carta em `pending` — na mão (deploy/command) ou em campo (activateAbility) — + custo.
   const pendingCard: CardInstance | undefined = pending
-    ? (view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId) as CardInstance | undefined)
+    ? ((pending.kind === "activateAbility"
+        ? findPublicCard(view, pending.cardInstanceId)
+        : view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId)) as
+        | CardInstance
+        | undefined)
     : undefined;
-  const pendingCost = pendingCard?.def.cost ?? 0;
+  const pendingCost =
+    pending?.kind === "activateAbility" ? pending.abilityCost : (pendingCard?.def.cost ?? 0);
   const resourcesReady = selectedResources.length === pendingCost;
 
   const startDeploy = (card: CardInstance) => {
@@ -532,6 +541,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
     setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger });
+  };
+  /** 【Activate·Main】 de carta em campo (Etapa 3) — abre o fluxo de custo/alvo (mesmo do deploy). */
+  const startActivateAbility = (card: CardInstance, ability: FieldAbility) => {
+    setPending({
+      kind: "activateAbility",
+      cardInstanceId: card.instanceId,
+      abilityCost: ability.cost,
+      abilityNeedsTarget: ability.needsTarget,
+      cardName: card.def.nameEn,
+    });
   };
 
   const confirmPending = () => {
@@ -559,6 +578,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         kind: "deployCard",
         cardInstanceId: pending.cardInstanceId,
         pairWithUnitId: sel.pairWithUnitId,
+        targets,
+        resourceInstanceIds,
+      });
+    } else if (pending.kind === "activateAbility") {
+      if (pending.abilityNeedsTarget && selected.length === 0) {
+        toast.error("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
+        return;
+      }
+      const targets = selected.length ? { target: selected, shield: selected } : undefined;
+      runAction({
+        kind: "activateAbility",
+        sourceInstanceId: pending.cardInstanceId,
         targets,
         resourceInstanceIds,
       });
@@ -649,15 +680,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const canAttackFrom = isSelf && myTurnMain && !attackerId && !selecting;
     const canBeTargeted = !isSelf && attackerId !== null && combat === null;
     const canBlockWith = isSelf && iAmDefending;
+    // 【Activate·Main】 de carta em campo (Etapa 3) — só na Main Phase própria, sem combate.
+    const canActivateHere = isSelf && myTurnMain && !attackerId && !selecting;
+    const myActiveResources = player.resourceArea.filter(
+      (r) => !isHidden(r) && !(r as CardInstance).rested,
+    ).length;
 
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
+      const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
+      const canActivate = Boolean(ability && myActiveResources >= ability!.cost);
       const actions =
-        unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith)
+        unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith || canActivate)
           ? {
               onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
               onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
               onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
+              onActivate: canActivate && ability ? (u: CardInstance) => startActivateAbility(u, ability) : undefined,
             }
           : undefined;
       return (
@@ -853,12 +892,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: redirectSecondsLeft };
     }
     if (pending) {
+      const verb =
+        pending.kind === "deploy"
+          ? "Jogando"
+          : pending.kind === "activateAbility"
+            ? "Ativando habilidade"
+            : `Jogando Command (${pending.trigger})`;
+      const hint =
+        pending.kind === "activateAbility"
+          ? pending.abilityNeedsTarget
+            ? "Escolha o alvo da habilidade e os recursos pra pagar o custo."
+            : "Escolha os recursos pra pagar o custo e confirme."
+          : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
       return {
         kind: "pending",
-        verb: pending.kind === "deploy" ? "Jogando" : `Jogando Command (${pending.trigger})`,
-        cardName: pendingCard?.def.nameEn,
+        verb,
+        cardName: pending.kind === "activateAbility" ? pending.cardName : pendingCard?.def.nameEn,
         selectedCount: selected.length,
-        hint: pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.",
+        hint,
         cost: pendingCost > 0 ? { paid: selectedResources.length, total: pendingCost } : null,
         canConfirm: !(pendingCost > 0 && !resourcesReady),
       };
