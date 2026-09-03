@@ -51,17 +51,34 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it("ações de campo: ícones flutuantes na borda direita (não tapam a arte)", () => {
+  it("ações de campo: tira de ícones escondida que sai pra FORA da carta (não tapa a arte)", () => {
     const onAttack = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack }} />);
     const btn = screen.getByRole("button", { name: "Atacar" });
     const strip = btn.closest("div")!.className;
     expect(strip).toMatch(/absolute/);
-    expect(strip).toMatch(/right-0\.5/);
-    expect(strip).toMatch(/z-20/);
+    expect(strip).toMatch(/left-full/); // jogador: sai pra direita (fora da borda)
+    expect(strip).toMatch(/z-30/);
+    expect(strip).toMatch(/opacity-0/); // escondida em repouso
+    expect(strip).toMatch(/group-hover\/slot:opacity-100/); // aparece no hover
     expect(btn.className).toMatch(/size-6/); // ícone compacto
     btn.click();
     expect(onAttack).toHaveBeenCalledTimes(1);
+  });
+
+  it("no lado do oponente (mirror) a tira sai pra ESQUERDA", () => {
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} mirror actions={{ onDeclareTarget: vi.fn() }} />);
+    const strip = screen.getByRole("button", { name: "Mirar aqui" }).closest("div")!.className;
+    expect(strip).toMatch(/right-full/);
+  });
+
+  it("clique numa ação NÃO borbulha pro handler de inspeção da carta", () => {
+    const onAttack = vi.fn();
+    const onInspect = vi.fn();
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
+    screen.getByRole("button", { name: "Atacar" }).click();
+    expect(onAttack).toHaveBeenCalledTimes(1);
+    expect(onInspect).not.toHaveBeenCalled();
   });
 
   it("botões de ação são só ícone (não cobrem os números AP/HP)", () => {

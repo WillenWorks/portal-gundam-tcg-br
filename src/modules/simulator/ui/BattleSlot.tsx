@@ -53,7 +53,12 @@ function IconBtn({
       title={label}
       aria-label={label}
       disabled={busy}
-      onClick={onClick}
+      // stopPropagation: sem isso o clique sobe pro <button> da arte (inspeção)
+      // e a ação nunca dispara — era o bug "aparece mas não clica".
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className={cn(
         "flex size-6 items-center justify-center rounded-none border border-black/30 shadow-lg transition-colors disabled:opacity-50 motion-reduce:transition-none",
         TONE_CLASS[tone],
@@ -74,6 +79,8 @@ interface BattleSlotProps {
   selected?: boolean;
   isAttacker?: boolean;
   busy?: boolean;
+  /** lado do oponente — a tira de ações escondida sai pra ESQUERDA da carta. */
+  mirror?: boolean;
   onSelect?: (unit: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
   /** hover / foco na Unit (ou `null` ao sair) — alimenta o inspetor lateral (Sprint 3). */
@@ -91,6 +98,7 @@ export function BattleSlot({
   selected,
   isAttacker,
   busy,
+  mirror,
   onSelect,
   onInspect,
   onHoverCard,
@@ -124,7 +132,10 @@ export function BattleSlot({
     <div
       ref={registerRef}
       className={cn(
-        "relative aspect-[63/88] w-full border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
+        "group/slot relative aspect-[63/88] w-full border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
+        // no hover/foco o slot sobe no empilhamento pra a tira de ações passar
+        // por cima do slot vizinho ao sair pra fora da carta.
+        "hover:z-30 focus-within:z-30",
         legalTarget
           ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.55)]"
           : selected || isAttacker
@@ -188,7 +199,21 @@ export function BattleSlot({
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
       {showActions ? (
-        <div className="absolute right-0.5 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-0.5">
+        // Escondida em repouso; ao passar o mouse (ou focar) SAI pra fora da
+        // borda direita da carta (`left-full`) e aparece — não tapa arte nem
+        // AP/HP. `translateZ` a tira acima do plano 3D inclinado da mesa (senão
+        // o hit-test cai no <button> da arte por baixo). `mirror` (oponente):
+        // sai pra ESQUERDA.
+        <div
+          style={{ transform: "translateY(-50%) translateZ(30px)" }}
+          className={cn(
+            "absolute top-1/2 z-30 flex flex-col gap-1 transition-opacity duration-100 motion-reduce:transition-none",
+            mirror ? "right-full mr-0.5" : "left-full ml-0.5",
+            "opacity-0 pointer-events-none",
+            "group-hover/slot:opacity-100 group-hover/slot:pointer-events-auto",
+            "group-focus-within/slot:opacity-100 group-focus-within/slot:pointer-events-auto",
+          )}
+        >
           {showAttack ? <IconBtn icon={Swords} label="Atacar" tone="primary" busy={busy} onClick={() => actions!.onAttack!(unit)} /> : null}
           {showTarget ? <IconBtn icon={Crosshair} label="Mirar aqui" tone="emerald" busy={busy} onClick={() => actions!.onDeclareTarget!(unit)} /> : null}
           {showBlocker ? <IconBtn icon={ShieldCheck} label="Ativar Blocker" tone="sky" busy={busy} onClick={() => actions!.onBlocker!(unit)} /> : null}

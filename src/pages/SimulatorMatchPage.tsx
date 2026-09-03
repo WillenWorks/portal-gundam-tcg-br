@@ -731,6 +731,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && attackerId === unit.instanceId)}
           busy={busy}
+          mirror={!isSelf}
           onSelect={(u) => toggleSelect(u.instanceId)}
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
