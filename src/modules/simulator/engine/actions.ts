@@ -84,7 +84,16 @@ export type PlayerAction =
   /** Resolve a `PendingDecision` de 【Burst】 do defensor (ver `passAction`). `activate: false` = manda a shield pro trash. */
   | { kind: "resolveBurstDecision"; activate: boolean; targets?: Record<string, string[]> }
   /** Resolve a `PendingDecision` de ordenação de gatilhos simultâneos (ordem em que os efeitos resolvem). */
-  | { kind: "resolveTriggerOrder"; orderedSpecIds: string[] };
+  | { kind: "resolveTriggerOrder"; orderedSpecIds: string[] }
+  /**
+   * Etapa 4 — resolve a `PendingDecision` de 【When Paired】 do pareamento. A
+   * ORDEM do array é a ordem escolhida pelo jogador. `activate: false` pula um
+   * efeito `optional`. `targetIds` alimenta `ctx.targets.target`.
+   */
+  | {
+      kind: "resolveWhenPaired";
+      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>;
+    };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
@@ -111,6 +120,9 @@ export function applyPlayerAction(
     }
     if (myPending.kind === "triggerOrder" && action.kind !== "resolveTriggerOrder") {
       throw new Error("Ordene os gatilhos simultâneos pendentes antes de qualquer outra ação");
+    }
+    if (myPending.kind === "whenPaired" && action.kind !== "resolveWhenPaired") {
+      throw new Error("Resolva o 【When Paired】 do pareamento antes de qualquer outra ação");
     }
   }
 
@@ -270,6 +282,30 @@ export function applyPlayerAction(
         // filtra `specs` pro spec exato — dispatchTrigger roda todos os specs de
         // (cardCode, trigger); aqui a gente já sabe qual é a ordem escolhida.
         next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
+          predicateResolver,
+        });
+      }
+      return next;
+    }
+
+    case "resolveWhenPaired": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "whenPaired") {
+        throw new Error("Não há 【When Paired】 pendente pra resolver");
+      }
+      const queueIds = [...decision.queue.map((q) => q.specId)].sort();
+      const givenIds = [...action.resolutions.map((r) => r.specId)].sort();
+      if (queueIds.length !== givenIds.length || queueIds.some((id, i) => id !== givenIds[i])) {
+        throw new Error("As resoluções precisam listar exatamente os efeitos 【When Paired】 pendentes");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
+      for (const r of action.resolutions) {
+        const q = decision.queue.find((x) => x.specId === r.specId)!;
+        // pulado, ou "Choose 1 ..." sem alvo legal disponível = nada acontece (regra oficial).
+        if (!r.activate || (q.needsTarget && r.targetIds.length === 0)) continue;
+        next = dispatchTrigger(next, q.sourceInstanceId, "When Paired", specs.filter((s) => s.id === r.specId), {
+          targets: { target: r.targetIds, shield: r.targetIds },
           predicateResolver,
         });
       }

@@ -135,6 +135,7 @@ import {
   ShieldRail,
   TriggerOrderModal,
   useBoardElements,
+  WhenPairedModal,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
@@ -573,12 +574,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         toast.error(sel.error);
         return;
       }
-      const targets = sel.targetIds.length ? { target: sel.targetIds, shield: sel.targetIds } : undefined;
+      // Etapa 4 — o 【When Paired】 direcionado é resolvido depois, no WhenPairedModal;
+      // aqui não mandamos `targets` (o motor pausa sozinho se precisar de interação).
       runAction({
         kind: "deployCard",
         cardInstanceId: pending.cardInstanceId,
         pairWithUnitId: sel.pairWithUnitId,
-        targets,
         resourceInstanceIds,
       });
     } else if (pending.kind === "activateAbility") {
@@ -883,7 +884,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       pairingNeedsExtraTarget(pendingCard.def.code) ||
       selectedOwnUnitCodes.some((code) => pairingNeedsExtraTarget(undefined, code));
     return needs
-      ? "Pareamento com 【When Paired】: escolha a Unit pra parear E clique em 1 Unit inimiga como alvo."
+      ? "Escolha a Unit pra parear e confirme — o 【When Paired】 (alvo) é resolvido logo depois do vínculo."
       : undefined;
   })();
 
@@ -1114,6 +1115,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           decision={myPendingDecision}
           busy={busy}
           onResolve={(orderedSpecIds) => runAction({ kind: "resolveTriggerOrder", orderedSpecIds })}
+        />
+      ) : null}
+      {myPendingDecision?.kind === "whenPaired" ? (
+        <WhenPairedModal
+          decision={myPendingDecision}
+          targetOptions={publicUnits(view.players[opponentSeat]).map((u) => ({
+            instanceId: u.instanceId,
+            label: u.def.nameEn,
+          }))}
+          busy={busy}
+          onResolve={(resolutions) => runAction({ kind: "resolveWhenPaired", resolutions })}
         />
       ) : null}
 

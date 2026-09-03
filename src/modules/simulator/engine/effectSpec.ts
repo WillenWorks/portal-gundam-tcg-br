@@ -289,6 +289,26 @@ export interface EffectSpec {
   actions: PrimitiveCall[];
   /** effectEn da seção correspondente — nunca effectPt (ver docs/18, cobertura de idioma) */
   sourceText: string;
+  /**
+   * Etapa 4 — `true` quando o texto oficial diz "You may ..." (o jogador
+   * escolhe ativar ou pular). Default `false` = mandatório (resolve, ou não
+   * faz nada se não há alvo legal). Nenhum efeito de ST01/ST02 é opcional.
+   */
+  optional?: boolean;
+}
+
+/**
+ * `true` se algum `PrimitiveCall` do spec (em `actions`, `condition.then` ou
+ * `condition.else`) consome o alvo nomeado `"target"` (`ctx.targets.target`).
+ * Usado pra decidir se um gatilho precisa de interação do jogador.
+ */
+export function specNeedsNamedTarget(spec: EffectSpec): boolean {
+  const uses = (calls: PrimitiveCall[] | undefined) =>
+    (calls ?? []).some((call) => {
+      const target = (call as { target?: { kind?: string; name?: string } }).target;
+      return target?.kind === "named" && target.name === "target";
+    });
+  return uses(spec.actions) || uses(spec.condition?.then) || uses(spec.condition?.else);
 }
 
 export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolvePredicate?: PredicateResolver): GameEvent[] {

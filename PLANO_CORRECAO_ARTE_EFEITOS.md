@@ -73,9 +73,15 @@ Etapa 4 é a maior; se estourar o escopo de uma sessão, para no checkpoint verd
 
 ## 4. Status
 
-| Etapa | Estado |
-|---|---|
-| 1 — vão lateral | ⬜ |
-| 2 — artes | ⬜ |
-| 3 — ativar efeito em campo | ⬜ |
-| 4 — When Paired 2 tempos + ordenação | ⬜ |
+| Etapa | Estado | Commit |
+|---|---|---|
+| 1 — vão lateral | ✅ | `2eb...` (ArenaPlaymat: teatro `shrink-0` + `justify-center`) |
+| 2 — artes | ✅ | verso p/ shields/deck/mão do oponente; alias GD01 (R-001/EXB-001/EXR-001); recurso face-up = arte real |
+| 3 — ativar efeito em campo | ✅ | `activateAbility` + `resourceInstanceIds` (motor); botão "Ativar" no BattleSlot; `ui/abilityIntent.ts` |
+| 4 — When Paired 2 tempos + ordenação | ✅ | `PendingDecision.whenPaired` + `PlayerAction.resolveWhenPaired` (motor); `deploy.ts` pausa; `WhenPairedModal` |
+
+### Follow-ups conhecidos (fora do escopo desta rodada)
+- **Deploy direcionado (não-pareamento)** — `deployCard` ainda resolve o 【Deploy】 direcionado (GUNTANK) na hora com o alvo mandado pelo cliente. Não há card assim jogável hoje no fluxo (o cliente não pede clique de alvo pra Deploy). Migrar pro mesmo `PendingDecision` quando entrar um card que precise.
+- **Gatilhos de combate (Unit + Pilot num ataque)** — `ZECHS_MERQUISE` combat trigger ("During Link ... draw 1") resolve automático em `combat.ts`. A ordenação/opt-in por efeito (mesma ideia do `whenPaired`) fica pra quando houver 2 combat triggers simultâneos de cartas diferentes.
+- **`EffectSpec.optional`** — campo criado, default `false`. Nenhum efeito de ST01/ST02 é "you may"; marcar quando entrar um.
+- **Legalidade de alvo por predicado** — "enemy Unit with 5 or less HP" hoje não é validada pelo motor (confia no cliente, como sempre foi). O `WhenPairedModal` oferece todas as Units inimigas.

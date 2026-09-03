@@ -6,6 +6,7 @@ import { effectiveAp, effectiveHp } from "./types";
 import { advanceToMainPhase } from "./phases";
 import { declareAttack, proceedToBlockStep, skipBlock } from "./combat";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
+import { applyPlayerAction } from "./actions";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { AMURO_RAY_WHEN_PAIRED, GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { findCard } from "./events";
@@ -371,6 +372,93 @@ describe("deployCard + dispatcher — integração com EffectSpec real do ST01",
     expect(next.players.A.hand.length).toBe(handSizeBeforePilot + 1);
     expect(findTriggerSpecsFired(ST01_EFFECT_SPECS, "ST01-002", "When Paired")).toEqual([GUNDAM_MA_FORM_WHEN_PAIRED]);
     expect(findTriggerSpecsFired(ST01_EFFECT_SPECS, "ST01-010", "When Paired")).toEqual([AMURO_RAY_WHEN_PAIRED]);
+  });
+});
+
+describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução separada (Etapa 4)", () => {
+  function freshSt01MainPhase(): GameState {
+    return advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+  }
+
+  it("parear Amuro Ray SEM targets: motor pausa com PendingDecision whenPaired (não resolve o efeito ainda)", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea"); // Unit vanilla (sem When Paired próprio)
+    const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+
+    const next = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+
+    expect(findCard(next, pilotId).pairedUnitId).toBe(unitId); // pareamento aconteceu
+    expect(findCard(next, enemyId).rested).toBe(false); // efeito NÃO resolveu ainda
+    const decision = next.pendingDecision.A;
+    expect(decision?.kind).toBe("whenPaired");
+    expect(decision?.kind === "whenPaired" && decision.queue).toEqual([
+      expect.objectContaining({ specId: "ST01-010-WhenPaired", needsTarget: true, optional: false }),
+    ]);
+  });
+
+  it("resolveWhenPaired com alvo: resta o alvo e limpa a decisão", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+    const paused = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+
+    const next = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveWhenPaired", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [enemyId] }] },
+      ST01_EFFECT_SPECS,
+    );
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("resolveWhenPaired sem alvo legal (targetIds vazio): nada acontece, decisão limpa", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const paused = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+
+    const next = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveWhenPaired", resolutions: [{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }] },
+      ST01_EFFECT_SPECS,
+    );
+
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("com `targets` fornecidos (caminho antigo): resolve na hora, sem pausar", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GUNCANNON, "battleArea");
+
+    const next = deployCard(state, "A", pilotId, {
+      pairWithUnitId: unitId,
+      specs: ST01_EFFECT_SPECS,
+      targets: { target: [enemyId] },
+    });
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("pareamento sem 【When Paired】 direcionado não pausa (Suletta + Unit vanilla)", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY.cost! + 2);
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const pilotId = place(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY, "hand");
+
+    const next = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+    expect(next.pendingDecision.A).toBeNull();
   });
 });
 

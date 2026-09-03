@@ -400,6 +400,24 @@ export type PendingDecision =
       specId: string;
       validTargetIds: string[];
       count: number;
+    }
+  | {
+      /**
+       * Etapa 4 — 【When Paired】 de um pareamento de Piloto, resolvido num
+       * momento SEPARADO da escolha da Unit. A fila pode ter mais de 1 efeito
+       * (When Paired da Unit + do Piloto ao mesmo tempo): o jogador escolhe a
+       * ORDEM (não é cadeia, é ordenação de eventos) e, pra efeito `optional`,
+       * se ativa ou pula. `needsTarget` = o efeito consome um alvo nomeado.
+       */
+      kind: "whenPaired";
+      queue: Array<{
+        sourceInstanceId: string;
+        specId: string;
+        /** `sourceText` do EffectSpec — texto pra UI. */
+        label: string;
+        optional: boolean;
+        needsTarget: boolean;
+      }>;
     };
 
 export interface CombatState {

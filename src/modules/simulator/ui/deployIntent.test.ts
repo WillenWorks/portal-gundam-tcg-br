@@ -19,6 +19,12 @@ function card(def: Partial<CardDef> & Pick<CardDef, "code" | "cardType">): CardI
   };
 }
 
+const ownUnits = [
+  { instanceId: "u1", code: "ST01-001", paired: false },
+  { instanceId: "u2", code: "ST01-006", paired: false }, // Gundam Aerial (When Paired direcionado)
+  { instanceId: "u3", code: "ST01-001", paired: true },
+];
+
 describe("deployIntent", () => {
   it("specNeedsNamedTarget: true pra 'rest target', false pra 'draw' condicional", () => {
     expect(specNeedsNamedTarget(AMURO_RAY_WHEN_PAIRED)).toBe(true);
@@ -26,17 +32,17 @@ describe("deployIntent", () => {
   });
 
   it("pairingNeedsExtraTarget: Amuro Ray (piloto) e Gundam Aerial (unidade) exigem alvo; ST01-002 não", () => {
-    expect(pairingNeedsExtraTarget("ST01-010")).toBe(true); // Amuro Ray — lado do Piloto
-    expect(pairingNeedsExtraTarget(undefined, "ST01-006")).toBe(true); // Gundam Aerial — lado da Unit
-    expect(pairingNeedsExtraTarget("ST01-002")).toBe(false); // Gundam MA Form — draw, sem alvo
-    expect(pairingNeedsExtraTarget("XX-999", "YY-000")).toBe(false); // cartas sem spec
+    expect(pairingNeedsExtraTarget("ST01-010")).toBe(true);
+    expect(pairingNeedsExtraTarget(undefined, "ST01-006")).toBe(true);
+    expect(pairingNeedsExtraTarget("ST01-002")).toBe(false);
+    expect(pairingNeedsExtraTarget("XX-999", "YY-000")).toBe(false);
   });
 
-  const ownUnits = [
-    { instanceId: "u1", code: "ST01-001", paired: false },
-    { instanceId: "u2", code: "ST01-006", paired: false },
-    { instanceId: "u3", code: "ST01-001", paired: true },
-  ];
+  it("carta que não é Piloto: sem pareamento", () => {
+    const sel = resolveDeploySelection({ card: card({ code: "ST01-003", cardType: "UNIT" }), selected: [], ownBattleUnits: ownUnits });
+    expect(sel.pairWithUnitId).toBeUndefined();
+    expect(sel.error).toBeUndefined();
+  });
 
   it("Piloto sem Unit selecionada: erro de pareamento", () => {
     const sel = resolveDeploySelection({ card: card({ code: "ST01-010", cardType: "PILOT" }), selected: [], ownBattleUnits: ownUnits });
@@ -44,7 +50,7 @@ describe("deployIntent", () => {
     expect(sel.pairWithUnitId).toBeUndefined();
   });
 
-  it("Amuro Ray pareado com 1 clique só (sem alvo inimigo): bloqueia com erro de 【When Paired】", () => {
+  it("Amuro Ray + Unit escolhida: sem erro, pairWithUnitId setado, marca needsWhenPairedTarget", () => {
     const sel = resolveDeploySelection({
       card: card({ code: "ST01-010", cardType: "PILOT" }),
       selected: ["u1"],
@@ -52,50 +58,36 @@ describe("deployIntent", () => {
     });
     expect(sel.pairWithUnitId).toBe("u1");
     expect(sel.needsWhenPairedTarget).toBe(true);
-    expect(sel.error).toMatch(/When Paired.*clique também em 1 Unit inimiga/);
-  });
-
-  it("Amuro Ray pareado + alvo inimigo escolhido: sem erro, targetIds = [inimigo]", () => {
-    const sel = resolveDeploySelection({
-      card: card({ code: "ST01-010", cardType: "PILOT" }),
-      selected: ["u1", "enemy-1"],
-      ownBattleUnits: ownUnits,
-    });
-    expect(sel.pairWithUnitId).toBe("u1");
-    expect(sel.targetIds).toEqual(["enemy-1"]);
     expect(sel.error).toBeUndefined();
   });
 
-  it("parear com Gundam Aerial (Unit com 【When Paired】 direcionado) também exige alvo", () => {
-    const sel = resolveDeploySelection({
-      card: card({ code: "ST99-001", cardType: "PILOT" }), // piloto genérico sem spec
-      selected: ["u2"], // Aerial
-      ownBattleUnits: ownUnits,
-    });
-    expect(sel.needsWhenPairedTarget).toBe(true);
-    expect(sel.error).toBeTruthy();
-  });
-
-  it("Piloto comum (sem 【When Paired】 direcionado): pareia com 1 clique, sem pedir alvo", () => {
+  it("parear com Gundam Aerial também marca needsWhenPairedTarget (lado da Unit)", () => {
     const sel = resolveDeploySelection({
       card: card({ code: "ST99-001", cardType: "PILOT" }),
-      selected: ["u1"], // ST01-001 não tem When Paired direcionado
+      selected: ["u2"],
+      ownBattleUnits: ownUnits,
+    });
+    expect(sel.pairWithUnitId).toBe("u2");
+    expect(sel.needsWhenPairedTarget).toBe(true);
+  });
+
+  it("Piloto comum: pareia com 1 clique, sem 【When Paired】 direcionado", () => {
+    const sel = resolveDeploySelection({
+      card: card({ code: "ST99-001", cardType: "PILOT" }),
+      selected: ["u1"],
       ownBattleUnits: ownUnits,
     });
     expect(sel.pairWithUnitId).toBe("u1");
     expect(sel.needsWhenPairedTarget).toBe(false);
     expect(sel.error).toBeUndefined();
-    expect(sel.targetIds).toEqual([]);
   });
 
-  it("deploy de Unit comum (não é Piloto): sem pareamento, targetIds = cliques", () => {
+  it("ignora Unit já pareada ao procurar a Unit de pareio", () => {
     const sel = resolveDeploySelection({
-      card: card({ code: "ST01-003", cardType: "UNIT" }),
-      selected: ["enemy-1"],
+      card: card({ code: "ST01-010", cardType: "PILOT" }),
+      selected: ["u3", "u1"], // u3 já pareada -> escolhe u1
       ownBattleUnits: ownUnits,
     });
-    expect(sel.pairWithUnitId).toBeUndefined();
-    expect(sel.targetIds).toEqual(["enemy-1"]);
-    expect(sel.error).toBeUndefined();
+    expect(sel.pairWithUnitId).toBe("u1");
   });
 });

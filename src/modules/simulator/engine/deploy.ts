@@ -1,7 +1,8 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver } from "./effectSpec";
-import { dispatchTrigger } from "./dispatcher";
+import { specNeedsNamedTarget } from "./effectSpec";
+import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -122,13 +123,69 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   if (specs.length > 0) {
     next = dispatchTrigger(next, cardInstanceId, "Deploy", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
     if (playAsPilot && options.pairWithUnitId) {
-      // 【When Paired】 pode estar na Unit ou no Pilot (ST01-002 vs ST01-010) — dispara os dois lados.
-      next = dispatchTrigger(next, options.pairWithUnitId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
-      next = dispatchTrigger(next, cardInstanceId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
+      next = resolveWhenPairedOnDeploy(next, player, cardInstanceId, options.pairWithUnitId, specs, options);
     }
   }
 
   return next;
+}
+
+/**
+ * Etapa 4 — 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) num momento
+ * SEPARADO da escolha da Unit: se algum efeito é `optional` ou precisa de alvo
+ * e o alvo não veio pronto (`options.targets`), o motor PAUSA e grava uma
+ * `PendingDecision: whenPaired` — o jogador resolve a ordem + alvos + ativa/pula
+ * via `resolveWhenPaired`. Efeitos "self"/mandatórios sem alvo resolvem na hora.
+ */
+function resolveWhenPairedOnDeploy(
+  state: GameState,
+  player: PlayerId,
+  pilotId: string,
+  unitId: string,
+  specs: EffectSpec[],
+  options: DeployOptions,
+): GameState {
+  const unitCode = findCard(state, unitId).def.code;
+  const pilotCode = findCard(state, pilotId).def.code;
+  const wp = [
+    ...findTriggerSpecs(specs, unitCode, "When Paired").map((spec) => ({ spec, sourceInstanceId: unitId })),
+    ...findTriggerSpecs(specs, pilotCode, "When Paired").map((spec) => ({ spec, sourceInstanceId: pilotId })),
+  ];
+  if (wp.length === 0) return state;
+
+  const dispatchOpts = { targets: options.targets, predicateResolver: options.predicateResolver };
+  const interactive = wp.filter(({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec));
+
+  if (interactive.length === 0 || options.targets) {
+    // caminho antigo: tudo resolve na hora.
+    let next = state;
+    for (const { spec, sourceInstanceId } of wp) {
+      next = dispatchTrigger(next, sourceInstanceId, "When Paired", [spec], dispatchOpts);
+    }
+    return next;
+  }
+
+  // efeitos automáticos resolvem antes da pausa; os interativos vão pra fila.
+  let next = state;
+  for (const { spec, sourceInstanceId } of wp.filter((w) => !interactive.includes(w))) {
+    next = dispatchTrigger(next, sourceInstanceId, "When Paired", [spec], dispatchOpts);
+  }
+  return applyEvents(next, [
+    {
+      type: "SET_PENDING_DECISION",
+      player,
+      decision: {
+        kind: "whenPaired",
+        queue: interactive.map(({ spec, sourceInstanceId }) => ({
+          sourceInstanceId,
+          specId: spec.id,
+          label: spec.sourceText,
+          optional: spec.optional ?? false,
+          needsTarget: specNeedsNamedTarget(spec),
+        })),
+      },
+    },
+  ]);
 }
 
 export interface PlayCommandOptions {
