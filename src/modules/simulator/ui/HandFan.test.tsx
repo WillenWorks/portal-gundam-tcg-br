@@ -67,25 +67,41 @@ describe("HandFan", () => {
     expect(onPeek).toHaveBeenCalledWith(zaku);
   });
 
-  it("'Ver' chama onViewCard mesmo numa carta bloqueada", () => {
-    const onViewCard = vi.fn();
+  it("clicar no corpo da carta chama onInspect (jogável ou não) — sem botão de olho", () => {
+    const onInspect = vi.fn();
     const zaku = unit("Zaku II");
     render(
       <HandFan
         cards={[{ card: zaku, playable: false, blockedReason: "Sem gatilho." }]}
         art={{}}
         onPeek={vi.fn()}
-        onViewCard={onViewCard}
+        onInspect={onInspect}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Ver Zaku II" }));
-    expect(onViewCard).toHaveBeenCalledWith(zaku);
+    fireEvent.click(screen.getByRole("button", { name: /^Ver Zaku II/ }));
+    expect(onInspect).toHaveBeenCalledWith(zaku);
   });
 
-  it("sem onViewCard, o botão 'Ver' não aparece", () => {
+  it("o único botão de ação é 'Jogar' (o corpo clicável não conta como 'Ver ...' de ação)", () => {
     hand([{ card: unit("Gundam"), playable: true }]);
-    expect(screen.queryByRole("button", { name: /^Ver / })).toBeNull();
+    // não há mais botão dedicado "Ver Gundam" separado do corpo — o corpo É o inspetor
     expect(screen.getByRole("button", { name: /Jogar Gundam/ })).toBeInTheDocument();
+  });
+
+  it("mão pequena fica FROUXA (pouco overlap); mão grande aperta", () => {
+    const { rerender } = render(
+      <HandFan cards={[unit("A"), unit("B"), unit("C")].map((c) => ({ card: c, playable: true }))} art={{}} onPeek={vi.fn()} />,
+    );
+    const small = (containers()[1].style.marginLeft.match(/-([\d.]+)/) || [])[1];
+    rerender(
+      <HandFan
+        cards={Array.from({ length: 12 }, (_, i) => ({ card: unit(`C${i}`), playable: true }))}
+        art={{}}
+        onPeek={vi.fn()}
+      />,
+    );
+    const big = (containers()[1].style.marginLeft.match(/-([\d.]+)/) || [])[1];
+    expect(Number(big)).toBeGreaterThan(Number(small));
   });
 
   it("mão vazia mostra o emptyLabel e nenhum botão", () => {

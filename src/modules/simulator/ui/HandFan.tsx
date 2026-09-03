@@ -3,15 +3,15 @@
  * A carta em foco (hover / teclado) sobe e ganha z-index, desencobrindo a
  * vizinha. Referência: leque com hover-lift de Hearthstone / Master Duel.
  *
- * Sprint 6 · P3 — modo `anchored` (prateleira de comando na base da arena): a
- * carta NÃO é mais cortada no rodapé (só overlap + hover-lift dão o efeito de
- * prateleira); custo/nome/nível e a arte ficam legíveis em repouso, sem hover.
- * Cada carta tem 2 controles sempre visíveis (touch-friendly, sem depender de
- * hover): "Jogar" (dispara `onPeek` — joga direto / avisa / abre modal dual) e
- * "Ver" (`onViewCard` — abre a modal de zoom SÓ pra ler, jogável ou não).
+ * Rodada Willen 2026-09-03 (capturas 6):
+ *  - MAIS espaço entre cartas em repouso; só aperta o overlap quando a mão
+ *    cresce (`overlapFor`).
+ *  - SEM botão "Ver" (olho): clicar no corpo da carta já abre o zoom
+ *    (`onInspect`). Sobra só "Jogar" — escondido, aparece no hover no canto
+ *    superior direito, mesmo ícone `Play`.
  * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
-import { Eye, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardFace } from "./CardFace";
@@ -29,28 +29,34 @@ interface HandFanProps {
   art: ArtLookup;
   /** botão "Jogar" — o pai joga direto / avisa / abre modal dual. */
   onPeek: (card: CardInstance) => void;
-  /** botão "Ver" — o pai abre a modal de zoom só pra leitura (jogável ou não). */
-  onViewCard?: (card: CardInstance) => void;
+  /** clique no corpo da carta — abre a modal de zoom (jogável ou não). */
+  onInspect?: (card: CardInstance) => void;
   /** hover / foco numa carta (ou `null` ao sair) — alimenta o inspetor lateral. */
   onHoverCard?: (card: CardInstance | null) => void;
-  /** fração de sobreposição entre cartas vizinhas (0..1). */
+  /** override manual da sobreposição (0..1). Default: derivado da qtd de cartas. */
   overlap?: number;
   emptyLabel?: string;
   /** prateleira ancorada na base da arena (overlap + hover-lift, sem corte). */
   anchored?: boolean;
 }
 
-const DEFAULT_OVERLAP = 0.42;
 /** teto de sobreposição — acima disto a carta vira uma lasca ilegível. */
-const MAX_OVERLAP = 0.85;
+const MAX_OVERLAP = 0.72;
+
+/** Mão pequena = quase sem overlap (cartas espaçadas, capturas 6); só aperta
+ *  quando passa de ~6 cartas. */
+function overlapFor(count: number): number {
+  if (count <= 6) return 0.12;
+  return Math.min(MAX_OVERLAP, 0.12 + (count - 6) * 0.07);
+}
 
 export function HandFan({
   cards,
   art,
   onPeek,
-  onViewCard,
+  onInspect,
   onHoverCard,
-  overlap = DEFAULT_OVERLAP,
+  overlap,
   emptyLabel = "Mão vazia.",
   anchored,
 }: HandFanProps) {
@@ -60,7 +66,7 @@ export function HandFan({
     );
   }
 
-  const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(0, overlap));
+  const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(0, overlap ?? overlapFor(cards.length)));
   const overlapMargin = `calc(var(--card, 3.5rem) * -${clampedOverlap})`;
   const lift = anchored
     ? "hover:-translate-y-6 focus-within:-translate-y-6"
@@ -94,54 +100,49 @@ export function HandFan({
                   : "border-transparent [filter:grayscale(1)_brightness(0.65)]",
               )}
             >
-              <CardFace
-                nameEn={card.def.nameEn}
-                code={card.def.code}
-                art={art}
-                size="md"
-                style={{ width: "var(--card, 3.5rem)" }}
-                backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+              {/* corpo da carta: clicar abre o zoom (não precisa de botão de olho) */}
+              <button
+                type="button"
+                onClick={() => onInspect?.(card)}
+                aria-label={`Ver ${card.def.nameEn} · ${state}`}
+                className="block w-full cursor-zoom-in"
               >
-                {cost !== undefined ? (
-                  <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
-                    {cost}
-                  </span>
-                ) : null}
-                {card.def.cardType === "UNIT" ? (
-                  <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
-                    <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def.ap ?? 0}</span>
-                    <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def.hp ?? 0}</span>
-                  </div>
-                ) : null}
-              </CardFace>
-
-              {/* P2 — controles flutuantes AGARRADOS NO TOPO da carta (não tapam
-                  a arte nem o pip de custo). Sempre visíveis (touch-friendly). */}
-              <div className="absolute -top-5 inset-x-0 z-20 flex justify-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => onPeek(card)}
-                  title={`Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`}
-                  aria-label={`Jogar ${card.def.nameEn} · ${cost !== undefined ? `custo ${cost} · ` : ""}${state}`}
-                  className={cn(
-                    "flex size-5 items-center justify-center rounded-none border border-black/30 shadow-lg transition-colors motion-reduce:transition-none",
-                    playable ? "bg-primary/95 text-black hover:bg-primary" : "bg-slate-800/95 text-slate-300 hover:bg-slate-700",
-                  )}
+                <CardFace
+                  nameEn={card.def.nameEn}
+                  code={card.def.code}
+                  art={art}
+                  size="md"
+                  style={{ width: "var(--card, 3.5rem)" }}
+                  backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
                 >
-                  <Play className="size-3" aria-hidden />
-                </button>
-                {onViewCard ? (
-                  <button
-                    type="button"
-                    onClick={() => onViewCard(card)}
-                    title={`Ver ${card.def.nameEn}`}
-                    aria-label={`Ver ${card.def.nameEn}`}
-                    className="flex size-5 items-center justify-center rounded-none border border-black/30 bg-slate-900/95 text-slate-200 shadow-lg transition-colors hover:text-primary motion-reduce:transition-none"
-                  >
-                    <Eye className="size-3" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
+                  {cost !== undefined ? (
+                    <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
+                      {cost}
+                    </span>
+                  ) : null}
+                  {card.def.cardType === "UNIT" ? (
+                    <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
+                      <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def.ap ?? 0}</span>
+                      <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def.hp ?? 0}</span>
+                    </div>
+                  ) : null}
+                </CardFace>
+              </button>
+
+              {/* "Jogar" — escondido, aparece no hover/foco no canto sup. direito. */}
+              <button
+                type="button"
+                onClick={() => onPeek(card)}
+                title={`Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`}
+                aria-label={`Jogar ${card.def.nameEn} · ${cost !== undefined ? `custo ${cost} · ` : ""}${state}`}
+                className={cn(
+                  "absolute -right-2 -top-2 z-20 flex size-6 items-center justify-center rounded-none border border-black/30 opacity-0 shadow-lg transition-opacity duration-100 motion-reduce:transition-none",
+                  "group-hover/hc:opacity-100 group-focus-within/hc:opacity-100 focus-visible:opacity-100",
+                  playable ? "bg-primary/95 text-black hover:bg-primary" : "bg-slate-800/95 text-slate-300 hover:bg-slate-700",
+                )}
+              >
+                <Play className="size-3.5" aria-hidden />
+              </button>
             </div>
           );
         })}

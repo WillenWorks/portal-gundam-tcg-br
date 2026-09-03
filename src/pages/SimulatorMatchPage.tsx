@@ -1092,8 +1092,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   // Carta dual (Comando vs Piloto): modal só pra escolher o modo.
                   setPreview({ card: c, blockedReason, modes });
                 }}
-                onViewCard={(c) => {
-                  // "Ver" (Sprint 6 · P3) — abre a modal de zoom pra leitura; se
+                onInspect={(c) => {
+                  // clicar no corpo da carta abre a modal de zoom pra leitura; se
                   // a carta for jogável, o footer de ação continua disponível.
                   const { modes, blockedReason } = describeHandCard(c);
                   setPreview({ card: c, blockedReason, modes });
