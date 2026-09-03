@@ -3,12 +3,15 @@
  * restante; overlay "RESTED"; Piloto acoplado (DockedPilot) com badge LINK;
  * realce verde/dourado quando é alvo legal de uma ação.
  *
- * Sprint 5 (refinamento Arena 3D) — o slot é RIGOROSAMENTE `aspect-[63/88]`:
- * os botões de ação rápida ("Atacar" / "Mirar aqui" / "Blocker") viraram
- * OVERLAY absoluto sobre a carta (não somam mais 44px de altura, que fazia as
- * Units colidirem na seam). O Piloto acoplado também é overlay na base. */
+ * Sprint 5 (refinamento Arena 3D) — o slot é RIGOROSAMENTE `aspect-[63/88]`.
+ *
+ * P2 (botões flutuantes) — as ações de campo (Atacar / Mirar / Blocker / Ativar)
+ * são ícones numa tira vertical fina na borda DIREITA da carta: não tapam a
+ * arte nem os números AP/HP (cantos inferiores). Só aparecem quando a jogada é
+ * possível. */
+import type { LucideIcon } from "lucide-react";
+import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
@@ -23,9 +26,43 @@ export interface BattleSlotActions {
   onActivate?: (unit: CardInstance) => void;
 }
 
-/** botão de ação em overlay: sólido de alto contraste, compacto, não estica o slot. */
-const ACTION_BTN =
-  "h-7 w-full rounded-none bg-primary/95 px-1 text-[10px] font-bold text-black shadow-lg hover:bg-primary/90";
+type BtnTone = "primary" | "emerald" | "accent" | "sky";
+const TONE_CLASS: Record<BtnTone, string> = {
+  primary: "bg-primary/95 text-black hover:bg-primary",
+  emerald: "bg-emerald-500 text-white hover:bg-emerald-400",
+  accent: "bg-accent text-black hover:bg-accent/90",
+  sky: "bg-sky-500 text-white hover:bg-sky-400",
+};
+
+function IconBtn({
+  icon: Icon,
+  label,
+  tone,
+  busy,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  tone: BtnTone;
+  busy?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={busy}
+      onClick={onClick}
+      className={cn(
+        "flex size-6 items-center justify-center rounded-none border border-black/30 shadow-lg transition-colors disabled:opacity-50 motion-reduce:transition-none",
+        TONE_CLASS[tone],
+      )}
+    >
+      <Icon className="size-3.5" aria-hidden />
+    </button>
+  );
+}
 
 interface BattleSlotProps {
   unit: CardInstance | null;
@@ -151,37 +188,11 @@ export function BattleSlot({
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
       {showActions ? (
-        <div className="absolute inset-x-1 bottom-1 z-20 flex flex-col gap-0.5">
-          {showAttack ? (
-            <Button size="sm" className={ACTION_BTN} disabled={busy} onClick={() => actions!.onAttack!(unit)}>
-              Atacar
-            </Button>
-          ) : null}
-          {showTarget ? (
-            <Button
-              size="sm"
-              className={cn(ACTION_BTN, "bg-emerald-500 hover:bg-emerald-400")}
-              disabled={busy}
-              onClick={() => actions!.onDeclareTarget!(unit)}
-            >
-              Mirar aqui
-            </Button>
-          ) : null}
-          {showBlocker ? (
-            <Button size="sm" className={ACTION_BTN} disabled={busy} onClick={() => actions!.onBlocker!(unit)}>
-              Blocker
-            </Button>
-          ) : null}
-          {showActivate ? (
-            <Button
-              size="sm"
-              className={cn(ACTION_BTN, "bg-accent hover:bg-accent/90")}
-              disabled={busy}
-              onClick={() => actions!.onActivate!(unit)}
-            >
-              Ativar
-            </Button>
-          ) : null}
+        <div className="absolute right-0.5 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-0.5">
+          {showAttack ? <IconBtn icon={Swords} label="Atacar" tone="primary" busy={busy} onClick={() => actions!.onAttack!(unit)} /> : null}
+          {showTarget ? <IconBtn icon={Crosshair} label="Mirar aqui" tone="emerald" busy={busy} onClick={() => actions!.onDeclareTarget!(unit)} /> : null}
+          {showBlocker ? <IconBtn icon={ShieldCheck} label="Ativar Blocker" tone="sky" busy={busy} onClick={() => actions!.onBlocker!(unit)} /> : null}
+          {showActivate ? <IconBtn icon={Zap} label="Ativar habilidade" tone="accent" busy={busy} onClick={() => actions!.onActivate!(unit)} /> : null}
         </div>
       ) : null}
     </div>

@@ -11,6 +11,7 @@
  * "Ver" (`onViewCard` — abre a modal de zoom SÓ pra ler, jogável ou não).
  * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
+import { Eye, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardFace } from "./CardFace";
@@ -107,34 +108,37 @@ export function HandFan({
                   </span>
                 ) : null}
                 {card.def.cardType === "UNIT" ? (
-                  <div className="absolute inset-x-0 bottom-6 flex text-[9px] font-black">
+                  <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
                     <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def.ap ?? 0}</span>
                     <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def.hp ?? 0}</span>
                   </div>
                 ) : null}
               </CardFace>
 
-              {/* Controles — sempre visíveis (funcionam em touch, sem hover). */}
-              <div className="absolute inset-x-0 bottom-0 z-20 flex h-6 text-[9px] font-bold uppercase tracking-wide">
+              {/* P2 — controles flutuantes AGARRADOS NO TOPO da carta (não tapam
+                  a arte nem o pip de custo). Sempre visíveis (touch-friendly). */}
+              <div className="absolute -top-5 inset-x-0 z-20 flex justify-center gap-0.5">
                 <button
                   type="button"
                   onClick={() => onPeek(card)}
+                  title={`Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`}
                   aria-label={`Jogar ${card.def.nameEn} · ${cost !== undefined ? `custo ${cost} · ` : ""}${state}`}
                   className={cn(
-                    "flex flex-1 items-center justify-center border-r border-black/40",
-                    playable ? "bg-primary/90 text-black hover:bg-primary" : "bg-slate-800/90 text-slate-300 hover:bg-slate-700",
+                    "flex size-5 items-center justify-center rounded-none border border-black/30 shadow-lg transition-colors motion-reduce:transition-none",
+                    playable ? "bg-primary/95 text-black hover:bg-primary" : "bg-slate-800/95 text-slate-300 hover:bg-slate-700",
                   )}
                 >
-                  Jogar
+                  <Play className="size-3" aria-hidden />
                 </button>
                 {onViewCard ? (
                   <button
                     type="button"
                     onClick={() => onViewCard(card)}
+                    title={`Ver ${card.def.nameEn}`}
                     aria-label={`Ver ${card.def.nameEn}`}
-                    className="flex flex-1 items-center justify-center bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-primary"
+                    className="flex size-5 items-center justify-center rounded-none border border-black/30 bg-slate-900/95 text-slate-200 shadow-lg transition-colors hover:text-primary motion-reduce:transition-none"
                   >
-                    Ver
+                    <Eye className="size-3" aria-hidden />
                   </button>
                 ) : null}
               </div>

@@ -54,8 +54,8 @@ P0 → P1 → P2 → P3 → P4. Cada fase: implementa → `pnpm test && check:ty
 
 | Fase | Estado | Commit / notas |
 |---|---|---|
-| P0 — loop whenPaired | ⬜ | |
-| P1 — efeito Attack + abilityResolution | ⬜ | |
+| P0 — loop whenPaired | ✅ | `6ac0e47` — `defaultActionFor` resolve `abilityResolution` (era `finishTurn` rejeitado → loop) |
+| P1 — efeito Attack + abilityResolution | ✅ | `b9c2f91` — `abilityDispatch.ts`; `whenPaired`→`abilityResolution` (+`trigger`/`targetScope`); `declareAttack` despacha "Attack" do atacante+Piloto; `AbilityResolutionModal` |
 | P2 — botões flutuantes | ⬜ | |
 | P3 — jogabilidade contextual | ⬜ | |
 | P4 — ciclo de vida / link | ⬜ | |
