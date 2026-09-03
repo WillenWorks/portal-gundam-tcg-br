@@ -481,15 +481,16 @@ export interface PlayerState {
 export interface GameOverInfo {
   winner: PlayerId;
   /**
-   * "abandonment" nunca é produzida pelo motor puro — só existe porque o
-   * servidor (matchStore.ts, passo 4 do docs/18) precisa encerrar uma
-   * partida por um motivo que não é regra de jogo (W.O. por 3min sem
-   * atividade do oponente). Mantida aqui, não num tipo à parte no servidor,
-   * porque `GameOverInfo` já é o único formato de "fim de jogo" que
-   * `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
+   * "abandonment" e "resignation" nunca são produzidas pelo motor puro — só
+   * existem porque o servidor (matchStore.ts, passo 4 do docs/18) precisa
+   * encerrar uma partida por um motivo que não é regra de jogo: "resignation"
+   * = o jogador clicou "Desistir"; "abandonment" = W.O. por inatividade
+   * (botão do oponente ou auto-forfeit AFK). Mantidas aqui, não num tipo à
+   * parte no servidor, porque `GameOverInfo` já é o único formato de "fim de
+   * jogo" que `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
    * duplicaria a renderização de fim de jogo no cliente sem necessidade.
    */
-  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment";
+  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation";
 }
 
 export interface GameState {

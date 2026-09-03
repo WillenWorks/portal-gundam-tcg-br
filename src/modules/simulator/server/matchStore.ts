@@ -352,12 +352,13 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
     // Ainda seta GAME_OVER no `state` antes de descartar pra o registro devolvido
     // ficar consistente com as irmãs (`claimAbandonWin`/`onTurnTimeout`): quem
     // consome o retorno nunca vê um tabuleiro "vivo" de uma partida que já não existe.
-    match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+    match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
+    logGameOverOnce(match);
     deleteMatch(matchId);
     return match;
   }
 
-  match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+  match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
   match.updatedAt = Date.now();
   match.version += 1;
   armTurnTimer(match);
@@ -623,7 +624,28 @@ export function subscribe(matchId: string, listener: Listener): () => void {
   };
 }
 
+/** IDs de partida cujo fim de jogo já foi registrado no log — evita repetir a cada `notify`. */
+const gameOverLogged = new Set<string>();
+
+/**
+ * "Toma nota" do vencedor/perdedor e do motivo (pedido do Willen) — um
+ * `console.info` estruturado na 1ª vez que a partida aparece encerrada. Sem
+ * banco: é só rastro de diagnóstico nos logs do servidor, casável com o
+ * `RULE-REPORT`. Idempotente.
+ */
+function logGameOverOnce(match: MatchRecord): void {
+  const over = match.state.gameOver;
+  if (!over || gameOverLogged.has(match.id)) return;
+  gameOverLogged.add(match.id);
+  const loser: PlayerId = over.winner === "A" ? "B" : "A";
+  console.info(
+    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${over.winner}(${match.seats[over.winner]?.displayName ?? "?"}) ` +
+      `loser=${loser}(${match.seats[loser]?.displayName ?? "?"}) reason=${over.reason} turn=${match.state.turnNumber}`,
+  );
+}
+
 function notify(match: MatchRecord): void {
+  logGameOverOnce(match);
   const set = listeners.get(match.id);
   if (!set || set.size === 0) return;
   const views = matchViewsForBothPlayers(match);
@@ -634,6 +656,7 @@ export function deleteMatch(matchId: string): void {
   clearTurnTimer(matchId);
   matches.delete(matchId);
   listeners.delete(matchId);
+  gameOverLogged.delete(matchId);
   // Não deixa `pendingMatches` apontando pra uma partida que não existe mais —
   // senão `queueStatusFor` mandaria o jogador de volta pra ela (agora tem um
   // guard lá também, mas limpar na fonte evita entrada morta na memória).
@@ -650,4 +673,5 @@ export function _resetAllMatchesForTests(): void {
   listeners.clear();
   queue.length = 0;
   pendingMatches.clear();
+  gameOverLogged.clear();
 }

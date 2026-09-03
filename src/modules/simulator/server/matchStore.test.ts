@@ -220,7 +220,7 @@ describe("fila de matchmaking (joinQueue / queueStatusFor / leaveQueue)", () => 
     // sanity: o polling do sandbox pegaria a partida agora
     expect(queueStatusFor("user-1").matchId).toBe(paired.matchId);
 
-    // user-1 desiste -> fim de jogo (abandono, user-2 vence)
+    // user-1 desiste -> fim de jogo (desistência, user-2 vence)
     resignMatch(paired.matchId!, "user-1");
 
     // ao voltar pro /simulador, os dois devem cair no lobby, não na partida terminada
@@ -433,13 +433,13 @@ describe("auto-forfeit por AFK prolongado (P4 — o jogo não roda ininterrupto)
 });
 
 describe("resignMatch (Sair da partida = desistência imediata)", () => {
-  it("concede a vitória ao oponente por abandono, na hora, sem espera", () => {
+  it("concede a vitória ao oponente por desistência (reason: resignation), na hora, sem espera", () => {
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
     const after = resignMatch(match.id, "user-1"); // A sai
-    expect(after.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
+    expect(after.state.gameOver).toEqual({ winner: "B", reason: "resignation" });
   });
 
   it("a partida encerrada some de activeMatchForUser / queueStatusFor (não puxa o jogador de volta)", () => {
@@ -478,7 +478,25 @@ describe("resignMatch (Sair da partida = desistência imediata)", () => {
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
     resignMatch(match.id, "user-1");
     const again = resignMatch(match.id, "user-2"); // já acabou -> no-op
-    expect(again.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
+    expect(again.state.gameOver).toEqual({ winner: "B", reason: "resignation" });
+  });
+
+  it("registra o fim de jogo no log uma única vez (vencedor / perdedor / motivo)", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+      resignMatch(match.id, "user-1");
+
+      const logged = info.mock.calls.map((c) => String(c[0])).filter((s) => s.includes("[GAME-OVER]"));
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toContain("winner=B(Convidado)");
+      expect(logged[0]).toContain("loser=A(Willen)");
+      expect(logged[0]).toContain("reason=resignation");
+    } finally {
+      info.mockRestore();
+    }
   });
 });
 

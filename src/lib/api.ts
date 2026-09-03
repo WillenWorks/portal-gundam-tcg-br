@@ -251,7 +251,7 @@ export type SimulatorMatchSummary = {
   turnNumber: number;
   activePlayer: PlayerId;
   phase: "start" | "draw" | "resource" | "main" | "end";
-  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" } | null;
+  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation" } | null;
   createdAt: number;
   updatedAt: number;
   version: number;

@@ -137,6 +137,9 @@ import {
   TriggerOrderModal,
   useBoardElements,
   AbilityResolutionModal,
+  GameOverOverlay,
+  gameOverReasonLabel,
+  CenterAnnounce,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
@@ -500,10 +503,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const gameOverResult = view.gameOver
     ? {
         won: view.gameOver.winner === seat,
-        reasonLabel:
-          { deckOut: "deck vazio", noShieldsBattleDamage: "dano de batalha sem shields", abandonment: "abandono" }[
-            view.gameOver.reason
-          ] ?? view.gameOver.reason,
+        reason: view.gameOver.reason,
+        reasonLabel: gameOverReasonLabel(view.gameOver.reason, view.gameOver.winner === seat),
       }
     : null;
 
@@ -917,6 +918,27 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       : undefined;
   })();
 
+  // Aviso no centro da tela (capturas 4) — a MESMA intenção que o `ActionDock`
+  // resume no canto, ecoada grande no meio pra não passar despercebida. `null`
+  // nos momentos "sem pendência" (a arena fala por si).
+  const centerAnnounce: string | null = (() => {
+    if (gameOverResult) return null; // o GameOverOverlay assume
+    if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
+    if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
+    if (myPendingDecision?.kind === "abilityResolution") return "Resolva o efeito ativado";
+    if (pending?.kind === "activateAbility") {
+      return pending.abilityNeedsTarget ? "Escolha o alvo e os recursos pra pagar o custo" : "Escolha os recursos pra pagar o custo";
+    }
+    if (pending) {
+      if (pendingDeployHint) return "Escolha a Unit pra parear e confirme";
+      if (pendingCost > 0 && !resourcesReady) return `Pague o custo: ${selectedResources.length}/${pendingCost} recursos`;
+      return "Escolha o alvo / pareamento no tabuleiro e confirme";
+    }
+    if (attackerId) return "Escolha o alvo do ataque (Unit ou jogador)";
+    if (iAmDefending) return "Defenda: ative um <Blocker> ou não bloqueie";
+    return null;
+  })();
+
   function computeDockState(): ActionDockState {
     if (gameOverResult) {
       return { kind: "gameOver", won: gameOverResult.won, reasonLabel: gameOverResult.reasonLabel, redirectSeconds: redirectSecondsLeft };
@@ -1166,23 +1188,37 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
 
+      {/* Aviso/confirmação no centro da tela (capturas 4) — ecoa a intenção atual
+          grande e translúcida, sem bloquear clique. */}
+      <CenterAnnounce message={centerAnnounce} tone={combat || iAmDefending ? "warn" : "info"} />
+
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
-          os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board. */}
-      <ActionDock
-        state={computeDockState()}
-        busy={busy}
-        logTail={battleLog[battleLog.length - 1]?.text}
-        onConfirm={confirmPending}
-        onCancel={clearSelection}
-        onEndTurn={() => runAction({ kind: "finishTurn" })}
-        onDeclareAttackPlayer={() => declareAttack("player")}
-        onCancelAttack={() => setAttackerId(null)}
-        onSkipBlock={() => runAction({ kind: "skipBlock" })}
-        onPass={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
-        onToggleAutoPass={(next) => toggleAutoPass(next)}
-        onClaimAbandon={() => claimAbandon()}
-        onLeaveAfterGameOver={leaveMatchScreen}
-      />
+          os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board.
+          No fim de jogo some — o `GameOverOverlay` no centro assume. */}
+      {gameOverResult ? (
+        <GameOverOverlay
+          won={gameOverResult.won}
+          reason={gameOverResult.reason}
+          redirectSeconds={redirectSecondsLeft}
+          onLeave={leaveMatchScreen}
+        />
+      ) : (
+        <ActionDock
+          state={computeDockState()}
+          busy={busy}
+          logTail={battleLog[battleLog.length - 1]?.text}
+          onConfirm={confirmPending}
+          onCancel={clearSelection}
+          onEndTurn={() => runAction({ kind: "finishTurn" })}
+          onDeclareAttackPlayer={() => declareAttack("player")}
+          onCancelAttack={() => setAttackerId(null)}
+          onSkipBlock={() => runAction({ kind: "skipBlock" })}
+          onPass={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
+          onToggleAutoPass={(next) => toggleAutoPass(next)}
+          onClaimAbandon={() => claimAbandon()}
+          onLeaveAfterGameOver={leaveMatchScreen}
+        />
+      )}
     </div>
   );
 

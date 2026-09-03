@@ -1,0 +1,92 @@
+# Plano — espelhamento do playmat, header enxuto, HUD, botões de campo, mão e fim de jogo
+
+Branch: `feature/simulador-pivot-visual-arena`. Continuação da sprint (P0–P4 já feitos, ver `PLANO_CORRECAO_EFEITOS_UX_LIFECYCLE.md`).
+
+## 1. Diagnóstico (do relato + capturas 3–6)
+
+| # | Problema | Onde |
+|---|---|---|
+| 1 | Linha de recursos com scrollbar visível quebrando o visual; não acompanha a largura da Battle Area | `ResourceMeter.tsx`, `ArenaPlaymat.tsx`, `index.css` |
+| 2 | Campo do oponente mal espelhado — deveria ser rotação 180° do playmat, com a Battle Area do oponente colada à seam e os recursos dele no TOPO da tela | `ArenaPlaymat.tsx`, `SimulatorMatchPage.arenaSide` |
+| 3 | Header ocupa espaço com botões/textos demais | `SimulatorMatchPage.tsx` (HUD topo) |
+| 4 | Info textual redundante (Turno/Fase no topo-centro + badge topo-direita + painel "VEZ DO OPONENTE" no dock). Info de sistema (sincronizado/assento) misturada com info de jogo | `SimulatorMatchPage.tsx`, `ActionDock.tsx` |
+| 5 | Avisos/confirmações ficam só no dock do canto — passam despercebidos | novo `CenterAnnounce`, `SimulatorMatchPage.tsx` |
+| 6 | Botão de Atacar/Ativar/Blocker no `BattleSlot` aparece mas não clica (o clique de "abrir carta" come o evento); deveriam ficar escondidos e sair pra DIREITA da carta no hover | `BattleSlot.tsx` |
+| 7 | Mão: cartas apertadas demais em repouso; botão "Ver" (olho) desnecessário — clicar no meio da carta já abre; "Jogar" deveria ficar escondido, surgir no hover no canto sup. direito | `HandFan.tsx`, `SimulatorMatchPage.tsx` |
+| 8 | Fim de jogo precisa registrar vencedor/perdedor + motivo e mostrar "Você Venceu/Perdeu" GRANDE no centro, motivo pequeno abaixo, com textos "Oponente se rendeu / abandonou / sofreu dano / ficou sem cartas" | `engine/types.ts`, `engine/events.ts`, `server/matchStore.ts`, novo `GameOverOverlay`, `SimulatorMatchPage.tsx` |
+
+## 2. Fases
+
+### F1 — Scroll fantasma + recursos na largura da Battle Area
+- `index.css`: utilitário `.scrollbar-ghost` — `scrollbar-width: thin` + `scrollbar-color` quase transparente; `::-webkit-scrollbar { height: 4px }`, thumb `rgba(148,163,184,.15)` → `.35` no `:hover`. `.scrollbar-none` pra onde não deve rolar nunca.
+- `ResourceMeter`: trilha interna usa `.scrollbar-ghost`; largura alvo = a mesma da `BattleRow` (`calc(var(--card) * 6 + gaps)`), centralizada. Deck de Recursos vira um item da própria linha (à esquerda), não um irmão solto.
+- `ArenaPlaymat`: os wrappers `overflow-x-auto` das áreas de recurso ganham `.scrollbar-ghost`; `HandFan` idem.
+
+### F2 — Espelhamento 180° do oponente
+Ordem vertical final do canvas:
+```
+[recursos do oponente]      ← topo
+[Battle Area do oponente]
+════════ SEAM ════════
+[Battle Area do jogador]
+[recursos do jogador]
+[mão]
+```
+- `OpponentTheater`: `resources` ACIMA da `battleRow` (battleRow encostada na seam). `handSummary` no topo de tudo.
+- `ShieldStation`/`DeckStation`: prop `mirrored` → ordem dos filhos invertida.
+  - `DeckStation` normal (jogador, direita): Exílio, Trash, Deck (topo→baixo). `mirrored` (oponente, esquerda): Deck, Trash, Exílio.
+  - `ShieldStation` normal (jogador, esquerda): Base, Shields. `mirrored` (oponente, direita): Shields, Base (base encostada na seam).
+- Contagem do deck do oponente passa a aparecer (`hideCount={false}` no `deck` e no `resourceDeck` do oponente) — decisão do Willen desta rodada ("pode mostrar a quantidade de cartas no deck").
+
+### F3 — Header enxuto
+- Remove a barra do topo inteira (texto Turno/Fase, badges de timer/sync, botão "Sair").
+- Sobra um cluster flutuante no canto sup. esquerdo: `[⚙ Config]` `[🐞 Bug]` (ícones, `size-8`).
+- `⚙` abre um `Popover` (`SettingsMenu`): toggle "Auto-passar Action Step", botão "Desistir da partida" (com confirmação), e o link "Voltar ao lobby" quando `gameOver`.
+
+### F4 — HUD textual → ícones
+- Turno/fase/timer: uma tira compacta e discreta (ícones + número) — reaproveita o `ActionDock` (estado `idle` já mostra fase + timer). Amplia `idle` pra `turno N` + ícone de fase; remove o texto duplicado do topo.
+- Sincronizado/assento: chip minúsculo, opaco, canto inf. esquerdo (`RefreshCw` + `A`/`B`) — info de sistema, separada.
+- Remove o `logTail` redundante se o `CenterAnnounce` cobrir (mantém — é barato).
+
+### F5 — Avisos no centro da tela
+- Novo `CenterAnnounce` (`ui/`): overlay `pointer-events-none`, centro do canvas, texto grande semitransparente que aparece pra: alvo pendente, custo a pagar, "escolha a Unit pra parear", início de combate ("Defenda ou passe"), decisão interativa. Sai sozinho após alguns segundos ou quando o estado muda. Fonte da verdade: os mesmos derivados que hoje alimentam `ActionDock.hint`.
+
+### F6 — Botões de campo escondidos + clicáveis
+- `BattleSlot`: `<div>` do slot ganha `group`. A tira de ícones vai pra `absolute left-full top-1/2 -translate-y-1/2 ml-1`, `opacity-0 pointer-events-none` → `group-hover/focus-within: opacity-100 pointer-events-auto`. Slot ganha `hover:z-30 focus-within:z-30` pra a tira passar por cima do slot vizinho.
+- `onClick` de cada `IconBtn`: `e.stopPropagation()` (não deixa o clique subir pro handler de inspeção do face).
+- `IconBtn` recebe o evento; assinatura `onClick: (e) => void`.
+
+### F7 — Mão
+- `HandFan`: `DEFAULT_OVERLAP` menor (0.18) quando `cards.length <= 6`; escala até `MAX_OVERLAP` conforme cresce (`overlap = clamp(0.18, 0.18 + (n-6)*0.06, 0.6)`).
+- Remove o botão "Ver" (olho) e a prop `onViewCard`. Clicar no corpo da carta chama `onInspect(card)` (nova prop) — abre o zoom. `onPeek` continua no botão "Jogar".
+- Botão "Jogar": `absolute -top-2 -right-2`, `opacity-0` → `group-hover/hc:opacity-100`, mesmo ícone `Play`.
+- `SimulatorMatchPage`: `onInspect={(c) => setPreview({card:c, ...describeHandCard(c)})}`; remove `onViewCard`.
+
+### F8 — Fim de jogo: vencedor/perdedor + motivo
+- `engine/types.ts`: `GameOverInfo["reason"]` e o evento `GAME_OVER` ganham `"resignation"`.
+- `server/matchStore.ts`: `resignMatch` → `reason: "resignation"`. `claimAbandonWin` + auto-forfeit AFK seguem `"abandonment"`. `logGameOverOnce(match)` — `console.info` estruturado com winner/loser/reason na 1ª vez que `gameOver` aparece (via `notify`).
+- Client `GameOverOverlay` (`ui/`): overlay centro-tela, `bg-slate-950/80`, "VOCÊ VENCEU" / "VOCÊ PERDEU" (5xl, cor esmeralda/vermelha), motivo pequeno abaixo, botão "Voltar ao lobby (Ns)". Substitui o estado `gameOver` do `ActionDock` como superfície principal (o dock pode sumir no fim de jogo).
+- Rótulos de motivo (ponto de vista do viewer):
+
+| reason | venceu | perdeu |
+|---|---|---|
+| `noShieldsBattleDamage` | "Oponente sofreu dano sem shields" | "Você sofreu dano sem shields" |
+| `deckOut` | "Oponente ficou sem cartas no deck" | "Você ficou sem cartas no deck" |
+| `resignation` | "Oponente se rendeu" | "Você se rendeu" |
+| `abandonment` | "Oponente abandonou a partida" | "Você abandonou a partida" |
+
+## 3. Ordem de execução
+F8 (motor→server, base) → F1 → F2 → F6 → F7 → F3 → F4 → F5. Checkpoint verde a cada fase: `pnpm test && pnpm run check:types && pnpm run lint:simulator`; `pnpm build` ao fim. Commit por fase com diff no corpo.
+
+## 4. Status
+
+| Fase | Estado | Commit / notas |
+|---|---|---|
+| F8 — fim de jogo (motivo + overlay) | ⬜ | |
+| F1 — scroll fantasma + largura recursos | ⬜ | |
+| F2 — espelhamento 180° do oponente | ⬜ | |
+| F6 — botões de campo escondidos/clicáveis | ⬜ | |
+| F7 — mão (espaço, sem olho, jogar escondido) | ⬜ | |
+| F3 — header enxuto (⚙ + 🐞) | ⬜ | |
+| F4 — HUD textual → ícones | ⬜ | |
+| F5 — avisos no centro da tela | ⬜ | |

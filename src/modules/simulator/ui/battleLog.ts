@@ -131,6 +131,7 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
         deckOut: "deck vazio",
         noShieldsBattleDamage: "dano sem shields",
         abandonment: "abandono (W.O.)",
+        resignation: "desistência",
       };
       return entry("system", `FIM DE JOGO — vitória de ${player(event.winner)} (${reason[event.reason] ?? event.reason})`);
     }
