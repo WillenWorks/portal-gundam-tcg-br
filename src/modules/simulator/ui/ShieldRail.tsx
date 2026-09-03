@@ -13,6 +13,7 @@
  * hit-area >= 44px. */
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cardBackUrl } from "./cardArt";
 
 interface ShieldRailProps {
   count: number;
@@ -60,16 +61,24 @@ export function ShieldRail({
         const piece = vertical ? (
           <span
             className={cn(
-              "block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.62)] border transition-colors duration-100 motion-reduce:transition-none",
+              "relative block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.62)] overflow-hidden border transition-colors duration-100 motion-reduce:transition-none",
               full
                 ? selected
-                  ? "border-emerald-400 bg-emerald-500/30"
+                  ? "border-emerald-400"
                   : low
-                    ? "border-red-500/70 bg-red-500/10"
-                    : "border-primary/60 bg-primary/15"
-                : "border-dashed border-white/12 bg-transparent",
+                    ? "border-red-500/70"
+                    : "border-primary/60"
+                : "border-dashed border-white/12",
             )}
-          />
+          >
+            {full ? (
+              <>
+                <img src={cardBackUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                {selected ? <span className="absolute inset-0 bg-emerald-500/40" /> : null}
+                {low && !selected ? <span className="absolute inset-0 bg-red-500/25" /> : null}
+              </>
+            ) : null}
+          </span>
         ) : (
           <span
             className={cn(

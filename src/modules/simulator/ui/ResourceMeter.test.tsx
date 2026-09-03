@@ -37,6 +37,18 @@ describe("ResourceMeter", () => {
     expect(ex.className).toMatch(/accent/);
   });
 
+  it("recurso face-up mostra a ilustração real quando há arte (não o verso)", () => {
+    render(
+      <ResourceMeter
+        resources={[{ instanceId: "a", rested: false, isEx: false, code: "ST01-RESOURCE" }]}
+        level={1}
+        art={{ "ST01-RESOURCE": { imageUrl: "resource.png" } }}
+      />,
+    );
+    const img = screen.getByLabelText("Recurso ativo").querySelector("img")!;
+    expect(img).toHaveAttribute("src", "resource.png");
+  });
+
   it("selectable: só os ativos são clicáveis e o callback recebe o id", () => {
     const onSelect = vi.fn();
     render(

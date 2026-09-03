@@ -139,6 +139,17 @@ import {
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
 /** Espelha `DECK_OPTIONS` de SimulatorSandboxPage.tsx -- os únicos sets jogáveis hoje, usados pra buscar a arte real de cada carta por `code`. Se um novo set entrar no simulador, precisa entrar aqui também. */
 const ART_SET_CODES = ["ST01", "ST02"];
+/** Só pra resolver a arte de recursos/EX/tokens genéricos: o motor usa códigos
+ *  (`ST01-RESOURCE`, `TOKEN-EX-BASE`, ...) que não existem em ST01/ST02 — a arte
+ *  canônica vive em GD01. Ver PLANO_CORRECAO_ARTE_EFEITOS.md §1.3. */
+const GENERIC_ART_SET_CODES = ["GD01"];
+/** Código do motor -> código do catálogo (arte canônica). */
+const ART_CODE_ALIASES: Record<string, string> = {
+  "ST01-RESOURCE": "R-001",
+  "ST02-RESOURCE": "R-001",
+  "TOKEN-EX-BASE": "EXB-001",
+  "TOKEN-EX-RESOURCE": "EXR-001",
+};
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
 /** Intervalo do heartbeat de presença do cliente -- bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
@@ -204,7 +215,7 @@ function useCardArtLookup(): CardArtLookup {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all(ART_SET_CODES.map((setCode) => api.listCards({ setCode })))
+    Promise.all([...ART_SET_CODES, ...GENERIC_ART_SET_CODES].map((setCode) => api.listCards({ setCode })))
       .then((results) => {
         if (cancelled) return;
         const art: Record<string, CardArt> = {};
@@ -222,6 +233,11 @@ function useCardArtLookup(): CardArtLookup {
             if (effect) cardText[raw.code] = effect;
             if (raw.nameEn) cardByName[raw.nameEn.trim().toLowerCase()] = { code: raw.code, art: entry };
           }
+        }
+        // aliases: código do motor (ST01-RESOURCE, TOKEN-EX-BASE, ...) -> arte canônica do catálogo.
+        for (const [alias, real] of Object.entries(ART_CODE_ALIASES)) {
+          if (art[real] && !art[alias]) art[alias] = art[real];
+          if (cardText[real] && !cardText[alias]) cardText[alias] = cardText[real];
         }
         setState({ art, cardText, cardByName });
       })
@@ -719,6 +735,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       instanceId: r.instanceId,
       rested: r.rested,
       isEx: r.def.isToken ?? false,
+      code: r.def.code,
     }));
 
     return {
@@ -753,6 +770,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <ResourceMeter
             resources={resources}
             level={player.counts.resourceArea}
+            art={art}
             readOnly={!isSelf}
             selectable={isSelf && Boolean(pending) && pendingCost > 0}
             selectedIds={isSelf ? selectedResources : undefined}

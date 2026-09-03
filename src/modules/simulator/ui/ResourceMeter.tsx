@@ -9,17 +9,21 @@
  * selecionada = realce esmeralda. Com `costProgress`, uma barra "{paid}/{total}
  * pago" aparece abaixo. `readOnly` (medidor do oponente): sem clique, compacto. */
 import { cn } from "@/lib/utils";
-import { cardBackUrl } from "./cardArt";
+import { artSrc, cardBackUrl, type ArtLookup } from "./cardArt";
 
 interface ResourceMeterItem {
   instanceId: string;
   rested: boolean;
   isEx: boolean;
+  /** code do catálogo pra resolver a arte real (recurso é carta virada PRA CIMA). */
+  code?: string;
 }
 
 interface ResourceMeterProps {
   resources: ResourceMeterItem[];
   level: number;
+  /** lookup de arte — recursos face-up mostram a ilustração real, não o verso. */
+  art?: ArtLookup;
   selectable?: boolean;
   selectedIds?: string[];
   onSelect?: (instanceId: string) => void;
@@ -31,6 +35,7 @@ interface ResourceMeterProps {
 export function ResourceMeter({
   resources,
   level,
+  art,
   selectable,
   selectedIds = [],
   onSelect,
@@ -79,13 +84,16 @@ export function ResourceMeter({
           const tint = selected
             ? "bg-emerald-500/35"
             : r.isEx
-              ? "bg-accent/30"
+              ? "bg-accent/25"
               : r.rested
-                ? "bg-slate-950/40"
-                : "bg-primary/15";
+                ? "bg-slate-950/45"
+                : "bg-transparent";
+          // recurso é carta virada PRA CIMA — mostra a ilustração real (via alias
+          // ST01-RESOURCE→R-001 / TOKEN-EX-RESOURCE→EXR-001); verso só se faltar arte.
+          const face = (art && r.code && artSrc(art, r.code, "sm")) || cardBackUrl;
           const inner = (
             <>
-              <img src={cardBackUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={face} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
               <span className={cn("absolute inset-0", tint)} />
             </>
           );
