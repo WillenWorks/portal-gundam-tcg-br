@@ -106,7 +106,7 @@ import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { otherPlayer, type AttackTarget, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
+import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import {
@@ -121,6 +121,7 @@ import {
   BurstModal,
   CardInspectorModal,
   CardInspectorPanel,
+  type LinkedPilot,
   CombatLane,
   CounterChip,
   HandFan,
@@ -176,10 +177,27 @@ function findPublicCard(view: ViewGameState, instanceId: string): CardInstance |
 type CardArt = { imageUrl?: string; imageSmallUrl?: string };
 
 /** Formato cru devolvido por `GET /api/cards` (flattenModel, server/index.ts) -- só os campos que interessam aqui. */
-type RawApiCard = { code?: string; imageUrl?: string; imageSmallUrl?: string; imageMediumUrl?: string };
+type RawApiCard = {
+  code?: string;
+  nameEn?: string;
+  imageUrl?: string;
+  imageSmallUrl?: string;
+  imageMediumUrl?: string;
+  effectPt?: string | null;
+  effectEn?: string | null;
+};
 
-function useCardArtLookup(): { art: Record<string, CardArt>; artLoading: boolean } {
-  const [art, setArt] = useState<Record<string, CardArt>>({});
+interface CardArtLookup {
+  art: Record<string, CardArt>;
+  artLoading: boolean;
+  /** code -> texto de efeito (PT preferido) — o CardDef do motor não carrega isso. */
+  cardText: Record<string, string>;
+  /** nameEn minúsculo -> { code, art } — pra resolver o piloto de um link `pilotName`. */
+  cardByName: Record<string, { code: string; art: CardArt }>;
+}
+
+function useCardArtLookup(): CardArtLookup {
+  const [state, setState] = useState<Omit<CardArtLookup, "artLoading">>({ art: {}, cardText: {}, cardByName: {} });
   const [artLoading, setArtLoading] = useState(true);
 
   useEffect(() => {
@@ -187,13 +205,23 @@ function useCardArtLookup(): { art: Record<string, CardArt>; artLoading: boolean
     Promise.all(ART_SET_CODES.map((setCode) => api.listCards({ setCode })))
       .then((results) => {
         if (cancelled) return;
-        const map: Record<string, CardArt> = {};
+        const art: Record<string, CardArt> = {};
+        const cardText: Record<string, string> = {};
+        const cardByName: Record<string, { code: string; art: CardArt }> = {};
         for (const list of results as RawApiCard[][]) {
           for (const raw of list) {
-            if (raw?.code) map[raw.code] = { imageUrl: raw.imageMediumUrl ?? raw.imageUrl, imageSmallUrl: raw.imageSmallUrl ?? raw.imageMediumUrl ?? raw.imageUrl };
+            if (!raw?.code) continue;
+            const entry: CardArt = {
+              imageUrl: raw.imageMediumUrl ?? raw.imageUrl,
+              imageSmallUrl: raw.imageSmallUrl ?? raw.imageMediumUrl ?? raw.imageUrl,
+            };
+            art[raw.code] = entry;
+            const effect = raw.effectPt || raw.effectEn;
+            if (effect) cardText[raw.code] = effect;
+            if (raw.nameEn) cardByName[raw.nameEn.trim().toLowerCase()] = { code: raw.code, art: entry };
           }
         }
-        setArt(map);
+        setState({ art, cardText, cardByName });
       })
       .catch(() => {
         // Sem arte não impede a partida -- os cards caem no fallback "sem arte" abaixo.
@@ -204,7 +232,7 @@ function useCardArtLookup(): { art: Record<string, CardArt>; artLoading: boolean
     };
   }, []);
 
-  return { art, artLoading };
+  return { ...state, artLoading };
 }
 
 /** Acompanha uma media query (retrato pequeno / tela larga). */
@@ -255,7 +283,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { art, artLoading } = useCardArtLookup();
+  const { art, artLoading, cardText, cardByName } = useCardArtLookup();
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
 
@@ -566,6 +594,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const publicUnits = (player: ViewPlayerState): CardInstance[] =>
     player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def.cardType === "UNIT") as CardInstance[];
+
+  /** Pilotos que satisfazem o link `pilotName` desta Unit — resolve arte via catálogo
+   *  e marca (best-effort) se a carta está visível nas tuas zonas (Sprint 5.3). */
+  function resolveLinkedPilots(def: CardDef): LinkedPilot[] {
+    if (def.link?.kind !== "pilotName") return [];
+    const mine = view.players[seat];
+    const ownVisible: Array<{ zone: string; label: string }> = [
+      { zone: "hand", label: "na sua mão" },
+      { zone: "battleArea", label: "no seu campo" },
+      { zone: "trash", label: "no seu descarte" },
+      { zone: "exile", label: "no seu exílio" },
+    ];
+    return def.link.values.map((raw) => {
+      const name = raw.trim();
+      const key = name.toLowerCase();
+      const hit =
+        cardByName[key] ??
+        Object.entries(cardByName).find(([k]) => k.includes(key) || key.includes(k))?.[1];
+      const where = ownVisible.find(({ zone }) =>
+        (mine[zone as keyof typeof mine] as ViewCardInstance[] | undefined)?.some(
+          (c) => !isHidden(c) && (c as CardInstance).def.nameEn.toLowerCase().includes(key),
+        ),
+      );
+      return { name, art: hit?.art, note: where?.label ? `Disponível ${where.label}` : undefined };
+    });
+  }
 
   /** Os 6 slots fixos de uma Battle Area (fragmento — o `ArenaPlaymat` monta o grid).
    *  Só Units; Pilots pareados aparecem acoplados via `DockedPilot`. */
@@ -894,16 +948,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         />
       ) : null}
 
-      {/* Inspetor de carta (zoom) -- da mão (com botão "Jogar") ou de qualquer carta pública do tabuleiro. */}
+      {/* Inspetor de carta (zoom) -- da mão (modal só pra carta dual) ou de qualquer carta pública do tabuleiro. */}
       {preview ? (
         <CardInspectorModal
           card={preview.card}
           art={art}
           blockedReason={preview.blockedReason}
+          effectText={cardText[preview.card.def.code]}
+          linkedPilots={resolveLinkedPilots(preview.card.def)}
           onClose={() => setPreview(null)}
           footer={
             preview.modes.length > 0 ? (
-              <div className="flex flex-1 flex-col gap-1.5">
+              <>
                 {preview.modes.map((m) => (
                   <Button
                     key={m.label}
@@ -914,12 +970,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     {m.label}
                   </Button>
                 ))}
-              </div>
+              </>
             ) : undefined
           }
         />
       ) : inspect ? (
-        <CardInspectorModal card={inspect} art={art} inPlay onClose={() => setInspect(null)} />
+        <CardInspectorModal
+          card={inspect}
+          art={art}
+          inPlay
+          effectText={cardText[inspect.def.code]}
+          linkedPilots={resolveLinkedPilots(inspect.def)}
+          onClose={() => setInspect(null)}
+        />
       ) : null}
 
       {/* docs/19, Sessão 2/3 — decisões interativas. */}
