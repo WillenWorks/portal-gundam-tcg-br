@@ -21,6 +21,10 @@ export interface BattleSlotActions {
   onBlocker?: (unit: CardInstance) => void;
 }
 
+/** botão de ação em overlay: sólido de alto contraste, compacto, não estica o slot. */
+const ACTION_BTN =
+  "h-7 w-full rounded-none bg-primary/95 px-1 text-[10px] font-bold text-black shadow-lg hover:bg-primary/90";
+
 interface BattleSlotProps {
   unit: CardInstance | null;
   /** Pilot pareado com esta Unit (achado pelo pai via `pairedPilotId`). */
@@ -138,17 +142,22 @@ export function BattleSlot({
       {showActions ? (
         <div className="absolute inset-x-1 bottom-1 z-20 flex flex-col gap-0.5">
           {showAttack ? (
-            <Button size="sm" variant="outline" className="h-7 w-full rounded-none border-primary/60 bg-slate-950/90 px-1 text-[10px] shadow-lg" disabled={busy} onClick={() => actions!.onAttack!(unit)}>
+            <Button size="sm" className={ACTION_BTN} disabled={busy} onClick={() => actions!.onAttack!(unit)}>
               Atacar
             </Button>
           ) : null}
           {showTarget ? (
-            <Button size="sm" className="h-7 w-full rounded-none bg-emerald-600 px-1 text-[10px] text-white shadow-lg hover:bg-emerald-500" disabled={busy} onClick={() => actions!.onDeclareTarget!(unit)}>
+            <Button
+              size="sm"
+              className={cn(ACTION_BTN, "bg-emerald-500 hover:bg-emerald-400")}
+              disabled={busy}
+              onClick={() => actions!.onDeclareTarget!(unit)}
+            >
               Mirar aqui
             </Button>
           ) : null}
           {showBlocker ? (
-            <Button size="sm" variant="outline" className="h-7 w-full rounded-none border-sky-500/60 bg-slate-950/90 px-1 text-[10px] text-sky-300 shadow-lg" disabled={busy} onClick={() => actions!.onBlocker!(unit)}>
+            <Button size="sm" className={ACTION_BTN} disabled={busy} onClick={() => actions!.onBlocker!(unit)}>
               Blocker
             </Button>
           ) : null}

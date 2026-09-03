@@ -35,7 +35,7 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
       aria-label={title}
       onClick={onInspect ? () => onInspect(pilot) : undefined}
       className={cn(
-        "absolute inset-x-0 bottom-0 z-0 flex items-center gap-1 border-t px-1 py-px",
+        "absolute inset-x-0 bottom-0 z-0 flex items-center gap-1 overflow-hidden border-t px-1 py-px",
         linked ? "border-amber-400/80 bg-amber-500/25" : "border-white/15 bg-black/75",
       )}
     >
@@ -43,7 +43,7 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
         {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : null}
       </span>
       {mod ? (
-        <span className="font-mono text-[8px] font-bold tabular-nums text-emerald-300">{mod}</span>
+        <span className="shrink-0 font-mono text-[8px] font-bold tabular-nums text-emerald-300">{mod}</span>
       ) : null}
       {linked ? (
         <span className="ml-auto shrink-0 animate-pulse rounded-none bg-amber-400 px-0.5 text-[7px] font-black uppercase tracking-wide text-black shadow-[0_0_8px_rgba(251,191,36,0.6)] motion-reduce:animate-none">

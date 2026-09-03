@@ -51,13 +51,28 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it("ações de combate: botão 'Atacar' é overlay compacto (não estica o slot)", () => {
+  it("ações de combate: botões em overlay absoluto, sólidos, compactos (h-7)", () => {
     const onAttack = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack }} />);
     const btn = screen.getByRole("button", { name: "Atacar" });
-    expect(btn.closest("div")?.className).toMatch(/absolute/);
+    const overlay = btn.closest("div")!.className;
+    expect(overlay).toMatch(/absolute/);
+    expect(overlay).toMatch(/bottom-1/);
+    expect(overlay).toMatch(/inset-x-1/);
+    expect(overlay).toMatch(/z-20/);
+    expect(btn.className).toMatch(/h-7/);
+    expect(btn.className).toMatch(/bg-primary/);
     btn.click();
     expect(onAttack).toHaveBeenCalledTimes(1);
+  });
+
+  it("com ações disponíveis o slot NÃO expande: segue aspect-[63/88]", () => {
+    const { container } = render(
+      <BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack: vi.fn(), onBlocker: vi.fn() }} />,
+    );
+    expect((container.firstElementChild as HTMLElement).className).toMatch(/aspect-\[63\/88\]/);
+    // o container de botões não faz parte do fluxo (é absolute)
+    expect((container.firstElementChild as HTMLElement).className).not.toMatch(/flex-col/);
   });
 
   it("slot ocupado mantém a proporção estrita aspect-[63/88]", () => {
