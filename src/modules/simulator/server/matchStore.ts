@@ -41,6 +41,16 @@ const TURN_DECISION_MS = 90_000;
 /** 3min sem nenhum sinal de vida do assento oposto — decisão do Willen em 2026-08-30. Não é automático: só destrava o botão de W.O. pro oponente (ver `claimAbandonWin`). */
 const ABANDON_THRESHOLD_MS = 180_000;
 
+/**
+ * 5min sem NENHUM sinal de vida (ping OU ação) do assento que precisa decidir:
+ * o servidor ENCERRA a partida por abandono (vitória do oponente) em vez de
+ * seguir jogando a ação-padrão sozinho, turno após turno — era isso que fazia
+ * "o jogo rodar ininterrupto mesmo com muito tempo AFK" (P4). Mais folgado que
+ * `ABANDON_THRESHOLD_MS` (o W.O. manual) porque aqui é automático e definitivo;
+ * enquanto a aba do jogador estiver aberta ela manda ping e isso não dispara.
+ */
+const AUTO_FORFEIT_MS = 300_000;
+
 export interface MatchRecord {
   id: string;
   state: GameState;
@@ -569,6 +579,23 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
 
   const actingPlayer = decisionOwner(match.state);
   if (actingPlayer) {
+    // AFK prolongado: se quem precisa decidir não dá sinal de vida (ping ou
+    // ação) há `AUTO_FORFEIT_MS`, encerra por abandono em vez de jogar sozinho
+    // pra sempre. Só quando os 2 assentos estão ocupados (partida de verdade).
+    const bothSeated = !!match.seats.A && !!match.seats.B;
+    const lastSeen = match.lastSeenAt[actingPlayer];
+    const idleMs = lastSeen ? Date.now() - lastSeen : Number.POSITIVE_INFINITY;
+    if (bothSeated && idleMs >= AUTO_FORFEIT_MS) {
+      const opponentSeat: PlayerId = actingPlayer === "A" ? "B" : "A";
+      match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+      match.updatedAt = Date.now();
+      match.version += 1;
+      clearTurnTimer(match.id);
+      match.turnDeadlineAt = null;
+      notify(match);
+      return;
+    }
+
     try {
       match.state = applyPlayerAction(match.state, actingPlayer, defaultActionFor(match.state), ALL_EFFECT_SPECS, defaultPredicateResolver);
       match.updatedAt = Date.now();

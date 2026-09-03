@@ -389,6 +389,49 @@ describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente
   });
 });
 
+describe("auto-forfeit por AFK prolongado (P4 — o jogo não roda ininterrupto)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("5min sem sinal de vida de quem precisa decidir → GAME_OVER por abandono, timer parado", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    // O servidor joga a ação-padrão sozinho por alguns ciclos de 90s, mas
+    // ninguém dá ping/ação — passados 5min, encerra em vez de seguir pra sempre.
+    for (let i = 0; i < 4; i++) vi.advanceTimersByTime(90_000);
+
+    const after = getMatch(match.id)!;
+    expect(after.state.gameOver?.reason).toBe("abandonment");
+    expect(after.turnDeadlineAt).toBeNull();
+    const versionAtEnd = after.version;
+
+    // nada mais acontece: sem timer vivo, a versão congela.
+    vi.advanceTimersByTime(10 * 90_000);
+    expect(getMatch(match.id)?.version).toBe(versionAtEnd);
+  });
+
+  it("ping recente do assento AFK adia o auto-forfeit (o jogador ainda está lá)", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    // A cada ~1min os dois lados mandam ping (aba aberta) por 12min de relógio.
+    for (let i = 0; i < 12; i++) {
+      vi.advanceTimersByTime(60_000);
+      touchPresence(match.id, "user-1");
+      touchPresence(match.id, "user-2");
+    }
+
+    // ninguém jogou de verdade, mas ambos deram sinal de vida → partida segue viva.
+    expect(getMatch(match.id)?.state.gameOver).toBeNull();
+  });
+});
+
 describe("resignMatch (Sair da partida = desistência imediata)", () => {
   it("concede a vitória ao oponente por abandono, na hora, sem espera", () => {
     const match = newMatch();
