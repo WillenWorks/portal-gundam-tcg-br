@@ -650,5 +650,5 @@ bug de motor/dados):
 |---|---|---|
 | 5.1 — Playmat 3 colunas | ✅ mergeada | commit `28110fc` |
 | 5.2 — Botões de combate em overlay | ✅ mergeada | commit `003cd69` |
-| 5.3 — Inspetor com gaveta lateral e hover de piloto | ✅ mergeada | commit `e91f82b` — o botão da gaveta existe mas está cortado por `overflow-hidden` (ver Sprint 6, PROMPT 4) |
-| **6 — Widescreen, zonas, mão, modal e bug de alvo** | ⬜ **próxima** | 4 PROMPTs: (1) bug urgente de alvo não resolvido no pareamento de Piloto, (2) escala widescreen + alinhamento de zonas + reforço do recuo de Recursos, (3) mão sem corte + botões Jogar/Ver, (4) botão da gaveta lateral do modal |
+| 5.3 — Inspetor com gaveta lateral e hover de piloto | ✅ mergeada | commit `e91f82b` |
+| **6 — Widescreen, zonas, mão, modal e bug de alvo** | ✅ na branch | P1 `e6432b4` (bug de alvo no pareamento — `ui/deployIntent.ts`), P2 `3561cee` (asa do inspetor cresce pra preencher o vazio widescreen + colunas com largura comum), P3 `0b33ec3` (mão sem corte + botões "Jogar"/"Ver"), P4 `26fbf4f` (botão da gaveta do modal destravado do `overflow-hidden`). `pnpm test` 340 verdes. Falta o QA visual manual do P2 (3 resoluções) antes do merge em `dev`. |
