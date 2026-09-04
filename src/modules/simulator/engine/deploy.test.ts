@@ -130,6 +130,21 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
       expect(() => deployCard(state, "A", cardId)).toThrow(/active insuficientes/);
     });
 
+    it("V3 (docs/28): recusa `resourceInstanceIds` com MAIS ids do que o custo — nunca confia cegamente no cliente", () => {
+      const state = freshMainPhase();
+      const resources = giveResources(state, "A", 3);
+      const cardId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "hand"); // cost 2
+      // manda 3 ids pra um custo de 2 — antes disso passava calado e restava os 3.
+      expect(() => deployCard(state, "A", cardId, { resourceInstanceIds: resources })).toThrow(/exatamente 2/);
+    });
+
+    it("V3 (docs/28): recusa `resourceInstanceIds` repetindo o mesmo Recurso mais de uma vez", () => {
+      const state = freshMainPhase();
+      const resources = giveResources(state, "A", 3);
+      const cardId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "hand"); // cost 2
+      expect(() => deployCard(state, "A", cardId, { resourceInstanceIds: [resources[0], resources[0]] })).toThrow(/repetindo/);
+    });
+
     it("aceita `resourceInstanceIds` explícito pra escolher quais recursos restar", () => {
       const state = freshMainPhase();
       const resources = giveResources(state, "A", 3);

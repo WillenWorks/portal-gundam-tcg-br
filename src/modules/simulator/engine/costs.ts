@@ -30,6 +30,18 @@ export function payResourceCostEvents(
   if (payWith.length < n) {
     throw new Error(`Recursos active insuficientes pra pagar custo ${n}: só ${activeResources.length} active`);
   }
+  // V3 (docs/28): server-authoritative — antes só rejeitava DE MENOS
+  // (`< n`), então um `resourceInstanceIds` explícito com MAIS ids do que o
+  // custo era aceito calado e restava/exilava recursos além do necessário
+  // (nunca validado, o cliente hoje sempre manda a quantidade certa, mas o
+  // servidor não pode depender disso — mesmo padrão de nunca confiar
+  // cegamente do V0/target). Custo é sempre EXATAMENTE N, nunca "N ou mais".
+  if (payWith.length > n) {
+    throw new Error(`Custo de ${n} recurso(s) precisa de exatamente ${n} id(s) — recebeu ${payWith.length}`);
+  }
+  if (new Set(payWith).size !== payWith.length) {
+    throw new Error("Não é possível pagar custo repetindo o mesmo Recurso mais de uma vez");
+  }
   for (const id of payWith) {
     const resource = findCard(state, id);
     if (resource.owner !== player || resource.zone !== "resourceArea") {
