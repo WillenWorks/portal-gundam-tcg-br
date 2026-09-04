@@ -105,14 +105,23 @@ pnpm prisma:seed
 
 Isso cria um usuário admin e alguns registros de exemplo — suficiente pra navegar
 no admin, mas **não** é o catálogo real. Pra subir o catálogo completo (1.812 cartas,
+<<<<<<< HEAD
+22 sets, série e relações oficiais), veja `INSTRUCOES_APITCG.md` na raiz do projeto —
+o comando único é:
+=======
 22 sets, série e relações oficiais, e o CardModel de cada carta — ver
 `docs/13-migracao-cardmodel.md`), o comando único é:
+>>>>>>> 27353b2e3b85c0366856d2a39b6aa2bfce6b03ec
 
 ```bash
 pnpm run catalog:bootstrap
 ```
 
+<<<<<<< HEAD
+### 7. Rodar o front
+=======
 ### 8. Rodar o front
+>>>>>>> 27353b2e3b85c0366856d2a39b6aa2bfce6b03ec
 
 ```bash
 pnpm dev

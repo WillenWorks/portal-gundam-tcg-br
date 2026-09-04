@@ -1,5 +1,7 @@
 # Migração: CardModel (carta) separado de Card/impressão
 
+<<<<<<< HEAD
+=======
 > **Status: Fase 1 concluída e validada em dado real** (checklist completo
 > rodado com sucesso: `cardmodel:validate` — 1.818 impressões, 1.066 `CardModel`,
 > zero divergência). A migration de schema acabou sendo aplicada via `prisma db
@@ -12,6 +14,7 @@
 > "Fase 2 (back-end)"/"Fase 2 (front-end)". Falta só o redesign do admin
 > (editar por impressão vs por modelo), que fica pra quando for retomado.
 
+>>>>>>> 27353b2e3b85c0366856d2a39b6aa2bfce6b03ec
 Por que: hoje cada impressão (reprint/promo/variante) é uma linha `Card` totalmente
 independente, com os dados de identidade de jogo (nome, efeito, stats, traits)
 **duplicados** em cada uma. Isso já causava os sintomas relatados: mostrar a mesma
