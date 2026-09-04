@@ -1,7 +1,7 @@
 /* Sprint "Mulligan" — revelação de quem joga primeiro (sorteio aleatório no
  * pareamento). Overlay transitório: aparece no 1º render da partida e some por
  * clique ou depois de alguns segundos. O pai controla a visibilidade. */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface FirstPlayerRevealProps {
@@ -12,10 +12,19 @@ interface FirstPlayerRevealProps {
 }
 
 export function FirstPlayerReveal({ goesFirst, onDismiss, autoDismissMs = 3500 }: FirstPlayerRevealProps) {
+  // `onDismiss` costuma ser uma closure nova a cada render do pai (o
+  // SimulatorMatchPage re-renderiza a cada 1s pelo relógio do turno). Ler via
+  // ref mantém o timeout ancorado no mount — senão ele era recriado sem parar
+  // e o auto-dismiss nunca chegava aos 3.5s.
+  const onDismissRef = useRef(onDismiss);
   useEffect(() => {
-    const t = setTimeout(onDismiss, autoDismissMs);
+    onDismissRef.current = onDismiss;
+  });
+
+  useEffect(() => {
+    const t = setTimeout(() => onDismissRef.current(), autoDismissMs);
     return () => clearTimeout(t);
-  }, [onDismiss, autoDismissMs]);
+  }, [autoDismissMs]);
 
   return (
     <button

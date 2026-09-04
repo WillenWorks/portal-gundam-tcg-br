@@ -998,6 +998,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const matchPrompt: string | null = (() => {
     if (gameOverResult) return null; // o GameOverOverlay assume
     if (myPendingDecision?.kind === "mulligan") return "Decida sua mão inicial (Mulligan)";
+    if (oppPendingDecision?.kind === "mulligan") return "Oponente decidindo a mão inicial (Mulligan)…";
     if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
     if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
     if (myPendingDecision?.kind === "abilityResolution") return "Resolva o efeito ativado";
@@ -1052,9 +1053,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // mostra "Encerrar turno" (o servidor cuida do oponente ausente sozinho).
     if (canClaimAbandon && !myTurnMain) return { kind: "abandonAvailable", idleSeconds: opponentIdleSeconds ?? 0 };
     if (oppPendingDecision) {
+      const what =
+        oppPendingDecision.kind === "burst"
+          ? "um 【Burst】"
+          : oppPendingDecision.kind === "mulligan"
+            ? "a mão inicial (Mulligan)"
+            : "uma decisão";
       return {
         kind: "oppDecision",
-        label: `Aguardando o oponente resolver ${oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...`,
+        label: `Aguardando o oponente resolver ${what}…`,
       };
     }
     return {
