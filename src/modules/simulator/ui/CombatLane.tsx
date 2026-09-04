@@ -131,7 +131,7 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
           <ArrowRight className="size-4 shrink-0 animate-pulse text-red-400" />
           <span className="font-semibold text-soft">{targetLabel}</span>
           {targetUnit ? <span className="font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
-          <span className="ml-1 border-l border-white/15 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
+          <span className="ml-1 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
             {STEP_LABEL[combat.step]}
           </span>
         </div>

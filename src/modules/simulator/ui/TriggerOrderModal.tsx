@@ -58,7 +58,7 @@ export function TriggerOrderModal({ decision, busy, onResolve }: TriggerOrderMod
             </li>
           ))}
         </ol>
-        <Button className="mt-4 h-10 w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={() => onResolve(order)}>
+        <Button className="mt-4 h-10 w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={busy} onClick={() => onResolve(order)}>
           Confirmar ordem
         </Button>
       </div>

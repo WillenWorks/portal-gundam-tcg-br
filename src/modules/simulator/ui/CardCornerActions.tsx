@@ -57,7 +57,7 @@ export function CardCornerActions({ actions, size = "md", className }: CardCorne
             a.onClick();
           }}
           className={cn(
-            "flex items-center justify-center rounded-none border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
+            "flex items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
             size === "sm" ? "size-5" : "size-6",
             TONE[a.tone],
           )}

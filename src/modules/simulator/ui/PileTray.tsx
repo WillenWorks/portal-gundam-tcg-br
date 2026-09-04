@@ -61,7 +61,7 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-none border border-white/15 px-2 text-[10px] uppercase text-slate-200 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-arena border border-white/10 px-2 text-[10px] uppercase text-slate-200 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
             >
               <X className="size-3.5" aria-hidden /> Fechar
             </button>
@@ -76,7 +76,7 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
                   type="button"
                   onClick={() => onInspect?.(card)}
                   aria-label={card.def.nameEn}
-                  className="block rounded-none border border-white/10 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
+                  className="block rounded-arena border border-white/10 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
                 >
                   <CardFace
                     nameEn={card.def.nameEn}

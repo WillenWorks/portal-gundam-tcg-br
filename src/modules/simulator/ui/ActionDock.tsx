@@ -65,7 +65,7 @@ function accentClass(state: ActionDockState): string {
     case "defending":
       return "border-primary/50";
     case "oppDecision":
-      return "border-white/15";
+      return "border-white/10";
     case "idle":
       return "border-primary/25";
     default:
@@ -109,7 +109,7 @@ export function ActionDock({
             {state.yourTurn ? (
               <Button
                 size="sm"
-                className="rounded-none bg-primary px-3 text-primary-foreground hover:bg-primary/90"
+                className="rounded-arena bg-primary px-3 text-primary-foreground hover:bg-primary/90"
                 disabled={busy}
                 onClick={onEndTurn}
               >
@@ -141,13 +141,13 @@ export function ActionDock({
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                className="rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={busy || !state.canConfirm}
                 onClick={onConfirm}
               >
                 Confirmar
               </Button>
-              <Button size="sm" variant="outline" className="rounded-none" onClick={onCancel}>
+              <Button size="sm" variant="outline" className="rounded-arena" onClick={onCancel}>
                 Cancelar
               </Button>
             </div>
@@ -164,13 +164,13 @@ export function ActionDock({
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                className="rounded-none bg-red-600 text-white hover:bg-red-500"
+                className="rounded-arena bg-red-600 text-white hover:bg-red-500"
                 disabled={busy}
                 onClick={onDeclareAttackPlayer}
               >
                 Atacar o jogador
               </Button>
-              <Button size="sm" variant="outline" className="rounded-none" onClick={onCancelAttack}>
+              <Button size="sm" variant="outline" className="rounded-arena" onClick={onCancelAttack}>
                 Cancelar
               </Button>
             </div>
@@ -181,7 +181,7 @@ export function ActionDock({
         return (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-soft">Defendendo — ative um &lt;Blocker&gt; na Unit, ou:</p>
-            <Button size="sm" variant="outline" className="rounded-none" disabled={busy} onClick={onSkipBlock}>
+            <Button size="sm" variant="outline" className="rounded-arena" disabled={busy} onClick={onSkipBlock}>
               Não bloquear
             </Button>
           </div>
@@ -200,7 +200,7 @@ export function ActionDock({
                 size="sm"
                 variant={nothingToDo ? "default" : "outline"}
                 className={cn(
-                  "rounded-none",
+                  "rounded-arena",
                   nothingToDo
                     ? "bg-amber-500 text-black hover:bg-amber-400"
                     : "border-amber-500/60 text-amber-300 hover:bg-amber-500/15",
@@ -238,7 +238,7 @@ export function ActionDock({
             <Button
               size="sm"
               variant="outline"
-              className="rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/15"
+              className="rounded-arena border-amber-500/60 text-amber-300 hover:bg-amber-500/15"
               disabled={busy}
               onClick={onClaimAbandon}
             >
@@ -254,7 +254,7 @@ export function ActionDock({
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-portal">Fim de jogo · {state.reasonLabel}</p>
             <Button
               size="sm"
-              className="mt-1 rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+              className="mt-1 rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={onLeaveAfterGameOver}
             >
               Voltar ao site{state.redirectSeconds !== null ? ` (${state.redirectSeconds}s)` : ""}

@@ -38,7 +38,7 @@ export function RotateDevicePrompt({ className }: RotateDevicePromptProps) {
         </p>
       </div>
 
-      <span className="border border-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+      <span className="border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
         Aguardando o giro da tela
       </span>
     </div>

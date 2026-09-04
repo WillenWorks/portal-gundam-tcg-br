@@ -27,7 +27,7 @@ interface CounterChipProps {
 }
 
 const TONE_CLASS: Record<CounterChipTone, string> = {
-  normal: "border-white/15 text-slate-200",
+  normal: "border-white/10 text-slate-200",
   warn: "border-amber-400/70 text-amber-300",
   crit: "border-red-500/70 text-red-400",
 };
@@ -57,13 +57,13 @@ export function CounterChip({
         {/* camadas de profundidade */}
         <span className="absolute inset-0 translate-x-[3px] translate-y-[3px] border border-white/5 bg-slate-950" aria-hidden />
         <span className="absolute inset-0 translate-x-[1.5px] translate-y-[1.5px] border border-white/10 bg-slate-950" aria-hidden />
-        <span className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
+        <span className="relative block aspect-[63/88] w-full overflow-hidden border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
           {face ?? <img src={cardBackUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
         </span>
         {!hideCount ? (
           <span
             className={cn(
-              "absolute -right-1 -top-1 rounded-none border bg-slate-950 px-1 font-mono text-[10px] font-black leading-tight tabular-nums",
+              "absolute -right-1 -top-1 rounded-arena border bg-slate-950 px-1 font-mono text-[10px] font-black leading-tight tabular-nums",
               TONE_BADGE[tone],
             )}
           >
@@ -78,7 +78,7 @@ export function CounterChip({
         onClick={onClick}
         title={readout}
         aria-label={readout}
-        className={cn("relative block min-h-11 min-w-11 rounded-none transition-[filter] duration-100 hover:brightness-125 motion-reduce:transition-none", STACK_WIDTH)}
+        className={cn("relative block min-h-11 min-w-11 rounded-arena transition-[filter] duration-100 hover:brightness-125 motion-reduce:transition-none", STACK_WIDTH)}
       >
         {inner}
       </button>
@@ -97,7 +97,7 @@ export function CounterChip({
     </>
   );
 
-  const base = cn("inline-flex items-center gap-1.5 rounded-none border bg-black/40 px-2 py-1", TONE_CLASS[tone]);
+  const base = cn("inline-flex items-center gap-1.5 rounded-arena border bg-black/40 px-2 py-1", TONE_CLASS[tone]);
 
   if (onClick) {
     return (

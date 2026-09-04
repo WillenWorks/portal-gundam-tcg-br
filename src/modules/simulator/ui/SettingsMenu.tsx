@@ -23,14 +23,14 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
         <Button
           variant="outline"
           size="icon"
-          className="size-8 rounded-none border-primary/30 bg-slate-950/70"
+          className="size-8 rounded-arena border-primary/30 bg-slate-950/70"
           aria-label="Configurações da partida"
           title="Configurações da partida"
         >
           <Settings className="size-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 rounded-none border-primary/25 bg-slate-950/95 text-soft">
+      <PopoverContent align="start" className="w-64 rounded-arena border-primary/25 bg-slate-950/95 text-soft">
         <div className="flex flex-col gap-3">
           <label className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0">
@@ -43,7 +43,7 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
           <Button
             variant="outline"
             size="sm"
-            className="w-full rounded-none border-red-500/40 text-red-300 hover:bg-red-500/10"
+            className="w-full rounded-arena border-red-500/40 text-red-300 hover:bg-red-500/10"
             disabled={busy}
             onClick={onLeave}
           >

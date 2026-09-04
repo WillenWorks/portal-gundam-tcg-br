@@ -12,6 +12,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Simulador — raio sutil da arena: peças pequenas (slots, cards, chips, botões
+   * de canto, barras) ganham 3px pra suavizar o corte reto sem descaracterizar a
+   * assinatura militar. Os painéis grandes seguem no chanfro `.panel-cut`. */
+  --radius-arena: 3px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
