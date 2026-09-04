@@ -52,7 +52,10 @@ describe("ArenaPlaymat", () => {
     const { container } = renderArena();
     const canvas = container.firstElementChild as HTMLElement;
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, 6.5vw, 6.2rem)");
+    // V5 (docs/30): `min(6.5vw, 12vh)` — responde aos dois eixos do viewport,
+    // não só largura (a causa raiz do vazamento das colunas laterais em
+    // telas altura-dominante — zoom alto, mobile retrato).
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(6.5vw, 12vh), 6.5rem)");
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {

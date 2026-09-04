@@ -80,9 +80,28 @@ interface ArenaPlaymatProps {
 
 /** escala única de toda carta + perspectiva da mesa. `--card-w` (não `--card`):
  * `--card` já é token de COR do design system — reusar o nome pra um comprimento
- * quebraria qualquer `bg-card`/`text-card` dentro da arena. */
+ * quebraria qualquer `bg-card`/`text-card` dentro da arena.
+ *
+ * V5 (docs/30, sprint V&V) — a fórmula era só `6.5vw`: escala com a LARGURA
+ * do viewport, mas o canvas em si é `aspect-[16/9] max-h-full max-w-full` —
+ * a largura REAL renderizada é `min(viewportWidth, viewportHeight * 16/9)`.
+ * Sempre que a altura disponível é o fator limitante (zoom alto, mobile
+ * retrato, janela mais alta que larga), a largura real do canvas fica MENOR
+ * do que `6.5vw` supõe — e como toda carta da arena (Shield/Base/Deck/Trash/
+ * Exílio, `ShieldRail`/`BaseCardGauge`/`CounterChip`) é dimensionada a partir
+ * desta MESMA variável, a fileira de colunas laterais passa a pedir mais
+ * largura do que a caixa real tem e vaza pra fora do `overflow-hidden`
+ * (achado real, confirmado nos prints do Willen em 150%/175%/mobile).
+ * `min(6.5vw, 12vh)` faz `--card-w` responder aos dois eixos: em janelas
+ * largura-dominante (desktop comum, altura ≲ 60% da largura) o termo `vh`
+ * não amarra nada (comportamento igual a antes); só entra em ação quando o
+ * canvas é altura-dominante, encolhendo a escala JUNTO com a largura real —
+ * nunca deixando o pedido de espaço ultrapassar a caixa. Teto levemente maior
+ * (6.5rem, antes 6.2rem) aproveita melhor o widescreen 1x (print "muito
+ * espaçado" — ajuste leve, validar com screenshot novo antes de iterar mais).
+ */
 const CANVAS_STYLE = {
-  "--card-w": "clamp(3.5rem, 6.5vw, 6.2rem)",
+  "--card-w": "clamp(3.5rem, min(6.5vw, 12vh), 6.5rem)",
   perspective: "1200px",
   perspectiveOrigin: "50% 65%",
 } as CSSProperties;
