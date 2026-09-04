@@ -1218,8 +1218,11 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
 - `src/modules/simulator/server/matchStore.ts` — passo 4: match store em
   memória (Node, único módulo com estado real desta feature). Ver "Servidor
   do sandbox" acima. Expandido na wave "Simulador Beta" (2026-08-30) com fila
-  de matchmaking, timer de turno (90s) e presença/W.O. por abandono (3min) —
-  ver seção própria acima.
+  de matchmaking, timer de turno (90s) e presença/W.O. por abandono (3min).
+  **2026-09-04 (docs/23):** ganhou write-through opcional pro Supabase
+  (`setMatchPersistence` / `loadMatch`) — o Map segue como cache, mas a partida
+  re-hidrata do banco depois de restart/deploy do Render. Cliente ganhou
+  reconexão com backoff + resync + reconciliação de versão + offset de relógio.
 - `server/index.ts` — passo 4: bloco de rotas "Simulador" no fim do arquivo
   (incluindo o endpoint SSE). Reescrito na wave "Simulador Beta": rotas de
   fila/ping/claim-abandon-win novas (`authRequired` só), rotas de

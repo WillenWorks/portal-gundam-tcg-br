@@ -703,3 +703,28 @@ model Post {
 
   author User @relation(fields: [authorId], references: [id])
 }
+
+/// Persistência da partida do Simulador (docs/23). O `matchStore` server-side
+/// continua usando um Map em memória como cache de trabalho — esta tabela é o
+/// write-through pra a partida SOBREVIVER a restart/deploy/idle do Render.
+/// `state` é o `GameState` real (server-side, nunca vai redigido pro cliente).
+/// Sem relação FK — é um blob de estado autocontido.
+model SimulatorMatch {
+  id             String    @id
+  state          Json
+  seats          Json
+  deckKeys       Json
+  version        Int       @default(1)
+  phase          String
+  turnDeadlineAt BigInt?
+  lastSeenAt     Json      @default("{}")
+  gameOver       Json?
+  /// set quando o `GameState` fica com `gameOver` != null — usado pelo índice
+  /// pra separar partidas vivas das terminadas (limpeza / futura hidratação em lote).
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([updatedAt])
+  @@index([finishedAt])
+}

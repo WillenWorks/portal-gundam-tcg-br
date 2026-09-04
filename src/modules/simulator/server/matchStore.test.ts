@@ -13,6 +13,7 @@ import {
   joinMatch,
   joinQueue,
   leaveQueue,
+  loadMatch,
   MatchError,
   matchViewFor,
   queueStatusFor,
@@ -20,8 +21,11 @@ import {
   resignMatch,
   seatFor,
   setAutoPass,
+  setMatchPersistence,
   subscribe,
   touchPresence,
+  type MatchPersistence,
+  type StoredMatch,
 } from "./matchStore";
 import { applyPlayerAction } from "../engine/actions";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
@@ -598,5 +602,64 @@ describe("GC oportunista do store (docs/19, Sessão 4)", () => {
     joinQueue({ userId: "u3", displayName: "C", deckKey: "ST01", deckList: buildSt01DeckList() });
 
     expect(getMatch(finished.id)).toBeUndefined();
+  });
+});
+
+describe("persistência (docs/23) — write-through + re-hidratação", () => {
+  /** persistência fake em memória — simula o Supabase/Prisma sem banco. */
+  function fakePersistence() {
+    const rows = new Map<string, StoredMatch>();
+    let upserts = 0;
+    const impl: MatchPersistence = {
+      async upsert(m) {
+        upserts += 1;
+        rows.set(m.id, JSON.parse(JSON.stringify(m)) as StoredMatch);
+      },
+      async load(id) {
+        const r = rows.get(id);
+        return r ? (JSON.parse(JSON.stringify(r)) as StoredMatch) : null;
+      },
+      async remove(id) {
+        rows.delete(id);
+      },
+    };
+    return { impl, rows, get upserts() { return upserts; } };
+  }
+
+  it("cada ação persiste; limpar o Map + loadMatch re-hidrata o estado e re-arma o timer", async () => {
+    const p = fakePersistence();
+    setMatchPersistence(p.impl);
+
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
+    joinMatch(match.id, "A", { userId: "u1", displayName: "A" });
+    joinMatch(match.id, "B", { userId: "u2", displayName: "B" });
+    applyAction(match.id, "u1", { kind: "finishTurn" });
+
+    // o fire-and-forget do persist já rodou (microtask) — aguarda a fila
+    await Promise.resolve();
+    expect(p.upserts).toBeGreaterThan(0);
+    const stored = p.rows.get(match.id)!;
+    expect(stored.state.phase).toBe("end"); // finishTurn abriu o Action Step da End Phase
+    expect(stored.seats.A?.userId).toBe("u1");
+
+    // simula um restart do servidor: o Map some, o banco fica
+    deleteMatch(match.id);
+    p.rows.set(match.id, stored); // deleteMatch também apagou a linha; recoloca (simula "servidor caiu ANTES do delete")
+    expect(getMatch(match.id)).toBeUndefined();
+
+    const rehydrated = await loadMatch(match.id);
+    expect(rehydrated).toBeDefined();
+    expect(rehydrated!.state.phase).toBe("end");
+    expect(rehydrated!.seats.A?.userId).toBe("u1");
+    expect(getMatch(match.id)?.id).toBe(match.id); // voltou pro Map
+    // timer re-armado (os 2 assentos ocupados + há decisionOwner no Action Step)
+    expect(getMatch(match.id)?.turnDeadlineAt).not.toBeNull();
+  });
+
+  it("sem persistência injetada (default), loadMatch só olha o Map", async () => {
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
+    expect(await loadMatch(match.id)).toBe(getMatch(match.id));
+    deleteMatch(match.id);
+    expect(await loadMatch(match.id)).toBeUndefined();
   });
 });

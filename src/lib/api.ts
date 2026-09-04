@@ -189,6 +189,17 @@ export function invalidateApiCache(prefixes: string[]) {
   });
 }
 
+/** Erro de API com o status HTTP preservado (o `request` genérico jogava só a
+ *  mensagem — o simulador precisa distinguir 401 pra tratar sessão expirada). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
   const token = typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_KEY) : null;
   const headers = new Headers(init?.headers);
@@ -215,7 +226,7 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || "Falha na API.");
+    throw new ApiError(data.error || "Falha na API.", response.status);
   }
   if (response.status === 204) return undefined as T;
   const data = (await response.json()) as T;
@@ -268,6 +279,8 @@ export type SimulatorMatchView = {
   /** último sinal de vida (ping OU ação real) de cada assento — epoch ms — base do W.O. por abandono (3min). */
   lastSeenAt: Partial<Record<PlayerId, number>>;
   version: number;
+  /** `Date.now()` do servidor quando esta visão foi montada — pro cliente corrigir skew de relógio. */
+  serverNow: number;
   /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2). */
   autoPassActionStep: boolean;
 };
