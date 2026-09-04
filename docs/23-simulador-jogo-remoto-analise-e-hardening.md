@@ -99,10 +99,38 @@ Cliente **nunca** avalia regra. Não há estado otimista — a UI trava (`busy`)
 Ver §4 abaixo (checklist).
 
 ### C5 — Testes
-- `matchStore.test.ts`: fake `MatchPersistence` → cenário "persiste → limpa o Map →
-  hydrate recarrega → timer re-armado".
-- Teste de reconciliação de versão.
+- `matchStore.test.ts` (+2): fake `MatchPersistence` → "cada ação persiste; limpar o
+  Map + `loadMatch` re-hidrata o estado e re-arma o timer" · "sem persistência, `loadMatch`
+  só olha o Map".
+- `pendingDecision.test.ts` (+3): `resolveTriggerOrder` — ordem inválida rejeitada,
+  oponente bloqueado, ordem válida limpa a pendência e dispara os efeitos (fecha o ⚠ da
+  auditoria — o caminho não tinha teste porque nenhum card ST01/ST02 o dispara).
 - Roteiro manual (2 máquinas) no §5.
+
+---
+
+## 6. Status de execução
+
+| Item | Estado | Commit |
+|---|---|---|
+| C0 — análise estrutural + matriz de risco + auditoria | ✅ | este doc |
+| C2 — reconexão robusta (backoff, resync, 401, banner) | ✅ | `62fa965` |
+| C3 — reconciliação de versão + offset de relógio (`serverNow`) | ✅ | `62fa965` |
+| C1 — persistência (Supabase/Prisma, write-through + hydrate lazy) | ✅ | (este commit) |
+| C4 — auditoria: teste sintético de `resolveTriggerOrder` | ✅ | (este commit) |
+| C4 — reconciliar EX Base HP com o PDF v1.8.0 | ⬜ backlog | — |
+| C4 — `【Pilot】[X]` play-gate | ⬜ backlog | — |
+| C4 — ponte deckbuilder → simulador | ⬜ backlog (Fase 2/3) | — |
+
+`pnpm test` **417 ✓** · `check:types` ✓ · `lint:simulator` 0 erros · `build` ✓.
+
+### Como aplicar em produção (Render)
+1. `pnpm exec prisma migrate deploy` roda no `start` do servidor — a migration
+   `10_simulator_match_persistence` cria a tabela `SimulatorMatch` no Supabase.
+2. Nada de env novo. A persistência é transparente: se o `DATABASE_URL` responder,
+   grava; se falhar, só loga um `console.warn` e a partida segue em memória.
+3. Render free-plan segue derrubando o processo no idle/deploy — mas agora a
+   próxima ação/reconexão **re-hidrata** a partida do banco.
 
 ---
 

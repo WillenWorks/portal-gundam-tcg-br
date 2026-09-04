@@ -26,6 +26,7 @@ import {
   joinQueue,
   leaveQueue,
   listMatches,
+  loadMatch,
   matchViewFor,
   MatchError,
   queueStatusFor,
@@ -33,11 +34,55 @@ import {
   resignMatch,
   seatFor,
   setAutoPass,
+  setMatchPersistence,
   subscribe,
   touchPresence,
+  type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
+import type { GameState } from "../src/modules/simulator/engine/types.ts";
 
 const prisma = new PrismaClient();
+
+// docs/23 — persistência da partida do Simulador (write-through no Supabase).
+// O `matchStore` segue com o Map em memória como cache; isto é só o backup que
+// deixa a partida sobreviver a restart/deploy/idle do Render.
+setMatchPersistence({
+  async upsert(m: StoredMatch) {
+    const data = {
+      state: m.state as unknown as Prisma.InputJsonValue,
+      seats: m.seats as unknown as Prisma.InputJsonValue,
+      deckKeys: m.deckKeys as unknown as Prisma.InputJsonValue,
+      version: m.version,
+      phase: m.state.phase,
+      turnDeadlineAt: m.turnDeadlineAt != null ? BigInt(m.turnDeadlineAt) : null,
+      lastSeenAt: m.lastSeenAt as unknown as Prisma.InputJsonValue,
+      gameOver: m.state.gameOver ? (m.state.gameOver as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      finishedAt: m.state.gameOver ? new Date() : null,
+    } as unknown as Prisma.SimulatorMatchUpdateInput;
+    await prisma.simulatorMatch.upsert({
+      where: { id: m.id },
+      create: { id: m.id, ...data } as unknown as Prisma.SimulatorMatchCreateInput,
+      update: data,
+    });
+  },
+  async load(id: string): Promise<StoredMatch | null> {
+    const row = await prisma.simulatorMatch.findUnique({ where: { id } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      state: row.state as unknown as GameState,
+      seats: row.seats as StoredMatch["seats"],
+      deckKeys: row.deckKeys as StoredMatch["deckKeys"],
+      version: row.version,
+      turnDeadlineAt: row.turnDeadlineAt != null ? Number(row.turnDeadlineAt) : null,
+      lastSeenAt: row.lastSeenAt as StoredMatch["lastSeenAt"],
+    };
+  },
+  async remove(id: string) {
+    await prisma.simulatorMatch.delete({ where: { id } }).catch(() => {});
+  },
+});
+
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 8787);
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
@@ -3247,7 +3292,8 @@ app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res)
 
 // --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
 
-app.get("/api/simulator/matches/:id", authRequired, (req: RequestWithUser, res) => {
+app.get("/api/simulator/matches/:id", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
   const match = getMatch(String(req.params.id));
   if (!match) return res.status(404).json({ error: "Partida não encontrada." });
   const seat = seatFor(match, req.user!.userId);
@@ -3255,12 +3301,13 @@ app.get("/api/simulator/matches/:id", authRequired, (req: RequestWithUser, res) 
   res.json({ seated: true, ...matchViewFor(match, seat) });
 });
 
-app.post("/api/simulator/matches/:id/actions", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/actions", authRequired, async (req: RequestWithUser, res) => {
   const action = req.body as PlayerAction;
   if (!action || typeof action !== "object" || typeof action.kind !== "string") {
     return res.status(400).json({ error: "Ação inválida." });
   }
   try {
+    await loadMatch(String(req.params.id));
     const match = applyAction(String(req.params.id), req.user!.userId, action);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
@@ -3272,8 +3319,9 @@ app.post("/api/simulator/matches/:id/actions", authRequired, (req: RequestWithUs
 
 // Heartbeat de presença — o cliente chama isso periodicamente enquanto a aba está visível
 // (ver SimulatorSandboxPage.tsx). Alimenta o W.O. por abandono (matchStore.claimAbandonWin).
-app.post("/api/simulator/matches/:id/ping", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/ping", authRequired, async (req: RequestWithUser, res) => {
   try {
+    await loadMatch(String(req.params.id));
     const match = touchPresence(String(req.params.id), req.user!.userId);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
@@ -3285,9 +3333,10 @@ app.post("/api/simulator/matches/:id/ping", authRequired, (req: RequestWithUser,
 
 // Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4) — loga o
 // GameState real + histórico no console do servidor pra diagnóstico. Não persiste.
-app.post("/api/simulator/matches/:id/report", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestWithUser, res) => {
   const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
   try {
+    await loadMatch(String(req.params.id));
     res.json(reportSituation(String(req.params.id), req.user!.userId, note));
   } catch (err) {
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
@@ -3296,10 +3345,11 @@ app.post("/api/simulator/matches/:id/report", authRequired, (req: RequestWithUse
 });
 
 // Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).
-app.post("/api/simulator/matches/:id/auto-pass", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/auto-pass", authRequired, async (req: RequestWithUser, res) => {
   const value = (req.body as { value?: unknown })?.value;
   if (typeof value !== "boolean") return res.status(400).json({ error: "`value` precisa ser booleano." });
   try {
+    await loadMatch(String(req.params.id));
     const match = setAutoPass(String(req.params.id), req.user!.userId, value);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
@@ -3309,8 +3359,9 @@ app.post("/api/simulator/matches/:id/auto-pass", authRequired, (req: RequestWith
   }
 });
 
-app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, async (req: RequestWithUser, res) => {
   try {
+    await loadMatch(String(req.params.id));
     const match = claimAbandonWin(String(req.params.id), req.user!.userId);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
@@ -3321,8 +3372,9 @@ app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, (req: Req
 });
 
 // "Sair da partida" -> desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch.
-app.post("/api/simulator/matches/:id/resign", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/matches/:id/resign", authRequired, async (req: RequestWithUser, res) => {
   try {
+    await loadMatch(String(req.params.id));
     const match = resignMatch(String(req.params.id), req.user!.userId);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
@@ -3333,7 +3385,8 @@ app.post("/api/simulator/matches/:id/resign", authRequired, (req: RequestWithUse
 });
 
 // EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
-app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, (req: RequestWithUser, res) => {
+app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
   const match = getMatch(String(req.params.id));
   if (!match) return res.status(404).json({ error: "Partida não encontrada." });
   const seat = seatFor(match, req.user!.userId);

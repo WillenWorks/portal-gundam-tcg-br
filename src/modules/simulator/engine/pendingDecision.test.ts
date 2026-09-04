@@ -228,6 +228,54 @@ describe("activateAbility (docs/19, Sessão 2)", () => {
   });
 });
 
+describe("resolveTriggerOrder — ordenação de gatilhos simultâneos (docs/23 — caminho sem card ST01/ST02 que o dispare)", () => {
+  /** monta um `triggerOrder` pendente pra A com 2 【Deploy】 de White Base
+   *  (`addShieldToHand`), cada um de uma instância distinta. */
+  function twoDeployTriggers() {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 9, firstPlayer: "A" }));
+    const wb1 = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "battleArea");
+    const wb2 = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "battleArea");
+    // garante shields suficientes pra os 2 addShieldToHand terem efeito observável
+    state.players.A.shields = [];
+    place(state, "A", ST01_CARD_DEFS.GM, "shields");
+    place(state, "A", ST01_CARD_DEFS.GM, "shields");
+    place(state, "A", ST01_CARD_DEFS.GM, "shields");
+    state.pendingDecision.A = {
+      kind: "triggerOrder",
+      triggers: [
+        { instanceId: wb1, specId: "ST01-015-Deploy", trigger: "Deploy", label: "White Base (1)" },
+        { instanceId: wb2, specId: "ST01-015-Deploy", trigger: "Deploy", label: "White Base (2)" },
+      ],
+    };
+    return { state, wb1, wb2 };
+  }
+
+  it("ordem inválida (falta / sobra / repete) é rejeitada", () => {
+    const { state } = twoDeployTriggers();
+    expect(() => apply(state, "A", { kind: "resolveTriggerOrder", orderedSpecIds: ["ST01-015-Deploy"] })).toThrow(/exatamente/);
+    expect(() =>
+      apply(state, "A", { kind: "resolveTriggerOrder", orderedSpecIds: ["ST01-015-Deploy", "ST01-015-Deploy", "X"] }),
+    ).toThrow(/exatamente/);
+  });
+
+  it("enquanto pendente, o oponente não joga nada", () => {
+    const { state } = twoDeployTriggers();
+    expect(() => apply(state, "B", { kind: "finishTurn" })).toThrow(/Aguardando o oponente/);
+  });
+
+  it("ordem válida limpa a pendência e dispara o(s) efeito(s) na ordem escolhida", () => {
+    const { state } = twoDeployTriggers();
+    const handBefore = state.players.A.hand.length;
+    const shieldsBefore = state.players.A.shields.length;
+    const next = apply(state, "A", { kind: "resolveTriggerOrder", orderedSpecIds: ["ST01-015-Deploy", "ST01-015-Deploy"] });
+
+    expect(next.pendingDecision.A).toBeNull();
+    // 【Deploy】 de White Base (addShieldToHand) disparou -> shield foi pra mão.
+    expect(next.players.A.hand.length).toBeGreaterThan(handBefore);
+    expect(next.players.A.shields.length).toBeLessThan(shieldsBefore);
+  });
+});
+
 describe("playerHasActionStepPlay (auto-pass helper, docs/19 Sessão 2 tarefa 4)", () => {
   it("true quando o jogador tem Command 【Action】 jogável na mão", () => {
     const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));

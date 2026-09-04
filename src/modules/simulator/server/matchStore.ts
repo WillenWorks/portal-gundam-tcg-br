@@ -129,6 +129,95 @@ const listeners = new Map<string, Set<Listener>>();
 // (tipado pra browser, sem @types/node) mesmo só rodando no server em runtime.
 const turnTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
+// ---------------------------------------------------------------------------
+// Persistência (docs/23) — o `Map` acima é o cache de trabalho; esta camada é o
+// write-through pra a partida sobreviver a restart/deploy/idle do Render. É
+// INJETADA (`setMatchPersistence`) pelo `server/index.ts` no boot; `null` por
+// padrão (testes de motor não têm banco → tudo vira no-op).
+// ---------------------------------------------------------------------------
+
+/** Forma serializável de uma partida pro banco (o `state` é o `GameState` real, server-side). */
+export interface StoredMatch {
+  id: string;
+  state: GameState;
+  seats: MatchRecord["seats"];
+  deckKeys: MatchRecord["deckKeys"];
+  version: number;
+  turnDeadlineAt: number | null;
+  lastSeenAt: MatchRecord["lastSeenAt"];
+}
+
+export interface MatchPersistence {
+  upsert(m: StoredMatch): Promise<void>;
+  load(id: string): Promise<StoredMatch | null>;
+  remove(id: string): Promise<void>;
+}
+
+let persistence: MatchPersistence | null = null;
+
+/** Chamado 1× no boot do servidor. `null` desliga a persistência (default = testes). */
+export function setMatchPersistence(p: MatchPersistence | null): void {
+  persistence = p;
+}
+
+function toStored(match: MatchRecord): StoredMatch {
+  return {
+    id: match.id,
+    state: match.state,
+    seats: match.seats,
+    deckKeys: match.deckKeys,
+    version: match.version,
+    turnDeadlineAt: match.turnDeadlineAt,
+    lastSeenAt: match.lastSeenAt,
+  };
+}
+
+/** Persiste a partida (fire-and-forget — NUNCA bloqueia o motor; erro só loga). */
+function persist(match: MatchRecord): void {
+  if (!persistence) return;
+  void persistence.upsert(toStored(match)).catch((err) => {
+    console.warn(`[SIMULADOR] falha ao persistir a partida ${match.id}:`, err instanceof Error ? err.message : err);
+  });
+}
+
+/**
+ * Carrega a partida — do `Map` se estiver quente, senão do banco (re-hidrata o
+ * `Map` + re-arma o timer com prazo fresco). Retorna `undefined` se não existe
+ * em lugar nenhum. As rotas que podem pegar uma partida "fria" (SSE, actions,
+ * ping, resign, …) chamam `await loadMatch(id)` antes das funções síncronas.
+ */
+export async function loadMatch(matchId: string): Promise<MatchRecord | undefined> {
+  const hot = matches.get(matchId);
+  if (hot) return hot;
+  if (!persistence) return undefined;
+
+  let stored: StoredMatch | null = null;
+  try {
+    stored = await persistence.load(matchId);
+  } catch (err) {
+    console.warn(`[SIMULADOR] falha ao carregar a partida ${matchId}:`, err instanceof Error ? err.message : err);
+    return undefined;
+  }
+  if (!stored) return undefined;
+  if (matches.has(matchId)) return matches.get(matchId); // corrida: outro request re-hidratou
+
+  const now = Date.now();
+  const match: MatchRecord = {
+    id: stored.id,
+    state: stored.state,
+    seats: stored.seats,
+    deckKeys: stored.deckKeys,
+    createdAt: now,
+    updatedAt: now,
+    version: stored.version,
+    turnDeadlineAt: null,
+    lastSeenAt: stored.lastSeenAt,
+  };
+  matches.set(match.id, match);
+  armTurnTimer(match); // prazo fresco de 90s pós-restart (justo com o jogador)
+  return match;
+}
+
 export interface CreateMatchOptions {
   deckA: DeckList;
   deckB: DeckList;
@@ -238,6 +327,7 @@ export function joinMatch(matchId: string, seat: PlayerId, player: MatchSeat): M
   match.lastSeenAt[seat] = Date.now();
   match.updatedAt = Date.now();
   armTurnTimer(match);
+  persist(match);
   notify(match);
   return match;
 }
@@ -262,6 +352,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
   match.updatedAt = Date.now();
   match.version += 1;
   armTurnTimer(match);
+  persist(match);
   notify(match);
   return match;
 }
@@ -288,6 +379,7 @@ export function setAutoPass(matchId: string, userId: string, value: boolean): Ma
   match.seats[seat] = { ...match.seats[seat]!, autoPassActionStep: value };
   match.updatedAt = Date.now();
   armTurnTimer(match);
+  persist(match);
   notify(match);
   return match;
 }
@@ -347,6 +439,7 @@ export function claimAbandonWin(matchId: string, userId: string): MatchRecord {
   match.updatedAt = Date.now();
   match.version += 1;
   armTurnTimer(match);
+  persist(match);
   notify(match);
   return match;
 }
@@ -383,6 +476,7 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
   match.updatedAt = Date.now();
   match.version += 1;
   armTurnTimer(match);
+  persist(match);
   notify(match);
   return match;
 }
@@ -618,6 +712,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
       match.version += 1;
       clearTurnTimer(match.id);
       match.turnDeadlineAt = null;
+      persist(match);
       notify(match);
       return;
     }
@@ -632,6 +727,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
   }
 
   armTurnTimer(match);
+  persist(match);
   notify(match);
 }
 
@@ -682,6 +778,11 @@ export function deleteMatch(matchId: string): void {
   matches.delete(matchId);
   listeners.delete(matchId);
   gameOverLogged.delete(matchId);
+  if (persistence) {
+    void persistence.remove(matchId).catch((err) => {
+      console.warn(`[SIMULADOR] falha ao apagar a partida ${matchId} do banco:`, err instanceof Error ? err.message : err);
+    });
+  }
   // Não deixa `pendingMatches` apontando pra uma partida que não existe mais —
   // senão `queueStatusFor` mandaria o jogador de volta pra ela (agora tem um
   // guard lá também, mas limpar na fonte evita entrada morta na memória).
@@ -699,4 +800,5 @@ export function _resetAllMatchesForTests(): void {
   queue.length = 0;
   pendingMatches.clear();
   gameOverLogged.clear();
+  persistence = null;
 }
