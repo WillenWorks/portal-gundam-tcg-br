@@ -1,13 +1,22 @@
 /* Fase C (docs/19) — trilha de Shields.
  *
  * Sprint 5 (refinamento Arena 3D) — SEM textos redundantes ("6 SHIELDS", o
- * número grande, os avisos de lethal): a contagem se lê pelas próprias peças.
- * `title` carrega a informação como tooltip.
+ * número grande, os avisos de lethal): a contagem se lia pelas próprias
+ * peças. `title` carrega a informação como tooltip.
  *  - vertical: 6 versos de carta em CASCATA sobreposta, de cima pra baixo
  *    (topologia Mobile Suit Arena). Peça viva = moldura ciano; quebrada =
  *    fantasma tracejado; `count <= 2` tinge as vivas de vermelho.
  *  - horizontal: glifos de escudo em linha (mantém o formato antigo pros
  *    callers que não pedem orientação).
+ *
+ * V6 (docs/31) — pedido do Willen: o `vertical` (o único usado em produção,
+ * via `ArenaPlaymat`) ganhou um BADGE numérico (mesma linguagem visual do
+ * `CounterChip` do Deck/Trash), porque no mobile a pilha compacta sozinha
+ * não deixava clara a quantidade. Número e cascata visual sempre andam
+ * juntos — nenhum substitui o outro. No mobile (`max-sm:`) a cascata fica
+ * mais sobreposta (menos altura total) pra não competir tanto por espaço
+ * vertical; moderado de propósito pra não reduzir demais a área clicável de
+ * cada shield (`selectable` é usado de verdade — ver `SimulatorMatchPage.tsx`).
  *
  * `selectable` (efeito que mira uma shield): cada peça VIVA vira <button> com
  * hit-area >= 44px. */
@@ -48,15 +57,36 @@ export function ShieldRail({
       title={label}
       className={cn(
         "rounded-arena",
-        vertical ? "flex flex-col items-center" : "flex items-center gap-0.5",
+        vertical ? "relative flex flex-col items-center" : "flex items-center gap-0.5",
         justBroken && "ring-1 ring-red-500/60",
       )}
     >
+      {/* V6 (docs/31): número fixo no canto, não se move conforme shields
+          saem — só o valor muda. Mesma linguagem visual do badge de pilha
+          do CounterChip (Deck/Trash). */}
+      {vertical ? (
+        <span
+          className={cn(
+            "absolute -right-1 -top-1 z-10 rounded-arena border bg-slate-950 px-1 font-mono text-[11px] font-black leading-tight tabular-nums",
+            low ? "border-red-500/70 text-red-300" : "border-white/20 text-slate-100",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
       {Array.from({ length: total }, (_, i) => {
         const full = i < count;
         const selected = selectedIndexes.includes(i);
         const pickable = Boolean(selectable && full && onSelectIndex);
-        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card-w,3.5rem)*0.62)]" : undefined;
+        // V6 (docs/31): `max-sm:` sobrepõe mais (*0.75, era só *0.62) — pilha
+        // mais compacta no mobile, sem competir tanto por espaço vertical.
+        // Moderado de propósito: `selectable` é usado de verdade (Shield é
+        // alvo real de decisão de jogo) — overlap extremo reduziria a área
+        // clicável de cada peça.
+        const cascade =
+          vertical && i > 0
+            ? "-mt-[calc(var(--card-w,3.5rem)*0.62)] max-sm:-mt-[calc(var(--card-w,3.5rem)*0.75)]"
+            : undefined;
 
         const piece = vertical ? (
           <span

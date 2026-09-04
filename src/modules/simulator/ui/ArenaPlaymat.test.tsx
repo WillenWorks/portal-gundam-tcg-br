@@ -54,8 +54,10 @@ describe("ArenaPlaymat", () => {
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
     // V5 (docs/30): `min(6.5vw, 12vh)` — responde aos dois eixos do viewport,
     // não só largura (a causa raiz do vazamento das colunas laterais em
-    // telas altura-dominante — zoom alto, mobile retrato).
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(6.5vw, 12vh), 6.5rem)");
+    // telas altura-dominante — zoom alto, mobile retrato). V6 (docs/31):
+    // teto 6.5rem → 7.5rem — o teto baixo suprimia o valor natural da
+    // fórmula em telas largas.
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(6.5vw, 12vh), 7.5rem)");
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {

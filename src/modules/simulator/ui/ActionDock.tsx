@@ -94,7 +94,15 @@ export function ActionDock({
         return (
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className={cn("truncate text-sm font-black uppercase tracking-wide", state.yourTurn ? "text-primary" : "text-muted-portal")}>
+              {/* V6 (docs/31): "vale" só na faixa sm: (celular em paisagem, que já
+                  cai no tratamento "desktop" do dock mas numa tela real pequena
+                  demais pra ele) — volta ao tamanho normal a partir de md:. */}
+              <p
+                className={cn(
+                  "truncate text-sm font-black uppercase tracking-wide sm:text-xs md:text-sm",
+                  state.yourTurn ? "text-primary" : "text-muted-portal",
+                )}
+              >
                 {state.yourTurn ? `Sua vez · ${state.phaseLabel}` : "Vez do oponente"}
               </p>
               <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-portal">
@@ -271,7 +279,10 @@ export function ActionDock({
     // toggle da mão.
     <aside
       aria-label="Ação atual"
-      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-14 sm:right-3 sm:w-[21rem] md:w-[23rem]"
+      // V6 (docs/31): a faixa sm: (≥640px, <768px — celular em paisagem já
+      // cai aqui) ganha caixa/padding mais compactos; md:+ mantém o tamanho
+      // de sempre (desktop/tablet).
+      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-14 sm:right-3 sm:w-[16rem] md:w-[21rem] lg:w-[23rem]"
     >
       <div
         className={cn(
@@ -279,7 +290,7 @@ export function ActionDock({
           accentClass(state),
         )}
       >
-        <div className="px-3 py-2.5" aria-live="polite">
+        <div className="px-3 py-2.5 sm:px-2 sm:py-1.5 md:px-3 md:py-2.5" aria-live="polite">
           {renderBody()}
         </div>
         {logTail ? (

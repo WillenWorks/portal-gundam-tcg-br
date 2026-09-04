@@ -63,7 +63,9 @@ export function CounterChip({
         {!hideCount ? (
           <span
             className={cn(
-              "absolute -right-1 -top-1 rounded-arena border bg-slate-950 px-1 font-mono text-[10px] font-black leading-tight tabular-nums",
+              // V6 (docs/31): 10px → 11px — legibilidade do número em telas
+              // pequenas (print anotado do Willen, "não dá pra ver a quantidade").
+              "absolute -right-1 -top-1 rounded-arena border bg-slate-950 px-1 font-mono text-[11px] font-black leading-tight tabular-nums",
               TONE_BADGE[tone],
             )}
           >

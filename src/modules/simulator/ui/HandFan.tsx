@@ -45,10 +45,11 @@ interface HandFanProps {
 const MAX_OVERLAP = 0.72;
 
 /** Mão pequena = quase sem overlap (cartas espaçadas, capturas 6); só aperta
- *  quando passa de ~6 cartas. */
+ *  quando passa de ~6 cartas. V6 (docs/31): 0.12 → 0.08 pra mão pequena —
+ *  "um pouquinho maior" de espaçamento (pedido do Willen, print de mobile). */
 function overlapFor(count: number): number {
-  if (count <= 6) return 0.12;
-  return Math.min(MAX_OVERLAP, 0.12 + (count - 6) * 0.07);
+  if (count <= 6) return 0.08;
+  return Math.min(MAX_OVERLAP, 0.08 + (count - 6) * 0.07);
 }
 
 export function HandFan({

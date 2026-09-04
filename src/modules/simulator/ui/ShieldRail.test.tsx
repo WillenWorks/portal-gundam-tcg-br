@@ -7,11 +7,25 @@ import { ShieldRail } from "./ShieldRail";
 afterEach(cleanup);
 
 describe("ShieldRail", () => {
-  it("expõe a contagem só via aria-label/title (sem texto redundante)", () => {
+  it("horizontal expõe a contagem só via aria-label/title (sem texto redundante)", () => {
     render(<ShieldRail count={4} />);
     expect(screen.getByRole("list", { name: "4 de 6 shields" })).toBeInTheDocument();
     expect(screen.queryByText("4")).toBeNull();
     expect(screen.queryByText(/SHIELDS/i)).toBeNull();
+  });
+
+  it("vertical mostra o número de shields num badge (V6, docs/31 — pedido do Willen)", () => {
+    render(<ShieldRail count={4} orientation="vertical" />);
+    expect(screen.getByRole("list", { name: "4 de 6 shields" })).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument();
+  });
+
+  it("vertical: o badge acompanha a contagem conforme shields saem", () => {
+    const { rerender } = render(<ShieldRail count={4} orientation="vertical" />);
+    expect(screen.getByText("4")).toBeInTheDocument();
+    rerender(<ShieldRail count={2} orientation="vertical" />);
+    expect(screen.queryByText("4")).toBeNull();
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("reserva `max` peças por padrão (vivas + quebradas)", () => {

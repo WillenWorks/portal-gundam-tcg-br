@@ -96,12 +96,24 @@ interface ArenaPlaymatProps {
  * largura-dominante (desktop comum, altura ≲ 60% da largura) o termo `vh`
  * não amarra nada (comportamento igual a antes); só entra em ação quando o
  * canvas é altura-dominante, encolhendo a escala JUNTO com a largura real —
- * nunca deixando o pedido de espaço ultrapassar a caixa. Teto levemente maior
- * (6.5rem, antes 6.2rem) aproveita melhor o widescreen 1x (print "muito
- * espaçado" — ajuste leve, validar com screenshot novo antes de iterar mais).
+ * nunca deixando o pedido de espaço ultrapassar a caixa.
+ *
+ * V6 (docs/31, calibração 2 — vídeo widescreen + prints do Willen) — teto
+ * `6.5rem → 7.5rem`. Raciocínio: zoom de página encolhe `vw`/`vh`
+ * proporcionalmente, mas TAMBÉM amplia fisicamente tudo — os dois efeitos se
+ * cancelam, A MENOS que o `clamp` já esteja batendo no teto em 100%. Num
+ * monitor largo maximizado, `min(6.5vw,12vh)` já costuma superar o teto
+ * antigo — o Willen relatou que zoom 150% (que empurra o valor bruto pra
+ * BAIXO do teto, revelando o valor "natural" da fórmula) ficou melhor que
+ * 100%. Ou seja: não era a fórmula que estava errada, era o teto baixo
+ * demais suprimindo o resultado dela. Subir o teto reproduz esse efeito sem
+ * chute — e como `min()` sempre escolhe o menor termo, um teto mais alto
+ * NÃO afeta telas estreitas/altas (mobile retrato, zoom alto): lá quem
+ * sempre limita é `6.5vw`/`12vh`, bem abaixo de qualquer teto razoável
+ * (seguro por construção, não reabre o vazamento que o V5 fechou).
  */
 const CANVAS_STYLE = {
-  "--card-w": "clamp(3.5rem, min(6.5vw, 12vh), 6.5rem)",
+  "--card-w": "clamp(3.5rem, min(6.5vw, 12vh), 7.5rem)",
   perspective: "1200px",
   perspectiveOrigin: "50% 65%",
 } as CSSProperties;
