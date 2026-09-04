@@ -82,11 +82,11 @@ F8 (motor→server, base) → F1 → F2 → F6 → F7 → F3 → F4 → F5. Chec
 
 | Fase | Estado | Commit / notas |
 |---|---|---|
-| F8 — fim de jogo (motivo + overlay) | ⬜ | |
-| F1 — scroll fantasma + largura recursos | ⬜ | |
-| F2 — espelhamento 180° do oponente | ⬜ | |
-| F6 — botões de campo escondidos/clicáveis | ⬜ | |
-| F7 — mão (espaço, sem olho, jogar escondido) | ⬜ | |
-| F3 — header enxuto (⚙ + 🐞) | ⬜ | |
-| F4 — HUD textual → ícones | ⬜ | |
-| F5 — avisos no centro da tela | ⬜ | |
+| F8 — fim de jogo (motivo + overlay) | ✅ | `d156ce7` — reason `resignation` distinto; `GameOverOverlay` centro-tela; `logGameOverOnce`; `CenterAnnounce` |
+| F1 — scroll fantasma + largura recursos | ✅ | `7d40cd5` — `.scrollbar-ghost`/`.scrollbar-none`; `ResourceLane` trava recursos na largura da Battle Area |
+| F2 — espelhamento 180° do oponente | ✅ | `7d40cd5` — `mirrored` em Shield/DeckStation; recursos do oponente no topo; contagem de deck do oponente visível |
+| F6 — botões de campo escondidos/clicáveis | ✅ | `62d2abb` — tira sai pra fora da carta no hover; `translateZ` conserta o hit-test sob `preserve-3d` |
+| F7 — mão (espaço, sem olho, jogar escondido) | ✅ | `fb175e4` — `overlapFor(count)`; corpo clicável = `onInspect`; sem "Ver"; "Jogar" escondido no canto |
+| F3 — header enxuto (⚙ + 🐞) | ✅ | `SettingsMenu` popover (auto-pass + desistir); barra do topo removida; ⚙ + 🐞 flutuando |
+| F4 — HUD textual → ícones | ✅ | turno/fase/timer só no `ActionDock` (idle ganha `turnNumber`); sinc/assento = chip minúsculo canto inf. esq. |
+| F5 — avisos no centro da tela | ✅ | `CenterAnnounce` (com F8) — eco da intenção atual grande no meio, `pointer-events-none` |

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 export type ActionDockState =
-  | { kind: "idle"; yourTurn: boolean; phaseLabel: string; timerSeconds: number | null }
+  | { kind: "idle"; yourTurn: boolean; phaseLabel: string; timerSeconds: number | null; turnNumber?: number }
   | {
       kind: "pending";
       verb: string;
@@ -97,11 +97,14 @@ export function ActionDock({
               <p className={cn("truncate text-sm font-black uppercase tracking-wide", state.yourTurn ? "text-primary" : "text-muted-portal")}>
                 {state.yourTurn ? `Sua vez · ${state.phaseLabel}` : "Vez do oponente"}
               </p>
-              {state.timerSeconds !== null ? (
-                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-portal">
-                  <Clock className="size-3" /> {state.timerSeconds}s
-                </p>
-              ) : null}
+              <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-portal">
+                {state.turnNumber !== undefined ? <span>Turno {state.turnNumber}</span> : null}
+                {state.timerSeconds !== null ? (
+                  <span className="flex items-center gap-1">
+                    <Clock className="size-3" /> {state.timerSeconds}s
+                  </span>
+                ) : null}
+              </p>
             </div>
             {state.yourTurn ? (
               <Button

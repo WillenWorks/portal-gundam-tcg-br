@@ -100,10 +100,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bug, Clock, LogOut, RefreshCw } from "lucide-react";
+import { Bug, RefreshCw } from "lucide-react";
 
 import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
@@ -140,6 +139,7 @@ import {
   GameOverOverlay,
   gameOverReasonLabel,
   CenterAnnounce,
+  SettingsMenu,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
@@ -497,8 +497,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const myBurstDecision = myPendingDecision?.kind === "burst" ? myPendingDecision : null;
 
   const turnSecondsLeft = matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - now) / 1000)) : null;
-  const itsMyDecision =
-    !view.gameOver && (myTurnMain || iAmDefending || iHavePriority || iHaveEndPhasePriority || myPendingDecision !== null);
   const redirectSecondsLeft = redirectAt !== null ? Math.max(0, Math.ceil((redirectAt - now) / 1000)) : null;
   const gameOverResult = view.gameOver
     ? {
@@ -989,67 +987,42 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       yourTurn: myTurnMain,
       phaseLabel: PHASE_LABEL[view.phase] ?? view.phase,
       timerSeconds: turnSecondsLeft,
+      turnNumber: view.turnNumber,
     };
   }
 
   const content = (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
-      {/* HUD -- sem PortalShell nesta tela (rodada 5): usa o viewport inteiro. */}
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-primary/20 hero-surface px-3 py-2">
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-none"
-            disabled={busy}
-            onClick={exitToLobby}
-            title={
-              matchView?.view.gameOver
-                ? "Voltar ao lobby do simulador"
-                : "Sair e desistir do duelo (concede a vitória ao oponente)"
-            }
-          >
-            <LogOut className="mr-1.5 size-3.5" />
-            Sair
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-none border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-            onClick={reportSituation}
-            title="Reportar bug ou dúvida de regra — envia o estado da partida pro dev"
-          >
-            <Bug className="size-3.5" />
-          </Button>
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
+      {/* Header enxuto (capturas 3): sem barra — só ⚙ Config + 🐞 Bug flutuando
+          no canto, liberando o topo pro tabuleiro. */}
+      <div className="pointer-events-none absolute left-2 top-2 z-40 flex items-center gap-1.5">
+        <div className="pointer-events-auto">
+          <SettingsMenu
+            autoPass={dockAutoPass}
+            onToggleAutoPass={(v) => toggleAutoPass(v)}
+            onLeave={exitToLobby}
+            gameOver={Boolean(matchView?.view.gameOver)}
+            busy={busy}
+          />
         </div>
-        <div className="text-center">
-          <p className="text-[9px] uppercase tracking-[0.24em] text-muted-portal">Turno {view.turnNumber}</p>
-          <p className="mt-0.5 text-sm heading-portal sm:text-base">
-            {PHASE_LABEL[view.phase]} Phase · Vez de {view.activePlayer}
-            {combat ? ` · Combate (${combat.step})` : ""}
-            {endPhaseAction ? ` · Action Step (prioridade: ${endPhaseAction.priority})` : ""}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {gameOverResult ? (
-            <Badge
-              variant="outline"
-              className={`rounded-none ${gameOverResult.won ? "border-emerald-500/50 text-emerald-400" : "border-red-500/50 text-red-400"}`}
-            >
-              {gameOverResult.won ? "Você venceu" : "Você perdeu"} · {gameOverResult.reasonLabel}
-            </Badge>
-          ) : turnSecondsLeft !== null ? (
-            <Badge variant="outline" className={`rounded-none ${itsMyDecision && turnSecondsLeft <= 15 ? "border-red-500/60 text-red-400" : "border-primary/40 text-primary"}`}>
-              <Clock className="mr-1.5 size-3.5" />
-              {itsMyDecision ? "Sua decisão" : "Vez do oponente"} · {turnSecondsLeft}s
-            </Badge>
-          ) : null}
-          <p className="hidden items-center gap-1.5 text-[10px] text-muted-portal sm:flex">
-            <RefreshCw className={`size-3 ${connected ? "text-primary" : "animate-pulse text-slate-500"}`} />
-            {connected ? "sincronizado" : "conectando"} · assento {seat}
-          </p>
-        </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="pointer-events-auto size-8 rounded-none border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
+          onClick={reportSituation}
+          title="Reportar bug ou dúvida de regra — envia o estado da partida pro dev"
+          aria-label="Reportar bug ou dúvida de regra"
+        >
+          <Bug className="size-4" />
+        </Button>
       </div>
+
+      {/* Info de SISTEMA (não de jogo): sincronização + assento — chip minúsculo
+          e discreto no canto inferior esquerdo. */}
+      <p className="pointer-events-none absolute bottom-1.5 left-2 z-30 flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-slate-600">
+        <RefreshCw className={`size-2.5 ${connected ? "text-primary/70" : "animate-pulse text-slate-500"}`} />
+        {connected ? "sinc" : "conectando"} · {seat}
+      </p>
 
       {/* Sprint 4/6 (redesenho "Nível Arena") — o board é UM `ArenaPlaymat`
           travado em 16:9. Em telas largas (> 1400px) o espaço lateral que sobra

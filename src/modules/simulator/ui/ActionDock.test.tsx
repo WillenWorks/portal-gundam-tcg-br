@@ -68,6 +68,10 @@ describe("ActionDock — texto e botões por kind", () => {
     expect(out).toContain("Encerrar turno");
   });
 
+  it("idle mostra o número do turno quando informado", () => {
+    expect(html({ kind: "idle", yourTurn: true, phaseLabel: "Main", timerSeconds: 30, turnNumber: 4 })).toContain("Turno 4");
+  });
+
   it("idle (vez do oponente) esconde Encerrar turno e timer nulo", () => {
     const out = html({ kind: "idle", yourTurn: false, phaseLabel: "Main", timerSeconds: null });
     expect(out).toContain("Vez do oponente");
