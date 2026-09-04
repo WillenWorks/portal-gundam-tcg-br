@@ -23,7 +23,7 @@ export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
 export { GameOverOverlay } from "./GameOverOverlay";
 export { gameOverReasonLabel } from "./gameOverReason";
-export { CenterAnnounce } from "./CenterAnnounce";
+export { MatchPrompt } from "./MatchPrompt";
 export { SettingsMenu } from "./SettingsMenu";
 export { useBoardElements, playerAreaKey, type BoardElements } from "./useBoardElements";
 export { BattleLogDrawer } from "./BattleLogDrawer";

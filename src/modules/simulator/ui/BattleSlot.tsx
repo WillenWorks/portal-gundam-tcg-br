@@ -5,10 +5,10 @@
  *
  * Sprint 5 (refinamento Arena 3D) — o slot é RIGOROSAMENTE `aspect-[63/88]`.
  *
- * P2 (botões flutuantes) — as ações de campo (Atacar / Mirar / Blocker / Ativar)
- * são ícones numa tira vertical fina na borda DIREITA da carta: não tapam a
- * arte nem os números AP/HP (cantos inferiores). Só aparecem quando a jogada é
- * possível. */
+ * Ações de campo (Atacar / Ativar / Blocker / Mirar) — tira de ícones no canto
+ * SUP. DIREITO da carta (igual ao "Jogar" da mão), escondida até o hover/foco,
+ * `flex-row-reverse` (Atacar no canto, ativações à esquerda). Só aparecem quando
+ * a jogada é possível. */
 import type { LucideIcon } from "lucide-react";
 import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -79,8 +79,6 @@ interface BattleSlotProps {
   selected?: boolean;
   isAttacker?: boolean;
   busy?: boolean;
-  /** lado do oponente — a tira de ações escondida sai pra ESQUERDA da carta. */
-  mirror?: boolean;
   onSelect?: (unit: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
   /** hover / foco na Unit (ou `null` ao sair) — alimenta o inspetor lateral (Sprint 3). */
@@ -98,7 +96,6 @@ export function BattleSlot({
   selected,
   isAttacker,
   busy,
-  mirror,
   onSelect,
   onInspect,
   onHoverCard,
@@ -133,8 +130,8 @@ export function BattleSlot({
       ref={registerRef}
       className={cn(
         "group/slot relative aspect-[63/88] w-full border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
-        // no hover/foco o slot sobe no empilhamento pra a tira de ações passar
-        // por cima do slot vizinho ao sair pra fora da carta.
+        // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
+        // sup. direito, levemente pra fora) passar por cima do slot vizinho.
         "hover:z-30 focus-within:z-30",
         legalTarget
           ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.55)]"
@@ -199,25 +196,23 @@ export function BattleSlot({
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
       {showActions ? (
-        // Escondida em repouso; ao passar o mouse (ou focar) SAI pra fora da
-        // borda direita da carta (`left-full`) e aparece — não tapa arte nem
-        // AP/HP. `translateZ` a tira acima do plano 3D inclinado da mesa (senão
-        // o hit-test cai no <button> da arte por baixo). `mirror` (oponente):
-        // sai pra ESQUERDA.
+        // Igual ao "Jogar" da mão: escondida em repouso, aparece no hover/foco
+        // NO canto sup. direito DA CARTA (sem vão de hover pra atravessar).
+        // `flex-row-reverse` = Atacar no canto, ativações à esquerda dele
+        // (float-right). `translateZ` mantém o hit-test acima do plano 3D da mesa.
         <div
-          style={{ transform: "translateY(-50%) translateZ(30px)" }}
+          style={{ transform: "translateZ(30px)" }}
           className={cn(
-            "absolute top-1/2 z-30 flex flex-col gap-1 transition-opacity duration-100 motion-reduce:transition-none",
-            mirror ? "right-full mr-0.5" : "left-full ml-0.5",
+            "absolute -top-2 right-0 z-30 flex flex-row-reverse items-start gap-1 transition-opacity duration-100 motion-reduce:transition-none",
             "opacity-0 pointer-events-none",
             "group-hover/slot:opacity-100 group-hover/slot:pointer-events-auto",
             "group-focus-within/slot:opacity-100 group-focus-within/slot:pointer-events-auto",
           )}
         >
           {showAttack ? <IconBtn icon={Swords} label="Atacar" tone="primary" busy={busy} onClick={() => actions!.onAttack!(unit)} /> : null}
-          {showTarget ? <IconBtn icon={Crosshair} label="Mirar aqui" tone="emerald" busy={busy} onClick={() => actions!.onDeclareTarget!(unit)} /> : null}
-          {showBlocker ? <IconBtn icon={ShieldCheck} label="Ativar Blocker" tone="sky" busy={busy} onClick={() => actions!.onBlocker!(unit)} /> : null}
           {showActivate ? <IconBtn icon={Zap} label="Ativar habilidade" tone="accent" busy={busy} onClick={() => actions!.onActivate!(unit)} /> : null}
+          {showBlocker ? <IconBtn icon={ShieldCheck} label="Ativar Blocker" tone="sky" busy={busy} onClick={() => actions!.onBlocker!(unit)} /> : null}
+          {showTarget ? <IconBtn icon={Crosshair} label="Mirar aqui" tone="emerald" busy={busy} onClick={() => actions!.onDeclareTarget!(unit)} /> : null}
         </div>
       ) : null}
     </div>

@@ -78,6 +78,32 @@ Ordem vertical final do canvas:
 ## 3. Ordem de execução
 F8 (motor→server, base) → F1 → F2 → F6 → F7 → F3 → F4 → F5. Checkpoint verde a cada fase: `pnpm test && pnpm run check:types && pnpm run lint:simulator`; `pnpm build` ao fim. Commit por fase com diff no corpo.
 
+## 3b. Rodada de ajuste (feedback pós-F1–F8, 2026-09-03)
+
+### G1 — Botões de campo no canto sup. direito da carta (float-right), não fly-out
+O fly-out (`left-full`, fora da carta) não pega hover de forma confiável e some do
+alcance. Novo desenho, igual ao "Jogar" da mão:
+- Tira de ícones `absolute -top-2 right-0`, `flex flex-row-reverse` — Atacar no
+  canto (mais à direita), Ativar/Blocker/Mirar imediatamente à esquerda dele.
+- Escondida (`opacity-0 pointer-events-none`) → aparece no `group-hover/slot` /
+  `group-focus-within/slot`, na PRÓPRIA carta (sem vão de hover pra atravessar).
+- `translateZ(30px)` mantém o hit-test acima do plano 3D da mesa (ver
+  [[simulador-preserve3d-hit-test]]).
+- `mirror` deixa de mudar a posição (era `right-full` no oponente) — sempre
+  canto sup. direito, como a mão. Prop `mirror` removida.
+- Arquivos: `BattleSlot.tsx` (+teste), `SimulatorMatchPage.renderBattleSlots`.
+
+### G2 — Prompt no meio da tela vira painel "modal" que NÃO bloqueia
+O `CenterAnnounce` no centro (texto 2xl) tapa visualmente as Units que você
+precisa clicar pra parear/mirar — mesmo com `pointer-events-none` o alvo some
+atrás do texto. Novo:
+- Renomeia `CenterAnnounce` → `MatchPrompt`. Painel compacto estilo modal
+  (`panel-cut border border-primary/40 bg-slate-950/95`, ícone + texto `text-sm`),
+  fixo no TOPO-centro (`top-3`), fora do caminho visual/clique do tabuleiro.
+- `pointer-events-none` no wrapper (reforço) — nunca intercepta clique nem hover.
+- Fade-in curto. Sai quando a intenção some.
+- Arquivos: `MatchPrompt.tsx` (ex-CenterAnnounce) + `index.ts` + página.
+
 ## 4. Status
 
 | Fase | Estado | Commit / notas |
@@ -90,3 +116,5 @@ F8 (motor→server, base) → F1 → F2 → F6 → F7 → F3 → F4 → F5. Chec
 | F3 — header enxuto (⚙ + 🐞) | ✅ | `SettingsMenu` popover (auto-pass + desistir); barra do topo removida; ⚙ + 🐞 flutuando |
 | F4 — HUD textual → ícones | ✅ | turno/fase/timer só no `ActionDock` (idle ganha `turnNumber`); sinc/assento = chip minúsculo canto inf. esq. |
 | F5 — avisos no centro da tela | ✅ | `CenterAnnounce` (com F8) — eco da intenção atual grande no meio, `pointer-events-none` |
+| G1 — botões de campo no canto (float-right) | ✅ | tira `-top-2 right-0 flex-row-reverse` na própria carta, hover-reveal como o "Jogar" da mão; prop `mirror` removida |
+| G2 — prompt vira painel modal que não bloqueia | ✅ | `CenterAnnounce`→`MatchPrompt`: painel `panel-cut` no topo-centro (`top-3`), `pointer-events-none`, texto `text-sm` — sai do caminho visual/clique do tabuleiro |

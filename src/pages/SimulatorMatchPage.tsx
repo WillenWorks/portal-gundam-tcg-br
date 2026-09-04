@@ -138,7 +138,7 @@ import {
   AbilityResolutionModal,
   GameOverOverlay,
   gameOverReasonLabel,
-  CenterAnnounce,
+  MatchPrompt,
   SettingsMenu,
 } from "@/modules/simulator/ui";
 
@@ -729,7 +729,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && attackerId === unit.instanceId)}
           busy={busy}
-          mirror={!isSelf}
           onSelect={(u) => toggleSelect(u.instanceId)}
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
@@ -918,10 +917,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       : undefined;
   })();
 
-  // Aviso no centro da tela (capturas 4) — a MESMA intenção que o `ActionDock`
-  // resume no canto, ecoada grande no meio pra não passar despercebida. `null`
-  // nos momentos "sem pendência" (a arena fala por si).
-  const centerAnnounce: string | null = (() => {
+  // Aviso da partida (capturas 4) — a MESMA intenção que o `ActionDock` resume
+  // no canto, ecoada num painel no topo-centro. `null` nos momentos "sem
+  // pendência" (a arena fala por si).
+  const matchPrompt: string | null = (() => {
     if (gameOverResult) return null; // o GameOverOverlay assume
     if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
     if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
@@ -1163,9 +1162,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
 
-      {/* Aviso/confirmação no centro da tela (capturas 4) — ecoa a intenção atual
-          grande e translúcida, sem bloquear clique. */}
-      <CenterAnnounce message={centerAnnounce} tone={combat || iAmDefending ? "warn" : "info"} />
+      {/* Aviso/confirmação da partida (capturas 4) — painel no topo-centro, fora
+          do caminho do tabuleiro, nunca bloqueia clique/hover. */}
+      <MatchPrompt message={matchPrompt} tone={combat || iAmDefending ? "warn" : "info"} />
 
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
           os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board.
