@@ -13,6 +13,8 @@ export { CounterChip } from "./CounterChip";
 export { PileTray } from "./PileTray";
 export { HandFan } from "./HandFan";
 export { BurstModal } from "./BurstModal";
+export { MulliganModal } from "./MulliganModal";
+export { FirstPlayerReveal } from "./FirstPlayerReveal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
 export { AbilityResolutionModal } from "./AbilityResolutionModal";
 export { CardInspectorModal, type LinkedPilot } from "./CardInspectorModal";

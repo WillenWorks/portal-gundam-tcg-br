@@ -32,7 +32,10 @@ afterEach(() => {
 });
 
 function newMatch() {
-  return createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A" });
+  // skipMulligan: a maioria dos testes exercita a partida JÁ em jogo — o fluxo
+  // de Mulligan interativo tem testes próprios (engine/mulligan.test.ts + o
+  // describe abaixo).
+  return createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
 }
 
 describe("createMatch / getMatch", () => {
@@ -523,7 +526,7 @@ describe("setAutoPass — auto-pass inteligente do Action Step (docs/19, Sessão
   });
 
   it("NÃO passa sozinho se o jogador tem um Command 【Action】 jogável na mão", () => {
-    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A" });
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
     match.state.players.A.hand = [];
@@ -583,7 +586,7 @@ describe("GC oportunista do store (docs/19, Sessão 4)", () => {
 
   it("partida terminada some 10min depois, na próxima escrita no store", () => {
     vi.useFakeTimers();
-    const finished = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A" });
+    const finished = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt01DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
     joinMatch(finished.id, "A", { userId: "u1", displayName: "A" });
     joinMatch(finished.id, "B", { userId: "u2", displayName: "B" });
     finished.state = { ...finished.state, gameOver: { winner: "A", reason: "deckOut" } };

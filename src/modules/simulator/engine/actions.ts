@@ -3,10 +3,12 @@ import type { EffectSpec, PredicateResolver } from "./effectSpec";
 import { applyEvent, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
-import { beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
+import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import { deferOrDispatchAbilities } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
+import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
+import { createRng } from "./rng";
 import { hasKeyword, otherPlayer } from "./types";
 
 /**
@@ -95,7 +97,15 @@ export type PlayerAction =
   | {
       kind: "resolveAbility";
       resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>;
-    };
+    }
+  /**
+   * Resolve a `PendingDecision.mulligan` de início de partida (Comprehensive
+   * Rules 6-2 / ruling oficial). `keep: false` = troca a mão (mão inteira pro
+   * fundo do deck, re-embaralha, compra 5). Sequencial: ao resolver o 1º
+   * jogador o motor seta o mulligan do 2º; ao resolver o 2º, coloca os 6
+   * shields de cada lado + EX Base + EX Resource e avança pra Main Phase.
+   */
+  | { kind: "resolveMulligan"; keep: boolean };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
@@ -125,6 +135,9 @@ export function applyPlayerAction(
     }
     if (myPending.kind === "abilityResolution" && action.kind !== "resolveAbility") {
       throw new Error("Resolva o efeito de habilidade pendente antes de qualquer outra ação");
+    }
+    if (myPending.kind === "mulligan" && action.kind !== "resolveMulligan") {
+      throw new Error("Decida seu Mulligan antes de qualquer outra ação");
     }
   }
 
@@ -333,6 +346,33 @@ export function applyPlayerAction(
         return proceedToBlockStep(next);
       }
       return next;
+    }
+
+    case "resolveMulligan": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "mulligan") {
+        throw new Error("Não há Mulligan pendente pra esse jogador");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      if (!action.keep) {
+        // shuffle + redraw ficam no reducer (não há evento SHUFFLE), sobre o
+        // clone que `applyEvent` acabou de devolver — determinístico via seed.
+        redrawMulliganHand(next.players[actingPlayer], createRng(next.seed ^ mulliganNonce(actingPlayer)));
+      }
+      // Fluxo sequencial (ruling: "starting with Player One"): `activePlayer` é
+      // sempre o 1º jogador até a 1ª troca de turno.
+      if (actingPlayer === next.activePlayer) {
+        // 1º jogador decidiu -> passa a vez pro 2º.
+        return applyEvent(next, {
+          type: "SET_PENDING_DECISION",
+          player: otherPlayer(actingPlayer),
+          decision: { kind: "mulligan" },
+        });
+      }
+      // 2º jogador decidiu -> fecha o setup (6 shields cada + EX Base + EX
+      // Resource do 2º) e entra na Main Phase.
+      next = finishGameSetup(next);
+      return advanceToMainPhase(next);
     }
   }
 }

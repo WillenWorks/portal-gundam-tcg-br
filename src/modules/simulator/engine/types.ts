@@ -422,6 +422,16 @@ export type PendingDecision =
         needsTarget: boolean;
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
       }>;
+    }
+  | {
+      /**
+       * Mulligan de início de partida (Comprehensive Rules 6-2 / ruling oficial:
+       * "once, starting with Player One"). Sequencial: o motor seta isto pro 1º
+       * jogador; ao resolver, seta pro 2º; ao resolver o 2º, coloca os 6 shields
+       * de cada lado + EX Base + EX Resource e avança pra Main Phase. Sem
+       * payload — a mão do próprio jogador já é visível a ele no `viewState`.
+       */
+      kind: "mulligan";
     };
 
 export interface CombatState {
@@ -512,6 +522,14 @@ export interface GameState {
   gameOver: GameOverInfo | null;
   /** contador monotônico usado pra gerar instanceId determinístico (facilita teste) */
   nextInstanceSeq: number;
+  /**
+   * Seed do `createRng` da partida. Guardado no estado porque o RNG do
+   * `createGame` morre no fim dele — mas o Mulligan interativo (Comprehensive
+   * Rules 6-2) precisa RE-embaralhar o deck DEPOIS, quando o jogador decide.
+   * Determinístico: `createRng(seed ^ nonce)` por jogador. Também sobrevive a
+   * restart do servidor (persistência da Sprint C).
+   */
+  seed: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -127,13 +127,26 @@ export interface CreateMatchOptions {
   /** default: aleatório — só passe um valor fixo em teste, pra determinismo */
   seed?: number;
   firstPlayer?: PlayerId;
+  /**
+   * só teste: pula o Mulligan interativo e já avança pra Main Phase (o
+   * comportamento antigo). Os testes de `matchStore` que aplicam ação logo
+   * após `createMatch` usam isto pra não ter que resolver 2 mulligans antes.
+   */
+  skipMulligan?: boolean;
 }
 
-/** Cria a partida e já avança até a Main Phase do 1º jogador (Start/Draw/Resource não exigem decisão de ninguém). */
+/**
+ * Cria a partida. Por padrão ela nasce com o Mulligan interativo pendente pro
+ * 1º jogador (Comprehensive Rules 6-2) — o motor avança sozinho pra Main Phase
+ * quando os dois jogadores resolvem o mulligan (`applyPlayerAction`
+ * `resolveMulligan`). `skipMulligan` (teste) volta ao setup direto.
+ */
 export function createMatch(opts: CreateMatchOptions): MatchRecord {
   const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
   const firstPlayer = opts.firstPlayer ?? "A";
-  const state = advanceToMainPhase(createGame(opts.deckA, opts.deckB, { seed, firstPlayer }));
+  const state = opts.skipMulligan
+    ? advanceToMainPhase(createGame(opts.deckA, opts.deckB, { seed, firstPlayer }))
+    : createGame(opts.deckA, opts.deckB, { seed, firstPlayer, interactiveMulligan: true });
 
   const now = Date.now();
   const match: MatchRecord = {
@@ -505,6 +518,10 @@ export function defaultActionFor(state: GameState): PlayerAction {
         kind: "resolveAbility",
         resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: [] })),
       };
+    }
+    if (pending?.kind === "mulligan") {
+      // AFK no Mulligan de início de partida: fica com a mão comprada.
+      return { kind: "resolveMulligan", keep: true };
     }
   }
   if (state.combat?.step === "block") return { kind: "skipBlock" };

@@ -11,8 +11,21 @@ export interface DeckList {
 export interface CreateGameOptions {
   seed: number;
   firstPlayer: PlayerId;
-  /** true = esse jogador decide fazer mulligan (redraw único, Comprehensive Rules 6-2-1-6-1) */
+  /**
+   * true = esse jogador decide fazer mulligan já no `createGame` (redraw único,
+   * Comprehensive Rules 6-2-1-6-1). Só tem efeito no modo NÃO-interativo
+   * (`interactiveMulligan` falso/omitido) — usado por testes de motor.
+   */
   mulligan?: Partial<Record<PlayerId, boolean>>;
+  /**
+   * true = Mulligan INTERATIVO: `createGame` só compra as mãos e deixa
+   * `pendingDecision[firstPlayer] = { kind: "mulligan" }`. Os 6 shields, a EX
+   * Base e o EX Resource do 2º jogador só entram quando os dois resolvem o
+   * mulligan (ver `finishGameSetup`, chamado por `applyPlayerAction`
+   * `resolveMulligan`). Default `false` = comportamento antigo (setup completo
+   * de uma vez), mantido pros testes de motor e pro `advanceToMainPhase` direto.
+   */
+  interactiveMulligan?: boolean;
   /** default true — valida 50 cartas no deck principal e 10 no resource deck antes de montar a partida */
   validateDeckSize?: boolean;
 }
@@ -54,7 +67,36 @@ function instantiate(def: CardDef, owner: PlayerId, seq: number, zone: CardInsta
   };
 }
 
-function buildPlayer(id: PlayerId, deck: DeckList, rng: Rng, seqRef: { n: number }, mulligan: boolean): PlayerState {
+function drawN(player: PlayerState, n: number) {
+  for (let i = 0; i < n && player.deck.length > 0; i++) {
+    const card = player.deck.shift()!;
+    card.zone = "hand";
+    player.hand.push(card);
+  }
+}
+
+/** Devolve a mão inteira pro FUNDO do deck, re-embaralha e compra 5 novas
+ *  (Comprehensive Rules 6-2-1-6-1 / ruling oficial). Determinístico: o rng
+ *  vem de `createRng(seed ^ nonce)` — ver `mulliganNonce`. */
+export function redrawMulliganHand(player: PlayerState, rng: Rng) {
+  while (player.hand.length > 0) {
+    const card = player.hand.pop()!;
+    card.zone = "deck";
+    player.deck.push(card);
+  }
+  shuffleInPlace(player.deck, rng);
+  drawN(player, 5);
+}
+
+/** nonce determinístico por jogador pro re-shuffle do mulligan (o rng do
+ *  `createGame` já não existe mais nesse ponto). */
+export function mulliganNonce(player: PlayerId): number {
+  return player === "A" ? 0x9e37_79b9 : 0x85eb_ca6b;
+}
+
+/** Fase 1 do setup de um jogador: embaralha os dois decks e compra a mão de 5.
+ *  Ainda SEM shields / EX Base (isso vem depois do mulligan). */
+function dealOpeningHand(id: PlayerId, deck: DeckList, rng: Rng, seqRef: { n: number }): PlayerState {
   const player: PlayerState = {
     id,
     deck: deck.main.map((def) => instantiate(def, id, seqRef.n++, "deck", 1)),
@@ -70,48 +112,60 @@ function buildPlayer(id: PlayerId, deck: DeckList, rng: Rng, seqRef: { n: number
 
   shuffleInPlace(player.deck, rng);
   shuffleInPlace(player.resourceDeck, rng);
-
   drawN(player, 5);
 
-  if (mulligan) {
-    // devolve a mão pro fundo do deck, compra 5 novas, depois embaralha (Comprehensive Rules 6-2-1-6-1)
-    while (player.hand.length > 0) {
-      const card = player.hand.pop()!;
-      card.zone = "deck";
-      player.deck.push(card);
-    }
-    drawN(player, 5);
-    shuffleInPlace(player.deck, rng);
-  }
+  return player;
+}
 
-  // 6 shields do topo do deck, viradas pra baixo (Comprehensive Rules 6-2-2)
+/** Fase 2 do setup de um jogador: 6 shields do topo (viradas pra baixo,
+ *  Comprehensive Rules 6-2-2) + EX Base ativa (6-2-3). Idempotente-ish: só
+ *  chamar quando `shields`/`baseSection` estão vazios. */
+function placeShieldsAndBase(player: PlayerState, seqRef: { n: number }) {
   for (let i = 0; i < 6 && player.deck.length > 0; i++) {
     const card = player.deck.shift()!;
     card.zone = "shields";
     player.shields.push(card);
   }
-
-  // EX Base ativa pra ambos os jogadores (Comprehensive Rules 6-2-3)
-  const exBase = instantiate(EX_BASE_TOKEN, id, seqRef.n++, "baseSection", 1);
+  const exBase = instantiate(EX_BASE_TOKEN, player.id, seqRef.n++, "baseSection", 1);
   player.baseSection.push(exBase);
-
-  return player;
 }
 
-function drawN(player: PlayerState, n: number) {
-  for (let i = 0; i < n && player.deck.length > 0; i++) {
-    const card = player.deck.shift()!;
-    card.zone = "hand";
-    player.hand.push(card);
+/**
+ * Fecha o setup DEPOIS do mulligan (modo interativo): 6 shields + EX Base pros
+ * dois, EX Resource ativo só pro 2º jogador (Comprehensive Rules 6-2-4).
+ * `advanceToMainPhase` fica a cargo do chamador (`applyPlayerAction`).
+ */
+export function finishGameSetup(state: GameState): GameState {
+  const seqRef = { n: state.nextInstanceSeq };
+  const firstPlayer = state.activePlayer;
+  const secondPlayer: PlayerId = firstPlayer === "A" ? "B" : "A";
+
+  for (const id of ["A", "B"] as PlayerId[]) {
+    const player = state.players[id];
+    if (player.shields.length === 0 && player.baseSection.length === 0) {
+      placeShieldsAndBase(player, seqRef);
+    }
   }
+
+  const hasExResource = state.players[secondPlayer].resourceArea.some((c) => c.def.code === TOKEN_EX_RESOURCE_CODE);
+  if (!hasExResource) {
+    const exResource = instantiate(EX_RESOURCE_TOKEN, secondPlayer, seqRef.n++, "resourceArea", 1);
+    state.players[secondPlayer].resourceArea.push(exResource);
+  }
+
+  state.nextInstanceSeq = seqRef.n;
+  return state;
 }
 
 /**
  * Monta o estado inicial de uma partida (setup completo — Comprehensive
- * Rules 6-2). Determinístico dado o mesmo `seed`: sempre a mesma
- * embaralhada, sempre o mesmo resultado. `firstPlayer` é decidido fora do
- * motor (par ou ímpar, escolha manual etc. — Comprehensive Rules 6-2-1-4
- * não é regra de motor, é decisão de mesa).
+ * Rules 6-2). Determinístico dado o mesmo `seed`. `firstPlayer` é decidido
+ * fora do motor (sorteio de mesa — Comprehensive Rules 6-2-1-4, "antes de
+ * olhar a mão").
+ *
+ * `interactiveMulligan: true` (usado pelo servidor): compra só as mãos e deixa
+ * `pendingDecision[firstPlayer] = { kind: "mulligan" }` — o resto do setup vem
+ * de `finishGameSetup` quando os dois jogadores resolverem o mulligan.
  */
 export function createGame(deckA: DeckList, deckB: DeckList, options: CreateGameOptions): GameState {
   const validate = options.validateDeckSize ?? true;
@@ -126,29 +180,53 @@ export function createGame(deckA: DeckList, deckB: DeckList, options: CreateGame
     }
   }
 
-  const rng = createRng(options.seed);
   const seqRef = { n: 0 };
+  const firstPlayer = options.firstPlayer;
+  const secondPlayer: PlayerId = firstPlayer === "A" ? "B" : "A";
+  const decks: Record<PlayerId, DeckList> = { A: deckA, B: deckB };
 
-  const players: Record<PlayerId, PlayerState> = {
-    A: buildPlayer("A", deckA, rng, seqRef, options.mulligan?.A ?? false),
-    B: buildPlayer("B", deckB, rng, seqRef, options.mulligan?.B ?? false),
-  };
+  let players: Record<PlayerId, PlayerState>;
+  let pendingDecision: GameState["pendingDecision"] = { A: null, B: null };
 
-  // segundo jogador começa com 1 EX Resource já na Resource Area (Comprehensive Rules 6-2-4)
-  const secondPlayer: PlayerId = options.firstPlayer === "A" ? "B" : "A";
-  const exResource = instantiate(EX_RESOURCE_TOKEN, secondPlayer, seqRef.n++, "resourceArea", 1);
-  players[secondPlayer].resourceArea.push(exResource);
+  if (options.interactiveMulligan) {
+    // O rng é consumido por A depois por B (mesma ordem do modo antigo).
+    const rng = createRng(options.seed);
+    players = {
+      A: dealOpeningHand("A", decks.A, rng, seqRef),
+      B: dealOpeningHand("B", decks.B, rng, seqRef),
+    };
+    pendingDecision = { ...pendingDecision, [firstPlayer]: { kind: "mulligan" } };
+  } else {
+    // Modo antigo: setup completo de uma vez (mão → mulligan boolean → shields →
+    // EX Base). Um rng compartilhado, consumido por A e depois por B — mesma
+    // ordem do histórico, pra não quebrar as seeds fixas dos testes de motor.
+    const rng = createRng(options.seed);
+    const buildOldStyle = (id: PlayerId, deck: DeckList, mull: boolean): PlayerState => {
+      const player = dealOpeningHand(id, deck, rng, seqRef);
+      if (mull) redrawMulliganHand(player, createRng(options.seed ^ mulliganNonce(id)));
+      placeShieldsAndBase(player, seqRef);
+      return player;
+    };
+    players = {
+      A: buildOldStyle("A", decks.A, options.mulligan?.A ?? false),
+      B: buildOldStyle("B", decks.B, options.mulligan?.B ?? false),
+    };
+    // segundo jogador começa com 1 EX Resource já na Resource Area (CR 6-2-4)
+    const exResource = instantiate(EX_RESOURCE_TOKEN, secondPlayer, seqRef.n++, "resourceArea", 1);
+    players[secondPlayer].resourceArea.push(exResource);
+  }
 
   return {
     turnNumber: 1,
-    activePlayer: options.firstPlayer,
+    activePlayer: firstPlayer,
     phase: "start",
     combat: null,
     endPhaseAction: null,
-    pendingDecision: { A: null, B: null },
+    pendingDecision,
     players,
     eventLog: [],
     gameOver: null,
     nextInstanceSeq: seqRef.n,
+    seed: options.seed,
   };
 }

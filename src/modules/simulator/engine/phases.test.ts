@@ -8,9 +8,25 @@ function baseGame() {
   return createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 5, firstPlayer: "A" });
 }
 
+/** `baseGame` nasce no turno 1 (onde o 1º jogador não compra). Testes que
+ *  exercitam uma Draw Phase "normal" avançam pro turno 2. */
+function turn2(): ReturnType<typeof baseGame> {
+  return { ...baseGame(), turnNumber: 2 };
+}
+
 describe("fases de turno (Comprehensive Rules seção 7)", () => {
-  it("Draw Phase compra exatamente 1 carta do deck pro jogador ativo", () => {
+  it("1º jogador NÃO compra na Draw Phase do turno 1 (Comprehensive Rules 6-3)", () => {
     const state = baseGame();
+    const beforeHand = state.players.A.hand.length;
+    const beforeDeck = state.players.A.deck.length;
+    const next = runDrawPhase(runStartPhase(state));
+    expect(next.phase).toBe("draw");
+    expect(next.players.A.hand).toHaveLength(beforeHand); // inalterada
+    expect(next.players.A.deck).toHaveLength(beforeDeck);
+  });
+
+  it("Draw Phase compra exatamente 1 carta do deck pro jogador ativo (turno 2+)", () => {
+    const state = turn2();
     const before = state.players.A.deck.length;
     const beforeHand = state.players.A.hand.length;
     const next = runDrawPhase(runStartPhase(state));
@@ -40,7 +56,7 @@ describe("fases de turno (Comprehensive Rules seção 7)", () => {
   });
 
   it("perde por deck-out ao precisar comprar na Draw Phase sem cartas (Comprehensive Rules 1-2-2-2)", () => {
-    let state = baseGame();
+    let state = turn2();
     state = { ...state, players: { ...state.players, A: { ...state.players.A, deck: [] } } };
     const next = runDrawPhase(runStartPhase(state));
     expect(next.gameOver).toEqual({ winner: "B", reason: "deckOut" });
