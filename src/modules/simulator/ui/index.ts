@@ -4,6 +4,7 @@
 export { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup, type CardArt, type CardFaceSize } from "./cardArt";
 export { CardFace, CardBack } from "./CardFace";
 export { BattleSlot, type BattleSlotActions } from "./BattleSlot";
+export { CardCornerActions, type CornerAction } from "./CardCornerActions";
 export { DockedPilot } from "./DockedPilot";
 export { BaseCardGauge } from "./BaseCardGauge";
 export { ShieldRail } from "./ShieldRail";

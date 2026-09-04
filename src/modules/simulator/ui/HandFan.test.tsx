@@ -44,7 +44,7 @@ describe("HandFan", () => {
     expect(containers()).toHaveLength(3);
   });
 
-  it("carta injogável fica em P&B; jogável ganha o brilho ciano", () => {
+  it("carta injogável fica em P&B (só a arte) e sem brilho; jogável ganha o brilho ciano", () => {
     hand([
       { card: unit("Gundam"), playable: true },
       { card: unit("Guncannon"), playable: false, blockedReason: "Recursos insuficientes." },
@@ -55,37 +55,48 @@ describe("HandFan", () => {
     expect(playable.className).toContain("shadow-[0_0_12px_rgba(6,182,212,0.5)]");
     expect(blocked.dataset.playable).toBe("false");
     expect(blocked.getAttribute("title")).toBe("Recursos insuficientes.");
-    expect(blocked.className).toContain("[filter:grayscale(1)_brightness(0.65)]");
     expect(blocked.className).not.toContain("border-primary");
+    // o filtro P&B mudou pra um wrapper interno (pra não esmaecer os botões do canto)
+    expect(blocked.querySelector('[class*="grayscale"]')).not.toBeNull();
   });
 
-  it("'Jogar' chama onPeek com a carta certa", () => {
+  it('"Ver" (olho) SEMPRE presente; "Jogar" só quando jogável, à esquerda do "Ver"', () => {
     const onPeek = vi.fn();
-    const zaku = unit("Zaku II");
-    render(<HandFan cards={[{ card: zaku, playable: true }]} art={{}} onPeek={onPeek} />);
-    fireEvent.click(screen.getByRole("button", { name: /Jogar Zaku II/ }));
-    expect(onPeek).toHaveBeenCalledWith(zaku);
-  });
-
-  it("clicar no corpo da carta chama onInspect (jogável ou não) — sem botão de olho", () => {
     const onInspect = vi.fn();
     const zaku = unit("Zaku II");
     render(
       <HandFan
-        cards={[{ card: zaku, playable: false, blockedReason: "Sem gatilho." }]}
+        cards={[
+          { card: zaku, playable: true },
+          { card: unit("Guncannon"), playable: false, blockedReason: "Sem recurso." },
+        ]}
         art={{}}
-        onPeek={vi.fn()}
+        onPeek={onPeek}
         onInspect={onInspect}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Ver Zaku II/ }));
+    // jogável: [Jogar, Ver]
+    const jogar = screen.getByRole("button", { name: /Jogar Zaku II/ });
+    const verZaku = screen.getByRole("button", { name: /^Ver Zaku II/ });
+    const strip = jogar.closest("div")!;
+    expect(Array.from(strip.children)).toEqual([jogar, verZaku]);
+    // injogável: só "Ver"
+    expect(screen.getByRole("button", { name: /^Ver Guncannon/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Jogar Guncannon/ })).toBeNull();
+
+    jogar.click();
+    expect(onPeek).toHaveBeenCalledWith(zaku);
+    verZaku.click();
     expect(onInspect).toHaveBeenCalledWith(zaku);
   });
 
-  it("o único botão de ação é 'Jogar' (o corpo clicável não conta como 'Ver ...' de ação)", () => {
-    hand([{ card: unit("Gundam"), playable: true }]);
-    // não há mais botão dedicado "Ver Gundam" separado do corpo — o corpo É o inspetor
-    expect(screen.getByRole("button", { name: /Jogar Gundam/ })).toBeInTheDocument();
+  it("o corpo da carta NÃO é mais um botão (sem conflito de clique)", () => {
+    hand([{ card: unit("Gundam"), playable: true }], { onInspect: vi.fn() });
+    // só existem os botões do canto (Jogar / Ver), não um botão envolvendo a arte
+    const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
+    expect(names.some((n) => n?.startsWith("Jogar Gundam"))).toBe(true);
+    expect(names.some((n) => n?.startsWith("Ver Gundam"))).toBe(true);
+    expect(names).toHaveLength(2);
   });
 
   it("mão pequena fica FROUXA (pouco overlap); mão grande aperta", () => {

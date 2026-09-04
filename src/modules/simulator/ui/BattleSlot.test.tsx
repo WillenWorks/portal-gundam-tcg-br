@@ -51,36 +51,63 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it("ações de campo: tira escondida no canto sup. direito (float-right), aparece no hover", () => {
+  it('cluster de canto: "Ver" SEMPRE presente; Atacar aparece à esquerda dele', () => {
     const onAttack = vi.fn();
-    render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack }} />);
-    const btn = screen.getByRole("button", { name: "Atacar" });
-    const strip = btn.closest("div")!.className;
-    expect(strip).toMatch(/absolute/);
-    expect(strip).toMatch(/-top-2/);
-    expect(strip).toMatch(/right-0/);
-    expect(strip).toMatch(/flex-row-reverse/); // Atacar no canto, ativações à esquerda
-    expect(strip).toMatch(/z-30/);
-    expect(strip).toMatch(/opacity-0/); // escondida em repouso
-    expect(strip).toMatch(/group-hover\/slot:opacity-100/); // aparece no hover
-    expect(btn.className).toMatch(/size-6/);
-    btn.click();
-    expect(onAttack).toHaveBeenCalledTimes(1);
-  });
-
-  it("Atacar fica no canto (1º filho da tira row-reverse); ativação vem à esquerda", () => {
-    render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack: vi.fn(), onActivate: vi.fn() }} />);
+    const onInspect = vi.fn();
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
     const strip = screen.getByRole("button", { name: "Atacar" }).closest("div")!;
-    expect(strip.firstElementChild).toBe(screen.getByRole("button", { name: "Atacar" }));
+    expect(strip.className).toMatch(/absolute/);
+    expect(strip.className).toMatch(/-top-2/);
+    expect(strip.className).toMatch(/right-0/);
+    // ordem no DOM: [Atacar, Ver] → "Ver" encosta no canto direito
+    const kids = Array.from(strip.children);
+    expect(kids[0]).toBe(screen.getByRole("button", { name: "Atacar" }));
+    expect(kids[1]).toBe(screen.getByRole("button", { name: /^Ver / }));
   });
 
-  it("clique numa ação NÃO borbulha pro handler de inspeção da carta", () => {
+  it('sem ação disponível, o cluster ainda tem "Ver"', () => {
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /^Ver / })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Atacar" })).toBeNull();
+  });
+
+  it("clicar em Atacar dispara SÓ onAttack, nunca a inspeção (fim do conflito)", () => {
     const onAttack = vi.fn();
     const onInspect = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
     screen.getByRole("button", { name: "Atacar" }).click();
     expect(onAttack).toHaveBeenCalledTimes(1);
     expect(onInspect).not.toHaveBeenCalled();
+  });
+
+  it('"Ver" dispara onInspect', () => {
+    const onInspect = vi.fn();
+    const u = unit();
+    render(<BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} />);
+    screen.getByRole("button", { name: /^Ver / }).click();
+    expect(onInspect).toHaveBeenCalledWith(u);
+  });
+
+  it("corpo da carta só é clicável quando é alvo legal (não abre inspeção)", () => {
+    const onInspect = vi.fn();
+    const onSelect = vi.fn();
+    const u = unit();
+    const { rerender } = render(
+      <BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} onSelect={onSelect} />,
+    );
+    // sem legalTarget: corpo não tem role button
+    expect(screen.queryByRole("button", { name: u.def.nameEn })).toBeNull();
+    rerender(<BattleSlot unit={u} pilot={null} art={{}} legalTarget onInspect={onInspect} onSelect={onSelect} />);
+    // com legalTarget: corpo vira botão de seleção
+    const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
+    body.click();
+    expect(onSelect).toHaveBeenCalledWith(u);
+    expect(onInspect).not.toHaveBeenCalled();
+  });
+
+  it("sem badge 'BLK' na arte (blocker se mostra pelo botão de escudo)", () => {
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
+    expect(screen.queryByText("Blk")).toBeNull();
   });
 
   it("botões de ação são só ícone (não cobrem os números AP/HP)", () => {
@@ -107,14 +134,16 @@ describe("BattleSlot", () => {
     expect(screen.getByRole("button", { name: /Amuro Ray/ }).className).toMatch(/absolute/);
   });
 
-  it("onHoverCard dispara com a Unit no hover e null ao sair", () => {
+  it("onHoverCard dispara com a Unit no hover do slot e null ao sair", () => {
     const onHoverCard = vi.fn();
     const u = unit();
-    render(<BattleSlot unit={u} pilot={null} art={{}} onHoverCard={onHoverCard} onInspect={vi.fn()} />);
-    const face = screen.getAllByRole("button")[0];
-    fireEvent.mouseEnter(face);
+    const { container } = render(
+      <BattleSlot unit={u} pilot={null} art={{}} onHoverCard={onHoverCard} onInspect={vi.fn()} />,
+    );
+    const slot = container.firstElementChild as HTMLElement;
+    fireEvent.mouseEnter(slot);
     expect(onHoverCard).toHaveBeenLastCalledWith(u);
-    fireEvent.mouseLeave(face);
+    fireEvent.mouseLeave(slot);
     expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
 });

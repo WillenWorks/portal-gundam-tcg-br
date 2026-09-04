@@ -104,6 +104,25 @@ atrás do texto. Novo:
 - Fade-in curto. Sai quando a intenção some.
 - Arquivos: `MatchPrompt.tsx` (ex-CenterAnnounce) + `index.ts` + página.
 
+## 3c. 2ª rodada de ajuste (feedback + vídeo, 2026-09-03)
+
+### G3 — Cluster de canto unificado (mão + campo), "Ver" sempre presente
+O vídeo mostra que o botão Atacar (no canto da carta) ainda conflita com o clique
+de "abrir imagem" — a arte tinha `onClick=onInspect` competindo. Solução do
+Willen: unificar o padrão da mão e do campo.
+- `CardCornerActions.tsx` (novo): cluster no canto sup. direito. "Ver" (olho)
+  SEMPRE ancorado no canto; contexto à esquerda dele. **Sempre visível** (não
+  depende de hover). Cada botão faz `stopPropagation`.
+- `BattleSlot`: a arte deixa de ser clicável pra inspeção — só vira `<button>` de
+  seleção quando é ALVO LEGAL (pareamento/mira). Cluster = `[Atacar? Ativar?
+  Blocker? Mirar?] [Ver]`. Removido o badge "BLK" da carta (o botão de escudo já
+  identifica o blocker, só aparece quando é hora de bloquear).
+- `HandFan`: volta o botão "Ver" (olho) sempre; "Jogar" à esquerda dele quando
+  jogável. Corpo da carta não é mais clicável. Filtro P&B move pra um wrapper
+  interno (não esmaece os botões do canto).
+- Arquivos: `CardCornerActions.tsx` (+teste), `BattleSlot.tsx` (+teste),
+  `HandFan.tsx` (+teste), `index.ts`.
+
 ## 4. Status
 
 | Fase | Estado | Commit / notas |
@@ -116,5 +135,6 @@ atrás do texto. Novo:
 | F3 — header enxuto (⚙ + 🐞) | ✅ | `SettingsMenu` popover (auto-pass + desistir); barra do topo removida; ⚙ + 🐞 flutuando |
 | F4 — HUD textual → ícones | ✅ | turno/fase/timer só no `ActionDock` (idle ganha `turnNumber`); sinc/assento = chip minúsculo canto inf. esq. |
 | F5 — avisos no centro da tela | ✅ | `CenterAnnounce` (com F8) — eco da intenção atual grande no meio, `pointer-events-none` |
-| G1 — botões de campo no canto (float-right) | ✅ | tira `-top-2 right-0 flex-row-reverse` na própria carta, hover-reveal como o "Jogar" da mão; prop `mirror` removida |
+| G1 — botões de campo no canto (float-right) | ✅ | tira `-top-2 right-0` na própria carta (revisto no G3) |
 | G2 — prompt vira painel modal que não bloqueia | ✅ | `CenterAnnounce`→`MatchPrompt`: painel `panel-cut` no topo-centro (`top-3`), `pointer-events-none`, texto `text-sm` — sai do caminho visual/clique do tabuleiro |
+| G3 — cluster de canto unificado (mão+campo), "Ver" sempre | ✅ | `CardCornerActions`: "Ver" (olho) sempre no canto + contexto à esquerda; arte não é mais clicável (fim do conflito Atacar↔abrir imagem); badge "BLK" removido; +3 arquivos de teste |

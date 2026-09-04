@@ -5,16 +5,16 @@
  *
  * Sprint 5 (refinamento Arena 3D) — o slot é RIGOROSAMENTE `aspect-[63/88]`.
  *
- * Ações de campo (Atacar / Ativar / Blocker / Mirar) — tira de ícones no canto
- * SUP. DIREITO da carta (igual ao "Jogar" da mão), escondida até o hover/foco,
- * `flex-row-reverse` (Atacar no canto, ativações à esquerda). Só aparecem quando
- * a jogada é possível. */
-import type { LucideIcon } from "lucide-react";
-import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
+ * Ações de campo — cluster no canto SUP. DIREITO (`CardCornerActions`): "Ver"
+ * (olho) SEMPRE ancorado no canto; Atacar / Ativar / Blocker / Mirar aparecem à
+ * esquerda dele quando a jogada é possível. Sem badge "BLK" na carta — o botão
+ * de escudo só aparece quando é hora de bloquear. */
+import { Crosshair, Eye, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
+import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
 
@@ -24,49 +24,6 @@ export interface BattleSlotActions {
   onBlocker?: (unit: CardInstance) => void;
   /** 【Activate·Main】 de carta em campo (ex.: Tallgeese "Set active") — Etapa 3. */
   onActivate?: (unit: CardInstance) => void;
-}
-
-type BtnTone = "primary" | "emerald" | "accent" | "sky";
-const TONE_CLASS: Record<BtnTone, string> = {
-  primary: "bg-primary/95 text-black hover:bg-primary",
-  emerald: "bg-emerald-500 text-white hover:bg-emerald-400",
-  accent: "bg-accent text-black hover:bg-accent/90",
-  sky: "bg-sky-500 text-white hover:bg-sky-400",
-};
-
-function IconBtn({
-  icon: Icon,
-  label,
-  tone,
-  busy,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  tone: BtnTone;
-  busy?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={busy}
-      // stopPropagation: sem isso o clique sobe pro <button> da arte (inspeção)
-      // e a ação nunca dispara — era o bug "aparece mas não clica".
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={cn(
-        "flex size-6 items-center justify-center rounded-none border border-black/30 shadow-lg transition-colors disabled:opacity-50 motion-reduce:transition-none",
-        TONE_CLASS[tone],
-      )}
-    >
-      <Icon className="size-3.5" aria-hidden />
-    </button>
-  );
 }
 
 interface BattleSlotProps {
@@ -119,15 +76,32 @@ export function BattleSlot({
   // com Piloto acoplado, a faixa dele ocupa a base — os números sobem um degrau.
   const badgeBottom = pilot ? "bottom-[1.1rem]" : "bottom-0";
 
-  const showAttack = actions?.onAttack && !unit.rested;
+  const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
-  const showBlocker = actions?.onBlocker && !unit.rested && hasKeyword(unit, "Blocker");
+  const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && hasKeyword(unit, "Blocker");
   const showActivate = Boolean(actions?.onActivate);
-  const showActions = showAttack || showTarget || showBlocker || showActivate;
+
+  // "Ver" SEMPRE; contexto à esquerda dele (Atacar / Ativar / Blocker / Mirar).
+  const cornerActions: CornerAction[] = [];
+  if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
+  if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
+  if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
+  if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
+  if (onInspect) cornerActions.push({ key: "view", icon: Eye, label: `Ver ${unit.def.nameEn}`, tone: "view", onClick: () => onInspect(unit) });
+
+  const hoverProps = onHoverCard
+    ? {
+        onMouseEnter: () => onHoverCard(unit),
+        onMouseLeave: () => onHoverCard(null),
+        onFocus: () => onHoverCard(unit),
+        onBlur: () => onHoverCard(null),
+      }
+    : {};
 
   return (
     <div
       ref={registerRef}
+      {...hoverProps}
       className={cn(
         "group/slot relative aspect-[63/88] w-full border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
         // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
@@ -140,14 +114,24 @@ export function BattleSlot({
             : "border-cyan-500/20",
       )}
     >
-      <button
-        type="button"
-        onClick={() => (legalTarget && onSelect ? onSelect(unit) : onInspect?.(unit))}
-        onMouseEnter={onHoverCard ? () => onHoverCard(unit) : undefined}
-        onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
-        onFocus={onHoverCard ? () => onHoverCard(unit) : undefined}
-        onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
-        className={cn("relative block h-full w-full", legalTarget ? "cursor-pointer" : "cursor-zoom-in")}
+      {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
+          (pareamento / mira de efeito). Inspecionar é sempre pelo botão "Ver"
+          no canto — remove o conflito "clicar em Atacar abre a imagem". */}
+      <div
+        role={legalTarget ? "button" : undefined}
+        tabIndex={legalTarget ? 0 : undefined}
+        onClick={legalTarget && onSelect ? () => onSelect(unit) : undefined}
+        onKeyDown={
+          legalTarget && onSelect
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(unit);
+                }
+              }
+            : undefined
+        }
+        className={cn("relative block h-full w-full", legalTarget ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
           nameEn={unit.def.nameEn}
@@ -187,34 +171,12 @@ export function BattleSlot({
               </span>
             </div>
           ) : null}
-          {hasKeyword(unit, "Blocker") ? (
-            <span className="absolute left-0.5 top-0.5 rounded-none bg-sky-500/90 px-1 text-[7px] font-bold uppercase text-black">Blk</span>
-          ) : null}
         </CardFace>
-      </button>
+      </div>
 
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
-      {showActions ? (
-        // Igual ao "Jogar" da mão: escondida em repouso, aparece no hover/foco
-        // NO canto sup. direito DA CARTA (sem vão de hover pra atravessar).
-        // `flex-row-reverse` = Atacar no canto, ativações à esquerda dele
-        // (float-right). `translateZ` mantém o hit-test acima do plano 3D da mesa.
-        <div
-          style={{ transform: "translateZ(30px)" }}
-          className={cn(
-            "absolute -top-2 right-0 z-30 flex flex-row-reverse items-start gap-1 transition-opacity duration-100 motion-reduce:transition-none",
-            "opacity-0 pointer-events-none",
-            "group-hover/slot:opacity-100 group-hover/slot:pointer-events-auto",
-            "group-focus-within/slot:opacity-100 group-focus-within/slot:pointer-events-auto",
-          )}
-        >
-          {showAttack ? <IconBtn icon={Swords} label="Atacar" tone="primary" busy={busy} onClick={() => actions!.onAttack!(unit)} /> : null}
-          {showActivate ? <IconBtn icon={Zap} label="Ativar habilidade" tone="accent" busy={busy} onClick={() => actions!.onActivate!(unit)} /> : null}
-          {showBlocker ? <IconBtn icon={ShieldCheck} label="Ativar Blocker" tone="sky" busy={busy} onClick={() => actions!.onBlocker!(unit)} /> : null}
-          {showTarget ? <IconBtn icon={Crosshair} label="Mirar aqui" tone="emerald" busy={busy} onClick={() => actions!.onDeclareTarget!(unit)} /> : null}
-        </div>
-      ) : null}
+      <CardCornerActions actions={cornerActions} />
     </div>
   );
 }

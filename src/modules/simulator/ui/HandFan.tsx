@@ -3,17 +3,18 @@
  * A carta em foco (hover / teclado) sobe e ganha z-index, desencobrindo a
  * vizinha. Referência: leque com hover-lift de Hearthstone / Master Duel.
  *
- * Rodada Willen 2026-09-03 (capturas 6):
+ * Rodada Willen 2026-09-03 (capturas 6 + ajuste):
  *  - MAIS espaço entre cartas em repouso; só aperta o overlap quando a mão
  *    cresce (`overlapFor`).
- *  - SEM botão "Ver" (olho): clicar no corpo da carta já abre o zoom
- *    (`onInspect`). Sobra só "Jogar" — escondido, aparece no hover no canto
- *    superior direito, mesmo ícone `Play`.
+ *  - Cluster no canto sup. direito (`CardCornerActions`): "Ver" (olho) SEMPRE;
+ *    "Jogar" (play) à esquerda dele quando a carta é jogável. O corpo da carta
+ *    NÃO é mais clicável (removido o conflito com a ação).
  * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
-import { Play } from "lucide-react";
+import { Eye, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
+import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 
@@ -29,7 +30,7 @@ interface HandFanProps {
   art: ArtLookup;
   /** botão "Jogar" — o pai joga direto / avisa / abre modal dual. */
   onPeek: (card: CardInstance) => void;
-  /** clique no corpo da carta — abre a modal de zoom (jogável ou não). */
+  /** botão "Ver" (olho) — abre a modal de zoom (jogável ou não). */
   onInspect?: (card: CardInstance) => void;
   /** hover / foco numa carta (ou `null` ao sair) — alimenta o inspetor lateral. */
   onHoverCard?: (card: CardInstance | null) => void;
@@ -81,6 +82,27 @@ export function HandFan({
           const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
+          // "Ver" sempre; "Jogar" à esquerda dele quando dá pra jogar.
+          const cornerActions: CornerAction[] = [];
+          if (playable) {
+            cornerActions.push({
+              key: "play",
+              icon: Play,
+              label: `Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`,
+              tone: "primary",
+              onClick: () => onPeek(card),
+            });
+          }
+          if (onInspect) {
+            cornerActions.push({
+              key: "view",
+              icon: Eye,
+              label: `Ver ${card.def.nameEn} · ${state}`,
+              tone: "view",
+              onClick: () => onInspect(card),
+            });
+          }
+
           return (
             <div
               key={card.instanceId}
@@ -95,18 +117,11 @@ export function HandFan({
                 "group/hc relative block shrink-0 border-t-2 bg-slate-950/80 transition-transform duration-100 ease-out",
                 "hover:z-20 focus-within:z-20 motion-reduce:transition-none",
                 lift,
-                playable
-                  ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]"
-                  : "border-transparent [filter:grayscale(1)_brightness(0.65)]",
+                playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
               )}
             >
-              {/* corpo da carta: clicar abre o zoom (não precisa de botão de olho) */}
-              <button
-                type="button"
-                onClick={() => onInspect?.(card)}
-                aria-label={`Ver ${card.def.nameEn} · ${state}`}
-                className="block w-full cursor-zoom-in"
-              >
+              {/* só a ARTE fica em P&B quando injogável — os botões do canto não. */}
+              <div className={cn("block w-full", playable ? "" : "[filter:grayscale(1)_brightness(0.65)]")}>
                 <CardFace
                   nameEn={card.def.nameEn}
                   code={card.def.code}
@@ -127,22 +142,9 @@ export function HandFan({
                     </div>
                   ) : null}
                 </CardFace>
-              </button>
+              </div>
 
-              {/* "Jogar" — escondido, aparece no hover/foco no canto sup. direito. */}
-              <button
-                type="button"
-                onClick={() => onPeek(card)}
-                title={`Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`}
-                aria-label={`Jogar ${card.def.nameEn} · ${cost !== undefined ? `custo ${cost} · ` : ""}${state}`}
-                className={cn(
-                  "absolute -right-2 -top-2 z-20 flex size-6 items-center justify-center rounded-none border border-black/30 opacity-0 shadow-lg transition-opacity duration-100 motion-reduce:transition-none",
-                  "group-hover/hc:opacity-100 group-focus-within/hc:opacity-100 focus-visible:opacity-100",
-                  playable ? "bg-primary/95 text-black hover:bg-primary" : "bg-slate-800/95 text-slate-300 hover:bg-slate-700",
-                )}
-              >
-                <Play className="size-3.5" aria-hidden />
-              </button>
+              <CardCornerActions actions={cornerActions} />
             </div>
           );
         })}
