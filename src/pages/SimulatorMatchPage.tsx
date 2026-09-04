@@ -554,7 +554,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const notMainPhaseReason: string | undefined = combat
     ? "Combate em andamento — só dá pra jogar Comando 【Action】 agora."
     : endPhaseAction
-      ? "Action Step de fim de turno — só dá pra jogar Comando 【Action】 agora."
+      ? "Passo de Ação do fim de turno — só dá pra jogar Comando 【Action】 agora."
       : view.activePlayer !== seat
         ? "Não é sua vez."
         : view.phase !== "main"
@@ -1083,7 +1083,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <Button
           variant="outline"
           size="icon"
-          className="pointer-events-auto size-8 rounded-none border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
+          className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
           onClick={reportSituation}
           title="Relatar um problema com esta partida"
           aria-label="Relatar um problema com esta partida"
@@ -1196,7 +1196,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 {preview.modes.map((m) => (
                   <Button
                     key={m.label}
-                    className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
                     disabled={busy}
                     onClick={m.run}
                   >

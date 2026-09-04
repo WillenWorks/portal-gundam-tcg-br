@@ -34,10 +34,10 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
         <div className="flex flex-col gap-3">
           <label className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0">
-              <span className="block font-semibold">Auto-passar Action Step</span>
+              <span className="block font-semibold">Auto-passar o Passo de Ação</span>
               <span className="block text-[10px] text-muted-portal">Passa sozinho quando você não tem jogada 【Action】.</span>
             </span>
-            <Switch checked={autoPass} onCheckedChange={onToggleAutoPass} disabled={busy} aria-label="Auto-passar Action Step" />
+            <Switch checked={autoPass} onCheckedChange={onToggleAutoPass} disabled={busy} aria-label="Auto-passar o Passo de Ação" />
           </label>
 
           <Button

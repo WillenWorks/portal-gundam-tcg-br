@@ -54,9 +54,9 @@ sem Base, EX Resource no índice 0).
 | Faixa | Largura | Tratamento |
 |-------|---------|------------|
 | XS | `<430px` | retrato compacto (Fase E) |
-| S | `430–820px` | grid completo, `--card` no piso |
-| M | `820–1200px` | grid completo, `--card` médio |
-| L | `1200–1700px` | `--card` alto, board com largura-teto, log fixo lateral |
+| S | `430–820px` | grid completo, `--card-w` no piso |
+| M | `820–1200px` | grid completo, `--card-w` médio |
+| L | `1200–1700px` | `--card-w` alto, board com largura-teto, log fixo lateral |
 | XL | `>1700px` | board centrado, laterais viram log + inspetor fixado |
 
 ## AI Asset Generation

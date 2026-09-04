@@ -25,11 +25,11 @@ function player(id: PlayerId): string {
 }
 
 const PHASE_PT: Record<string, string> = {
-  start: "Manutenção",
-  draw: "Compra",
-  resource: "Recurso",
-  main: "Principal",
-  end: "Final",
+  start: "Fase de Manutenção",
+  draw: "Fase de Compra",
+  resource: "Fase de Recurso",
+  main: "Fase Principal",
+  end: "Fase Final",
 };
 
 /** Resolve `instanceId` → nome da carta varrendo as zonas públicas da visão (+ mão do próprio viewer). */
@@ -64,7 +64,7 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
     case "TURN_CHANGE":
       return entry("turn", `— Turno ${event.turnNumber} · ${player(event.activePlayer)} —`);
     case "PHASE_CHANGE":
-      return event.phase === "start" ? null : entry("phase", `Fase de ${PHASE_PT[event.phase] ?? event.phase}`);
+      return event.phase === "start" ? null : entry("phase", PHASE_PT[event.phase] ?? `Fase de ${event.phase}`);
     case "DRAW_CARD":
       return event.from === "deck"
         ? entry("play", `${player(event.player)} comprou 1 carta`)

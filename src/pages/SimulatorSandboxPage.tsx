@@ -112,7 +112,7 @@ export default function SimulatorSandboxPage() {
       <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
         <div className="flex items-center gap-2 text-sm text-muted-portal">
           <Loader2 className="size-4 animate-spin" />
-          Verificando sessão do simulador...
+          Verificando sessão do simulador…
         </div>
       </PortalShell>
     );
@@ -122,7 +122,7 @@ export default function SimulatorSandboxPage() {
     return (
       <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
         <div className="mx-auto max-w-xl">
-          <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+          <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
@@ -132,7 +132,7 @@ export default function SimulatorSandboxPage() {
                   Deck escolhido: <strong>{deckKey}</strong>. Assim que outro jogador entrar na fila, a partida começa.
                 </p>
               </div>
-              <Button variant="outline" className="rounded-none" disabled={leavingQueue} onClick={cancelQueue}>
+              <Button variant="outline" className="rounded-arena" disabled={leavingQueue} onClick={cancelQueue}>
                 {leavingQueue ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Cancelar
               </Button>
@@ -146,7 +146,7 @@ export default function SimulatorSandboxPage() {
   return (
     <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
       <div className="mx-auto max-w-xl">
-        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+        <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
           <CardContent className="space-y-6 p-8">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Partida rápida</p>
@@ -175,7 +175,7 @@ export default function SimulatorSandboxPage() {
               <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
             </div>
 
-            <Button className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
+            <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
               {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
               Entrar na fila
             </Button>

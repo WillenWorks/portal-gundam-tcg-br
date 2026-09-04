@@ -18,7 +18,7 @@ const nameOf = (id: string) => ({ "c-1": "Gundam", "c-2": "Zaku", "u-1": "GM", "
 describe("describeEvent — tradução GameEvent → linha PT", () => {
   const cases: Array<[GameEvent, string | null]> = [
     [{ type: "TURN_CHANGE", turnNumber: 3, activePlayer: "B" }, "— Turno 3 · Jogador B —"],
-    [{ type: "PHASE_CHANGE", phase: "main" }, "Fase de Principal"],
+    [{ type: "PHASE_CHANGE", phase: "main" }, "Fase Principal"],
     [{ type: "PHASE_CHANGE", phase: "start" }, null], // ruído
     [{ type: "DRAW_CARD", player: "A", from: "deck", instanceId: "c-1" }, "Jogador A comprou 1 carta"],
     [{ type: "DRAW_CARD", player: "A", from: "resourceDeck", instanceId: null }, "Jogador A pegou 1 recurso"],
@@ -61,6 +61,6 @@ describe("buildBattleLog — sobre uma partida real", () => {
     expect(log.every((e) => e.text.length > 0 && !e.text.includes("undefined"))).toBe(true);
     // o avanço até a Main Phase passa por Compra/Recurso/Main
     expect(log.some((e) => e.text === "Fase de Compra")).toBe(true);
-    expect(log.some((e) => e.text === "Fase de Principal")).toBe(true);
+    expect(log.some((e) => e.text === "Fase Principal")).toBe(true);
   });
 });

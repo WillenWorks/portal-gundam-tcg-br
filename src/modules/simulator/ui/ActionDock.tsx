@@ -192,8 +192,8 @@ export function ActionDock({
         return (
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-              <Zap className="size-3.5 shrink-0" /> Action Step ({SCOPE_LABEL[state.scope]}) —{" "}
-              {nothingToDo ? "nada a jogar agora" : "só Command 【Action】"}
+              <Zap className="size-3.5 shrink-0" /> Passo de Ação ({SCOPE_LABEL[state.scope]}) —{" "}
+              {nothingToDo ? "nada a jogar agora" : "só Comando 【Action】"}
             </p>
             <div className="flex items-center gap-3">
               <Button

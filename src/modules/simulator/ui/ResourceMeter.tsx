@@ -127,7 +127,7 @@ export function ResourceMeter({
               }}
             />
           </div>
-          <p className="font-mono text-[9px] tabular-nums text-emerald-300">
+          <p className="font-mono text-[9px] font-medium tabular-nums text-emerald-300">
             {costProgress.paid}/{costProgress.total} pago
           </p>
         </div>
