@@ -70,8 +70,8 @@ export function ResourceMeter({
           const shape = cn(
             "relative block shrink-0 overflow-hidden border transition-all duration-100 motion-reduce:transition-none",
             readOnly
-              ? "h-[calc(var(--card,3.5rem)*0.5)] w-[calc(var(--card,3.5rem)*0.34)]"
-              : "h-[calc(var(--card,3.5rem)*0.7)] w-[calc(var(--card,3.5rem)*0.5)]",
+              ? "h-[calc(var(--card-w,3.5rem)*0.5)] w-[calc(var(--card-w,3.5rem)*0.34)]"
+              : "h-[calc(var(--card-w,3.5rem)*0.7)] w-[calc(var(--card-w,3.5rem)*0.5)]",
             selected
               ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
               : r.isEx

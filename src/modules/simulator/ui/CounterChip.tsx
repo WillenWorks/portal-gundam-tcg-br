@@ -37,7 +37,7 @@ const TONE_BADGE: Record<CounterChipTone, string> = {
   crit: "border-red-500/70 text-red-300",
 };
 
-const STACK_WIDTH = "w-[calc(var(--card,3.5rem)*0.62)]";
+const STACK_WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
 
 export function CounterChip({
   label,

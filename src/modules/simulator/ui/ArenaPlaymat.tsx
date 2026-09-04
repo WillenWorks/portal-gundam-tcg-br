@@ -7,7 +7,7 @@
  *    espaço lateral que sobra em monitor ultrawide agora é USADO pela página:
  *    o `CardInspectorPanel` cresce (`flex-1`) pra preencher a asa esquerda, com
  *    um espelho `flex-1` à direita mantendo a arena centrada.
- *  - `ShieldStation`/`DeckStation` têm largura EXPLÍCITA comum (`--card * 0.62`):
+ *  - `ShieldStation`/`DeckStation` têm largura EXPLÍCITA comum (`--card-w * 0.62`):
  *    Base, cascata de Shields e as 3 pilhas alinham na mesma coluna.
  *
  * Espelhamento 180° do playmat oficial (rodada Willen 2026-09-03) — o lado do
@@ -78,9 +78,11 @@ interface ArenaPlaymatProps {
   className?: string;
 }
 
-/** escala única de toda carta + perspectiva da mesa. */
+/** escala única de toda carta + perspectiva da mesa. `--card-w` (não `--card`):
+ * `--card` já é token de COR do design system — reusar o nome pra um comprimento
+ * quebraria qualquer `bg-card`/`text-card` dentro da arena. */
 const CANVAS_STYLE = {
-  "--card": "clamp(3.5rem, 6.5vw, 6.2rem)",
+  "--card-w": "clamp(3.5rem, 6.5vw, 6.2rem)",
   perspective: "1200px",
   perspectiveOrigin: "50% 65%",
 } as CSSProperties;
@@ -127,7 +129,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
       {/* ── Rodapé: mão ancorada (fora da inclinação, pra leitura). Altura
           mínima reservada (Sprint 6 · P3) pra a mão não encolher junto com o
           canvas a ponto de cortar a carta. ───────────────────────────────── */}
-      <div className="shrink-0 min-h-[calc(var(--card,3.5rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
+      <div className="shrink-0 min-h-[calc(var(--card-w,3.5rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
         {hand}
       </div>
 
@@ -137,11 +139,11 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
 }
 
 /** largura comum das colunas laterais — Base, cascata de Shields e pilhas alinham nela. */
-const STATION_WIDTH = "w-[calc(var(--card,3.5rem)*0.62)]";
+const STATION_WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
 
-/** largura da fileira de 6 slots (`repeat(6, --card)` + 5 gaps de `gap-1`) — a
+/** largura da fileira de 6 slots (`repeat(6, --card-w)` + 5 gaps de `gap-1`) — a
  * linha de recursos usa a MESMA largura pra alinhar com a Battle Area. */
-const BATTLE_ROW_WIDTH = "calc(var(--card, 3.5rem) * 6 + 1.25rem)";
+const BATTLE_ROW_WIDTH = "calc(var(--card-w, 3.5rem) * 6 + 1.25rem)";
 
 /** trilha de recursos: centrada, travada na largura da Battle Area, scroll fantasma. */
 function ResourceLane({ children }: { children: ReactNode }) {
@@ -233,7 +235,7 @@ function BattleRow({
   gridRef?: (el: HTMLElement | null) => void;
 }) {
   return (
-    <div ref={gridRef} className="mx-auto grid gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card, 3.5rem))" }}>
+    <div ref={gridRef} className="mx-auto grid gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card-w, 3.5rem))" }}>
       {children}
     </div>
   );

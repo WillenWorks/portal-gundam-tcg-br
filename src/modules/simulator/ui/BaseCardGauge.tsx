@@ -21,7 +21,7 @@ interface BaseCardGaugeProps {
   onHoverCard?: (card: CardInstance | null) => void;
 }
 
-const WIDTH = "w-[calc(var(--card,3.5rem)*0.62)]";
+const WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
 
 export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onInspect, onHoverCard }: BaseCardGaugeProps) {
   if (!base) {

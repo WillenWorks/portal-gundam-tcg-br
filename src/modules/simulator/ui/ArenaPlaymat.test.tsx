@@ -48,11 +48,11 @@ describe("ArenaPlaymat", () => {
     expect(screen.getAllByTestId("me-slot")).toHaveLength(6);
   });
 
-  it("trava a proporção 16:9 e define a escala --card no canvas", () => {
+  it("trava a proporção 16:9 e define a escala --card-w no canvas", () => {
     const { container } = renderArena();
     const canvas = container.firstElementChild as HTMLElement;
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
-    expect(canvas.style.getPropertyValue("--card")).toBe("clamp(3.5rem, 6.5vw, 6.2rem)");
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, 6.5vw, 6.2rem)");
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {
