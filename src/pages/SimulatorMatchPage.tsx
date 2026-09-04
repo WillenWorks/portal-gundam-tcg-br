@@ -140,6 +140,8 @@ import {
   gameOverReasonLabel,
   MatchPrompt,
   SettingsMenu,
+  MulliganModal,
+  FirstPlayerReveal,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
@@ -294,6 +296,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [now, setNow] = useState(() => Date.now());
 
   const [pending, setPending] = useState<PendingAction | null>(null);
+  /** a revelação de "quem joga primeiro" já foi vista/dispensada nesta sessão. */
+  const [revealDismissed, setRevealDismissed] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   /** instanceIds dos Recursos ativos escolhidos pra restar/pagar o custo da carta em `pending` (seleção manual — 2026-09-01). */
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
@@ -927,6 +931,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // pendência" (a arena fala por si).
   const matchPrompt: string | null = (() => {
     if (gameOverResult) return null; // o GameOverOverlay assume
+    if (myPendingDecision?.kind === "mulligan") return "Decida sua mão inicial (Mulligan)";
+    if (oppPendingDecision?.kind === "mulligan") return "Oponente decidindo a mão inicial (Mulligan)…";
     if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
     if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
     if (myPendingDecision?.kind === "abilityResolution") return "Resolva o efeito ativado";
@@ -981,9 +987,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // mostra "Encerrar turno" (o servidor cuida do oponente ausente sozinho).
     if (canClaimAbandon && !myTurnMain) return { kind: "abandonAvailable", idleSeconds: opponentIdleSeconds ?? 0 };
     if (oppPendingDecision) {
+      const what =
+        oppPendingDecision.kind === "burst"
+          ? "um 【Burst】"
+          : oppPendingDecision.kind === "mulligan"
+            ? "a mão inicial (Mulligan)"
+            : "uma decisão";
       return {
         kind: "oppDecision",
-        label: `Aguardando o oponente resolver ${oppPendingDecision.kind === "burst" ? "um 【Burst】" : "uma decisão"}...`,
+        label: `Aguardando o oponente resolver ${what}…`,
       };
     }
     return {
@@ -1133,6 +1145,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           effectText={cardText[inspect.def.code]}
           linkedPilots={resolveLinkedPilots(inspect.def)}
           onClose={() => setInspect(null)}
+        />
+      ) : null}
+
+      {/* Início de partida: revelação de iniciativa, depois o Mulligan. */}
+      {!revealDismissed && view.turnNumber === 1 && !view.gameOver ? (
+        <FirstPlayerReveal goesFirst={view.activePlayer === seat} onDismiss={() => setRevealDismissed(true)} />
+      ) : null}
+      {revealDismissed && myPendingDecision?.kind === "mulligan" ? (
+        <MulliganModal
+          hand={myHandCards}
+          art={art}
+          busy={busy}
+          onResolve={(keep) => runAction({ kind: "resolveMulligan", keep })}
         />
       ) : null}
 

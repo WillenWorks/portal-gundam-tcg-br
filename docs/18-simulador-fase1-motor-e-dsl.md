@@ -1178,11 +1178,14 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
   - `rng.ts` — PRNG seedado (mulberry32), nunca `Math.random()`.
   - `events.ts` — reducer `applyEvent`/`applyEvents`, nunca muta o estado
     recebido.
-  - `setup.ts` — `createGame()`: setup completo (Comprehensive Rules 6-2)
-    determinístico por seed — 5 cartas de mão, mulligan opcional, 6 shields,
-    EX Base (0 AP / **3 HP**, confirmado via fonte externa — não estava no
-    Comprehensive Rules PDF, só em cobertura de comunidade) pros dois
-    jogadores, EX Resource só pro segundo jogador.
+  - `setup.ts` — `createGame()`: setup (Comprehensive Rules 6-2) determinístico
+    por seed. Dois modos: **não-interativo** (default — setup completo de uma
+    vez, `mulligan?` boolean, usado por testes de motor) e **interativo**
+    (`interactiveMulligan: true`, usado pelo servidor — compra só as mãos e
+    deixa `pendingDecision[firstPlayer] = { kind: "mulligan" }`; `finishGameSetup()`
+    fecha o resto quando os 2 resolvem). 6 shields, EX Base (0 AP / **3 HP**,
+    fonte de comunidade — reconciliar), EX Resource só pro 2º jogador.
+    Ver **docs/21** (Mulligan interativo + revelação de iniciativa).
   - `phases.ts` — as 5 fases oficiais + `finishTurnAndAdvance()`.
   - `combat.ts` — sequência de combate de 5 passos (Attack/Block/Action/
     Damage/Battle End), incluindo Blocker, First Strike, High-Maneuver,
