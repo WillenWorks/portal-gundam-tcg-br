@@ -90,8 +90,12 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   const events: GameEvent[] = payCostEvents(state, player, def, options.resourceInstanceIds);
 
   if (def.cardType === "UNIT") {
-    const unitCount = state.players[player].battleArea.filter((c) => c.def.cardType === "UNIT").length;
-    if (unitCount >= 6) throw new Error("Battle Area cheia (máx. 6 Units, Comprehensive Rules)");
+    // V2 (docs/27): a jogada NUNCA é bloqueada pelo limite de 6 Units — a
+    // regra oficial manda a 7ª entrar normalmente e o excesso ser resolvido
+    // depois via rules management (`enforceZoneLimits`, actions.ts), igual à
+    // Base logo abaixo. Bloquear aqui era o mesmo tipo de bug do Guntank/V0:
+    // impedir a carta de ser jogada por causa de uma consequência que deveria
+    // só ser tratada DEPOIS de ela entrar em campo.
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "battleArea" });
   } else if (def.cardType === "BASE") {
     const existing = state.players[player].baseSection[0];

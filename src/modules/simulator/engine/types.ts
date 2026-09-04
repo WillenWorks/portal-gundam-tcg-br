@@ -430,6 +430,23 @@ export type PendingDecision =
        * payload — a mão do próprio jogador já é visível a ele no `viewState`.
        */
       kind: "mulligan";
+    }
+  | {
+      /**
+       * Rules management (V2, docs/27 — Comprehensive Rules, "How many Units
+       * can I have in my battle area at once? Six at most. If a seventh would
+       * enter... you must immediately choose one already there and send it to
+       * the trash — and that one isn't treated as 'destroyed'"). Achado real:
+       * `deployCard` bloqueava a jogada com erro (impede a carta de ser jogada
+       * — errado, mesma classe de bug do Guntank/V0) e `SPAWN_TOKEN` (White
+       * Base/Corsica Base) não checava limite nenhum. Corrigido genericamente:
+       * QUALQUER ação que resulte em >6 Units na Battle Area de um jogador
+       * pausa e pede a escolha, nunca bloqueia a ação que causou o excesso.
+       */
+      kind: "zoneOverflow";
+      zone: "battleArea";
+      /** instanceIds das próprias Units na Battle Area agora — sempre >6 no momento em que esta decisão é criada. */
+      legalTargets: string[];
     };
 
 export interface CombatState {

@@ -136,6 +136,7 @@ import {
   TriggerOrderModal,
   useBoardElements,
   AbilityResolutionModal,
+  ZoneOverflowModal,
   GameOverOverlay,
   gameOverReasonLabel,
   MatchPrompt,
@@ -1055,6 +1056,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
     if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
     if (myPendingDecision?.kind === "abilityResolution") return "Resolva o efeito ativado";
+    if (myPendingDecision?.kind === "zoneOverflow") return "Battle Area cheia — escolha 1 Unit pra descartar";
+    if (oppPendingDecision?.kind === "zoneOverflow") return "Oponente escolhendo qual Unit descartar (Battle Area cheia)…";
     if (pending?.kind === "activateAbility") {
       return pending.abilityNeedsTarget ? "Escolha o alvo e os recursos pra pagar o custo" : "Escolha os recursos pra pagar o custo";
     }
@@ -1111,7 +1114,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? "um 【Burst】"
           : oppPendingDecision.kind === "mulligan"
             ? "a mão inicial (Mulligan)"
-            : "uma decisão";
+            : oppPendingDecision.kind === "zoneOverflow"
+              ? "qual Unit descartar (Battle Area cheia)"
+              : "uma decisão";
       return {
         kind: "oppDecision",
         label: `Aguardando o oponente resolver ${what}…`,
@@ -1330,6 +1335,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }}
           busy={busy}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
+        />
+      ) : null}
+      {myPendingDecision?.kind === "zoneOverflow" ? (
+        <ZoneOverflowModal
+          // V2 (docs/27): `legalTargets` são sempre as próprias Units — sempre
+          // públicas na view (nunca precisa de resolveLabel/lookup escondido).
+          units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
+          busy={busy}
+          onResolve={(instanceId) => runAction({ kind: "resolveZoneOverflow", instanceId })}
         />
       ) : null}
 

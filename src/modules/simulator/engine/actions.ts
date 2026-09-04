@@ -105,14 +105,40 @@ export type PlayerAction =
    * jogador o motor seta o mulligan do 2º; ao resolver o 2º, coloca os 6
    * shields de cada lado + EX Base + EX Resource e avança pra Main Phase.
    */
-  | { kind: "resolveMulligan"; keep: boolean };
+  | { kind: "resolveMulligan"; keep: boolean }
+  /**
+   * Resolve a `PendingDecision.zoneOverflow` (V2, docs/27 — Battle Area com
+   * mais de 6 Units): `instanceId` é a Unit própria escolhida pra ir pro
+   * trash (rules management, não é "destruída" — mesma regra da Base
+   * excedente).
+   */
+  | { kind: "resolveZoneOverflow"; instanceId: string };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
  * legível, igual ao resto do motor) se a ação for ilegal — quem chama decide
  * o que fazer com isso (a rota HTTP devolve 400 com a mensagem).
+ *
+ * V2 (docs/27): toda ação passa por `enforceZoneLimits` antes de voltar —
+ * único ponto de checagem de rules management (limite de 6 Units na Battle
+ * Area), igual este arquivo já é o único ponto de checagem de autorização
+ * (ver docstring de `PlayerAction` acima). Cobre `deployCard` (jogar da mão)
+ * E qualquer `EffectSpec` que use `spawnToken`/`spawnTokenByOwnUnitCount`
+ * (White Base, Corsica Base) sem precisar de checagem própria em cada um.
  */
 export function applyPlayerAction(
+  state: GameState,
+  actingPlayer: PlayerId,
+  action: PlayerAction,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
+  const result = applyPlayerActionInner(state, actingPlayer, action, specs, predicateResolver, targetFilterResolver);
+  return enforceZoneLimits(result);
+}
+
+function applyPlayerActionInner(
   state: GameState,
   actingPlayer: PlayerId,
   action: PlayerAction,
@@ -139,6 +165,9 @@ export function applyPlayerAction(
     }
     if (myPending.kind === "mulligan" && action.kind !== "resolveMulligan") {
       throw new Error("Decida seu Mulligan antes de qualquer outra ação");
+    }
+    if (myPending.kind === "zoneOverflow" && action.kind !== "resolveZoneOverflow") {
+      throw new Error("Escolha qual Unit vai pro trash (Battle Area acima do limite de 6) antes de qualquer outra ação");
     }
   }
 
@@ -412,7 +441,47 @@ export function applyPlayerAction(
       next = finishGameSetup(next);
       return advanceToMainPhase(next);
     }
+
+    case "resolveZoneOverflow": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "zoneOverflow") {
+        throw new Error("Não há excesso de Units pendente pra resolver");
+      }
+      // Server-authoritative (mesmo padrão de `resolveAbility`, V0 docs/25):
+      // nunca confia cegamente no `instanceId` que o cliente manda.
+      if (!decision.legalTargets.includes(action.instanceId)) {
+        throw new Error("Essa Unit não está entre as elegíveis pra ir pro trash");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      // MOVE_CARD, nunca DESTROY_CARD — rules management, não é "destruída"
+      // (mesma regra já aplicada à Base excedente em `deployCard`).
+      next = applyEvent(next, { type: "MOVE_CARD", instanceId: action.instanceId, toZone: "trash" });
+      return next;
+    }
   }
+}
+
+/**
+ * V2 (docs/27) — Comprehensive Rules: no máx. 6 Units na Battle Area por
+ * jogador. Roda depois de QUALQUER `PlayerAction` (nunca bloqueia a ação que
+ * causou o excesso — a carta/token sempre entra em campo primeiro); se algum
+ * jogador está acima do limite e ainda não tem decisão pendente, pausa e pede
+ * a escolha. Único ponto de checagem — nem `deployCard` nem o primitive
+ * `spawnToken` precisam saber desta regra.
+ */
+function enforceZoneLimits(state: GameState): GameState {
+  let next = state;
+  for (const player of ["A", "B"] as PlayerId[]) {
+    if (next.pendingDecision[player]) continue; // já tem outra decisão pendente — resolve essa primeiro, o próximo enforceZoneLimits (na próxima ação) pega o excesso
+    const units = next.players[player].battleArea.filter((c) => c.def.cardType === "UNIT");
+    if (units.length <= 6) continue;
+    next = applyEvent(next, {
+      type: "SET_PENDING_DECISION",
+      player,
+      decision: { kind: "zoneOverflow", zone: "battleArea", legalTargets: units.map((u) => u.instanceId) },
+    });
+  }
+  return next;
 }
 
 /**

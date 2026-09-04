@@ -159,14 +159,15 @@ describe("deployCard — jogar Unit/Pilot/Base da mão (docs/18)", () => {
     });
   });
 
-  it("Battle Area comporta no máx. 6 Units — 7ª recusa", () => {
+  it("Battle Area com 6 Units + 7ª jogada da mão: a jogada NUNCA é bloqueada (V2, docs/27 — a rules management de trim pro limite é responsabilidade de applyPlayerAction, não de deployCard)", () => {
     const state = freshMainPhase();
     giveResources(state, "A", 20);
     for (let i = 0; i < 6; i++) {
       place(state, "A", VANILLA_CARD_DEFS.VANILLA_01, "battleArea");
     }
     const cardId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_01, "hand");
-    expect(() => deployCard(state, "A", cardId)).toThrow(/Battle Area cheia/);
+    const next = deployCard(state, "A", cardId);
+    expect(next.players.A.battleArea).toHaveLength(7);
   });
 
   it("Pilot pareado não conta pro limite de 6 Units (mora na Battle Area, mas não é Unit)", () => {

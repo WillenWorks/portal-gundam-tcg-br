@@ -276,6 +276,66 @@ describe("resolveTriggerOrder — ordenação de gatilhos simultâneos (docs/23 
   });
 });
 
+describe("zoneOverflow — limite de 6 Units na Battle Area (V2, docs/27)", () => {
+  it("deployCard da 7ª Unit NUNCA é bloqueado — entra em campo e pausa pedindo o trim", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+    giveResources(state, "A", 20);
+    for (let i = 0; i < 6; i++) place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const cardId = place(state, "A", ST01_CARD_DEFS.GM, "hand");
+
+    const next = apply(state, "A", { kind: "deployCard", cardInstanceId: cardId });
+
+    expect(next.players.A.battleArea).toHaveLength(7); // a carta ENTROU — nunca bloqueada
+    expect(next.pendingDecision.A?.kind).toBe("zoneOverflow");
+    if (next.pendingDecision.A?.kind === "zoneOverflow") {
+      expect(next.pendingDecision.A.legalTargets).toHaveLength(7);
+    }
+    // trava outras ações até resolver (mesmo padrão de burst/abilityResolution)
+    expect(() => apply(next, "A", { kind: "finishTurn" })).toThrow(/Escolha qual Unit vai pro trash/);
+  });
+
+  it("resolveZoneOverflow manda a escolhida pro trash (MOVE_CARD, não DESTROY_CARD) e libera o jogo", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+    giveResources(state, "A", 20);
+    for (let i = 0; i < 6; i++) place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const cardId = place(state, "A", ST01_CARD_DEFS.GM, "hand");
+    const afterDeploy = apply(state, "A", { kind: "deployCard", cardInstanceId: cardId });
+    const chosenId = afterDeploy.players.A.battleArea[0].instanceId;
+
+    const next = apply(afterDeploy, "A", { kind: "resolveZoneOverflow", instanceId: chosenId });
+
+    expect(next.pendingDecision.A).toBeNull();
+    expect(next.players.A.battleArea).toHaveLength(6);
+    expect(next.players.A.battleArea.some((c) => c.instanceId === chosenId)).toBe(false);
+    expect(next.players.A.trash.some((c) => c.instanceId === chosenId)).toBe(true);
+    expect(() => apply(next, "A", { kind: "finishTurn" })).not.toThrow();
+  });
+
+  it("server-authoritative: instanceId fora dos alvos legais lança (não confia cegamente no cliente)", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+    giveResources(state, "A", 20);
+    for (let i = 0; i < 6; i++) place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const cardId = place(state, "A", ST01_CARD_DEFS.GM, "hand");
+    const afterDeploy = apply(state, "A", { kind: "deployCard", cardInstanceId: cardId });
+
+    expect(() => apply(afterDeploy, "A", { kind: "resolveZoneOverflow", instanceId: "carta-inexistente" })).toThrow(
+      /não está entre as elegíveis/,
+    );
+  });
+
+  it("SPAWN_TOKEN (White Base 【Activate･Main】) tampouco furava o limite — antes não checava NADA, agora cai na mesma regra genérica", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+    giveResources(state, "A", 20);
+    for (let i = 0; i < 6; i++) place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const baseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "baseSection");
+
+    const next = apply(state, "A", { kind: "activateAbility", sourceInstanceId: baseId });
+
+    expect(next.players.A.battleArea).toHaveLength(7); // spawnou o token normalmente
+    expect(next.pendingDecision.A?.kind).toBe("zoneOverflow");
+  });
+});
+
 describe("playerHasActionStepPlay (auto-pass helper, docs/19 Sessão 2 tarefa 4)", () => {
   it("true quando o jogador tem Command 【Action】 jogável na mão", () => {
     const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));

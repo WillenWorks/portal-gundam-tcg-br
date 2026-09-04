@@ -659,6 +659,11 @@ export function defaultActionFor(state: GameState): PlayerAction {
       // AFK no Mulligan de início de partida: fica com a mão comprada.
       return { kind: "resolveMulligan", keep: true };
     }
+    if (pending?.kind === "zoneOverflow") {
+      // AFK com Battle Area acima do limite (V2, docs/27): manda a 1ª da
+      // lista pro trash — qualquer escolha é legal, só precisa de alguma.
+      return { kind: "resolveZoneOverflow", instanceId: pending.legalTargets[0] };
+    }
   }
   if (state.combat?.step === "block") return { kind: "skipBlock" };
   if (state.combat?.step === "action") return { kind: "passAction" };

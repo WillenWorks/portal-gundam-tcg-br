@@ -17,6 +17,7 @@ export { MulliganModal } from "./MulliganModal";
 export { FirstPlayerReveal } from "./FirstPlayerReveal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
 export { AbilityResolutionModal } from "./AbilityResolutionModal";
+export { ZoneOverflowModal } from "./ZoneOverflowModal";
 export { CardInspectorModal, type LinkedPilot } from "./CardInspectorModal";
 export { CardInspectorPanel } from "./CardInspectorPanel";
 export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";
