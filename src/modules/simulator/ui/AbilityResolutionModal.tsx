@@ -135,7 +135,7 @@ export function AbilityResolutionModal({ decision, targetsByScope, busy, onResol
         </ol>
 
         <Button
-          className="mt-4 h-10 w-full rounded-none bg-amber-400 text-black hover:bg-amber-300"
+          className="mt-4 h-10 w-full rounded-arena bg-amber-400 text-black hover:bg-amber-300"
           disabled={busy || !canConfirm}
           onClick={confirm}
         >
@@ -153,8 +153,8 @@ function Toggle({ active, onClick, children }: { active: boolean; onClick: () =>
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "min-h-8 rounded-none border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
-        active ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/15 bg-black/40 text-slate-300 hover:border-amber-400/50",
+        "min-h-8 rounded-arena border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
+        active ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-black/40 text-slate-300 hover:border-amber-400/50",
       )}
     >
       {children}

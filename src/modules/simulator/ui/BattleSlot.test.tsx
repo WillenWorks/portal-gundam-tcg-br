@@ -31,11 +31,11 @@ const unit = (over: Partial<CardDef> = {}, i: Partial<CardInstance> = {}) =>
   inst({ nameEn: "Gundam", cardType: "UNIT", ap: 3, hp: 4, ...over }, i);
 
 describe("BattleSlot", () => {
-  it("slot vazio: moldura de hangar ciano tracejada, sem botões", () => {
+  it("slot vazio: moldura de hangar tracejada, sem botões", () => {
     const { container } = render(<BattleSlot unit={null} pilot={null} art={{}} />);
     const box = container.firstElementChild as HTMLElement;
     expect(box.className).toMatch(/border-dashed/);
-    expect(box.className).toMatch(/border-cyan-500\/20/);
+    expect(box.className).toMatch(/border-primary\/25/);
     expect(screen.queryByRole("button")).toBeNull();
   });
 

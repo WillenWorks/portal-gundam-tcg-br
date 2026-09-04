@@ -27,7 +27,7 @@ function card(def: Partial<CardDef> & Pick<CardDef, "nameEn" | "cardType">, over
 describe("CardInspectorPanel", () => {
   it("sem carta: mostra o estado de espera", () => {
     render(<CardInspectorPanel card={null} art={{}} />);
-    expect(screen.getByText("Sensor Tático em Espera")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma carta selecionada")).toBeInTheDocument();
   });
 
   it("com carta: mostra nome, código, tipo e AP/HP base", () => {

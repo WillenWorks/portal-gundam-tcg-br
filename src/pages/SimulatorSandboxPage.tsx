@@ -109,10 +109,10 @@ export default function SimulatorSandboxPage() {
 
   if (screen === "checking") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador Beta" }]}>
+      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
         <div className="flex items-center gap-2 text-sm text-muted-portal">
           <Loader2 className="size-4 animate-spin" />
-          Verificando sessão do simulador...
+          Verificando sessão do simulador…
         </div>
       </PortalShell>
     );
@@ -120,20 +120,19 @@ export default function SimulatorSandboxPage() {
 
   if (screen === "queued") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador Beta" }]}>
+      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
         <div className="mx-auto max-w-xl">
-          <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+          <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Simulador Beta</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Fila</p>
                 <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando oponente</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Deck escolhido: <strong>{deckKey}</strong>. Assim que outro jogador (outra conta) entrar na fila, a partida começa sozinha -- sem
-                  precisar escolher assento ou adversário.
+                  Deck escolhido: <strong>{deckKey}</strong>. Assim que outro jogador entrar na fila, a partida começa.
                 </p>
               </div>
-              <Button variant="outline" className="rounded-none" disabled={leavingQueue} onClick={cancelQueue}>
+              <Button variant="outline" className="rounded-arena" disabled={leavingQueue} onClick={cancelQueue}>
                 {leavingQueue ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Cancelar
               </Button>
@@ -145,16 +144,15 @@ export default function SimulatorSandboxPage() {
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador Beta" }]}>
+    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
       <div className="mx-auto max-w-xl">
-        <Card className="panel-cut rounded-none border-primary/30 hero-surface">
+        <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
           <CardContent className="space-y-6 p-8">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Simulador</p>
-              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulador Beta</h1>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Partida rápida</p>
+              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulador</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Escolha seu deck e entre na fila. Você é pareado automaticamente com o próximo jogador -- sempre outra conta -- e a partida abre direto pros
-                dois, já sincronizada.
+                Escolha seu deck e entre na fila. Você é pareado automaticamente com o próximo jogador e a partida abre para os dois.
               </p>
             </div>
 
@@ -174,12 +172,12 @@ export default function SimulatorSandboxPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-portal">Qualquer combinação é válida -- inclusive os dois lados com o mesmo deck.</p>
+              <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
             </div>
 
-            <Button className="w-full rounded-none bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
+            <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
               {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-              Simulador Beta
+              Entrar na fila
             </Button>
           </CardContent>
         </Card>

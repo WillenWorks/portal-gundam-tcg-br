@@ -26,7 +26,7 @@ interface CardFaceProps {
 export function CardFace({ nameEn, code, art, size = "md", className, style, children, dimmed, backFallback }: CardFaceProps) {
   const src = artSrc(art, code, size) ?? (backFallback ? cardBackUrl : undefined);
   return (
-    <div className={cn("relative shrink-0 overflow-hidden", CARD_FACE_WIDTH[size], className)} style={style}>
+    <div className={cn("relative shrink-0 overflow-hidden rounded-arena", CARD_FACE_WIDTH[size], className)} style={style}>
       <div className={cn("aspect-[63/88] w-full bg-black/50", dimmed && "grayscale")}>
         {src ? (
           <img src={src} alt={nameEn} loading="lazy" className={cn("h-full w-full object-cover", dimmed && "opacity-45")} />
@@ -49,7 +49,7 @@ export function CardFace({ nameEn, code, art, size = "md", className, style, chi
 
 export function CardBack({ size = "sm", className, label }: { size?: CardFaceSize; className?: string; label?: string }) {
   return (
-    <div className={cn("relative shrink-0 overflow-hidden", CARD_FACE_WIDTH[size], className)}>
+    <div className={cn("relative shrink-0 overflow-hidden rounded-arena", CARD_FACE_WIDTH[size], className)}>
       <img src={cardBackUrl} alt="Verso da carta" loading="lazy" className="aspect-[63/88] w-full object-cover" />
       {label ? (
         <span className="absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-center text-[8px] font-bold text-slate-300">{label}</span>

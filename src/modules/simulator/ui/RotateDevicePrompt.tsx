@@ -34,13 +34,12 @@ export function RotateDevicePrompt({ className }: RotateDevicePromptProps) {
           Gire para o modo paisagem
         </p>
         <p className="text-xs leading-relaxed text-muted-portal">
-          A arena de combate exige a tela na horizontal. Deite o aparelho para
-          assumir o cockpit.
+          O tabuleiro precisa da tela na horizontal. Gire o aparelho para continuar.
         </p>
       </div>
 
-      <span className="border border-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-        Aguardando orientação
+      <span className="border border-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+        Aguardando o giro da tela
       </span>
     </div>
   );

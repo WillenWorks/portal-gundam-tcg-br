@@ -35,10 +35,10 @@ export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) 
           {decision.queuedInstanceIds.length > 0 ? ` (+${decision.queuedInstanceIds.length} na fila)` : ""}
         </p>
         <div className="mt-4 flex flex-col gap-2">
-          <Button className="h-11 rounded-none bg-amber-500 text-black hover:bg-amber-400" disabled={busy} onClick={() => onResolve(true)}>
+          <Button className="h-11 rounded-arena bg-amber-500 text-black hover:bg-amber-400" disabled={busy} onClick={() => onResolve(true)}>
             Ativar efeito
           </Button>
-          <Button variant="outline" className="h-11 rounded-none" disabled={busy} onClick={() => onResolve(false)}>
+          <Button variant="outline" className="h-11 rounded-arena" disabled={busy} onClick={() => onResolve(false)}>
             Enviar ao descarte
           </Button>
         </div>

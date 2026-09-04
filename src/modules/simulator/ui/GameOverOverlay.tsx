@@ -30,11 +30,11 @@ export function GameOverOverlay({ won, reason, redirectSeconds, onLeave }: GameO
             won ? "text-emerald-400" : "text-red-400",
           )}
         >
-          {won ? "Você Venceu" : "Você Perdeu"}
+          {won ? "Você venceu" : "Você perdeu"}
         </p>
         <p className="text-sm text-muted-portal sm:text-base">{gameOverReasonLabel(reason, won)}</p>
         <Button
-          className="mt-3 rounded-none bg-primary px-6 text-primary-foreground hover:bg-primary/90"
+          className="mt-3 rounded-arena bg-primary px-6 text-primary-foreground hover:bg-primary/90"
           onClick={onLeave}
         >
           Voltar ao lobby{redirectSeconds !== null ? ` (${redirectSeconds}s)` : ""}

@@ -5,8 +5,11 @@ tokens em `src/index.css` — este arquivo **aponta** pra ele, não redefine nad
 
 ## Marca / personalidade
 
-HUD tático de cockpit mecha ("nível arena"). Denso, legível, sem enfeite. Cantos retos
-(`rounded-none`). Superfícies escuras com acento ciano; dourado só para destaque
+HUD tático de cockpit mecha ("nível arena"). Denso, legível, sem enfeite. **Raio
+sutil** nas peças pequenas — `rounded-arena` (`--radius-arena: 3px`) em slots, cards,
+chips, botões de canto, barras; painéis grandes seguem no chanfro `.panel-cut`
+(Sprint B/polimento visual, 2026-09-04 — antes era `rounded-none` puro). Superfícies
+escuras com acento ciano; dourado só para destaque
 pontual. Referências de HUD/HUB: **Master Duel** (canto de ação único, LP sempre
 visível), **Mobile Suit Arena** (barra de comando inferior, estética mecha densa),
 **Hearthstone** (corda de fim de turno, cartas que sobem, mana sempre visível).
@@ -29,13 +32,16 @@ Blue `#3b82f6` · Green `#22c55e` · Red `#ef4444` · Purple `#a855f7` · White 
 ## Tipografia
 
 Herança do portal (`font-heading` / `font-body` / `heading-portal` / `text-soft` /
-`text-muted-portal`). **Não introduzir face nova.**
+`text-muted-portal`). Números da arena (AP/HP, custo, contadores, timer) na variante
+mono da mesma família: `font-mono` → `--font-mono: "IBM Plex Mono"` (Sprint B, 2026-09-04).
+**Não introduzir face fora dessa família.**
 
 ## Grid do board (decisão do plano visual)
 
 Um grid, 5 faixas: HUD / frente-oponente / battle-oponente / **SEAM** / battle-você /
 recursos+shields / mão + ActionDock. Battle Areas dividem `1fr 1fr`. O board **NUNCA
-rola**. Variável única `--card: clamp(2.75rem, 7.5vw, 6.5rem)`, `aspect-ratio: 63/88`.
+rola**. Variável única `--card-w: clamp(3.5rem, 6.5vw, 6.2rem)` (renomeada de `--card`
+na Sprint B — `--card` é token de cor), `aspect-ratio: 63/88`.
 Largura-teto do board `1400px`, centrado.
 
 ## Estados obrigatórios por tela (`rules/ux-design/DESIGN_PROCESS.md`)
@@ -48,9 +54,9 @@ sem Base, EX Resource no índice 0).
 | Faixa | Largura | Tratamento |
 |-------|---------|------------|
 | XS | `<430px` | retrato compacto (Fase E) |
-| S | `430–820px` | grid completo, `--card` no piso |
-| M | `820–1200px` | grid completo, `--card` médio |
-| L | `1200–1700px` | `--card` alto, board com largura-teto, log fixo lateral |
+| S | `430–820px` | grid completo, `--card-w` no piso |
+| M | `820–1200px` | grid completo, `--card-w` médio |
+| L | `1200–1700px` | `--card-w` alto, board com largura-teto, log fixo lateral |
 | XL | `>1700px` | board centrado, laterais viram log + inspetor fixado |
 
 ## AI Asset Generation

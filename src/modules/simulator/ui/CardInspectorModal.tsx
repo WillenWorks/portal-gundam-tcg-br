@@ -67,7 +67,7 @@ export function CardInspectorModal({
             pra recortar no aspect-ratio). O botão da gaveta mora AQUI, fora do
             recorte, senão o `translate-x-full` cai no clip e some. */}
         <div className="relative shrink-0">
-          <div className="panel-cut relative h-[78vh] max-h-[80vh] overflow-hidden border border-white/15 bg-black/70 aspect-[63/88]">
+          <div className="panel-cut relative h-[78vh] max-h-[80vh] overflow-hidden border border-white/10 bg-black/70 aspect-[63/88]">
             {src ? (
               <img src={src} alt={def.nameEn} className="h-full w-full object-cover" />
             ) : (
@@ -106,7 +106,7 @@ export function CardInspectorModal({
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
-            aria-label={drawerOpen ? "Fechar telemetria" : "Abrir telemetria"}
+            aria-label={drawerOpen ? "Fechar detalhes" : "Abrir detalhes"}
             aria-expanded={drawerOpen}
             className="absolute right-0 top-1/2 z-20 flex h-16 w-6 -translate-y-1/2 translate-x-full items-center justify-center border border-l-0 border-primary/40 bg-slate-950/95 text-primary transition-colors hover:bg-slate-900 motion-reduce:transition-none"
           >
@@ -195,7 +195,7 @@ function PilotLinkChip({ pilot }: { pilot: LinkedPilot }) {
   const src = pilot.art?.imageUrl ?? pilot.art?.imageSmallUrl;
   return (
     <span className="group/pl relative inline-flex items-center gap-1 border border-amber-400/50 bg-amber-500/15 px-1 text-[10px] font-semibold text-amber-100">
-      <span tabIndex={0} className="rounded-none outline-none focus-visible:ring-1 focus-visible:ring-amber-300">
+      <span tabIndex={0} className="rounded-arena outline-none focus-visible:ring-1 focus-visible:ring-amber-300">
         {pilot.name}
       </span>
       {pilot.note ? (

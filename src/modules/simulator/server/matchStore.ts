@@ -321,7 +321,7 @@ export function joinMatch(matchId: string, seat: PlayerId, player: MatchSeat): M
 
   const otherSeat: PlayerId = seat === "A" ? "B" : "A";
   if (match.seats[otherSeat]?.userId === player.userId) {
-    throw new MatchError("Esse usuário já ocupa o assento oposto nesta partida — use 2 contas diferentes.", 409);
+    throw new MatchError("Você já está nesta partida por outro acesso. Uma partida remota precisa de dois jogadores diferentes.", 409);
   }
 
   match.seats[seat] = player;

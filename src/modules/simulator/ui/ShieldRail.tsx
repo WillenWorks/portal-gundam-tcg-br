@@ -47,7 +47,7 @@ export function ShieldRail({
       aria-label={label}
       title={label}
       className={cn(
-        "rounded-none",
+        "rounded-arena",
         vertical ? "flex flex-col items-center" : "flex items-center gap-0.5",
         justBroken && "ring-1 ring-red-500/60",
       )}
@@ -56,19 +56,19 @@ export function ShieldRail({
         const full = i < count;
         const selected = selectedIndexes.includes(i);
         const pickable = Boolean(selectable && full && onSelectIndex);
-        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card,3.5rem)*0.62)]" : undefined;
+        const cascade = vertical && i > 0 ? "-mt-[calc(var(--card-w,3.5rem)*0.62)]" : undefined;
 
         const piece = vertical ? (
           <span
             className={cn(
-              "relative block aspect-[63/88] w-[calc(var(--card,3.5rem)*0.62)] overflow-hidden border transition-colors duration-100 motion-reduce:transition-none",
+              "relative block aspect-[63/88] w-[calc(var(--card-w,3.5rem)*0.62)] overflow-hidden border transition-colors duration-100 motion-reduce:transition-none",
               full
                 ? selected
                   ? "border-emerald-400"
                   : low
                     ? "border-red-500/70"
                     : "border-primary/60"
-                : "border-dashed border-white/12",
+                : "border-dashed border-white/10",
             )}
           >
             {full ? (
@@ -89,7 +89,7 @@ export function ShieldRail({
                   : low
                     ? "border-red-500/70 text-red-400"
                     : "border-primary/50 text-primary"
-                : "border-dashed border-white/15 text-transparent",
+                : "border-dashed border-white/10 text-transparent",
             )}
           >
             <Shield className="size-2.5" aria-hidden fill={full ? "currentColor" : "none"} />
@@ -104,7 +104,7 @@ export function ShieldRail({
             aria-pressed={selected}
             aria-label={`Shield ${i + 1}`}
             className={cn(
-              "relative flex items-center justify-center rounded-none hover:brightness-125",
+              "relative flex items-center justify-center rounded-arena hover:brightness-125",
               vertical ? "min-h-11 w-full" : "size-11",
               cascade,
             )}

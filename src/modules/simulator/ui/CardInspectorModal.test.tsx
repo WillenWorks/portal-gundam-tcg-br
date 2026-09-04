@@ -36,7 +36,7 @@ describe("CardInspectorModal", () => {
 
   it("o botão da gaveta NÃO fica sob nenhum ancestral com overflow-hidden (Sprint 6 · P4)", () => {
     render(<CardInspectorModal card={card({ nameEn: "Zaku", cardType: "UNIT" })} art={{}} onClose={vi.fn()} />);
-    const btn = screen.getByRole("button", { name: "Abrir telemetria" });
+    const btn = screen.getByRole("button", { name: "Abrir detalhes" });
     const root = btn.closest(".fixed")!;
     let el: HTMLElement | null = btn.parentElement;
     while (el && el !== root) {
@@ -56,12 +56,12 @@ describe("CardInspectorModal", () => {
     );
     // fechada
     expect(screen.queryByText("Custo")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Abrir telemetria" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
     expect(screen.getByText("Custo")).toBeInTheDocument();
     expect(screen.getByText("Nível")).toBeInTheDocument();
     expect(screen.getByText(/Zeon/)).toBeInTheDocument();
     expect(screen.getByText("Ao entrar: compre 1 carta.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Fechar telemetria" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar detalhes" }));
     expect(screen.queryByText("Custo")).toBeNull();
   });
 

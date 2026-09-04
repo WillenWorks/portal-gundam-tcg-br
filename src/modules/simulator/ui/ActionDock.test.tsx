@@ -118,12 +118,12 @@ describe("ActionDock — texto e botões por kind", () => {
 
   it("actionStep mostra escopo, Passar e o toggle de auto-pass", () => {
     const combat = html({ kind: "actionStep", scope: "combat", autoPass: false });
-    expect(combat).toContain("Action Step (combate)");
+    expect(combat).toContain("Passo de Ação (combate)");
     expect(combat).toContain("Passar");
     expect(combat).toContain("auto-pass: desligado");
 
     const endPhase = html({ kind: "actionStep", scope: "endPhase", autoPass: true });
-    expect(endPhase).toContain("Action Step (fim de turno)");
+    expect(endPhase).toContain("Passo de Ação (fim de turno)");
     expect(endPhase).toContain("auto-pass: LIGADO");
   });
 
@@ -141,7 +141,7 @@ describe("ActionDock — texto e botões por kind", () => {
 
   it("gameOver (vitória) destaca e mostra a contagem de redirecionamento", () => {
     const out = html({ kind: "gameOver", won: true, reasonLabel: "Deck-out do oponente", redirectSeconds: 5 });
-    expect(out).toContain("Você venceu!");
+    expect(out).toContain("Você venceu");
     expect(out).toContain("Deck-out do oponente");
     expect(out).toContain("Voltar ao site (5s)");
   });
