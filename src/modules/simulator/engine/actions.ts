@@ -5,6 +5,7 @@ import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
+import { deferOrDispatchAbilities } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { hasKeyword, otherPlayer } from "./types";
 
@@ -73,11 +74,28 @@ export type PlayerAction =
    * `targets.target[0]`). `abilityIndex` reservado pra cartas com mais de
    * uma habilidade ativada (nenhuma de ST01/ST02 tem — default 0).
    */
-  | { kind: "activateAbility"; sourceInstanceId: string; abilityIndex?: number; targets?: Record<string, string[]> }
+  | {
+      kind: "activateAbility";
+      sourceInstanceId: string;
+      abilityIndex?: number;
+      targets?: Record<string, string[]>;
+      /** recursos escolhidos pra pagar o custo `④`/`②` da habilidade (evita gastar o EX Resource). */
+      resourceInstanceIds?: string[];
+    }
   /** Resolve a `PendingDecision` de 【Burst】 do defensor (ver `passAction`). `activate: false` = manda a shield pro trash. */
   | { kind: "resolveBurstDecision"; activate: boolean; targets?: Record<string, string[]> }
   /** Resolve a `PendingDecision` de ordenação de gatilhos simultâneos (ordem em que os efeitos resolvem). */
-  | { kind: "resolveTriggerOrder"; orderedSpecIds: string[] };
+  | { kind: "resolveTriggerOrder"; orderedSpecIds: string[] }
+  /**
+   * Resolve a `PendingDecision.abilityResolution` (gatilhos de 【When Paired】 /
+   * 【Attack】 / … resolvidos num momento separado). A ORDEM do array é a ordem
+   * escolhida pelo jogador. `activate: false` pula um efeito `optional`.
+   * `targetIds` alimenta `ctx.targets.target`.
+   */
+  | {
+      kind: "resolveAbility";
+      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>;
+    };
 
 /**
  * Aplica uma `PlayerAction` declarada por `actingPlayer`. Lança erro (motivo
@@ -105,6 +123,9 @@ export function applyPlayerAction(
     if (myPending.kind === "triggerOrder" && action.kind !== "resolveTriggerOrder") {
       throw new Error("Ordene os gatilhos simultâneos pendentes antes de qualquer outra ação");
     }
+    if (myPending.kind === "abilityResolution" && action.kind !== "resolveAbility") {
+      throw new Error("Resolva o efeito de habilidade pendente antes de qualquer outra ação");
+    }
   }
 
   switch (action.kind) {
@@ -129,8 +150,25 @@ export function applyPlayerAction(
       if (attacker.owner !== actingPlayer) {
         throw new Error("Só é possível declarar ataque com uma Unit própria");
       }
+      let next = declareAttack(state, action.attackerId, action.target);
+      // 【Attack】 do atacante + do Piloto pareado (a habilidade do Pilot dispara
+      // quando a Unit pareada ataca). Pausa se optativo/precisa de alvo (ex.:
+      // ST01-011 Suletta — "Choose 1 of your Resources. Set it as active.").
+      const pilotId = attacker.pairedPilotId;
+      next = deferOrDispatchAbilities(
+        next,
+        actingPlayer,
+        "Attack",
+        [
+          { code: attacker.def.code, instanceId: action.attackerId },
+          ...(pilotId ? [{ code: findCard(next, pilotId).def.code, instanceId: pilotId }] : []),
+        ],
+        specs,
+        { predicateResolver },
+      );
+      if (next.pendingDecision[actingPlayer]) return next; // pausou pra escolher (segue no resolveAbility)
       // Attack Step -> Block Step não é decisão de ninguém, é avanço automático.
-      return proceedToBlockStep(declareAttack(state, action.attackerId, action.target));
+      return proceedToBlockStep(next);
     }
 
     case "activateBlocker": {
@@ -210,6 +248,7 @@ export function applyPlayerAction(
       if (abilitySpecs.length > 0) {
         return dispatchTrigger(state, action.sourceInstanceId, trigger, specs, {
           targets: action.targets,
+          costResourceIds: action.resourceInstanceIds,
           predicateResolver,
         });
       }
@@ -264,6 +303,34 @@ export function applyPlayerAction(
         next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
           predicateResolver,
         });
+      }
+      return next;
+    }
+
+    case "resolveAbility": {
+      const decision = state.pendingDecision[actingPlayer];
+      if (!decision || decision.kind !== "abilityResolution") {
+        throw new Error("Não há efeito de habilidade pendente pra resolver");
+      }
+      const queueIds = [...decision.queue.map((q) => q.specId)].sort();
+      const givenIds = [...action.resolutions.map((r) => r.specId)].sort();
+      if (queueIds.length !== givenIds.length || queueIds.some((id, i) => id !== givenIds[i])) {
+        throw new Error("As resoluções precisam listar exatamente os efeitos pendentes");
+      }
+      let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
+      for (const r of action.resolutions) {
+        const q = decision.queue.find((x) => x.specId === r.specId)!;
+        // pulado, ou "Choose 1 ..." sem alvo legal disponível = nada acontece (regra oficial).
+        if (!r.activate || (q.needsTarget && r.targetIds.length === 0)) continue;
+        next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
+          targets: { target: r.targetIds, shield: r.targetIds },
+          predicateResolver,
+        });
+      }
+      // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
+      if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {
+        return proceedToBlockStep(next);
       }
       return next;
     }

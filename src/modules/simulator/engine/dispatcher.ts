@@ -22,6 +22,8 @@ export interface DispatchOptions {
   /** grupos de alvo já resolvidos (por quem chama — UI/IA/roteiro de teste), repassados pro EffectContext */
   targets?: Record<string, string[]>;
   predicateResolver?: PredicateResolver;
+  /** recursos escolhidos pra pagar `payResourceCost` da habilidade (ver EffectContext.costResourceIds). */
+  costResourceIds?: string[];
 }
 
 /** Acha os EffectSpec de uma carta pra um trigger específico (ex.: "Deploy", "Burst", "Attack"). */
@@ -60,6 +62,7 @@ export function dispatchTrigger(
       sourceInstanceId,
       turnNumber: next.turnNumber,
       targets: opts.targets ?? {},
+      costResourceIds: opts.costResourceIds,
     };
     const events = resolveEffectSpec(spec, ctx, opts.predicateResolver);
     next = applyEvents(next, events);

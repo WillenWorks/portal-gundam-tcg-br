@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, Shield, Sparkles, Swords, Zap } from "lucide-react";
 
 export type ActionDockState =
-  | { kind: "idle"; yourTurn: boolean; phaseLabel: string; timerSeconds: number | null }
+  | { kind: "idle"; yourTurn: boolean; phaseLabel: string; timerSeconds: number | null; turnNumber?: number }
   | {
       kind: "pending";
       verb: string;
@@ -23,7 +23,7 @@ export type ActionDockState =
     }
   | { kind: "attacking"; attackerName: string }
   | { kind: "defending" }
-  | { kind: "actionStep"; scope: "combat" | "endPhase"; autoPass: boolean }
+  | { kind: "actionStep"; scope: "combat" | "endPhase"; autoPass: boolean; hasPlay?: boolean }
   | { kind: "oppDecision"; label: string }
   | { kind: "abandonAvailable"; idleSeconds: number }
   | { kind: "gameOver"; won: boolean; reasonLabel: string; redirectSeconds: number | null };
@@ -97,11 +97,14 @@ export function ActionDock({
               <p className={cn("truncate text-sm font-black uppercase tracking-wide", state.yourTurn ? "text-primary" : "text-muted-portal")}>
                 {state.yourTurn ? `Sua vez · ${state.phaseLabel}` : "Vez do oponente"}
               </p>
-              {state.timerSeconds !== null ? (
-                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-portal">
-                  <Clock className="size-3" /> {state.timerSeconds}s
-                </p>
-              ) : null}
+              <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-portal">
+                {state.turnNumber !== undefined ? <span>Turno {state.turnNumber}</span> : null}
+                {state.timerSeconds !== null ? (
+                  <span className="flex items-center gap-1">
+                    <Clock className="size-3" /> {state.timerSeconds}s
+                  </span>
+                ) : null}
+              </p>
             </div>
             {state.yourTurn ? (
               <Button
@@ -184,21 +187,28 @@ export function ActionDock({
           </div>
         );
 
-      case "actionStep":
+      case "actionStep": {
+        const nothingToDo = state.hasPlay === false;
         return (
           <div className="flex flex-col gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
-              <Zap className="size-3.5 shrink-0" /> Action Step ({SCOPE_LABEL[state.scope]}) — só Command 【Action】
+              <Zap className="size-3.5 shrink-0" /> Action Step ({SCOPE_LABEL[state.scope]}) —{" "}
+              {nothingToDo ? "nada a jogar agora" : "só Command 【Action】"}
             </p>
             <div className="flex items-center gap-3">
               <Button
                 size="sm"
-                variant="outline"
-                className="rounded-none border-amber-500/60 text-amber-300 hover:bg-amber-500/15"
+                variant={nothingToDo ? "default" : "outline"}
+                className={cn(
+                  "rounded-none",
+                  nothingToDo
+                    ? "bg-amber-500 text-black hover:bg-amber-400"
+                    : "border-amber-500/60 text-amber-300 hover:bg-amber-500/15",
+                )}
                 disabled={busy}
                 onClick={onPass}
               >
-                Passar
+                {nothingToDo ? "Passar (nada a fazer)" : "Passar"}
               </Button>
               <button
                 type="button"
@@ -210,6 +220,7 @@ export function ActionDock({
             </div>
           </div>
         );
+      }
 
       case "oppDecision":
         return (

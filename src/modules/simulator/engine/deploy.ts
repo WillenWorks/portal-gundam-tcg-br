@@ -2,6 +2,7 @@ import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
+import { deferOrDispatchAbilities } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -122,9 +123,19 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   if (specs.length > 0) {
     next = dispatchTrigger(next, cardInstanceId, "Deploy", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
     if (playAsPilot && options.pairWithUnitId) {
-      // 【When Paired】 pode estar na Unit ou no Pilot (ST01-002 vs ST01-010) — dispara os dois lados.
-      next = dispatchTrigger(next, options.pairWithUnitId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
-      next = dispatchTrigger(next, cardInstanceId, "When Paired", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
+      // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) resolvido num
+      // momento SEPARADO da escolha da Unit — pausa se optativo/precisa de alvo.
+      next = deferOrDispatchAbilities(
+        next,
+        player,
+        "When Paired",
+        [
+          { code: findCard(next, options.pairWithUnitId).def.code, instanceId: options.pairWithUnitId },
+          { code: def.code, instanceId: cardInstanceId },
+        ],
+        specs,
+        { targets: options.targets, predicateResolver: options.predicateResolver },
+      );
     }
   }
 

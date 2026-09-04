@@ -1,9 +1,14 @@
-/* docs/19, Sessão 3 — a "cara" de uma carta (arte real com fallback
- * tipográfico) e o verso genérico. Usados por todos os componentes de
- * tabuleiro e pelos modais. */
+/* docs/19, Sessão 3 — a "cara" de uma carta (arte real com fallback) e o verso
+ * genérico. Usados por todos os componentes de tabuleiro e pelos modais.
+ *
+ * Sprint 6 (verso padrão) — `src/assets/gundam-card-back.png` é a arte do verso.
+ * Aparece pra qualquer carta virada pra baixo (`CardBack`) e como fallback de
+ * `CardFace` quando `backFallback` está ligado (recursos, EX base/resource e
+ * tokens — cartas "genéricas" enquanto só temos ST01/ST02; decks reais trazem a
+ * arte escolhida em `art[code]`). */
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { artSrc, CARD_FACE_WIDTH, type ArtLookup, type CardFaceSize } from "./cardArt";
+import { artSrc, cardBackUrl, CARD_FACE_WIDTH, type ArtLookup, type CardFaceSize } from "./cardArt";
 
 interface CardFaceProps {
   nameEn: string;
@@ -14,10 +19,12 @@ interface CardFaceProps {
   style?: CSSProperties;
   children?: ReactNode;
   dimmed?: boolean;
+  /** sem arte real: usa o verso padrão em vez do fallback tipográfico. */
+  backFallback?: boolean;
 }
 
-export function CardFace({ nameEn, code, art, size = "md", className, style, children, dimmed }: CardFaceProps) {
-  const src = artSrc(art, code, size);
+export function CardFace({ nameEn, code, art, size = "md", className, style, children, dimmed, backFallback }: CardFaceProps) {
+  const src = artSrc(art, code, size) ?? (backFallback ? cardBackUrl : undefined);
   return (
     <div className={cn("relative shrink-0 overflow-hidden", CARD_FACE_WIDTH[size], className)} style={style}>
       <div className={cn("aspect-[63/88] w-full bg-black/50", dimmed && "grayscale")}>
@@ -43,9 +50,7 @@ export function CardFace({ nameEn, code, art, size = "md", className, style, chi
 export function CardBack({ size = "sm", className, label }: { size?: CardFaceSize; className?: string; label?: string }) {
   return (
     <div className={cn("relative shrink-0 overflow-hidden", CARD_FACE_WIDTH[size], className)}>
-      <div className="flex aspect-[63/88] w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-black">
-        <div className="size-1/2 rounded-full border border-primary/20 bg-primary/5" />
-      </div>
+      <img src={cardBackUrl} alt="Verso da carta" loading="lazy" className="aspect-[63/88] w-full object-cover" />
       {label ? (
         <span className="absolute inset-x-0 bottom-0 bg-black/70 py-0.5 text-center text-[8px] font-bold text-slate-300">{label}</span>
       ) : null}

@@ -130,6 +130,14 @@ export interface EffectContext {
   turnNumber: number;
   /** grupos de alvo já resolvidos (por seletor externo) antes de rodar o efeito */
   targets: Record<string, string[]>;
+  /**
+   * Recursos escolhidos pelo jogador pra pagar `payResourceCost` de uma
+   * habilidade ativada (`activateAbility`) — evita o motor pegar os N primeiros
+   * active (que inclui o EX Resource, sempre no índice 0). `undefined` =
+   * comportamento antigo (auto-pick). O `resourceInstanceIds` da própria
+   * primitiva (raro) ainda tem prioridade.
+   */
+  costResourceIds?: string[];
 }
 
 /**
@@ -202,7 +210,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "payResourceCost": {
       const player = resolvePlayerRef(call.player, ctx.controller);
-      return payResourceCostEvents(ctx.state, player, call.n, call.resourceInstanceIds);
+      return payResourceCostEvents(ctx.state, player, call.n, call.resourceInstanceIds ?? ctx.costResourceIds);
     }
     case "spawnToken": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -281,6 +289,31 @@ export interface EffectSpec {
   actions: PrimitiveCall[];
   /** effectEn da seção correspondente — nunca effectPt (ver docs/18, cobertura de idioma) */
   sourceText: string;
+  /**
+   * `true` quando o texto oficial diz "You may ..." (o jogador escolhe ativar
+   * ou pular). Default `false` = mandatório (resolve, ou não faz nada se não há
+   * alvo legal). Nenhum efeito de ST01/ST02 é opcional.
+   */
+  optional?: boolean;
+  /**
+   * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
+   * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
+   */
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit";
+}
+
+/**
+ * `true` se algum `PrimitiveCall` do spec (em `actions`, `condition.then` ou
+ * `condition.else`) consome o alvo nomeado `"target"` (`ctx.targets.target`).
+ * Usado pra decidir se um gatilho precisa de interação do jogador.
+ */
+export function specNeedsNamedTarget(spec: EffectSpec): boolean {
+  const uses = (calls: PrimitiveCall[] | undefined) =>
+    (calls ?? []).some((call) => {
+      const target = (call as { target?: { kind?: string; name?: string } }).target;
+      return target?.kind === "named" && target.name === "target";
+    });
+  return uses(spec.actions) || uses(spec.condition?.then) || uses(spec.condition?.else);
 }
 
 export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolvePredicate?: PredicateResolver): GameEvent[] {

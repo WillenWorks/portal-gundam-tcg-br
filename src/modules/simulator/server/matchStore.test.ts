@@ -6,6 +6,8 @@ import {
   applyAction,
   claimAbandonWin,
   createMatch,
+  decisionOwner,
+  defaultActionFor,
   deleteMatch,
   getMatch,
   joinMatch,
@@ -21,6 +23,9 @@ import {
   subscribe,
   touchPresence,
 } from "./matchStore";
+import { applyPlayerAction } from "../engine/actions";
+import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
+import type { GameState } from "../engine/types";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -207,6 +212,35 @@ describe("fila de matchmaking (joinQueue / queueStatusFor / leaveQueue)", () => 
     const reconnect = joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
     expect(reconnect).toEqual({ queued: false, matched: true, matchId: second.matchId, seat: "A" });
   });
+
+  it("depois que a partida acaba, queueStatusFor NÃO reconecta na partida velha — mesmo com o pendingMatches do pareamento ainda lá", () => {
+    joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    const paired = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(paired.matched).toBe(true);
+    // sanity: o polling do sandbox pegaria a partida agora
+    expect(queueStatusFor("user-1").matchId).toBe(paired.matchId);
+
+    // user-1 desiste -> fim de jogo (desistência, user-2 vence)
+    resignMatch(paired.matchId!, "user-1");
+
+    // ao voltar pro /simulador, os dois devem cair no lobby, não na partida terminada
+    expect(queueStatusFor("user-1")).toEqual({ queued: false, matched: false });
+    expect(queueStatusFor("user-2")).toEqual({ queued: false, matched: false });
+  });
+
+  it("deleteMatch limpa o pendingMatches do pareamento — quem reentra na fila não reconecta na partida sumida", () => {
+    joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() });
+    const paired = joinQueue({ userId: "user-2", displayName: "Convidado", deckKey: "ST02", deckList: buildSt02DeckList() });
+    expect(paired.matched).toBe(true);
+
+    deleteMatch(paired.matchId!);
+
+    // sem o sweep de pendingMatches no deleteMatch, isso reconectaria numa partida que não existe mais
+    expect(joinQueue({ userId: "user-1", displayName: "Willen", deckKey: "ST01", deckList: buildSt01DeckList() })).toEqual({
+      queued: true,
+      matched: false,
+    });
+  });
 });
 
 describe("timer de turno (90s por decisão, passa automático)", () => {
@@ -274,6 +308,43 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
   });
 });
 
+describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (regressão P0)", () => {
+  function stateWithWhenPaired(optional: boolean): GameState {
+    const match = newMatch();
+    const state = match.state;
+    state.pendingDecision.A = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "x",
+          specId: "SPEC-1",
+          label: "Choose 1 enemy Unit. Rest it.",
+          optional,
+          needsTarget: true,
+          targetScope: "enemyUnit",
+        },
+      ],
+    };
+    return state;
+  }
+
+  it("com whenPaired pendente: dono da decisão = A, ação-padrão = resolveAbility (não finishTurn)", () => {
+    const state = stateWithWhenPaired(false);
+    expect(decisionOwner(state)).toBe("A");
+    const action = defaultActionFor(state);
+    expect(action.kind).toBe("resolveAbility");
+    // mandatório sem alvo escolhido -> targetIds: [] -> "nada acontece" (não lança)
+    const next = applyPlayerAction(state, "A", action, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("efeito optativo AFK: ação-padrão pula (activate: false)", () => {
+    const action = defaultActionFor(stateWithWhenPaired(true));
+    expect(action.kind === "resolveAbility" && action.resolutions[0].activate).toBe(false);
+  });
+});
+
 describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente)", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -318,14 +389,57 @@ describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente
   });
 });
 
+describe("auto-forfeit por AFK prolongado (P4 — o jogo não roda ininterrupto)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("5min sem sinal de vida de quem precisa decidir → GAME_OVER por abandono, timer parado", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    // O servidor joga a ação-padrão sozinho por alguns ciclos de 90s, mas
+    // ninguém dá ping/ação — passados 5min, encerra em vez de seguir pra sempre.
+    for (let i = 0; i < 4; i++) vi.advanceTimersByTime(90_000);
+
+    const after = getMatch(match.id)!;
+    expect(after.state.gameOver?.reason).toBe("abandonment");
+    expect(after.turnDeadlineAt).toBeNull();
+    const versionAtEnd = after.version;
+
+    // nada mais acontece: sem timer vivo, a versão congela.
+    vi.advanceTimersByTime(10 * 90_000);
+    expect(getMatch(match.id)?.version).toBe(versionAtEnd);
+  });
+
+  it("ping recente do assento AFK adia o auto-forfeit (o jogador ainda está lá)", () => {
+    vi.useFakeTimers();
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    // A cada ~1min os dois lados mandam ping (aba aberta) por 12min de relógio.
+    for (let i = 0; i < 12; i++) {
+      vi.advanceTimersByTime(60_000);
+      touchPresence(match.id, "user-1");
+      touchPresence(match.id, "user-2");
+    }
+
+    // ninguém jogou de verdade, mas ambos deram sinal de vida → partida segue viva.
+    expect(getMatch(match.id)?.state.gameOver).toBeNull();
+  });
+});
+
 describe("resignMatch (Sair da partida = desistência imediata)", () => {
-  it("concede a vitória ao oponente por abandono, na hora, sem espera", () => {
+  it("concede a vitória ao oponente por desistência (reason: resignation), na hora, sem espera", () => {
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
     const after = resignMatch(match.id, "user-1"); // A sai
-    expect(after.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
+    expect(after.state.gameOver).toEqual({ winner: "B", reason: "resignation" });
   });
 
   it("a partida encerrada some de activeMatchForUser / queueStatusFor (não puxa o jogador de volta)", () => {
@@ -339,17 +453,50 @@ describe("resignMatch (Sair da partida = desistência imediata)", () => {
     expect(queueStatusFor("user-2")).toEqual({ queued: false, matched: false });
   });
 
-  it("no-op se a partida já acabou; 403 pra quem não é jogador; 409 se não há oponente", () => {
+  it("403 pra quem não é jogador", () => {
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
-
-    expect(() => resignMatch(match.id, "user-1")).toThrow(/oponente/); // B nunca entrou
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
     expect(() => resignMatch(match.id, "estranho")).toThrow(MatchError);
+    try {
+      resignMatch(match.id, "estranho");
+    } catch (err) {
+      expect((err as MatchError).status).toBe(403);
+    }
+  });
 
+  it("sem oponente: descarta a partida (não lança 409, não deixa zumbi)", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    expect(() => resignMatch(match.id, "user-1")).not.toThrow();
+    expect(getMatch(match.id)).toBeUndefined();
+  });
+
+  it("no-op se a partida já acabou (sem lançar)", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
     resignMatch(match.id, "user-1");
-    const again = resignMatch(match.id, "user-2"); // já acabou -> no-op, sem lançar
-    expect(again.state.gameOver).toEqual({ winner: "B", reason: "abandonment" });
+    const again = resignMatch(match.id, "user-2"); // já acabou -> no-op
+    expect(again.state.gameOver).toEqual({ winner: "B", reason: "resignation" });
+  });
+
+  it("registra o fim de jogo no log uma única vez (vencedor / perdedor / motivo)", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+      resignMatch(match.id, "user-1");
+
+      const logged = info.mock.calls.map((c) => String(c[0])).filter((s) => s.includes("[GAME-OVER]"));
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toContain("winner=B(Convidado)");
+      expect(logged[0]).toContain("loser=A(Willen)");
+      expect(logged[0]).toContain("reason=resignation");
+    } finally {
+      info.mockRestore();
+    }
   });
 });
 

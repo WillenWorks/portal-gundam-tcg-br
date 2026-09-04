@@ -400,6 +400,28 @@ export type PendingDecision =
       specId: string;
       validTargetIds: string[];
       count: number;
+    }
+  | {
+      /**
+       * Gatilho(s) de habilidade resolvidos num momento SEPARADO da ação que os
+       * disparou (【When Paired】 ao parear Piloto, 【Attack】 ao declarar ataque,
+       * …). A fila pode ter mais de 1 efeito simultâneo (When Paired da Unit +
+       * do Piloto): o jogador escolhe a ORDEM (não é cadeia, é ordenação de
+       * eventos) e, pra efeito `optional`, se ativa ou pula. `needsTarget` = o
+       * efeito consome `ctx.targets.target`; `targetScope` diz o que o alvo pode
+       * ser (a UI monta a lista).
+       */
+      kind: "abilityResolution";
+      trigger: string;
+      queue: Array<{
+        sourceInstanceId: string;
+        specId: string;
+        /** `sourceText` do EffectSpec — texto pra UI. */
+        label: string;
+        optional: boolean;
+        needsTarget: boolean;
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
+      }>;
     };
 
 export interface CombatState {
@@ -459,15 +481,16 @@ export interface PlayerState {
 export interface GameOverInfo {
   winner: PlayerId;
   /**
-   * "abandonment" nunca é produzida pelo motor puro — só existe porque o
-   * servidor (matchStore.ts, passo 4 do docs/18) precisa encerrar uma
-   * partida por um motivo que não é regra de jogo (W.O. por 3min sem
-   * atividade do oponente). Mantida aqui, não num tipo à parte no servidor,
-   * porque `GameOverInfo` já é o único formato de "fim de jogo" que
-   * `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
+   * "abandonment" e "resignation" nunca são produzidas pelo motor puro — só
+   * existem porque o servidor (matchStore.ts, passo 4 do docs/18) precisa
+   * encerrar uma partida por um motivo que não é regra de jogo: "resignation"
+   * = o jogador clicou "Desistir"; "abandonment" = W.O. por inatividade
+   * (botão do oponente ou auto-forfeit AFK). Mantidas aqui, não num tipo à
+   * parte no servidor, porque `GameOverInfo` já é o único formato de "fim de
+   * jogo" que `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
    * duplicaria a renderização de fim de jogo no cliente sem necessidade.
    */
-  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment";
+  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation";
 }
 
 export interface GameState {

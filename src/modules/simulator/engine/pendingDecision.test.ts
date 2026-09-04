@@ -114,6 +114,52 @@ describe("Pausa autoritativa de 【Burst】 (docs/19, Sessão 2)", () => {
   });
 });
 
+describe("【Attack】 (Suletta ST01-011) — dispara ao declarar ataque, PAUSA pra escolher o recurso", () => {
+  function freshSt01(): GameState {
+    return advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+  }
+
+  it("declarar ataque com Unit + Suletta pareada pausa em abilityResolution(trigger 'Attack')", () => {
+    const state = freshSt01();
+    state.players.B.baseSection = [];
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const sulettaId = place(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY, "battleArea", { pairedUnitId: unitId });
+    findCard(state, unitId).pairedPilotId = sulettaId;
+    const restedResourceId = place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea", { rested: true });
+
+    const next = apply(state, "A", { kind: "declareAttack", attackerId: unitId, target: "player" });
+
+    const decision = next.pendingDecision.A;
+    expect(decision?.kind).toBe("abilityResolution");
+    expect(decision?.kind === "abilityResolution" && decision.trigger).toBe("Attack");
+    expect(decision?.kind === "abilityResolution" && decision.queue[0]).toEqual(
+      expect.objectContaining({ specId: "ST01-011-Attack", targetScope: "ownResource", needsTarget: true }),
+    );
+    // combate está parado no Attack Step; o recurso ainda está gasto
+    expect(next.combat?.step).toBe("attack");
+    expect(findCard(next, restedResourceId).rested).toBe(true);
+  });
+
+  it("resolveAbility com o recurso escolhido: reativa o recurso e o combate segue pro Block Step", () => {
+    const state = freshSt01();
+    state.players.B.baseSection = [];
+    const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
+    const sulettaId = place(state, "A", ST01_CARD_DEFS.SULETTA_MERCURY, "battleArea", { pairedUnitId: unitId });
+    findCard(state, unitId).pairedPilotId = sulettaId;
+    const restedResourceId = place(state, "A", ST01_CARD_DEFS.RESOURCE, "resourceArea", { rested: true });
+    const paused = apply(state, "A", { kind: "declareAttack", attackerId: unitId, target: "player" });
+
+    const next = apply(paused, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "ST01-011-Attack", activate: true, targetIds: [restedResourceId] }],
+    });
+
+    expect(findCard(next, restedResourceId).rested).toBe(false);
+    expect(next.pendingDecision.A).toBeNull();
+    expect(next.combat?.step).toBe("block");
+  });
+});
+
 describe("activateAbility (docs/19, Sessão 2)", () => {
   function freshSt02(): GameState {
     return advanceToMainPhase(createGame(buildSt02DeckList(), buildSt02DeckList(), { seed: 11, firstPlayer: "A" }));
@@ -129,6 +175,23 @@ describe("activateAbility (docs/19, Sessão 2)", () => {
 
     expect(findCard(next, tallgeeseId).rested).toBe(false);
     expect(next.players.A.resourceArea.filter((r) => r.rested)).toHaveLength(4);
+  });
+
+  it("resourceInstanceIds: paga com os recursos escolhidos e POUPA o EX Resource não escolhido", () => {
+    const state = freshSt02();
+    state.players.A.resourceArea = [];
+    const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
+    const exId = place(state, "A", { code: "TOKEN-EX-RESOURCE", nameEn: "EX Resource", cardType: "RESOURCE", color: "colorless", isToken: true }, "resourceArea");
+    giveResources(state, "A", 5);
+    const chosen = state.players.A.resourceArea.filter((r) => r.instanceId !== exId).slice(0, 4).map((r) => r.instanceId);
+
+    const next = apply(state, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId, resourceInstanceIds: chosen });
+
+    expect(findCard(next, tallgeeseId).rested).toBe(false);
+    // EX Resource continua em jogo e active (não foi escolhido)
+    const ex = next.players.A.resourceArea.find((r) => r.instanceId === exId);
+    expect(ex && !ex.rested).toBe(true);
+    expect(next.players.A.resourceArea.filter((r) => r.rested).map((r) => r.instanceId).sort()).toEqual([...chosen].sort());
   });
 
   it("Activate·Main só do dono, na própria Main Phase", () => {

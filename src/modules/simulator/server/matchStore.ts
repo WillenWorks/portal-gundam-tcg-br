@@ -41,6 +41,16 @@ const TURN_DECISION_MS = 90_000;
 /** 3min sem nenhum sinal de vida do assento oposto — decisão do Willen em 2026-08-30. Não é automático: só destrava o botão de W.O. pro oponente (ver `claimAbandonWin`). */
 const ABANDON_THRESHOLD_MS = 180_000;
 
+/**
+ * 5min sem NENHUM sinal de vida (ping OU ação) do assento que precisa decidir:
+ * o servidor ENCERRA a partida por abandono (vitória do oponente) em vez de
+ * seguir jogando a ação-padrão sozinho, turno após turno — era isso que fazia
+ * "o jogo rodar ininterrupto mesmo com muito tempo AFK" (P4). Mais folgado que
+ * `ABANDON_THRESHOLD_MS` (o W.O. manual) porque aqui é automático e definitivo;
+ * enquanto a aba do jogador estiver aberta ela manda ping e isso não dispara.
+ */
+const AUTO_FORFEIT_MS = 300_000;
+
 export interface MatchRecord {
   id: string;
   state: GameState;
@@ -325,8 +335,8 @@ export function claimAbandonWin(matchId: string, userId: string): MatchRecord {
  * e concede a vitória ao oponente por abandono. Diferente de `claimAbandonWin`
  * (que exige 3min de inatividade do OUTRO lado) — aqui não há espera nem
  * checagem de turno/prioridade. Se a partida já acabou, é no-op (sair vira só
- * navegação). Se o oponente nunca entrou, não há pra quem conceder — lança
- * 409 e o chamador só navega embora.
+ * navegação). Se o oponente nunca entrou, não há pra quem conceder — a partida
+ * é descartada (nunca começou de verdade) e o chamador só navega embora.
  */
 export function resignMatch(matchId: string, userId: string): MatchRecord {
   const match = requireMatch(matchId);
@@ -336,10 +346,19 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
 
   const opponentSeat: PlayerId = seat === "A" ? "B" : "A";
   if (!match.seats[opponentSeat]) {
-    throw new MatchError("A partida não tem oponente — nada a conceder.", 409);
+    // Sem oponente pra conceder a vitória — a partida nunca começou de verdade.
+    // Descarta em vez de deixar um zumbi que `activeMatchForUser` reconecta pra
+    // sempre (era isso que fazia "entrar no simulador" cair na partida velha).
+    // Ainda seta GAME_OVER no `state` antes de descartar pra o registro devolvido
+    // ficar consistente com as irmãs (`claimAbandonWin`/`onTurnTimeout`): quem
+    // consome o retorno nunca vê um tabuleiro "vivo" de uma partida que já não existe.
+    match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
+    logGameOverOnce(match);
+    deleteMatch(matchId);
+    return match;
   }
 
-  match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+  match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
   match.updatedAt = Date.now();
   match.version += 1;
   armTurnTimer(match);
@@ -419,7 +438,16 @@ export function joinQueue(input: QueueJoinInput): QueueStatus {
 
 export function queueStatusFor(userId: string): QueueStatus {
   const pending = pendingMatches.get(userId);
-  if (pending) return pending;
+  if (pending?.matchId) {
+    // O `pendingMatches` é só o sinal one-shot "você foi pareado, vá pra essa
+    // partida" (lido no polling). Ele NÃO é limpo quando a partida termina ou
+    // é descartada, então precisa validar aqui: se a partida sumiu ou já
+    // acabou (fim de jogo / abandono), o pareamento está consumido — descarta
+    // e cai no fluxo normal, senão o jogador reentra sempre na partida velha.
+    const match = matches.get(pending.matchId);
+    if (match && !match.state.gameOver) return pending;
+    pendingMatches.delete(userId);
+  }
   const alreadyPlaying = activeMatchForUser(userId);
   if (alreadyPlaying) return { queued: false, matched: true, matchId: alreadyPlaying.match.id, seat: alreadyPlaying.seat };
   return { queued: queue.some((entry) => entry.userId === userId), matched: false };
@@ -437,7 +465,8 @@ export function leaveQueue(userId: string): void {
 // ---------------------------------------------------------------------------
 
 /** Quem precisa agir agora, se algum — `null` quando o passo é transitório (resolvido sozinho por `applyPlayerAction`) ou não há decisão pendente. */
-function decisionOwner(state: GameState): PlayerId | null {
+/** exportado só pra teste — quem precisa agir agora (`null` se o passo é transitório). */
+export function decisionOwner(state: GameState): PlayerId | null {
   if (state.gameOver) return null;
   // Decisão interativa pendente (docs/19, Sessão 2) tem prioridade sobre
   // qualquer passo — é a vez DAQUELE jogador resolver (Burst / ordem de gatilhos).
@@ -458,7 +487,8 @@ function decisionOwner(state: GameState): PlayerId | null {
 }
 
 /** A ação que o timer executa sozinho quando estoura, pro passo atual — sempre a opção "não fazer nada de especial" de cada passo. */
-function defaultActionFor(state: GameState): PlayerAction {
+/** exportado só pra teste — a ação-padrão que o timer executa pro passo atual. */
+export function defaultActionFor(state: GameState): PlayerAction {
   // Decisão interativa pendente: a opção "não fazer nada de especial" é
   // recusar o Burst / manter a ordem de gatilhos como está.
   for (const p of ["A", "B"] as PlayerId[]) {
@@ -466,6 +496,15 @@ function defaultActionFor(state: GameState): PlayerAction {
     if (pending?.kind === "burst") return { kind: "resolveBurstDecision", activate: false };
     if (pending?.kind === "triggerOrder") {
       return { kind: "resolveTriggerOrder", orderedSpecIds: pending.triggers.map((t) => t.specId) };
+    }
+    if (pending?.kind === "abilityResolution") {
+      // AFK durante a resolução de habilidade (When Paired / Attack / …): pula os
+      // optativos e resolve os mandatórios sem alvo (o motor trata `targetIds: []`
+      // como "nada acontece").
+      return {
+        kind: "resolveAbility",
+        resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: [] })),
+      };
     }
   }
   if (state.combat?.step === "block") return { kind: "skipBlock" };
@@ -541,6 +580,23 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
 
   const actingPlayer = decisionOwner(match.state);
   if (actingPlayer) {
+    // AFK prolongado: se quem precisa decidir não dá sinal de vida (ping ou
+    // ação) há `AUTO_FORFEIT_MS`, encerra por abandono em vez de jogar sozinho
+    // pra sempre. Só quando os 2 assentos estão ocupados (partida de verdade).
+    const bothSeated = !!match.seats.A && !!match.seats.B;
+    const lastSeen = match.lastSeenAt[actingPlayer];
+    const idleMs = lastSeen ? Date.now() - lastSeen : Number.POSITIVE_INFINITY;
+    if (bothSeated && idleMs >= AUTO_FORFEIT_MS) {
+      const opponentSeat: PlayerId = actingPlayer === "A" ? "B" : "A";
+      match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "abandonment" }]);
+      match.updatedAt = Date.now();
+      match.version += 1;
+      clearTurnTimer(match.id);
+      match.turnDeadlineAt = null;
+      notify(match);
+      return;
+    }
+
     try {
       match.state = applyPlayerAction(match.state, actingPlayer, defaultActionFor(match.state), ALL_EFFECT_SPECS, defaultPredicateResolver);
       match.updatedAt = Date.now();
@@ -568,7 +624,28 @@ export function subscribe(matchId: string, listener: Listener): () => void {
   };
 }
 
+/** IDs de partida cujo fim de jogo já foi registrado no log — evita repetir a cada `notify`. */
+const gameOverLogged = new Set<string>();
+
+/**
+ * "Toma nota" do vencedor/perdedor e do motivo (pedido do Willen) — um
+ * `console.info` estruturado na 1ª vez que a partida aparece encerrada. Sem
+ * banco: é só rastro de diagnóstico nos logs do servidor, casável com o
+ * `RULE-REPORT`. Idempotente.
+ */
+function logGameOverOnce(match: MatchRecord): void {
+  const over = match.state.gameOver;
+  if (!over || gameOverLogged.has(match.id)) return;
+  gameOverLogged.add(match.id);
+  const loser: PlayerId = over.winner === "A" ? "B" : "A";
+  console.info(
+    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${over.winner}(${match.seats[over.winner]?.displayName ?? "?"}) ` +
+      `loser=${loser}(${match.seats[loser]?.displayName ?? "?"}) reason=${over.reason} turn=${match.state.turnNumber}`,
+  );
+}
+
 function notify(match: MatchRecord): void {
+  logGameOverOnce(match);
   const set = listeners.get(match.id);
   if (!set || set.size === 0) return;
   const views = matchViewsForBothPlayers(match);
@@ -579,6 +656,13 @@ export function deleteMatch(matchId: string): void {
   clearTurnTimer(matchId);
   matches.delete(matchId);
   listeners.delete(matchId);
+  gameOverLogged.delete(matchId);
+  // Não deixa `pendingMatches` apontando pra uma partida que não existe mais —
+  // senão `queueStatusFor` mandaria o jogador de volta pra ela (agora tem um
+  // guard lá também, mas limpar na fonte evita entrada morta na memória).
+  for (const [userId, status] of pendingMatches) {
+    if (status.matchId === matchId) pendingMatches.delete(userId);
+  }
 }
 
 /** Só pra teste — evita vazar estado de um `it()` pro outro (o store é module-level, não por-request). */
@@ -589,4 +673,5 @@ export function _resetAllMatchesForTests(): void {
   listeners.clear();
   queue.length = 0;
   pendingMatches.clear();
+  gameOverLogged.clear();
 }

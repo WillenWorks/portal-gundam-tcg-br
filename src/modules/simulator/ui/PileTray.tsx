@@ -1,13 +1,14 @@
-/* Fase C (docs/19) — chip de contador que abre uma bandeja overlay de largura
- * total (substitui o `renderPile`/`renderDeckTile` da página + a inspeção
- * 1-a-1). Em repouso é só um <CounterChip>; ao clicar, abre uma faixa `fixed`
- * na base da tela, `max-h-[40vh]`, com um grid rolável de miniaturas. Clicar
- * numa miniatura chama `onInspect`. O estado `open` é interno. */
+/* Fase C (docs/19) — pilha visual que abre uma bandeja overlay de largura total
+ * (substitui o `renderPile`/`renderDeckTile` da página + a inspeção 1-a-1). Em
+ * repouso é um <CounterChip variant="stack"> mostrando a última carta com o
+ * número num badge de canto (Sprint 5 — sem texto "TRASH 0"); ao clicar, abre
+ * uma faixa `fixed` na base da tela, `max-h-[40vh]`, com um grid rolável de
+ * miniaturas. Clicar numa miniatura chama `onInspect`. O estado `open` é interno. */
 import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { X } from "lucide-react";
 import type { CardInstance } from "@/modules/simulator/engine/types";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { CounterChip } from "./CounterChip";
 
@@ -23,10 +24,30 @@ interface PileTrayProps {
 
 export function PileTray({ label, count, icon, tone, cards, art, onInspect }: PileTrayProps) {
   const [open, setOpen] = useState(false);
+  const topCard = cards.length > 0 ? cards[cards.length - 1] : null;
 
   return (
     <>
-      <CounterChip label={label} count={count} tone={tone} icon={icon} onClick={() => setOpen(true)} />
+      <CounterChip
+        label={label}
+        count={count}
+        tone={tone}
+        icon={icon}
+        variant="stack"
+        onClick={() => setOpen(true)}
+        face={
+          topCard ? (
+            <CardFace
+              nameEn={topCard.def.nameEn}
+              code={topCard.def.code}
+              art={art}
+              size="sm"
+              className="w-full"
+              backFallback={isGenericArtCard(topCard.def.cardType, topCard.def.isToken)}
+            />
+          ) : undefined
+        }
+      />
       {open ? (
         <div
           role="dialog"
@@ -57,7 +78,14 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
                   aria-label={card.def.nameEn}
                   className="block rounded-none border border-white/10 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
                 >
-                  <CardFace nameEn={card.def.nameEn} code={card.def.code} art={art} size="sm" className="w-full" />
+                  <CardFace
+                    nameEn={card.def.nameEn}
+                    code={card.def.code}
+                    art={art}
+                    size="sm"
+                    className="w-full"
+                    backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+                  />
                 </button>
               ))}
             </div>

@@ -13,16 +13,17 @@ const res = (instanceId: string, over: { rested?: boolean; isEx?: boolean } = {}
 });
 
 describe("ResourceMeter", () => {
-  it("leitura segmentada: conta ativos e mostra o nível", () => {
+  it("leitura só via aria-label/title (sem texto '◆◆◇ N ativos · nível')", () => {
     render(<ResourceMeter resources={[res("a"), res("b", { rested: true }), res("c")]} level={3} />);
-    expect(screen.getByText("2")).toBeInTheDocument(); // ativos
-    expect(screen.getByText("3")).toBeInTheDocument(); // nível
-    expect(screen.getByText(/◆◇◆/)).toBeInTheDocument();
+    expect(screen.getByLabelText("2 recurso(s) ativo(s) de 3 · nível 3")).toBeInTheDocument();
+    expect(screen.queryByText(/ativos/)).toBeNull();
+    expect(screen.queryByText(/◆/)).toBeNull();
   });
 
-  it("estado vazio", () => {
+  it("estado vazio: sem texto, só o rótulo acessível", () => {
     render(<ResourceMeter resources={[]} level={0} />);
-    expect(screen.getByText("Nenhum recurso.")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 recurso(s) ativo(s) de 0 · nível 0")).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum recurso/)).toBeNull();
   });
 
   it("recurso gasto aparece girado (forma, não só cor)", () => {
@@ -34,6 +35,18 @@ describe("ResourceMeter", () => {
     render(<ResourceMeter resources={[res("ex", { isEx: true })]} level={1} />);
     const ex = screen.getByLabelText("EX Resource — sai de jogo se gasto");
     expect(ex.className).toMatch(/accent/);
+  });
+
+  it("recurso face-up mostra a ilustração real quando há arte (não o verso)", () => {
+    render(
+      <ResourceMeter
+        resources={[{ instanceId: "a", rested: false, isEx: false, code: "ST01-RESOURCE" }]}
+        level={1}
+        art={{ "ST01-RESOURCE": { imageUrl: "resource.png" } }}
+      />,
+    );
+    const img = screen.getByLabelText("Recurso ativo").querySelector("img")!;
+    expect(img).toHaveAttribute("src", "resource.png");
   });
 
   it("selectable: só os ativos são clicáveis e o callback recebe o id", () => {

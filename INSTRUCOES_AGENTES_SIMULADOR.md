@@ -407,6 +407,15 @@ FECHO  ── /spartan:magic-doc docs/18 e docs/19 (atualiza o histórico do sim
 | **C + D — Zonas + leque de mão** | ✅ **MERGEADA** — PR #7, `007c050` (2026-09-02). Gate 3.5 ✅ ACCEPT, build/test 291 ✅. | — | re-QA visual ainda não feito pelo Willen |
 | **E — Portrait + fim da rotação 90°** | ⬜ **próxima** (única restante). Escopo além do nome: deletar `MOBILE_ROTATE_QUERY` + `useIsPortraitMobile` + wrapper `rotate(90deg)`; board portrait compacto p/ XS; **inspetor no painel lateral do XL** + **opp shields no HUD** + **Esc/focus-trap/overlap dos `PileTray`** (herdados de C+D); rename de `renderLeftColumn`/`renderRightColumn` (ou PR próprio). | — | ver §11 "Polimento" |
 
+> **Nota (fora do escopo do redesenho):** `src/modules/simulator/server/matchStore.ts` + `matchStore.test.ts` foram tocados
+> em 2026-09-02 para corrigir um **bug de matchmaking** pedido pelo Willen (entrar no `/simulador` reconectava na
+> partida terminada). Branch `fix/simulador-reconecta-partida-terminada`. A invariante §1 "não tocar `server/*`" vale
+> só para o redesenho visual — correções de bug pedidas explicitamente são exceção. `engine/*` continua intocado.
+>
+> **Padrão que ficou:** `pendingMatches` é um sinal *one-shot* "você foi pareado, vá pra essa partida" e **não** é
+> limpo pelo fim de jogo. Qualquer novo "sinal por-usuário" no `matchStore` precisa de lifecycle explícito nas saídas
+> de partida — hoje: guard em `queueStatusFor` (valida `matches.get(id)` + `!gameOver`) e sweep em `deleteMatch`.
+
 ### Fase A — o que foi feito (commitado)
 
 - Spec: `.planning/specs/simulador-fase-a-grid-de-board.md` (inclui a seção "Desvio" da mão).
