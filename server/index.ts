@@ -12,8 +12,89 @@ import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, Taxono
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
+import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
+import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
+import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
+import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
+import {
+  applyAction,
+  claimAbandonWin,
+  createMatch,
+  getMatch,
+  joinMatch,
+  joinQueue,
+  leaveQueue,
+  listMatches,
+  loadMatch,
+  matchViewFor,
+  MatchError,
+  queueStatusFor,
+  reportSituation,
+  resignMatch,
+  seatFor,
+  setAutoPass,
+  setMatchPersistence,
+  subscribe,
+  touchPresence,
+  type StoredMatch,
+} from "../src/modules/simulator/server/matchStore.ts";
+import type { GameState } from "../src/modules/simulator/engine/types.ts";
 
 const prisma = new PrismaClient();
+
+// docs/23 — persistência da partida do Simulador (write-through no Supabase).
+// O `matchStore` segue com o Map em memória como cache; isto é só o backup que
+// deixa a partida sobreviver a restart/deploy/idle do Render.
+setMatchPersistence({
+  async upsert(m: StoredMatch) {
+    const data = {
+      state: m.state as unknown as Prisma.InputJsonValue,
+      seats: m.seats as unknown as Prisma.InputJsonValue,
+      deckKeys: m.deckKeys as unknown as Prisma.InputJsonValue,
+      version: m.version,
+      phase: m.state.phase,
+      turnDeadlineAt: m.turnDeadlineAt != null ? BigInt(m.turnDeadlineAt) : null,
+      lastSeenAt: m.lastSeenAt as unknown as Prisma.InputJsonValue,
+      gameOver: m.state.gameOver ? (m.state.gameOver as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      finishedAt: m.state.gameOver ? new Date() : null,
+    } as unknown as Prisma.SimulatorMatchUpdateManyMutationInput;
+    // `persist()` no matchStore é fire-and-forget — dois writes rápidos podem
+    // resolver fora de ordem no Postgres. O guard `version <= m.version` garante
+    // que uma escrita mais antiga (version menor) nunca sobrescreva uma mais
+    // nova já gravada. `<=` (não `<`) porque ping/auto-pass persistem sem bumpar
+    // a version — esses reescrevem a mesma version de propósito.
+    const updated = await prisma.simulatorMatch.updateMany({
+      where: { id: m.id, version: { lte: m.version } },
+      data,
+    });
+    if (updated.count === 0) {
+      await prisma.simulatorMatch
+        .create({ data: { id: m.id, ...data } as unknown as Prisma.SimulatorMatchCreateInput })
+        .catch((e) => {
+          // P2002 = a linha já existe com version MAIOR (write fora de ordem) — ignora
+          if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") throw e;
+        });
+    }
+  },
+  async load(id: string): Promise<StoredMatch | null> {
+    const row = await prisma.simulatorMatch.findUnique({ where: { id } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      state: row.state as unknown as GameState,
+      seats: row.seats as StoredMatch["seats"],
+      deckKeys: row.deckKeys as StoredMatch["deckKeys"],
+      version: row.version,
+      turnDeadlineAt: row.turnDeadlineAt != null ? Number(row.turnDeadlineAt) : null,
+      lastSeenAt: row.lastSeenAt as StoredMatch["lastSeenAt"],
+    };
+  },
+  async remove(id: string) {
+    await prisma.simulatorMatch.delete({ where: { id } }).catch(() => {});
+  },
+});
+
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 8787);
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
@@ -193,6 +274,28 @@ function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) 
     try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
   }
   next();
+}
+
+/**
+ * Como authRequired, mas aceita o token via query string (`?token=`) além do
+ * header `Authorization`. Só existe pro endpoint de SSE do simulador
+ * (`/api/simulator/matches/:id/stream`, docs/18 passo 4) — a API nativa
+ * `EventSource` do navegador não deixa mandar headers customizados, então
+ * não tem como usar `Authorization: Bearer` nela. Todas as outras rotas
+ * continuam exigindo o header normal; isso é uma exceção pontual, não uma
+ * segunda forma "oficial" de autenticar.
+ */
+function authFromQueryOrHeader(req: RequestWithUser, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken;
+  if (!token) return res.status(401).json({ error: "Token ausente." });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Token inválido." });
+  }
 }
 
 function roleRequired(roles: UserRole[]) {
@@ -3127,6 +3230,240 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
   if (!existing) return res.status(404).json({ error: "Deck não encontrado." });
   await prisma.deck.delete({ where: { id: deckId } });
   res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Simulador — passo 4 (docs/18-simulador-fase1-motor-e-dsl.md). Wave
+ * original (2026-08-29): sandbox restrito a admin/hoster, criação/entrada
+ * manual de partida. Wave "Simulador Beta" (2026-08-30, decisão do Willen):
+ * aberto a QUALQUER usuário logado, 1 fila de matchmaking automática (cada
+ * jogador só escolhe o próprio deck — ST01/ST02, qualquer combinação — e
+ * espera; ao ter 2 na fila, a partida é criada e os 2 assentos preenchidos
+ * sozinhos), timer de 90s por decisão (o servidor age sozinho se estourar,
+ * ver `matchStore.ts`) e W.O. por abandono depois de 3min sem sinal de vida
+ * do oponente (nunca automático — só destrava um botão pro outro lado).
+ *
+ * As rotas de criar/entrar manualmente numa partida específica continuam
+ * existindo (usadas internamente pelo pareamento da fila, e como fallback
+ * de depuração), mas ficam `hosterRequired` — não fazem mais parte do fluxo
+ * normal de um jogador, que agora é só a fila.
+ *
+ * O motor real (`GameState`) nunca sai daqui — só a visão redigida de cada
+ * jogador mais os metadados de partida (timer/presença), via `MatchView`
+ * (ver `matchViewFor`, `src/modules/simulator/server/matchStore.ts`).
+ * ------------------------------------------------------------------------- */
+
+const SIMULATOR_DECKS: Record<string, () => DeckList> = {
+  ST01: buildSt01DeckList,
+  ST02: buildSt02DeckList,
+};
+
+function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
+  const key = typeof raw === "string" ? raw.toUpperCase() : "";
+  const build = SIMULATOR_DECKS[key];
+  return build ? { key, build } : null;
+}
+
+function matchSummary(match: ReturnType<typeof getMatch>) {
+  if (!match) return null;
+  return {
+    id: match.id,
+    seats: {
+      A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
+      B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
+    },
+    deckKeys: match.deckKeys,
+    turnNumber: match.state.turnNumber,
+    activePlayer: match.state.activePlayer,
+    phase: match.state.phase,
+    gameOver: match.state.gameOver,
+    createdAt: match.createdAt,
+    updatedAt: match.updatedAt,
+    version: match.version,
+  };
+}
+
+// --- Fila de matchmaking ("Simulador Beta") — qualquer usuário logado. ---
+
+app.post("/api/simulator/queue/join", authRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deck?: string };
+  const resolved = resolveDeckKey(body.deck);
+  if (!resolved) return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList: resolved.build() });
+  res.json(status);
+});
+
+app.post("/api/simulator/queue/leave", authRequired, (req: RequestWithUser, res) => {
+  leaveQueue(req.user!.userId);
+  res.json({ ok: true });
+});
+
+app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res) => {
+  res.json(queueStatusFor(req.user!.userId));
+});
+
+// --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
+
+app.get("/api/simulator/matches/:id", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.json({ seated: false, ...matchSummary(match) });
+  res.json({ seated: true, ...matchViewFor(match, seat) });
+});
+
+app.post("/api/simulator/matches/:id/actions", authRequired, async (req: RequestWithUser, res) => {
+  const action = req.body as PlayerAction;
+  if (!action || typeof action !== "object" || typeof action.kind !== "string") {
+    return res.status(400).json({ error: "Ação inválida." });
+  }
+  try {
+    await loadMatch(String(req.params.id));
+    const match = applyAction(String(req.params.id), req.user!.userId, action);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Heartbeat de presença — o cliente chama isso periodicamente enquanto a aba está visível
+// (ver SimulatorSandboxPage.tsx). Alimenta o W.O. por abandono (matchStore.claimAbandonWin).
+app.post("/api/simulator/matches/:id/ping", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = touchPresence(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4) — loga o
+// GameState real + histórico no console do servidor pra diagnóstico. Não persiste.
+app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestWithUser, res) => {
+  const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+  try {
+    await loadMatch(String(req.params.id));
+    res.json(reportSituation(String(req.params.id), req.user!.userId, note));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).
+app.post("/api/simulator/matches/:id/auto-pass", authRequired, async (req: RequestWithUser, res) => {
+  const value = (req.body as { value?: unknown })?.value;
+  if (typeof value !== "boolean") return res.status(400).json({ error: "`value` precisa ser booleano." });
+  try {
+    await loadMatch(String(req.params.id));
+    const match = setAutoPass(String(req.params.id), req.user!.userId, value);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = claimAbandonWin(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// "Sair da partida" -> desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch.
+app.post("/api/simulator/matches/:id/resign", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = resignMatch(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
+app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Entre num assento (join) antes de abrir o stream." });
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  const send = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // hint de reconexão pro EventSource nativo do cliente (o cliente também tem
+  // backoff próprio + resync REST, mas isso encurta o gap na maioria dos casos).
+  res.write("retry: 3000\n\n");
+  send("state", matchViewFor(match, seat));
+
+  const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
+  // mantém a conexão viva através de proxies que fecham stream ocioso
+  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
+});
+
+// --- Depuração/admin: criar ou entrar numa partida específica manualmente (fora da fila). ---
+
+app.get("/api/simulator/matches", authRequired, hosterRequired, (_req, res) => {
+  res.json(listMatches().map((m) => matchSummary(m)));
+});
+
+app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number };
+  const deckA = resolveDeckKey(body.deckA || "ST01");
+  const deckB = resolveDeckKey(body.deckB || "ST02");
+  if (!deckA || !deckB) {
+    return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  }
+  const match = createMatch({
+    deckA: deckA.build(),
+    deckB: deckB.build(),
+    firstPlayer: body.firstPlayer === "B" ? "B" : "A",
+    seed: typeof body.seed === "number" ? body.seed : undefined,
+  });
+  match.deckKeys = { A: deckA.key, B: deckB.key };
+  res.status(201).json(matchSummary(match));
+});
+
+app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { seat?: PlayerId };
+  if (body.seat !== "A" && body.seat !== "B") return res.status(400).json({ error: "seat precisa ser 'A' ou 'B'." });
+  try {
+    const match = joinMatch(String(req.params.id), body.seat, { userId: req.user!.userId, displayName: req.user!.username });
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json({ seated: true, ...matchViewFor(match, seat) });
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

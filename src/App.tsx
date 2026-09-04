@@ -33,6 +33,8 @@ const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
+const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
+const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -95,6 +97,20 @@ function AppRouter() {
         <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
+            de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
+        <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
+            no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
+        <Route path="/simulador/partida/:matchId">
+          {(params) => (
+            <RequireAuth>
+              <LazyRoute label="Partida">
+                <SimulatorMatchPage matchId={params.matchId} />
+              </LazyRoute>
+            </RequireAuth>
+          )}
+        </Route>
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

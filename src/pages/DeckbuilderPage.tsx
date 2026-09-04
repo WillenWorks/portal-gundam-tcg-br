@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -549,7 +549,6 @@ export default function DeckbuilderPage() {
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
-  const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [openingHandOpen, setOpeningHandOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);

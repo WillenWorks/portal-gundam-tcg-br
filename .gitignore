@@ -25,3 +25,6 @@ backups/
 *.njsproj
 *.sln
 *.sw?
+
+# Spartan AI config (contains API keys)
+.spartan/ai.env

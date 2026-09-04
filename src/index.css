@@ -8,10 +8,17 @@
 @theme inline {
   --font-heading: "Barlow Condensed", sans-serif;
   --font-body: "IBM Plex Sans", sans-serif;
+  /* Simulador — números da arena (AP/HP, custo, contadores, timer) na variante
+   * mono da mesma família: dígitos tabulares com identidade, não a mono do S.O. */
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans", ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Simulador — raio sutil da arena: peças pequenas (slots, cards, chips, botões
+   * de canto, barras) ganham 3px pra suavizar o corte reto sem descaracterizar a
+   * assinatura militar. Os painéis grandes seguem no chanfro `.panel-cut`. */
+  --radius-arena: 3px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -145,6 +152,38 @@
 }
 
 @layer utilities {
+  /* Simulador — barra de rolagem "fantasma": fina e quase invisível em repouso,
+   * um fio discreto no hover. Pra linhas que PODEM transbordar (recursos, mão)
+   * sem que a scrollbar quebre o visual da arena. */
+  .scrollbar-ghost {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.12) transparent;
+  }
+  .scrollbar-ghost:hover {
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
+  .scrollbar-ghost::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+  .scrollbar-ghost::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-ghost::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.12);
+    border-radius: 9999px;
+  }
+  .scrollbar-ghost:hover::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+  }
+  /* Some totalmente com a scrollbar sem tirar o overflow (Firefox + WebKit). */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   .surface-panel {
     @apply border-white/10 bg-white/5 text-white transition-colors duration-200 dark:border-white/10 dark:bg-white/5 dark:text-white light:border-slate-300/80 light:bg-white/90 light:text-slate-950 light:shadow-[0_16px_44px_rgba(15,23,42,0.08)];
   }

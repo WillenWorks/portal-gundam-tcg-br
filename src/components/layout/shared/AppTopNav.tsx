@@ -65,7 +65,7 @@ function NavDropdown({ item, active, currentPath }: { item: (typeof publicTopNav
 }
 
 export function AppTopNav() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);

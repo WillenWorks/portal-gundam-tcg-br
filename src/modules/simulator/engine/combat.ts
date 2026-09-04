@@ -1,0 +1,339 @@
+import type { AttackTarget, CardInstance, GameEvent, GameState, PlayerId } from "./types";
+import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
+import { applyEvent, applyEvents, findCard } from "./events";
+
+/**
+ * Sequência de combate (Comprehensive Rules seção 8, ver docs/18 "Estrutura
+ * de turno" → "Sequência de combate"). Cada Attack Step é conduzido passo a
+ * passo, expondo uma função por decisão, pra dar pra dirigir tanto de teste
+ * quanto de UI (nenhuma das duas decide "sozinha" o que acontece).
+ */
+
+function requireCombat(state: GameState) {
+  if (!state.combat) throw new Error("Nenhum combate em andamento");
+  return state.combat;
+}
+
+// ---------------------------------------------------------------------------
+// 1. Attack Step
+// ---------------------------------------------------------------------------
+
+export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
+  const attacker = findCard(state, attackerId);
+  if (attacker.zone !== "battleArea") throw new Error("Só Units na Battle Area podem atacar");
+  if (attacker.owner !== state.activePlayer) throw new Error("Só o jogador ativo pode declarar ataque");
+  if (attacker.rested) throw new Error("Unit rested não pode atacar");
+  if (state.phase !== "main") throw new Error("Ataque só pode ser declarado na Main Phase");
+  if (state.combat) throw new Error("Já existe um combate em andamento");
+  if (attacker.enteredZoneOnTurn === state.turnNumber) {
+    // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
+    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3).
+    const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
+    const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
+    if (!isLinkUnit) {
+      throw new Error(
+        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3)",
+      );
+    }
+  }
+
+  const defendingPlayer = otherPlayer(state.activePlayer);
+  if (target === "player") {
+    // ex.: ST01-009 Zowort — "This Unit can't choose the enemy player as its attack target." (docs/18, lacuna #6)
+    if (attacker.def.attackTargetRules?.cannotTargetPlayer) {
+      throw new Error(`${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`);
+    }
+  }
+  if (typeof target === "object") {
+    const targetUnit = findCard(state, target.unitId);
+    if (targetUnit.owner !== defendingPlayer || targetUnit.zone !== "battleArea") {
+      throw new Error("Alvo precisa ser uma Unit inimiga na Battle Area");
+    }
+    if (targetUnit.rested) {
+      // sempre legal
+    } else {
+      // relaxamento explícito da keyword: ex. ST02-001 Wing Gundam pode escolher Unit
+      // inimiga ACTIVE (não só rested), desde que seja Lv. igual ou menor ao concedido
+      // (docs/18, lacuna #6, direção oposta de Zowort acima).
+      const relax = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit;
+      const allowed = !!relax && (targetUnit.def.level ?? 0) <= relax.maxLevel;
+      if (!allowed) {
+        throw new Error("Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)");
+      }
+    }
+  }
+
+  const events: GameEvent[] = [
+    { type: "REST_CARD", instanceId: attackerId },
+    {
+      type: "ATTACK_DECLARED",
+      attackerId,
+      attackingPlayer: state.activePlayer,
+      defendingPlayer,
+      target,
+    },
+  ];
+  return applyEvents(state, events);
+}
+
+/**
+ * Fecha o Attack Step e entra no Block Step. Ponto de extensão futuro pra
+ * efeitos 【Attack】 bespoke (autoria carta a carta, fora de escopo da Fase 1
+ * ainda) — hoje só troca a fase do combate.
+ */
+export function proceedToBlockStep(state: GameState): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "attack") throw new Error("Não é o Attack Step");
+  return applyEvent(state, { type: "COMBAT_STEP_CHANGE", step: "block" });
+}
+
+// ---------------------------------------------------------------------------
+// 2. Block Step
+// ---------------------------------------------------------------------------
+
+/** <High-Maneuver>: "opponent can't activate Blocker while this Unit attacks" */
+export function canActivateBlocker(state: GameState): boolean {
+  const combat = requireCombat(state);
+  const attacker = findCard(state, combat.attackerId);
+  return !hasKeyword(attacker, "High-Maneuver");
+}
+
+export function activateBlocker(state: GameState, blockerId: string): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "block") {
+    throw new Error("Só é possível ativar <Blocker> durante o Block Step");
+  }
+  if (!canActivateBlocker(state)) {
+    throw new Error("<High-Maneuver>: bloqueio não pode ser ativado contra esta Unit");
+  }
+  const blocker = findCard(state, blockerId);
+  if (blocker.owner !== combat.defendingPlayer) throw new Error("Blocker precisa pertencer a quem está defendendo");
+  if (blocker.zone !== "battleArea") throw new Error("Blocker precisa estar na Battle Area");
+  if (blocker.rested) throw new Error("Blocker precisa estar active pra ser ativado");
+  if (!hasKeyword(blocker, "Blocker")) throw new Error("Essa Unit não tem <Blocker>");
+
+  const events: GameEvent[] = [
+    { type: "REST_CARD", instanceId: blockerId },
+    { type: "BLOCK_DECLARED", blockerId, newTarget: { unitId: blockerId } },
+    { type: "COMBAT_STEP_CHANGE", step: "action" },
+  ];
+  return applyEvents(state, events);
+}
+
+/** Jogador em espera decide não bloquear — combate segue pro Action Step sem mudar o alvo. */
+export function skipBlock(state: GameState): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "block") throw new Error("Só é possível pular o Block Step durante o Block Step");
+  return applyEvent(state, { type: "COMBAT_STEP_CHANGE", step: "action" });
+}
+
+// ---------------------------------------------------------------------------
+// 3. Action Step — jogadores alternam, começando pelo jogador em espera, até
+// os dois passarem em sequência (Comprehensive Rules — ver docs/18). A Fase
+// 1 ainda não tem cartas 【Action】/【Activate·Action】 implementadas via DSL
+// (isso é trabalho de conteúdo por carta, não do motor em si), então por
+// enquanto a única ação disponível aqui é passar — mas o desenho já respeita
+// o formato de prioridade alternada pra não precisar redesenhar na Fase 3.
+// ---------------------------------------------------------------------------
+
+export function passAction(state: GameState, player: PlayerId): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "action") throw new Error("Não é o Action Step");
+  if (combat.actionPriority !== player) throw new Error("Não é a prioridade desse jogador");
+
+  let next = applyEvent(state, { type: "ACTION_PASS", player });
+  const bothPassed = next.combat!.actionPasses.A && next.combat!.actionPasses.B;
+  if (bothPassed) {
+    next = applyEvent(next, { type: "COMBAT_STEP_CHANGE", step: "damage" });
+  }
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Damage Step
+// ---------------------------------------------------------------------------
+
+function shieldDamageEvents(defendingPlayer: PlayerId, count: number, state: GameState): GameEvent[] {
+  const shields = state.players[defendingPlayer].shields;
+  if (shields.length === 0) {
+    // Comprehensive Rules 1-2-2-1: recebeu dano de batalha sem shield = derrota
+    return [{ type: "GAME_OVER", winner: otherPlayer(defendingPlayer), reason: "noShieldsBattleDamage" }];
+  }
+  return [{ type: "DAMAGE_SHIELD", player: defendingPlayer, count }];
+}
+
+function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: GameState): GameEvent[] {
+  const breachValue = keywordValue(attacker, "Breach");
+  if (breachValue === null || breachValue <= 0) return [];
+  // Comprehensive Rules: <Breach N> causa N de dano no 1º shield — mas um
+  // Shield que recebe 1+ de dano é destruído inteiro (Shield tem "1 HP"),
+  // então o valor de N nunca importa pra quantos shields caem: é sempre
+  // exatamente 1, igual ao dano de batalha comum sem Breach. N shields
+  // caírem de uma vez só (bug corrigido aqui) exigiria a carta dizer
+  // explicitamente algo como "descarte N shields" — não é o caso de Breach.
+  return shieldDamageEvents(defendingPlayer, 1, state);
+}
+
+/**
+ * Habilidades condicionadas a 【During Pair】/【During Link】 que reagem a
+ * "esta Unit destrói um inimigo em batalha" (docs/18, lacuna #2 estendida) —
+ * ex. ST02-003 Gundam Heavyarms (During Pair: dano em grupo) e ST02-011
+ * Zechs Merquise (During Link: draw). Só dispara pro lado que causou a
+ * destruição (o atacante — CR: "during your turn" nunca é satisfeito pelo
+ * defensor, já que quem defende nunca é o jogador ativo). Procura o gatilho
+ * tanto na própria Unit (`attacker.def`) quanto no Pilot pareado com ela
+ * (`CombatTrigger` pode viver nos dois lados — ver `CardDef.combatTriggers`).
+ */
+function combatTriggerEvents(attacker: CardInstance, state: GameState): GameEvent[] {
+  if (attacker.owner !== state.activePlayer) return []; // "during your turn" — nunca satisfeito pelo defensor
+  const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
+  const sources = [attacker.def, ...(pilot ? [pilot.def] : [])];
+
+  const events: GameEvent[] = [];
+  for (const def of sources) {
+    for (const trigger of def.combatTriggers ?? []) {
+      if (trigger.on !== "destroyEnemyInBattle") continue;
+      const conditionMet =
+        trigger.condition === "duringPair" ? !!pilot : !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def);
+      if (!conditionMet) continue;
+
+      if (trigger.action.kind === "draw") {
+        const deck = state.players[attacker.owner].deck;
+        for (let i = 0; i < trigger.action.amount && i < deck.length; i++) {
+          events.push({ type: "DRAW_CARD", player: attacker.owner, from: "deck", instanceId: deck[i]?.instanceId ?? null });
+        }
+      } else if (trigger.action.kind === "damageAllEnemyUnits") {
+        const opponent = state.players[otherPlayer(attacker.owner)];
+        for (const enemy of opponent.battleArea) {
+          if (enemy.def.cardType !== "UNIT") continue;
+          if (trigger.action.maxLevel !== undefined && (enemy.def.level ?? 0) > trigger.action.maxLevel) continue;
+          events.push({ type: "DAMAGE_UNIT", instanceId: enemy.instanceId, amount: trigger.action.amount });
+          if (enemy.damage + trigger.action.amount >= effectiveHp(enemy, state)) {
+            events.push({ type: "DESTROY_CARD", instanceId: enemy.instanceId });
+          }
+        }
+      }
+    }
+  }
+  return events;
+}
+
+export function resolveDamageStep(state: GameState): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "damage") throw new Error("Não é o Damage Step");
+
+  const attacker = findCard(state, combat.attackerId);
+  const attackerHasFirstStrike = hasKeyword(attacker, "First Strike");
+  const events: GameEvent[] = [];
+
+  if (combat.currentTarget === "player") {
+    const defendingPlayer = combat.defendingPlayer;
+    const base = state.players[defendingPlayer].baseSection[0];
+    if (base) {
+      events.push({ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: effectiveAp(attacker, state) });
+      const projectedDamage = base.damage + effectiveAp(attacker, state);
+      if (projectedDamage >= effectiveHp(base, state)) {
+        events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+      }
+    } else {
+      const suppression = hasKeyword(attacker, "Suppression");
+      // ST02-013 Peaceful Timbre — "During this battle, your shield area cards can't
+      // receive damage from enemy Units that are Lv.4 or lower" (docs/18, lacuna #7).
+      const protection = combat.shieldProtection;
+      const attackerLevel = attacker.def.level ?? 0;
+      const shieldsProtected = !!protection && attackerLevel <= protection.maxAttackerLevel;
+      if (!shieldsProtected) {
+        events.push(...shieldDamageEvents(defendingPlayer, suppression ? 2 : 1, state));
+      }
+    }
+  } else {
+    const defender = findCard(state, combat.currentTarget.unitId);
+    const defenderHasFirstStrike = hasKeyword(defender, "First Strike");
+    const onlyAttackerFirstStrike = attackerHasFirstStrike && !defenderHasFirstStrike;
+    const onlyDefenderFirstStrike = defenderHasFirstStrike && !attackerHasFirstStrike;
+
+    const attackerAp = effectiveAp(attacker, state);
+    const defenderAp = effectiveAp(defender, state);
+    const defenderWillDie = defender.damage + attackerAp >= effectiveHp(defender, state);
+    const attackerWillDie = attacker.damage + defenderAp >= effectiveHp(attacker, state);
+
+    if (onlyAttackerFirstStrike) {
+      events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+      if (defenderWillDie) {
+        events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
+        events.push(...pairedPilotFollowEvents(defender));
+        events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+        events.push(...combatTriggerEvents(attacker, state));
+        // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
+      } else {
+        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+        if (attackerWillDie) {
+          events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
+          events.push(...pairedPilotFollowEvents(attacker));
+        }
+      }
+    } else if (onlyDefenderFirstStrike) {
+      events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (attackerWillDie) {
+        events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
+        events.push(...pairedPilotFollowEvents(attacker));
+      } else {
+        events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+        if (defenderWillDie) {
+          events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
+          events.push(...pairedPilotFollowEvents(defender));
+          events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+          events.push(...combatTriggerEvents(attacker, state));
+        }
+      }
+    } else {
+      // simultâneo — ou nenhum tem First Strike, ou os dois têm (se cancelam, ver comentário abaixo)
+      events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+      events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (defenderWillDie) {
+        events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
+        events.push(...pairedPilotFollowEvents(defender));
+        events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+        events.push(...combatTriggerEvents(attacker, state));
+      }
+      if (attackerWillDie) {
+        events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
+        events.push(...pairedPilotFollowEvents(attacker));
+      }
+      // nota: quando ambos têm <First Strike>, 13-1-5-2 não cobre o caso — tratamos
+      // como dano simultâneo (nenhum dos dois "primeiro" o suficiente pra anular o
+      // outro). Reavaliar se algum ruling oficial específico aparecer.
+    }
+  }
+
+  return applyEvents(state, events);
+}
+
+function pairedPilotFollowEvents(unit: CardInstance): GameEvent[] {
+  // Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino
+  if (!unit.pairedPilotId) return [];
+  return [{ type: "DESTROY_CARD", instanceId: unit.pairedPilotId }];
+}
+
+// ---------------------------------------------------------------------------
+// 5. Battle End Step
+// ---------------------------------------------------------------------------
+
+export function resolveBattleEndStep(state: GameState): GameState {
+  const combat = requireCombat(state);
+  if (combat.step !== "damage") throw new Error("Precisa resolver o Damage Step antes");
+  const next = applyEvent(state, { type: "COMBAT_STEP_CHANGE", step: "battleEnd" });
+
+  // limpa modificadores "thisBattle" nos dois lados
+  for (const playerId of ["A", "B"] as PlayerId[]) {
+    const player = next.players[playerId];
+    for (const zone of ["battleArea", "baseSection"] as const) {
+      for (const card of player[zone]) {
+        card.statModifiers = card.statModifiers.filter((m) => m.duration !== "thisBattle");
+        card.keywordGrants = card.keywordGrants.filter((g) => g.duration !== "thisBattle");
+      }
+    }
+  }
+
+  return applyEvent(next, { type: "COMBAT_ENDED" });
+}

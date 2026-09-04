@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
+import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Gamepad2, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,8 @@ const userNav = [
   { href: "/portal", label: "Home", icon: Home },
   { href: "/deckbuilder", label: "Decks", icon: Swords },
   { href: "/binders", label: "Pastas", icon: BookMarked },
+  // Simulador Beta -- aberto a qualquer usuário logado desde 2026-08-30 (era só admin/hoster antes), por isso mora no menu de todo mundo agora.
+  { href: "/simulador", label: "Simulador", icon: Gamepad2 },
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -61,6 +63,7 @@ const titles: Record<string, string> = {
   "/admin/rulings": "Rulings",
   "/admin/events": "Eventos",
   "/organizador": "Meus eventos",
+  "/simulador": "Simulador",
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {
