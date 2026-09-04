@@ -8,6 +8,9 @@
 @theme inline {
   --font-heading: "Barlow Condensed", sans-serif;
   --font-body: "IBM Plex Sans", sans-serif;
+  /* Simulador — números da arena (AP/HP, custo, contadores, timer) na variante
+   * mono da mesma família: dígitos tabulares com identidade, não a mono do S.O. */
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans", ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
