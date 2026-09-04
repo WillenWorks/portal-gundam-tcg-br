@@ -102,7 +102,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bug, RefreshCw } from "lucide-react";
 
-import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
+import { api, ApiError, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
@@ -291,7 +291,12 @@ type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlay
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
-  const [connected, setConnected] = useState(false);
+  /** estado da conexão SSE — `connecting` (1ª vez) · `live` · `reconnecting` (com backoff) · `dead` (sessão expirada). */
+  const [connState, setConnState] = useState<"connecting" | "live" | "reconnecting" | "dead">("connecting");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const connected = connState === "live";
+  /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
+  const clockOffsetRef = useRef(0);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
@@ -318,24 +323,81 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
 
-  useEffect(() => {
-    const url = buildSimulatorStreamUrl(matchId);
-    if (!url) {
-      toast.error("Sessão inválida -- faça login de novo.");
-      return;
+  // Aplica uma visão que chegou (SSE ou resposta de POST ou resync REST),
+  // IGNORANDO snapshot atrasado (version menor que a atual) — sem isso, uma
+  // resposta de POST e um SSE antigo chegando fora de ordem se sobrescreviam.
+  // Também atualiza o offset de relógio a partir do `serverNow`.
+  const applyIncomingView = useCallback((incoming: SimulatorMatchView) => {
+    if (typeof incoming.serverNow === "number") {
+      clockOffsetRef.current = incoming.serverNow - Date.now();
     }
-    const source = new EventSource(url);
-    eventSourceRef.current = source;
-    source.addEventListener("state", (event: MessageEvent) => {
-      setConnected(true);
-      setMatchView(JSON.parse(event.data) as SimulatorMatchView);
+    setMatchView((prev) => {
+      if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
+      return incoming;
     });
-    source.onerror = () => setConnected(false);
+  }, []);
+
+  // Stream SSE com reconexão própria: `EventSource` nativo já re-tenta sozinho,
+  // mas sem `retry:` do servidor, sem aviso na UI e sem resync se a reconexão
+  // falhar. Aqui: backoff exponencial (1s→15s), resync autoritativo via REST a
+  // cada tentativa, e tratamento de 401 (sessão expirada).
+  useEffect(() => {
+    let stopped = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+
+    const connect = () => {
+      if (stopped) return;
+      const url = buildSimulatorStreamUrl(matchId);
+      if (!url) {
+        toast.error("Sessão inválida — faça login de novo.");
+        setConnState("dead");
+        return;
+      }
+      const source = new EventSource(url);
+      eventSourceRef.current = source;
+
+      source.addEventListener("state", (event: MessageEvent) => {
+        attempt = 0;
+        setReconnectAttempt(0);
+        setConnState("live");
+        applyIncomingView(JSON.parse(event.data) as SimulatorMatchView);
+      });
+
+      source.onerror = () => {
+        source.close();
+        eventSourceRef.current = null;
+        if (stopped) return;
+        setConnState("reconnecting");
+        attempt += 1;
+        setReconnectAttempt(attempt);
+        // resync autoritativo — se o SSE não voltar, ao menos o board não fica velho
+        void api
+          .getSimulatorMatch(matchId)
+          .then((res) => {
+            if (!stopped && "seated" in res && res.seated) applyIncomingView(res as SimulatorMatchView);
+          })
+          .catch((err) => {
+            if (err instanceof ApiError && err.status === 401) {
+              stopped = true;
+              if (retryTimer) clearTimeout(retryTimer);
+              toast.error("Sessão expirada — faça login de novo.");
+              setConnState("dead");
+            }
+          });
+        const delay = Math.min(15_000, 1_000 * 2 ** (attempt - 1));
+        retryTimer = setTimeout(connect, delay);
+      };
+    };
+
+    connect();
     return () => {
-      source.close();
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
-  }, [matchId]);
+  }, [matchId, applyIncomingView]);
 
   // Relógio local pro countdown do timer de turno e pro "há quanto tempo o oponente sumiu" --
   // só exibição/UX; a decisão real (agir sozinho no timeout, liberar o W.O.) é sempre do servidor.
@@ -371,7 +433,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setBusy(true);
       try {
         const res = await api.sendSimulatorAction(matchId, action);
-        setMatchView(res);
+        applyIncomingView(res);
         clearSelection();
       } catch (err) {
         toast.error(errorMessage(err, "Ação inválida."));
@@ -379,7 +441,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [matchId],
+    [matchId, applyIncomingView],
   );
 
   const toggleAutoPass = async (value: boolean) => {
@@ -504,7 +566,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const oppPendingDecision = view.pendingDecision[opponentSeat];
   const myBurstDecision = myPendingDecision?.kind === "burst" ? myPendingDecision : null;
 
-  const turnSecondsLeft = matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - now) / 1000)) : null;
+  // `serverClockNow` = relógio do cliente corrigido pro do servidor — o timer e o
+  // "oponente inativo" comparam contra epochs do servidor (`turnDeadlineAt`/`lastSeenAt`).
+  const serverClockNow = now + clockOffsetRef.current;
+  const turnSecondsLeft =
+    matchView.turnDeadlineAt !== null ? Math.max(0, Math.ceil((matchView.turnDeadlineAt - serverClockNow) / 1000)) : null;
   const redirectSecondsLeft = redirectAt !== null ? Math.max(0, Math.ceil((redirectAt - now) / 1000)) : null;
   const gameOverResult = view.gameOver
     ? {
@@ -515,7 +581,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     : null;
 
   const opponentLastSeen = matchView.lastSeenAt[opponentSeat];
-  const opponentIdleMs = opponentLastSeen ? Math.max(0, now - opponentLastSeen) : null;
+  const opponentIdleMs = opponentLastSeen ? Math.max(0, serverClockNow - opponentLastSeen) : null;
   const opponentIdleSeconds = opponentIdleMs !== null ? Math.floor(opponentIdleMs / 1000) : null;
   const canClaimAbandon = !view.gameOver && opponentIdleMs !== null && opponentIdleMs >= ABANDON_THRESHOLD_MS;
 
@@ -1026,12 +1092,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </Button>
       </div>
 
-      {/* Info de SISTEMA (não de jogo): sincronização + assento — chip minúsculo
-          e discreto no canto inferior esquerdo. */}
+      {/* Info de SISTEMA (não de jogo): status de conexão — chip minúsculo e
+          discreto no canto inferior esquerdo. */}
       <p className="pointer-events-none absolute bottom-1.5 left-2 z-30 flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-slate-600">
         <RefreshCw className={`size-2.5 ${connected ? "text-primary/70" : "animate-pulse text-slate-500"}`} />
-        {connected ? "sinc" : "conectando"} · {seat}
+        {connState === "live" ? "conectado" : connState === "dead" ? "desconectado" : "conectando…"}
       </p>
+
+      {/* Banner de reconexão — só quando o SSE caiu e está tentando voltar. */}
+      {connState === "reconnecting" || connState === "dead" ? (
+        <div className="pointer-events-none fixed inset-x-0 top-3 z-[45] flex justify-center px-3">
+          <div className="panel-cut flex items-center gap-2 border border-amber-400/60 bg-slate-950/95 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.06em] text-amber-200 shadow-2xl">
+            <RefreshCw className={connState === "dead" ? "size-4" : "size-4 animate-spin"} />
+            {connState === "dead"
+              ? "Conexão perdida — recarregue a página"
+              : `Reconectando…${reconnectAttempt > 1 ? ` (tentativa ${reconnectAttempt})` : ""}`}
+          </div>
+        </div>
+      ) : null}
 
       {/* Sprint 4/6 (redesenho "Nível Arena") — o board é UM `ArenaPlaymat`
           travado em 16:9. Em telas largas (> 1400px) o espaço lateral que sobra

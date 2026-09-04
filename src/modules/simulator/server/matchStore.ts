@@ -92,6 +92,13 @@ export interface MatchView {
   turnDeadlineAt: number | null;
   lastSeenAt: Partial<Record<PlayerId, number>>;
   version: number;
+  /**
+   * `Date.now()` do servidor no instante em que esta visão foi montada — o
+   * cliente calcula `clockOffset = serverNow - Date.now()` local e usa isso pra
+   * o countdown do timer / "oponente inativo há Xs" não sofrerem com skew de
+   * relógio entre as duas máquinas.
+   */
+  serverNow: number;
   /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2) — pra UI renderizar o toggle. */
   autoPassActionStep: boolean;
 }
@@ -105,6 +112,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     turnDeadlineAt: match.turnDeadlineAt,
     lastSeenAt: match.lastSeenAt,
     version: match.version,
+    serverNow: Date.now(),
     autoPassActionStep: match.seats[seat]?.autoPassActionStep ?? false,
   };
 }

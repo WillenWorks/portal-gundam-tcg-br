@@ -3350,6 +3350,9 @@ app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, (req: Reques
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
+  // hint de reconexão pro EventSource nativo do cliente (o cliente também tem
+  // backoff próprio + resync REST, mas isso encurta o gap na maioria dos casos).
+  res.write("retry: 3000\n\n");
   send("state", matchViewFor(match, seat));
 
   const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
