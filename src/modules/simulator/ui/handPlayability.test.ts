@@ -70,6 +70,31 @@ describe("playableModes — custo / nível", () => {
   });
 });
 
+describe("playableModes — Base (V6.3, docs/34 — achado real: nunca teve branch aqui)", () => {
+  it("Base com custo e nível satisfeitos na Main → deploy (mesmo sem nenhuma Base em campo ainda)", () => {
+    const b = def({ cardType: "BASE", cost: 2, level: 2 });
+    expect(playableModes(b, ctx({}))).toEqual(["deploy"]);
+  });
+
+  it("Base substituindo uma já em campo (EX Base ou normal) continua jogável — motor já trata a troca", () => {
+    // handPlayability não sabe (nem precisa saber) se já existe Base em campo —
+    // quem decide isso é deployCard() (engine/deploy.ts, já testado); aqui só
+    // confirma que a UI não bloqueia a jogada por existir Base nenhuma.
+    const b = def({ cardType: "BASE", cost: 1, level: 1 });
+    expect(playableModes(b, ctx({ activeResources: 1, totalResources: 1 }))).toEqual(["deploy"]);
+  });
+
+  it("Base sem recursos suficientes → injogável", () => {
+    const b = def({ cardType: "BASE", cost: 3, level: 3 });
+    expect(playableModes(b, ctx({ activeResources: 1, totalResources: 1 }))).toEqual([]);
+  });
+
+  it("Base fora da Main Phase → injogável", () => {
+    const b = def({ cardType: "BASE", cost: 0, level: 0 });
+    expect(playableModes(b, ctx({ myTurnMain: false }))).toEqual([]);
+  });
+});
+
 describe("playableModes — Pilot / pareamento", () => {
   it("Pilot nativo sem Unit amiga livre → injogável", () => {
     const p = def({ cardType: "PILOT", cost: 1, level: 1 });

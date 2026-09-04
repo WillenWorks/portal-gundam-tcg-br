@@ -99,16 +99,27 @@ export function ShieldRail({
         // passiva), mas um fluxo real de "escolher a shield de baixo" com
         // `compact` ligado ficaria difícil de acertar; não há esse fluxo
         // ativo em ST01/ST02 hoje.
-        // 2 strings ESTÁTICAS completas, nunca interpolação dentro do valor
-        // arbitrário — o scanner do Tailwind precisa achar a classe inteira
-        // como texto literal no código-fonte pra gerar o CSS; um template
-        // literal montando só o número em runtime não seria escaneado.
-        const cascade = !vertical || i === 0 ? undefined : compact ? "-mt-[calc(var(--card-w,3.5rem)*0.87)]" : "-mt-[calc(var(--card-w,3.5rem)*0.62)]";
+        // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único) em vez de
+        // `--card-w*0.62` escrito à mão aqui — a peça já usa `--card-w-std`
+        // como largura (linha abaixo), então "subtrair a LARGURA" (cascata
+        // normal) é exatamente `1 × --card-w-std`; "subtrair quase a ALTURA
+        // inteira" (achatado) é `card-w-std × 88/63` (a mesma proporção
+        // 63:88 de sempre). 2 strings ESTÁTICAS completas, nunca
+        // interpolação dentro do valor arbitrário — o scanner do Tailwind
+        // precisa achar a classe inteira como texto literal no código-fonte
+        // pra gerar o CSS; um template literal montando só o número em
+        // runtime não seria escaneado.
+        const cascade =
+          !vertical || i === 0
+            ? undefined
+            : compact
+              ? "-mt-[calc(var(--card-w-std,2.17rem)*88/63)]"
+              : "-mt-[var(--card-w-std,2.17rem)]";
 
         const piece = vertical ? (
           <span
             className={cn(
-              "relative block aspect-[63/88] w-[calc(var(--card-w,3.5rem)*0.62)] overflow-hidden border transition-colors duration-100 motion-reduce:transition-none",
+              "relative block aspect-[63/88] w-[var(--card-w-std,2.17rem)] overflow-hidden rounded-arena border transition-colors duration-100 motion-reduce:transition-none",
               full
                 ? selected
                   ? "border-emerald-400"

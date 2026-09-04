@@ -45,6 +45,12 @@ export function playableModes(def: CardDef, ctx: PlayabilityContext): Array<"dep
   const isPilotLike = def.cardType === "PILOT" || !!def.pilotMode;
 
   if (def.cardType === "UNIT" && ctx.myTurnMain) modes.push("deploy");
+  // V6.3 (docs/34) — achado real: BASE nunca teve branch aqui, então nenhuma
+  // Base na mão aparecia jogável (nem cinza-com-motivo — a ação nunca era
+  // sequer oferecida), mesmo com recurso/nível suficiente. O motor
+  // (`deployCard`) já substitui a Base em campo (inclusive a EX Base)
+  // corretamente e dispara o 【Deploy】 dela — só faltava isto.
+  if (def.cardType === "BASE" && ctx.myTurnMain) modes.push("deploy");
   // Parear Piloto (nativo ou Command/Pilot no modo Piloto) — precisa de Unit amiga livre.
   if (isPilotLike && ctx.myTurnMain && ctx.hasUnpairedFriendlyUnit) modes.push("deploy");
 

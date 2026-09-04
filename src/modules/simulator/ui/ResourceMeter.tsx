@@ -66,21 +66,34 @@ export function ResourceMeter({
             : r.rested
               ? "Recurso gasto"
               : "Recurso ativo";
-          // arte padrão do verso (Sprint 6) + moldura/tint que carrega o estado.
+          // V6.3 (docs/34) — tamanho-padrão único: era uma proporção própria
+          // (0.5×0.7 ativo / 0.34×0.5 gasto), sem `aspect-*` nenhum e SEM
+          // `rounded-arena` (achado do Willen: cantos retos, tamanho
+          // diferente do Deck de Recursos ao lado). Agora usa a MESMA
+          // largura-padrão `--card-w-std` que toda outra peça — `readOnly`
+          // (recursos do oponente) continua menor, mas como FRAÇÃO desse
+          // mesmo padrão (`*0.7`), não uma proporção própria desconectada.
+          const portraitWidth = readOnly ? "calc(var(--card-w-std,2.17rem)*0.7)" : "var(--card-w-std,2.17rem)";
+          const tone = selected
+            ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+            : r.isEx
+              ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
+              : r.rested
+                ? "border-white/10 opacity-60"
+                : "border-primary/50";
+          // V6.3 (docs/34) — corrige o corte da imagem no estado "gasto": antes,
+          // `rotate-90` girava a MESMA caixa retrato (o `object-cover` já tinha
+          // recortado pro formato ERRADO antes do giro). Agora a caixa EXTERNA já
+          // nasce em paisagem (`aspect-[88/63]`, footprint = a caixa retrato
+          // rotacionada) — e só a imagem por dentro (numa caixa retrato do
+          // tamanho normal) gira 90°, preenchendo a paisagem certinho.
           const shape = cn(
-            "relative block shrink-0 overflow-hidden border transition-all duration-100 motion-reduce:transition-none",
-            readOnly
-              ? "h-[calc(var(--card-w,3.5rem)*0.5)] w-[calc(var(--card-w,3.5rem)*0.34)]"
-              : "h-[calc(var(--card-w,3.5rem)*0.7)] w-[calc(var(--card-w,3.5rem)*0.5)]",
-            selected
-              ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-              : r.isEx
-                ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
-                : r.rested
-                  ? "rotate-90 border-white/10 opacity-60"
-                  : "border-primary/50",
+            "relative block shrink-0 overflow-hidden rounded-arena border transition-all duration-100 motion-reduce:transition-none",
+            r.rested ? "aspect-[88/63]" : "aspect-[63/88]",
+            tone,
             pickable && "cursor-pointer hover:border-emerald-300",
           );
+          const shapeStyle = { width: r.rested ? `calc(${portraitWidth} * 88 / 63)` : portraitWidth };
           const tint = selected
             ? "bg-emerald-500/35"
             : r.isEx
@@ -91,9 +104,18 @@ export function ResourceMeter({
           // recurso é carta virada PRA CIMA — mostra a ilustração real (via alias
           // ST01-RESOURCE→R-001 / TOKEN-EX-RESOURCE→EXR-001); verso só se faltar arte.
           const face = (art && r.code && artSrc(art, r.code, "sm")) || cardBackUrl;
+          const artBox = <img src={face} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />;
           const inner = (
             <>
-              <img src={face} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              {r.rested ? (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="relative aspect-[63/88] overflow-hidden rotate-90" style={{ width: portraitWidth }}>
+                    {artBox}
+                  </span>
+                </span>
+              ) : (
+                artBox
+              )}
               <span className={cn("absolute inset-0", tint)} />
             </>
           );
@@ -106,11 +128,12 @@ export function ResourceMeter({
               aria-pressed={selected}
               onClick={() => onSelect?.(r.instanceId)}
               className={cn(shape, "min-h-11 min-w-11")}
+              style={shapeStyle}
             >
               {inner}
             </button>
           ) : (
-            <span key={r.instanceId} title={title} aria-label={title} className={shape}>
+            <span key={r.instanceId} title={title} aria-label={title} className={shape} style={shapeStyle}>
               {inner}
             </span>
           );

@@ -37,7 +37,8 @@ const TONE_BADGE: Record<CounterChipTone, string> = {
   crit: "border-red-500/70 text-red-300",
 };
 
-const STACK_WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
+// V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
+const STACK_WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
 export function CounterChip({
   label,
@@ -57,7 +58,12 @@ export function CounterChip({
         {/* camadas de profundidade */}
         <span className="absolute inset-0 translate-x-[3px] translate-y-[3px] border border-white/5 bg-slate-950" aria-hidden />
         <span className="absolute inset-0 translate-x-[1.5px] translate-y-[1.5px] border border-white/10 bg-slate-950" aria-hidden />
-        <span className="relative block aspect-[63/88] w-full overflow-hidden border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
+        {/* V6.3 (docs/34): `rounded-arena` vai AQUI (já tem `overflow-hidden` — é
+            quem de fato recorta a arte), não no wrapper externo (que tinha
+            `rounded-arena` sem `overflow-hidden` — não recortava nada, achado
+            do Willen) — colocar lá cortaria as camadas de profundidade acima,
+            que de propósito vazam um pouco pra criar o efeito de pilha. */}
+        <span className="relative block aspect-[63/88] w-full overflow-hidden rounded-arena border border-white/10 bg-gradient-to-br from-slate-800 via-slate-900 to-black">
           {face ?? <img src={cardBackUrl} alt="" loading="lazy" className="h-full w-full object-cover" />}
         </span>
         {!hideCount ? (

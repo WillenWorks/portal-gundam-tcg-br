@@ -154,6 +154,18 @@ describe("ActionDock — texto e botões por kind", () => {
   });
 });
 
+describe("ActionDock — posição (V6.3, docs/34)", () => {
+  it("mobile (< lg:): coluna vertical fixa na esquerda, abaixo do cluster ⚙/🐞/expandir", () => {
+    const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 });
+    expect(out).toMatch(/fixed left-2 top-12/);
+  });
+
+  it("lg:+ (desktop/tablet genuíno): restaura a caixa ancorada no canto inferior direito", () => {
+    const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 });
+    expect(out).toMatch(/lg:left-auto lg:top-auto lg:bottom-14 lg:right-2/);
+  });
+});
+
 describe("ActionDock — Confirmar depende de canConfirm/busy", () => {
   const base = { kind: "pending", verb: "Jogando", selectedCount: 1, cost: null } as const;
 

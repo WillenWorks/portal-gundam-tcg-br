@@ -2,10 +2,13 @@
  * Unit pareada. Badge LINK dourado brilhante quando a Link Condition
  * (Comprehensive Rules 3-2-6) está satisfeita.
  *
- * Sprint 5 (refinamento Arena 3D) — vira um OVERLAY absoluto na base do slot
- * (não cresce mais a altura externa da Unit). Mostra só a faixa do piloto:
- * rosto + modificador impresso de combate (`+AP/+HP`, CR 3-3-5) + selo LINK.
- * O nome fica no `title`/`aria-label` (tooltip), estilo Mobile Suit Arena. */
+ * Sprint 5 (refinamento Arena 3D) — virou um OVERLAY absoluto na base do
+ * slot. V6.3 (docs/34) — voltou a ser um elemento de FLUXO normal: o
+ * `BattleSlot` agora reserva uma tira própria abaixo da arte da Unit só pro
+ * Piloto (antes o overlay cobria a parte de baixo da própria arte — achado
+ * do Willen). Mostra só a faixa do piloto: rosto + modificador impresso de
+ * combate (`+AP/+HP`, CR 3-3-5) + selo LINK. O nome fica no `title`/
+ * `aria-label` (tooltip), estilo Mobile Suit Arena. */
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectivePilotDef, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
@@ -35,7 +38,7 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
       aria-label={title}
       onClick={onInspect ? () => onInspect(pilot) : undefined}
       className={cn(
-        "absolute inset-x-0 bottom-0 z-0 flex items-center gap-1 overflow-hidden border-t px-1 py-px",
+        "flex h-full w-full items-center gap-1 overflow-hidden border-t px-1 py-px",
         linked ? "border-amber-400/80 bg-amber-500/25" : "border-white/10 bg-black/75",
       )}
     >

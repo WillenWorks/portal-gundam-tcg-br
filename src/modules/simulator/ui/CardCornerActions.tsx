@@ -3,7 +3,15 @@
  * de contexto (Jogar / Atacar / Ativar / Blocker / Mirar) aparecem à esquerda
  * dele. Sempre visível (não depende de hover — o hover não pegava de forma
  * confiável). Cada botão faz `stopPropagation` pra o clique nunca cair no corpo
- * da carta por baixo (era o conflito "atacar abre a imagem"). */
+ * da carta por baixo (era o conflito "atacar abre a imagem").
+ *
+ * V6.3 (docs/34) — achado do Willen: a mão usava um tamanho/posição
+ * (`size-6`, salta pra fora do canto) e o campo usava outro (`size-5`,
+ * dentro do canto) — inconsistente, e os dois abaixo do alvo de toque de
+ * 44px já usado em Shield/Recurso. Unificado: 1 tamanho só (`size-7`,
+ * maior que os dois anteriores) e 1 posição só (dentro do canto, nunca mais
+ * salta pra fora — reduz a chance de 2 cartas vizinhas colidirem o cluster
+ * uma da outra, relevante com o espaçamento apertado do mobile). */
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,19 +38,17 @@ interface CardCornerActionsProps {
   /** ordem visual da ESQUERDA pra direita — passe as ações de contexto primeiro
    *  e "Ver" por último, pra "Ver" encostar no canto direito. */
   actions: CornerAction[];
-  /** `md` (mão, `size-6`) ou `sm` (campo, `size-5` — cobre menos a arte). */
-  size?: "sm" | "md";
   className?: string;
 }
 
-export function CardCornerActions({ actions, size = "md", className }: CardCornerActionsProps) {
+export function CardCornerActions({ actions, className }: CardCornerActionsProps) {
   if (actions.length === 0) return null;
   return (
     <div
-      // absoluto encostado no canto direito; cresce pra ESQUERDA conforme ganha
-      // botões. `-top-2` (default) põe a fila levemente pra fora da carta — o
-      // caller passa `top-0.5` quando não pode passar pra fora (campo).
-      className={cn("absolute -top-2 right-0 z-40 flex items-start gap-0.5", className)}
+      // absoluto encostado no canto direito, DENTRO da carta (nunca mais
+      // salta pra fora — mão e campo usam o mesmo `top-0.5 right-0.5`
+      // default agora); cresce pra ESQUERDA conforme ganha botões.
+      className={cn("absolute top-0.5 right-0.5 z-40 flex items-start gap-0.5", className)}
       onClick={(e) => e.stopPropagation()}
     >
       {actions.map((a) => (
@@ -57,12 +63,11 @@ export function CardCornerActions({ actions, size = "md", className }: CardCorne
             a.onClick();
           }}
           className={cn(
-            "flex items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
-            size === "sm" ? "size-5" : "size-6",
+            "flex size-7 items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
             TONE[a.tone],
           )}
         >
-          <a.icon className={size === "sm" ? "size-3" : "size-3.5"} aria-hidden />
+          <a.icon className="size-4" aria-hidden />
         </button>
       ))}
     </div>

@@ -21,7 +21,8 @@ interface BaseCardGaugeProps {
   onHoverCard?: (card: CardInstance | null) => void;
 }
 
-const WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
+// V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
+const WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
 export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onInspect, onHoverCard }: BaseCardGaugeProps) {
   if (!base) {
@@ -29,7 +30,7 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
       <div
         title="Base: nenhuma em jogo"
         aria-label="Base: nenhuma em jogo"
-        className={cn("aspect-[63/88] border border-dashed border-white/10 bg-white/[0.015]", WIDTH)}
+        className={cn("aspect-[63/88] overflow-hidden rounded-arena border border-dashed border-white/10 bg-white/[0.015]", WIDTH)}
       />
     );
   }
@@ -51,7 +52,12 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
       onFocus={onHoverCard ? () => onHoverCard(base) : undefined}
       onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
       className={cn(
-        "relative block border",
+        // V6.3 (docs/34): `overflow-hidden rounded-arena` — antes a moldura
+        // era um retângulo reto em volta de uma arte já arredondada (o
+        // `CardFace` interno já se arredonda sozinho), descasando borda
+        // reta com conteúdo arredondado. Também clipa a barra de HP/badge
+        // de dano no mesmo raio.
+        "relative block overflow-hidden rounded-arena border",
         WIDTH,
         legalTarget
           ? "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"

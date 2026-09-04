@@ -142,8 +142,9 @@ describe("ArenaPlaymat", () => {
     renderArena();
     const shieldStation = screen.getByText("me-base").parentElement!;
     const deckStation = screen.getByText("me-deck").parentElement!;
-    expect(shieldStation.className).toMatch(/w-\[calc\(var\(--card/);
-    expect(deckStation.className).toMatch(/w-\[calc\(var\(--card/);
+    // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `calc(...*0.62)` à mão.
+    expect(shieldStation.className).toMatch(/w-\[var\(--card-w-std/);
+    expect(deckStation.className).toMatch(/w-\[var\(--card-w-std/);
   });
 
   it("aplica a perspectiva 3D no canvas", () => {

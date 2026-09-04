@@ -66,8 +66,15 @@ export function BattleSlot({
 }: BattleSlotProps) {
   if (!unit) {
     return (
-      <div className="relative aspect-[63/88] w-full rounded-arena border border-dashed border-primary/25 bg-slate-900/40">
-        <div className="absolute inset-1 rounded-arena border border-primary/10" aria-hidden />
+      // V6.3 (docs/34): mesma altura total (carta + tira reservada) do slot
+      // ocupado abaixo — senão a linha do grid (que soma a MAIOR célula)
+      // ficaria mais alta só quando algum slot da fileira tem Piloto pareado,
+      // e as vazias/sem-piloto pareciam "cair pra cima".
+      <div className="flex w-full flex-col">
+        <div className="relative aspect-[63/88] w-full rounded-arena border border-dashed border-primary/25 bg-slate-900/40">
+          <div className="absolute inset-1 rounded-arena border border-primary/10" aria-hidden />
+        </div>
+        <div className="h-[1.1rem] shrink-0" aria-hidden />
       </div>
     );
   }
@@ -79,8 +86,6 @@ export function BattleSlot({
   const hpRemaining = Math.max(0, effectiveHp(unit, state, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
-  // com Piloto acoplado, a faixa dele ocupa a base — os números sobem um degrau.
-  const badgeBottom = pilot ? "bottom-[1.1rem]" : "bottom-0";
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
@@ -109,7 +114,7 @@ export function BattleSlot({
       ref={registerRef}
       {...hoverProps}
       className={cn(
-        "group/slot relative aspect-[63/88] w-full rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
+        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
         // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
         // sup. direito, levemente pra fora) passar por cima do slot vizinho.
         "hover:z-30 focus-within:z-30",
@@ -122,7 +127,11 @@ export function BattleSlot({
     >
       {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
           (pareamento / mira de efeito). Inspecionar é sempre pelo botão "Ver"
-          no canto — remove o conflito "clicar em Atacar abre a imagem". */}
+          no canto — remove o conflito "clicar em Atacar abre a imagem".
+          V6.3 (docs/34): antes o `DockedPilot` era um overlay ABSOLUTO por
+          cima da base da arte (cobria a carta) — agora essa div É
+          `aspect-[63/88]` sozinha (só a carta), e o Piloto ganha uma tira
+          RESERVADA logo abaixo (nunca mais rouba espaço de dentro da arte). */}
       <div
         role={legalTarget ? "button" : undefined}
         tabIndex={legalTarget ? 0 : undefined}
@@ -137,7 +146,7 @@ export function BattleSlot({
               }
             : undefined
         }
-        className={cn("relative block h-full w-full", legalTarget ? "cursor-pointer" : "cursor-default")}
+        className={cn("relative block aspect-[63/88] w-full", legalTarget ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
           nameEn={unit.def.nameEn}
@@ -148,11 +157,11 @@ export function BattleSlot({
           dimmed={unit.rested}
           backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
         >
-          {/* AP / HP efetivos — badges de canto (sobem quando há Piloto acoplado) */}
+          {/* AP / HP efetivos — badges de canto (V6.3: sempre no rodapé da
+              arte agora — o Piloto não overlay mais em cima delas). */}
           <span
             className={cn(
-              "absolute left-0 z-10 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
-              badgeBottom,
+              "absolute bottom-0 left-0 z-10 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
               apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
             )}
             aria-label={`AP ${ap}`}
@@ -161,8 +170,7 @@ export function BattleSlot({
           </span>
           <span
             className={cn(
-              "absolute right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
-              badgeBottom,
+              "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
               hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
             )}
             aria-label={`HP ${hpRemaining}`}
@@ -180,12 +188,20 @@ export function BattleSlot({
         </CardFace>
       </div>
 
-      {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
+      {/* Tira reservada pro Piloto pareado — SEMPRE presente (mesma altura
+          com ou sem Piloto), pra a fileira do grid não ficar mais alta só
+          quando ALGUM slot tem Piloto (as vazias/sem-piloto "cairiam pra
+          cima" se a altura total variasse por slot). */}
+      <div className="h-[1.1rem] shrink-0">
+        {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
+      </div>
 
       {/* No campo o cluster fica DENTRO do canto (não pra fora como na mão): as 2
           Battle Areas ficam perto e um `-top` faria os botões caírem em cima da
           carta do oponente / da seam, roubando o clique. */}
-      <CardCornerActions actions={cornerActions} size="sm" className="top-0.5 right-0.5" />
+      {/* V6.3 (docs/34): tamanho/posição agora são o default do componente
+          (unificado com a mão — não passa mais `size`/`className` custom). */}
+      <CardCornerActions actions={cornerActions} />
     </div>
   );
 }

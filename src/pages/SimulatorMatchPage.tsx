@@ -1204,7 +1204,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           vira asa: o inspetor de carta CRESCE (`flex-1`) pra preencher a
           esquerda, e um espelho `flex-1` invisível à direita mantém a arena
           centrada. */}
-      <div className="relative flex min-h-0 flex-1 items-stretch justify-center gap-3 overflow-hidden px-1 sm:px-3 py-2">
+      <div
+        className={
+          "relative flex min-h-0 flex-1 items-stretch justify-center gap-3 overflow-hidden px-1 sm:px-3 py-2" +
+          // V6.3 (docs/34): o cluster ⚙/🐞/expandir é `absolute` (não empurra
+          // ninguém) — sem isso, o `CardInspectorPanel` (só existe com
+          // `isWide`) começa no topo da linha e fica ATRÁS dos botões (fundo
+          // transparente, print do Willen). Respiro só quando a asa existe.
+          (isWide ? " pt-10" : "")
+        }
+      >
         {/* V6.1 (docs/32): `self-center` fazia a asa encolher pro tamanho do
             CONTEÚDO em vez de esticar pela altura da linha — por isso o
             painel "Nenhuma carta selecionada" ficava pequeno e colado no

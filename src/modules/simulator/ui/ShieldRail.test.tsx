@@ -28,16 +28,16 @@ describe("ShieldRail", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("V6.2 (docs/33): `compact` (prop, não breakpoint) achata a cascata — *0.87 em vez de *0.62", () => {
+  it("V6.2/V6.3 (docs/33, docs/34): `compact` (prop, não breakpoint) achata a cascata (~altura inteira)", () => {
     render(<ShieldRail count={3} orientation="vertical" compact />);
     const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
-    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w,3.5rem)*0.87)]");
+    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w-std,2.17rem)*88/63)]");
   });
 
-  it("sem `compact`, mantém a cascata normal (*0.62)", () => {
+  it("sem `compact`, mantém a cascata normal (subtrai só a largura)", () => {
     render(<ShieldRail count={3} orientation="vertical" />);
     const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
-    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w,3.5rem)*0.62)]");
+    expect(pieces[1]?.className).toContain("-mt-[var(--card-w-std,2.17rem)]");
   });
 
   it("reserva `max` peças por padrão (vivas + quebradas)", () => {

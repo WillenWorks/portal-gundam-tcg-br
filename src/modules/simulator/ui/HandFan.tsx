@@ -69,7 +69,9 @@ export function HandFan({
   }
 
   const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(0, overlap ?? overlapFor(cards.length)));
-  const overlapMargin = `calc(var(--card-w, 3.5rem) * -${clampedOverlap})`;
+  // V6.3 (docs/34): `--card-w-std` — a carta da mão diminuiu pro tamanho-padrão
+  // (era `--card-w` cheio, o dobro do resto da arena); o overlap acompanha.
+  const overlapMargin = `calc(var(--card-w-std, 2.17rem) * -${clampedOverlap})`;
   const lift = anchored
     ? "hover:-translate-y-6 focus-within:-translate-y-6"
     : "hover:-translate-y-4 focus-within:-translate-y-4";
@@ -128,7 +130,7 @@ export function HandFan({
                   code={card.def.code}
                   art={art}
                   size="md"
-                  style={{ width: "var(--card-w, 3.5rem)" }}
+                  style={{ width: "var(--card-w-std, 2.17rem)" }}
                   backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
                 >
                   {cost !== undefined ? (

@@ -33,9 +33,11 @@ const unit = (over: Partial<CardDef> = {}, i: Partial<CardInstance> = {}) =>
 describe("BattleSlot", () => {
   it("slot vazio: moldura de hangar tracejada, sem botões", () => {
     const { container } = render(<BattleSlot unit={null} pilot={null} art={{}} />);
-    const box = container.firstElementChild as HTMLElement;
-    expect(box.className).toMatch(/border-dashed/);
-    expect(box.className).toMatch(/border-primary\/25/);
+    // V6.3 (docs/34): o outer virou `flex-col` (carta + tira reservada pro
+    // Piloto) — a moldura tracejada mora no filho aspect-[63/88] (a carta em si).
+    const cardBox = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox.className).toMatch(/border-dashed/);
+    expect(cardBox.className).toMatch(/border-primary\/25/);
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -142,23 +144,29 @@ describe("BattleSlot", () => {
     expect(screen.getByRole("button", { name: "Atacar" }).textContent).toBe("");
   });
 
-  it("com ações disponíveis o slot NÃO expande: segue aspect-[63/88]", () => {
+  it("com ações disponíveis a CARTA não expande: segue aspect-[63/88] (V6.3, docs/34 — a tira do Piloto é reservada à parte, fora da carta)", () => {
     const { container } = render(
       <BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack: vi.fn(), onBlocker: vi.fn() }} />,
     );
-    expect((container.firstElementChild as HTMLElement).className).toMatch(/aspect-\[63\/88\]/);
-    // o container de botões não faz parte do fluxo (é absolute)
-    expect((container.firstElementChild as HTMLElement).className).not.toMatch(/flex-col/);
+    const cardBox = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox.className).toMatch(/aspect-\[63\/88\]/);
+    // o cluster de botões não faz parte do fluxo (é absolute, some da carta)
+    expect(cardBox.className).not.toMatch(/flex-col/);
   });
 
-  it("slot ocupado mantém a proporção estrita aspect-[63/88]", () => {
+  it("slot ocupado: a carta em si mantém a proporção estrita aspect-[63/88]", () => {
     const { container } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
-    expect((container.firstElementChild as HTMLElement).className).toMatch(/aspect-\[63\/88\]/);
+    const cardBox = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox.className).toMatch(/aspect-\[63\/88\]/);
   });
 
-  it("piloto acoplado é overlay na base, com o nome no tooltip", () => {
+  it("piloto acoplado ganha tira RESERVADA abaixo da arte, não mais overlay em cima dela (V6.3, docs/34)", () => {
     render(<BattleSlot unit={unit()} pilot={inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 1, hp: 1 })} art={{}} />);
-    expect(screen.getByRole("button", { name: /Amuro Ray/ }).className).toMatch(/absolute/);
+    const pilotButton = screen.getByRole("button", { name: /Amuro Ray/ });
+    // não é mais um overlay absoluto por cima da arte — é fluxo normal, numa
+    // tira própria abaixo dela.
+    expect(pilotButton.className).not.toMatch(/absolute/);
+    expect(pilotButton.parentElement?.className).toMatch(/h-\[1\.1rem\]/);
   });
 
   it("onHoverCard dispara com a Unit no hover do slot e null ao sair", () => {

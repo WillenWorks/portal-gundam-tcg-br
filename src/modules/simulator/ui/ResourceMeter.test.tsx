@@ -26,9 +26,11 @@ describe("ResourceMeter", () => {
     expect(screen.queryByText(/Nenhum recurso/)).toBeNull();
   });
 
-  it("recurso gasto aparece girado (forma, não só cor)", () => {
+  it("recurso gasto aparece deitado (forma, não só cor) — V6.3 (docs/34): caixa externa já nasce em paisagem, só a imagem por dentro gira", () => {
     render(<ResourceMeter resources={[res("a", { rested: true })]} level={1} />);
-    expect(screen.getByLabelText("Recurso gasto").className).toMatch(/rotate-90/);
+    const outer = screen.getByLabelText("Recurso gasto");
+    expect(outer.className).toMatch(/aspect-\[88\/63\]/);
+    expect(outer.querySelector(".rotate-90")).not.toBeNull();
   });
 
   it("EX Resource tem moldura dourada e o aviso de sair de jogo", () => {

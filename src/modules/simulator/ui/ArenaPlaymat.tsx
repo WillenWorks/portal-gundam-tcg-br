@@ -117,6 +117,14 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
       ref={containerRef}
       className={cn(
         "relative mx-auto flex flex-col overflow-hidden",
+        // V6.3 (docs/34) — tamanho-padrão único: antes, Battle Row/Mão usavam
+        // `--card-w` cheio (1x) enquanto Shield/Deck/Trash/Exílio/Base
+        // usavam `--card-w * 0.62` cada um escrevendo a conta na mão (achado
+        // do Willen: Unit ficava o DOBRO do resto, sem padrão nenhum entre
+        // as peças). `--card-w-std`, derivada 1 vez aqui, é a ÚNICA fonte —
+        // todo mundo (incluindo Battle Row/Mão agora) referencia ela, nunca
+        // mais reescreve `*0.62` cada um por conta própria.
+        "[--card-w-std:calc(var(--card-w)*0.62)]",
         // V6.2 (docs/33): `expanded` solta a trava de 16:9 — sem isso, a caixa
         // do canvas nunca crescia além de altura×16/9 mesmo com as asas
         // escondidas (largura sobrando ficava sempre de fora, inalcançável,
@@ -175,12 +183,14 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
   );
 }
 
-/** largura comum das colunas laterais — Base, cascata de Shields e pilhas alinham nela. */
-const STATION_WIDTH = "w-[calc(var(--card-w,3.5rem)*0.62)]";
+/** largura comum das colunas laterais — Base, cascata de Shields e pilhas alinham nela.
+ *  V6.3 (docs/34): `--card-w-std` (definida no canvas root), não mais `*0.62` repetido aqui. */
+const STATION_WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
-/** largura da fileira de 6 slots (`repeat(6, --card-w)` + 5 gaps de `gap-1`) — a
- * linha de recursos usa a MESMA largura pra alinhar com a Battle Area. */
-const BATTLE_ROW_WIDTH = "calc(var(--card-w, 3.5rem) * 6 + 1.25rem)";
+/** largura da fileira de 6 slots (`repeat(6, --card-w-std)` + 5 gaps de
+ * `gap-1.5` = 5×0.375rem = 1.875rem, V6.3 docs/34) — a linha de recursos
+ * usa a MESMA largura pra alinhar com a Battle Area. */
+const BATTLE_ROW_WIDTH = "calc(var(--card-w-std, 2.17rem) * 6 + 1.875rem)";
 
 /** trilha de recursos: centrada, travada na largura da Battle Area, scroll fantasma. */
 function ResourceLane({ children }: { children: ReactNode }) {
@@ -278,7 +288,12 @@ function BattleRow({
   gridRef?: (el: HTMLElement | null) => void;
 }) {
   return (
-    <div ref={gridRef} className="mx-auto grid gap-1" style={{ gridTemplateColumns: "repeat(6, var(--card-w, 3.5rem))" }}>
+    // V6.3 (docs/34): `--card-w-std` — Battle Row diminui pro tamanho-padrão
+    // das outras peças (Shield/Deck/Base), não mais o dobro delas.
+    // V6.3 (docs/34): `gap-1.5` (era `gap-1`) — um pouco mais de respiro entre
+    // slots vizinhos, pra clicar nos ícones de ação (Etapa 6) sem risco de
+    // errar pro slot ao lado.
+    <div ref={gridRef} className="mx-auto grid gap-1.5" style={{ gridTemplateColumns: "repeat(6, var(--card-w-std, 2.17rem))" }}>
       {children}
     </div>
   );

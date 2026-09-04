@@ -92,16 +92,22 @@ export function ActionDock({
     switch (state.kind) {
       case "idle":
         return (
-          <div className="flex items-center justify-between gap-3">
+          // V6.3 (docs/34): coluna vertical estreita no mobile (< lg:) — o
+          // texto+botão lado a lado não cabia direito na coluna à esquerda;
+          // empilha (`flex-col`) até `lg:`, onde volta a ser a caixa
+          // horizontal de sempre.
+          <div className="flex flex-col items-start gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
             <div className="min-w-0">
               {/* V6.2 (docs/33): `clamp()` contínuo em vez de `sm:`/`md:` — as
                   rodadas anteriores bateram em limiares DIFERENTES por
                   arquivo pro MESMO dispositivo (docs/32, "achado de raiz");
                   um `clamp()` só não tem essa classe de bug (não tem 2
-                  números pra desalinhar entre arquivos, é 1 fórmula). */}
+                  números pra desalinhar entre arquivos, é 1 fórmula).
+                  V6.3: sem `truncate` — a coluna estreita do mobile precisa
+                  poder quebrar linha em vez de cortar informação. */}
               <p
                 className={cn(
-                  "truncate text-[clamp(0.6875rem,1.5vw,0.875rem)] font-black uppercase tracking-wide",
+                  "text-[clamp(0.6875rem,1.5vw,0.875rem)] font-black uppercase tracking-wide",
                   state.yourTurn ? "text-primary" : "text-muted-portal",
                 )}
               >
@@ -119,7 +125,7 @@ export function ActionDock({
             {state.yourTurn ? (
               <Button
                 size="sm"
-                className="rounded-arena bg-primary px-3 text-primary-foreground hover:bg-primary/90"
+                className="w-full rounded-arena bg-primary px-3 text-primary-foreground hover:bg-primary/90 lg:w-auto"
                 disabled={busy}
                 onClick={onEndTurn}
               >
@@ -275,24 +281,19 @@ export function ActionDock({
   }
 
   return (
-    // `bottom-11` (44px) no mobile — a `HandDrawer` que isso mirava foi
-    // removida (a mão hoje é o `HandFan anchored` dentro do próprio rodapé
-    // do `ArenaPlaymat`, não mais um `fixed bottom-0` à parte), mas o offset
-    // continua útil pra não colar o dock na borda da tela. `sm:bottom-20`
-    // (V6.1, docs/32) dá folga extra acima da fileira de ícones "Jogar/Ver"
-    // da mão — reaplicado numa faixa só (`sm:`+, sem outro salto depois)
-    // porque não há razão real pra essa folga precisar MUDAR de novo em
-    // telas maiores.
+    // V6.3 (docs/34) — pedido do Willen: no mobile (< lg:), o dock deixa de
+    // ser barra/caixa perto do rodapé (colidia com os ícones de ação da mão
+    // E ficava enorme sobre o campo) e vira uma coluna VERTICAL fixa na
+    // ESQUERDA, logo abaixo do cluster ⚙/🐞/expandir (`left-2 top-2` na
+    // página) — longe dos botões de ação do próprio celular e da mão.
+    // `lg:` (≥1024px, genuíno desktop/tablet) restaura a caixa ancorada no
+    // canto inferior direito de sempre. Um limiar só (`lg:`), reaproveitado
+    // do mesmo jeito no texto/padding acima — nada de limiares diferentes
+    // por propriedade (era exatamente isso que causava o "não mudou nada"
+    // da rodada 3, docs/32).
     <aside
       aria-label="Ação atual"
-      // V6.2 (docs/33): largura vira `clamp()` contínuo em vez de `sm:`/
-      // `md:`/`lg:` — mesmo motivo do texto acima (achado de raiz do
-      // docs/32: limiares diferentes em arquivos diferentes pro MESMO
-      // dispositivo). A troca de LAYOUT (barra full-width → caixa ancorada
-      // no canto) continua em `sm:` — isso É uma mudança estrutural real,
-      // faz sentido ser um salto; só o TAMANHO dentro do modo "caixa" deixou
-      // de saltar.
-      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-20 sm:right-2 sm:w-[clamp(13rem,38vw,23rem)]"
+      className="fixed left-2 top-12 z-40 max-h-[60vh] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-[clamp(13rem,38vw,23rem)] lg:overflow-visible"
     >
       <div
         className={cn(
