@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 export const publicTopNav = [
   { href: "/", label: "Home" },
+  { href: "/novidades", label: "Novidades" },
   { href: "/decks", label: "Decks" },
   { href: "/database", label: "Database", children: [
     { href: "/database", label: "Cartas" },

@@ -27,6 +27,7 @@ import BinderPage from "@/pages/BinderPage";
 import BinderListPage from "@/pages/BinderListPage";
 import AuthPage from "@/pages/AuthPage";
 import TournamentsPage from "@/pages/TournamentsPage";
+import ChangelogPage from "@/pages/ChangelogPage";
 
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
@@ -87,6 +88,7 @@ function AppRouter() {
         <Route path="/sets" component={CollectionsPage} />
         <Route path="/database" component={CardsPage} />
         <Route path="/eventos" component={TournamentsPage} />
+        <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
         <Route path="/tournaments" component={TournamentsPage} />
         <Route path="/cards/:id" component={CardDetailPage} />
