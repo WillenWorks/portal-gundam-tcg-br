@@ -83,29 +83,36 @@ function PanelBody({
     <div className="flex flex-1 flex-col justify-center gap-3 overflow-y-auto">
       {/* V6.4 (docs/35) — bug real (print anotado do Willen, "Captura1"): `size="lg"`
           é uma largura FIXA (`w-28`, 112px) que ignora quanto a asa realmente tem
-          disponível (até `max-w-[22rem]` no pai) — a amostra ficava pequena mesmo
+          disponível (até `max-w-[28rem]` no pai) — a amostra ficava pequena mesmo
           numa coluna bem mais larga. `w-full` (via `className`, que via `twMerge`
           vence o `w-28` do `size`) faz a arte preencher a coluna de verdade; o teto
-          próprio (`max-w-[13rem]`) evita que ela vire gigante numa asa excepcionalmente
-          larga e sobre pouco espaço pras infos (Nível/Custo/AP/HP) abaixo. */}
+          próprio evita que ela vire gigante numa asa excepcionalmente larga e sobre
+          pouco espaço pras infos (Nível/Custo/AP/HP) abaixo.
+          V6.4 (docs/36) — `13rem` → `17rem`: pedido explícito do Willen pra
+          aumentar ainda mais a amostra + as infos no widescreen (a asa em si
+          também cresceu, 22rem → 28rem, ver `SimulatorMatchPage.tsx`). */}
       <CardFace
         nameEn={def.nameEn}
         code={def.code}
         art={art}
         size="lg"
-        className="mx-auto w-full max-w-[13rem] border border-white/10"
+        className="mx-auto w-full max-w-[17rem] border border-white/10"
         backFallback={isGenericArtCard(def.cardType, def.isToken)}
       />
 
+      {/* V6.4 (docs/36) — pedido do Willen: "as informações textuais podem
+          ser aumentadas ainda" no widescreen (a asa em si cresceu, 22rem →
+          28rem). Um degrau pra cima em cada texto (nome, código/tipo, stats,
+          traits/link, badges) — mantém a hierarquia relativa entre eles. */}
       <div>
-        <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>
-        <p className="text-[10px] text-muted-portal">
+        <p className="font-heading text-base font-bold leading-tight text-soft">{def.nameEn}</p>
+        <p className="text-xs text-muted-portal">
           {def.code} · {def.cardType}
           {def.color ? ` · ${def.color}` : ""}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-1 text-[10px]">
+      <div className="grid grid-cols-2 gap-1.5 text-xs">
         {def.level !== undefined ? <Stat label="Nível" value={def.level} /> : null}
         {def.cost !== undefined ? <Stat label="Custo" value={def.cost} /> : null}
         {ap !== undefined ? <Stat label="AP" value={ap} tone={apBuffed ? "buff" : undefined} /> : null}
@@ -113,13 +120,13 @@ function PanelBody({
       </div>
 
       {def.traits?.length ? (
-        <p className="text-[10px] text-slate-400">
+        <p className="text-xs text-slate-400">
           <span className="uppercase tracking-wide text-slate-500">Traits:</span> {def.traits.join(" · ")}
         </p>
       ) : null}
 
       {def.link ? (
-        <p className="text-[10px] text-amber-300/90">
+        <p className="text-xs text-amber-300/90">
           <span className="uppercase tracking-wide text-amber-500/70">Link:</span>{" "}
           {def.link.kind === "pilotName"
             ? def.link.values.map((v) => `[${v}]`).join(" / ")
@@ -130,7 +137,7 @@ function PanelBody({
       {keywords.length ? (
         <div className="flex flex-wrap gap-1">
           {keywords.map((k) => (
-            <span key={k} className="border border-primary/30 bg-primary/10 px-1 text-[9px] font-medium text-primary">
+            <span key={k} className="border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
               {k}
             </span>
           ))}
@@ -139,10 +146,10 @@ function PanelBody({
 
       {activeBuffs.length || grantedKeywords.length ? (
         <div className="border-t border-white/10 pt-2">
-          <p className="mb-1 text-[9px] uppercase tracking-wide text-emerald-500/80">Ativo agora</p>
+          <p className="mb-1 text-[10px] uppercase tracking-wide text-emerald-500/80">Ativo agora</p>
           <div className="flex flex-wrap gap-1">
             {[...activeBuffs, ...grantedKeywords].map((b) => (
-              <span key={b} className="border border-emerald-400/40 bg-emerald-500/10 px-1 text-[9px] font-medium text-emerald-300">
+              <span key={b} className="border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-300">
                 {b}
               </span>
             ))}
@@ -150,7 +157,7 @@ function PanelBody({
         </div>
       ) : null}
 
-      {blockedReason ? <p className="mt-auto text-center text-xs text-amber-400">{blockedReason}</p> : null}
+      {blockedReason ? <p className="mt-auto text-center text-sm text-amber-400">{blockedReason}</p> : null}
     </div>
   );
 }
@@ -159,7 +166,7 @@ function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: 
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between border px-1.5 py-1",
+        "flex items-baseline justify-between border px-2 py-1.5",
         tone === "buff"
           ? "border-accent/50 bg-accent/10"
           : tone === "damage"
@@ -167,10 +174,10 @@ function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: 
             : "border-white/10 bg-white/[0.03]",
       )}
     >
-      <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       <span
         className={cn(
-          "font-mono text-sm font-black tabular-nums",
+          "font-mono text-lg font-black tabular-nums",
           tone === "buff" ? "text-accent" : tone === "damage" ? "text-red-400" : "text-slate-200",
         )}
       >

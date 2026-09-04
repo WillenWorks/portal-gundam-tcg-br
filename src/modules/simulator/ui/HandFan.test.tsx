@@ -99,11 +99,23 @@ describe("HandFan", () => {
     expect(names).toHaveLength(2);
   });
 
-  it("mão pequena fica FROUXA (pouco overlap); mão grande aperta", () => {
+  it("mão pequena fica ESPAÇADA (gap real, nunca sobreposta); mão grande aperta (overlap de verdade)", () => {
+    // V6.4 (docs/36) — bug real (Willen: "espaçar mais os cards na mão,
+    // para não agrupar demais mesmo quando tem apenas 6 cartas"): mão
+    // pequena agora usa margem POSITIVA (gap), não só "pouco overlap"
+    // negativo — o multiplicador do `calc()` muda de sinal conforme o
+    // tamanho da mão, por isso a extração via regex captura o número com
+    // sinal (`-?`) em vez de assumir sempre negativo.
+    const marginMultiplier = () => {
+      const match = containers()[1].style.marginLeft.match(/\*\s*(-?[\d.]+)\)/);
+      return match ? Number(match[1]) : NaN;
+    };
     const { rerender } = render(
       <HandFan cards={[unit("A"), unit("B"), unit("C")].map((c) => ({ card: c, playable: true }))} art={{}} onPeek={vi.fn()} />,
     );
-    const small = (containers()[1].style.marginLeft.match(/-([\d.]+)/) || [])[1];
+    const small = marginMultiplier();
+    expect(small).toBeGreaterThan(0); // gap real, não sobreposição
+
     rerender(
       <HandFan
         cards={Array.from({ length: 12 }, (_, i) => ({ card: unit(`C${i}`), playable: true }))}
@@ -111,8 +123,9 @@ describe("HandFan", () => {
         onPeek={vi.fn()}
       />,
     );
-    const big = (containers()[1].style.marginLeft.match(/-([\d.]+)/) || [])[1];
-    expect(Number(big)).toBeGreaterThan(Number(small));
+    const big = marginMultiplier();
+    expect(big).toBeLessThan(0); // mão grande aperta de verdade (overlap negativo)
+    expect(big).toBeLessThan(small);
   });
 
   it("mão vazia mostra o emptyLabel e nenhum botão", () => {

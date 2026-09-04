@@ -43,13 +43,20 @@ interface HandFanProps {
 
 /** teto de sobreposição — acima disto a carta vira uma lasca ilegível. */
 const MAX_OVERLAP = 0.72;
+/** piso — valor NEGATIVO vira margem POSITIVA (gap real, não sobreposição). */
+const MIN_OVERLAP = -0.14;
 
-/** Mão pequena = quase sem overlap (cartas espaçadas, capturas 6); só aperta
- *  quando passa de ~6 cartas. V6 (docs/31): 0.12 → 0.08 pra mão pequena —
- *  "um pouquinho maior" de espaçamento (pedido do Willen, print de mobile). */
+/** Mão pequena = GAP real (nunca sobreposta), não só "quase sem overlap" — só
+ *  aperta (sobrepõe de verdade) quando passa de ~6 cartas.
+ *  V6 (docs/31): 0.12 → 0.08 pra mão pequena.
+ *  V6.4 (docs/36) — bug real reportado pelo Willen: 0.08 ainda agrupava
+ *  demais mesmo com só 6 cartas na mão ("espaçar mais os cards na mão").
+ *  Trocado por um GAP negativo (`MIN_OVERLAP`) em vez de só reduzir a
+ *  sobreposição — cartas soltas de verdade até ~6, sobrepõe só a partir
+ *  daí, quando realmente precisa caber mais carta na mesma largura. */
 function overlapFor(count: number): number {
-  if (count <= 6) return 0.08;
-  return Math.min(MAX_OVERLAP, 0.08 + (count - 6) * 0.07);
+  if (count <= 6) return MIN_OVERLAP;
+  return Math.min(MAX_OVERLAP, 0.08 + (count - 6) * 0.075);
 }
 
 export function HandFan({
@@ -68,10 +75,15 @@ export function HandFan({
     );
   }
 
-  const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(0, overlap ?? overlapFor(cards.length)));
+  const clampedOverlap = Math.min(MAX_OVERLAP, Math.max(MIN_OVERLAP, overlap ?? overlapFor(cards.length)));
   // V6.3 (docs/34): `--card-w-std` — a carta da mão diminuiu pro tamanho-padrão
   // (era `--card-w` cheio, o dobro do resto da arena); o overlap acompanha.
-  const overlapMargin = `calc(var(--card-w-std, 2.17rem) * -${clampedOverlap})`;
+  // V6.4 (docs/36) — `${-clampedOverlap}` (negação numérica, não concatenação
+  // de string): com `clampedOverlap` negativo (mão pequena, `MIN_OVERLAP`), a
+  // string antiga (`-${-0.14}`) virava `--0.14` — CSS inválido, a margem
+  // simplesmente não aplicava. Negando o NÚMERO primeiro, um overlap negativo
+  // vira margem POSITIVA (gap real) corretamente.
+  const overlapMargin = `calc(var(--card-w-std, 2.17rem) * ${-clampedOverlap})`;
   const lift = anchored
     ? "hover:-translate-y-6 focus-within:-translate-y-6"
     : "hover:-translate-y-4 focus-within:-translate-y-4";

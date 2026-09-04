@@ -164,6 +164,16 @@ describe("ActionDock — posição (V6.3, docs/34)", () => {
     const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 });
     expect(out).toMatch(/lg:left-auto lg:top-auto lg:bottom-14 lg:right-2/);
   });
+
+  it("V6.4 (docs/36): `mobileMaxHeightPx` (medido pelo pai) vira `style.maxHeight` inline — bug real (Willen: painel cortado mesmo com scroll, `dvh` sozinho não bastou)", () => {
+    const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 }, { mobileMaxHeightPx: 260 });
+    expect(out).toMatch(/style="max-height:\s*260px"/);
+  });
+
+  it("sem `mobileMaxHeightPx` (desktop): sem `style` inline, só a classe `max-h-[...]` de fallback", () => {
+    const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 });
+    expect(out).not.toMatch(/style="max-height/);
+  });
 });
 
 describe("ActionDock — Confirmar depende de canConfirm/busy", () => {

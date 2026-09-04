@@ -276,6 +276,52 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+/** Abaixo do breakpoint `lg` (1024px) do Tailwind — mesmo limiar que o
+ *  `ActionDock` já usa pra virar coluna vertical fixa no mobile. */
+const DOCK_DESKTOP_QUERY = "(min-width: 1024px)";
+/** `top-12` do `ActionDock` (mobile) — offset do topo até o painel começar. */
+const DOCK_TOP_OFFSET_PX = 48;
+/** folga antes do rodapé da tela, pro painel nunca encostar na borda. */
+const DOCK_BOTTOM_GAP_PX = 12;
+/** nunca menor que isso, mesmo em telas bem curtas. */
+const DOCK_MIN_HEIGHT_PX = 120;
+/** teto de 60% da altura visível — mesmo valor que já era `60vh` antes. */
+const DOCK_MAX_HEIGHT_RATIO = 0.6;
+
+/** Altura do viewport REALMENTE visível (`visualViewport`, com fallback pra
+ *  `innerHeight`) — NUNCA `vh`/`dvh`. Bug real (Willen: painel "Passar"/
+ *  "auto-pass" do `ActionDock` "ainda sendo escondido no scroll" mesmo depois
+ *  do fix com `dvh`): no mobile, `vh` mede o viewport GRANDE (antes da barra
+ *  de endereço recolher) e alguns browsers não suportam `dvh` — o
+ *  `useArenaScale` já evita esse mesmo problema pro tabuleiro medindo o DOM
+ *  de verdade em vez de confiar em unidade de viewport; aqui é o mesmo
+ *  princípio, só que pro `ActionDock` (que não pode ganhar hooks, ver
+ *  `mobileMaxHeightPx` em `ActionDock.tsx`). */
+function useMobileDockMaxHeight(): number | undefined {
+  const isDesktop = useMediaQuery(DOCK_DESKTOP_QUERY);
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>(() =>
+    typeof window === "undefined" ? undefined : (window.visualViewport?.height ?? window.innerHeight),
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const recompute = () => setViewportHeight(window.visualViewport?.height ?? window.innerHeight);
+    recompute();
+    window.addEventListener("resize", recompute);
+    window.addEventListener("orientationchange", recompute);
+    window.visualViewport?.addEventListener("resize", recompute);
+    window.visualViewport?.addEventListener("scroll", recompute);
+    return () => {
+      window.removeEventListener("resize", recompute);
+      window.removeEventListener("orientationchange", recompute);
+      window.visualViewport?.removeEventListener("resize", recompute);
+      window.visualViewport?.removeEventListener("scroll", recompute);
+    };
+  }, []);
+  if (isDesktop || viewportHeight === undefined) return undefined;
+  const available = viewportHeight - DOCK_TOP_OFFSET_PX - DOCK_BOTTOM_GAP_PX;
+  return Math.max(DOCK_MIN_HEIGHT_PX, Math.min(available, viewportHeight * DOCK_MAX_HEIGHT_RATIO));
+}
+
 // -----------------------------------------------------------------------------
 // Tela de partida -- conecta o SSE, mostra timer/presença/HUD, joga.
 // -----------------------------------------------------------------------------
@@ -331,6 +377,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const { art, artLoading, cardText, cardByName } = useCardArtLookup();
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
+  const dockMaxHeightPx = useMobileDockMaxHeight();
 
   // Aplica uma visão que chegou (SSE ou resposta de POST ou resync REST),
   // IGNORANDO snapshot atrasado (version menor que a atual) — sem isso, uma
@@ -1236,14 +1283,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             art={art}
             inPlay
             state={boardForStats}
-            className="min-w-0 max-w-[22rem] flex-1 max-h-full overflow-hidden"
+            className="min-w-0 max-w-[28rem] flex-1 max-h-full overflow-hidden"
           />
         ) : null}
         {/* V6.2 (docs/33): `shrink-0` fazia esta caixa ignorar o espaço
             disponível de vez — sempre do tamanho que o canvas 16:9 "queria"
             (derivado só da ALTURA), nunca sabia que sobrava largura depois
             das asas. `flex-1` faz ela disputar a linha de verdade com as
-            asas (que têm `max-w-[22rem]` — o excesso além disso já
+            asas (que têm `max-w-[28rem]` — o excesso além disso já
             redistribui pra cá sozinho, é o próprio algoritmo de flexbox) —
             o canvas (`max-w-full` dele) agora enxerga a largura REAL
             sobrando, em vez de nunca crescer além do que a altura sozinha
@@ -1290,7 +1337,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           />
         </div>
         {/* espelho da asa esquerda — mantém a arena centrada quando o inspetor cresce */}
-        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[22rem] flex-1" aria-hidden /> : null}
+        {/* V6.4 (docs/36) — 22rem → 28rem (pedido do Willen: "a carta na
+            lateral e as informações textuais podem ser aumentadas ainda"),
+            espelho em sincronia com o `max-w` do `CardInspectorPanel` acima
+            pra arena continuar centrada. */}
+        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[28rem] flex-1" aria-hidden /> : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do
@@ -1439,6 +1490,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onToggleAutoPass={(next) => toggleAutoPass(next)}
           onClaimAbandon={() => claimAbandon()}
           onLeaveAfterGameOver={leaveMatchScreen}
+          mobileMaxHeightPx={dockMaxHeightPx}
         />
       )}
     </div>

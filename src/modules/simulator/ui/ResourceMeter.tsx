@@ -70,10 +70,15 @@ export function ResourceMeter({
           // (0.5×0.7 ativo / 0.34×0.5 gasto), sem `aspect-*` nenhum e SEM
           // `rounded-arena` (achado do Willen: cantos retos, tamanho
           // diferente do Deck de Recursos ao lado). Agora usa a MESMA
-          // largura-padrão `--card-w-std` que toda outra peça — `readOnly`
-          // (recursos do oponente) continua menor, mas como FRAÇÃO desse
-          // mesmo padrão (`*0.7`), não uma proporção própria desconectada.
-          const portraitWidth = readOnly ? "calc(var(--card-w-std,2.17rem)*0.7)" : "var(--card-w-std,2.17rem)";
+          // largura-padrão `--card-w-std` que toda outra peça.
+          // V6.4 (docs/36) — o `readOnly` (recursos do oponente) ainda
+          // encolhia pra 70% desse padrão: uma FRAÇÃO própria de novo, o
+          // mesmo tipo de inconsistência que essa variável existe pra matar
+          // (bug real reportado pelo Willen no mobile — "resources não estão
+          // no tamanho padrão"). Nenhuma outra peça do oponente (Deck/Trash/
+          // Base/Battle Area) tem esse desconto — removido, `--card-w-std`
+          // cheio dos dois lados agora.
+          const portraitWidth = "var(--card-w-std,2.17rem)";
           const tone = selected
             ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
             : r.isEx

@@ -44,6 +44,15 @@ export interface ActionDockProps {
   onToggleAutoPass?: (next: boolean) => void;
   onClaimAbandon?: () => void;
   onLeaveAfterGameOver?: () => void;
+  /** V6.4 (docs/36) — teto de altura (px) do dock no mobile, MEDIDO de
+   *  verdade pelo pai (`visualViewport`/`innerHeight`, nunca `vh`/`dvh` — ver
+   *  `SimulatorMatchPage.tsx`, `useVisualViewportHeight`) em vez de calculado
+   *  aqui: este componente é apresentacional puro/sem hooks de propósito (os
+   *  testes chamam `ActionDock(...)` como função simples, fora de uma árvore
+   *  React de verdade — um hook aqui quebraria TODOS eles, "Invalid hook
+   *  call"). Quando presente, vence a classe `max-h-[...]` (que fica só como
+   *  fallback CSS-only pra quem não passa a prop). `undefined` no desktop. */
+  mobileMaxHeightPx?: number;
 }
 
 const SCOPE_LABEL: Record<"combat" | "endPhase", string> = {
@@ -87,6 +96,7 @@ export function ActionDock({
   onToggleAutoPass,
   onClaimAbandon,
   onLeaveAfterGameOver,
+  mobileMaxHeightPx,
 }: ActionDockProps) {
   function renderBody() {
     switch (state.kind) {
@@ -298,10 +308,14 @@ export function ActionDock({
       // endereço recolher) — em paisagem, com a barra visível, 60vh já passa
       // do espaço realmente visível, e como o painel é `fixed` (não rola com
       // a página) o excedente ficava inalcançável mesmo tentando rolar.
-      // `100dvh` é o viewport DINÂMICO (já desconta a barra de endereço) —
-      // subtrai o offset do `top-12` (3rem) + uma folga, então o painel
-      // NUNCA passa do rodapé visível; o `overflow-y-auto` já existente cuida
-      // do resto internamente quando o conteúdo ainda assim não cabe.
+      // `100dvh` (fallback CSS-only, classe abaixo) já ajuda, mas depende do
+      // browser suportar a unidade — V6.4 (docs/36), Willen relatou que
+      // "ainda está sendo escondido no scroll" mesmo depois desse fix.
+      // `mobileMaxHeightPx` é a fonte de verdade agora: MEDIDO pelo pai via
+      // `visualViewport`/`innerHeight` reais (não `vh`/`dvh`), igual ao
+      // `useArenaScale` já faz pro tabuleiro — nunca deixa o painel passar do
+      // rodapé realmente visível, com ou sem suporte a `dvh`.
+      style={mobileMaxHeightPx !== undefined ? { maxHeight: `${mobileMaxHeightPx}px` } : undefined}
       className="fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-[clamp(13rem,38vw,23rem)] lg:overflow-visible"
     >
       <div
