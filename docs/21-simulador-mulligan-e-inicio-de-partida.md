@@ -77,3 +77,26 @@ Nenhum valor novo em `Phase` — o mulligan roda com `phase: "start"`.
 - **EX Base 3 HP:** herdado (fonte comunitária, não o PDF v1.8.0). Reconciliar na auditoria
   da Sprint C.
 - `docs/18` §"Onde mexer" atualizado (linha do `setup.ts`).
+
+## 7. Gate 3.5 (phase-reviewer) — resultado
+
+**Veredito: ACCEPT COM RESSALVAS.** Bloqueador corrigido:
+
+- **`FirstPlayerReveal` auto-dismiss nunca disparava.** O `onDismiss` do pai é
+  closure nova a cada render e o `SimulatorMatchPage` re-renderiza a cada 1s
+  (relógio do turno) → o `setTimeout(3500)` era recriado sem parar. O overlay só
+  sumia por clique; se o jogador não notasse que a tela toda é clicável, o
+  `MulliganModal` (que só renderiza com `revealDismissed`) ficava preso. Fix: o
+  timeout fica ancorado no mount, lendo `onDismiss` via ref atualizada num
+  `useEffect` sem deps. Regra registrada em `.memory/simulador-overlay-timer-inline-callback.md`.
+  Teste de regressão em `FirstPlayerReveal.test.tsx` (fake timers + rerender).
+
+Ressalvas endereçadas:
+- `actions.ts` guard: menção a "Mulligan" na mensagem de decisão pendente.
+- 2º jogador ganhou feedback enquanto o 1º decide (`matchPrompt` +
+  `oppDecision` dock citam "a mão inicial (Mulligan)").
+
+Ressalva de contexto (não bloqueia): `finishGameSetup`/`redrawMulliganHand`
+mutam o `state` fora de `applyEvent` (sem entrada no `eventLog`) — consistente
+com o resto do setup do motor (shuffles e o deal de `createGame` também nunca
+foram event-sourced) e a persistência guarda o `state` inteiro, não replay.

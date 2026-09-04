@@ -172,3 +172,29 @@ Ver §4 abaixo (checklist).
 5. **Deploy no meio:** `git push` → Render redeploy durante a partida → após o cold start,
    qualquer ação/reconexão **re-hidrata** a partida do banco e ela continua.
 6. Anotar: latência observada (ação → aparecer no outro cliente), se o timer bate nos 2 lados.
+
+---
+
+## 6. Gate 3.5 (phase-reviewer) — resultado
+
+**Veredito: ACCEPT COM RESSALVAS.** Bloqueador corrigido no commit de ajuste:
+
+- **Loop de reconexão infinito em 404.** O `.catch` do resync SSE só tratava 401.
+  Quando a partida terminada era varrida do banco, o cliente ficava em
+  "Reconectando… (tentativa N)" pra sempre. Fix: `stopHard(reason, toLobby)` —
+  404 / assento perdido → fecha o EventSource, para o backoff, marca `dead` e
+  manda pro lobby `/simulador`.
+
+Ressalvas endereçadas no mesmo commit:
+- `server/index.ts`: `upsert` → `updateMany({ where: version <= m.version })` +
+  `create` no path de 0 linhas (P2002 ignorado) — write fora de ordem não
+  sobrescreve mais um estado mais novo.
+- Mensagens de erro ("não há persistência") corrigidas.
+
+Ressalvas registradas como **backlog** (não bloqueiam):
+- Sem limpeza periódica de linhas `finishedAt` no boot (Render dorme → linhas de
+  partidas terminadas acumulam). `finishedAt` + índice já existem pra isso.
+- `loadMatch` re-hidratada zera `createdAt` e não restaura `gameOverLogged`
+  (cosmético).
+- Cascata de `as unknown as Prisma.*Input` em `server/index.ts` desliga a
+  checagem do payload (arquivo não passa por `tsc -b` mesmo).
