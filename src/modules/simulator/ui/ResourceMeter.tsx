@@ -127,7 +127,7 @@ export function ResourceMeter({
               aria-label={title}
               aria-pressed={selected}
               onClick={() => onSelect?.(r.instanceId)}
-              className={cn(shape, "min-h-11 min-w-11")}
+              className={shape}
               style={shapeStyle}
             >
               {inner}

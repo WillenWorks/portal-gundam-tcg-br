@@ -12,7 +12,7 @@ import { Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
-import type { ArtLookup } from "./cardArt";
+import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 
 interface CardInspectorPanelProps {
@@ -81,7 +81,21 @@ function PanelBody({
     // altura (antes ficava colado no topo, print "CapturaWide" do Willen).
     // A imagem (`mx-auto`) já centraliza em X; isto centraliza em Y.
     <div className="flex flex-1 flex-col justify-center gap-3 overflow-y-auto">
-      <CardFace nameEn={def.nameEn} code={def.code} art={art} size="lg" className="mx-auto border border-white/10" />
+      {/* V6.4 (docs/35) — bug real (print anotado do Willen, "Captura1"): `size="lg"`
+          é uma largura FIXA (`w-28`, 112px) que ignora quanto a asa realmente tem
+          disponível (até `max-w-[22rem]` no pai) — a amostra ficava pequena mesmo
+          numa coluna bem mais larga. `w-full` (via `className`, que via `twMerge`
+          vence o `w-28` do `size`) faz a arte preencher a coluna de verdade; o teto
+          próprio (`max-w-[13rem]`) evita que ela vire gigante numa asa excepcionalmente
+          larga e sobre pouco espaço pras infos (Nível/Custo/AP/HP) abaixo. */}
+      <CardFace
+        nameEn={def.nameEn}
+        code={def.code}
+        art={art}
+        size="lg"
+        className="mx-auto w-full max-w-[13rem] border border-white/10"
+        backFallback={isGenericArtCard(def.cardType, def.isToken)}
+      />
 
       <div>
         <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>

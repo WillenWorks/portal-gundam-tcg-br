@@ -80,13 +80,20 @@ export function CounterChip({
         ) : null}
       </>
     );
+    // V6.4 (docs/35) — bug real (print de mobile do Willen): `min-h-11
+    // min-w-11` (44px) FORÇAVA a pilha (Deck/Trash/Exílio) a ficar maior que
+    // `--card-w-std` sempre que a arena encolhia abaixo desse piso — a pilha
+    // "descolava" do tamanho de todo o resto (Battle Area, Shields, Base),
+    // que encolhe livre. Removido: a pilha agora acompanha `--card-w-std`
+    // como qualquer outra peça — o piso de toque já vem de
+    // `useArenaScale.DEFAULT_MIN_PX`, não precisa de outro aqui em cima.
     return onClick ? (
       <button
         type="button"
         onClick={onClick}
         title={readout}
         aria-label={readout}
-        className={cn("relative block min-h-11 min-w-11 rounded-arena transition-[filter] duration-100 hover:brightness-125 motion-reduce:transition-none", STACK_WIDTH)}
+        className={cn("relative block rounded-arena transition-[filter] duration-100 hover:brightness-125 motion-reduce:transition-none", STACK_WIDTH)}
       >
         {inner}
       </button>

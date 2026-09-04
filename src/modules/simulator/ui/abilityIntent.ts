@@ -20,6 +20,12 @@ export function abilityResourceCost(spec: EffectSpec): number {
   return call && call.op === "payResourceCost" ? call.n : 0;
 }
 
+/** A habilidade custa "Rest this [carta]" (ex.: ST01-016 Asticassia) — se a carta já
+ *  está rested, o custo não pode ser pago de novo (o motor rejeitaria a ação). */
+function costRestsSelf(spec: EffectSpec): boolean {
+  return Boolean(spec.cost?.some((c) => c.op === "rest" && c.target.kind === "self"));
+}
+
 export interface FieldAbility {
   spec: EffectSpec;
   cost: number;
@@ -35,5 +41,6 @@ export function fieldAbilityFor(card: CardInstance): FieldAbility | null {
   const spec = findActivateMainSpec(card.def.code);
   if (!spec) return null;
   if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes(ACTIVATE_MAIN)) return null;
+  if (card.rested && costRestsSelf(spec)) return null;
   return { spec, cost: abilityResourceCost(spec), needsTarget: specNeedsNamedTarget(spec) };
 }

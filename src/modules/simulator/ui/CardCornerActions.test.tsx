@@ -47,11 +47,11 @@ describe("CardCornerActions", () => {
     expect(onParent).not.toHaveBeenCalled();
   });
 
-  it("V6.3 (docs/34): tamanho único (size-7/ícone size-4) — antes mão e campo usavam tamanhos diferentes", () => {
+  it("V6.4 (docs/35): tamanho responde a --card-w-std (clamp) — não mais um `size-7` fixo que estourava cartas pequenas no mobile", () => {
     render(<CardCornerActions actions={[view()]} />);
     const btn = screen.getByRole("button", { name: "Ver X" });
-    expect(btn.className).toMatch(/size-7/);
-    expect(btn.querySelector("svg")?.getAttribute("class")).toMatch(/size-4/);
+    expect(btn.className).toMatch(/clamp\(1\.125rem,calc\(var\(--card-w-std,2\.17rem\)\*0\.45\),1\.75rem\)/);
+    expect(btn.querySelector("svg")?.getAttribute("class")).toMatch(/clamp\(0\.625rem,calc\(var\(--card-w-std,2\.17rem\)\*0\.26\),1rem\)/);
   });
 
   it("disabled bloqueia o clique", () => {

@@ -293,7 +293,16 @@ export function ActionDock({
     // da rodada 3, docs/32).
     <aside
       aria-label="Ação atual"
-      className="fixed left-2 top-12 z-40 max-h-[60vh] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-[clamp(13rem,38vw,23rem)] lg:overflow-visible"
+      // V6.4 (docs/35) — bug real (Willen: "fica cortada, mesmo com scroll"):
+      // `max-h-[60vh]` usa o viewport GRANDE do mobile (antes da barra de
+      // endereço recolher) — em paisagem, com a barra visível, 60vh já passa
+      // do espaço realmente visível, e como o painel é `fixed` (não rola com
+      // a página) o excedente ficava inalcançável mesmo tentando rolar.
+      // `100dvh` é o viewport DINÂMICO (já desconta a barra de endereço) —
+      // subtrai o offset do `top-12` (3rem) + uma folga, então o painel
+      // NUNCA passa do rodapé visível; o `overflow-y-auto` já existente cuida
+      // do resto internamente quando o conteúdo ainda assim não cabe.
+      className="fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-[clamp(13rem,38vw,23rem)] lg:overflow-visible"
     >
       <div
         className={cn(

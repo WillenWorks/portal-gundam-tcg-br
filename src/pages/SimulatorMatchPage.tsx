@@ -937,6 +937,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const player = view.players[pid];
     const base = (player.baseSection.find((c) => !isHidden(c)) as CardInstance | undefined) ?? null;
     const deckCount = player.counts.deck;
+    // 【Activate·Main】 da Base (ex.: ST01-015 White Base "②", ST01-016
+    // Asticassia "Rest this Base") — bug real: a Base nunca tinha esse botão,
+    // só os Units da Battle Area (mesmo guard de `renderBattleSlots`).
+    const canActivateBaseHere = isSelf && myTurnMain && !attackerId && !selecting;
+    const myActiveResourcesForBase = player.resourceArea.filter((r) => !isHidden(r) && !(r as CardInstance).rested).length;
+    const baseAbility = base && canActivateBaseHere ? fieldAbilityFor(base) : null;
+    const canActivateBase = Boolean(baseAbility && myActiveResourcesForBase >= baseAbility.cost);
     const resources = (player.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).map((r) => ({
       instanceId: r.instanceId,
       rested: r.rested,
@@ -966,6 +973,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onSelect={(b) => toggleSelect(b.instanceId)}
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
+          onActivate={canActivateBase && baseAbility ? (b) => startActivateAbility(b, baseAbility) : undefined}
+          busy={busy}
         />
       ),
       // Deck de Recursos + a linha de recursos, juntos e centrados abaixo/acima

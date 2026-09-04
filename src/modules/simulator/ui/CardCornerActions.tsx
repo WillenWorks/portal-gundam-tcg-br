@@ -11,9 +11,23 @@
  * 44px já usado em Shield/Recurso. Unificado: 1 tamanho só (`size-7`,
  * maior que os dois anteriores) e 1 posição só (dentro do canto, nunca mais
  * salta pra fora — reduz a chance de 2 cartas vizinhas colidirem o cluster
- * uma da outra, relevante com o espaçamento apertado do mobile). */
+ * uma da outra, relevante com o espaçamento apertado do mobile).
+ *
+ * V6.4 (docs/35) — bug real reportado pelo Willen (print de mobile): `size-7`
+ * FIXO (28px) não respeitava `--card-w-std` — em telas cramped a carta em si
+ * podia encolher pra ~27px (piso de `useArenaScale`), então o botão sozinho
+ * ficava do tamanho da carta INTEIRA ou maior, cobrindo a arte. Agora o
+ * tamanho é `clamp()` sobre `--card-w-std`: acompanha a carta pra baixo no
+ * mobile, mas nunca passa de 1.75rem (o `size-7` de antes) no desktop nem
+ * fica menor que 1.125rem (ainda tocável). */
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** ~45% da largura da carta — 2 botões lado a lado (Ver + 1 ação de contexto)
+ *  ainda cabem sem se sobrepor nem estourar o canto. Piso/teto preservam o
+ *  alvo de toque em telas normais (era `size-7` fixo). */
+const BUTTON_SIZE = "size-[clamp(1.125rem,calc(var(--card-w-std,2.17rem)*0.45),1.75rem)]";
+const ICON_SIZE = "size-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.26),1rem)]";
 
 export type CornerTone = "view" | "primary" | "accent" | "sky" | "emerald";
 
@@ -63,11 +77,12 @@ export function CardCornerActions({ actions, className }: CardCornerActionsProps
             a.onClick();
           }}
           className={cn(
-            "flex size-7 items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
+            "flex items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
+            BUTTON_SIZE,
             TONE[a.tone],
           )}
         >
-          <a.icon className="size-4" aria-hidden />
+          <a.icon className={ICON_SIZE} aria-hidden />
         </button>
       ))}
     </div>
