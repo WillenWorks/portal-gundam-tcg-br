@@ -62,7 +62,7 @@ Cliente **nunca** avalia regra. Não há estado otimista — a UI trava (`busy`)
 ## 3. Plano de hardening
 
 ### C1 — Persistência (Supabase / Prisma)
-- Modelo `SimulatorMatch` (`prisma/schema.prisma` + migration `10_simulator_match_persistence`):
+- Modelo `SimulatorMatch` (`prisma/schema.prisma` + migration `13_simulator_match_persistence`):
   `id`, `state Json`, `seats Json`, `deckKeys Json`, `version Int`, `phase String`,
   `turnDeadlineAt BigInt?`, `lastSeenAt Json`, `gameOver Json?`, `finishedAt DateTime?`,
   `createdAt`, `updatedAt`. Índice em `updatedAt` e `finishedAt`.
@@ -126,7 +126,7 @@ Ver §4 abaixo (checklist).
 
 ### Como aplicar em produção (Render)
 1. `pnpm exec prisma migrate deploy` roda no `start` do servidor — a migration
-   `10_simulator_match_persistence` cria a tabela `SimulatorMatch` no Supabase.
+   `13_simulator_match_persistence` cria a tabela `SimulatorMatch` no Supabase.
 2. Nada de env novo. A persistência é transparente: se o `DATABASE_URL` responder,
    grava; se falhar, só loga um `console.warn` e a partida segue em memória.
 3. Render free-plan segue derrubando o processo no idle/deploy — mas agora a
