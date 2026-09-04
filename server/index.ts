@@ -58,12 +58,24 @@ setMatchPersistence({
       lastSeenAt: m.lastSeenAt as unknown as Prisma.InputJsonValue,
       gameOver: m.state.gameOver ? (m.state.gameOver as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
       finishedAt: m.state.gameOver ? new Date() : null,
-    } as unknown as Prisma.SimulatorMatchUpdateInput;
-    await prisma.simulatorMatch.upsert({
-      where: { id: m.id },
-      create: { id: m.id, ...data } as unknown as Prisma.SimulatorMatchCreateInput,
-      update: data,
+    } as unknown as Prisma.SimulatorMatchUpdateManyMutationInput;
+    // `persist()` no matchStore é fire-and-forget — dois writes rápidos podem
+    // resolver fora de ordem no Postgres. O guard `version <= m.version` garante
+    // que uma escrita mais antiga (version menor) nunca sobrescreva uma mais
+    // nova já gravada. `<=` (não `<`) porque ping/auto-pass persistem sem bumpar
+    // a version — esses reescrevem a mesma version de propósito.
+    const updated = await prisma.simulatorMatch.updateMany({
+      where: { id: m.id, version: { lte: m.version } },
+      data,
     });
+    if (updated.count === 0) {
+      await prisma.simulatorMatch
+        .create({ data: { id: m.id, ...data } as unknown as Prisma.SimulatorMatchCreateInput })
+        .catch((e) => {
+          // P2002 = a linha já existe com version MAIOR (write fora de ordem) — ignora
+          if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") throw e;
+        });
+    }
   },
   async load(id: string): Promise<StoredMatch | null> {
     const row = await prisma.simulatorMatch.findUnique({ where: { id } });

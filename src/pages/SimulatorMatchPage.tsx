@@ -291,8 +291,9 @@ type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlay
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
-  /** estado da conexão SSE — `connecting` (1ª vez) · `live` · `reconnecting` (com backoff) · `dead` (sessão expirada). */
+  /** estado da conexão SSE — `connecting` (1ª vez) · `live` · `reconnecting` (com backoff) · `dead` (sem volta: sessão expirada ou partida encerrada). */
   const [connState, setConnState] = useState<"connecting" | "live" | "reconnecting" | "dead">("connecting");
+  const [deadReason, setDeadReason] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const connected = connState === "live";
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
@@ -346,6 +347,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
 
+    // reconexão sem volta: fecha tudo, para o backoff e marca `dead`. Sem isto,
+    // um 404 (partida varrida do banco após o fim) mandava o cliente reconectar
+    // pra sempre (o /stream responde 404, `onerror`, repete).
+    const stopHard = (reason: string, toLobby: boolean) => {
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+      toast.error(reason);
+      setDeadReason(reason);
+      setConnState("dead");
+      if (toLobby) setLocation("/simulador");
+    };
+
     const connect = () => {
       if (stopped) return;
       const url = buildSimulatorStreamUrl(matchId);
@@ -375,15 +390,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         void api
           .getSimulatorMatch(matchId)
           .then((res) => {
-            if (!stopped && "seated" in res && res.seated) applyIncomingView(res as SimulatorMatchView);
+            if (stopped) return;
+            if ("seated" in res && res.seated) {
+              applyIncomingView(res as SimulatorMatchView);
+              return;
+            }
+            // a partida respondeu mas você não está mais nela (encerrada e
+            // liberada, ou assento perdido) — reconectar não recupera nada
+            stopHard("Esta partida foi encerrada.", true);
           })
           .catch((err) => {
+            if (stopped) return;
             if (err instanceof ApiError && err.status === 401) {
-              stopped = true;
-              if (retryTimer) clearTimeout(retryTimer);
-              toast.error("Sessão expirada — faça login de novo.");
-              setConnState("dead");
+              stopHard("Sessão expirada — faça login de novo.", false);
+            } else if (err instanceof ApiError && err.status === 404) {
+              stopHard("Esta partida não está mais disponível.", true);
             }
+            // outros erros (queda de rede momentânea) → o backoff abaixo segue
           });
         const delay = Math.min(15_000, 1_000 * 2 ** (attempt - 1));
         retryTimer = setTimeout(connect, delay);
@@ -397,7 +420,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
-  }, [matchId, applyIncomingView]);
+  }, [matchId, applyIncomingView, setLocation]);
 
   // Relógio local pro countdown do timer de turno e pro "há quanto tempo o oponente sumiu" --
   // só exibição/UX; a decisão real (agir sozinho no timeout, liberar o W.O.) é sempre do servidor.
@@ -1112,7 +1135,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           <div className="panel-cut flex items-center gap-2 border border-amber-400/60 bg-slate-950/95 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.06em] text-amber-200 shadow-2xl">
             <RefreshCw className={connState === "dead" ? "size-4" : "size-4 animate-spin"} />
             {connState === "dead"
-              ? "Conexão perdida — recarregue a página"
+              ? (deadReason ?? "Conexão perdida — recarregue a página")
               : `Reconectando…${reconnectAttempt > 1 ? ` (tentativa ${reconnectAttempt})` : ""}`}
           </div>
         </div>
