@@ -43,8 +43,9 @@
  * Componente apresentacional puro e prop-driven: cada peça é um slot
  * (`ReactNode`) que o `SimulatorMatchPage` preenche. O hover → inspetor lateral
  * não passa por aqui (o pai liga o `onHoverCard` de cada leaf). */
-import type { CSSProperties, ReactNode } from "react";
+import { cloneElement, isValidElement, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useArenaScale } from "./useArenaScale";
 
 /** As zonas de um lado da arena (oponente ou jogador). */
 export interface ArenaSide {
@@ -78,68 +79,15 @@ interface ArenaPlaymatProps {
   className?: string;
   /** V6.1 (docs/32) — botão "Expandir tabuleiro": o pai já escondeu o
    *  `CardInspectorPanel`/espelho, liberando a largura toda pra esta coluna
-   *  central; `--card-w` troca pra uma fórmula mais generosa (ver
-   *  `canvasStyle`) pra as cartas de fato crescerem nesse espaço extra. */
+   *  central. `expanded` solta a trava de `aspect-[16/9]` do canvas (V6.2,
+   *  docs/33) — `useArenaScale` mede a caixa real e recalcula `--card-w`
+   *  sozinho, não precisa de fórmula separada pra este modo. */
   expanded?: boolean;
 }
 
-/** escala única de toda carta + perspectiva da mesa. `--card-w` (não `--card`):
- * `--card` já é token de COR do design system — reusar o nome pra um comprimento
- * quebraria qualquer `bg-card`/`text-card` dentro da arena.
- *
- * V5 (docs/30, sprint V&V) — a fórmula era só `6.5vw`: escala com a LARGURA
- * do viewport, mas o canvas em si é `aspect-[16/9] max-h-full max-w-full` —
- * a largura REAL renderizada é `min(viewportWidth, viewportHeight * 16/9)`.
- * Sempre que a altura disponível é o fator limitante (zoom alto, mobile
- * retrato, janela mais alta que larga), a largura real do canvas fica MENOR
- * do que `6.5vw` supõe — e como toda carta da arena (Shield/Base/Deck/Trash/
- * Exílio, `ShieldRail`/`BaseCardGauge`/`CounterChip`) é dimensionada a partir
- * desta MESMA variável, a fileira de colunas laterais passa a pedir mais
- * largura do que a caixa real tem e vaza pra fora do `overflow-hidden`
- * (achado real, confirmado nos prints do Willen em 150%/175%/mobile).
- * `min(6.5vw, 12vh)` faz `--card-w` responder aos dois eixos: em janelas
- * largura-dominante (desktop comum, altura ≲ 60% da largura) o termo `vh`
- * não amarra nada (comportamento igual a antes); só entra em ação quando o
- * canvas é altura-dominante, encolhendo a escala JUNTO com a largura real —
- * nunca deixando o pedido de espaço ultrapassar a caixa.
- *
- * V6 (docs/31, calibração 2 — vídeo widescreen + prints do Willen) — teto
- * `6.5rem → 7.5rem`. Raciocínio: zoom de página encolhe `vw`/`vh`
- * proporcionalmente, mas TAMBÉM amplia fisicamente tudo — os dois efeitos se
- * cancelam, A MENOS que o `clamp` já esteja batendo no teto em 100%. Num
- * monitor largo maximizado, `min(6.5vw,12vh)` já costuma superar o teto
- * antigo — o Willen relatou que zoom 150% (que empurra o valor bruto pra
- * BAIXO do teto, revelando o valor "natural" da fórmula) ficou melhor que
- * 100%. Ou seja: não era a fórmula que estava errada, era o teto baixo
- * demais suprimindo o resultado dela. Subir o teto reproduz esse efeito sem
- * chute — e como `min()` sempre escolhe o menor termo, um teto mais alto
- * NÃO afeta telas estreitas/altas (mobile retrato, zoom alto): lá quem
- * sempre limita é `6.5vw`/`12vh`, bem abaixo de qualquer teto razoável
- * (seguro por construção, não reabre o vazamento que o V5 fechou).
- */
-const CANVAS_STYLE = {
-  "--card-w": "clamp(3.5rem, min(6.5vw, 12vh), 7.5rem)",
-  perspective: "1200px",
-  perspectiveOrigin: "50% 65%",
-} as CSSProperties;
-
-/**
- * V6.1 (docs/32) — modo "Expandir tabuleiro": o pai já removeu as duas asas
- * de `max-w-[22rem]` (Detalhes da Carta + espelho), então a coluna central
- * (`shrink-0`, ver `SimulatorMatchPage.tsx`) ganha acesso à largura TOTA da
- * linha — mas `--card-w` normal continua limitado por `12vh`/teto de
- * `7.5rem`, calibrados pro cenário COM as asas. Sem essa troca, a caixa do
- * canvas cresceria (menos concorrência por largura) mas as cartas dentro
- * dela ficariam do MESMO tamanho — sobrando vazio, o oposto do pedido
- * ("as cartas e as sessões dela terão que aumentar"). Coeficientes/teto mais
- * generosos SÓ neste modo opt-in — o padrão (não-expandido), já calibrado
- * em 2 rodadas anteriores, fica intocado.
- */
-const CANVAS_STYLE_EXPANDED = {
-  "--card-w": "clamp(3.5rem, min(9vw, 16vh), 10rem)",
-  perspective: "1200px",
-  perspectiveOrigin: "50% 65%",
-} as CSSProperties;
+/** perspectiva fixa da mesa — não depende de `--card-w`, então fica fora do
+ *  hook de escala (ver `useArenaScale.ts`). */
+const PERSPECTIVE_STYLE: CSSProperties = { perspective: "1200px", perspectiveOrigin: "50% 65%" };
 
 /** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
  *  a subárvore achata num plano clicável, o tilt fica só no visual. */
@@ -147,15 +95,37 @@ const TABLE_STYLE: CSSProperties = { transform: "rotateX(5deg)" };
 /** o lado do oponente recua um pouco (2D, achatado). */
 const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
+/** V6.2 (docs/33): se o `--card-w` calculado por `useArenaScale` cair a essa
+ *  altura ou menos, a caixa disponível está cramped demais pra cascata do
+ *  Shield (que pede altura extra) — troca pro modo achatado. Limiar sobre o
+ *  RESULTADO real da medição (não mais um breakpoint de viewport chutado —
+ *  era exatamente isso que causava as rodadas anteriores baterem em
+ *  limiares diferentes por arquivo, docs/32 §achado de raiz). */
+const SHIELD_COMPACT_THRESHOLD_PX = 64; // 4rem
+
 export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const [compact, setCompact] = useState(false);
+
+  useArenaScale(containerRef, groupRef, {
+    onScale: (px) => setCompact(px <= SHIELD_COMPACT_THRESHOLD_PX),
+  });
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "relative mx-auto flex aspect-[16/9] max-h-full max-w-full flex-col overflow-hidden",
+        "relative mx-auto flex flex-col overflow-hidden",
+        // V6.2 (docs/33): `expanded` solta a trava de 16:9 — sem isso, a caixa
+        // do canvas nunca crescia além de altura×16/9 mesmo com as asas
+        // escondidas (largura sobrando ficava sempre de fora, inalcançável,
+        // print "CapturaWide2" do Willen). Modo normal mantém 16:9.
+        expanded ? "h-full w-full" : "aspect-[16/9] max-h-full max-w-full",
         "panel-cut hero-surface border border-primary/20",
         className,
       )}
-      style={expanded ? CANVAS_STYLE_EXPANDED : CANVAS_STYLE}
+      style={PERSPECTIVE_STYLE}
     >
       <div className="flex min-h-0 flex-1 flex-col" style={TABLE_STYLE}>
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
@@ -164,7 +134,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
           <DeckStation side={opponent} mirrored />
           <OpponentTheater side={opponent} />
-          <ShieldStation side={opponent} mirrored />
+          <ShieldStation side={opponent} mirrored compact={compact} />
         </div>
 
         <Seam />
@@ -172,11 +142,24 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         {/* ── Metade do jogador (primeiro plano) ─────────────────────────────
             `pt-3`: recua o campo do jogador da seam (pedido do Willen) pra os
             botões do canto sup. direito das Units NÃO caírem em cima da Battle
-            Area do oponente / da seam. Sobra espaço no rodapé do canvas. */}
-        <div className="flex min-h-0 flex-1 items-start justify-center gap-2 px-1 pt-3">
-          <ShieldStation side={self} />
-          <SelfTheater side={self} />
-          <DeckStation side={self} />
+            Area do oponente / da seam. Sobra espaço no rodapé do canvas.
+            `groupRef` (V6.2, docs/33): mede o grupo [Shield/Teatro/Deck] deste
+            lado — já naturalmente sem stretch (`items-start`, não
+            `items-stretch`) — pra `useArenaScale` calcular `--card-w` a
+            partir do tamanho REAL renderizado, não de uma fórmula chutada. Só
+            precisa medir 1 dos 2 lados (mesmo tamanho — o oponente só tem o
+            `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
+        <div className="flex min-h-0 flex-1 items-start justify-center px-1 pt-3">
+          {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é
+              `flex-1` (altura ALOCADA pela metade jogador/oponente, não o
+              tamanho natural do conteúdo); o wrapper interno não tem
+              `flex-1`/stretch nenhum, então mede exatamente o que os 3 filhos
+              pedem de verdade (nem mais, nem menos). `gap-2` migrou pra cá. */}
+          <div ref={groupRef} className="flex items-start gap-2">
+            <ShieldStation side={self} compact={compact} />
+            <SelfTheater side={self} />
+            <DeckStation side={self} />
+          </div>
         </div>
       </div>
 
@@ -216,18 +199,24 @@ function ResourceLane({ children }: { children: ReactNode }) {
  * descendo. Oponente (`mirrored`, rotação 180° do playmat): Shields no topo,
  * Base embaixo — encostada na seam, entre os shields e a Battle Area dele.
  */
-function ShieldStation({ side, mirrored }: { side: ArenaSide; mirrored?: boolean }) {
+function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?: boolean; compact?: boolean }) {
+  // V6.2 (docs/33): `side.shields` já vem pronto (o `<ShieldRail>` é montado
+  // pelo `SimulatorMatchPage.tsx`, antes do `ArenaPlaymat` existir) — a única
+  // forma de injetar o `compact` calculado aqui é clonar o elemento com a
+  // prop extra. Guard `isValidElement` por segurança (`ArenaSide.shields` é
+  // tipado como `ReactNode` genérico).
+  const shields = isValidElement(side.shields) ? cloneElement(side.shields as ReactElement<{ compact?: boolean }>, { compact }) : side.shields;
   return (
     <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
-          {side.shields}
+          {shields}
           {side.base}
         </>
       ) : (
         <>
           {side.base}
-          {side.shields}
+          {shields}
         </>
       )}
     </div>

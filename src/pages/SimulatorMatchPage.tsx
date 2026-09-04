@@ -907,11 +907,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       .filter((i) => i >= 0);
   }
 
-  /** Versos da mão do oponente (leitura de contagem, no topo da zona dele). */
+  /** Versos da mão do oponente (leitura de contagem, no topo da zona dele).
+   *  V6.2 (docs/33): tamanho fixo (`text-[8px]`/`w-7`) nunca escalava com o
+   *  resto da arena — sempre pequeno demais, e ficou pior ainda no modo
+   *  expandido (tudo cresce, MENOS isto). Proporcional a `--card-w` agora,
+   *  como toda outra peça da arena. */
   function opponentHandBacks(count: number) {
     return (
-      <div className="flex items-center gap-2">
-        <p className="shrink-0 text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500">Mão ({count})</p>
+      <div className="flex items-center gap-1.5">
+        <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
             <img
@@ -919,7 +923,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               src={cardBackUrl}
               alt=""
               loading="lazy"
-              className="-ml-3 aspect-[63/88] w-7 border border-white/10 object-cover first:ml-0"
+              className="-ml-3 aspect-[63/88] w-[calc(var(--card-w,3.5rem)*0.42)] border border-white/10 object-cover first:ml-0"
             />
           ))}
         </div>
@@ -1217,7 +1221,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             className="min-w-0 max-w-[22rem] flex-1 max-h-full overflow-hidden"
           />
         ) : null}
-        <div className="flex min-w-0 shrink-0 justify-center">
+        {/* V6.2 (docs/33): `shrink-0` fazia esta caixa ignorar o espaço
+            disponível de vez — sempre do tamanho que o canvas 16:9 "queria"
+            (derivado só da ALTURA), nunca sabia que sobrava largura depois
+            das asas. `flex-1` faz ela disputar a linha de verdade com as
+            asas (que têm `max-w-[22rem]` — o excesso além disso já
+            redistribui pra cá sozinho, é o próprio algoritmo de flexbox) —
+            o canvas (`max-w-full` dele) agora enxerga a largura REAL
+            sobrando, em vez de nunca crescer além do que a altura sozinha
+            permitiria. Pré-requisito pro `useArenaScale` medir uma caixa
+            que não é mais circular (antes: caixa media o canvas, canvas
+            media a caixa). */}
+        <div className="flex min-w-0 flex-1 justify-center">
           <ArenaPlaymat
             expanded={isWide && boardExpanded}
             opponent={arenaSide(opponentSeat, false)}

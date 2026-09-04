@@ -13,10 +13,15 @@
  * via `ArenaPlaymat`) ganhou um BADGE numérico (mesma linguagem visual do
  * `CounterChip` do Deck/Trash), porque no mobile a pilha compacta sozinha
  * não deixava clara a quantidade. Número e cascata visual sempre andam
- * juntos — nenhum substitui o outro. No mobile (`max-sm:`) a cascata fica
- * mais sobreposta (menos altura total) pra não competir tanto por espaço
- * vertical; moderado de propósito pra não reduzir demais a área clicável de
- * cada shield (`selectable` é usado de verdade — ver `SimulatorMatchPage.tsx`).
+ * juntos — nenhum substitui o outro.
+ *
+ * V6.2 (docs/33) — `compact` (prop, não mais breakpoint de viewport): quando
+ * true, achata a cascata quase por completo ("fica igual o Deck"). Antes
+ * isso era decidido por `max-sm:`/`max-lg:` direto no CSS — trocado porque
+ * essas rodadas repetidamente bateram limiares DIFERENTES em arquivos
+ * diferentes pro MESMO dispositivo (docs/32, "achado de raiz"). Agora quem
+ * decide é o `ArenaPlaymat` — a partir do `--card-w` que ele mesmo mediu de
+ * verdade (`useArenaScale`), não de um pixel de viewport chutado.
  *
  * `selectable` (efeito que mira uma shield): cada peça VIVA vira <button> com
  * hit-area >= 44px. */
@@ -34,6 +39,8 @@ interface ShieldRailProps {
   justBroken?: boolean;
   /** "vertical" = cascata na coluna lateral; "horizontal" (padrão) = linha de glifos. */
   orientation?: "horizontal" | "vertical";
+  /** V6.2 (docs/33) — achata a cascata (só `vertical`), ver docstring do arquivo. */
+  compact?: boolean;
 }
 
 export function ShieldRail({
@@ -44,6 +51,7 @@ export function ShieldRail({
   onSelectIndex,
   justBroken,
   orientation = "horizontal",
+  compact,
 }: ShieldRailProps) {
   const total = Math.max(max, count);
   const low = count <= 2;
@@ -78,22 +86,24 @@ export function ShieldRail({
         const full = i < count;
         const selected = selectedIndexes.includes(i);
         const pickable = Boolean(selectable && full && onSelectIndex);
-        // V6.1 (docs/32) — pedido do Willen: no mobile, SEM cascata nenhuma,
-        // "fica igual o deck" (pilha achatada, só a de cima visível + o
-        // número já cuida da contagem). `*0.87` ≈ a altura inteira do verso
-        // da carta (aspect 63/88 → altura ≈ largura*1,397; largura já é
-        // `card-w*0,62`, então altura ≈ `card-w*0,866` — arredondado pra
-        // cima, sem sobra de sub-pixel) — sobrepõe quase tudo, ao contrário
-        // do `*0,62` do desktop (que subtrai só a LARGURA, de propósito,
-        // pra sobrar uma tira visível = a cascata). Ressalva: com
-        // `selectable`, o botão da peça de cima cobre o clique das de baixo
-        // nessa faixa — aceitável pro caso comum (exibição passiva), mas um
-        // fluxo real de "escolher a shield de baixo" no mobile ficaria
-        // difícil de acertar; não há esse fluxo ativo em ST01/ST02 hoje.
-        const cascade =
-          vertical && i > 0
-            ? "-mt-[calc(var(--card-w,3.5rem)*0.62)] max-sm:-mt-[calc(var(--card-w,3.5rem)*0.87)]"
-            : undefined;
+        // V6.1/V6.2 (docs/32, docs/33) — pedido do Willen: quando `compact`,
+        // SEM cascata nenhuma, "fica igual o deck" (pilha achatada, só a de
+        // cima visível + o número já cuida da contagem). `*0.87` ≈ a altura
+        // inteira do verso da carta (aspect 63/88 → altura ≈ largura*1,397;
+        // largura já é `card-w*0,62`, então altura ≈ `card-w*0,866` —
+        // arredondado pra cima, sem sobra de sub-pixel) — sobrepõe quase
+        // tudo, ao contrário do `*0,62` do modo normal (que subtrai só a
+        // LARGURA, de propósito, pra sobrar uma tira visível = a cascata).
+        // Ressalva: com `selectable`, o botão da peça de cima cobre o clique
+        // das de baixo nessa faixa — aceitável pro caso comum (exibição
+        // passiva), mas um fluxo real de "escolher a shield de baixo" com
+        // `compact` ligado ficaria difícil de acertar; não há esse fluxo
+        // ativo em ST01/ST02 hoje.
+        // 2 strings ESTÁTICAS completas, nunca interpolação dentro do valor
+        // arbitrário — o scanner do Tailwind precisa achar a classe inteira
+        // como texto literal no código-fonte pra gerar o CSS; um template
+        // literal montando só o número em runtime não seria escaneado.
+        const cascade = !vertical || i === 0 ? undefined : compact ? "-mt-[calc(var(--card-w,3.5rem)*0.87)]" : "-mt-[calc(var(--card-w,3.5rem)*0.62)]";
 
         const piece = vertical ? (
           <span

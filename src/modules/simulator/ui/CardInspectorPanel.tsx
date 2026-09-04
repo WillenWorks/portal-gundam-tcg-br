@@ -75,7 +75,12 @@ function PanelBody({
   const grantedKeywords = card.keywordGrants.map((g) => g.keyword);
 
   return (
-    <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
+    // V6.2 (docs/33): `justify-center` — a asa já estica pela altura da
+    // linha inteira desde a rodada 3 (`self-center` removido no pai), mas
+    // faltava isto pra CENTRALIZAR o grupo [imagem + infos] dentro dessa
+    // altura (antes ficava colado no topo, print "CapturaWide" do Willen).
+    // A imagem (`mx-auto`) já centraliza em X; isto centraliza em Y.
+    <div className="flex flex-1 flex-col justify-center gap-3 overflow-y-auto">
       <CardFace nameEn={def.nameEn} code={def.code} art={art} size="lg" className="mx-auto border border-white/10" />
 
       <div>

@@ -28,6 +28,18 @@ describe("ShieldRail", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
+  it("V6.2 (docs/33): `compact` (prop, não breakpoint) achata a cascata — *0.87 em vez de *0.62", () => {
+    render(<ShieldRail count={3} orientation="vertical" compact />);
+    const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
+    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w,3.5rem)*0.87)]");
+  });
+
+  it("sem `compact`, mantém a cascata normal (*0.62)", () => {
+    render(<ShieldRail count={3} orientation="vertical" />);
+    const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
+    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w,3.5rem)*0.62)]");
+  });
+
   it("reserva `max` peças por padrão (vivas + quebradas)", () => {
     const { container } = render(<ShieldRail count={3} max={6} />);
     // 6 peças no total (3 vivas + 3 quebradas tracejadas)

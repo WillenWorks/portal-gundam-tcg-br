@@ -94,12 +94,14 @@ export function ActionDock({
         return (
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              {/* V6 (docs/31): "vale" só na faixa sm: (celular em paisagem, que já
-                  cai no tratamento "desktop" do dock mas numa tela real pequena
-                  demais pra ele) — volta ao tamanho normal a partir de md:. */}
+              {/* V6.2 (docs/33): `clamp()` contínuo em vez de `sm:`/`md:` — as
+                  rodadas anteriores bateram em limiares DIFERENTES por
+                  arquivo pro MESMO dispositivo (docs/32, "achado de raiz");
+                  um `clamp()` só não tem essa classe de bug (não tem 2
+                  números pra desalinhar entre arquivos, é 1 fórmula). */}
               <p
                 className={cn(
-                  "truncate text-sm font-black uppercase tracking-wide sm:text-xs md:text-sm",
+                  "truncate text-[clamp(0.6875rem,1.5vw,0.875rem)] font-black uppercase tracking-wide",
                   state.yourTurn ? "text-primary" : "text-muted-portal",
                 )}
               >
@@ -276,18 +278,21 @@ export function ActionDock({
     // `bottom-11` (44px) no mobile — a `HandDrawer` que isso mirava foi
     // removida (a mão hoje é o `HandFan anchored` dentro do próprio rodapé
     // do `ArenaPlaymat`, não mais um `fixed bottom-0` à parte), mas o offset
-    // continua útil pra não colar o dock na borda da tela.
-    // V6.1 (docs/32): `sm:bottom-20` (era `sm:bottom-14`) — em celular
-    // paisagem (que já cai na faixa `sm:`) o dock ficava perto demais da
-    // fileira de ícones "Jogar/Ver" do topo de cada carta da mão, tapando o
-    // clique (print anotado do Willen). `md:bottom-14` restaura o normal a
-    // partir de tablet/desktop.
+    // continua útil pra não colar o dock na borda da tela. `sm:bottom-20`
+    // (V6.1, docs/32) dá folga extra acima da fileira de ícones "Jogar/Ver"
+    // da mão — reaplicado numa faixa só (`sm:`+, sem outro salto depois)
+    // porque não há razão real pra essa folga precisar MUDAR de novo em
+    // telas maiores.
     <aside
       aria-label="Ação atual"
-      // V6 (docs/31): a faixa sm: (≥640px, <768px — celular em paisagem já
-      // cai aqui) ganha caixa/padding mais compactos; md:+ mantém o tamanho
-      // de sempre (desktop/tablet).
-      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-20 sm:right-3 sm:w-[16rem] md:bottom-14 md:w-[21rem] lg:w-[23rem]"
+      // V6.2 (docs/33): largura vira `clamp()` contínuo em vez de `sm:`/
+      // `md:`/`lg:` — mesmo motivo do texto acima (achado de raiz do
+      // docs/32: limiares diferentes em arquivos diferentes pro MESMO
+      // dispositivo). A troca de LAYOUT (barra full-width → caixa ancorada
+      // no canto) continua em `sm:` — isso É uma mudança estrutural real,
+      // faz sentido ser um salto; só o TAMANHO dentro do modo "caixa" deixou
+      // de saltar.
+      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-20 sm:right-2 sm:w-[clamp(13rem,38vw,23rem)]"
     >
       <div
         className={cn(
@@ -295,7 +300,7 @@ export function ActionDock({
           accentClass(state),
         )}
       >
-        <div className="px-3 py-2.5 sm:px-2 sm:py-1.5 md:px-3 md:py-2.5" aria-live="polite">
+        <div className="p-[clamp(0.5rem,1.8vw,0.75rem)]" aria-live="polite">
           {renderBody()}
         </div>
         {logTail ? (

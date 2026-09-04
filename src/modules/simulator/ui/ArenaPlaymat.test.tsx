@@ -48,22 +48,24 @@ describe("ArenaPlaymat", () => {
     expect(screen.getAllByTestId("me-slot")).toHaveLength(6);
   });
 
-  it("trava a proporção 16:9 e define a escala --card-w no canvas", () => {
+  it("trava a proporção 16:9 e aplica um piso inicial de --card-w no canvas", () => {
     const { container } = renderArena();
     const canvas = container.firstElementChild as HTMLElement;
     expect(canvas.className).toMatch(/aspect-\[16\/9\]/);
-    // V5 (docs/30): `min(6.5vw, 12vh)` — responde aos dois eixos do viewport,
-    // não só largura (a causa raiz do vazamento das colunas laterais em
-    // telas altura-dominante — zoom alto, mobile retrato). V6 (docs/31):
-    // teto 6.5rem → 7.5rem — o teto baixo suprimia o valor natural da
-    // fórmula em telas largas.
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(6.5vw, 12vh), 7.5rem)");
+    // V6.2 (docs/33): --card-w deixou de ser fórmula fixa — quem calcula é
+    // `useArenaScale` (testado à parte em `useArenaScale.test.ts`, com
+    // ResizeObserver/getBoundingClientRect mockados) medindo a caixa real.
+    // jsdom não faz layout de verdade (getBoundingClientRect sempre 0), então
+    // aqui só o piso inicial (antes de qualquer medição real) é observável.
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("56px");
   });
 
-  it("V6.1 (docs/32): `expanded` troca --card-w pra uma fórmula mais generosa (botão 'Expandir tabuleiro')", () => {
+  it("V6.2 (docs/33): `expanded` troca aspect-[16/9] por h-full w-full (canvas usa a caixa toda, sem travar 16:9)", () => {
     const { container } = renderArena({ expanded: true });
     const canvas = container.firstElementChild as HTMLElement;
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(9vw, 16vh), 10rem)");
+    expect(canvas.className).not.toMatch(/aspect-\[16\/9\]/);
+    expect(canvas.className).toMatch(/h-full/);
+    expect(canvas.className).toMatch(/w-full/);
   });
 
   it("overlay é renderizado sobre o canvas quando informado", () => {
