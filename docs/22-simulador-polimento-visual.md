@@ -126,3 +126,26 @@ legíveis; layout idêntico ao de hoje.
 
 Atualizado: lock `rounded-none` → "raio sutil `rounded-arena`"; nota de `--font-mono`;
 `--card` → `--card-w` na seção do grid.
+
+## Design Gate (design-critic) — resultado
+
+**Veredito: ACCEPT COM RESSALVAS · nota anti-genérico 8/10.** "As mudanças afiam
+em vez de diluir." Raio 3px **confirmado como certo** (não 2px — o chanfro
+`.panel-cut` de 16px segue sendo a assinatura forte). Assinatura "Nível Arena"
+**sem regressão** (`ArenaPlaymat` é só o rename `--card-w` + docstring; layout,
+grid, espelhamento, `rotateX`, z-order intactos).
+
+Ressalvas corrigidas (commit `f180c46`):
+- `battleLog` `PHASE_PT`: frases completas ("Fase Principal"/"Fase Final") —
+  acaba com "Fase de Principal".
+- `.planning/design-config.md`: tabela de Breakpoints `--card` → `--card-w`.
+- 6 `rounded-none` restantes fora dos componentes (botão 🐛, footer do inspetor,
+  lobby da fila) → `rounded-arena`.
+- `ResourceMeter` rótulo `font-mono` peso 400 → `font-medium` (o `<link>` só
+  carrega 500/600/700).
+- termos EN residuais → "Passo de Ação", "só Comando", `...` → `…`.
+
+Confirmado bom: conformidade de token impecável (`@theme` como fonte única, zero
+hex cru, IBM Plex Mono coerente com o `IBM Plex Sans` do body); B3 é bug latente
+real; escopo disciplinado com os itens caros (`.surface-panel` global, pilha de
+alpha, purga de caixa-alta) **conscientemente deferidos**.
