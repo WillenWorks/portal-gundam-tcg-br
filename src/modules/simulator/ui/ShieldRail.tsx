@@ -78,14 +78,21 @@ export function ShieldRail({
         const full = i < count;
         const selected = selectedIndexes.includes(i);
         const pickable = Boolean(selectable && full && onSelectIndex);
-        // V6 (docs/31): `max-sm:` sobrepõe mais (*0.75, era só *0.62) — pilha
-        // mais compacta no mobile, sem competir tanto por espaço vertical.
-        // Moderado de propósito: `selectable` é usado de verdade (Shield é
-        // alvo real de decisão de jogo) — overlap extremo reduziria a área
-        // clicável de cada peça.
+        // V6.1 (docs/32) — pedido do Willen: no mobile, SEM cascata nenhuma,
+        // "fica igual o deck" (pilha achatada, só a de cima visível + o
+        // número já cuida da contagem). `*0.87` ≈ a altura inteira do verso
+        // da carta (aspect 63/88 → altura ≈ largura*1,397; largura já é
+        // `card-w*0,62`, então altura ≈ `card-w*0,866` — arredondado pra
+        // cima, sem sobra de sub-pixel) — sobrepõe quase tudo, ao contrário
+        // do `*0,62` do desktop (que subtrai só a LARGURA, de propósito,
+        // pra sobrar uma tira visível = a cascata). Ressalva: com
+        // `selectable`, o botão da peça de cima cobre o clique das de baixo
+        // nessa faixa — aceitável pro caso comum (exibição passiva), mas um
+        // fluxo real de "escolher a shield de baixo" no mobile ficaria
+        // difícil de acertar; não há esse fluxo ativo em ST01/ST02 hoje.
         const cascade =
           vertical && i > 0
-            ? "-mt-[calc(var(--card-w,3.5rem)*0.62)] max-sm:-mt-[calc(var(--card-w,3.5rem)*0.75)]"
+            ? "-mt-[calc(var(--card-w,3.5rem)*0.62)] max-sm:-mt-[calc(var(--card-w,3.5rem)*0.87)]"
             : undefined;
 
         const piece = vertical ? (

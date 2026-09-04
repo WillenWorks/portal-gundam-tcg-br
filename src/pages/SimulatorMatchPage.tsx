@@ -100,7 +100,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bug, RefreshCw } from "lucide-react";
+import { Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
 import { api, ApiError, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -316,6 +316,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [inspect, setInspect] = useState<CardInstance | null>(null);
   /** carta sob o cursor/foco — alimenta o `CardInspectorPanel` das asas largas (Sprint 3/4). */
   const [hoveredCard, setHoveredCard] = useState<CardInstance | null>(null);
+  /** V6.1 (docs/32) — botão "Expandir tabuleiro" no widescreen: esconde o
+   *  Detalhes da Carta (asas laterais) e deixa a arena usar a largura toda,
+   *  com --card-w mais generoso. Só faz sentido quando `isWide` já mostra as
+   *  asas — reseta sozinho se a tela deixar de ser wide (guard no render). */
+  const [boardExpanded, setBoardExpanded] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
@@ -1155,6 +1160,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         >
           <Bug className="size-4" />
         </Button>
+        {/* V6.1 (docs/32) — só faz sentido quando as asas laterais existem (isWide). */}
+        {isWide ? (
+          <Button
+            variant="outline"
+            size="icon"
+            className="pointer-events-auto size-8 rounded-arena border-primary/40 bg-slate-950/70 text-primary hover:bg-primary/10"
+            onClick={() => setBoardExpanded((v) => !v)}
+            title={boardExpanded ? "Restaurar Detalhes da Carta" : "Expandir tabuleiro (esconde Detalhes da Carta)"}
+            aria-label={boardExpanded ? "Restaurar Detalhes da Carta" : "Expandir tabuleiro"}
+            aria-pressed={boardExpanded}
+          >
+            {boardExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </Button>
+        ) : null}
       </div>
 
       {/* Info de SISTEMA (não de jogo): status de conexão — chip minúsculo e
@@ -1182,17 +1201,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           esquerda, e um espelho `flex-1` invisível à direita mantém a arena
           centrada. */}
       <div className="relative flex min-h-0 flex-1 items-stretch justify-center gap-3 overflow-hidden px-1 sm:px-3 py-2">
-        {isWide ? (
+        {/* V6.1 (docs/32): `self-center` fazia a asa encolher pro tamanho do
+            CONTEÚDO em vez de esticar pela altura da linha — por isso o
+            painel "Nenhuma carta selecionada" ficava pequeno e colado no
+            topo, com muito vazio embaixo (print do Willen). Removido: agora
+            estica junto com a arena (`items-stretch` do pai), e o
+            centralizar/preencher interno de `CardInspectorPanel` passa a
+            valer de verdade. Também some quando `boardExpanded`. */}
+        {isWide && !boardExpanded ? (
           <CardInspectorPanel
             card={hoveredCard}
             art={art}
             inPlay
             state={boardForStats}
-            className="min-w-0 max-w-[22rem] flex-1 self-center max-h-full overflow-hidden"
+            className="min-w-0 max-w-[22rem] flex-1 max-h-full overflow-hidden"
           />
         ) : null}
         <div className="flex min-w-0 shrink-0 justify-center">
           <ArenaPlaymat
+            expanded={isWide && boardExpanded}
             opponent={arenaSide(opponentSeat, false)}
             self={arenaSide(seat, true)}
             hand={
@@ -1230,7 +1257,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           />
         </div>
         {/* espelho da asa esquerda — mantém a arena centrada quando o inspetor cresce */}
-        {isWide ? <div className="min-w-0 max-w-[22rem] flex-1" aria-hidden /> : null}
+        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[22rem] flex-1" aria-hidden /> : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do

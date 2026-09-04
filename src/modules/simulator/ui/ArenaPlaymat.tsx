@@ -76,6 +76,11 @@ interface ArenaPlaymatProps {
   /** overlay absoluto sobre todo o canvas (ex.: feixe de mira do `CombatLane`). */
   overlay?: ReactNode;
   className?: string;
+  /** V6.1 (docs/32) — botão "Expandir tabuleiro": o pai já escondeu o
+   *  `CardInspectorPanel`/espelho, liberando a largura toda pra esta coluna
+   *  central; `--card-w` troca pra uma fórmula mais generosa (ver
+   *  `canvasStyle`) pra as cartas de fato crescerem nesse espaço extra. */
+  expanded?: boolean;
 }
 
 /** escala única de toda carta + perspectiva da mesa. `--card-w` (não `--card`):
@@ -118,13 +123,31 @@ const CANVAS_STYLE = {
   perspectiveOrigin: "50% 65%",
 } as CSSProperties;
 
+/**
+ * V6.1 (docs/32) — modo "Expandir tabuleiro": o pai já removeu as duas asas
+ * de `max-w-[22rem]` (Detalhes da Carta + espelho), então a coluna central
+ * (`shrink-0`, ver `SimulatorMatchPage.tsx`) ganha acesso à largura TOTA da
+ * linha — mas `--card-w` normal continua limitado por `12vh`/teto de
+ * `7.5rem`, calibrados pro cenário COM as asas. Sem essa troca, a caixa do
+ * canvas cresceria (menos concorrência por largura) mas as cartas dentro
+ * dela ficariam do MESMO tamanho — sobrando vazio, o oposto do pedido
+ * ("as cartas e as sessões dela terão que aumentar"). Coeficientes/teto mais
+ * generosos SÓ neste modo opt-in — o padrão (não-expandido), já calibrado
+ * em 2 rodadas anteriores, fica intocado.
+ */
+const CANVAS_STYLE_EXPANDED = {
+  "--card-w": "clamp(3.5rem, min(9vw, 16vh), 10rem)",
+  perspective: "1200px",
+  perspectiveOrigin: "50% 65%",
+} as CSSProperties;
+
 /** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
  *  a subárvore achata num plano clicável, o tilt fica só no visual. */
 const TABLE_STYLE: CSSProperties = { transform: "rotateX(5deg)" };
 /** o lado do oponente recua um pouco (2D, achatado). */
 const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
-export function ArenaPlaymat({ opponent, self, hand, overlay, className }: ArenaPlaymatProps) {
+export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
   return (
     <div
       className={cn(
@@ -132,7 +155,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
         "panel-cut hero-surface border border-primary/20",
         className,
       )}
-      style={CANVAS_STYLE}
+      style={expanded ? CANVAS_STYLE_EXPANDED : CANVAS_STYLE}
     >
       <div className="flex min-h-0 flex-1 flex-col" style={TABLE_STYLE}>
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}

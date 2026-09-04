@@ -273,16 +273,21 @@ export function ActionDock({
   }
 
   return (
-    // Fica ACIMA da aba da `HandDrawer` (`fixed inset-x-0 bottom-0`, `min-h-[44px]`):
-    // `bottom-11` = 44px no mobile (rente à aba), `sm:bottom-14` = 56px no desktop
-    // (44px + folga). Sem isso os dois `fixed bottom-0` empatam e o dock cobre o
-    // toggle da mão.
+    // `bottom-11` (44px) no mobile — a `HandDrawer` que isso mirava foi
+    // removida (a mão hoje é o `HandFan anchored` dentro do próprio rodapé
+    // do `ArenaPlaymat`, não mais um `fixed bottom-0` à parte), mas o offset
+    // continua útil pra não colar o dock na borda da tela.
+    // V6.1 (docs/32): `sm:bottom-20` (era `sm:bottom-14`) — em celular
+    // paisagem (que já cai na faixa `sm:`) o dock ficava perto demais da
+    // fileira de ícones "Jogar/Ver" do topo de cada carta da mão, tapando o
+    // clique (print anotado do Willen). `md:bottom-14` restaura o normal a
+    // partir de tablet/desktop.
     <aside
       aria-label="Ação atual"
       // V6 (docs/31): a faixa sm: (≥640px, <768px — celular em paisagem já
       // cai aqui) ganha caixa/padding mais compactos; md:+ mantém o tamanho
       // de sempre (desktop/tablet).
-      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-14 sm:right-3 sm:w-[16rem] md:w-[21rem] lg:w-[23rem]"
+      className="fixed inset-x-0 bottom-11 z-40 sm:inset-x-auto sm:bottom-20 sm:right-3 sm:w-[16rem] md:bottom-14 md:w-[21rem] lg:w-[23rem]"
     >
       <div
         className={cn(

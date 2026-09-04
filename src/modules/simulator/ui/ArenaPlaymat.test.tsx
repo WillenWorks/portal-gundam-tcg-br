@@ -60,6 +60,12 @@ describe("ArenaPlaymat", () => {
     expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(6.5vw, 12vh), 7.5rem)");
   });
 
+  it("V6.1 (docs/32): `expanded` troca --card-w pra uma fórmula mais generosa (botão 'Expandir tabuleiro')", () => {
+    const { container } = renderArena({ expanded: true });
+    const canvas = container.firstElementChild as HTMLElement;
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("clamp(3.5rem, min(9vw, 16vh), 10rem)");
+  });
+
   it("overlay é renderizado sobre o canvas quando informado", () => {
     renderArena({ overlay: <div>mira-lane</div> });
     expect(screen.getByText("mira-lane")).toBeInTheDocument();
