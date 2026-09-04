@@ -86,8 +86,10 @@ describe("resolveMulligan — fluxo sequencial", () => {
       expect(s.players[p].shields).toHaveLength(6);
       expect(s.players[p].baseSection).toHaveLength(1);
       expect(s.players[p].baseSection[0].def.code).toBe("TOKEN-EX-BASE");
-      expect(s.players[p].hand).toHaveLength(5); // 1º jogador (A) não compra no turno 1
     }
+    // A é o jogador ativo e `advanceToMainPhase` já rodou a Draw Phase dele -> 6 na mão.
+    expect(s.players.A.hand).toHaveLength(6);
+    expect(s.players.B.hand).toHaveLength(5);
     // EX Resource ativo só pro 2º jogador (B) — o 1º (A) só tem o recurso da
     // Resource Phase que `advanceToMainPhase` acabou de rodar.
     expect(hasExResource(s, "A")).toBe(false);

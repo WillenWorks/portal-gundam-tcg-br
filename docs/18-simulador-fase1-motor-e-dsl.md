@@ -1186,8 +1186,7 @@ roadmap já alertava ("não é mais uma feature, é um segundo produto").
     fecha o resto quando os 2 resolvem). 6 shields, EX Base (0 AP / **3 HP**,
     fonte de comunidade — reconciliar), EX Resource só pro 2º jogador.
     Ver **docs/21** (Mulligan interativo + revelação de iniciativa).
-  - `phases.ts` — as 5 fases oficiais + `finishTurnAndAdvance()`. **1º jogador
-    não compra na Draw Phase do turno 1** (`turnNumber === 1`, CR 6-3).
+  - `phases.ts` — as 5 fases oficiais + `finishTurnAndAdvance()`.
   - `combat.ts` — sequência de combate de 5 passos (Attack/Block/Action/
     Damage/Battle End), incluindo Blocker, First Strike, High-Maneuver,
     Breach, Suppression e a regra de Pilot seguindo a Unit destruída

@@ -29,12 +29,6 @@ export function runStartPhase(state: GameState): GameState {
 export function computeDrawPhaseEvents(state: GameState): GameEvent[] {
   const player = state.players[state.activePlayer];
   const events: GameEvent[] = [{ type: "PHASE_CHANGE", phase: "draw" }];
-  // Comprehensive Rules 6-3 / Play Guide: o 1º jogador NÃO compra na Draw Phase
-  // do seu 1º turno (compensa a vantagem de iniciativa). Turno 1 é sempre do 1º
-  // jogador, então basta checar `turnNumber === 1`.
-  if (state.turnNumber === 1) {
-    return events;
-  }
   if (player.deck.length === 0) {
     // Comprehensive Rules 1-2-2-2: perde quem precisa comprar sem carta no deck
     events.push({ type: "GAME_OVER", winner: otherPlayer(state.activePlayer), reason: "deckOut" });

@@ -35,9 +35,7 @@ export function FirstPlayerReveal({ goesFirst, onDismiss, autoDismissMs = 3500 }
           {goesFirst ? "Você joga primeiro" : "Oponente joga primeiro"}
         </p>
         <p className="text-[11px] text-muted-portal">
-          {goesFirst
-            ? "Você não compra carta no seu 1º turno."
-            : "Você começa com 1 EX Resource e compra normalmente."}
+          {goesFirst ? "Você abre a partida." : "Você começa com 1 EX Resource ativo."}
         </p>
       </div>
     </button>
