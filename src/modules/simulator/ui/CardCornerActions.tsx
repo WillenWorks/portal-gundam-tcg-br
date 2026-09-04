@@ -42,7 +42,7 @@ export function CardCornerActions({ actions, size = "md", className }: CardCorne
       // absoluto encostado no canto direito; cresce pra ESQUERDA conforme ganha
       // botões. `-top-2` (default) põe a fila levemente pra fora da carta — o
       // caller passa `top-0.5` quando não pode passar pra fora (campo).
-      className={cn("absolute -top-2 right-0 z-30 flex items-start gap-0.5", className)}
+      className={cn("absolute -top-2 right-0 z-40 flex items-start gap-0.5", className)}
       onClick={(e) => e.stopPropagation()}
     >
       {actions.map((a) => (

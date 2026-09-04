@@ -137,6 +137,18 @@ decorativa da seam, que roubavam o clique.
 - Arquivos: `CardCornerActions.tsx` (prop `size`), `BattleSlot.tsx`,
   `ArenaPlaymat.tsx`.
 
+### G5 — RAIZ do clique: `preserve-3d` na mesa
+Com o DOM completo em mãos ficou claro que o botão "Ver"/"Atacar" está bem
+formado (`z-40`, dentro da carta) mas ainda inclicável. Causa raiz: a mesa
+(`TABLE_STYLE`) tinha `transformStyle: "preserve-3d"` + `rotateX`. Isso faz as 2
+metades virarem CAMADAS 3D e o hit-test do browser passa a escolher a camada pelo
+Z projetado, não pelo `z-index` — perto da seam o clique nas Units do jogador
+caía na camada do oponente. (Por isso nas Units do oponente funcionava.)
+- `TABLE_STYLE`: **remove `preserve-3d`**, `rotateX(8deg)`→`rotateX(5deg)`. A
+  subárvore achata num plano 2D clicável; o tilt continua no visual.
+- `CardCornerActions`: `z-30` → `z-40`.
+- Arquivo: `ArenaPlaymat.tsx`, `CardCornerActions.tsx`. Ver [[simulador-preserve3d-hit-test]].
+
 ## 4. Status
 
 | Fase | Estado | Commit / notas |
@@ -153,3 +165,4 @@ decorativa da seam, que roubavam o clique.
 | G2 — prompt vira painel modal que não bloqueia | ✅ | `CenterAnnounce`→`MatchPrompt`: painel `panel-cut` no topo-centro (`top-3`), `pointer-events-none`, texto `text-sm` — sai do caminho visual/clique do tabuleiro |
 | G3 — cluster de canto unificado (mão+campo), "Ver" sempre | ✅ | `CardCornerActions`: "Ver" (olho) sempre no canto + contexto à esquerda; arte não é mais clicável (fim do conflito Atacar↔abrir imagem); badge "BLK" removido; +3 arquivos de teste |
 | G4 — botões do campo caíam na Battle Area do oponente | ✅ | cluster do campo vai pra DENTRO do canto (`top-0.5`, `size-5`); `pt-3` recua o campo do jogador da seam; `Seam` vira `pointer-events-none` |
+| G5 — RAIZ: `preserve-3d` quebrava o hit-test | ✅ | remove `transformStyle: preserve-3d` da mesa (as 2 metades viravam camadas 3D e o clique caía na camada errada); `CardCornerActions` → `z-40` |

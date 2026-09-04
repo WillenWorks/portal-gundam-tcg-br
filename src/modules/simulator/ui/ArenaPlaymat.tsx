@@ -30,9 +30,15 @@
  * oponente sobem pro TOPO da tela. `ShieldStation`/`DeckStation` recebem
  * `mirrored` pra inverter a ordem dos filhos no lado do oponente.
  *
- * Perspectiva 3D (Sprint 5): `perspective` no canvas + `rotateX(8°)` na mesa; a
- * metade do oponente recua (`scale .95 / opacity .9`). Se a mira do `CombatLane`
- * sair de eixo em QA, é só reduzir/remover o `rotateX`.
+ * Perspectiva 3D (Sprint 5): `perspective` no canvas + `rotateX` sutil na mesa; a
+ * metade do oponente recua (`scale .95 / opacity .9`).
+ *
+ * IMPORTANTE — SEM `transformStyle: preserve-3d` (2026-09-03): com `preserve-3d`
+ * + `rotateX`, as duas metades viram camadas 3D e o hit-test do browser passava
+ * a errar QUAL camada recebe o clique perto da seam — os botões de canto das
+ * Units do jogador ficavam inclicáveis (lutamos com isso 4×). Sem `preserve-3d`
+ * a subárvore é achatada num plano só e o `z-index` volta a funcionar normal; o
+ * `rotateX` continua dando o tilt, só que num plano clicável.
  *
  * Componente apresentacional puro e prop-driven: cada peça é um slot
  * (`ReactNode`) que o `SimulatorMatchPage` preenche. O hover → inspetor lateral
@@ -79,10 +85,11 @@ const CANVAS_STYLE = {
   perspectiveOrigin: "50% 65%",
 } as CSSProperties;
 
-/** inclinação tática da mesa (Master Duel). */
-const TABLE_STYLE: CSSProperties = { transform: "rotateX(8deg)", transformStyle: "preserve-3d" };
-/** o lado do oponente recua em profundidade. */
-const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.95)" };
+/** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
+ *  a subárvore achata num plano clicável, o tilt fica só no visual. */
+const TABLE_STYLE: CSSProperties = { transform: "rotateX(5deg)" };
+/** o lado do oponente recua um pouco (2D, achatado). */
+const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className }: ArenaPlaymatProps) {
   return (
