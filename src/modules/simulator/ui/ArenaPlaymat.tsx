@@ -106,8 +106,11 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className }: Arena
 
         <Seam />
 
-        {/* ── Metade do jogador (primeiro plano, ancorada na seam) ──────── */}
-        <div className="flex min-h-0 flex-1 items-start justify-center gap-2 px-1">
+        {/* ── Metade do jogador (primeiro plano) ─────────────────────────────
+            `pt-3`: recua o campo do jogador da seam (pedido do Willen) pra os
+            botões do canto sup. direito das Units NÃO caírem em cima da Battle
+            Area do oponente / da seam. Sobra espaço no rodapé do canvas. */}
+        <div className="flex min-h-0 flex-1 items-start justify-center gap-2 px-1 pt-3">
           <ShieldStation side={self} />
           <SelfTheater side={self} />
           <DeckStation side={self} />
@@ -230,8 +233,10 @@ function BattleRow({
 }
 
 function Seam() {
+  // `pointer-events-none`: é só decoração (`aria-hidden`); a faixa desfocada de
+  // 8px NUNCA pode interceptar clique nos botões de carta que encostam na seam.
   return (
-    <div className="relative mx-auto h-px w-full shrink-0" aria-hidden>
+    <div className="pointer-events-none relative mx-auto h-px w-full shrink-0" aria-hidden>
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/45 to-transparent" />
       <div className="absolute inset-x-0 -top-1 h-2 bg-gradient-to-r from-transparent via-primary/10 to-transparent blur-[1px]" />
     </div>

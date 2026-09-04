@@ -123,6 +123,20 @@ Willen: unificar o padrão da mão e do campo.
 - Arquivos: `CardCornerActions.tsx` (+teste), `BattleSlot.tsx` (+teste),
   `HandFan.tsx` (+teste), `index.ts`.
 
+### G4 — Botões do campo caindo em cima da Battle Area do oponente
+2º vídeo: nas Units do jogador não dava pra clicar em "Ver"/"Atacar", mas nas do
+oponente sim. Causa: as 2 Battle Areas encostam na seam; o cluster do jogador,
+`-top-2` (pra fora, pra cima), caía em cima da Battle Area do oponente / da faixa
+decorativa da seam, que roubavam o clique.
+- `BattleSlot`: cluster de canto do CAMPO vai pra DENTRO da carta (`top-0.5
+  right-0.5`), `size="sm"` (`size-5`, cobre menos arte). A mão segue `-top-2`
+  (pra fora — tem espaço no leque).
+- `ArenaPlaymat`: `pt-3` na metade do jogador — recua o campo da seam (pedido do
+  Willen), sobra espaço no rodapé do canvas.
+- `Seam`: `pointer-events-none` na decoração (`aria-hidden`) — nunca intercepta.
+- Arquivos: `CardCornerActions.tsx` (prop `size`), `BattleSlot.tsx`,
+  `ArenaPlaymat.tsx`.
+
 ## 4. Status
 
 | Fase | Estado | Commit / notas |
@@ -138,3 +152,4 @@ Willen: unificar o padrão da mão e do campo.
 | G1 — botões de campo no canto (float-right) | ✅ | tira `-top-2 right-0` na própria carta (revisto no G3) |
 | G2 — prompt vira painel modal que não bloqueia | ✅ | `CenterAnnounce`→`MatchPrompt`: painel `panel-cut` no topo-centro (`top-3`), `pointer-events-none`, texto `text-sm` — sai do caminho visual/clique do tabuleiro |
 | G3 — cluster de canto unificado (mão+campo), "Ver" sempre | ✅ | `CardCornerActions`: "Ver" (olho) sempre no canto + contexto à esquerda; arte não é mais clicável (fim do conflito Atacar↔abrir imagem); badge "BLK" removido; +3 arquivos de teste |
+| G4 — botões do campo caíam na Battle Area do oponente | ✅ | cluster do campo vai pra DENTRO do canto (`top-0.5`, `size-5`); `pt-3` recua o campo do jogador da seam; `Seam` vira `pointer-events-none` |

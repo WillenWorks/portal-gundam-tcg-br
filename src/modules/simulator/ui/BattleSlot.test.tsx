@@ -57,8 +57,10 @@ describe("BattleSlot", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
     const strip = screen.getByRole("button", { name: "Atacar" }).closest("div")!;
     expect(strip.className).toMatch(/absolute/);
-    expect(strip.className).toMatch(/-top-2/);
-    expect(strip.className).toMatch(/right-0/);
+    // no campo o cluster fica DENTRO do canto (não pra fora), pra não cair na
+    // Battle Area do oponente / seam
+    expect(strip.className).toMatch(/top-0\.5/);
+    expect(strip.className).toMatch(/right-0\.5/);
     // ordem no DOM: [Atacar, Ver] → "Ver" encosta no canto direito
     const kids = Array.from(strip.children);
     expect(kids[0]).toBe(screen.getByRole("button", { name: "Atacar" }));

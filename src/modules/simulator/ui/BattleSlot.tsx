@@ -176,7 +176,10 @@ export function BattleSlot({
 
       {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
 
-      <CardCornerActions actions={cornerActions} />
+      {/* No campo o cluster fica DENTRO do canto (não pra fora como na mão): as 2
+          Battle Areas ficam perto e um `-top` faria os botões caírem em cima da
+          carta do oponente / da seam, roubando o clique. */}
+      <CardCornerActions actions={cornerActions} size="sm" className="top-0.5 right-0.5" />
     </div>
   );
 }
