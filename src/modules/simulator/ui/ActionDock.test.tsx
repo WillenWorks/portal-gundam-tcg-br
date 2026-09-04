@@ -141,7 +141,7 @@ describe("ActionDock — texto e botões por kind", () => {
 
   it("gameOver (vitória) destaca e mostra a contagem de redirecionamento", () => {
     const out = html({ kind: "gameOver", won: true, reasonLabel: "Deck-out do oponente", redirectSeconds: 5 });
-    expect(out).toContain("Você venceu!");
+    expect(out).toContain("Você venceu");
     expect(out).toContain("Deck-out do oponente");
     expect(out).toContain("Voltar ao site (5s)");
   });

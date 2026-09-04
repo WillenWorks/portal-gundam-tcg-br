@@ -5,7 +5,7 @@
  * carta do campo ou da mão, dispensando modais durante o jogo.
  *
  * Componente apresentacional puro e prop-driven. `card: null` => estado de
- * espera ("Sensor Tático em Espera"). `inPlay` alterna entre AP/HP efetivos
+ * espera ("Nenhuma carta selecionada"). `inPlay` alterna entre AP/HP efetivos
  * (carta em campo) e base (carta na mão). */
 import type { ReactNode } from "react";
 import { Crosshair } from "lucide-react";
@@ -30,10 +30,10 @@ interface CardInspectorPanelProps {
 export function CardInspectorPanel({ card, art, inPlay, state, blockedReason, className }: CardInspectorPanelProps) {
   return (
     <aside
-      aria-label="Inspetor tático de carta"
+      aria-label="Detalhes da carta"
       className={cn("panel-cut surface-panel flex w-full flex-col border border-primary/20 p-3", className)}
     >
-      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">Sensor Tático</p>
+      <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-400">Detalhes da carta</p>
       {card ? <PanelBody card={card} art={art} inPlay={inPlay} state={state} blockedReason={blockedReason} /> : <PanelIdle />}
     </aside>
   );
@@ -43,9 +43,9 @@ function PanelIdle() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
       <Crosshair className="size-8 text-slate-600 motion-safe:animate-pulse" aria-hidden />
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Sensor Tático em Espera</p>
-      <p className="max-w-[16rem] text-[10px] leading-relaxed text-slate-600">
-        Passe o cursor sobre uma carta do campo ou da mão para carregar a telemetria.
+      <p className="text-xs font-semibold text-slate-400">Nenhuma carta selecionada</p>
+      <p className="max-w-[16rem] text-[11px] leading-relaxed text-slate-500">
+        Passe o cursor sobre uma carta do campo ou da mão para ver os detalhes.
       </p>
     </div>
   );

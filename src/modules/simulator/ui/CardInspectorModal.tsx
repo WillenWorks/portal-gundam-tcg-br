@@ -106,7 +106,7 @@ export function CardInspectorModal({
           <button
             type="button"
             onClick={() => setDrawerOpen((o) => !o)}
-            aria-label={drawerOpen ? "Fechar telemetria" : "Abrir telemetria"}
+            aria-label={drawerOpen ? "Fechar detalhes" : "Abrir detalhes"}
             aria-expanded={drawerOpen}
             className="absolute right-0 top-1/2 z-20 flex h-16 w-6 -translate-y-1/2 translate-x-full items-center justify-center border border-l-0 border-primary/40 bg-slate-950/95 text-primary transition-colors hover:bg-slate-900 motion-reduce:transition-none"
           >

@@ -250,7 +250,7 @@ export function ActionDock({
       case "gameOver":
         return (
           <div className={cn("flex flex-col gap-1.5", state.won ? "text-emerald-300" : "text-red-300")}>
-            <p className="text-base font-black">{state.won ? "Você venceu!" : "Você perdeu"}</p>
+            <p className="text-base font-black">{state.won ? "Você venceu" : "Você perdeu"}</p>
             <p className="text-[11px] uppercase tracking-[0.16em] text-muted-portal">Fim de jogo · {state.reasonLabel}</p>
             <Button
               size="sm"

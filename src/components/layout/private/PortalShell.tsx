@@ -28,7 +28,7 @@ const userNav = [
   { href: "/deckbuilder", label: "Decks", icon: Swords },
   { href: "/binders", label: "Pastas", icon: BookMarked },
   // Simulador Beta -- aberto a qualquer usuário logado desde 2026-08-30 (era só admin/hoster antes), por isso mora no menu de todo mundo agora.
-  { href: "/simulador", label: "Simulador Beta", icon: Gamepad2 },
+  { href: "/simulador", label: "Simulador", icon: Gamepad2 },
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -63,7 +63,7 @@ const titles: Record<string, string> = {
   "/admin/rulings": "Rulings",
   "/admin/events": "Eventos",
   "/organizador": "Meus eventos",
-  "/simulador": "Simulador Beta",
+  "/simulador": "Simulador",
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {

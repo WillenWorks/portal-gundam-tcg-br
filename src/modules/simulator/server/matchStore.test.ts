@@ -78,7 +78,7 @@ describe("joinMatch", () => {
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
 
-    expect(() => joinMatch(match.id, "B", { userId: "user-1", displayName: "Willen" })).toThrow(/2 contas diferentes/);
+    expect(() => joinMatch(match.id, "B", { userId: "user-1", displayName: "Willen" })).toThrow(/dois jogadores diferentes/);
   });
 
   it("rejoin do mesmo usuário no MESMO assento é idempotente (reconexão de aba)", () => {

@@ -144,7 +144,7 @@ import {
   FirstPlayerReveal,
 } from "@/modules/simulator/ui";
 
-const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Main", end: "Final" };
+const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
 /** Espelha `DECK_OPTIONS` de SimulatorSandboxPage.tsx -- os únicos sets jogáveis hoje, usados pra buscar a arte real de cada carta por `code`. Se um novo set entrar no simulador, precisa entrar aqui também. */
 const ART_SET_CODES = ["ST01", "ST02"];
 /** Só pra resolver a arte de recursos/EX/tokens genéricos: o motor usa códigos
@@ -454,18 +454,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
 
   const reportSituation = async () => {
-    const note = window.prompt("Descreva rapidamente a dúvida/bug de regra (opcional):") ?? undefined;
+    const note = window.prompt("Descreva rapidamente o problema com esta partida (opcional):") ?? undefined;
     try {
       const { reportId } = await api.reportSimulatorSituation(matchId, note);
-      // fallback local: também copia a visão redigida + id pro clipboard, caso o dev precise.
+      // guarda o estado + id no clipboard como cópia de segurança.
       try {
         await navigator.clipboard.writeText(JSON.stringify({ reportId, matchView }, null, 2));
       } catch {
-        /* clipboard pode falhar sem HTTPS/foco — o log do servidor já basta */
+        /* clipboard pode falhar sem HTTPS/foco — o registro no servidor já basta */
       }
-      toast.success(`Relatório enviado (#${reportId}). O dev vê o estado completo nos logs.`);
+      toast.success(`Problema registrado (#${reportId}). Obrigado pelo aviso!`);
     } catch (err) {
-      toast.error(errorMessage(err, "Não deu pra enviar o relatório."));
+      toast.error(errorMessage(err, "Não deu pra registrar o problema."));
     }
   };
 
@@ -474,7 +474,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     try {
       const res = await api.claimSimulatorAbandonWin(matchId);
       setMatchView(res);
-      toast.success("W.O. declarado -- vitória por abandono.");
+      toast.success("W.O. declarado — vitória por abandono.");
     } catch (err) {
       toast.error(errorMessage(err, "Ainda não dá pra declarar W.O."));
     } finally {
@@ -524,7 +524,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   if (!matchView || artLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-muted-portal">
-        {!matchView ? "Conectando ao stream da partida..." : "Carregando arte das cartas..."}
+        {!matchView ? "Conectando à partida…" : "Carregando as cartas…"}
       </div>
     );
   }
@@ -552,13 +552,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // sem explicar nada, e foi exatamente essa falta de explicação que gerou o relato de "botão
   // bloqueado" quando na verdade era Action Step de fim de turno, ver docs/18).
   const notMainPhaseReason: string | undefined = combat
-    ? "Combate em andamento -- só dá pra jogar Command 【Action】 agora."
+    ? "Combate em andamento — só dá pra jogar Comando 【Action】 agora."
     : endPhaseAction
-      ? "Action Step de fim de turno -- só dá pra jogar Command 【Action】 agora."
+      ? "Action Step de fim de turno — só dá pra jogar Comando 【Action】 agora."
       : view.activePlayer !== seat
         ? "Não é sua vez."
         : view.phase !== "main"
-          ? "Fora da sua Main Phase."
+          ? "Fora da sua Fase Principal."
           : undefined;
 
   // Decisão interativa pendente (docs/19, Sessão 2) — Burst de shield quebrada, sobretudo.
@@ -833,7 +833,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           : isDual
             ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
             : isCommand
-              ? "Esta Command não tem gatilho disponível agora."
+              ? "Este Comando não tem gatilho disponível agora."
               : c.def.cardType === "PILOT" || c.def.pilotMode
                 ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
                 : notMainPhaseReason;
@@ -1024,7 +1024,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? "Jogando"
           : pending.kind === "activateAbility"
             ? "Ativando habilidade"
-            : `Jogando Command (${pending.trigger})`;
+            : `Jogando Comando (${pending.trigger === "Main" ? "Principal" : "Action"})`;
       const hint =
         pending.kind === "activateAbility"
           ? pending.abilityNeedsTarget
@@ -1085,8 +1085,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           size="icon"
           className="pointer-events-auto size-8 rounded-none border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
           onClick={reportSituation}
-          title="Reportar bug ou dúvida de regra — envia o estado da partida pro dev"
-          aria-label="Reportar bug ou dúvida de regra"
+          title="Relatar um problema com esta partida"
+          aria-label="Relatar um problema com esta partida"
         >
           <Bug className="size-4" />
         </Button>

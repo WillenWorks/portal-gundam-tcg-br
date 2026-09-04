@@ -28,7 +28,7 @@ const PHASE_PT: Record<string, string> = {
   start: "Manutenção",
   draw: "Compra",
   resource: "Recurso",
-  main: "Main",
+  main: "Principal",
   end: "Final",
 };
 
@@ -107,7 +107,7 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
     case "REMOVE_CARD_FROM_GAME":
       return entry("effect", `${nameOf(event.instanceId)} foi removida do jogo`);
     case "REST_CARD":
-      return entry("effect", `${nameOf(event.instanceId)} ficou rested`);
+      return entry("effect", `${nameOf(event.instanceId)} virou rested`);
     case "SET_ACTIVE":
       return null; // ruído (acontece em lote no Start Phase)
     case "MODIFY_STAT": {
@@ -130,7 +130,7 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
       const reason: Record<string, string> = {
         deckOut: "deck vazio",
         noShieldsBattleDamage: "dano sem shields",
-        abandonment: "abandono (W.O.)",
+        abandonment: "abandono",
         resignation: "desistência",
       };
       return entry("system", `FIM DE JOGO — vitória de ${player(event.winner)} (${reason[event.reason] ?? event.reason})`);

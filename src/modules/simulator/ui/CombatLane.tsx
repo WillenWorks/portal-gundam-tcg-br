@@ -25,10 +25,10 @@ interface CombatLaneProps {
 
 const STEP_LABEL: Record<CombatState["step"], string> = {
   attack: "Declaração",
-  block: "Block Step",
+  block: "Bloqueio",
   action: "Action Step",
-  damage: "Damage Step",
-  battleEnd: "Fim da Batalha",
+  damage: "Dano",
+  battleEnd: "Fim da batalha",
 };
 
 function center(r: DOMRect): { x: number; y: number } {

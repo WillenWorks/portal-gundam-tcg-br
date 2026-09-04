@@ -23,19 +23,19 @@ describe("gameOverReasonLabel — ponto de vista do viewer", () => {
 });
 
 describe("GameOverOverlay", () => {
-  it("vitória: 'Você Venceu' grande + motivo + botão com contagem", () => {
+  it("vitória: 'Você venceu' grande + motivo + botão com contagem", () => {
     const onLeave = vi.fn();
     render(<GameOverOverlay won reason="resignation" redirectSeconds={7} onLeave={onLeave} />);
-    expect(screen.getByText("Você Venceu")).toBeInTheDocument();
+    expect(screen.getByText("Você venceu")).toBeInTheDocument();
     expect(screen.getByText("Oponente se rendeu")).toBeInTheDocument();
     const btn = screen.getByRole("button", { name: /Voltar ao lobby \(7s\)/ });
     btn.click();
     expect(onLeave).toHaveBeenCalledTimes(1);
   });
 
-  it("derrota: 'Você Perdeu', sem contagem quando redirectSeconds null", () => {
+  it("derrota: 'Você perdeu', sem contagem quando redirectSeconds null", () => {
     render(<GameOverOverlay won={false} reason="deckOut" redirectSeconds={null} onLeave={vi.fn()} />);
-    expect(screen.getByText("Você Perdeu")).toBeInTheDocument();
+    expect(screen.getByText("Você perdeu")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voltar ao lobby" })).toBeInTheDocument();
   });
 });

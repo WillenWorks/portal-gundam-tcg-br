@@ -30,7 +30,7 @@ export function GameOverOverlay({ won, reason, redirectSeconds, onLeave }: GameO
             won ? "text-emerald-400" : "text-red-400",
           )}
         >
-          {won ? "Você Venceu" : "Você Perdeu"}
+          {won ? "Você venceu" : "Você perdeu"}
         </p>
         <p className="text-sm text-muted-portal sm:text-base">{gameOverReasonLabel(reason, won)}</p>
         <Button
