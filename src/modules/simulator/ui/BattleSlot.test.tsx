@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
+import type { CardDef, CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { BattleSlot } from "./BattleSlot";
 
 afterEach(cleanup);
@@ -43,6 +43,31 @@ describe("BattleSlot", () => {
     render(<BattleSlot unit={unit({ ap: 5, hp: 6 })} pilot={null} art={{}} />);
     expect(screen.getByLabelText("AP 5")).toBeInTheDocument();
     expect(screen.getByLabelText("HP 6")).toBeInTheDocument();
+  });
+
+  it("badge de AP inclui o bônus estático 【During Pair】 quando o `state` é passado", () => {
+    const gundam = unit(
+      {
+        ap: 3,
+        hp: 4,
+        staticAbilities: [
+          { condition: "duringPair", scope: "allFriendlyUnits", stat: "ap", amount: 1, duringYourTurnOnly: true },
+        ],
+      },
+      { pairedPilotId: "p1", owner: "A" },
+    );
+    const state = {
+      activePlayer: "A",
+      players: { A: { battleArea: [gundam] }, B: { battleArea: [] } },
+    } as unknown as GameState;
+
+    // sem state: só o AP base (3)
+    const { rerender } = render(<BattleSlot unit={gundam} pilot={null} art={{}} />);
+    expect(screen.getByLabelText("AP 3")).toBeInTheDocument();
+
+    // com state: 3 + 1 (During Pair, seu turno)
+    rerender(<BattleSlot unit={gundam} pilot={null} art={{}} state={state} />);
+    expect(screen.getByLabelText("AP 4")).toBeInTheDocument();
   });
 
   it("dano acumulado: HP restante + indicador -N", () => {

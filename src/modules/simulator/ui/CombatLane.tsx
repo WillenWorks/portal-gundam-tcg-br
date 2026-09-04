@@ -7,7 +7,7 @@
  *     como leitura rápida do combate. */
 import { useEffect, useReducer } from "react";
 import { Swords, ArrowRight } from "lucide-react";
-import type { CombatState, CardInstance, PlayerId } from "@/modules/simulator/engine/types";
+import type { CombatState, CardInstance, GameState, PlayerId } from "@/modules/simulator/engine/types";
 import { effectiveAp } from "@/modules/simulator/engine/types";
 import { playerAreaKey } from "./useBoardElements";
 
@@ -17,6 +17,8 @@ interface CombatLaneProps {
   /** Unit alvo, quando o ataque não é no jogador. */
   targetUnit: CardInstance | null;
   viewerSeat: PlayerId;
+  /** estado do jogo — pros AP do badge incluírem bônus estáticos. */
+  state?: GameState;
   /** medidor de posição real de DOM (ver `useBoardElements`). */
   rectOf: (key: string) => DOMRect | null;
 }
@@ -33,7 +35,7 @@ function center(r: DOMRect): { x: number; y: number } {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-export function CombatLane({ combat, attacker, targetUnit, viewerSeat, rectOf }: CombatLaneProps) {
+export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, rectOf }: CombatLaneProps) {
   const [, remeasure] = useReducer((n: number) => n + 1, 0);
 
   const iAttack = combat.attackingPlayer === viewerSeat;
@@ -125,10 +127,10 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, rectOf }:
         <div className="panel-cut flex items-center gap-2 border border-red-500/50 bg-slate-950/92 px-3 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
           <Swords className="size-4 shrink-0 text-red-400" />
           <span className="font-semibold text-soft">{attacker?.def.nameEn ?? "Atacante"}</span>
-          {attacker ? <span className="font-black text-cyan-300">AP{effectiveAp(attacker)}</span> : null}
+          {attacker ? <span className="font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
           <ArrowRight className="size-4 shrink-0 animate-pulse text-red-400" />
           <span className="font-semibold text-soft">{targetLabel}</span>
-          {targetUnit ? <span className="font-black text-cyan-300">AP{effectiveAp(targetUnit)}</span> : null}
+          {targetUnit ? <span className="font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
           <span className="ml-1 border-l border-white/15 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
             {STEP_LABEL[combat.step]}
           </span>

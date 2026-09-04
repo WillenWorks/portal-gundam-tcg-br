@@ -166,3 +166,17 @@ caía na camada do oponente. (Por isso nas Units do oponente funcionava.)
 | G3 — cluster de canto unificado (mão+campo), "Ver" sempre | ✅ | `CardCornerActions`: "Ver" (olho) sempre no canto + contexto à esquerda; arte não é mais clicável (fim do conflito Atacar↔abrir imagem); badge "BLK" removido; +3 arquivos de teste |
 | G4 — botões do campo caíam na Battle Area do oponente | ✅ | cluster do campo vai pra DENTRO do canto (`top-0.5`, `size-5`); `pt-3` recua o campo do jogador da seam; `Seam` vira `pointer-events-none` |
 | G5 — RAIZ: `preserve-3d` quebrava o hit-test | ✅ | remove `transformStyle: preserve-3d` da mesa (as 2 metades viravam camadas 3D e o clique caía na camada errada); `CardCornerActions` → `z-40` |
+
+### G6 — badges de AP/HP não mostravam bônus estático (【During Pair】/【During Link】)
+Relato: Gundam+Amuro pareia, ataca pelo link, mas o badge não mostra o AP+1 do
+【During Pair】. NÃO é regressão — o motor (`effectiveAp`/`computeStaticStatBonus`)
+sempre aplicou certo NO COMBATE (testes `agente1Additions` passam); os
+componentes de UI é que nunca recebiam o `GameState`, então mostravam só
+`base + modificador impresso do Piloto`, sem as auras 【During Pair】/【During Link】.
+As correções recentes de When Paired só tornaram o cenário alcançável.
+- `BattleSlot` / `CardInspectorPanel` / `CardInspectorModal` / `CombatLane` ganham
+  prop opcional `state?: GameState`.
+- `SimulatorMatchPage`: `boardForStats = view as unknown as GameState` (as Battle
+  Areas nunca são redigidas — cast seguro pros cálculos de stat) passado aos 4.
+- Melhora TODOS os cards com `staticAbilities` (ST01-001, ST02-003, ST02-010,
+  ST01-016…). Motor intocado. +1 teste BattleSlot.

@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 import { Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CardInstance } from "@/modules/simulator/engine/types";
+import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
 import type { ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
@@ -20,19 +20,21 @@ interface CardInspectorPanelProps {
   art: ArtLookup;
   /** mostra AP/HP efetivos (carta em campo) em vez dos base (carta na mão). */
   inPlay?: boolean;
+  /** estado do jogo — pros AP/HP efetivos incluírem bônus estáticos 【During Pair】/【During Link】. */
+  state?: GameState;
   /** ex.: motivo de não poder jogar a carta (mostrado em âmbar). */
   blockedReason?: string;
   className?: string;
 }
 
-export function CardInspectorPanel({ card, art, inPlay, blockedReason, className }: CardInspectorPanelProps) {
+export function CardInspectorPanel({ card, art, inPlay, state, blockedReason, className }: CardInspectorPanelProps) {
   return (
     <aside
       aria-label="Inspetor tático de carta"
       className={cn("panel-cut surface-panel flex w-full flex-col border border-primary/20 p-3", className)}
     >
       <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">Sensor Tático</p>
-      {card ? <PanelBody card={card} art={art} inPlay={inPlay} blockedReason={blockedReason} /> : <PanelIdle />}
+      {card ? <PanelBody card={card} art={art} inPlay={inPlay} state={state} blockedReason={blockedReason} /> : <PanelIdle />}
     </aside>
   );
 }
@@ -53,16 +55,18 @@ function PanelBody({
   card,
   art,
   inPlay,
+  state,
   blockedReason,
 }: {
   card: CardInstance;
   art: ArtLookup;
   inPlay?: boolean;
+  state?: GameState;
   blockedReason?: string;
 }) {
   const { def } = card;
-  const ap = inPlay ? effectiveAp(card) : def.ap;
-  const hp = inPlay ? Math.max(0, effectiveHp(card) - card.damage) : def.hp;
+  const ap = inPlay ? effectiveAp(card, state) : def.ap;
+  const hp = inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp;
   const apBuffed = ap !== undefined && ap !== (def.ap ?? 0);
   const hpDamaged = inPlay && card.damage > 0;
 

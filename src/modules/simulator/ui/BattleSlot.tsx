@@ -11,7 +11,7 @@
  * de escudo só aparece quando é hora de bloquear. */
 import { Crosshair, Eye, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CardInstance } from "@/modules/simulator/engine/types";
+import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
@@ -40,6 +40,10 @@ interface BattleSlotProps {
   onInspect?: (card: CardInstance) => void;
   /** hover / foco na Unit (ou `null` ao sair) — alimenta o inspetor lateral (Sprint 3). */
   onHoverCard?: (card: CardInstance | null) => void;
+  /** estado do jogo (ViewGameState servido cast) — pra os badges de AP/HP
+   *  incluírem os bônus estáticos 【During Pair】/【During Link】 e não só o
+   *  modificador impresso do Piloto. */
+  state?: GameState;
   actions?: BattleSlotActions;
   /** ref-callback pra o CombatLane medir a posição desta Unit (linha de mira). */
   registerRef?: (el: HTMLElement | null) => void;
@@ -56,6 +60,7 @@ export function BattleSlot({
   onSelect,
   onInspect,
   onHoverCard,
+  state,
   actions,
   registerRef,
 }: BattleSlotProps) {
@@ -67,10 +72,11 @@ export function BattleSlot({
     );
   }
 
-  // passa o Pilot pareado direto (BattleSlot não tem o GameState) pra que o
-  // modificador impresso de AP/HP dele (Comprehensive Rules 3-3-5) apareça nos badges.
-  const ap = effectiveAp(unit, undefined, pilot);
-  const hpRemaining = Math.max(0, effectiveHp(unit, undefined, pilot) - unit.damage);
+  // `state` (quando o pai passa) cobre os bônus estáticos 【During Pair】/
+  // 【During Link】; o `pilot` direto cobre o modificador impresso do Piloto
+  // (Comprehensive Rules 3-3-5) mesmo sem `state`.
+  const ap = effectiveAp(unit, state, pilot);
+  const hpRemaining = Math.max(0, effectiveHp(unit, state, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
   // com Piloto acoplado, a faixa dele ocupa a base — os números sobem um degrau.

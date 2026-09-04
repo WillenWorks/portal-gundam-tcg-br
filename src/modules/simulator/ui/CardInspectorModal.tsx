@@ -7,7 +7,7 @@
  * do piloto viram chips com POPOVER de hover mostrando a arte do piloto. */
 import { useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
-import type { CardInstance } from "@/modules/simulator/engine/types";
+import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
 
@@ -28,6 +28,8 @@ interface CardInspectorModalProps {
   footer?: ReactNode;
   /** mostra AP/HP efetivos (carta em campo) em vez dos base (carta na mão). */
   inPlay?: boolean;
+  /** estado do jogo — pros AP/HP efetivos incluírem bônus estáticos 【During Pair】/【During Link】. */
+  state?: GameState;
   /** texto de efeito (do catálogo — o CardDef do motor não carrega). */
   effectText?: string;
   /** pilotos que satisfazem a link condition (`link.kind === "pilotName"`). */
@@ -41,14 +43,15 @@ export function CardInspectorModal({
   blockedReason,
   footer,
   inPlay,
+  state,
   effectText,
   linkedPilots,
 }: CardInspectorModalProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { def } = card;
   const src = artSrc(art, def.code, "xl");
-  const ap = inPlay ? effectiveAp(card) : def.ap;
-  const hp = inPlay ? Math.max(0, effectiveHp(card) - card.damage) : def.hp;
+  const ap = inPlay ? effectiveAp(card, state) : def.ap;
+  const hp = inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp;
   const uniqueKeywords = [
     ...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])]),
   ];

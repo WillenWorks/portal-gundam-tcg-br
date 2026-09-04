@@ -105,7 +105,7 @@ import { Bug, RefreshCw } from "lucide-react";
 import { api, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
-import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type PlayerId } from "@/modules/simulator/engine/types";
+import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
@@ -466,6 +466,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const view = matchView.view;
   const seat = matchView.seat;
   const opponentSeat = otherPlayer(seat);
+  // `effectiveAp/Hp` querem um `GameState`, mas só leem `activePlayer` + as
+  // Battle Areas (nunca redigidas — ver viewState.ts). O cast é seguro pra os
+  // cálculos de stat e deixa os badges incluírem 【During Pair】/【During Link】.
+  const boardForStats = view as unknown as GameState;
   const battleLog = buildBattleLog(view); // docs/19, Sessão 4 — feed traduzido; barato (eventLog é janelado no servidor)
   const combat = view.combat;
   const endPhaseAction = view.endPhaseAction;
@@ -729,6 +733,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && attackerId === unit.instanceId)}
           busy={busy}
+          state={boardForStats}
           onSelect={(u) => toggleSelect(u.instanceId)}
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
@@ -1034,6 +1039,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             card={hoveredCard}
             art={art}
             inPlay
+            state={boardForStats}
             className="min-w-0 max-w-[22rem] flex-1 self-center max-h-full overflow-hidden"
           />
         ) : null}
@@ -1087,6 +1093,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           attacker={attacker}
           targetUnit={combatTargetUnit}
           viewerSeat={seat}
+          state={boardForStats}
           rectOf={board.rectOf}
         />
       ) : null}
@@ -1122,6 +1129,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           card={inspect}
           art={art}
           inPlay
+          state={boardForStats}
           effectText={cardText[inspect.def.code]}
           linkedPilots={resolveLinkedPilots(inspect.def)}
           onClose={() => setInspect(null)}
