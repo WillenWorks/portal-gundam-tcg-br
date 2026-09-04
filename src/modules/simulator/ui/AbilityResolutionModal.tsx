@@ -25,6 +25,7 @@ interface AbilityResolutionModalProps {
 const TRIGGER_LABEL: Record<string, string> = {
   "When Paired": "Vínculo resolvido — 【When Paired】",
   Attack: "Ataque declarado — 【Attack】",
+  Deploy: "Carta implantada — 【Deploy】",
 };
 
 export function AbilityResolutionModal({ decision, targetsByScope, busy, onResolve }: AbilityResolutionModalProps) {

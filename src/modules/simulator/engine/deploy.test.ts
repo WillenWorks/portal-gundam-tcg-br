@@ -462,6 +462,109 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
   });
 });
 
+/**
+ * Regressão: 【Deploy】 direcionado (ST01-004 Guntank — "Choose 1 enemy Unit
+ * with 2 or less HP. Rest it.") jogado SEM `options.targets` (o caminho real
+ * do cliente hoje — ver `SimulatorMatchPage.confirmPending`, que nunca manda
+ * `targets` pra Deploy) lançava "Alvo nomeado 'target' não foi resolvido
+ * antes da execução do efeito", porque `deployCard` chamava `dispatchTrigger`
+ * direto pro trigger Deploy em vez de `deferOrDispatchAbilities` (que já
+ * cobria 【When Paired】). Fix: Deploy agora usa o MESMO mecanismo de pausa —
+ * ver `deploy.ts`.
+ */
+describe("deployCard — 【Deploy】 direcionado PAUSA pra resolução separada (fix do Guntank)", () => {
+  function freshSt01MainPhase(): GameState {
+    return advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 5, firstPlayer: "A" }));
+  }
+
+  it("jogar Guntank SEM targets não lança mais — pausa com PendingDecision.abilityResolution, e a Unit já está em campo", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
+    const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GM, "battleArea");
+
+    let next!: GameState;
+    expect(() => {
+      next = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS });
+    }).not.toThrow();
+
+    // a carta foi jogada (deploy nunca é bloqueado pelo efeito de alvo) --
+    // o efeito é que ainda não resolveu.
+    expect(next.players.A.battleArea.some((c) => c.instanceId === guntankId)).toBe(true);
+    expect(findCard(next, enemyId).rested).toBe(false);
+    const decision = next.pendingDecision.A;
+    expect(decision?.kind).toBe("abilityResolution");
+    expect(decision?.kind === "abilityResolution" && decision.trigger).toBe("Deploy");
+    expect(decision?.kind === "abilityResolution" && decision.queue).toEqual([
+      expect.objectContaining({ specId: "ST01-004-Deploy", needsTarget: true, optional: false, targetScope: "enemyUnit" }),
+    ]);
+  });
+
+  it("resolveAbility com alvo escolhido: resta o alvo e limpa a decisão", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
+    const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GM, "battleArea");
+    const paused = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS });
+
+    const next = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: "ST01-004-Deploy", activate: true, targetIds: [enemyId] }] },
+      ST01_EFFECT_SPECS,
+    );
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("resolveAbility sem alvo legal (targetIds vazio): efeito não ativa, mas a Unit segue em campo normalmente", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
+    const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
+    const paused = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS }); // sem nenhuma Unit inimiga em campo
+
+    const next = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: "ST01-004-Deploy", activate: true, targetIds: [] }] },
+      ST01_EFFECT_SPECS,
+    );
+
+    expect(next.pendingDecision.A).toBeNull();
+    expect(next.players.A.battleArea.some((c) => c.instanceId === guntankId)).toBe(true); // deploy não foi desfeito
+  });
+
+  it("com `targets` fornecidos (caminho antigo/IA): resolve na hora, sem pausar", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
+    const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
+    const enemyId = place(state, "B", ST01_CARD_DEFS.GM, "battleArea");
+
+    const next = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS, targets: { target: [enemyId] } });
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("Deploy SEM alvo nomeado (ST01-015 White Base — 'Add 1 Shield to hand') continua resolvendo na hora, sem pausar", () => {
+    const state = freshSt01MainPhase();
+    giveResources(state, "A", Math.max(ST01_CARD_DEFS.WHITE_BASE.cost!, ST01_CARD_DEFS.WHITE_BASE.level!));
+    const handSizeBefore = state.players.A.hand.length;
+    const shieldsBefore = state.players.A.shields.length;
+    const whiteBaseId = place(state, "A", ST01_CARD_DEFS.WHITE_BASE, "hand");
+
+    const next = deployCard(state, "A", whiteBaseId, { specs: ST01_EFFECT_SPECS });
+
+    expect(next.pendingDecision.A).toBeNull(); // sem alvo nomeado "target" -> nunca é interativo
+    expect(next.players.A.baseSection.some((c) => c.instanceId === whiteBaseId)).toBe(true);
+    // White Base entrou na mão (place, +1) e depois saiu pra Base Section (-1);
+    // addShieldToHand devolve 1 shield pra mão (+1) -- líquido: +1 sobre o handSizeBefore original.
+    expect(next.players.A.hand.length).toBe(handSizeBefore + 1);
+    expect(next.players.A.shields.length).toBe(shieldsBefore - 1);
+  });
+});
+
 function findTriggerSpecsFired<T extends { cardCode: string; trigger: string }>(specs: T[], cardCode: string, trigger: string): T[] {
   return specs.filter((s) => s.cardCode === cardCode && s.trigger === trigger);
 }

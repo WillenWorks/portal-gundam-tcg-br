@@ -382,7 +382,7 @@ export function applyPlayerAction(
  * fim de turno)? Usado pelo auto-pass inteligente (docs/19, Sessão 2, tarefa
  * 4 — CR 7-6 / 8-4): se o jogador com prioridade optou por `autoPassActionStep`
  * E não tem nada pra fazer aqui, o servidor passa na hora, sem esperar o
- * timer de 90s. "Jogada real" = Command 【Action】 jogável agora (nível +
+ * timer do Action Step. "Jogada real" = Command 【Action】 jogável agora (nível +
  * custo pagáveis) ou 【Activate·Action】 de carta em campo ainda não usado.
  */
 export function playerHasActionStepPlay(state: GameState, player: PlayerId, specs: EffectSpec[]): boolean {

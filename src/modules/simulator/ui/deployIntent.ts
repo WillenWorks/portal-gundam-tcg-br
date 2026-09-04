@@ -1,8 +1,9 @@
 /* Resolve o pareamento de um deploy de Piloto a partir dos cliques (`selected`).
  *
  * Sprint 6 · Etapa 4 — o 【When Paired】 direcionado deixou de precisar do 2º
- * clique ANTES de confirmar: o motor pausa (`PendingDecision: whenPaired`) e o
- * alvo é escolhido num momento SEPARADO, no `WhenPairedModal`. Aqui só decide
+ * clique ANTES de confirmar: o motor pausa (`PendingDecision.abilityResolution`)
+ * e o alvo é escolhido num momento SEPARADO, no `AbilityResolutionModal` (o
+ * mesmo mecanismo cobre 【Deploy】 direcionado, ver `deploy.ts`). Aqui só decide
  * `pairWithUnitId` e informa (`needsWhenPairedTarget`) pra dica de UI.
  * Puro/testável — sem React, sem rede. */
 import { ALL_EFFECT_SPECS } from "../content";

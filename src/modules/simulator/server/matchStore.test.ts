@@ -255,7 +255,7 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     vi.useRealTimers();
   });
 
-  it("sem nenhuma ação em 90s, o servidor encerra o turno sozinho (finishTurn) e reagenda o próximo prazo", () => {
+  it("sem nenhuma ação no prazo, o servidor encerra o turno sozinho (finishTurn) e reagenda o próximo prazo", () => {
     vi.useFakeTimers();
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
@@ -264,10 +264,11 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     expect(getMatch(match.id)?.state.activePlayer).toBe("A");
     expect(getMatch(match.id)?.turnDeadlineAt).not.toBeNull();
 
-    // 1º prazo estoura: A não decidiu nada na Main Phase -> servidor chama finishTurn
-    // sozinho, que só ABRE o Action Step da End Phase (Comprehensive Rules 7-6) --
-    // não troca o jogador ativo ainda, só passa a prioridade pro jogador em espera (B).
-    vi.advanceTimersByTime(90_000);
+    // 1º prazo estoura (Main Phase, 300s): A não decidiu nada -> servidor chama
+    // finishTurn sozinho, que só ABRE o Action Step da End Phase (Comprehensive
+    // Rules 7-6) -- não troca o jogador ativo ainda, só passa a prioridade pro
+    // jogador em espera (B).
+    vi.advanceTimersByTime(300_000);
     let after = getMatch(match.id)!;
     expect(after.state.activePlayer).toBe("A"); // ainda não trocou
     expect(after.state.phase).toBe("end");
@@ -275,14 +276,14 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     expect(after.version).toBe(2);
     expect(after.turnDeadlineAt).not.toBeNull();
 
-    // 2º prazo estoura: B não decidiu nada no Action Step -> passa sozinho -> prioridade volta pra A.
-    vi.advanceTimersByTime(90_000);
+    // 2º prazo estoura (Action Step, 30s): B não decidiu nada -> passa sozinho -> prioridade volta pra A.
+    vi.advanceTimersByTime(30_000);
     after = getMatch(match.id)!;
     expect(after.state.endPhaseAction?.priority).toBe("A");
     expect(after.version).toBe(3);
 
-    // 3º prazo estoura: A também passa sozinho -> os dois passaram -> o turno finalmente troca pra B.
-    vi.advanceTimersByTime(90_000);
+    // 3º prazo estoura (Action Step, 30s): A também passa sozinho -> os dois passaram -> o turno finalmente troca pra B.
+    vi.advanceTimersByTime(30_000);
     after = getMatch(match.id)!;
     expect(after.state.activePlayer).toBe("B");
     expect(after.state.endPhaseAction).toBeNull();
@@ -296,7 +297,7 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
-    vi.advanceTimersByTime(80_000); // ainda dentro do prazo original de A
+    vi.advanceTimersByTime(80_000); // ainda dentro do prazo original de A (Main Phase, 300s)
     applyAction(match.id, "user-1", { kind: "finishTurn" }); // A age por conta própria -- abre o Action Step da End Phase
 
     const afterAction = getMatch(match.id)!;
@@ -304,9 +305,10 @@ describe("timer de turno (90s por decisão, passa automático)", () => {
     expect(afterAction.state.endPhaseAction?.priority).toBe("B");
     expect(afterAction.version).toBe(2);
 
-    // passa da marca dos 90s originais (contados desde a criação), mas só 15s desde a ação real de A --
-    // o timer antigo (que estouraria aos 90s da Main Phase) foi cancelado, não duplicou o finishTurn;
-    // o timer novo (do Action Step, prioridade de B) só estoura aos 90s a partir da ação de A.
+    // passa da marca dos 300s originais da Main Phase (contados desde a criação),
+    // mas só 15s desde a ação real de A -- o timer antigo (Main Phase) foi
+    // cancelado, não duplicou o finishTurn; o timer novo (Action Step, prioridade
+    // de B) só estoura aos 30s a partir da ação de A.
     vi.advanceTimersByTime(15_000);
 
     const stillWaitingOnB = getMatch(match.id)!;
@@ -401,15 +403,17 @@ describe("auto-forfeit por AFK prolongado (P4 — o jogo não roda ininterrupto)
     vi.useRealTimers();
   });
 
-  it("5min sem sinal de vida de quem precisa decidir → GAME_OVER por abandono, timer parado", () => {
+  it("10min sem sinal de vida de quem precisa decidir → GAME_OVER por abandono, timer parado", () => {
     vi.useFakeTimers();
     const match = newMatch();
     joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
     joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
-    // O servidor joga a ação-padrão sozinho por alguns ciclos de 90s, mas
-    // ninguém dá ping/ação — passados 5min, encerra em vez de seguir pra sempre.
-    for (let i = 0; i < 4; i++) vi.advanceTimersByTime(90_000);
+    // ninguém dá ping/ação: o servidor age sozinho por alguns ciclos (Main
+    // Phase 300s de A -> Action Step 30s de B -> Action Step 30s de A -> Main
+    // Phase 300s de B = 660s), até o AUTO_FORFEIT_MS (600s) bater no meio do
+    // ciclo de quem estiver decidindo -- aqui, a Main Phase de B.
+    vi.advanceTimersByTime(660_000);
 
     const after = getMatch(match.id)!;
     expect(after.state.gameOver?.reason).toBe("abandonment");

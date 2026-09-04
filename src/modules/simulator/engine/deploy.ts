@@ -121,7 +121,21 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
 
   const specs = options.specs ?? [];
   if (specs.length > 0) {
-    next = dispatchTrigger(next, cardInstanceId, "Deploy", specs, { targets: options.targets, predicateResolver: options.predicateResolver });
+    // 【Deploy】 passa pelo MESMO mecanismo de pausa que 【When Paired】/【Attack】
+    // (`deferOrDispatchAbilities`) — antes ia direto por `dispatchTrigger`, que
+    // exige o alvo JÁ resolvido em `ctx.targets.target`; como nenhum caller
+    // preenchia isso pra Deploy, qualquer carta com 【Deploy】 de alvo nomeado
+    // (ex.: ST01-004 Guntank, "Choose 1 enemy Unit with 2 or less HP") quebrava
+    // com "Alvo nomeado não foi resolvido" ao tentar resolver. Agora: sem alvo
+    // legal -> a Base "Add 1 Shield"-style Deploy sem alvo nomeado continua
+    // resolvendo na hora (não muda nada pra elas); com alvo nomeado -> pausa
+    // como `PendingDecision.abilityResolution`, e se não houver alvo legal o
+    // efeito simplesmente não ativa (Comprehensive Rules — não impede a carta
+    // de ter sido jogada, ela já está em campo pelos eventos MOVE_CARD acima).
+    next = deferOrDispatchAbilities(next, player, "Deploy", [{ code: def.code, instanceId: cardInstanceId }], specs, {
+      targets: options.targets,
+      predicateResolver: options.predicateResolver,
+    });
     if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) resolvido num
       // momento SEPARADO da escolha da Unit — pausa se optativo/precisa de alvo.

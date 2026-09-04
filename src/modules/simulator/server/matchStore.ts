@@ -31,26 +31,59 @@ export interface MatchSeat {
    * docs/19, Sessão 2, tarefa 4: quando ligado, o servidor passa
    * automaticamente o Action Step (de combate ou de fim de turno) por este
    * assento se ele não tiver nenhuma jogada 【Action】 real disponível — sem
-   * esperar o timer de 90s. Default `false` (o jogador confirma cada passe).
+   * esperar o timer do Action Step (`ACTION_STEP_DECISION_MS`). Default
+   * `false` (o jogador confirma cada passe).
    */
   autoPassActionStep?: boolean;
 }
 
-/** 90s por decisão (não por turno inteiro) — decisão do Willen em 2026-08-30. Estourou, o servidor age sozinho (ver `onTurnTimeout`). */
-const TURN_DECISION_MS = 90_000;
+/**
+ * 5min por decisão de Main Phase / decisão interativa (Burst, Mulligan, ordem
+ * de gatilhos, resolução de habilidade) — decisão do Willen em 2026-09-04
+ * (era 90s; jogo real mostrou que 90s é curto demais pra escolher recursos
+ * pra pagar custo + alvo + confirmar). Estourou, o servidor age sozinho (ver
+ * `onTurnTimeout`). Ver `ACTION_STEP_DECISION_MS` pro Action Step, que usa um
+ * prazo mais curto de propósito.
+ */
+const TURN_DECISION_MS = 300_000;
+
+/**
+ * 30s por decisão de Action Step (de combate OU de fim de turno) — decisão do
+ * Willen em 2026-09-04. Janela deliberadamente mais curta que
+ * `TURN_DECISION_MS`: a única escolha ali é "jogar um Command 【Action】 ou
+ * passar", decisão rápida e de baixo custo cognitivo — não precisa dos
+ * mesmos 5min da Main Phase.
+ */
+const ACTION_STEP_DECISION_MS = 30_000;
+
+/** Prazo da decisão ATUAL, conforme o passo (ver `decisionOwner` — mesma prioridade: decisão interativa > combate > Action Step de fim de turno > Main Phase). */
+function decisionDurationMs(state: GameState): number {
+  for (const p of ["A", "B"] as PlayerId[]) {
+    if (state.pendingDecision[p]) return TURN_DECISION_MS;
+  }
+  if (state.combat?.step === "action") return ACTION_STEP_DECISION_MS;
+  if (state.combat) return TURN_DECISION_MS;
+  if (state.endPhaseAction) return ACTION_STEP_DECISION_MS;
+  return TURN_DECISION_MS;
+}
 
 /** 3min sem nenhum sinal de vida do assento oposto — decisão do Willen em 2026-08-30. Não é automático: só destrava o botão de W.O. pro oponente (ver `claimAbandonWin`). */
 const ABANDON_THRESHOLD_MS = 180_000;
 
 /**
- * 5min sem NENHUM sinal de vida (ping OU ação) do assento que precisa decidir:
+ * 10min sem NENHUM sinal de vida (ping OU ação) do assento que precisa decidir:
  * o servidor ENCERRA a partida por abandono (vitória do oponente) em vez de
  * seguir jogando a ação-padrão sozinho, turno após turno — era isso que fazia
  * "o jogo rodar ininterrupto mesmo com muito tempo AFK" (P4). Mais folgado que
  * `ABANDON_THRESHOLD_MS` (o W.O. manual) porque aqui é automático e definitivo;
  * enquanto a aba do jogador estiver aberta ela manda ping e isso não dispara.
+ * PRECISA continuar bem maior que `TURN_DECISION_MS` (2026-09-04: o turno foi
+ * pra 300s) — com os dois iguais, um jogador que pensa a decisão inteira com a
+ * aba em background (sem ping, ver `PRESENCE_PING_MS`/`visibilitychange` no
+ * cliente) seria forfeitado no exato estouro do próprio prazo normal, em vez
+ * de só ter a ação-padrão aplicada.
  */
-const AUTO_FORFEIT_MS = 300_000;
+const AUTO_FORFEIT_MS = 600_000;
 
 export interface MatchRecord {
   id: string;
@@ -215,7 +248,7 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
     lastSeenAt: stored.lastSeenAt,
   };
   matches.set(match.id, match);
-  armTurnTimer(match); // prazo fresco de 90s pós-restart (justo com o jogador)
+  armTurnTimer(match); // prazo fresco pós-restart (justo com o jogador)
   return match;
 }
 
@@ -645,7 +678,7 @@ function clearTurnTimer(matchId: string): void {
  * Auto-pass inteligente do Action Step (docs/19, Sessão 2, tarefa 4): se o
  * jogador com prioridade num Action Step (combate OU fim de turno) ligou
  * `autoPassActionStep` e não tem nenhuma jogada 【Action】 real, passa na
- * hora — sem cobrar os 90s do timer. Loop limitado: cada passe ou vira a
+ * hora — sem cobrar o timer do Action Step. Loop limitado: cada passe ou vira a
  * prioridade uma vez ou encerra o step, então converge em poucas iterações
  * (e para assim que o outro lado não tem auto-pass ligado, ou surge uma
  * decisão de Burst, ou o step termina).
@@ -683,9 +716,10 @@ function armTurnTimer(match: MatchRecord): void {
     return;
   }
 
-  const deadline = Date.now() + TURN_DECISION_MS;
+  const durationMs = decisionDurationMs(match.state);
+  const deadline = Date.now() + durationMs;
   match.turnDeadlineAt = deadline;
-  const handle = setTimeout(() => onTurnTimeout(match.id, deadline), TURN_DECISION_MS);
+  const handle = setTimeout(() => onTurnTimeout(match.id, deadline), durationMs);
   turnTimeouts.set(match.id, handle);
 }
 

@@ -298,6 +298,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const connected = connState === "live";
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
+  /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
+  const turnWarningsRef = useRef<{ deadline: number | null; fired: Set<number> }>({ deadline: null, fired: new Set() });
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
@@ -544,6 +546,39 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return () => clearTimeout(timer);
   }, [gameOver, setLocation]);
 
+  // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
+  // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
+  // tinha agido sozinho. Só pra quem está decidindo agora (o timer de 30s do
+  // Action Step é curto de propósito, não precisa dessa régua). Precisa ficar
+  // ANTES do guard `!matchView` abaixo — hook não pode vir depois de early
+  // return — então recalcula `myTurnMain`/`turnSecondsLeft` aqui em vez de usar
+  // os `const` do corpo do componente (que só existem depois do guard).
+  // `turnWarningsRef` some os avisos repetindo a cada render: reseta quando o
+  // prazo muda (novo turno/timer rearmado) e só dispara cada limiar 1x por prazo.
+  useEffect(() => {
+    if (!matchView || matchView.turnDeadlineAt === null) return;
+    const v = matchView.view;
+    const myTurnMainNow = !v.combat && v.phase === "main" && v.activePlayer === matchView.seat;
+    if (!myTurnMainNow) return;
+    const secondsLeft = Math.max(0, Math.ceil((matchView.turnDeadlineAt - (now + clockOffsetRef.current)) / 1000));
+    const track = turnWarningsRef.current;
+    if (track.deadline !== matchView.turnDeadlineAt) {
+      track.deadline = matchView.turnDeadlineAt;
+      track.fired = new Set();
+    }
+    const thresholds: Array<{ at: number; fire: () => void }> = [
+      { at: 150, fire: () => toast.warning("Metade do tempo do seu turno já passou.") },
+      { at: 50, fire: () => toast.warning("Faltam 50s pro seu turno acabar.") },
+      { at: 10, fire: () => toast.error("10s! O turno vai encerrar sozinho e entrar no Action Step.") },
+    ];
+    for (const t of thresholds) {
+      if (secondsLeft <= t.at && !track.fired.has(t.at)) {
+        track.fired.add(t.at);
+        t.fire();
+      }
+    }
+  }, [matchView, now]);
+
   if (!matchView || artLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-muted-portal">
@@ -671,8 +706,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         toast.error(sel.error);
         return;
       }
-      // Etapa 4 — o 【When Paired】 direcionado é resolvido depois, no WhenPairedModal;
-      // aqui não mandamos `targets` (o motor pausa sozinho se precisar de interação).
+      // Etapa 4 (When Paired) + fix do Guntank (Deploy) — gatilhos direcionados são
+      // resolvidos depois, no AbilityResolutionModal; aqui não mandamos `targets`
+      // (o motor pausa sozinho, via `deferOrDispatchAbilities`, se precisar de interação).
       runAction({
         kind: "deployCard",
         cardInstanceId: pending.cardInstanceId,
