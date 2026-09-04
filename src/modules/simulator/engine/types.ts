@@ -394,22 +394,18 @@ export type PendingDecision =
       triggers: Array<{ instanceId: string; specId: string; trigger: string; label: string }>;
     }
   | {
-      kind: "targetSelection";
-      sourceInstanceId: string;
-      /** trigger/habilidade que pediu o alvo — pra quem resolve saber o que continuar */
-      specId: string;
-      validTargetIds: string[];
-      count: number;
-    }
-  | {
       /**
        * Gatilho(s) de habilidade resolvidos num momento SEPARADO da ação que os
        * disparou (【When Paired】 ao parear Piloto, 【Attack】 ao declarar ataque,
-       * …). A fila pode ter mais de 1 efeito simultâneo (When Paired da Unit +
-       * do Piloto): o jogador escolhe a ORDEM (não é cadeia, é ordenação de
-       * eventos) e, pra efeito `optional`, se ativa ou pula. `needsTarget` = o
-       * efeito consome `ctx.targets.target`; `targetScope` diz o que o alvo pode
-       * ser (a UI monta a lista).
+       * 【Deploy】 direcionado, …). A fila pode ter mais de 1 efeito simultâneo
+       * (When Paired da Unit + do Piloto): o jogador escolhe a ORDEM (não é
+       * cadeia, é ordenação de eventos) e, pra efeito `optional`, se ativa ou
+       * pula. `needsTarget` = o efeito consome `ctx.targets.target`;
+       * `targetScope` diz a categoria ampla do alvo; `legalTargets` (V0,
+       * 2026-09-04) é a lista JÁ FILTRADA pelo `targetFilter` do EffectSpec
+       * (HP/nível/descansada/etc.), calculada uma vez no servidor ao montar a
+       * fila — a UI só lê, nunca recalcula a regra; `resolveAbility` valida
+       * contra ela (não confia cegamente no que o cliente manda).
        */
       kind: "abilityResolution";
       trigger: string;
@@ -421,6 +417,8 @@ export type PendingDecision =
         optional: boolean;
         needsTarget: boolean;
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
+        /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
+        legalTargets: string[];
       }>;
     }
   | {

@@ -82,6 +82,10 @@ export const SIMULTANEOUS_FIRE_MAIN: EffectSpec = {
   cardCode: "ST02-012",
   trigger: "Main",
   actions: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "Breach 3", duration: "endOfTurn" }],
+  // bug real achado na auditoria V0 (docs/25): faltava declarar o escopo —
+  // sem isso caía no default `enemyUnit`, deixando escolher Unit INIMIGA
+  // num efeito que o texto diz ser "of YOUR Units".
+  targetScope: "friendlyUnit",
   sourceText: "【Main】Choose 1 of your Units. It gains <Breach 3> during this turn.",
 };
 
@@ -94,6 +98,7 @@ export const SIEGE_PLOY_BURST: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Burst",
   actions: SIEGE_PLOY_ACTIONS,
+  targetFilter: "hp<=5",
   sourceText: "【Burst】Activate this card's 【Main】.",
 };
 
@@ -102,6 +107,7 @@ export const SIEGE_PLOY_MAIN: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Main",
   actions: SIEGE_PLOY_ACTIONS,
+  targetFilter: "hp<=5",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };
 
@@ -110,6 +116,7 @@ export const SIEGE_PLOY_ACTION: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Action",
   actions: SIEGE_PLOY_ACTIONS,
+  targetFilter: "hp<=5",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };
 

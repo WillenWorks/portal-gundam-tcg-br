@@ -10,7 +10,7 @@ import { dispatchBurstForNewlyTrashedShields, dispatchTrigger, type BurstChoiceF
 import { findCard } from "./events";
 import { GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
 import { ST02_EFFECT_SPECS } from "../content/st02";
-import { defaultPredicateResolver } from "../content/predicates";
+import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content/predicates";
 import { peekAndReorderDeck } from "./effectSpec";
 
 /**
@@ -249,7 +249,10 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     expect(findCard(state, leoId).rested).toBe(true);
 
     const thoroughlyDamagedId = mkInstance(state, "A", ST01_CARD_DEFS.THOROUGHLY_DAMAGED, "hand");
-    state = playCommand(state, "A", thoroughlyDamagedId, "Main", ALL_SPECS, { targets: { target: [leoId] } }); // Leo (rested) leva 1 dano
+    state = playCommand(state, "A", thoroughlyDamagedId, "Main", ALL_SPECS, {
+      targets: { target: [leoId] },
+      targetFilterResolver: defaultTargetFilterResolver,
+    }); // Leo (rested) leva 1 dano
     expect(findCard(state, leoId).damage).toBe(1);
 
     // dano real numa Unit própria pra depois curar com Kai's Resolve
@@ -334,7 +337,10 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     setTopShields(state, "B", [ST02_CARD_DEFS.SIEGE_PLOY, ST02_CARD_DEFS.HEERO_YUY, ST02_CARD_DEFS.ZECHS_MERQUISE]);
 
     const siegePloyMainId = mkInstance(state, "B", ST02_CARD_DEFS.SIEGE_PLOY, "hand");
-    state = playCommand(state, "B", siegePloyMainId, "Main", ALL_SPECS, { targets: { target: [maFormId] } }); // MA Form tem HP3 <= 5
+    state = playCommand(state, "B", siegePloyMainId, "Main", ALL_SPECS, {
+      targets: { target: [maFormId] },
+      targetFilterResolver: defaultTargetFilterResolver,
+    }); // MA Form tem HP3 <= 5
     expect(findCard(state, maFormId).rested).toBe(true);
 
     // ------------------------------------------------------------------
@@ -354,7 +360,10 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
       runActionStep: (s, defending, attacking) => {
         // Action Step começa com prioridade de quem defende (B) — B pode jogar direto, sem precisar passar antes.
         // alvo = a própria MA Form (já vai ficar rested por atacar de qualquer forma — não compete com os próximos atacantes).
-        let n = playCommand(s, "B", siegePloyActionId, "Action", ALL_SPECS, { targets: { target: [maFormId] } });
+        let n = playCommand(s, "B", siegePloyActionId, "Action", ALL_SPECS, {
+          targets: { target: [maFormId] },
+          targetFilterResolver: defaultTargetFilterResolver,
+        });
         n = passAction(n, defending);
         n = passAction(n, attacking);
         return n;

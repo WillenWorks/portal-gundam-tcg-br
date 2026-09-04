@@ -300,6 +300,60 @@ export interface EffectSpec {
    * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
    */
   targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit";
+  /**
+   * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
+   * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
+   * (Thoroughly Damaged, Suletta Mercury — "Set 1 Resource as active" só faz
+   * sentido num Recurso descansado). Resolvido por CANDIDATO (uma instância
+   * por vez), não pelo `EffectContext` inteiro — ver `TargetFilterResolver`
+   * e `computeLegalTargets`. Ausente = qualquer card do `targetScope` é
+   * legal (comportamento de antes do V0, docs/24).
+   */
+  targetFilter?: string;
+}
+
+/**
+ * Resolve um `targetFilter` (string) contra UM candidato — mesmo padrão de
+ * extensão do `PredicateResolver` (id-string + resolver registrado), só que
+ * por instância em vez de pelo `EffectContext` inteiro. Implementação real
+ * em `content/predicates.ts` (`defaultTargetFilterResolver`) — mesmo motivo
+ * do `defaultPredicateResolver`: única fonte, reusada por testes e servidor.
+ */
+export type TargetFilterResolver = (filter: string, candidate: CardInstance, ctx: { state: GameState }) => boolean;
+
+/**
+ * Enumera os alvos LEGAIS de `spec.targetScope` (+ `spec.targetFilter`, se
+ * houver) no estado ATUAL — única fonte de verdade, chamada tanto pra montar
+ * a lista que a UI mostra quanto pra VALIDAR o que o cliente manda de volta
+ * (nunca confiar só na UI escondendo a opção ilegal — ver `docs/25`). Pool
+ * sempre pequeno (Battle Area ≤6 Units, Resource Area ≤~15 cartas) — o custo
+ * é desprezível; o cuidado real é só chamar isto nos pontos de DECISÃO
+ * (`deferOrDispatchAbilities`, `resolveAbility`, `playCommand`/
+ * `activateAbility`), nunca dentro de um loop de render.
+ *
+ * Lança se o spec declara `targetFilter` mas nenhum `resolveFilter` foi
+ * passado — mesma postura de `resolveEffectSpec` pra `condition` (falhar
+ * alto em vez de aplicar o filtro em silêncio).
+ */
+export function computeLegalTargets(
+  state: GameState,
+  spec: Pick<EffectSpec, "targetScope" | "targetFilter">,
+  controller: PlayerId,
+  resolveFilter?: TargetFilterResolver,
+): string[] {
+  const scope = spec.targetScope ?? "enemyUnit";
+  const pool: CardInstance[] =
+    scope === "enemyUnit"
+      ? state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT")
+      : scope === "friendlyUnit"
+        ? state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT")
+        : state.players[controller].resourceArea;
+
+  if (!spec.targetFilter) return pool.map((c) => c.instanceId);
+  if (!resolveFilter) {
+    throw new Error(`EffectSpec com targetFilter "${spec.targetFilter}" mas nenhum TargetFilterResolver foi passado`);
+  }
+  return pool.filter((c) => resolveFilter(spec.targetFilter!, c, { state })).map((c) => c.instanceId);
 }
 
 /**

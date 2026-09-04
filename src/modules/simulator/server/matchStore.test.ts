@@ -332,6 +332,7 @@ describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (reg
           optional,
           needsTarget: true,
           targetScope: "enemyUnit",
+          legalTargets: [],
         },
       ],
     };

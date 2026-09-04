@@ -2,10 +2,16 @@
  * campo: nível (recursos em campo), custo (recursos active), fase (Main vs
  * Action Step), Unit amiga sem Piloto pra parear, e alvo legal quando o efeito
  * exige um. Puro/testável — o `SimulatorMatchPage` passa o contexto derivado do
- * `ViewGameState`. */
-import { ALL_EFFECT_SPECS } from "../content";
-import { specNeedsNamedTarget } from "../engine/effectSpec";
-import type { CardDef } from "../engine/types";
+ * `ViewGameState`.
+ *
+ * V0 (docs/25): "alvo legal" usa a MESMA `computeLegalTargets` do servidor
+ * (escopo + `targetFilter` — HP/nível/descansada/etc.), não mais uma contagem
+ * bruta por categoria ampla — antes disso, um Command tipo Siege Ploy ("Choose
+ * 1 enemy Unit with 5 or less HP") aparecia jogável mesmo sem NENHUMA Unit
+ * inimiga dentro do HP exigido, só por existir alguma Unit inimiga qualquer. */
+import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "../content";
+import { computeLegalTargets, specNeedsNamedTarget } from "../engine/effectSpec";
+import type { CardDef, GameState, PlayerId } from "../engine/types";
 
 export interface PlayabilityContext {
   /** Main Phase própria, sem combate. */
@@ -18,16 +24,16 @@ export interface PlayabilityContext {
   totalResources: number;
   /** existe ≥ 1 Unit amiga na Battle Area SEM Piloto pareado. */
   hasUnpairedFriendlyUnit: boolean;
-  /** contagens de alvos possíveis por escopo, pra checar efeitos "Choose 1 ...". */
-  targetCounts: { enemyUnit: number; friendlyUnit: number; ownResource: number };
+  /** estado atual (a `ViewGameState` já dá pra ler zonas públicas — cast feito pelo caller) + de quem é o turno de jogar, pra `computeLegalTargets`. */
+  state: GameState;
+  controller: PlayerId;
 }
 
-/** true se pelo menos 1 EffectSpec de `trigger` da carta precisa de alvo e NÃO há alvo desse escopo. */
+/** true se pelo menos 1 EffectSpec de `trigger` da carta precisa de alvo e NÃO há alvo LEGAL agora (escopo + filtro). */
 function blockedByMissingTarget(code: string, trigger: string, ctx: PlayabilityContext): boolean {
   return ALL_EFFECT_SPECS.some((s) => {
     if (s.cardCode !== code || s.trigger !== trigger || !specNeedsNamedTarget(s)) return false;
-    const scope = s.targetScope ?? "enemyUnit";
-    return ctx.targetCounts[scope] === 0;
+    return computeLegalTargets(ctx.state, s, ctx.controller, defaultTargetFilterResolver).length === 0;
   });
 }
 

@@ -1,6 +1,33 @@
 import { describe, expect, it } from "vitest";
-import type { CardDef } from "../engine/types";
+import { createGame } from "../engine/setup";
+import { advanceToMainPhase } from "../engine/phases";
+import { buildVanillaDeckList, VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck";
+import type { CardDef, CardInstance, GameState, PlayerId } from "../engine/types";
 import { isPlayableNow, playableModes, type PlayabilityContext } from "./handPlayability";
+
+/** Estado real mínimo (mesma convenção de `deploy.test.ts`) — `computeLegalTargets`
+ * (V0, docs/25) lê o `battleArea`/`resourceArea` de verdade, não uma contagem. */
+function freshState(): GameState {
+  return advanceToMainPhase(createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 3, firstPlayer: "A" }));
+}
+
+let seq = 0;
+function place(state: GameState, player: PlayerId, def: CardDef, rested = false): CardInstance {
+  const card: CardInstance = {
+    instanceId: `${player}-hp-fx-${seq++}`,
+    def,
+    owner: player,
+    zone: "battleArea",
+    rested,
+    damage: 0,
+    statModifiers: [],
+    keywordGrants: [],
+    usedKeywordsThisTurn: [],
+    enteredZoneOnTurn: state.turnNumber - 1,
+  };
+  state.players[player].battleArea.push(card);
+  return card;
+}
 
 const CTX: PlayabilityContext = {
   myTurnMain: true,
@@ -8,17 +35,10 @@ const CTX: PlayabilityContext = {
   activeResources: 5,
   totalResources: 5,
   hasUnpairedFriendlyUnit: false,
-  targetCounts: { enemyUnit: 0, friendlyUnit: 0, ownResource: 0 },
+  state: freshState(),
+  controller: "A",
 };
-const ctx = (
-  over: Partial<Omit<PlayabilityContext, "targetCounts">> & {
-    targetCounts?: Partial<PlayabilityContext["targetCounts"]>;
-  },
-): PlayabilityContext => ({
-  ...CTX,
-  ...over,
-  targetCounts: { ...CTX.targetCounts, ...(over.targetCounts ?? {}) },
-});
+const ctx = (over: Partial<PlayabilityContext>): PlayabilityContext => ({ ...CTX, ...over });
 
 const def = (over: Partial<CardDef>): CardDef => ({
   code: "X",
@@ -63,28 +83,32 @@ describe("playableModes — Pilot / pareamento", () => {
 });
 
 describe("playableModes — Command e alvos", () => {
-  it("Command 【Main】 sem alvo inimigo em campo → bloqueada (Thoroughly Damaged / ST01-012)", () => {
-    const c = def({
-      code: "ST01-012",
-      cardType: "COMMAND",
-      cost: 0,
-      level: 0,
-      triggerKeywords: ["Main"],
-      pilotMode: { pilotName: "Hayato Kobayashi", hp: 1 },
-    });
-    expect(playableModes(c, ctx({ targetCounts: { enemyUnit: 0 } }))).not.toContain("commandMain");
+  // ST01-012 Thoroughly Damaged — 【Main】Choose 1 RESTED enemy Unit. Deal 1
+  // damage. `targetFilter: "rested"` (V0, docs/25): não basta ter Unit
+  // inimiga em campo, ela precisa estar descansada.
+  const thoroughlyDamaged = def({
+    code: "ST01-012",
+    cardType: "COMMAND",
+    cost: 0,
+    level: 0,
+    triggerKeywords: ["Main"],
+    pilotMode: { pilotName: "Hayato Kobayashi", hp: 1 },
   });
 
-  it("Command 【Main】 com alvo inimigo em campo → commandMain liberado", () => {
-    const c = def({
-      code: "ST01-012",
-      cardType: "COMMAND",
-      cost: 0,
-      level: 0,
-      triggerKeywords: ["Main"],
-      pilotMode: { pilotName: "Hayato Kobayashi", hp: 1 },
-    });
-    expect(playableModes(c, ctx({ targetCounts: { enemyUnit: 1 } }))).toContain("commandMain");
+  it("sem nenhuma Unit inimiga em campo → bloqueada", () => {
+    expect(playableModes(thoroughlyDamaged, ctx({ state: freshState() }))).not.toContain("commandMain");
+  });
+
+  it("com Unit inimiga em campo mas ATIVA (não descansada) → ainda bloqueada (filtro 'rested')", () => {
+    const state = freshState();
+    place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, false);
+    expect(playableModes(thoroughlyDamaged, ctx({ state, controller: "A" }))).not.toContain("commandMain");
+  });
+
+  it("com Unit inimiga DESCANSADA em campo → commandMain liberado", () => {
+    const state = freshState();
+    place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, true);
+    expect(playableModes(thoroughlyDamaged, ctx({ state, controller: "A" }))).toContain("commandMain");
   });
 
   it("Command 【Action】 só sai num Action Step", () => {

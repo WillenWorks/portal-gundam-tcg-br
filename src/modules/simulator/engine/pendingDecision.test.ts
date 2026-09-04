@@ -7,7 +7,7 @@ import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, playerHasActionStepPlay } from "./actions";
 import { findCard } from "./events";
-import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
+import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 
 /**
  * docs/19, Sessão 2 — decisões interativas (`PendingDecision`): pausa
@@ -44,7 +44,7 @@ function giveResources(state: GameState, player: PlayerId, n: number): void {
 }
 
 function apply(state: GameState, p: PlayerId, action: Parameters<typeof applyPlayerAction>[2]): GameState {
-  return applyPlayerAction(state, p, action, SPECS, R);
+  return applyPlayerAction(state, p, action, SPECS, R, defaultTargetFilterResolver);
 }
 
 /** A ataca o jogador B; B tem 1 único shield = `shieldDef`. Retorna o estado logo antes do 2º passAction. */

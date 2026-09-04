@@ -4,7 +4,7 @@ import { advanceToMainPhase } from "../engine/phases";
 import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from "../engine/actions";
 import { applyEvents } from "../engine/events";
 import { viewStateFor, type ViewGameState } from "../engine/viewState";
-import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
+import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 
 /**
  * Match store em memória (docs/18, passo 4 — decisão original do Willen: em
@@ -376,7 +376,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
 
   let nextState: GameState;
   try {
-    nextState = applyPlayerAction(match.state, seat, action, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    nextState = applyPlayerAction(match.state, seat, action, ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
   } catch (err) {
     throw new MatchError(err instanceof Error ? err.message : "Ação inválida.", 400);
   }
@@ -697,7 +697,7 @@ function settleAutoPasses(match: MatchRecord): void {
 
     const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
     try {
-      match.state = applyPlayerAction(match.state, owner, pass, ALL_EFFECT_SPECS, defaultPredicateResolver);
+      match.state = applyPlayerAction(match.state, owner, pass, ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
       match.version += 1;
       match.updatedAt = Date.now();
     } catch {
@@ -753,7 +753,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
     }
 
     try {
-      match.state = applyPlayerAction(match.state, actingPlayer, defaultActionFor(match.state), ALL_EFFECT_SPECS, defaultPredicateResolver);
+      match.state = applyPlayerAction(match.state, actingPlayer, defaultActionFor(match.state), ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
       match.updatedAt = Date.now();
       match.version += 1;
     } catch {

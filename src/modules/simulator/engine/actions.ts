@@ -1,11 +1,11 @@
 import type { AttackTarget, GameState, PlayerId } from "./types";
-import type { EffectSpec, PredicateResolver } from "./effectSpec";
+import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { deferOrDispatchAbilities } from "./abilityDispatch";
+import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
@@ -118,6 +118,7 @@ export function applyPlayerAction(
   action: PlayerAction,
   specs: EffectSpec[],
   predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
 ): GameState {
   // Decisão interativa pendente trava tudo (docs/19, Sessão 2): enquanto o
   // defensor não resolve o Burst (ou quem controla não ordena os gatilhos),
@@ -149,6 +150,7 @@ export function applyPlayerAction(
         specs,
         targets: action.targets,
         predicateResolver,
+        targetFilterResolver,
       });
 
     case "playCommand":
@@ -156,6 +158,7 @@ export function applyPlayerAction(
         resourceInstanceIds: action.resourceInstanceIds,
         targets: action.targets,
         predicateResolver,
+        targetFilterResolver,
       });
 
     case "declareAttack": {
@@ -177,7 +180,7 @@ export function applyPlayerAction(
           ...(pilotId ? [{ code: findCard(next, pilotId).def.code, instanceId: pilotId }] : []),
         ],
         specs,
-        { predicateResolver },
+        { predicateResolver, targetFilterResolver },
       );
       if (next.pendingDecision[actingPlayer]) return next; // pausou pra escolher (segue no resolveAbility)
       // Attack Step -> Block Step não é decisão de ninguém, é avanço automático.
@@ -259,7 +262,18 @@ export function applyPlayerAction(
 
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
       if (abilitySpecs.length > 0) {
-        return dispatchTrigger(state, action.sourceInstanceId, trigger, specs, {
+        // V0 (docs/25): mesma filtragem de `playCommand` — spec com alvo
+        // ilegal/não escolhido lança, spec sem alvo legal nenhum sai do lote.
+        const dispatchable = filterDispatchableSpecs(
+          state,
+          source.def.code,
+          trigger,
+          specs,
+          actingPlayer,
+          action.targets?.target,
+          targetFilterResolver,
+        );
+        return dispatchTrigger(state, action.sourceInstanceId, trigger, dispatchable, {
           targets: action.targets,
           costResourceIds: action.resourceInstanceIds,
           predicateResolver,
@@ -283,7 +297,19 @@ export function applyPlayerAction(
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
       if (action.activate) {
-        next = dispatchTrigger(next, decision.cardInstanceId, "Burst", specs, {
+        // V0 (docs/25): alguns 【Burst】 reaproveitam a ação do 【Main】 da mesma
+        // carta (ex.: Siege Ploy, Unforeseen Incident) e por isso também podem
+        // precisar de alvo nomeado — mesma filtragem de `playCommand`.
+        const dispatchable = filterDispatchableSpecs(
+          next,
+          decision.cardDef.code,
+          "Burst",
+          specs,
+          actingPlayer,
+          action.targets?.target,
+          targetFilterResolver,
+        );
+        next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
           targets: action.targets ?? {},
           predicateResolver,
         });
@@ -313,6 +339,12 @@ export function applyPlayerAction(
         const trig = decision.triggers.find((t) => t.specId === specId)!;
         // filtra `specs` pro spec exato — dispatchTrigger roda todos os specs de
         // (cardCode, trigger); aqui a gente já sabe qual é a ordem escolhida.
+        // NOTA (V0, docs/25): este caminho não passa pela filtragem de alvo —
+        // gatilhos simultâneos (2+ cards no MESMO evento) não têm nenhum spec
+        // com alvo nomeado hoje em ST01/ST02 (confirmado nos testes), então
+        // nunca dispara na prática. Fica registrado: se uma carta futura
+        // precisar de alvo AQUI, aplicar o mesmo `filterDispatchableSpecs`
+        // usado em `playCommand`/`activateAbility`/`resolveBurstDecision`.
         next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
           predicateResolver,
         });
@@ -336,6 +368,12 @@ export function applyPlayerAction(
         const q = decision.queue.find((x) => x.specId === r.specId)!;
         // pulado, ou "Choose 1 ..." sem alvo legal disponível = nada acontece (regra oficial).
         if (!r.activate || (q.needsTarget && r.targetIds.length === 0)) continue;
+        // V0 (docs/25): `legalTargets` foi calculado no servidor ao montar a
+        // fila (`deferOrDispatchAbilities`) — nunca confia cegamente no que o
+        // cliente manda de volta aqui.
+        if (q.needsTarget && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
+          throw new Error(`Alvo inválido pra ${r.specId} — não está entre os alvos legais.`);
+        }
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets: { target: r.targetIds, shield: r.targetIds },
           predicateResolver,

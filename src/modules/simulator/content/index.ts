@@ -2,7 +2,7 @@ import type { EffectSpec } from "../engine/effectSpec";
 import { ST01_EFFECT_SPECS } from "./st01";
 import { ST02_EFFECT_SPECS } from "./st02";
 
-export { defaultPredicateResolver } from "./predicates";
+export { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 
 /**
  * Todo EffectSpec real cadastrado até agora (18 ST01 + 13 ST02, docs/18

@@ -9,6 +9,7 @@ import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { applyPlayerAction } from "./actions";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { AMURO_RAY_WHEN_PAIRED, GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
+import { defaultTargetFilterResolver } from "../content";
 import { findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 
@@ -387,7 +388,11 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
     const enemyId = place(state, "B", ST01_CARD_DEFS.GUNCANNON, "battleArea");
 
-    const next = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+    const next = deployCard(state, "A", pilotId, {
+      pairWithUnitId: unitId,
+      specs: ST01_EFFECT_SPECS,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
 
     expect(findCard(next, pilotId).pairedUnitId).toBe(unitId); // pareamento aconteceu
     expect(findCard(next, enemyId).rested).toBe(false); // efeito NÃO resolveu ainda
@@ -404,7 +409,11 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
     const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
     const enemyId = place(state, "B", ST01_CARD_DEFS.GUNCANNON, "battleArea");
-    const paused = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+    const paused = deployCard(state, "A", pilotId, {
+      pairWithUnitId: unitId,
+      specs: ST01_EFFECT_SPECS,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
 
     const next = applyPlayerAction(
       paused,
@@ -422,7 +431,11 @@ describe("deployCard — 【When Paired】 direcionado PAUSA pra resolução sep
     giveResources(state, "A", Math.max(ST01_CARD_DEFS.AMURO_RAY.cost!, ST01_CARD_DEFS.AMURO_RAY.level!));
     const unitId = place(state, "A", ST01_CARD_DEFS.GM, "battleArea");
     const pilotId = place(state, "A", ST01_CARD_DEFS.AMURO_RAY, "hand");
-    const paused = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs: ST01_EFFECT_SPECS });
+    const paused = deployCard(state, "A", pilotId, {
+      pairWithUnitId: unitId,
+      specs: ST01_EFFECT_SPECS,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
 
     const next = applyPlayerAction(
       paused,
@@ -485,7 +498,7 @@ describe("deployCard — 【Deploy】 direcionado PAUSA pra resolução separada
 
     let next!: GameState;
     expect(() => {
-      next = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS });
+      next = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS, targetFilterResolver: defaultTargetFilterResolver });
     }).not.toThrow();
 
     // a carta foi jogada (deploy nunca é bloqueado pelo efeito de alvo) --
@@ -505,7 +518,7 @@ describe("deployCard — 【Deploy】 direcionado PAUSA pra resolução separada
     giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
     const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
     const enemyId = place(state, "B", ST01_CARD_DEFS.GM, "battleArea");
-    const paused = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS });
+    const paused = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS, targetFilterResolver: defaultTargetFilterResolver });
 
     const next = applyPlayerAction(
       paused,
@@ -522,7 +535,10 @@ describe("deployCard — 【Deploy】 direcionado PAUSA pra resolução separada
     const state = freshSt01MainPhase();
     giveResources(state, "A", ST01_CARD_DEFS.GUNTANK.cost!);
     const guntankId = place(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
-    const paused = deployCard(state, "A", guntankId, { specs: ST01_EFFECT_SPECS }); // sem nenhuma Unit inimiga em campo
+    const paused = deployCard(state, "A", guntankId, {
+      specs: ST01_EFFECT_SPECS,
+      targetFilterResolver: defaultTargetFilterResolver,
+    }); // sem nenhuma Unit inimiga em campo
 
     const next = applyPlayerAction(
       paused,

@@ -11,13 +11,18 @@ import { cn } from "@/lib/utils";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
 
 type Decision = Extract<PendingDecision, { kind: "abilityResolution" }>;
-type TargetScope = Decision["queue"][number]["targetScope"];
-type TargetOption = { instanceId: string; label: string };
 
 interface AbilityResolutionModalProps {
   decision: Decision;
-  /** opções de alvo por escopo — o pai monta a partir do `view`. */
-  targetsByScope: Record<TargetScope, TargetOption[]>;
+  /**
+   * Nome pra mostrar por `instanceId` (o pai monta a partir do `view`, cartas
+   * públicas — enemyUnit/friendlyUnit/ownResource sempre são). V0 (docs/25):
+   * a LISTA de opções em si já vem pronta e filtrada em
+   * `decision.queue[i].legalTargets` (calculada no servidor com o
+   * `targetFilter` de cada carta — HP/nível/descansada/etc.) — este
+   * componente só resolve o RÓTULO, nunca decide quem é legal.
+   */
+  resolveLabel: (instanceId: string) => string;
   busy?: boolean;
   onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>) => void;
 }
@@ -28,7 +33,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   Deploy: "Carta implantada — 【Deploy】",
 };
 
-export function AbilityResolutionModal({ decision, targetsByScope, busy, onResolve }: AbilityResolutionModalProps) {
+export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve }: AbilityResolutionModalProps) {
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
   const [activate, setActivate] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
@@ -36,7 +41,7 @@ export function AbilityResolutionModal({ decision, targetsByScope, busy, onResol
   const [target, setTarget] = useState<Record<string, string>>({});
 
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
-  const optionsFor = (specId: string) => targetsByScope[itemFor(specId).targetScope] ?? [];
+  const optionsFor = (specId: string) => itemFor(specId).legalTargets.map((instanceId) => ({ instanceId, label: resolveLabel(instanceId) }));
 
   const move = (index: number, dir: -1 | 1) => {
     setOrder((current) => {

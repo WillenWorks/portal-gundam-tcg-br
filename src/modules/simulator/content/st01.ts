@@ -42,10 +42,8 @@ export const GUNTANK_DEPLOY: EffectSpec = {
   id: "ST01-004-Deploy",
   cardCode: "ST01-004",
   trigger: "Deploy",
-  // legalidade do alvo ("2 ou menos HP") é responsabilidade de quem resolve
-  // ctx.targets.target antes de chamar resolveEffectSpec — o EffectSpec só
-  // compila a ação em cima do alvo já escolhido, não valida a escolha.
   actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  targetFilter: "hp<=2",
   sourceText: "【Deploy】Choose 1 enemy Unit with 2 or less HP. Rest it.",
 };
 
@@ -56,6 +54,7 @@ export const AERIAL_SCORE_SIX_WHEN_PAIRED: EffectSpec = {
   cardCode: "ST01-006",
   trigger: "When Paired",
   actions: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -3, duration: "endOfTurn" }],
+  targetFilter: "level<=5",
   sourceText: "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn.",
 };
 
@@ -74,6 +73,7 @@ export const AMURO_RAY_WHEN_PAIRED: EffectSpec = {
   cardCode: "ST01-010",
   trigger: "When Paired",
   actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  targetFilter: "hp<=5",
   sourceText: "【When Paired】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };
 
@@ -97,6 +97,12 @@ export const SULETTA_MERCURY_ATTACK: EffectSpec = {
   // pra `<Support N>`) — o EffectSpec em si não teria como se auto-impedir.
   actions: [{ op: "setActive", target: { kind: "named", name: "target" } }],
   targetScope: "ownResource",
+  // o texto não escreve "rested" explicitamente, mas "Set it as active" só faz
+  // sentido num Recurso já descansado (ativar o que já está ativo é no-op) —
+  // antes disso era um filtro hardcoded só pra esta carta na página do
+  // cliente (`SimulatorMatchPage.tsx`); agora é dado do EffectSpec, igual a
+  // qualquer outra restrição de alvo (docs/25).
+  targetFilter: "rested",
   sourceText: "【Attack】【Once per Turn】Choose 1 of your Resources. Set it as active.",
 };
 
@@ -105,10 +111,10 @@ export const THOROUGHLY_DAMAGED_MAIN: EffectSpec = {
   id: "ST01-012-Main",
   cardCode: "ST01-012",
   trigger: "Main",
-  // legalidade do alvo ("rested") é responsabilidade de fora do EffectSpec.
   // O lado 【Pilot】[Hayato Kobayashi] é modo de jogo alternativo (pilotMode),
   // não afeta esta seção 【Main】.
   actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetFilter: "rested",
   sourceText: "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.",
 };
 
@@ -118,6 +124,10 @@ export const KAIS_RESOLVE_MAIN: EffectSpec = {
   cardCode: "ST01-013",
   trigger: "Main",
   actions: [{ op: "heal", target: { kind: "named", name: "target" }, amount: 3 }],
+  // bug real achado na auditoria V0 (docs/25): faltava declarar o escopo —
+  // sem isso, `targetScope` caía no default `enemyUnit`, deixando escolher
+  // Unit INIMIGA num efeito que o texto diz ser só na sua própria Unit.
+  targetScope: "friendlyUnit",
   sourceText: "【Main】Choose 1 friendly Unit. It recovers 3 HP.",
 };
 

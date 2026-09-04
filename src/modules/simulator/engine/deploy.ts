@@ -1,8 +1,8 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { applyEvents, findCard } from "./events";
-import type { EffectSpec, PredicateResolver } from "./effectSpec";
+import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
-import { deferOrDispatchAbilities } from "./abilityDispatch";
+import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -50,6 +50,7 @@ export interface DeployOptions {
   /** grupos de alvo já resolvidos, repassados pro dispatcher (ver dispatcher.ts) */
   targets?: Record<string, string[]>;
   predicateResolver?: PredicateResolver;
+  targetFilterResolver?: TargetFilterResolver;
 }
 
 export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): boolean {
@@ -135,6 +136,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     next = deferOrDispatchAbilities(next, player, "Deploy", [{ code: def.code, instanceId: cardInstanceId }], specs, {
       targets: options.targets,
       predicateResolver: options.predicateResolver,
+      targetFilterResolver: options.targetFilterResolver,
     });
     if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) resolvido num
@@ -148,7 +150,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
           { code: def.code, instanceId: cardInstanceId },
         ],
         specs,
-        { targets: options.targets, predicateResolver: options.predicateResolver },
+        { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
       );
     }
   }
@@ -160,6 +162,7 @@ export interface PlayCommandOptions {
   resourceInstanceIds?: string[];
   targets?: Record<string, string[]>;
   predicateResolver?: PredicateResolver;
+  targetFilterResolver?: TargetFilterResolver;
 }
 
 /**
@@ -209,7 +212,20 @@ export function playCommand(
   const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);
   let next = applyEvents(state, costEvents);
 
-  next = dispatchTrigger(next, cardInstanceId, trigger, specs, { targets: options.targets, predicateResolver: options.predicateResolver });
+  // V0 (docs/25): filtra ANTES de despachar — spec com alvo nomeado ilegal ou
+  // não escolhido lança (o cliente devia ter restringido as opções); spec sem
+  // NENHUM alvo legal agora sai do lote (efeito não ativa, a Command mesmo
+  // assim resolve o resto e vai pro trash normalmente logo abaixo).
+  const dispatchable = filterDispatchableSpecs(
+    next,
+    card.def.code,
+    trigger,
+    specs,
+    player,
+    options.targets?.target,
+    options.targetFilterResolver,
+  );
+  next = dispatchTrigger(next, cardInstanceId, trigger, dispatchable, { targets: options.targets, predicateResolver: options.predicateResolver });
 
   // a carta pode já ter se movido (nenhum EffectSpec de Command faz isso hoje,
   // mas o dispatcher não impede) — só manda pro trash se ainda estiver na mão.

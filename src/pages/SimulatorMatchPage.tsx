@@ -748,20 +748,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const playabilityCtx = (): PlayabilityContext => {
     const mine = view.players[seat];
     const myUnits = mine.battleArea.filter((c) => !isHidden(c)) as CardInstance[];
-    const oppUnits = (view.players[opponentSeat].battleArea.filter((c) => !isHidden(c)) as CardInstance[]).filter(
-      (u) => u.def.cardType === "UNIT",
-    );
     return {
       myTurnMain,
       inActionStep,
       activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
       totalResources: mine.counts.resourceArea,
       hasUnpairedFriendlyUnit: myUnits.some((u) => u.def.cardType === "UNIT" && !u.pairedPilotId),
-      targetCounts: {
-        enemyUnit: oppUnits.length,
-        friendlyUnit: myUnits.filter((u) => u.def.cardType === "UNIT").length,
-        ownResource: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).length,
-      },
+      state: boardForStats,
+      controller: seat,
     };
   };
 
@@ -1317,12 +1311,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {myPendingDecision?.kind === "abilityResolution" ? (
         <AbilityResolutionModal
           decision={myPendingDecision}
-          targetsByScope={{
-            enemyUnit: publicUnits(view.players[opponentSeat]).map((u) => ({ instanceId: u.instanceId, label: u.def.nameEn })),
-            friendlyUnit: publicUnits(view.players[seat]).map((u) => ({ instanceId: u.instanceId, label: u.def.nameEn })),
-            ownResource: (view.players[seat].resourceArea.filter((c) => !isHidden(c)) as CardInstance[])
-              .filter((r) => r.rested)
-              .map((r, i) => ({ instanceId: r.instanceId, label: `Recurso ${i + 1} (gasto)` })),
+          // V0 (docs/25): a lista de opções (já filtrada por HP/nível/descansada/
+          // etc.) vem pronta em `decision.queue[i].legalTargets`, calculada no
+          // servidor — aqui só resolve o RÓTULO pra mostrar, nunca decide quem
+          // é legal (enemyUnit/friendlyUnit são sempre públicas na view; os
+          // Recursos próprios rested também).
+          resolveLabel={(instanceId) => {
+            const enemyUnit = publicUnits(view.players[opponentSeat]).find((u) => u.instanceId === instanceId);
+            if (enemyUnit) return enemyUnit.def.nameEn;
+            const friendlyUnit = publicUnits(view.players[seat]).find((u) => u.instanceId === instanceId);
+            if (friendlyUnit) return friendlyUnit.def.nameEn;
+            const myRestedResources = (view.players[seat].resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter(
+              (r) => r.rested,
+            );
+            const resourceIndex = myRestedResources.findIndex((r) => r.instanceId === instanceId);
+            if (resourceIndex >= 0) return `Recurso ${resourceIndex + 1} (gasto)`;
+            return "Carta";
           }}
           busy={busy}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
