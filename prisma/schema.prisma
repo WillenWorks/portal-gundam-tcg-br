@@ -719,8 +719,8 @@ model SimulatorMatch {
   turnDeadlineAt BigInt?
   lastSeenAt     Json      @default("{}")
   gameOver       Json?
-  /// set quando o `GameState` fica com `gameOver` != null — pra o sweep e pra
-  /// carregar só as partidas vivas no boot.
+  /// set quando o `GameState` fica com `gameOver` != null — usado pelo índice
+  /// pra separar partidas vivas das terminadas (limpeza / futura hidratação em lote).
   finishedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
