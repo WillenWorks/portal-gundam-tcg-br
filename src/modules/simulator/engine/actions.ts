@@ -123,7 +123,7 @@ export function applyPlayerAction(
   // defensor não resolve o Burst (ou quem controla não ordena os gatilhos),
   // nenhuma outra ação — de nenhum dos dois — avança o estado.
   if (state.pendingDecision[otherPlayer(actingPlayer)]) {
-    throw new Error("Aguardando o oponente resolver uma decisão pendente (Burst / ordem de gatilhos)");
+    throw new Error("Aguardando o oponente resolver uma decisão pendente (Mulligan / Burst / ordem de gatilhos)");
   }
   const myPending = state.pendingDecision[actingPlayer];
   if (myPending) {

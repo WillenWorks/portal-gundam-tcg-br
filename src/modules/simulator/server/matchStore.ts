@@ -17,10 +17,11 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
  * jogador, já redigido. As rotas HTTP (`server/index.ts`) só chamam as
  * funções deste módulo — nenhuma delas toca `GameState` direto.
  *
- * Sem persistência de propósito: reiniciar o servidor derruba toda partida
- * em andamento (e a fila de matchmaking) — aceitável pro escopo atual
- * (ainda não é a Fase 3/PvP "de verdade", só adianta matchmaking/timer
- * dela conscientemente, ver docs/18).
+ * Persistência (docs/23, Sprint jogo remoto): o `Map` continua sendo o cache
+ * de trabalho, mas há write-through fire-and-forget pra um backup no Supabase
+ * (`MatchPersistence` injetável via `setMatchPersistence`; `null` = no-op nos
+ * testes de motor). `loadMatch` re-hidrata do banco sob demanda e re-arma o
+ * timer. A fila de matchmaking segue efêmera (perder no restart é aceitável).
  */
 
 export interface MatchSeat {
@@ -291,7 +292,7 @@ export function listMatches(): MatchRecord[] {
 
 function requireMatch(matchId: string): MatchRecord {
   const match = matches.get(matchId);
-  if (!match) throw new MatchError("Partida não encontrada (pode ter sido derrubada por restart — não há persistência).", 404);
+  if (!match) throw new MatchError("Partida não encontrada — pode já ter terminado e sido liberada.", 404);
   return match;
 }
 
