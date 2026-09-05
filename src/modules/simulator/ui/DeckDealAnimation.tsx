@@ -9,27 +9,47 @@
  * `sim-anim-*`, todos com `motion-reduce`). `onDone` dispara quando a
  * sequência termina (ou imediatamente sob `prefers-reduced-motion`).
  *
- * Hoje é disparado sob demanda pela página de preview (`SimulatorLayoutPreviewPage`).
- * Ligar no fluxo real (início de partida / resolução do Mulligan / colocação
- * dos escudos) fica como follow-up — precisa de hooks de evento do motor em
- * `SimulatorMatchPage` + refs das zonas em `ArenaSide`. */
+ * Frente 4 (feedback Willen 4ª rodada) — pode ancorar nas ZONAS REAIS: se
+ * `origin` (pilha do deck) e `dest` (mão / zona de escudos) vêm em coords de
+ * viewport, o palco é posicionado no `origin` e as cartas viajam até perto do
+ * `dest`. Sem essas props, cai no modo centrado (usado pela preview). O
+ * `SimulatorMatchPage` liga isso no fluxo real via heurística de diff de
+ * contagem (ver `useSetupAnimation` lá). */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { cardBackUrl } from "./cardArt";
 
 export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields";
 
+/** ponto em coords de viewport (px). */
+export interface DeckDealPoint {
+  x: number;
+  y: number;
+}
+
 interface DeckDealAnimationProps {
   mode: DeckDealMode;
   onDone: () => void;
   /** rótulo curto mostrado sobre a animação (ex.: "Embaralhando…"). */
   label?: string;
+  /** pilha do deck em coords de viewport — origem da animação (opcional). */
+  origin?: DeckDealPoint | null;
+  /** zona de destino (mão / escudos) em coords de viewport (opcional). */
+  dest?: DeckDealPoint | null;
 }
 
 const CARD_W = 48;
 
-/** posições-alvo (px, relativas ao centro do palco) por modo. */
-function targets(mode: DeckDealMode): { dx: number; dy: number }[] {
+/** posições-alvo (px, relativas ao ponto de origem do palco) por modo.
+ *  `base` = vetor origem→destino quando ancorado nas zonas reais; `null` = modo
+ *  centrado (offsets fixos em torno do centro do palco). */
+function targets(mode: DeckDealMode, base: { dx: number; dy: number } | null): { dx: number; dy: number }[] {
+  if (base) {
+    if (mode === "deal-shields") {
+      return Array.from({ length: 6 }, (_, i) => ({ dx: base.dx, dy: base.dy - 40 + i * 16 }));
+    }
+    return Array.from({ length: 5 }, (_, i) => ({ dx: base.dx - 120 + i * 60, dy: base.dy }));
+  }
   if (mode === "deal-shields") {
     // coluna vertical (zona de escudos, à esquerda)
     return Array.from({ length: 6 }, (_, i) => ({ dx: -170, dy: -70 + i * 16 }));
@@ -41,7 +61,16 @@ function targets(mode: DeckDealMode): { dx: number; dy: number }[] {
 const DEAL_STAGGER = 110;
 const SHUFFLE_MS = 1300;
 
-export function DeckDealAnimation({ mode, onDone, label }: DeckDealAnimationProps) {
+export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDealAnimationProps) {
+  const anchored = Boolean(origin && dest);
+  const ox = origin?.x ?? null;
+  const oy = origin?.y ?? null;
+  const dx = dest?.x ?? null;
+  const dy = dest?.y ?? null;
+  const base = useMemo(
+    () => (ox !== null && oy !== null && dx !== null && dy !== null ? { dx: dx - ox, dy: dy - oy } : null),
+    [ox, oy, dx, dy],
+  );
   const reduced = useMemo(
     () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
     [],
@@ -61,7 +90,7 @@ export function DeckDealAnimation({ mode, onDone, label }: DeckDealAnimationProp
       return () => clearTimeout(t);
     }
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const dealMs = () => targets(mode).length * DEAL_STAGGER + 360;
+    const dealMs = () => targets(mode, base).length * DEAL_STAGGER + 360;
 
     if (mode === "shuffle") {
       timers.push(setTimeout(() => onDoneRef.current(), SHUFFLE_MS));
@@ -74,15 +103,24 @@ export function DeckDealAnimation({ mode, onDone, label }: DeckDealAnimationProp
       timers.push(setTimeout(() => onDoneRef.current(), 340 + SHUFFLE_MS + dealMs()));
     }
     return () => timers.forEach(clearTimeout);
-  }, [mode, reduced]);
+  }, [mode, reduced, base]);
 
-  const pts = targets(mode);
+  const pts = targets(mode, base);
   const shuffling = !reduced && phase === "shuffle";
   const showTravel = !reduced && (phase === "deal" || phase === "return");
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[55] flex items-center justify-center" aria-hidden>
-      <div className="relative flex h-64 w-80 items-center justify-center">
+    <div
+      className={cn(
+        "pointer-events-none fixed inset-0 z-[55]",
+        anchored ? "" : "flex items-center justify-center",
+      )}
+      aria-hidden
+    >
+      <div
+        className={anchored ? "absolute h-0 w-0" : "relative flex h-64 w-80 items-center justify-center"}
+        style={anchored && origin ? { left: origin.x, top: origin.y } : undefined}
+      >
         {label ? (
           <p className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-arena border border-primary/40 bg-slate-950/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
             {label}

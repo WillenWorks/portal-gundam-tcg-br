@@ -84,6 +84,12 @@ export interface LayoutPreviewFixture {
   hand: { card: CardInstance; playable: boolean; blockedReason?: string }[];
 }
 
+/** centro (viewport px) de um `DOMRect`, ou `null` — pra ancorar a
+ *  `DeckDealAnimation` nas zonas reais. */
+function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
+  return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
+
 let SEQ = 0;
 
 function mkInst(def: CardDef, inst: Partial<CardInstance> = {}): CardInstance {
@@ -360,6 +366,20 @@ function LayoutPreview() {
 
   const attackerCard = combat ? (fixture[opp].slots[0]?.unit ?? null) : null;
 
+  // Frente 4 (feedback Willen 4ª rodada) — vetor de avanço do atacante (centro
+  // do slot → centro da coluna Base/Escudos do defensor). Medido do DOM real
+  // (a preview roda em navegador); em jsdom cai em {0,0} e vira no-op.
+  const attackVector: { towardX: number; towardY: number } | null = (() => {
+    if (!combat) return null;
+    const a = board.rectOf(combat.attackerId);
+    const t = board.rectOf(playerShieldKey(viewer)) ?? board.rectOf(playerAreaKey(viewer));
+    if (!a || !t) return null;
+    return {
+      towardX: t.left + t.width / 2 - (a.left + a.width / 2),
+      towardY: t.top + t.height / 2 - (a.top + a.height / 2),
+    };
+  })();
+
   function arenaSide(pid: PlayerId): ArenaSide {
     const isViewer = pid === viewer;
     const side = fixture[pid];
@@ -409,6 +429,9 @@ function LayoutPreview() {
                 state={previewState}
                 justDeployed={deployHere}
                 isAttacker={Boolean(slot && combat?.attackerId === slot.unit.instanceId)}
+                attacking={
+                  slot && combat?.attackerId === slot.unit.instanceId ? attackVector : undefined
+                }
                 onInspect={(c) =>
                   slot && c.instanceId === slot.unit.instanceId
                     ? openInspect(c, linkedPilotsFor(slot.unit, slot.pilot))
@@ -422,6 +445,8 @@ function LayoutPreview() {
       ),
       battleAreaRef: board.register(playerAreaKey(pid)),
       shieldStationRef: board.register(playerShieldKey(pid)),
+      deckStationRef: board.register(`deckStation:${pid}`),
+      handRef: isViewer ? board.register(`hand:${pid}`) : undefined,
       handSummary: isViewer ? undefined : (
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({side.handCount})</p>
       ),
@@ -508,16 +533,40 @@ function LayoutPreview() {
         <FirstPlayerReveal goesFirst onDismiss={() => setScenario("normal")} autoDismissMs={99_999} />
       ) : null}
       {scenario === "shuffle-deck" ? (
-        <DeckDealAnimation mode="shuffle" label="Embaralhando o deck…" onDone={() => setScenario("normal")} />
+        <DeckDealAnimation
+          mode="shuffle"
+          label="Embaralhando o deck…"
+          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          dest={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          onDone={() => setScenario("normal")}
+        />
       ) : null}
       {scenario === "deal-hand" ? (
-        <DeckDealAnimation mode="deal-hand" label="Comprando a mão inicial…" onDone={() => setScenario("normal")} />
+        <DeckDealAnimation
+          mode="deal-hand"
+          label="Comprando a mão inicial…"
+          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          dest={rectCenter(board.rectOf(`hand:${viewer}`))}
+          onDone={() => setScenario("normal")}
+        />
       ) : null}
       {scenario === "mulligan" ? (
-        <DeckDealAnimation mode="mulligan" label="Mulligan…" onDone={() => setScenario("normal")} />
+        <DeckDealAnimation
+          mode="mulligan"
+          label="Mulligan…"
+          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          dest={rectCenter(board.rectOf(`hand:${viewer}`))}
+          onDone={() => setScenario("normal")}
+        />
       ) : null}
       {scenario === "deal-shields" ? (
-        <DeckDealAnimation mode="deal-shields" label="Montando os escudos…" onDone={() => setScenario("normal")} />
+        <DeckDealAnimation
+          mode="deal-shields"
+          label="Montando os escudos…"
+          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          dest={rectCenter(board.rectOf(playerShieldKey(viewer)))}
+          onDone={() => setScenario("normal")}
+        />
       ) : null}
 
       <div className="pointer-events-none fixed bottom-1.5 left-2 z-[70] flex flex-col gap-0.5 text-[10px] uppercase tracking-[0.14em] text-amber-300/80">
@@ -577,7 +626,7 @@ function ControlBar(p: ControlBarProps) {
 
       <label className="flex items-center gap-1.5">
         <input type="checkbox" checked={p.showArrow} onChange={(e) => p.onShowArrow(e.target.checked)} />
-        <span>Seta de ataque (no jogador)</span>
+        <span>Seta + avanço de ataque (no jogador)</span>
       </label>
 
       <label className="flex items-center gap-1.5">

@@ -73,6 +73,23 @@ describe("DeckDealAnimation", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("Frente 4 (feedback Willen 4ª rodada): modo ancorado posiciona o palco no `origin` e ainda dá as 5 cartas", () => {
+    mockMatchMedia(false);
+    const { container } = render(
+      <DeckDealAnimation
+        mode="deal-hand"
+        onDone={vi.fn()}
+        origin={{ x: 800, y: 120 }}
+        dest={{ x: 500, y: 640 }}
+      />,
+    );
+    // palco ancorado: caixa 0x0 posicionada em coords de viewport
+    const stage = container.querySelector('[aria-hidden] > div') as HTMLElement;
+    expect(stage.style.left).toBe("800px");
+    expect(stage.style.top).toBe("120px");
+    expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(5);
+  });
+
   it("prefers-reduced-motion: sem animação, onDone quase imediato", () => {
     mockMatchMedia(true);
     const onDone = vi.fn();

@@ -173,7 +173,11 @@ export function ResourceMeter({
             <span key={i} className="relative shrink-0">
               <Piece r={g.sample} selected={false} pickable={false} />
               {g.count > 1 ? (
-                <span className="absolute -right-1 -top-1 z-10 rounded-arena border border-white/25 bg-slate-950 px-1 font-mono text-[clamp(0.6875rem,calc(var(--card-w-std,2.17rem)*0.2),1.125rem)] font-black leading-tight tabular-nums text-slate-100">
+                // Frente 4 (feedback Willen 4ª rodada): badge maior e ancorado
+                // no canto de dentro da peça (`right-0 top-0`, não `-right-1
+                // -top-1`) — o número cresceu e não pode vazar a coluna nem o
+                // `overflow-hidden` do canvas.
+                <span className="absolute right-0 top-0 z-10 rounded-bl-arena border border-white/25 bg-slate-950/95 px-1 font-mono text-[clamp(0.875rem,calc(var(--card-w-std,2.17rem)*0.28),1.5rem)] font-black leading-tight tabular-nums text-slate-100">
                   x{g.count}
                 </span>
               ) : null}

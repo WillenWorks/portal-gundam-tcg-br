@@ -127,6 +127,8 @@ import {
   type LinkedPilot,
   CombatLane,
   CounterChip,
+  DeckDealAnimation,
+  type DeckDealMode,
   HandFan,
   PileTray,
   playerAreaKey,
@@ -176,6 +178,20 @@ const GAME_OVER_REDIRECT_MS = 8_000;
 
 function isHidden(card: ViewCardInstance): card is HiddenCard {
   return "hidden" in card && (card as HiddenCard).hidden === true;
+}
+
+/** Frente 4 (feedback Willen 4ª rodada) — rótulos da `DeckDealAnimation` ligada
+ *  ao fluxo real (compra inicial / mulligan / montagem de escudos). */
+const SETUP_ANIM_LABEL: Record<DeckDealMode, string> = {
+  shuffle: "Embaralhando…",
+  "deal-hand": "Comprando a mão inicial…",
+  mulligan: "Refazendo a mão (Mulligan)…",
+  "deal-shields": "Montando os escudos…",
+};
+
+/** centro (viewport px) de um `DOMRect`, ou `null`. */
+function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
+  return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
 }
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -373,6 +389,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [logOpen, setLogOpen] = useState(false);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
+  /** Frente 4 (feedback Willen 4ª rodada) — animação de setup em curso, disparada
+   *  por heurística de diff de contagem (ver o efeito abaixo). `null` = nenhuma. */
+  const [setupAnim, setSetupAnim] = useState<DeckDealMode | null>(null);
+  /** snapshot da rodada anterior pra detectar "o que aconteceu neste tick". */
+  const setupSnapshotRef = useRef<{ turnNumber: number; handLen: number; shields: number; mulliganPending: boolean } | null>(
+    null,
+  );
+  /** instanceIds de Unit que JÁ tocaram a animação de deploy — flag transiente
+   *  (Frente 4, feedback Willen 4ª rodada): `enteredZoneOnTurn === turnNumber`
+   *  fica true o turno todo, mas a animação de pouso só pode rodar 1×. */
+  const deployedSeenRef = useRef<Set<string>>(new Set());
 
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
@@ -635,6 +662,51 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   }, [matchView, now]);
 
+  // Frente 4 (feedback Willen 4ª rodada) — liga a `DeckDealAnimation` no fluxo
+  // real. O motor NÃO expõe os `GameEvent` de setup ao cliente de forma
+  // utilizável (o `eventLog` da view é janelado e traduzido pra texto), então a
+  // detecção é por DIFF de contagem entre o snapshot anterior e o atual:
+  //  - escudos 0 → ≥6 no turno 1  ⇒ montagem dos 6 escudos
+  //  - decisão de mulligan que sai de pendente ⇒ refação da mão
+  //  - mão 0 → ≥5 no turno 1       ⇒ compra inicial
+  // Só 1 animação por vez; `prefers-reduced-motion` pula tudo. Precisa vir ANTES
+  // do guard de loading (hook não pode ficar depois de early return) — daí ler
+  // de `matchView` direto em vez dos `const` do corpo (que só existem depois).
+  useEffect(() => {
+    if (!matchView) return;
+    const v = matchView.view;
+    const me = v.players[matchView.seat];
+    const cur = {
+      turnNumber: v.turnNumber,
+      handLen: (me.hand as ViewCardInstance[]).filter((c) => !isHidden(c)).length,
+      shields: me.counts.shields,
+      mulliganPending: v.pendingDecision[matchView.seat]?.kind === "mulligan",
+    };
+    // marca como "já animadas" as Units recém-postas — no PRÓXIMO render elas
+    // não recebem mais `justDeployed` (a animação de pouso já rodou na montagem).
+    for (const pid of ["A", "B"] as PlayerId[]) {
+      for (const c of v.players[pid].battleArea) {
+        if (!isHidden(c) && (c as CardInstance).enteredZoneOnTurn === v.turnNumber) {
+          deployedSeenRef.current.add((c as CardInstance).instanceId);
+        }
+      }
+    }
+
+    const prev = setupSnapshotRef.current;
+    setupSnapshotRef.current = cur;
+    if (!prev || v.gameOver) return;
+    const reduced =
+      typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    if (reduced) return;
+    if (prev.shields === 0 && cur.shields >= 6 && cur.turnNumber <= 1) {
+      setSetupAnim("deal-shields");
+    } else if (prev.mulliganPending && !cur.mulliganPending) {
+      setSetupAnim("mulligan");
+    } else if (prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) {
+      setSetupAnim("deal-hand");
+    }
+  }, [matchView]);
+
   if (!matchView || artLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-muted-portal">
@@ -891,6 +963,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
+      // Frente 4 (feedback Willen 4ª rodada) — Unit recém-posta neste turno que
+      // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
+      const justDeployed: "light" | "heavy" | undefined =
+        unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
+          ? (unit.def.cost ?? 0) <= 3
+            ? "light"
+            : "heavy"
+          : undefined;
       const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
       const canActivate = Boolean(ability && myActiveResources >= ability!.cost);
       const actions =
@@ -912,6 +992,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
+          justDeployed={justDeployed}
+          attacking={
+            unit && attackLunge?.id === unit.instanceId
+              ? { towardX: attackLunge.towardX, towardY: attackLunge.towardY }
+              : undefined
+          }
           busy={busy}
           state={boardForStats}
           onSelect={(u) => toggleSelect(u.instanceId)}
@@ -1079,6 +1165,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       battleRow: renderBattleSlots(player, isSelf),
       battleAreaRef: board.register(playerAreaKey(pid)),
       shieldStationRef: board.register(playerShieldKey(pid)),
+      deckStationRef: board.register(`deckStation:${pid}`),
+      handRef: isSelf ? board.register("hand:self") : undefined,
       handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
     };
   }
@@ -1093,6 +1181,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       : null;
   const combatTargetUnit =
     combat && typeof combat.currentTarget === "object" ? findPublicCard(view, combat.currentTarget.unitId) : null;
+
+  // Frente 4 (feedback Willen 4ª rodada) — avanço do atacante em direção ao
+  // alvo (mesma medição de DOM que a seta do `CombatLane` usa). Ativo só nos
+  // steps de declaração/dano; ao sair, o `BattleSlot` volta pro slot via
+  // transição CSS.
+  const attackLunge: { id: string; towardX: number; towardY: number } | null = (() => {
+    if (!combat || (combat.step !== "attack" && combat.step !== "damage")) return null;
+    const a = board.rectOf(combat.attackerId);
+    const tKey =
+      combat.currentTarget === "player" ? playerShieldKey(combat.defendingPlayer) : combat.currentTarget.unitId;
+    const t = board.rectOf(tKey) ?? board.rectOf(playerAreaKey(combat.defendingPlayer));
+    if (!a || !t) return null;
+    return {
+      id: combat.attackerId,
+      towardX: t.left + t.width / 2 - (a.left + a.width / 2),
+      towardY: t.top + t.height / 2 - (a.top + a.height / 2),
+    };
+  })();
 
   // Fase B (plano visual §03) — os ~7 cards de decisão centralizados + o flash de fase
   // viram UM `ActionDock` fixo no canto. Precedência: o 1º que casar vence (1 state por vez).
@@ -1478,6 +1584,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Aviso/confirmação da partida (capturas 4) — painel no topo-centro, fora
           do caminho do tabuleiro, nunca bloqueia clique/hover. */}
       <MatchPrompt message={matchPrompt} tone={combat || iAmDefending ? "warn" : "info"} />
+
+      {/* Frente 4 (feedback Willen 4ª rodada) — animação de setup ancorada nas
+          zonas reais: sai da pilha do deck e viaja até a mão / zona de escudos. */}
+      {setupAnim ? (
+        <DeckDealAnimation
+          mode={setupAnim}
+          label={SETUP_ANIM_LABEL[setupAnim]}
+          origin={rectCenter(board.rectOf(`deckStation:${seat}`))}
+          dest={rectCenter(
+            board.rectOf(setupAnim === "deal-shields" ? playerShieldKey(seat) : "hand:self"),
+          )}
+          onDone={() => setSetupAnim(null)}
+        />
+      ) : null}
 
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
           os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board.

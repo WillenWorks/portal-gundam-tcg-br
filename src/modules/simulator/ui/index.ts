@@ -23,7 +23,7 @@ export { CardInspectorPanel } from "./CardInspectorPanel";
 export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";
 export { RotateDevicePrompt } from "./RotateDevicePrompt";
 export { CombatLane } from "./CombatLane";
-export { DeckDealAnimation, type DeckDealMode } from "./DeckDealAnimation";
+export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
 export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
 export { GameOverOverlay } from "./GameOverOverlay";

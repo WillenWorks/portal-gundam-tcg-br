@@ -160,6 +160,22 @@ describe("ArenaPlaymat", () => {
     expect(refs.some((el) => el instanceof HTMLElement)).toBe(true);
   });
 
+  it("Frente 4 (feedback Willen 4ª rodada): deckStationRef recebe a coluna Exílio/Descarte/Deck; handRef o rodapé da mão", () => {
+    const deckRefs: (HTMLElement | null)[] = [];
+    const handRefs: (HTMLElement | null)[] = [];
+    const withRef: ArenaSide = {
+      ...side("me"),
+      deckStationRef: (el) => deckRefs.push(el),
+      handRef: (el) => handRefs.push(el),
+    };
+    render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>hand-fan</div>} />);
+    const deckEl = deckRefs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(deckEl!.textContent).toContain("me-deck");
+    expect(deckEl!.textContent).toContain("me-trash");
+    const handEl = handRefs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(handEl!.textContent).toContain("hand-fan");
+  });
+
   it("Frente 4 (docs/38 §3.4): shieldStationRef recebe a coluna Base/Escudos (alvo da seta de ataque)", () => {
     const refs: (HTMLElement | null)[] = [];
     const withRef: ArenaSide = { ...side("me"), shieldStationRef: (el) => refs.push(el) };

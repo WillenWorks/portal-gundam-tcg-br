@@ -69,9 +69,13 @@ export function CounterChip({
         {!hideCount ? (
           <span
             className={cn(
-              // V6 (docs/31): 10px → 11px — legibilidade do número em telas
-              // pequenas (print anotado do Willen, "não dá pra ver a quantidade").
-              "absolute -right-1 -top-1 rounded-arena border bg-slate-950 px-1 font-mono text-[11px] font-black leading-tight tabular-nums",
+              // V6 (docs/31): 10px → 11px. Frente 4 (feedback Willen 4ª rodada):
+              // escala com `--card-w-std` como o resto da arena (o `11px` fixo
+              // ficava minúsculo em Full HD) E ancora no canto de DENTRO da
+              // pilha (`right-0 top-0`) pra nunca vazar a coluna de estação /
+              // o `overflow-hidden` do canvas (deck desalinhado da zona de
+              // shields, print do Willen).
+              "absolute right-0 top-0 rounded-bl-arena border bg-slate-950/95 px-1 font-mono text-[clamp(0.8125rem,calc(var(--card-w-std,2.17rem)*0.26),1.375rem)] font-black leading-tight tabular-nums",
               TONE_BADGE[tone],
             )}
           >

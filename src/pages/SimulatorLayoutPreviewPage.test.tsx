@@ -11,7 +11,7 @@ describe("SimulatorLayoutPreviewPage (dev-only)", () => {
     render(<SimulatorLayoutPreviewPage />);
     expect(screen.getByText(/Preview de layout — dados estáticos, sem motor/i)).toBeInTheDocument();
     expect(screen.getByText(/F4 · preview/i)).toBeInTheDocument();
-    expect(screen.getByText("Seta de ataque (no jogador)")).toBeInTheDocument();
+    expect(screen.getByText("Seta + avanço de ataque (no jogador)")).toBeInTheDocument();
     expect(screen.getByText("Forçar reduced-motion")).toBeInTheDocument();
     // botão de replay da mão + seletor de animação/cenário
     expect(screen.getByRole("button", { name: /re-animar mão/i })).toBeInTheDocument();

@@ -124,16 +124,16 @@ describe("BattleSlot", () => {
     expect(onInspect).not.toHaveBeenCalled();
   });
 
-  it("Frente 4 (feedback Willen 3ª rodada): Link Unit ganha selo curto 'LINK' (sem números) e o chip do piloto NÃO tem mais 'Link'", () => {
+  it("Frente 4 (feedback Willen 4ª rodada): Link Unit ganha selo curto 'LINK' na arte; o chip do piloto NÃO tem número de bônus nenhum", () => {
     const u = unit({ link: { kind: "pilotName", values: ["Amuro"] } }, { pairedPilotId: "p-amuro" });
     const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p-amuro" });
     render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
     // selo na arte da Unit
     expect(screen.getByLabelText("Link Unit")).toHaveTextContent(/^Link$/i);
-    // o chip do piloto (DockedPilot) mostra o modificador, mas SEM a palavra "Link"
+    // o chip do piloto (DockedPilot) é só o rosto — sem "+2/+1", sem números.
     const pilotChip = screen.getByRole("button", { name: /Amuro Ray/ });
-    expect(pilotChip.textContent).toMatch(/\+2\/\+1/);
-    expect(pilotChip.textContent).not.toMatch(/Link/i);
+    expect(pilotChip.textContent ?? "").not.toMatch(/\+?\d/);
+    expect(pilotChip.textContent ?? "").not.toMatch(/\+\d\/\+\d/);
   });
 
   it("Frente 4: Unit pareada mas SEM link não tem selo 'LINK'", () => {
@@ -202,6 +202,29 @@ describe("BattleSlot", () => {
     rerender(<BattleSlot unit={unit()} pilot={null} art={{}} isBlocking />);
     expect(slot().className).toMatch(/-translate-y-1\.5/);
     expect(slot().className).toMatch(/rotate-\[2deg\]/);
+  });
+
+  it("Frente 4 (feedback Willen 4ª rodada): `attacking` aplica um translate/rotate inline em direção ao alvo", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const slot = () => container.firstElementChild as HTMLElement;
+    expect(slot().getAttribute("data-attacking")).toBeNull();
+    expect(slot().style.transform).toBe("");
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} attacking={{ towardX: 300, towardY: -100 }} />);
+    expect(slot().getAttribute("data-attacking")).toBe("true");
+    expect(slot().style.transform).toMatch(/translate\(.*px, .*px\) rotate\(.*deg\)/);
+
+    // limpar volta ao repouso (sem transform inline)
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} attacking={null} />);
+    expect(slot().getAttribute("data-attacking")).toBeNull();
+  });
+
+  it("Frente 4: a carta atacante mantém a proporção 63/88 (o lunge é no slot, não na arte)", () => {
+    const { container } = render(
+      <BattleSlot unit={unit()} pilot={null} art={{}} attacking={{ towardX: 120, towardY: 40 }} />,
+    );
+    const cardBox = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox.className).toMatch(/aspect-\[63\/88\]/);
   });
 
   it("onHoverCard dispara com a Unit no hover do slot e null ao sair", () => {

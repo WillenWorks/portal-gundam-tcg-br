@@ -54,6 +54,28 @@ interface BattleSlotProps {
    *  desliza e pousa; `"heavy"` (custo 4–10) cai com peso (impacto + shake).
    *  Roda 1× na montagem do slot. `motion-reduce` neutraliza (ver index.css). */
   justDeployed?: "light" | "heavy";
+  /** Frente 4 (feedback Willen 4ª rodada) — animação de ataque: enquanto o
+   *  combate está no step de declaração/dano, a Unit atacante AVANÇA na direção
+   *  do alvo (vetor em px de viewport: centro do slot → centro do alvo) e volta
+   *  pro slot ao fim. `null`/ausente = repousada. `prefers-reduced-motion`
+   *  neutraliza (checado em JS — é `transform` inline). */
+  attacking?: { towardX: number; towardY: number } | null;
+}
+
+/** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
+ *  check em runtime. Guard de SSR/jsdom sem `matchMedia`. */
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
+/** vetor alvo → deslocamento capado (avança ~18% da distância, no máx. 44px) +
+ *  leve rotação na direção do alvo. */
+function lungeStyle(v: { towardX: number; towardY: number }): { transform: string } {
+  const mag = Math.hypot(v.towardX, v.towardY) || 1;
+  const dist = Math.min(mag * 0.18, 44);
+  const k = dist / mag;
+  const angle = Math.max(-7, Math.min(7, (v.towardX / mag) * 7));
+  return { transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg)` };
 }
 
 export function BattleSlot({
@@ -72,6 +94,7 @@ export function BattleSlot({
   actions,
   registerRef,
   justDeployed,
+  attacking,
 }: BattleSlotProps) {
   if (!unit) {
     return (
@@ -126,12 +149,20 @@ export function BattleSlot({
       }
     : {};
 
+  // Frente 4 (feedback Willen 4ª rodada) — avanço do atacante em direção ao
+  // alvo. `transform` inline VENCE as classes de lift (`isAttacker` etc.), então
+  // já é o transform final do slot enquanto o combate roda; ao limpar, a
+  // transição CSS traz o slot de volta.
+  const lunge = attacking && !prefersReducedMotion() ? lungeStyle(attacking) : undefined;
+
   return (
     <div
       ref={registerRef}
       {...hoverProps}
+      data-attacking={lunge ? "true" : undefined}
+      style={lunge}
       className={cn(
-        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-[transform,box-shadow] duration-200 ease-out motion-reduce:transition-none",
+        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-[transform,box-shadow] duration-[240ms] ease-out motion-reduce:transition-none",
         // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
         // sup. direito, levemente pra fora) passar por cima do slot vizinho.
         "hover:z-30 focus-within:z-30",
@@ -215,7 +246,7 @@ export function BattleSlot({
               `--card-w-std` (eram `text-[9px]`/`[7px]` fixos, ilegíveis). */}
           <span
             className={cn(
-              "absolute bottom-0 left-0 z-10 min-w-[1.4em] px-1 py-0.5 text-center text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.17),1rem)] font-black leading-none tabular-nums",
+              "absolute bottom-0 left-0 z-10 min-w-[1.4em] px-1 py-0.5 text-center text-[clamp(0.8125rem,calc(var(--card-w-std,2.17rem)*0.22),1.375rem)] font-black leading-none tabular-nums",
               apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
             )}
             aria-label={`AP ${ap}`}
@@ -224,14 +255,14 @@ export function BattleSlot({
           </span>
           <span
             className={cn(
-              "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.17),1rem)] font-black leading-none tabular-nums",
+              "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[clamp(0.8125rem,calc(var(--card-w-std,2.17rem)*0.22),1.375rem)] font-black leading-none tabular-nums",
               hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
             )}
             aria-label={`HP ${hpRemaining}`}
           >
             {hpRemaining}
             {hpDamaged ? (
-              <span className="text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.13),0.8125rem)] font-bold text-red-200">
+              <span className="text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.16),1rem)] font-bold text-red-200">
                 -{unit.damage}
               </span>
             ) : null}

@@ -68,6 +68,13 @@ export interface ArenaSide {
   /** Frente 4 (docs/38 §3.4) — ref-callback pra o `CombatLane` medir a coluna
    *  Base/Escudos (a seta de ataque "no jogador" mira nela, não no centro). */
   shieldStationRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (feedback Willen 4ª rodada) — ref-callback pra a coluna
+   *  Exílio/Descarte/Deck: origem da `DeckDealAnimation` (compra / mulligan /
+   *  montagem de escudos animam A PARTIR daqui). */
+  deckStationRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (feedback Willen 4ª rodada) — ref-callback pra o rodapé da mão
+   *  (destino da `DeckDealAnimation` de compra). Só faz sentido no `self`. */
+  handRef?: (el: HTMLElement | null) => void;
   /** só o oponente: leitura da mão (contagem de cartas). */
   handSummary?: ReactNode;
 }
@@ -151,8 +158,8 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
         {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
             pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
-        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
-          <DeckStation side={opponent} mirrored />
+        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90" style={OPPONENT_STYLE}>
+          <DeckStation side={opponent} mirrored stationRef={opponent.deckStationRef} />
           <OpponentTheater side={opponent} />
           <ShieldStation side={opponent} mirrored compact={compact} stationRef={opponent.shieldStationRef} />
         </div>
@@ -169,7 +176,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             partir do tamanho REAL renderizado, não de uma fórmula chutada. Só
             precisa medir 1 dos 2 lados (mesmo tamanho — o oponente só tem o
             `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
-        <div className="flex min-h-0 flex-1 items-start justify-center px-1 pt-3">
+        <div className="flex min-h-0 flex-1 items-start justify-center px-2 pt-3">
           {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é
               `flex-1` (altura ALOCADA pela metade jogador/oponente, não o
               tamanho natural do conteúdo); o wrapper interno não tem
@@ -178,7 +185,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
           <div ref={groupRef} className="flex items-start gap-2">
             <ShieldStation side={self} compact={compact} stationRef={self.shieldStationRef} />
             <SelfTheater side={self} />
-            <DeckStation side={self} />
+            <DeckStation side={self} stationRef={self.deckStationRef} />
           </div>
         </div>
       </div>
@@ -187,8 +194,13 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
           mínima reservada (Sprint 6 · P3) pra a mão não encolher junto com o
           canvas a ponto de cortar a carta. ───────────────────────────────── */}
       {/* Frente 4 (feedback Willen 3ª rodada): rodapé da mão MENOR (fator
-          1.75 → 1.35) — sobra mais tela pro tabuleiro (cartas/infos maiores). */}
-      <div className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.35)] border-t border-primary/15 bg-slate-950/40">
+          1.75 → 1.35) — sobra mais tela pro tabuleiro (cartas/infos maiores).
+          4ª rodada: `self.handRef` marca esta faixa como destino da
+          `DeckDealAnimation` de compra. */}
+      <div
+        ref={self.handRef}
+        className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.35)] border-t border-primary/15 bg-slate-950/40"
+      >
         {hand}
       </div>
 
@@ -266,9 +278,17 @@ function ShieldStation({
  * você). Oponente (`mirrored`): Deck no topo, Exílio embaixo (perto da seam) —
  * o playmat dele girado 180°.
  */
-function DeckStation({ side, mirrored }: { side: ArenaSide; mirrored?: boolean }) {
+function DeckStation({
+  side,
+  mirrored,
+  stationRef,
+}: {
+  side: ArenaSide;
+  mirrored?: boolean;
+  stationRef?: (el: HTMLElement | null) => void;
+}) {
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
+    <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
           {side.deck}
