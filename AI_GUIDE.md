@@ -137,11 +137,11 @@ claude
 - [x] Commit: `feat(deckbuilder): level curve stats and visual style position`
 
 ### Frente 2: Pipeline de Tradução PT-BR (Branch: `dev`)
-- [ ] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais.
-- [ ] Gerar arquivo de lote de tradução para ST01, ST02, ST03 e ST04.
-- [ ] Aplicar traduções no Postgres (`UPDATE CardModel SET effectPt = ...`).
-- [ ] Validar exibição de `effectPt` no `CardInspectorModal.tsx` com alternância ou fallback.
-- [ ] Commit: `feat(catalog): automated pt-br effect translation pipeline`
+- [x] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais (tokenizer + validador + Gemini + flags `--dry-run/--resume/--apply/--revalidate`, 14 testes).
+- [x] Gerar arquivo de lote de tradução para ST01, ST02, ST03 e ST04 (`data/translations-st01-04.json` — 52 com `effectPt`, 12 sem efeito, 0 rejeitadas pelo validador de tokens). Chave Gemini era free-tier e travou em quota; 51/52 traduzidas à mão seguindo `docs/17` e revalidadas.
+- [ ] Aplicar traduções no Postgres (`node scripts/translate-card-effects.mjs --apply` gera o SQL de `CardModel` + `Card`). **PENDENTE** — rodar via MCP Supabase ou Postgres local.
+- [x] Validar exibição de `effectPt` no `CardInspectorModal.tsx` / `CardInspectorPanel.tsx` (componente `CardEffectText`, toggle PT/EN quando ambos diferem).
+- [x] Commit: `feat(catalog): automated pt-br effect translation pipeline` (`d5d009a`)
 
 ### Frente 3: Waves de Cartas ST03 e ST04 (Branch: `dev`)
 - [x] Auditar cartas de ST03 e ST04 contra o motor atual (`docs/41-plano-detalhado-waves-st03-st04.md`).
