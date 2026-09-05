@@ -11,7 +11,7 @@
  *    NÃO é mais clicável (removido o conflito com a ação).
  * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
-import { Eye, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
@@ -97,7 +97,8 @@ export function HandFan({
           const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
-          // "Ver" sempre; "Jogar" à esquerda dele quando dá pra jogar.
+          // Frente 4 (docs/38 §3.1) — sem botão de "olho": só "Jogar" no canto
+          // (quando jogável). Inspecionar é por clique na área neutra da carta.
           const cornerActions: CornerAction[] = [];
           if (playable) {
             cornerActions.push({
@@ -106,15 +107,6 @@ export function HandFan({
               label: `Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`,
               tone: "primary",
               onClick: () => onPeek(card),
-            });
-          }
-          if (onInspect) {
-            cornerActions.push({
-              key: "view",
-              icon: Eye,
-              label: `Ver ${card.def.nameEn} · ${state}`,
-              tone: "view",
-              onClick: () => onInspect(card),
             });
           }
 
@@ -135,8 +127,30 @@ export function HandFan({
                 playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
               )}
             >
-              {/* só a ARTE fica em P&B quando injogável — os botões do canto não. */}
-              <div className={cn("block w-full", playable ? "" : "[filter:grayscale(1)_brightness(0.65)]")}>
+              {/* só a ARTE fica em P&B quando injogável — os botões do canto não.
+                  Frente 4 (docs/38 §3.1): a área neutra da carta é o alvo de
+                  inspeção (clique / Enter / Espaço). */}
+              <div
+                role={onInspect ? "button" : undefined}
+                tabIndex={onInspect ? 0 : undefined}
+                aria-label={onInspect ? `Ver ${card.def.nameEn} · ${state}` : undefined}
+                onClick={onInspect ? () => onInspect(card) : undefined}
+                onKeyDown={
+                  onInspect
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onInspect(card);
+                        }
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "block w-full",
+                  onInspect && "cursor-pointer",
+                  playable ? "" : "[filter:grayscale(1)_brightness(0.65)]",
+                )}
+              >
                 <CardFace
                   nameEn={card.def.nameEn}
                   code={card.def.code}

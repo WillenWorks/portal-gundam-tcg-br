@@ -78,26 +78,22 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it('cluster de canto: "Ver" SEMPRE presente; Atacar aparece à esquerda dele', () => {
+  it("Frente 4 (docs/38 §3.1): cluster de canto tem só ações operacionais (Atacar), sem botão de olho", () => {
     const onAttack = vi.fn();
     const onInspect = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
     const strip = screen.getByRole("button", { name: "Atacar" }).closest("div")!;
     expect(strip.className).toMatch(/absolute/);
-    // no campo o cluster fica DENTRO do canto (não pra fora), pra não cair na
-    // Battle Area do oponente / seam
     expect(strip.className).toMatch(/top-0\.5/);
     expect(strip.className).toMatch(/right-0\.5/);
-    // ordem no DOM: [Atacar, Ver] → "Ver" encosta no canto direito
-    const kids = Array.from(strip.children);
-    expect(kids[0]).toBe(screen.getByRole("button", { name: "Atacar" }));
-    expect(kids[1]).toBe(screen.getByRole("button", { name: /^Ver / }));
+    const clusterButtons = Array.from(strip.querySelectorAll("button")).map((b) => b.getAttribute("aria-label"));
+    expect(clusterButtons).toEqual(["Atacar"]);
   });
 
-  it('sem ação disponível, o cluster ainda tem "Ver"', () => {
+  it("Frente 4: sem ação disponível o cluster some — a inspeção fica no corpo da carta", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /^Ver / })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Atacar" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Ver / })).toBeInTheDocument();
   });
 
   it("clicar em Atacar dispara SÓ onAttack, nunca a inspeção (fim do conflito)", () => {
@@ -109,7 +105,7 @@ describe("BattleSlot", () => {
     expect(onInspect).not.toHaveBeenCalled();
   });
 
-  it('"Ver" dispara onInspect', () => {
+  it("Frente 4: clicar no corpo da carta (fora de seleção) dispara onInspect", () => {
     const onInspect = vi.fn();
     const u = unit();
     render(<BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} />);
@@ -117,17 +113,11 @@ describe("BattleSlot", () => {
     expect(onInspect).toHaveBeenCalledWith(u);
   });
 
-  it("corpo da carta só é clicável quando é alvo legal (não abre inspeção)", () => {
+  it("Frente 4: como ALVO LEGAL o corpo seleciona, não inspeciona", () => {
     const onInspect = vi.fn();
     const onSelect = vi.fn();
     const u = unit();
-    const { rerender } = render(
-      <BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} onSelect={onSelect} />,
-    );
-    // sem legalTarget: corpo não tem role button
-    expect(screen.queryByRole("button", { name: u.def.nameEn })).toBeNull();
-    rerender(<BattleSlot unit={u} pilot={null} art={{}} legalTarget onInspect={onInspect} onSelect={onSelect} />);
-    // com legalTarget: corpo vira botão de seleção
+    render(<BattleSlot unit={u} pilot={null} art={{}} legalTarget onInspect={onInspect} onSelect={onSelect} />);
     const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
     body.click();
     expect(onSelect).toHaveBeenCalledWith(u);

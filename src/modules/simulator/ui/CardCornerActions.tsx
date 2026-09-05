@@ -1,9 +1,11 @@
-/* Cluster de ações no canto SUP. DIREITO de uma carta — mão OU campo (pedido do
- * Willen 2026-09-03): "Ver" (olho) SEMPRE presente e ancorado no canto; as ações
- * de contexto (Jogar / Atacar / Ativar / Blocker / Mirar) aparecem à esquerda
- * dele. Sempre visível (não depende de hover — o hover não pegava de forma
- * confiável). Cada botão faz `stopPropagation` pra o clique nunca cair no corpo
- * da carta por baixo (era o conflito "atacar abre a imagem").
+/* Cluster de ações no canto SUP. DIREITO de uma carta — mão OU campo.
+ *
+ * Frente 4 (docs/38 §3.1) — o botão de "olho" (inspeção) foi ELIMINADO: a
+ * inspeção passou a ser por clique na área neutra da carta (ver `CardFace` /
+ * `BattleSlot` / `BaseCardGauge` / `HandFan`). Aqui ficam SÓ ações
+ * operacionais de contexto (Jogar / Atacar / Ativar / Blocker / Mirar). Sempre
+ * visível (não depende de hover). Cada botão faz `stopPropagation` pra o clique
+ * nunca cair no corpo da carta por baixo (era o conflito "atacar abre a imagem").
  *
  * V6.3 (docs/34) — achado do Willen: a mão usava um tamanho/posição
  * (`size-6`, salta pra fora do canto) e o campo usava outro (`size-5`,
@@ -29,10 +31,9 @@ import { cn } from "@/lib/utils";
 const BUTTON_SIZE = "size-[clamp(1.125rem,calc(var(--card-w-std,2.17rem)*0.45),1.75rem)]";
 const ICON_SIZE = "size-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.26),1rem)]";
 
-export type CornerTone = "view" | "primary" | "accent" | "sky" | "emerald";
+export type CornerTone = "primary" | "accent" | "sky" | "emerald";
 
 const TONE: Record<CornerTone, string> = {
-  view: "bg-slate-900/95 text-slate-200 hover:text-primary",
   primary: "bg-primary/95 text-black hover:bg-primary",
   accent: "bg-accent text-black hover:bg-accent/90",
   sky: "bg-sky-500 text-white hover:bg-sky-400",
@@ -49,8 +50,7 @@ export interface CornerAction {
 }
 
 interface CardCornerActionsProps {
-  /** ordem visual da ESQUERDA pra direita — passe as ações de contexto primeiro
-   *  e "Ver" por último, pra "Ver" encostar no canto direito. */
+  /** ordem visual da ESQUERDA pra direita — a última ação encosta no canto. */
   actions: CornerAction[];
   className?: string;
 }

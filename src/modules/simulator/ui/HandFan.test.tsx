@@ -60,7 +60,7 @@ describe("HandFan", () => {
     expect(blocked.querySelector('[class*="grayscale"]')).not.toBeNull();
   });
 
-  it('"Ver" (olho) SEMPRE presente; "Jogar" só quando jogável, à esquerda do "Ver"', () => {
+  it('Frente 4 (docs/38 §3.1): sem botão de olho — "Jogar" só quando jogável, inspeção no corpo da carta', () => {
     const onPeek = vi.fn();
     const onInspect = vi.fn();
     const zaku = unit("Zaku II");
@@ -75,12 +75,12 @@ describe("HandFan", () => {
         onInspect={onInspect}
       />,
     );
-    // jogável: [Jogar, Ver]
     const jogar = screen.getByRole("button", { name: /Jogar Zaku II/ });
     const verZaku = screen.getByRole("button", { name: /^Ver Zaku II/ });
+    // o cluster de canto tem só "Jogar" (não "Ver")
     const strip = jogar.closest("div")!;
-    expect(Array.from(strip.children)).toEqual([jogar, verZaku]);
-    // injogável: só "Ver"
+    expect(Array.from(strip.children)).toEqual([jogar]);
+    // injogável: sem "Jogar", mas o corpo ainda é "Ver"
     expect(screen.getByRole("button", { name: /^Ver Guncannon/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Jogar Guncannon/ })).toBeNull();
 
@@ -90,9 +90,8 @@ describe("HandFan", () => {
     expect(onInspect).toHaveBeenCalledWith(zaku);
   });
 
-  it("o corpo da carta NÃO é mais um botão (sem conflito de clique)", () => {
+  it("Frente 4: o corpo da carta é o alvo de inspeção (Jogar no canto + Ver no corpo)", () => {
     hand([{ card: unit("Gundam"), playable: true }], { onInspect: vi.fn() });
-    // só existem os botões do canto (Jogar / Ver), não um botão envolvendo a arte
     const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
     expect(names.some((n) => n?.startsWith("Jogar Gundam"))).toBe(true);
     expect(names.some((n) => n?.startsWith("Ver Gundam"))).toBe(true);

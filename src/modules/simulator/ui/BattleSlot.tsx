@@ -9,7 +9,7 @@
  * (olho) SEMPRE ancorado no canto; Atacar / Ativar / Blocker / Mirar aparecem à
  * esquerda dele quando a jogada é possível. Sem badge "BLK" na carta — o botão
  * de escudo só aparece quando é hora de bloquear. */
-import { Crosshair, Eye, ShieldCheck, Swords, Zap } from "lucide-react";
+import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
@@ -92,13 +92,17 @@ export function BattleSlot({
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && hasKeyword(unit, "Blocker");
   const showActivate = Boolean(actions?.onActivate);
 
-  // "Ver" SEMPRE; contexto à esquerda dele (Atacar / Ativar / Blocker / Mirar).
+  // Frente 4 (docs/38 §3.1) — sem botão de "olho": o cluster de canto guarda só
+  // ações OPERACIONAIS (Atacar / Ativar / Blocker / Mirar). Inspecionar é por
+  // clique na área neutra da carta (ver `bodyInspects`).
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
   if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
   if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
   if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
-  if (onInspect) cornerActions.push({ key: "view", icon: Eye, label: `Ver ${unit.def.nameEn}`, tone: "view", onClick: () => onInspect(unit) });
+
+  // clique na carta (fora de seleção de alvo) abre o inspetor.
+  const bodyInspects = Boolean(onInspect) && !legalTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -133,9 +137,16 @@ export function BattleSlot({
           `aspect-[63/88]` sozinha (só a carta), e o Piloto ganha uma tira
           RESERVADA logo abaixo (nunca mais rouba espaço de dentro da arte). */}
       <div
-        role={legalTarget ? "button" : undefined}
-        tabIndex={legalTarget ? 0 : undefined}
-        onClick={legalTarget && onSelect ? () => onSelect(unit) : undefined}
+        role={legalTarget || bodyInspects ? "button" : undefined}
+        tabIndex={legalTarget || bodyInspects ? 0 : undefined}
+        aria-label={bodyInspects ? `Ver ${unit.def.nameEn}` : undefined}
+        onClick={
+          legalTarget && onSelect
+            ? () => onSelect(unit)
+            : bodyInspects && onInspect
+              ? () => onInspect(unit)
+              : undefined
+        }
         onKeyDown={
           legalTarget && onSelect
             ? (e) => {
@@ -144,9 +155,16 @@ export function BattleSlot({
                   onSelect(unit);
                 }
               }
-            : undefined
+            : bodyInspects && onInspect
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onInspect(unit);
+                  }
+                }
+              : undefined
         }
-        className={cn("relative block aspect-[63/88] w-full", legalTarget ? "cursor-pointer" : "cursor-default")}
+        className={cn("relative block aspect-[63/88] w-full", legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
           nameEn={unit.def.nameEn}
