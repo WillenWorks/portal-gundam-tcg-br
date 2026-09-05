@@ -212,8 +212,9 @@ type RawApiCard = {
 interface CardArtLookup {
   art: Record<string, CardArt>;
   artLoading: boolean;
-  /** code -> texto de efeito (PT preferido) — o CardDef do motor não carrega isso. */
-  cardText: Record<string, string>;
+  /** code -> { pt, en } do efeito — o CardDef do motor não carrega isso. O inspetor
+   *  mostra PT por padrão e um toggle PT/EN quando os dois vêm e diferem. */
+  cardText: Record<string, { pt?: string; en?: string }>;
   /** nameEn minúsculo -> { code, art } — pra resolver o piloto de um link `pilotName`. */
   cardByName: Record<string, { code: string; art: CardArt }>;
 }
@@ -228,7 +229,7 @@ function useCardArtLookup(): CardArtLookup {
       .then((results) => {
         if (cancelled) return;
         const art: Record<string, CardArt> = {};
-        const cardText: Record<string, string> = {};
+        const cardText: Record<string, { pt?: string; en?: string }> = {};
         const cardByName: Record<string, { code: string; art: CardArt }> = {};
         for (const list of results as RawApiCard[][]) {
           for (const raw of list) {
@@ -238,8 +239,9 @@ function useCardArtLookup(): CardArtLookup {
               imageSmallUrl: raw.imageSmallUrl ?? raw.imageMediumUrl ?? raw.imageUrl,
             };
             art[raw.code] = entry;
-            const effect = raw.effectPt || raw.effectEn;
-            if (effect) cardText[raw.code] = effect;
+            if (raw.effectPt || raw.effectEn) {
+              cardText[raw.code] = { pt: raw.effectPt || undefined, en: raw.effectEn || undefined };
+            }
             if (raw.nameEn) cardByName[raw.nameEn.trim().toLowerCase()] = { code: raw.code, art: entry };
           }
         }
@@ -1363,7 +1365,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           card={preview.card}
           art={art}
           blockedReason={preview.blockedReason}
-          effectText={cardText[preview.card.def.code]}
+          effectPt={cardText[preview.card.def.code]?.pt}
+          effectEn={cardText[preview.card.def.code]?.en}
           linkedPilots={resolveLinkedPilots(preview.card.def)}
           onClose={() => setPreview(null)}
           footer={
@@ -1389,7 +1392,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           art={art}
           inPlay
           state={boardForStats}
-          effectText={cardText[inspect.def.code]}
+          effectPt={cardText[inspect.def.code]?.pt}
+          effectEn={cardText[inspect.def.code]?.en}
           linkedPilots={resolveLinkedPilots(inspect.def)}
           onClose={() => setInspect(null)}
         />
