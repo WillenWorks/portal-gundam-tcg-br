@@ -38,18 +38,23 @@ export function DockedPilot({ pilot, unit, art, onInspect }: DockedPilotProps) {
       aria-label={title}
       onClick={onInspect ? () => onInspect(pilot) : undefined}
       className={cn(
-        "flex h-full w-full items-center gap-1 overflow-hidden border-t px-1 py-px",
+        // Frente 4 (feedback Willen 2ª rodada): chip de piloto legível — avatar
+        // e textos escalam com `--card-w-std` (eram `size-3.5`/`text-[8px]`/
+        // `text-[7px]` fixos).
+        "flex h-full w-full items-center gap-[0.2em] overflow-hidden border-t px-1 py-px",
         linked ? "border-amber-400/80 bg-amber-500/25" : "border-white/10 bg-black/75",
       )}
     >
-      <span className="size-3.5 shrink-0 overflow-hidden rounded-full border border-white/25 bg-black/40">
+      <span className="size-[clamp(0.9375rem,calc(var(--card-w-std,2.17rem)*0.3),1.75rem)] shrink-0 overflow-hidden rounded-full border border-white/25 bg-black/40">
         {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : null}
       </span>
       {mod ? (
-        <span className="shrink-0 font-mono text-[8px] font-bold tabular-nums text-emerald-300">{mod}</span>
+        <span className="shrink-0 font-mono text-[clamp(0.5625rem,calc(var(--card-w-std,2.17rem)*0.15),0.875rem)] font-bold leading-none tabular-nums text-emerald-300">
+          {mod}
+        </span>
       ) : null}
       {linked ? (
-        <span className="ml-auto shrink-0 animate-pulse rounded-arena bg-amber-400 px-0.5 text-[7px] font-black uppercase tracking-wide text-black shadow-[0_0_8px_rgba(251,191,36,0.6)] motion-reduce:animate-none">
+        <span className="ml-auto shrink-0 animate-pulse rounded-arena bg-amber-400 px-1 text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.14),0.8125rem)] font-black uppercase leading-none tracking-wide text-black shadow-[0_0_8px_rgba(251,191,36,0.6)] motion-reduce:animate-none">
           Link
         </span>
       ) : null}

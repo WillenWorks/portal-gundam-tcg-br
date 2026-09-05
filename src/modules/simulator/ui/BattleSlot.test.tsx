@@ -156,7 +156,8 @@ describe("BattleSlot", () => {
     // não é mais um overlay absoluto por cima da arte — é fluxo normal, numa
     // tira própria abaixo dela.
     expect(pilotButton.className).not.toMatch(/absolute/);
-    expect(pilotButton.parentElement?.className).toMatch(/h-\[1\.1rem\]/);
+    // Frente 4 (feedback Willen 2ª rodada): a tira escala com `--card-w-std`.
+    expect(pilotButton.parentElement?.className).toMatch(/h-\[clamp\(1\.15rem,calc\(var\(--card-w-std/);
   });
 
   it("Frente 4 (docs/38 §4.3): atacante/bloqueador sobem ~6px com leve inclinação (motion-reduce neutraliza)", () => {

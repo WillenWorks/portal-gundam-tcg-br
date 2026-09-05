@@ -173,7 +173,7 @@ export function ResourceMeter({
             <span key={i} className="relative shrink-0">
               <Piece r={g.sample} selected={false} pickable={false} />
               {g.count > 1 ? (
-                <span className="absolute -right-1 -top-1 z-10 rounded-arena border border-white/25 bg-slate-950 px-1 font-mono text-[10px] font-black leading-tight tabular-nums text-slate-100">
+                <span className="absolute -right-1 -top-1 z-10 rounded-arena border border-white/25 bg-slate-950 px-1 font-mono text-[clamp(0.6875rem,calc(var(--card-w-std,2.17rem)*0.2),1.125rem)] font-black leading-tight tabular-nums text-slate-100">
                   x{g.count}
                 </span>
               ) : null}

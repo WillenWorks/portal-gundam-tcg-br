@@ -78,7 +78,7 @@ export function BattleSlot({
         <div className="relative aspect-[63/88] w-full rounded-arena border border-dashed border-primary/25 bg-slate-900/40">
           <div className="absolute inset-1 rounded-arena border border-primary/10" aria-hidden />
         </div>
-        <div className="h-[1.1rem] shrink-0" aria-hidden />
+        <div className="h-[clamp(1.15rem,calc(var(--card-w-std,2.17rem)*0.34),2.1rem)] shrink-0" aria-hidden />
       </div>
     );
   }
@@ -186,9 +186,11 @@ export function BattleSlot({
         >
           {/* AP / HP efetivos — badges de canto (V6.3: sempre no rodapé da
               arte agora — o Piloto não overlay mais em cima delas). */}
+          {/* Frente 4 (feedback Willen 2ª rodada): badges escalam com
+              `--card-w-std` (eram `text-[9px]`/`[7px]` fixos, ilegíveis). */}
           <span
             className={cn(
-              "absolute bottom-0 left-0 z-10 min-w-[1.25rem] px-1 py-0.5 text-center text-[9px] font-black tabular-nums",
+              "absolute bottom-0 left-0 z-10 min-w-[1.4em] px-1 py-0.5 text-center text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.17),1rem)] font-black leading-none tabular-nums",
               apBuffed ? "bg-amber-500 text-black" : "bg-cyan-600/95 text-white",
             )}
             aria-label={`AP ${ap}`}
@@ -197,13 +199,17 @@ export function BattleSlot({
           </span>
           <span
             className={cn(
-              "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[9px] font-black tabular-nums",
+              "absolute bottom-0 right-0 z-10 flex items-baseline gap-0.5 px-1 py-0.5 text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.17),1rem)] font-black leading-none tabular-nums",
               hpDamaged ? "bg-red-600/95 text-white" : "bg-slate-700/95 text-white",
             )}
             aria-label={`HP ${hpRemaining}`}
           >
             {hpRemaining}
-            {hpDamaged ? <span className="text-[7px] font-bold text-red-200">-{unit.damage}</span> : null}
+            {hpDamaged ? (
+              <span className="text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.13),0.8125rem)] font-bold text-red-200">
+                -{unit.damage}
+              </span>
+            ) : null}
           </span>
           {unit.rested ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45">
@@ -219,7 +225,7 @@ export function BattleSlot({
           com ou sem Piloto), pra a fileira do grid não ficar mais alta só
           quando ALGUM slot tem Piloto (as vazias/sem-piloto "cairiam pra
           cima" se a altura total variasse por slot). */}
-      <div className="h-[1.1rem] shrink-0">
+      <div className="h-[clamp(1.15rem,calc(var(--card-w-std,2.17rem)*0.34),2.1rem)] shrink-0">
         {pilot ? <DockedPilot pilot={pilot} unit={unit} art={art} onInspect={onInspect} /> : null}
       </div>
 

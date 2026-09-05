@@ -89,12 +89,18 @@ interface ArenaPlaymatProps {
 }
 
 /** perspectiva fixa da mesa — não depende de `--card-w`, então fica fora do
- *  hook de escala (ver `useArenaScale.ts`). */
-const PERSPECTIVE_STYLE: CSSProperties = { perspective: "1200px", perspectiveOrigin: "50% 65%" };
+ *  hook de escala (ver `useArenaScale.ts`).
+ *  Frente 4 (feedback Willen 2ª rodada): `perspective` mais curta (900px) +
+ *  ponto de fuga mais alto (55%) intensifica a diferença de tamanho câmera↔topo
+ *  — cartas do jogador ficam maiores, estilo Master Duel. */
+const PERSPECTIVE_STYLE: CSSProperties = { perspective: "900px", perspectiveOrigin: "50% 55%" };
 
 /** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
- *  a subárvore achata num plano clicável, o tilt fica só no visual. */
-const TABLE_STYLE: CSSProperties = { transform: "rotateX(5deg)" };
+ *  a subárvore achata num plano clicável, o tilt fica só no visual.
+ *  Frente 4 (feedback Willen 2ª rodada): 5° → 12°. Origem no rodapé (`center
+ *  88%`) pra a fileira do jogador crescer em direção à câmera sem empurrar o
+ *  topo (recursos do oponente) pra fora do `overflow-hidden`. */
+const TABLE_STYLE: CSSProperties = { transform: "rotateX(12deg)", transformOrigin: "center 88%" };
 /** o lado do oponente recua um pouco (2D, achatado). */
 const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
@@ -104,7 +110,7 @@ const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
  *  RESULTADO real da medição (não mais um breakpoint de viewport chutado —
  *  era exatamente isso que causava as rodadas anteriores baterem em
  *  limiares diferentes por arquivo, docs/32 §achado de raiz). */
-const SHIELD_COMPACT_THRESHOLD_PX = 64; // 4rem
+const SHIELD_COMPACT_THRESHOLD_PX = 80; // = piso de `--card-w` (útil: cramped ⇒ shields achatados)
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -127,7 +133,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         // as peças). `--card-w-std`, derivada 1 vez aqui, é a ÚNICA fonte —
         // todo mundo (incluindo Battle Row/Mão agora) referencia ela, nunca
         // mais reescreve `*0.62` cada um por conta própria.
-        "[--card-w-std:calc(var(--card-w)*0.62)]",
+        // Frente 4 (feedback Willen 2ª rodada): 0.62 → 0.66 — a peça-padrão
+        // (Unit/Base/Shield/Deck) ganha ~6% de largura relativa.
+        "[--card-w-std:calc(var(--card-w)*0.66)]",
         // V6.2 (docs/33): `expanded` solta a trava de 16:9 — sem isso, a caixa
         // do canvas nunca crescia além de altura×16/9 mesmo com as asas
         // escondidas (largura sobrando ficava sempre de fora, inalcançável,

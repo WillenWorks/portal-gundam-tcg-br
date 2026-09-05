@@ -129,9 +129,10 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
         {base.damage > 0 ? (
           // Frente 4 (docs/38 §3.2) — dano acumulado no canto INFERIOR direito
           // (não mais topo, onde o "olho" o cobria). Badge preto translúcido,
-          // borda vermelha sutil, mono de alto contraste.
+          // borda vermelha sutil, mono de alto contraste. Feedback Willen 2ª
+          // rodada: escala com `--card-w-std` (era `text-[9px]` fixo).
           <span
-            className="absolute bottom-2 right-0 z-10 rounded-arena border border-red-400/70 px-1 py-0.5 font-mono text-[9px] font-black leading-none tabular-nums text-white shadow-[0_0_6px_rgba(0,0,0,0.7)]"
+            className="absolute bottom-2 right-0 z-10 rounded-arena border border-red-400/70 px-1 py-0.5 font-mono text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.18),1.0625rem)] font-black leading-none tabular-nums text-white shadow-[0_0_6px_rgba(0,0,0,0.7)]"
             style={{ backgroundColor: "rgba(0, 0, 0, 0.85)" }}
           >
             -{base.damage}

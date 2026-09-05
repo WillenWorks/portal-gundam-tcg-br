@@ -57,7 +57,7 @@ describe("ArenaPlaymat", () => {
     // ResizeObserver/getBoundingClientRect mockados) medindo a caixa real.
     // jsdom não faz layout de verdade (getBoundingClientRect sempre 0), então
     // aqui só o piso inicial (antes de qualquer medição real) é observável.
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("64px");
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("80px");
   });
 
   it("V6.2 (docs/33): `expanded` troca aspect-[16/9] por h-full w-full (canvas usa a caixa toda, sem travar 16:9)", () => {
@@ -149,7 +149,8 @@ describe("ArenaPlaymat", () => {
 
   it("aplica a perspectiva 3D no canvas", () => {
     const { container } = renderArena();
-    expect((container.firstElementChild as HTMLElement).style.perspective).toBe("1200px");
+    // Frente 4 (feedback Willen 2ª rodada): perspective mais curta (900px).
+    expect((container.firstElementChild as HTMLElement).style.perspective).toBe("900px");
   });
 
   it("battleAreaRef recebe o elemento do grid de slots", () => {
