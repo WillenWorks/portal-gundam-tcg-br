@@ -97,10 +97,11 @@ const PERSPECTIVE_STYLE: CSSProperties = { perspective: "900px", perspectiveOrig
 
 /** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
  *  a subárvore achata num plano clicável, o tilt fica só no visual.
- *  Frente 4 (feedback Willen 2ª rodada): 5° → 12°. Origem no rodapé (`center
- *  88%`) pra a fileira do jogador crescer em direção à câmera sem empurrar o
- *  topo (recursos do oponente) pra fora do `overflow-hidden`. */
-const TABLE_STYLE: CSSProperties = { transform: "rotateX(12deg)", transformOrigin: "center 88%" };
+ *  Frente 4: 5° → 12° (2ª rodada) → 15° (3ª rodada, "cartas maiores / mais
+ *  tabuleiro"). Origem no rodapé (`center 88%`) pra a fileira do jogador
+ *  crescer em direção à câmera sem empurrar o topo (recursos do oponente) pra
+ *  fora do `overflow-hidden`. */
+const TABLE_STYLE: CSSProperties = { transform: "rotateX(15deg)", transformOrigin: "center 88%" };
 /** o lado do oponente recua um pouco (2D, achatado). */
 const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
@@ -110,7 +111,7 @@ const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
  *  RESULTADO real da medição (não mais um breakpoint de viewport chutado —
  *  era exatamente isso que causava as rodadas anteriores baterem em
  *  limiares diferentes por arquivo, docs/32 §achado de raiz). */
-const SHIELD_COMPACT_THRESHOLD_PX = 80; // = piso de `--card-w` (útil: cramped ⇒ shields achatados)
+const SHIELD_COMPACT_THRESHOLD_PX = 88; // = piso de `--card-w` (útil: cramped ⇒ shields achatados)
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
