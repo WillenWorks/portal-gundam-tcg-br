@@ -1,4 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
+import { effectivePilotDef, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
@@ -156,6 +157,20 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
         specs,
         { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
       );
+      // 【When Linked】 (ST04-011 Athrun Zala) — dispara só quando o pareamento
+      // resultante forma uma Link Unit (3-2-6). "this Unit" no texto do Pilot =
+      // a Unit pareada; a fonte do EffectSpec é o próprio Pilot.
+      const pairedUnit = findCard(next, options.pairWithUnitId);
+      if (satisfiesLinkCondition(effectivePilotDef(findCard(next, cardInstanceId)), pairedUnit.def)) {
+        next = deferOrDispatchAbilities(
+          next,
+          player,
+          "When Linked",
+          [{ code: def.code, instanceId: cardInstanceId }],
+          specs,
+          { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
+        );
+      }
     }
   }
 

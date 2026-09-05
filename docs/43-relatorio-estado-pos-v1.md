@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | **F1** Deckbuilder (curva de nível + mão inicial + estilo visual) | `dev` | ✅ 4/4 | +8 | ✅ `origin/dev` |
 | **F2** Pipeline de tradução PT-BR | `dev` | 🟡 4/5 (falta `--apply` no banco) | +28 | ✅ `origin/dev` |
-| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + 4 cláusulas deferidas | +33 | ✅ `origin/dev` |
+| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + 4 cláusulas antes deferidas fechadas | +46 | 🟡 local |
 | **F4** Overhaul visual/UX do simulador | `feature/simulator-layout` | ✅ 7/7 | 433 verdes | ❌ local (6 commits) |
 | **F5** WebSocket & multiplayer | `feature/simulator-websocket` | 🟡 5/7 (migração do cliente + prod diferidos) | 488 verdes | ❌ local (3 commits) |
 
@@ -107,11 +107,13 @@ Sem colisão de arquivos entre executores. Cada subagente commitou na sua própr
 - [x] Habilitados no sandbox (`SimulatorSandboxPage` DECK_OPTIONS) e no servidor (`server/index.ts` `SIMULATOR_DECKS`).
 - [x] `npx vitest run src/modules/simulator` verde (456 na época; 484 com `src/lib`).
 - [x] Commits `81acadc` + `41c5770`.
-- **4 cláusulas deferidas** (autorizadas pelo Willen p/ implementação a partir do texto EN):
-  1. **ST03-001 Sinanju** — gatilho "destrói carta de shield area em batalha → escolhe Unit inimiga, 2 de dano". `combat.ts` só tem `destroyEnemyInBattle`; falta `destroyEnemyShieldInBattle` + escolha de alvo em combate. (O `<High-Maneuver>` During Pair está como keyword fixa — aproximação.)
-  2. **ST03-014 The Blue Giant** — "não pode receber dano de batalha de Unidades inimigas com 2 ou menos de AP nesta batalha". Prevenção de dano condicional por AP do atacante, análoga a `preventShieldDamage` mas por Unit.
-  3. **ST04-011 Athrun Zala** — 【When Linked】concessão temporária de "mirar Unit inimiga ativa Lv≤5". Hoje `attackTargetRules` é campo estático de `CardDef`.
-  4. **ST04-015 Archangel** — cláusula "It can't attack during this turn" do 【Activate･Main】 (o `Set active` funciona).
+- **4 cláusulas antes deferidas — FECHADAS (2026-09-05, a partir do texto EN oficial):**
+  1. ✅ **ST03-001 Sinanju** — gatilho "destrói carta de shield area em batalha → escolhe Unit inimiga, 2 de dano". `CombatTrigger` ganhou `on: "destroyEnemyShieldInBattle"` + `action: { kind: "damageChosenEnemyUnit" }`; disparado em `combat.ts/resolveDamageStep` quando o ataque direto ao jogador consome shield. **Decisão documentada:** sem sistema de escolha de alvo em combate, o motor auto-mira a 1ª Unit inimiga legal na Battle Area (determinístico/testável). `<High-Maneuver>` During Pair segue como keyword fixa — aproximação MANTIDA (`hasKeyword` sem `state` em ~9 call sites; não vale propagar por 1 carta).
+  2. ✅ **ST03-014 The Blue Giant** 【Action】 — primitiva `preventUnitBattleDamage` + `CombatState.unitDamageProtection` (por Unit, condicionada ao AP EFETIVO do atacante; o atacante ainda recebe o dele). `THE_BLUE_GIANT_ACTION` em `content/st03.ts`.
+  3. ✅ **ST04-011 Athrun Zala** 【When Linked】 — primitiva `grantAttackTargetRelax` + `CardInstance.attackTargetRelaxUntilTurn` (concessão temporária na Unit pareada, só no turno atual). `declareAttack` passou a considerar essa concessão além do `attackTargetRules` estático. Dispatch de `"When Linked"` ligado em `deploy.ts` (quando o pareamento forma Link Unit). Limpo em `CLEAR_TURN_MODIFIERS`.
+  4. ✅ **ST04-015 Archangel** 【Activate･Main】 — primitiva `preventAttackThisTurn` + `CardInstance.cannotAttackUntilTurn`; `declareAttack` lança se `=== state.turnNumber`. Adicionada a `ARCHANGEL_ACTIVATE_MAIN.actions` depois do `setActive`. Limpo em `CLEAR_TURN_MODIFIERS`.
+
+  Suíte: **497 verdes** em `src/modules/simulator` + `src/lib` (era 484; +13). `check:types` + `build` OK.
 
 ### Frente 4 — Overhaul visual (`feature/simulator-layout`) — 7/7 ✅
 - [x] Piso de `--card-w` 44px→64px em `useArenaScale`/`ArenaPlaymat`, `overflow-hidden` no canvas.
@@ -161,5 +163,5 @@ Sem colisão de arquivos entre executores. Cada subagente commitou na sua própr
 
 1. **F2 `--apply`** — rodar o SQL de tradução via MCP Supabase (ou Postgres local/Docker). Após isso, o catálogo passa a exibir `effectPt`.
 2. **Página de teste visual cru** — rota dev-only (`import.meta.env.DEV`, sem auth) na branch `feature/simulator-layout` que renderiza o playmat/arena com dados de amostra estáticos (cartas sample, campos fixos), pra validar F4 em navegadores/displays reais sem logar nem entrar no simulador.
-3. **F3 — 4 cláusulas deferidas** — estender o motor a partir do texto EN das cartas (Sinanju shield-trigger, The Blue Giant, Athrun 【When Linked】, Archangel "can't attack").
+3. ~~**F3 — 4 cláusulas deferidas**~~ — ✅ FEITO (2026-09-05, ver §4 F3). Falta só commitar/push.
 4. **Aguardando decisão do Willen:** push das branches `feature/*`; ordem de merge; squash dos commits de F4/F5; migração do cliente do simulador pra socket.io (F5); infra real de MCP/RAG (opcional).

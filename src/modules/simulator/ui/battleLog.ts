@@ -118,6 +118,12 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
       return entry("effect", `${nameOf(event.instanceId)} ganhou <${event.grant.keyword}>`);
     case "SET_SHIELD_PROTECTION":
       return entry("effect", `Shields protegidos contra Units Lv.${event.maxAttackerLevel} ou menos nesta batalha`);
+    case "SET_UNIT_DAMAGE_PROTECTION":
+      return entry("effect", `${nameOf(event.instanceId)} não recebe dano de batalha de Units com AP ${event.maxAttackerAp} ou menos nesta batalha`);
+    case "GRANT_ATTACK_TARGET_RELAX":
+      return entry("effect", `${nameOf(event.instanceId)} pode mirar Unit inimiga ativa Lv.${event.maxLevel} ou menos neste turno`);
+    case "SET_CANNOT_ATTACK":
+      return entry("effect", `${nameOf(event.instanceId)} não pode atacar neste turno`);
     case "DISCARD_TO_HAND_LIMIT":
       return entry("play", `${player(event.player)} descartou ${event.instanceIds.length} por limite de mão`);
     case "SET_PENDING_DECISION":

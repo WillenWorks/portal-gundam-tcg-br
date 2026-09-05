@@ -18,10 +18,11 @@ import type { DeckList } from "../engine/setup";
  * (docs/14), igual à nota em `st01Deck.ts`. Stats e texto de efeito SÃO dados
  * oficiais; a contagem de cópias não.
  *
- * Efeitos bespoke: ver `content/st03.ts`. Aproximações conhecidas (High-Maneuver
- * "During Pair" de Sinanju modelado como keyword fixa; gatilho de destruição de
- * shield de Sinanju e prevenção de dano por AP de The Blue Giant deferidos)
- * estão anotadas lá e em `docs/41`.
+ * Efeitos bespoke: ver `content/st03.ts`. Fechado nesta rodada (docs/43 §4):
+ * gatilho de destruição de shield de Sinanju (`combatTriggers` abaixo) e
+ * prevenção de dano por AP de The Blue Giant (`THE_BLUE_GIANT_ACTION`).
+ * Aproximação MANTIDA: <High-Maneuver> "During Pair" de Sinanju como keyword
+ * fixa (motivo em nota na carta).
  */
 
 // —————————————————————————— Neo Zeon (vermelho) ——————————————————————————
@@ -38,12 +39,19 @@ const SINANJU: CardDef = {
   traits: ["Neo Zeon"],
   link: { kind: "pilotName", values: ["Full Frontal"] },
   triggerKeywords: ["During Pair"],
-  // 【During Pair】This Unit gains <High-Maneuver>. Aproximação: keyword fixa
-  // (Sinanju tem Link e quase sempre ataca pareada; a diferença só apareceria
-  // atacando sem Pilot). O gatilho "destrói shield -> 2 de dano" fica deferido
-  // (ver content/st03.ts + docs/41).
+  // 【During Pair】This Unit gains <High-Maneuver>. Aproximação MANTIDA: keyword
+  // fixa (Sinanju tem Link e quase sempre ataca pareada; a diferença só
+  // apareceria atacando sem Pilot). `hasKeyword` é consultado sem `state` em
+  // vários pontos do motor — modelar isto como keyword condicional exigiria
+  // propagar `state` por ~9 call sites por 1 carta; custo/benefício não fecha
+  // (docs/43 §4).
   effectKeywords: ["High-Maneuver"],
   keywordTags: ["High-Maneuver"],
+  // "During your turn, when this Unit destroys an enemy shield area card with
+  // battle damage, choose 1 enemy Unit. Deal 2 damage to it." Não é 【During
+  // Pair】 no texto oficial → `condition: "always"`. Resolvido em
+  // combat.ts/combatTriggerEvents (auto-mira a 1ª Unit inimiga — docs/43 §4).
+  combatTriggers: [{ condition: "always", on: "destroyEnemyShieldInBattle", action: { kind: "damageChosenEnemyUnit", amount: 2 } }],
 };
 
 const ANGELOS_GEARA_ZULU: CardDef = {

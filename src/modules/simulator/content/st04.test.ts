@@ -6,10 +6,12 @@ import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "../engine
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
+import { declareAttack } from "../engine/combat";
 import {
   AEGIS_GUNDAM_ATTACK,
   AILE_STRIKE_WHEN_PAIRED,
   ARCHANGEL_ACTIVATE_MAIN,
+  ATHRUN_ZALA_WHEN_LINKED,
   HAWK_OF_ENDYMION_MAIN,
   KIRA_YAMATO_ATTACK,
   MAGIC_BULLET_MAIN,
@@ -58,9 +60,9 @@ describe("ST04 — fixtures e cobertura", () => {
     expect(buildSt04DeckList().resources).toHaveLength(10);
   });
 
-  it("19 EffectSpecs cadastrados cobrindo 11 das 16 cartas únicas (resto é vanilla/keyword/deferido)", () => {
+  it("20 EffectSpecs cadastrados cobrindo 11 das 16 cartas únicas (resto é vanilla/keyword)", () => {
     const codes = new Set(ST04_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST04_EFFECT_SPECS).toHaveLength(19);
+    expect(ST04_EFFECT_SPECS).toHaveLength(20);
     expect(codes).toEqual(
       new Set(["ST04-001", "ST04-002", "ST04-006", "ST04-009", "ST04-010", "ST04-011", "ST04-012", "ST04-013", "ST04-014", "ST04-015", "ST04-016"]),
     );
@@ -161,13 +163,44 @@ describe("ST04 — EffectSpecs bespoke", () => {
     expect(findCard(next, allyId).keywordGrants.some((g) => g.keyword === "First Strike")).toBe(true);
   });
 
-  it("ST04-015 Archangel — 【Activate･Main】paga 2, seta Unit <Blocker> amiga como active", () => {
+  it("ST04-015 Archangel — 【Activate･Main】paga 2, seta Unit <Blocker> amiga como active e proíbe ataque no turno", () => {
     const state = freshGame();
     const baseId = place(state, "A", ST04_CARD_DEFS.ARCHANGEL, "baseSection");
     [0, 1, 2].forEach(() => place(state, "A", ST04_CARD_DEFS.RESOURCE, "resourceArea"));
     const blockerId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, "battleArea", { rested: true }); // <Blocker>
-    const next = applyEvents(state, resolveEffectSpec(ARCHANGEL_ACTIVATE_MAIN, ctxFor(state, baseId, { target: [blockerId] })));
+    const events = resolveEffectSpec(ARCHANGEL_ACTIVATE_MAIN, ctxFor(state, baseId, { target: [blockerId] }));
+    expect(events).toContainEqual({ type: "SET_CANNOT_ATTACK", instanceId: blockerId, turn: state.turnNumber });
+    const next = applyEvents(state, events);
     expect(findCard(next, blockerId).rested).toBe(false);
+    expect(findCard(next, blockerId).cannotAttackUntilTurn).toBe(next.turnNumber);
+  });
+
+  it("ST04-015 Archangel — a Unit setada como active não consegue declarar ataque no mesmo turno", () => {
+    const state = { ...freshGame(), phase: "main" as const };
+    const baseId = place(state, "A", ST04_CARD_DEFS.ARCHANGEL, "baseSection");
+    [0, 1, 2].forEach(() => place(state, "A", ST04_CARD_DEFS.RESOURCE, "resourceArea"));
+    const blockerId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, "battleArea", { rested: true });
+    const next = applyEvents(state, resolveEffectSpec(ARCHANGEL_ACTIVATE_MAIN, ctxFor(state, baseId, { target: [blockerId] })));
+    expect(() => declareAttack(next, blockerId, "player")).toThrow(/não pode atacar neste turno/);
+  });
+
+  it("ST04-011 Athrun Zala — 【When Linked】concede attackTargetRelaxUntilTurn à Unit pareada", () => {
+    const state = freshGame();
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, "battleArea"); // link [Athrun Zala]
+    const athrunId = place(state, "A", ST04_CARD_DEFS.ATHRUN_ZALA, "battleArea", { pairedUnitId: aegisId });
+    findCard(state, aegisId).pairedPilotId = athrunId;
+    const next = applyEvents(state, resolveEffectSpec(ATHRUN_ZALA_WHEN_LINKED, ctxFor(state, athrunId), defaultPredicateResolver));
+    expect(findCard(next, aegisId).attackTargetRelaxUntilTurn).toEqual({ maxLevel: 5, turn: next.turnNumber });
+  });
+
+  it("ST04-011 Athrun Zala — depois da concessão, a Unit pareada mira Unit inimiga ATIVA Lv<=5", () => {
+    const state = { ...freshGame(), phase: "main" as const };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, "battleArea", {
+      attackTargetRelaxUntilTurn: { maxLevel: 5, turn: state.turnNumber },
+    });
+    const activeEnemyId = place(state, "B", ST04_CARD_DEFS.STRIKE_GUNDAM, "battleArea"); // Lv.4, ativa
+    const next = declareAttack(state, aegisId, { unitId: activeEnemyId });
+    expect(next.combat?.currentTarget).toEqual({ unitId: activeEnemyId });
   });
 
   it("ST04-016 Vesalius — 【Activate･Main】resta a Base e dá AP+1 numa Unit amiga", () => {

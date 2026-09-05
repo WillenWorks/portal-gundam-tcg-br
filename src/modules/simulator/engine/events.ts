@@ -161,6 +161,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.damage = 0;
         card.pairedPilotId = undefined;
         card.pairedUnitId = undefined;
+        card.attackTargetRelaxUntilTurn = undefined;
+        card.cannotAttackUntilTurn = undefined;
       }
       if (event.toZone === "shields" || event.toZone === "deck" || event.toZone === "resourceDeck") {
         card.rested = false;
@@ -204,6 +206,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.pairedPilotId = undefined;
       card.pairedUnitId = undefined;
       card.asPilot = undefined;
+      card.attackTargetRelaxUntilTurn = undefined;
+      card.cannotAttackUntilTurn = undefined;
       // se destruir uma Unit com Pilot pareado, o Pilot também vai pro trash (ver combat.ts)
       player.trash.push(card);
       return state;
@@ -227,6 +231,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.pairedPilotId = undefined;
       card.pairedUnitId = undefined;
       card.asPilot = undefined;
+      card.attackTargetRelaxUntilTurn = undefined;
+      card.cannotAttackUntilTurn = undefined;
       player.exile.push(card);
       return state;
     }
@@ -259,6 +265,13 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
               (g) => !(g.duration === "endOfTurn" && g.appliedOnTurn <= event.turnNumber),
             );
             card.usedKeywordsThisTurn = [];
+            // flags de turno instaladas por efeito (Athrun Zala / Archangel)
+            if (card.attackTargetRelaxUntilTurn && card.attackTargetRelaxUntilTurn.turn <= event.turnNumber) {
+              card.attackTargetRelaxUntilTurn = undefined;
+            }
+            if (card.cannotAttackUntilTurn !== undefined && card.cannotAttackUntilTurn <= event.turnNumber) {
+              card.cannotAttackUntilTurn = undefined;
+            }
           }
         }
       }
@@ -379,6 +392,20 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       if (state.combat) {
         state.combat.shieldProtection = { maxAttackerLevel: event.maxAttackerLevel };
       }
+      return state;
+    }
+    case "SET_UNIT_DAMAGE_PROTECTION": {
+      if (state.combat) {
+        state.combat.unitDamageProtection = { instanceId: event.instanceId, maxAttackerAp: event.maxAttackerAp };
+      }
+      return state;
+    }
+    case "GRANT_ATTACK_TARGET_RELAX": {
+      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, turn: event.turn };
+      return state;
+    }
+    case "SET_CANNOT_ATTACK": {
+      findCard(state, event.instanceId).cannotAttackUntilTurn = event.turn;
       return state;
     }
     case "SET_PENDING_DECISION": {

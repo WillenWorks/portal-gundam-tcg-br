@@ -3,6 +3,8 @@ import { createGame } from "./setup";
 import { buildVanillaDeckList, VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck";
 import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
+import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
+import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import type { CardDef, CardInstance, GameState, PlayerId } from "./types";
 import {
   activateBlocker,
@@ -318,5 +320,100 @@ describe("Link Unit ataca no turno em que foi deployada (Comprehensive Rules 3-2
 
     const next = declareAttack(state, leoId, "player");
     expect(next.combat?.attackerId).toBe(leoId);
+  });
+});
+
+describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
+  it("ST03-001 Sinanju — destruir shield inimigo em batalha causa 2 de dano na 1ª Unit inimiga", () => {
+    let state = stripBase(freshGame(), "B");
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
+    const enemyId = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, { rested: true }); // HP3, sobrevive a 2
+    const shieldsBefore = state.players.B.shields.length;
+
+    state = runToDamageStep(state, sinanjuId, "player");
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.shields).toHaveLength(shieldsBefore - 1);
+    expect(findCard(state, enemyId).damage).toBe(2);
+  });
+
+  it("ST03-001 Sinanju — Base absorve o dano: nenhum shield cai, nenhum dano colateral", () => {
+    let state = freshGame(); // B mantém a EX Base
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU);
+    const enemyId = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, { rested: true });
+
+    state = runToDamageStep(state, sinanjuId, "player");
+    state = resolveDamageStep(state);
+
+    expect(findCard(state, enemyId).damage).toBe(0);
+  });
+
+  it("ST03-014 The Blue Giant — Unit amiga protegida não recebe dano de atacante com AP<=2", () => {
+    let state = { ...freshGame(), activePlayer: "B" as PlayerId };
+    state = stripBase(state, "A");
+    const defenderId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, { rested: true }); // AP3/HP2
+    const attackerId = place(state, "B", ST03_CARD_DEFS.GAZA_D); // AP2/HP1
+
+    state = declareAttack(state, attackerId, { unitId: defenderId });
+    state = applyEvent(state, { type: "SET_UNIT_DAMAGE_PROTECTION", instanceId: defenderId, maxAttackerAp: 2 });
+    state = proceedToBlockStep(state);
+    state = skipBlock(state);
+    state = passAction(state, state.combat!.defendingPlayer);
+    state = passAction(state, state.combat!.attackingPlayer);
+    state = resolveDamageStep(state);
+
+    expect(findCard(state, defenderId).damage).toBe(0); // protegida (atacante AP2)
+    expect(state.players.B.trash.some((c) => c.instanceId === attackerId)).toBe(true); // atacante recebeu o contra-ataque (AP3 >= HP1)
+  });
+
+  it("ST03-014 The Blue Giant — proteção não vale contra atacante com AP>=3", () => {
+    let state = { ...freshGame(), activePlayer: "B" as PlayerId };
+    state = stripBase(state, "A");
+    const defenderId = place(state, "A", ST03_CARD_DEFS.DRA_C, { rested: true }); // HP2
+    const attackerId = place(state, "B", ST03_CARD_DEFS.GEARA_ZULU); // AP3
+
+    state = declareAttack(state, attackerId, { unitId: defenderId });
+    state = applyEvent(state, { type: "SET_UNIT_DAMAGE_PROTECTION", instanceId: defenderId, maxAttackerAp: 2 });
+    state = proceedToBlockStep(state);
+    state = skipBlock(state);
+    state = passAction(state, state.combat!.defendingPlayer);
+    state = passAction(state, state.combat!.attackingPlayer);
+    state = resolveDamageStep(state);
+
+    expect(state.players.A.trash.some((c) => c.instanceId === defenderId)).toBe(true); // não protegida (AP3 > 2)
+  });
+
+  it("ST04-011 Athrun Zala — attackTargetRelaxUntilTurn deixa mirar Unit inimiga ativa Lv<=5", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxLevel: 5, turn: state.turnNumber },
+    });
+    const activeEnemyId = place(state, "B", ST04_CARD_DEFS.STRIKE_GUNDAM); // Lv.4, active
+
+    const next = declareAttack(state, aegisId, { unitId: activeEnemyId });
+    expect(next.combat?.currentTarget).toEqual({ unitId: activeEnemyId });
+  });
+
+  it("ST04-011 Athrun Zala — a concessão não vale pra Unit ativa Lv.6+", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxLevel: 5, turn: state.turnNumber },
+    });
+    const bigEnemyId = place(state, "B", ST03_CARD_DEFS.SINANJU); // Lv.6, active
+
+    expect(() => declareAttack(state, aegisId, { unitId: bigEnemyId })).toThrow(/rested/);
+  });
+
+  it("ST04-015 Archangel — cannotAttackUntilTurn barra a declaração de ataque no mesmo turno", () => {
+    const state = { ...freshGame() };
+    const unitId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, { cannotAttackUntilTurn: state.turnNumber });
+    expect(() => declareAttack(state, unitId, "player")).toThrow(/não pode atacar neste turno/);
+  });
+
+  it("ST04-015 Archangel — a proibição não vale num turno futuro", () => {
+    const state = { ...freshGame(), turnNumber: 5 };
+    const unitId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, { cannotAttackUntilTurn: 3 });
+    const next = declareAttack(state, unitId, "player");
+    expect(next.combat?.attackerId).toBe(unitId);
   });
 });

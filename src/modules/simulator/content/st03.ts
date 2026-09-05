@@ -15,17 +15,19 @@ import { TOKEN_CHARS_ZAKU_II, TOKEN_ZAKU_II } from "../fixtures/st03Deck";
  * - Bespoke via EffectSpec: abaixo.
  * - Modelado como campo de `CardDef` (não gatilho→ação): nada em ST03.
  *
- * APROXIMAÇÕES / DEFERIMENTOS CONHECIDOS (registrados em docs/41 pra revisão do Willen):
+ * CLÁUSULAS FECHADAS NESTA RODADA (antes deferidas — docs/43 §4):
+ * - ST03-001 Sinanju: 2ª cláusula — "when this Unit destroys an enemy shield
+ *   area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it."
+ *   `combatTriggers` novo `on: "destroyEnemyShieldInBattle"` +
+ *   `action: "damageChosenEnemyUnit"` (auto-mira a 1ª Unit inimiga legal — não
+ *   há sistema de decisão em combate; ver combat.ts).
+ * - ST03-014 The Blue Giant 【Action】: `THE_BLUE_GIANT_ACTION` abaixo, primitiva
+ *   `preventUnitBattleDamage` + `CombatState.unitDamageProtection`.
+ *
+ * APROXIMAÇÃO MANTIDA (docs/43 §4):
  * - ST03-001 Sinanju: 【During Pair】<High-Maneuver> = keyword fixa em st03Deck.ts
- *   (Sinanju tem Link e quase sempre ataca pareada). A 2ª cláusula — "quando
- *   destrói carta da shield area com dano de batalha, escolha 1 Unit inimiga,
- *   2 de dano" — precisa de um gatilho de combate sobre destruição de SHIELD
- *   (combat.ts hoje só tem `destroyEnemyInBattle`) + escolha de alvo em combate.
- *   DEFERIDO.
- * - ST03-014 The Blue Giant: "não pode receber dano de batalha de Units inimigas
- *   com 2 ou menos de AP nesta batalha" — prevenção de dano condicional por AP do
- *   atacante, análoga a `preventShieldDamage` mas por Unit. DEFERIDO (o modo
- *   Pilot [Ramba Ral] já funciona via `pilotMode`).
+ *   (Sinanju tem Link e quase sempre ataca pareada; `hasKeyword` é consultado
+ *   sem `state` em ~9 pontos do motor — não vale propagar `state` por 1 carta).
  */
 
 // ST03-006 Char's Zaku Ⅱ — 【Destroyed】Look at the top 3 cards of your deck. You
@@ -147,6 +149,19 @@ export const CLOSE_COMBAT_BURST: EffectSpec = {
 export const CLOSE_COMBAT_MAIN: EffectSpec = { ...CLOSE_COMBAT_BURST, id: "ST03-013-Main", trigger: "Main", sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it." };
 export const CLOSE_COMBAT_ACTION: EffectSpec = { ...CLOSE_COMBAT_BURST, id: "ST03-013-Action", trigger: "Action", sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it." };
 
+// ST03-014 The Blue Giant — 【Action】Choose 1 friendly Unit. It can't receive
+// battle damage from enemy Units with 2 or less AP during this battle.
+// (o lado 【Pilot】[Ramba Ral] é modo alternativo, `pilotMode` em st03Deck.ts)
+export const THE_BLUE_GIANT_ACTION: EffectSpec = {
+  id: "ST03-014-Action",
+  cardCode: "ST03-014",
+  trigger: "Action",
+  actions: [{ op: "preventUnitBattleDamage", target: { kind: "named", name: "target" }, maxAttackerAp: 2 }],
+  targetScope: "friendlyUnit",
+  sourceText:
+    "【Action】Choose 1 friendly Unit. It can't receive battle damage from enemy Units with 2 or less AP during this battle.",
+};
+
 // ST03-015 Rewloola — 【Burst】Deploy this card. / 【Deploy】Add 1 of your Shields to
 // your hand. Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.
 export const REWLOOLA_BURST: EffectSpec = {
@@ -201,6 +216,7 @@ export const ST03_EFFECT_SPECS: EffectSpec[] = [
   CHAR_AZNABLE_ATTACK,
   INDIGNATION_MAIN,
   INDIGNATION_ACTION,
+  THE_BLUE_GIANT_ACTION,
   CLOSE_COMBAT_BURST,
   CLOSE_COMBAT_MAIN,
   CLOSE_COMBAT_ACTION,
