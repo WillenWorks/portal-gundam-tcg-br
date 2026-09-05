@@ -97,13 +97,13 @@ Testes: cenários fixos (`bot deve bloquear aqui`, `bot não deve atacar o jogad
 ### 4.2 Modo treino solo no produto
 
 - Rota `/simulador/treino` (autenticada): escolhe deck + dificuldade (`fácil` = heurística "burra", `normal` = heurística cheia). Sem fila, sem oponente humano.
-- Server: `POST /api/simulator/training/new` cria uma `SimulatorMatch` com `seats.B = { bot: "heuristic", level }`. O tick do bot roda no servidor (mesmo `matchStore`, autoridade total) — quando é o turno do bot, `advanceBot(matchId)` aplica as ações via a policy.
+- Server: `POST /api/simulator/training/new` cria uma `SimulatorMatch` com `seats.B = { bot: "heuristic", level }`. Quando o estado passa a ter `activePlayer` == assento de bot, o `matchStore` **enfileira** o turno; o **serviço `sim-bot` separado** (§10.2) puxa da fila, calcula as ações via `heuristicPolicy` e as aplica pela mesma API autoritativa (`POST /api/simulator/matches/:id/actions`). O web server nunca roda a policy inline.
 - **Só decks validados** (ver §7.1) — o bot recusa carta sem cobertura.
 - Reusa 100% da UI de partida (`SimulatorMatchPage`), inclusive o `socketClient` da F5 se já migrado.
 
 ### 4.3 Golden-master tests (entra junto)
 
-`engine/__snapshots__/` — bot-vs-bot com seed fixo por par de decks, snapshot do `GameState` final (normalizado: sem timestamps). Qualquer mudança de motor que altere um resultado aparece no diff do PR e força justificativa. `pnpm gundam:golden`.
+Bot-vs-bot com seed fixo por par de decks. Guarda **o hash** (SHA-256 do `GameState` final normalizado — sem timestamps/ids voláteis) num `engine/__golden__/hashes.json` versionado + **2–3 partidas canônicas por wave** com o estado inteiro salvo (`engine/__golden__/canonical/`), pra debug quando um hash muda. Qualquer mudança de motor que altere um resultado quebra o hash no PR e força justificativa. `pnpm gundam:golden` (checa) / `pnpm gundam:golden --update` (regrava, exige revisão).
 
 ---
 
@@ -137,11 +137,11 @@ model SimulatorBugReport {
 }
 ```
 
-`reportSituation()` passa a **persistir** isso (hoje só `console.log`). A UI ganha um campo "o que aconteceu?" e mostra o `shortCode` pro jogador acompanhar.
+`reportSituation()` passa a **persistir** isso (hoje só `console.log`) e a disparar o `repository_dispatch` (§10.1). `reporterId` é **sempre um usuário logado** — a rota `POST /api/simulator/matches/:id/report` já é `authRequired`; guest (F5) **não** reporta. Rate-limit por `reporterId` (ex. 5/h). A UI ganha um campo "o que aconteceu?" e mostra o `shortCode` pro jogador acompanhar.
 
 ### 5.2 Agente de triagem
 
-Disparado por um cron / worker ao ver `status: "new"` (ou manualmente `pnpm gundam:triage BUG-XXXX`):
+Disparado pelo GitHub Actions `bug-autofix.yml` (§10.1) ao receber o `repository_dispatch`, ou manualmente `pnpm gundam:triage BUG-XXXX`:
 
 1. Carrega `gameState` num `createGame`-equivalente de hidratação (`hydrateMatch(json)` — precisa existir; hoje o servidor já reidrata de `SimulatorMatch.state`).
 2. Reexecuta `lastAction`. Compara com o que o jogador esperou (do `note` + heurística).
@@ -277,10 +277,42 @@ Cada fase entra em `dev` por conta própria, com testes. Fase 1 destrava o resto
 
 ---
 
-## 10. Decisões ainda em aberto
+## 10. Decisões (fechadas com o Willen — 2026-09-05)
 
-1. **Bug report é público ou só logado?** Convidado (guest da F5) pode reportar? (sugiro: sim, com rate-limit mais apertado)
-2. **Onde roda o worker de triagem/fix?** GitHub Actions (por evento de webhook do report) · cron no servidor · Claude Code agendado (`/schedule`). Cada um tem trade-off de latência/custo/observabilidade.
-3. **Bot no servidor: tick síncrono no `matchStore` ou job separado?** (síncrono é mais simples; job separado escala melhor se muitos treinos simultâneos)
-4. **`@modelcontextprotocol/sdk` como dep** — ok adicionar? (é o caminho padrão; alternativa é implementar o protocolo à mão, não recomendo)
-5. **Snapshot dos golden-masters no repo** — pode inflar o git. Alternativa: hash do estado final em vez do estado inteiro. (sugiro hash + um punhado de estados completos "canônicos")
+| # | Pergunta | Decisão |
+|---|---|---|
+| 1 | Quem pode reportar bug | **Só usuário logado.** Sem report de guest. Rate-limit por usuário (ex. 5/h). |
+| 2 | Onde roda o worker de triagem/fix | **GitHub Actions** disparado por `repository_dispatch` — ver §10.1. É o destino natural (os PRs nascem lá, secrets/logs resolvidos, não carrega o servidor de prod). Zero retrabalho depois. |
+| 3 | Bot no servidor | **Job separado** — não é tick síncrono no `matchStore`. Ver §10.2. |
+| 4 | `@modelcontextprotocol/sdk` como dep | **Sim, adicionar.** |
+| 5 | Golden-masters no repo | **Hash do estado final** (SHA-256 do `GameState` normalizado) + **poucos estados completos "canônicos"** versionados (2–3 partidas de referência por wave, estado inteiro, pra debug). |
+
+### 10.1 Worker de triagem/fix — GitHub Actions
+
+```
+Jogador reporta  ─►  server persiste SimulatorBugReport  ─►  server dispara
+                                                              repository_dispatch
+                                                              { event_type: "bug-report",
+                                                                client_payload: { shortCode } }
+                                                                       │
+                                                                       ▼
+   .github/workflows/bug-autofix.yml  (runner efêmero, ANTHROPIC_API_KEY + GITHUB_TOKEN em secrets)
+     1. checkout dev
+     2. `pnpm gundam:triage $shortCode`  → busca o report na API, hidrata, escreve repro/BUG-XXXX.test.ts,
+        classifica RÁPIDO | COMPLEXO (Claude Agent SDK headless, escopo restrito de arquivos)
+     3. RÁPIDO   → `pnpm gundam:fix $shortCode` → TDD, suíte + golden + fuzz-curto verdes → abre PR pra dev
+                   → auto-merge se CI verde (label `autofix:rapido`)  → atualiza status do report
+        COMPLEXO → abre PR DRAFT com o plano + o repro test, label `autofix:complexo needs-approval`,
+                   comenta no report, PARA (Willen revisa e mergeia)
+```
+
+O servidor de prod só faz: `INSERT SimulatorBugReport` + 1 chamada `POST /repos/.../dispatches`. Nada de agente rodando junto do web server.
+
+Fallback manual: `pnpm gundam:triage BUG-XXXX` / `pnpm gundam:fix BUG-XXXX` rodam localmente igual, sem depender do Actions.
+
+### 10.2 Bot como job separado
+
+- **Serviço próprio** `services/sim-bot/` (mesmo repo, deploy separado — Railway service dedicado). Consome uma fila leve (tabela `SimulatorBotTurn` com `status`, ou Redis se já houver) de "é o turno do bot na partida X".
+- O `matchStore` só **enfileira** quando o estado passa a ter `activePlayer` == assento de bot; o serviço `sim-bot` puxa, calcula as ações via `heuristicPolicy` (ou MCTS/LLM), e as aplica pela mesma API autoritativa de ação (`POST /api/simulator/matches/:id/actions`) autenticado como uma conta de serviço.
+- Vantagem: escala independente do web server; o mesmo serviço serve o `sim_selfplay` do MCP e o QA da Fase 5; um bot lento (LLM/MCTS) não trava o event loop do servidor de partidas.
+- Começa simples: 1 worker, polling a cada ~1s. Fila em Postgres (sem infra nova). Migra pra Redis/BullMQ só se a latência apertar.
