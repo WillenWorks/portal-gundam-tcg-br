@@ -1,3 +1,10 @@
+# Planejamento — Pós-v1.0
+
+> Cópia portátil (pra abrir de qualquer ambiente/máquina sem navegar pasta
+> por pasta) do épico canônico em
+> [`.planning/epics/pos-v1-traducao-e-st03-st04.md`](.planning/epics/pos-v1-traducao-e-st03-st04.md).
+> Atualize os dois juntos — este arquivo existe só por conveniência de acesso.
+
 # Epic: Pós-v1.0 — Tradução de textos de carta + ST03/ST04 no Simulador
 
 **Created**: 2026-09-04
