@@ -188,7 +188,9 @@ const CHAR_AZNABLE: CardDef = {
   nameEn: "Char Aznable",
   cardType: "PILOT",
   color: "green",
-  level: 4,
+  // Lv.3 na carta base (a variante SP/alt-art de apitcg diz Lv.4 e foi pega por
+  // engano na 1a extracao — 4 de 5 registros dizem Lv.3). Auditado 2026-09-05.
+  level: 3,
   cost: 1,
   ap: 1,
   hp: 1,
