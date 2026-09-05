@@ -25,9 +25,15 @@
 import { useEffect, useRef } from "react";
 
 const HAND_FOOTER_FACTOR = 1.75; // ArenaPlaymat.tsx: min-h-[calc(var(--card-w)*1.75)]
-const DEFAULT_MIN_PX = 44; // piso de sanidade — nunca ilegível
+// Frente 4 (docs/38 §2.1) — piso elevado de 44px (2.75rem) para 64px (4rem):
+// com 44px a carta escalava pra `--card-w-std` ≈ 27px e os botões de ação de
+// canto ficavam abaixo do alvo de toque, um em cima do outro (Feedback.pdf
+// §1). 64px garante `--card-w-std` ≈ 40px e o cluster de ações com separação
+// tátil. O `overflow-hidden` do canvas absorve o excesso em telas minúsculas
+// (nunca vira scroll de página).
+const DEFAULT_MIN_PX = 64; // piso confortável — cartas legíveis, botões táteis
 const DEFAULT_MAX_PX = 320; // teto de sanidade — nunca descontrolado num caso degenerado
-const DEFAULT_INITIAL_PX = 56; // 3.5rem @16px — só o chute inicial antes da 1ª medição real
+const DEFAULT_INITIAL_PX = 64; // 4rem @16px — só o chute inicial antes da 1ª medição real
 
 export interface ArenaScaleResult {
   /** `--card-w` calculado, em px — `null` até a 1ª medição real acontecer. */

@@ -40,11 +40,12 @@ function makeEl(getRect: () => DOMRect): HTMLDivElement {
  * resize real) mediria um grupo com tamanho FIXO — quebra a suposição de
  * linearidade que o hook depende pra convergir, e não é como o navegador
  * de verdade se comporta. */
-function makeScalingGroup(container: HTMLDivElement, widthAt56: number, heightAt56: number): HTMLDivElement {
+function makeScalingGroup(container: HTMLDivElement, widthAtRef: number, heightAtRef: number): HTMLDivElement {
+  const REF = 64; // DEFAULT_INITIAL_PX do hook (Frente 4, docs/38 — era 56)
   return makeEl(() => {
-    const current = parseFloat(container.style.getPropertyValue("--card-w")) || 56;
-    const scale = current / 56;
-    return rect(widthAt56 * scale, heightAt56 * scale);
+    const current = parseFloat(container.style.getPropertyValue("--card-w")) || REF;
+    const scale = current / REF;
+    return rect(widthAtRef * scale, heightAtRef * scale);
   });
 }
 
@@ -62,24 +63,24 @@ afterEach(() => {
 });
 
 describe("useArenaScale", () => {
-  it("aplica o piso inicial (56px) antes da 1ª medição real", () => {
+  it("aplica o piso inicial (64px) antes da 1ª medição real", () => {
     const container = makeEl(() => rect(0, 0));
     const group = makeEl(() => rect(0, 0));
     renderHook(() => useArenaScale({ current: container }, { current: group }));
-    expect(container.style.getPropertyValue("--card-w")).toBe("56px");
+    expect(container.style.getPropertyValue("--card-w")).toBe("64px");
   });
 
   it("calcula --card-w pela largura quando ela é o fator limitante", () => {
     const container = makeEl(() => rect(700, 1000)); // caixa larga e alta — largura limita
-    // grupo medido na referência (56px) ocupa 400px de largura, 200px de altura.
+    // grupo medido na referência (64px) ocupa 400px de largura, 200px de altura.
     const group = makeScalingGroup(container, 400, 200);
     renderHook(() => useArenaScale({ current: container }, { current: group }));
     triggerResize(); // 2ª medição (resize real) — deve CONVERGIR no mesmo valor, não divergir.
 
-    // largura: 700 / (400/56) = 98px. altura: 1000 / (2*(200/56) + 1.75) ≈ 1000/8.893 ≈ 112.4px.
-    // menor dos dois = largura (98px).
+    // largura: 700 / (400/64) = 112px. altura: 1000 / (2*(200/64) + 1.75) = 1000/8 = 125px.
+    // menor dos dois = largura (112px).
     const applied = parseFloat(container.style.getPropertyValue("--card-w"));
-    expect(applied).toBeCloseTo(98, 0);
+    expect(applied).toBeCloseTo(112, 0);
   });
 
   it("calcula --card-w pela altura quando ela é o fator limitante", () => {
@@ -88,9 +89,9 @@ describe("useArenaScale", () => {
     renderHook(() => useArenaScale({ current: container }, { current: group }));
     triggerResize();
 
-    // altura: 300 / (2*(200/56) + 1.75) ≈ 300/8.893 ≈ 33.7px — abaixo do piso (44px), então clampa no piso.
+    // altura: 300 / (2*(200/64) + 1.75) = 300/8 = 37.5px — abaixo do piso (64px), então clampa no piso.
     const applied = parseFloat(container.style.getPropertyValue("--card-w"));
-    expect(applied).toBe(44);
+    expect(applied).toBe(64);
   });
 
   it("nunca ultrapassa o teto de sanidade num caso degenerado", () => {
@@ -109,6 +110,6 @@ describe("useArenaScale", () => {
     renderHook(() => useArenaScale({ current: container }, { current: group }, { onScale }));
     triggerResize();
 
-    expect(onScale).toHaveBeenCalledWith(expect.closeTo(98, 0));
+    expect(onScale).toHaveBeenCalledWith(expect.closeTo(112, 0));
   });
 });

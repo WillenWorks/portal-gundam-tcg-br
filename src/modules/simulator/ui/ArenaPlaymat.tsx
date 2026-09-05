@@ -174,7 +174,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
       {/* ── Rodapé: mão ancorada (fora da inclinação, pra leitura). Altura
           mínima reservada (Sprint 6 · P3) pra a mão não encolher junto com o
           canvas a ponto de cortar a carta. ───────────────────────────────── */}
-      <div className="shrink-0 min-h-[calc(var(--card-w,3.5rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
+      <div className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
         {hand}
       </div>
 

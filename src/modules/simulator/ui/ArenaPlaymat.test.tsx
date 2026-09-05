@@ -57,7 +57,7 @@ describe("ArenaPlaymat", () => {
     // ResizeObserver/getBoundingClientRect mockados) medindo a caixa real.
     // jsdom não faz layout de verdade (getBoundingClientRect sempre 0), então
     // aqui só o piso inicial (antes de qualquer medição real) é observável.
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("56px");
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("64px");
   });
 
   it("V6.2 (docs/33): `expanded` troca aspect-[16/9] por h-full w-full (canvas usa a caixa toda, sem travar 16:9)", () => {
