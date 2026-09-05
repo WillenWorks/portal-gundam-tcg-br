@@ -19,8 +19,9 @@ import {
   specNeedsNamedTarget,
 } from "./effectSpec";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { applyEvents } from "./events";
-import type { GameState, PendingDecision, PlayerId } from "./types";
+import { applyEvents, findCard } from "./events";
+import type { DestroyedInBattle, GameState, PendingDecision, PlayerId } from "./types";
+import { otherPlayer } from "./types";
 
 type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
 
@@ -118,6 +119,83 @@ export function deferOrDispatchAbilities(
       },
     },
   ]);
+}
+
+/**
+ * Compara o estado imediatamente ANTES de aplicar os eventos do Damage Step
+ * com o de DEPOIS e devolve as Units que saíram da Battle Area pro trash neste
+ * passo (mortes de batalha, `pairedPilotFollowEvents`, Breach letal,
+ * combatTrigger letal). `wasPaired` vem do snapshot de antes — depois do
+ * `DESTROY_CARD` a Unit já perdeu `pairedPilotId`. Units devolvidas pra
+ * mão/deck (não pro trash) NÃO contam como destruídas.
+ */
+export function collectDestroyedInBattle(before: GameState, after: GameState): DestroyedInBattle[] {
+  const out: DestroyedInBattle[] = [];
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const stillInPlay = new Set(after.players[pid].battleArea.map((c) => c.instanceId));
+    const inTrashNow = new Set(after.players[pid].trash.map((c) => c.instanceId));
+    for (const card of before.players[pid].battleArea) {
+      if (stillInPlay.has(card.instanceId)) continue;
+      if (!inTrashNow.has(card.instanceId)) continue;
+      out.push({ instanceId: card.instanceId, owner: pid, wasPaired: !!card.pairedPilotId });
+    }
+  }
+  return out;
+}
+
+/**
+ * Dispara 【Destroyed】 das Units destruídas num Damage Step (docs/44). Chamado
+ * UMA vez por batalha (ver `actions.ts`), sempre DEPOIS do dano/Breach e da
+ * fila de 【Burst】 — Comprehensive Rules: 【Burst】 e 【Destroyed】 do mesmo evento
+ * são simultâneos e o jogador ativo os ordena; fixamos 【Burst】→【Destroyed】
+ * (decisão documentada, evita interleave de duas pausas).
+ *
+ * - 【During Pair】【Destroyed】 (`spec.duringPair`): só dispara se `wasPaired`.
+ * - Sem pausa (ST04-009 Miguel's Ginn — `condition` + `draw`): resolve inline
+ *   via `dispatchTrigger`.
+ * - Com pausa (ST03-006 Char's Zaku Ⅱ — `lookAtTopFilterReveal`, `optional`):
+ *   vira `PendingDecision.abilityResolution` com `deckTopReveal` pro dono,
+ *   resolvida antes do Battle End Step (ver `resolveAbility` em `actions.ts`).
+ *
+ * Ordem: Units do jogador ativo primeiro. Se os DOIS lados têm 【Destroyed】 que
+ * pausa no mesmo step (extremamente raro — exige 2 Char's Zaku Ⅱ mortas num
+ * AoE, uma de cada lado), só o do jogador ativo vira decisão nesta versão (o
+ * motor não suporta 2 `pendingDecision` simultâneos — deadlock em `actions.ts`).
+ */
+export function dispatchDestroyedTriggers(
+  state: GameState,
+  destroyed: DestroyedInBattle[],
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  const active = state.activePlayer;
+  const ordered = [...destroyed].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
+
+  let next = state;
+  const interactiveByOwner: Record<PlayerId, AbilitySource[]> = { A: [], B: [] };
+
+  for (const d of ordered) {
+    const card = findCard(next, d.instanceId);
+    const triggerSpecs = findTriggerSpecs(specs, card.def.code, "Destroyed").filter(
+      (s) => !((s.duringPair ?? false) && !d.wasPaired),
+    );
+    if (triggerSpecs.length === 0) continue;
+
+    const interactive = triggerSpecs.filter(
+      (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
+    );
+    for (const spec of triggerSpecs.filter((s) => !interactive.includes(s))) {
+      next = dispatchTrigger(next, d.instanceId, "Destroyed", [spec], { predicateResolver: opts.predicateResolver });
+    }
+    if (interactive.length > 0) interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId });
+  }
+
+  for (const owner of [active, otherPlayer(active)] as PlayerId[]) {
+    if (interactiveByOwner[owner].length === 0) continue;
+    if (next.pendingDecision.A || next.pendingDecision.B) break;
+    next = deferOrDispatchAbilities(next, owner, "Destroyed", interactiveByOwner[owner], specs, opts);
+  }
+  return next;
 }
 
 /**

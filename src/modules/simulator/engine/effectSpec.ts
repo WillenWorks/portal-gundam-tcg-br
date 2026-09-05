@@ -427,6 +427,13 @@ export interface EffectSpec {
    */
   optional?: boolean;
   /**
+   * `true` quando o texto oficial prefixa o gatilho com 【During Pair】 (ex.
+   * ST04-009 Miguel's Ginn 【During Pair】【Destroyed】) — quem despacha só ativa
+   * o efeito se a Unit fonte estava PAREADA no momento do gatilho. Hoje só
+   * consultado por `dispatchDestroyedTriggers` (via `DestroyedInBattle.wasPaired`).
+   */
+  duringPair?: boolean;
+  /**
    * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
    * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
    */

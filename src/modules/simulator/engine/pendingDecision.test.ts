@@ -414,9 +414,9 @@ describe("abilityResolution — deployFromHandTriggered (ST03-010 Full Frontal �
 });
 
 describe("abilityResolution — lookAtTopFilterReveal (ST03-006 Char's Zaku Ⅱ 【Destroyed】)", () => {
-  // 【Destroyed】 ainda não é despachado pelo motor de combate (nenhum ponto de
-  // destruição chama `deferOrDispatchAbilities` — ver dispatcher.ts); aqui
-  // exercita-se a CAMADA DE DECISÃO diretamente, que é o alvo desta tarefa.
+  // A CAMADA DE DECISÃO, exercitada diretamente via `deferOrDispatchAbilities`.
+  // O wiring com o motor de combate (destruição em batalha -> este pause) é
+  // testado em `destroyedTrigger.test.ts` (docs/44).
   function destroyedZaku() {
     const state = advanceToMainPhase(createGame(buildSt03DeckList(), buildSt03DeckList(), { seed: 7, firstPlayer: "A" }));
     const zakuId = place(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "trash");

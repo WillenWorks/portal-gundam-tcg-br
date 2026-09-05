@@ -414,6 +414,18 @@ export type AttackTarget = "player" | { unitId: string };
  * relógio; o `viewState` repassa pros dois lados (o oponente vê que há uma
  * decisão pendente, mas o conteúdo só embute `instanceId`/carta já pública).
  */
+/**
+ * Uma Unit que saiu da Battle Area pro trash durante um Damage Step (morte de
+ * batalha, Breach letal, combatTrigger letal). `wasPaired` é capturado ANTES do
+ * `DESTROY_CARD` (a Unit perde `pairedPilotId` ao ir pro trash) — habilita o
+ * gate 【During Pair】【Destroyed】 (ST04-009 Miguel's Ginn).
+ */
+export interface DestroyedInBattle {
+  instanceId: string;
+  owner: PlayerId;
+  wasPaired: boolean;
+}
+
 export type PendingDecision =
   | {
       kind: "burst";
@@ -424,6 +436,15 @@ export type PendingDecision =
       choices: string[];
       /** outras shields quebradas no MESMO Damage Step, ainda por decidir (fila FIFO) — resolvida uma por vez */
       queuedInstanceIds: string[];
+      /**
+       * 【Destroyed】 das Units destruídas no MESMO Damage Step (docs/44). O
+       * 【Burst】 resolve primeiro (fila FIFO acima); quando ela esvazia,
+       * `resolveBurstDecision` dispara estes 【Destroyed】 antes do Battle End
+       * Step (Comprehensive Rules — 【Burst】 e 【Destroyed】 são simultâneos; o
+       * jogador ativo ordena — aqui fixamos 【Burst】→【Destroyed】). Ver
+       * `collectDestroyedInBattle`/`dispatchDestroyedTriggers`.
+       */
+      pendingDestroyed?: DestroyedInBattle[];
     }
   | {
       kind: "triggerOrder";
