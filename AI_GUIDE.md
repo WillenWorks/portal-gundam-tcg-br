@@ -131,10 +131,10 @@ claude
 ## 6. Checklists de Execução Atômica
 
 ### Frente 1: Plataforma & Feedback Pontual (Branch: `dev`)
-- [ ] Criar gráfico de Curva de Nível de Units no Deckbuilder / DeckDetailPage.
-- [ ] Adicionar estatística de nível na aba de Mão Inicial.
-- [ ] Mover a seleção de Capa e Estilo Visual do Deck para próximo da barra de salvamento / topo da edição.
-- [ ] Commit: `feat(deckbuilder): level curve stats and visual style position`
+- [x] Criar gráfico de Curva de Nível de Units no Deckbuilder (`DeckbuilderPage.tsx`, aba Estatísticas, "Gráfico 04").
+- [x] Adicionar estatística de nível na aba de Mão Inicial (tile "Unit de nível baixo na abertura", Lv.1–3 hipergeométrico).
+- [x] Mover a seleção de Capa e Estilo Visual do Deck para próximo da barra de salvamento / topo da edição.
+- [x] Commit: `feat(deckbuilder): level curve stats and visual style position`
 
 ### Frente 2: Pipeline de Tradução PT-BR (Branch: `dev`)
 - [ ] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais.

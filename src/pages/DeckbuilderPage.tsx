@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
+import { OPENING_HAND_SIZE, buildLevelCurve, hypergeometricAtLeastOne, lowLevelUnitStats } from "@/lib/deck-level-stats";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -56,20 +57,6 @@ function extractKeywordValue(effect: string, name: string): number | null {
 // seja, é um segundo sorteio independente da mesma população de N cartas, não um
 // redesenho parcial. P(pelo menos 1 sucesso) = 1 - P(0 sucessos), calculado direto por
 // produto de razões em vez de fatorial/combinação pra não estourar precisão com N até 50.
-const OPENING_HAND_SIZE = 5;
-function hypergeometricAtLeastOne(populationSize: number, successCount: number, drawSize: number): number {
-  if (populationSize <= 0 || successCount <= 0 || drawSize <= 0) return 0;
-  if (successCount >= populationSize) return 1;
-  const draws = Math.min(drawSize, populationSize);
-  let probabilityOfZero = 1;
-  for (let i = 0; i < draws; i++) {
-    const remainingFailures = populationSize - successCount - i;
-    if (remainingFailures < 0) return 1;
-    probabilityOfZero *= remainingFailures / (populationSize - i);
-  }
-  return 1 - probabilityOfZero;
-}
-
 function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expandedAll = entries
     .map((entry) => {
@@ -858,6 +845,10 @@ export default function DeckbuilderPage() {
     unitRows.forEach((row) => { if (typeof row.hp === "number") map.set(row.hp, (map.get(row.hp) ?? 0) + row.quantity); });
     return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([hp, quantity]) => ({ hp: String(hp), quantity }));
   }, [unitRows]);
+  // Curva de nível das Units (docs/38 §5) -- espelha a Curva de custo, mas em Lv. com 6+ agrupado.
+  const levelData = useMemo(() => buildLevelCurve(unitRows), [unitRows]);
+  // Chance de abrir com pelo menos 1 Unit de nível baixo (Lv.1-3) -- abertura sólida no turno 1.
+  const lowLevelStats = useMemo(() => lowLevelUnitStats(unitRows, stats.mainDeckCount), [unitRows, stats.mainDeckCount]);
   const topTraits = useMemo(() => Object.entries(stats.traitMap).sort((a, b) => b[1] - a[1]).slice(0, 3), [stats.traitMap]);
   const poolActiveFilters = useMemo(() => Object.values(poolFilters).filter(Boolean).length, [poolFilters]);
 
@@ -1420,6 +1411,52 @@ export default function DeckbuilderPage() {
           </CardContent>
         </Card>
 
+        {/* Estilo visual — logo abaixo da barra de salvamento (docs/38 §5): é configuração
+            do deck, fica perto de nome/Salvar. Recolhido por padrão pra não competir com a
+            decklist. Capa = as cartas escolhidas, divididas ao meio (ver FeaturedCoverImage). */}
+        <details className="panel-cut border surface-strong open:pb-5">
+          <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
+          <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
+            <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
+              <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
+                <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
+              </div>
+              {featuredCardIds.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {featuredCardIds.map((id) => {
+                    const card = featuredCardDetails[id];
+                    if (!card) return null;
+                    return (
+                      <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
+                        {card.name} <span className="text-primary">✕</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
+              <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
+                {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
+                {featuredResults.map((card) => {
+                  const active = featuredCardIds.includes(card.id);
+                  const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
+                  return (
+                    <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
+                      <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
+                      <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </details>
+
         {/* Abas — Montar é o padrão (pool + decklist), Estatísticas junta diagnóstico/arquétipo/recomendações/gráficos */}
         <div className="flex gap-2 border-b border-white/10">
           {([["montar", "Montar"], ["estatisticas", "Estatísticas"]] as const).map(([key, label]) => (
@@ -1551,52 +1588,6 @@ export default function DeckbuilderPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Estilo visual — opcional, recolhido por padrão pra não competir com a decklist.
-              Capa = as próprias cartas escolhidas, divididas ao meio (sem processar imagem,
-              não temos arte sem moldura/SAMPLE na base — ver FeaturedCoverImage). */}
-          <details className="panel-cut border surface-strong open:pb-5">
-            <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
-            <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
-              <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
-                <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
-                  <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
-                </div>
-                {featuredCardIds.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {featuredCardIds.map((id) => {
-                      const card = featuredCardDetails[id];
-                      if (!card) return null;
-                      return (
-                        <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
-                          {card.name} <span className="text-primary">✕</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
-                <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                  {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
-                  {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
-                  {featuredResults.map((card) => {
-                    const active = featuredCardIds.includes(card.id);
-                    const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
-                    return (
-                      <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
-                        <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
-                        <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </details>
         </div>
         </div>
         ) : (
@@ -1818,7 +1809,7 @@ export default function DeckbuilderPage() {
                 <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}><Eye className="mr-2 size-4" />Simular abertura</Button>
               </div>
               {stats.mainDeckCount > 0 ? (
-                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)</p>
                     <p className="mt-2 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}</p>
@@ -1829,10 +1820,15 @@ export default function DeckbuilderPage() {
                     <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%</p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.</p>
                   </div>
+                  <div className="panel-cut border border-accent/30 bg-accent/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit de nível baixo na abertura</p>
+                    <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(lowLevelStats.openingHand * 100)}%</p>
+                    <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 Unit Lv.1–3 ({lowLevelStats.lowLevelUnitCount} na lista), em 5 compradas.</p>
+                  </div>
                   <div className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan</p>
                     <p className="mt-2 text-lg heading-portal">{Math.round(handOdds.withMulligan * 100)}%</p>
-                    <p className="mt-2 text-sm text-muted-portal">Contando a chance de acertar na mão original ou na redistribuída.</p>
+                    <p className="mt-2 text-sm text-muted-portal">Custo baixo, contando a mão original ou a redistribuída.</p>
                   </div>
                 </div>
               ) : (
@@ -1892,6 +1888,24 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 04</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de nível<InfoHint text="Distribuição das Units do deck principal por Lv. (Lv.6 e acima somam na faixa 6+). Clique numa barra pra ver as cartas daquele nível." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={levelData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="level" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Nível", entry.level, (row) => row.type === "UNIT" && (entry.level === "6+" ? Number(row.level) >= 6 : String(row.level) === entry.level))} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
                 <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de AP<InfoHint text="AP (poder de ataque) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele AP." /></h3>
                 <div className="mt-6 h-[220px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
@@ -1909,7 +1923,7 @@ export default function DeckbuilderPage() {
 
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 06</p>
                 <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de HP<InfoHint text="HP (pontos de vida) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele HP." /></h3>
                 <div className="mt-6 h-[220px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
