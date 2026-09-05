@@ -12,7 +12,7 @@
 import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
-import { effectiveAp, effectiveHp, hasKeyword } from "@/modules/simulator/engine/types";
+import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
@@ -90,6 +90,10 @@ export function BattleSlot({
   const hpRemaining = Math.max(0, effectiveHp(unit, state, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
+  // Frente 4 (feedback Willen 3ª rodada): a Unit ganha só um selo curto "LINK"
+  // (sem números — o modificador já está no AP/HP final acima e no chip do
+  // piloto). Antes o "+2/+1 LINK" na tira do piloto truncava.
+  const isLinkUnit = Boolean(pilot) && satisfiesLinkCondition(effectivePilotDef(pilot!), unit.def);
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
@@ -184,6 +188,17 @@ export function BattleSlot({
           dimmed={unit.rested}
           backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
         >
+          {/* Frente 4 (feedback Willen 3ª rodada): selo curto "LINK" no topo da
+              arte quando é Link Unit — sem números (o AP/HP final já reflete o
+              buff). */}
+          {isLinkUnit ? (
+            <span
+              className="absolute left-0 top-0 z-10 rounded-br-arena bg-amber-400 px-1 text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.14),0.8125rem)] font-black uppercase leading-tight tracking-wider text-black shadow-[0_0_6px_rgba(251,191,36,0.6)]"
+              aria-label="Link Unit"
+            >
+              Link
+            </span>
+          ) : null}
           {/* AP / HP efetivos — badges de canto (V6.3: sempre no rodapé da
               arte agora — o Piloto não overlay mais em cima delas). */}
           {/* Frente 4 (feedback Willen 2ª rodada): badges escalam com

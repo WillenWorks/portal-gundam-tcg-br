@@ -124,6 +124,25 @@ describe("BattleSlot", () => {
     expect(onInspect).not.toHaveBeenCalled();
   });
 
+  it("Frente 4 (feedback Willen 3ª rodada): Link Unit ganha selo curto 'LINK' (sem números) e o chip do piloto NÃO tem mais 'Link'", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Amuro"] } }, { pairedPilotId: "p-amuro" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p-amuro" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    // selo na arte da Unit
+    expect(screen.getByLabelText("Link Unit")).toHaveTextContent(/^Link$/i);
+    // o chip do piloto (DockedPilot) mostra o modificador, mas SEM a palavra "Link"
+    const pilotChip = screen.getByRole("button", { name: /Amuro Ray/ });
+    expect(pilotChip.textContent).toMatch(/\+2\/\+1/);
+    expect(pilotChip.textContent).not.toMatch(/Link/i);
+  });
+
+  it("Frente 4: Unit pareada mas SEM link não tem selo 'LINK'", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Char"] } }, { pairedPilotId: "p" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    expect(screen.queryByLabelText("Link Unit")).toBeNull();
+  });
+
   it("sem badge 'BLK' na arte (blocker se mostra pelo botão de escudo)", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
     expect(screen.queryByText("Blk")).toBeNull();
