@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import crypto from "node:crypto";
+import { createServer } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
@@ -40,6 +41,7 @@ import {
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
 import type { GameState } from "../src/modules/simulator/engine/types.ts";
+import { attachSimulatorSocket } from "./simulatorSocket.ts";
 
 const prisma = new PrismaClient();
 
@@ -3490,8 +3492,16 @@ async function boot() {
     // fora do ar (nenhum request chegava a receber resposta) sem nenhum sinal claro do motivo.
     console.error("Aviso: ensureAdminSeed falhou, API vai subir mesmo assim.", error);
   }
-  app.listen(PORT, () => {
-    console.log(`API pronta em http://localhost:${PORT}`);
+  // Socket.io do simulador (Frente 5 / docs/39) — no MESMO HTTP server do Express,
+  // ao lado do SSE que continua funcionando. Contrato de eventos: docs/39 §2.2.
+  const httpServer = createServer(app);
+  attachSimulatorSocket(httpServer, {
+    jwtSecret: JWT_SECRET,
+    allowedOrigins,
+    resolveDeck: resolveDeckKey,
+  });
+  httpServer.listen(PORT, () => {
+    console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);
   });
 }
 
