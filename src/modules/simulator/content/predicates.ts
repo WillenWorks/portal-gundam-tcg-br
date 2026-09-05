@@ -28,6 +28,13 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (cardInTrashNamed) {
     return ctx.state.players[ctx.controller].trash.some((c) => c.def.nameEn.includes(cardInTrashNamed[1]));
   }
+  // Escolha externa binária (mesmo espírito de "named target", mas pra um branch
+  // if/else em vez de um alvo) — ex. ST04-012 Striker Pack 【Main】: Sword ou
+  // Launcher. `ctx.targets[<key>][0]` guarda o valor escolhido.
+  const namedChoice = predicate.match(/^namedChoiceEquals:([^:]+):(.+)$/);
+  if (namedChoice) {
+    return ctx.targets[namedChoice[1]]?.[0] === namedChoice[2];
+  }
   // ST04-006 Aegis Gundam — 【Attack】"If this Unit has 5 or more AP, ...".
   const selfApAtLeast = predicate.match(/^selfApAtLeast:(\d+)$/);
   if (selfApAtLeast) {
@@ -38,6 +45,20 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (predicate === "controllerHasOtherLinkUnit") {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.some((u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && isPairedLinkUnit(ctx.state, u));
+  }
+  // ST03-011 Char Aznable — 【Attack】"if it is a Link Unit" — a fonte é o Pilot,
+  // "this Unit" é a Unit pareada com ele.
+  if (predicate === "sourcePairedUnitIsLinkUnit") {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    if (source.def.cardType === "UNIT") return isPairedLinkUnit(ctx.state, source);
+    if (!source.pairedUnitId) return false;
+    return isPairedLinkUnit(ctx.state, findCard(ctx.state, source.pairedUnitId));
+  }
+  // ST04-012 Striker Pack — "If you have no (X) Unit tokens in play, ...".
+  const noTokenWithTrait = predicate.match(/^noControllerUnitTokenWithTrait:(.+)$/);
+  if (noTokenWithTrait) {
+    const owner = ctx.state.players[ctx.controller];
+    return !owner.battleArea.some((c) => c.def.isToken && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(noTokenWithTrait[1]));
   }
   // ST04-001 Aile Strike Gundam — 【When Paired･Lv.4 or Higher Pilot】.
   const pairedPilotLevelAtLeast = predicate.match(/^pairedPilotLevelAtLeast:(\d+)$/);
@@ -84,6 +105,10 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // ST03-015 Rewloola — "enemy Unit with 5 or less AP".
   const apAtMost = filter.match(/^ap<=(\d+)$/);
   if (apAtMost) return effectiveAp(candidate, ctx.state) <= Number(apAtMost[1]);
+
+  // ST04-015 Archangel — "friendly Unit with <Blocker>".
+  const hasKw = filter.match(/^hasKeyword:(.+)$/);
+  if (hasKw) return (candidate.def.effectKeywords ?? []).includes(hasKw[1]) || candidate.keywordGrants.some((g) => g.keyword === hasKw[1]);
 
   if (filter === "rested") return candidate.rested;
 

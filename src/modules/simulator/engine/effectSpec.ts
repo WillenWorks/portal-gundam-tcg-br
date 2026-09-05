@@ -33,6 +33,10 @@ function resolvePlayerRef(ref: PlayerRef, controller: PlayerId): PlayerId {
 
 export type TargetRef =
   | { kind: "self" }
+  /** a Unit pareada com a fonte — se a fonte JÁ é Unit, é ela mesma; se é Pilot,
+   *  é `pairedUnitId`. Usado por efeito de Pilot cujo texto diz "this Unit"
+   *  (ex. ST03-011 Char Aznable 【Attack】). Lança se a fonte é Pilot sem par. */
+  | { kind: "pairedUnit" }
   | { kind: "instance"; instanceId: string }
   /** grupo de alvo nomeado, resolvido antes pelo seletor de UI/IA e colocado em EffectContext.targets — sempre usa só group[0], mesmo que o array tenha mais de 1 entrada (ver docs/18, escopo do seletor de UI). */
   | { kind: "named"; name: string }
@@ -65,11 +69,17 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     .map((u) => u.instanceId);
 }
 
-/** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "instance", "named"). */
+/** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "pairedUnit", "instance", "named"). */
 function resolveTarget(ref: Exclude<TargetRef, { kind: "group" }>, ctx: EffectContext): string {
   switch (ref.kind) {
     case "self":
       return ctx.sourceInstanceId;
+    case "pairedUnit": {
+      const source = findCard(ctx.state, ctx.sourceInstanceId);
+      if (source.def.cardType === "UNIT") return ctx.sourceInstanceId;
+      if (source.pairedUnitId) return source.pairedUnitId;
+      throw new Error("Alvo \"pairedUnit\": a fonte não é Unit e não tem Unit pareada");
+    }
     case "instance":
       return ref.instanceId;
     case "named": {
@@ -91,6 +101,10 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
 export type PrimitiveCall =
   | { op: "draw"; player: PlayerRef; n: number }
   | { op: "discard"; player: PlayerRef; instanceIds: string[] }
+  /** "discard N" onde a(s) carta(s) são escolha do jogador — lê `ctx.targets[name]`
+   *  (mesmo padrão de alvo nomeado). Ex.: ST04-002 Strike Gundam "Draw 1. Then,
+   *  discard 1." No-op se nada foi escolhido (o dispatcher pausa pra escolha). */
+  | { op: "discardNamed"; player: PlayerRef; name: string; n: number }
   | { op: "damageShield"; player: PlayerRef; count: number }
   | { op: "destroy"; target: TargetRef }
   | { op: "moveZone"; target: TargetRef; toZone: Zone }
@@ -203,6 +217,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "discard": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       return [{ type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: call.instanceIds }];
+    }
+    case "discardNamed": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = (ctx.targets[call.name] ?? []).slice(0, call.n);
+      if (chosen.length === 0) return [];
+      return [{ type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: chosen }];
     }
     case "damageShield": {
       const player = resolvePlayerRef(call.player, ctx.controller);
