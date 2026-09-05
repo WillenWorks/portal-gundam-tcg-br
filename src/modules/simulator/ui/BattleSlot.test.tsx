@@ -148,6 +148,16 @@ describe("BattleSlot", () => {
     expect(screen.queryByText("Blk")).toBeNull();
   });
 
+  it("Frente 4 (docs/38 §4): `justDeployed` aplica a animação de pouso/queda na arte", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const cardBox = () => container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox().className).not.toMatch(/sim-anim/);
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} justDeployed="light" />);
+    expect(cardBox().className).toMatch(/sim-anim-land-soft/);
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} justDeployed="heavy" />);
+    expect(cardBox().className).toMatch(/sim-anim-drop-heavy/);
+  });
+
   it("botões de ação são só ícone (não cobrem os números AP/HP)", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onAttack: vi.fn(), onBlocker: vi.fn() }} />);
     expect(screen.getByRole("button", { name: "Atacar" }).textContent).toBe("");

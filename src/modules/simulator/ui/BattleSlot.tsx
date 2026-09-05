@@ -50,6 +50,10 @@ interface BattleSlotProps {
   actions?: BattleSlotActions;
   /** ref-callback pra o CombatLane medir a posição desta Unit (linha de mira). */
   registerRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (docs/38 §4) — Unit recém-jogada da mão: `"light"` (custo 1–3)
+   *  desliza e pousa; `"heavy"` (custo 4–10) cai com peso (impacto + shake).
+   *  Roda 1× na montagem do slot. `motion-reduce` neutraliza (ver index.css). */
+  justDeployed?: "light" | "heavy";
 }
 
 export function BattleSlot({
@@ -67,6 +71,7 @@ export function BattleSlot({
   state,
   actions,
   registerRef,
+  justDeployed,
 }: BattleSlotProps) {
   if (!unit) {
     return (
@@ -177,7 +182,12 @@ export function BattleSlot({
                 }
               : undefined
         }
-        className={cn("relative block aspect-[63/88] w-full", legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
+        className={cn(
+          "relative block aspect-[63/88] w-full",
+          legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
+          justDeployed === "light" && "sim-anim-land-soft",
+          justDeployed === "heavy" && "sim-anim-drop-heavy",
+        )}
       >
         <CardFace
           nameEn={unit.def.nameEn}

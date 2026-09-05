@@ -34,6 +34,7 @@ import {
   type LinkedPilot,
   CombatLane,
   CounterChip,
+  DeckDealAnimation,
   FirstPlayerReveal,
   HandFan,
   PileTray,
@@ -255,7 +256,28 @@ function linkedPilotsFor(unit: CardInstance, pilot: CardInstance | null): Linked
 // Página
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Scenario = "normal" | "burst" | "shuffle";
+type Scenario =
+  | "normal"
+  | "burst"
+  | "first-player"
+  | "shuffle-deck"
+  | "deal-hand"
+  | "mulligan"
+  | "deal-shields"
+  | "deploy-light"
+  | "deploy-heavy";
+
+const SCENARIO_LABEL: Record<Scenario, string> = {
+  normal: "Normal",
+  burst: "Revelação de Burst",
+  "first-player": "Sorteio de iniciativa",
+  "shuffle-deck": "Embaralhar deck (3 cartas)",
+  "deal-hand": "Compra inicial (5 → mão)",
+  mulligan: "Mulligan (volta, embaralha, 5 novas)",
+  "deal-shields": "Montar escudos (6 → shield)",
+  "deploy-light": "Jogar Unit leve (custo 1–3)",
+  "deploy-heavy": "Jogar Unit pesada (custo 4–10)",
+};
 
 export default function SimulatorLayoutPreviewPage() {
   // 2ª trava além do guard de rota em App.tsx — nunca renderiza fora de DEV.
@@ -275,6 +297,18 @@ function LayoutPreview() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [scenario, setScenario] = useState<Scenario>("normal");
   const [replayKey, setReplayKey] = useState(0);
+  // deploy anim: nº de "jogadas" (força o remount do slot) + peso.
+  const [deployTick, setDeployTick] = useState(0);
+  const deployWeight: "light" | "heavy" | null =
+    scenario === "deploy-light" ? "light" : scenario === "deploy-heavy" ? "heavy" : null;
+
+  // ao escolher um cenário de deploy, dispara a animação e volta pra "normal".
+  useEffect(() => {
+    if (!deployWeight) return;
+    setDeployTick((t) => t + 1);
+    const t = setTimeout(() => setScenario("normal"), 700);
+    return () => clearTimeout(t);
+  }, [scenario, deployWeight]);
   const [inspect, setInspect] = useState<CardInstance | null>(null);
   const [inspectLinkedPilots, setInspectLinkedPilots] = useState<LinkedPilot[]>([]);
   const [vw, setVw] = useState(() => (typeof window === "undefined" ? 0 : window.innerWidth));
@@ -364,13 +398,16 @@ function LayoutPreview() {
         <>
           {Array.from({ length: 6 }).map((_, i) => {
             const slot = side.slots[i] ?? null;
+            // cenário de deploy: anima o slot 0 do lado "você" (remonta via `deployTick`).
+            const deployHere = isViewer && i === 0 && deployWeight ? deployWeight : undefined;
             return (
               <BattleSlot
-                key={slot?.unit.instanceId ?? `${pid}-empty-${i}`}
+                key={`${slot?.unit.instanceId ?? `${pid}-empty-${i}`}-${deployHere ? deployTick : 0}`}
                 unit={slot?.unit ?? null}
                 pilot={slot?.pilot ?? null}
                 art={art}
                 state={previewState}
+                justDeployed={deployHere}
                 isAttacker={Boolean(slot && combat?.attackerId === slot.unit.instanceId)}
                 onInspect={(c) =>
                   slot && c.instanceId === slot.unit.instanceId
@@ -467,8 +504,20 @@ function LayoutPreview() {
       {scenario === "burst" ? (
         <BurstModal decision={BURST_DECISION} art={art} onResolve={() => setScenario("normal")} />
       ) : null}
-      {scenario === "shuffle" ? (
+      {scenario === "first-player" ? (
         <FirstPlayerReveal goesFirst onDismiss={() => setScenario("normal")} autoDismissMs={99_999} />
+      ) : null}
+      {scenario === "shuffle-deck" ? (
+        <DeckDealAnimation mode="shuffle" label="Embaralhando o deck…" onDone={() => setScenario("normal")} />
+      ) : null}
+      {scenario === "deal-hand" ? (
+        <DeckDealAnimation mode="deal-hand" label="Comprando a mão inicial…" onDone={() => setScenario("normal")} />
+      ) : null}
+      {scenario === "mulligan" ? (
+        <DeckDealAnimation mode="mulligan" label="Mulligan…" onDone={() => setScenario("normal")} />
+      ) : null}
+      {scenario === "deal-shields" ? (
+        <DeckDealAnimation mode="deal-shields" label="Montando os escudos…" onDone={() => setScenario("normal")} />
       ) : null}
 
       <div className="pointer-events-none fixed bottom-1.5 left-2 z-[70] flex flex-col gap-0.5 text-[10px] uppercase tracking-[0.14em] text-amber-300/80">
@@ -537,25 +586,27 @@ function ControlBar(p: ControlBarProps) {
       </label>
 
       <label className="flex items-center gap-1.5">
-        <span className="text-muted-portal">Cenário</span>
+        <span className="text-muted-portal">Animação / cenário</span>
         <select
           value={p.scenario}
           onChange={(e) => p.onScenario(e.target.value as Scenario)}
           className="rounded-arena border border-white/15 bg-slate-900 px-1.5 py-0.5"
         >
-          <option value="normal">Normal</option>
-          <option value="burst">Revelação de Burst</option>
-          <option value="shuffle">Embaralhamento</option>
+          {(Object.keys(SCENARIO_LABEL) as Scenario[]).map((s) => (
+            <option key={s} value={s}>
+              {SCENARIO_LABEL[s]}
+            </option>
+          ))}
         </select>
       </label>
 
       <button
         type="button"
         onClick={p.onReplayDraw}
-        title="Remonta a mão pra re-disparar a animação de compra de carta"
+        title="Remonta a mão pra re-disparar a animação de compra (slide-in) no HandFan real"
         className="rounded-arena border border-primary/40 px-2 py-0.5 font-semibold text-primary hover:bg-primary/10"
       >
-        ▶ animar compra
+        ▶ re-animar mão
       </button>
     </div>
   );

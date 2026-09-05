@@ -13,8 +13,9 @@ describe("SimulatorLayoutPreviewPage (dev-only)", () => {
     expect(screen.getByText(/F4 · preview/i)).toBeInTheDocument();
     expect(screen.getByText("Seta de ataque (no jogador)")).toBeInTheDocument();
     expect(screen.getByText("Forçar reduced-motion")).toBeInTheDocument();
-    // #4 — botão de replay com rótulo claro
-    expect(screen.getByRole("button", { name: /animar compra/i })).toBeInTheDocument();
+    // botão de replay da mão + seletor de animação/cenário
+    expect(screen.getByRole("button", { name: /re-animar mão/i })).toBeInTheDocument();
+    expect(screen.getByText("Animação / cenário")).toBeInTheDocument();
   });
 
   it("#2 — clicar no corpo da carta abre o inspetor (CardInspectorModal)", () => {
