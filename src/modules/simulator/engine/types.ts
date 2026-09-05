@@ -456,6 +456,28 @@ export type PendingDecision =
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
+        /**
+         * ST03-010 Full Frontal 【When Paired】 — "You may deploy 1 (Neo Zeon)/(Zeon)
+         * Unit card Lv.4 or lower from your hand." O jogador escolhe 1 carta da
+         * própria mão (não uma carta em campo, por isso não é `legalTargets`).
+         * `legalHandIds` é calculado no servidor ao montar a fila (mão do
+         * controller que casa o filtro trait/nível e é Unit); `resolveAbility`
+         * valida contra ele. Presente só quando o spec usa `deployFromHandTriggered`.
+         * A escolha viaja em `resolution.targetIds` (0 ou 1 id) e vira
+         * `ctx.targets.deploy`.
+         */
+        handChoice?: { legalHandIds: string[]; label: string };
+        /**
+         * ST03-006 Char's Zaku Ⅱ 【Destroyed】 — "Look at the top 3 cards of your
+         * deck. You may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it
+         * to your hand. Return the remaining cards randomly to the bottom." O dono
+         * vê todas as `topCards` (instâncias embutidas — a redação de `viewState`
+         * as esvazia pro oponente, já que o topo do deck é oculto); `revealableIds`
+         * é o subconjunto que casa o filtro (revela 1 dessas OU nenhuma). A escolha
+         * viaja em `resolution.targetIds` (0 ou 1 id) e vira `ctx.targets.reveal`.
+         * "Não revelar" ainda dispara o efeito (as N cartas vão pro fundo).
+         */
+        deckTopReveal?: { topCards: CardInstance[]; revealableIds: string[]; count: number; label: string };
       }>;
     }
   | {

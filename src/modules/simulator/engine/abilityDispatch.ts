@@ -9,10 +9,61 @@
  * simultâneos, escolhe o alvo de cada um e ativa/pula os optativos. Os demais
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { computeLegalTargets, specNeedsNamedTarget } from "./effectSpec";
+import {
+  computeLegalTargets,
+  matchesCardDefFilter,
+  peekAndReorderDeck,
+  resolvePlayerRef,
+  specChoicePrimitive,
+  specNeedsChoice,
+  specNeedsNamedTarget,
+} from "./effectSpec";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvents } from "./events";
-import type { GameState, PlayerId } from "./types";
+import type { GameState, PendingDecision, PlayerId } from "./types";
+
+type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
+
+/**
+ * Monta a entrada da fila de `abilityResolution` pra 1 spec interativo. Se o
+ * spec usa `deployFromHandTriggered`/`lookAtTopFilterReveal`, calcula aqui (no
+ * servidor, uma única vez) o conjunto de cartas elegíveis — `resolveAbility`
+ * valida a escolha do cliente contra ele, nunca confia cegamente.
+ */
+function buildQueueEntry(
+  state: GameState,
+  player: PlayerId,
+  spec: EffectSpec,
+  sourceInstanceId: string,
+  targetFilterResolver?: TargetFilterResolver,
+): AbilityQueueEntry {
+  const needsTarget = specNeedsNamedTarget(spec);
+  const entry: AbilityQueueEntry = {
+    sourceInstanceId,
+    specId: spec.id,
+    label: spec.sourceText,
+    optional: spec.optional ?? false,
+    needsTarget,
+    targetScope: spec.targetScope ?? "enemyUnit",
+    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver) : [],
+  };
+
+  const choice = specChoicePrimitive(spec);
+  if (!choice) return entry;
+
+  if (choice.op === "deployFromHandTriggered") {
+    const chooser = resolvePlayerRef(choice.player, player);
+    const legalHandIds = state.players[chooser].hand
+      .filter((c) => c.def.cardType === "UNIT" && matchesCardDefFilter(c.def, choice.filter))
+      .map((c) => c.instanceId);
+    return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
+  }
+
+  const chooser = resolvePlayerRef(choice.player, player);
+  const topCards = peekAndReorderDeck(state, chooser, choice.count);
+  const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+  return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
+}
 
 export interface AbilitySource {
   code: string;
@@ -33,7 +84,9 @@ export function deferOrDispatchAbilities(
   if (entries.length === 0) return state;
 
   const dispatchOpts = { targets: opts.targets, predicateResolver: opts.predicateResolver };
-  const interactive = entries.filter(({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec));
+  const interactive = entries.filter(
+    ({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec) || specNeedsChoice(spec),
+  );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
   if (interactive.length === 0 || opts.targets) {
@@ -56,18 +109,12 @@ export function deferOrDispatchAbilities(
       decision: {
         kind: "abilityResolution",
         trigger,
-        queue: interactive.map(({ spec, sourceInstanceId }) => ({
-          sourceInstanceId,
-          specId: spec.id,
-          label: spec.sourceText,
-          optional: spec.optional ?? false,
-          needsTarget: specNeedsNamedTarget(spec),
-          targetScope: spec.targetScope ?? "enemyUnit",
-          // V0 (docs/25): calculado UMA VEZ aqui, no servidor — a UI só lista,
-          // `resolveAbility` valida contra isto (nunca confia no que o
-          // cliente manda de volta).
-          legalTargets: specNeedsNamedTarget(spec) ? computeLegalTargets(state, spec, player, opts.targetFilterResolver) : [],
-        })),
+        // V0 (docs/25): candidatos legais (alvo em campo, carta da mão, topo do
+        // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
+        // `resolveAbility` valida contra isto (nunca confia no cliente).
+        queue: interactive.map(({ spec, sourceInstanceId }) =>
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver),
+        ),
       },
     },
   ]);

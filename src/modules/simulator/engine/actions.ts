@@ -395,16 +395,36 @@ function applyPlayerActionInner(
       // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
       for (const r of action.resolutions) {
         const q = decision.queue.find((x) => x.specId === r.specId)!;
-        // pulado, ou "Choose 1 ..." sem alvo legal disponível = nada acontece (regra oficial).
-        if (!r.activate || (q.needsTarget && r.targetIds.length === 0)) continue;
-        // V0 (docs/25): `legalTargets` foi calculado no servidor ao montar a
-        // fila (`deferOrDispatchAbilities`) — nunca confia cegamente no que o
-        // cliente manda de volta aqui.
-        if (q.needsTarget && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
+        const deckReveal = q.deckTopReveal;
+        const handChoice = q.handChoice;
+
+        // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
+        // pro fundo) — por isso `deckTopReveal` NUNCA cai nos `continue` de skip.
+        if (!deckReveal) {
+          // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
+          if (!r.activate) continue;
+          if (q.needsTarget && r.targetIds.length === 0) continue;
+          if (handChoice && r.targetIds.length === 0) continue;
+        }
+
+        // V0 (docs/25): os candidatos legais foram calculados no servidor ao
+        // montar a fila (`deferOrDispatchAbilities`) — nunca confia cegamente no
+        // que o cliente manda de volta aqui.
+        if (q.needsTarget && r.targetIds.length > 0 && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
           throw new Error(`Alvo inválido pra ${r.specId} — não está entre os alvos legais.`);
         }
+        if (handChoice && r.targetIds.length > 0 && !r.targetIds.every((id) => handChoice.legalHandIds.includes(id))) {
+          throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da mão.`);
+        }
+        if (deckReveal && r.targetIds.length > 0 && !r.targetIds.every((id) => deckReveal.revealableIds.includes(id))) {
+          throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas reveláveis do topo do deck.`);
+        }
+
+        const targets: Record<string, string[]> = { target: r.targetIds, shield: r.targetIds };
+        if (handChoice) targets.deploy = r.targetIds;
+        if (deckReveal) targets.reveal = r.targetIds;
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
-          targets: { target: r.targetIds, shield: r.targetIds },
+          targets,
           predicateResolver,
         });
       }

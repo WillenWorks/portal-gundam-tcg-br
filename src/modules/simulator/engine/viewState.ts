@@ -1,4 +1,4 @@
-import type { CardInstance, GameState, PlayerId, PlayerState, Zone } from "./types";
+import type { CardInstance, GameState, PendingDecision, PlayerId, PlayerState, Zone } from "./types";
 import { PLAYER_IDS, otherPlayer } from "./types";
 
 /**
@@ -88,6 +88,33 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
 }
 
 /**
+ * Redação da `PendingDecision` de outro jogador (docs/19, Sessão 2). O único
+ * campo sensível é `abilityResolution.queue[].deckTopReveal.topCards` — as N
+ * cartas do topo do deck de quem decide, que o oponente NÃO pode ver (topo do
+ * deck é zona oculta pros dois — `ALWAYS_HIDDEN_ZONES`). Pro dono da decisão,
+ * passa como está (ele precisa ver as cartas pra escolher qual revelar).
+ * `handChoice.legalHandIds` e os `instanceId` do `deckTopReveal` não são
+ * redigidos: id sozinho não revela `def` a quem não a tem (mesma postura do
+ * resto de `viewState`).
+ */
+function redactPendingDecisionFor(decision: PendingDecision | null, isOwner: boolean): PendingDecision | null {
+  if (!decision || isOwner || decision.kind !== "abilityResolution") return decision;
+  return {
+    ...decision,
+    queue: decision.queue.map((q) =>
+      q.deckTopReveal ? { ...q, deckTopReveal: { ...q.deckTopReveal, topCards: [] } } : q,
+    ),
+  };
+}
+
+function redactPendingDecision(map: GameState["pendingDecision"], viewer: PlayerId): GameState["pendingDecision"] {
+  return {
+    A: redactPendingDecisionFor(map.A, viewer === "A"),
+    B: redactPendingDecisionFor(map.B, viewer === "B"),
+  };
+}
+
+/**
  * Quantos eventos do `eventLog` vão pra rede por visão (docs/19, Sessão 4 —
  * "sem memory leak / performance"). O `eventLog` real cresce o jogo inteiro
  * e é reenviado a cada ação via SSE; um jogo longo passa de centenas de
@@ -104,10 +131,11 @@ export interface ViewGameState {
   combat: GameState["combat"];
   endPhaseAction: GameState["endPhaseAction"];
   /**
-   * Decisão interativa pendente por jogador (docs/19, Sessão 2). Repassado
-   * como está: o `cardDef` embutido numa decisão de 【Burst】 é de uma shield
-   * que já foi pro trash (zona pública), e as outras variantes só carregam
-   * `instanceId`/`specId` — nada que revele carta oculta pro oponente.
+   * Decisão interativa pendente por jogador (docs/19, Sessão 2). Quase tudo
+   * passa como está — o `cardDef` de um 【Burst】 é de shield já trashada (zona
+   * pública), as outras variantes só carregam `instanceId`/`specId`. A única
+   * redação é `abilityResolution.queue[].deckTopReveal.topCards` (topo do deck
+   * de quem decide), esvaziado pro oponente — ver `redactPendingDecision`.
    */
   pendingDecision: GameState["pendingDecision"];
   gameOver: GameState["gameOver"];
@@ -132,7 +160,7 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     phase: state.phase,
     combat: state.combat,
     endPhaseAction: state.endPhaseAction,
-    pendingDecision: state.pendingDecision,
+    pendingDecision: redactPendingDecision(state.pendingDecision, viewer),
     gameOver: state.gameOver,
     eventLog: state.eventLog.slice(-EVENT_LOG_WINDOW),
     viewer,
