@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { buildVanillaDeckList } from "../fixtures/vanillaDeck";
-import { applyEvents, findCard } from "./events";
+import { applyEvents } from "./events";
 import { compilePrimitive, matchesCardDefFilter, resolveEffectSpec, type EffectContext, type EffectSpec } from "./effectSpec";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 
