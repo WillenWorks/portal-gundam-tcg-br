@@ -35,6 +35,9 @@ interface BattleSlotProps {
   legalTarget?: boolean;
   selected?: boolean;
   isAttacker?: boolean;
+  /** Frente 4 (docs/38 §4.3) — Unit que ativou <Blocker> nesta batalha: sobe
+   *  ~6px com inclinação oposta à do atacante. */
+  isBlocking?: boolean;
   busy?: boolean;
   onSelect?: (unit: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
@@ -56,6 +59,7 @@ export function BattleSlot({
   legalTarget,
   selected,
   isAttacker,
+  isBlocking,
   busy,
   onSelect,
   onInspect,
@@ -118,10 +122,15 @@ export function BattleSlot({
       ref={registerRef}
       {...hoverProps}
       className={cn(
-        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-shadow",
+        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-[transform,box-shadow] duration-200 ease-out motion-reduce:transition-none",
         // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
         // sup. direito, levemente pra fora) passar por cima do slot vizinho.
         "hover:z-30 focus-within:z-30",
+        // Frente 4 (docs/38 §4.3) — Unit que declarou ataque/bloqueio sobe ~6px
+        // com leve inclinação (elevação tática, estilo Master Duel).
+        // `motion-reduce` neutraliza o transform.
+        isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
+        isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
         legalTarget
           ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.55)]"
           : selected || isAttacker

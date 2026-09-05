@@ -908,7 +908,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           art={art}
           legalTarget={Boolean(unit && selecting)}
           selected={Boolean(unit && selected.includes(unit.instanceId))}
-          isAttacker={Boolean(unit && attackerId === unit.instanceId)}
+          isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
+          isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
           busy={busy}
           state={boardForStats}
           onSelect={(u) => toggleSelect(u.instanceId)}

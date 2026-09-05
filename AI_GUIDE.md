@@ -155,13 +155,13 @@ claude
 - [ ] Commit: `feat(simulator): st03 and st04 deck engine implementation`
 
 ### Frente 4: Overhaul Visual & UX do Simulador (Branch: `feature/simulator-layout`)
-- [ ] Ajustar proporções e piso de `--card-w` em `useArenaScale.ts` e `ArenaPlaymat.tsx` para Full HD e mobile.
-- [ ] Remover o botão de olho dos cards em `CardCornerActions.tsx` e habilitar inspeção via clique na carta em `CardFace.tsx`.
-- [ ] Reposicionar o indicador de dano da Base para o canto inferior direito em `BaseCardGauge.tsx`.
-- [ ] Implementar empilhamento de recursos com badge numérico em `ResourceMeter.tsx`, removendo o scrollbar.
-- [ ] Ajustar mira do ataque em `CombatLane.tsx` para apontar para a Base/Escudos na lateral esquerda.
-- [ ] Corrigir dimensionamento do container de ação superior em `ActionDock.tsx` para evitar cortes.
-- [ ] Adicionar animações suaves de compra de cartas, revelação de escudo e ataque.
+- [x] Ajustar proporções e piso de `--card-w` em `useArenaScale.ts` e `ArenaPlaymat.tsx` para Full HD e mobile.
+- [x] Remover o botão de olho dos cards em `CardCornerActions.tsx` e habilitar inspeção via clique na carta (área neutra do corpo em `BattleSlot`/`BaseCardGauge`/`HandFan`).
+- [x] Reposicionar o indicador de dano da Base para o canto inferior direito em `BaseCardGauge.tsx`.
+- [x] Implementar empilhamento de recursos com badge numérico em `ResourceMeter.tsx`, removendo o scrollbar.
+- [x] Ajustar mira do ataque em `CombatLane.tsx` para apontar para a Base/Escudos na lateral esquerda.
+- [x] Corrigir dimensionamento do container de ação superior em `ActionDock.tsx` para evitar cortes.
+- [x] Adicionar animações suaves de compra de cartas, revelação de escudo e ataque (tw-animate-css + `motion-reduce`).
 - [ ] Commit: `feat(simulator-ui): playmat overhaul and feedback improvements`
 
 ### Frente 5: WebSocket & Multiplayer Avançado (Branch: `feature/simulator-websocket`)

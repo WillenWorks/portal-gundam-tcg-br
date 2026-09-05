@@ -123,6 +123,11 @@ export function HandFan({
               className={cn(
                 "group/hc relative block shrink-0 border-t-2 bg-slate-950/80 transition-transform duration-100 ease-out",
                 "hover:z-20 focus-within:z-20 motion-reduce:transition-none",
+                // Frente 4 (docs/38 §4.1) — "draw de carta": cada carta recém
+                // montada (comprada) desliza de baixo pra cima ~250ms easeOut.
+                // Só cartas NOVAS animam (React reaproveita as já montadas pela
+                // `key`). `motion-reduce` desliga.
+                "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
                 lift,
                 playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
               )}

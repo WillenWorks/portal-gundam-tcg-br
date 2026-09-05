@@ -151,6 +151,14 @@ describe("HandFan", () => {
     expect(c.className).toMatch(/focus-within:-translate-y-6/);
   });
 
+  it("Frente 4 (docs/38 §4.1): carta entra deslizando de baixo (draw), motion-reduce desliga", () => {
+    hand([{ card: unit("Gundam"), playable: true }]);
+    const [c] = containers();
+    expect(c.className).toMatch(/animate-in/);
+    expect(c.className).toMatch(/slide-in-from-bottom-4/);
+    expect(c.className).toMatch(/motion-reduce:animate-none/);
+  });
+
   it("onHoverCard dispara com a carta no mouseenter e null no mouseleave", () => {
     const onHoverCard = vi.fn();
     const gundam = unit("Gundam");

@@ -17,8 +17,10 @@ interface BurstModalProps {
 
 export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
-      <div className="panel-cut hero-surface w-full max-w-xs border border-amber-500/50 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 animate-in fade-in duration-200 motion-reduce:animate-none">
+      {/* Frente 4 (docs/38 §4.2) — revelação de escudo/Burst: o painel entra
+          com "pop" (zoom) e a carta ganha pulso de luz neon dourado. */}
+      <div className="panel-cut hero-surface w-full max-w-xs border border-amber-500/50 p-4 animate-in zoom-in-90 fade-in duration-300 ease-out motion-reduce:animate-none">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-amber-300">
           <Sparkles className="size-4" /> Burst
         </p>
@@ -27,7 +29,7 @@ export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) 
           code={decision.cardDef.code}
           art={art}
           size="lg"
-          className="mx-auto my-3 border border-amber-400/40"
+          className="mx-auto my-3 border border-amber-400/60 shadow-[0_0_28px_rgba(251,191,36,0.65)] animate-pulse motion-reduce:animate-none"
         />
         <p className="text-center text-sm font-semibold text-soft">{decision.cardDef.nameEn}</p>
         <p className="text-center text-[10px] text-muted-portal">

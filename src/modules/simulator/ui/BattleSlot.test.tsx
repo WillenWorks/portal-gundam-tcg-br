@@ -159,6 +159,21 @@ describe("BattleSlot", () => {
     expect(pilotButton.parentElement?.className).toMatch(/h-\[1\.1rem\]/);
   });
 
+  it("Frente 4 (docs/38 §4.3): atacante/bloqueador sobem ~6px com leve inclinação (motion-reduce neutraliza)", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const slot = () => container.firstElementChild as HTMLElement;
+    expect(slot().className).not.toMatch(/-translate-y-1\.5/);
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} isAttacker />);
+    expect(slot().className).toMatch(/-translate-y-1\.5/);
+    expect(slot().className).toMatch(/rotate-\[-2deg\]/);
+    expect(slot().className).toMatch(/motion-reduce:transform-none/);
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} isBlocking />);
+    expect(slot().className).toMatch(/-translate-y-1\.5/);
+    expect(slot().className).toMatch(/rotate-\[2deg\]/);
+  });
+
   it("onHoverCard dispara com a Unit no hover do slot e null ao sair", () => {
     const onHoverCard = vi.fn();
     const u = unit();
