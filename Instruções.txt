@@ -1,0 +1,41 @@
+Ative o modo de plano
+
+Analise o projeto e atualize o contexto sobre o estado atual para continuarmos o desenvolvimento a partir desta versão. 
+Resumo: O sistema hoje possui database e simulador já em produção, mas ainda em fase de maturação. O simulador está desenhado para respeitar todas as mecânicas, regras e funcionalidades do jogo Gundam TCG, considerando o motor com as regras principais efeitos dos cards. Está cobrindo por hora os produtos Starter Deck 01 e Starter Deck 02 para testes de jogos. O simulador já validou as informações (até onde os testes com players pode seguir) dos dois decks, então o próximo passo será seguir para os dois próximos produtos: ST03 e ST04 (no database já tem as cartas configuradas, só precisando fazer a varredura pra cobrir os efeitos que o motor precisa das mecânicas de jogo, e os efeitos próprios dos cards que precisam ser validados). 
+
+O simulador enfrenta uma dificuldade de estruturação do design do campo. A intenção é criar um template visual que se adeque a qualquer tela (widescreen, monitores padrão, notebook, mobile). No mobile, já tem uma função que precisa virar a tela. A tela de jogo deve seguir o padrão de design do playmat oficial (atualmente está seguindo os alinhamentos), tendo como referência o próprio material do site oficial do Gundam TCG, e também inspirações em Master Duel (Yu-Gi-Oh!), Magic Arena (Magic: The Gathering), Hearthstone. Existem simuladores de Gundam TCG não oficiais que também servem de inspiração (Mobile Suit Arena, Wing Table). 
+
+O site hoje não possui uma tradução feita pra as cartas, uma vez que o produto só tem em inglês oficialmente. A ideia é que o database tenha registrado todos os efeitos de cards traduzidos para pt-br, assim como já são as regras, para facilitar a leitura e aprendizagem. Neste caso, não seriam traduzidas informações como termos, keywords e etc, somente o texto livre do efeito de cada carta. 
+
+O simulador hoje trabalha com o esquema FIFO para pareamento de jogo. Embora funcione para testes, a ideia é permitir que o jogadores possam selecionar oponentes da lista de amigos, elaborar fila de espera (manter fifo), criar rankeamento, e suportar fluxo de comunicações entre jogadores de maneira fluida. Então precisaria trocar para websocket para melhorar o sistema de jogo. 
+
+Com isso, temos quatro frentes para projetar. Traduções, Waves de cartas para o simualador, Layout do Simulador e Melhoria do Sistema. Em paralelo, correções baseadas nos feedbacks pontuais. Na raíz, já tem o arquivo Planejamento.md que inicia esse processo. 
+
+O que esperar de cada etapa: 
+ - Nas traduções, elaborar um processo que automatize a tradução de cada carta já no database ou inserido posteriormente, para apresentar as traduções ao inspecionar as cartas e ajudar os players.
+
+ - Cada novo pacote de cartas, o sistema deve validar, atualizar e treinar o motor do jogo e biblioteca de cartas para que o simulador aplique as regras corretamente. Depois de validar todas os produtos lançados, o sistema deve ser capaz de fazer o mesmo com cadastros manuais e/ou por seed, até de futuros lançamentos.
+
+ - Trocar o motor de comunicação para websocket para o simulador jogável da maneira mais robusta, moderna e melhorar sistema de pareamento, já considerando modelos de jogos amistosos, randômicos, chamada direta (mandar link para convidar pra jogo, ou chamar usuário/amigo no próprio sistema), e jogos ranqueados e campeonatos;
+
+ - A melhoria do layout do tabuleiro, display de cartas, efeitos, informações em tela, intuitividade, fluxo de jogo, fluxo de informação, e garantir visual consistente e suave em qualquer display;
+
+
+No caso das traduções e waves de treinamento, considerar RAG, Agentes de treinamento ou MCP para automatização, ou preparar terreno para possível uso. 
+Sobre o websocket, buscar as melhores praticas para que a conexão seja robusta em qualquer lugar. 
+
+Já o layout precisa de mais atenção. Como exemplos: Wing Table e Mobile Suit Arena são excelentes simuladores para mostrar o fluxo de jogo completo e efeitos de cards. Seguem os padrões do jogo como cada fase do jogo, ordem de ação, efeitos e mecânicas padrões, efeitos individuais. Para a parte de layout, deve-se pensar em exemplos como Master Duel, que existem várias interações do jogo com o usuário para mostrar as informações em tela e dizer ao player o que está acontecendo, de acordo com as regras do jogo. Por isso, o modelo de layout tem que ser revisto, arquitetado e desenvolvido para ser o mais intuitivo e flexível possível. Não há necessidade de animações complexas, mas ao menos interações suaves como compra, embaralhamento, revelação de cartas e movimentação de ataque/defesa podem ter efeitos de movimentação suave ou transição mais discreta. 
+
+Neste ponto, acredito que seria ideal trabalhar usando branches separadas derivadas do dev. Uma para o motor de jogo com websocket, para mergear apenas quando estiver estável, e uma para o layout do simulador, para manter a versão atual alimentada com as novas waves de cartas, enquanto é testada e validada uma versão com layout novo sem passar por cima da atual. 
+
+Com isso, seria melhor trabalhar separadamente usando agentes de desenvolvimento com skills habilitadas e úteis para cada etapa. 
+
+Por fim, faça uma análise técnica, de escopo, arquitetura e stack para a confecção do plano para o desenvolvimento paralelo destas etapas. Leia os arquivos Planejamento e Feedback para começar a aplicação já na branch dev, criar as outras duas branches para as versões novas de websocket e layout do simulador, e organize a orquestração de agentes, skills e etc. 
+
+Monte o planejamento num arquivo na raíz do projeto que será o guia tanto dos agentes quanto para nós nos guiarmos. Tenha em mente que você será o arquiteto do projeto junto comigo, definindo, projetando e sugestionando a cada etapa (então se tiver alguma orientação, objeção ou sugestão, inclua no documento), e colocando o passo a passo no documento para que eu aprove. Os agentes e skills serão usados a partir do Claude Code que atuará como nosso desenvolvedor paralelo, comigo validando as etapas e planejamentos executados por ele.  Insira também o roteiro de merge e deploy, para não haver conflitos complexos. 
+
+Assim que terminar o planejamento e instruções, monte um arquivo de guia para qualquer IA poder ler, entender e executar a tarefa. Caso o planejamento seja alterado, esse arquivo deve ser alterado junto. Monte também uma lista de checks bem detalhados para cada passo que deverá ser feito. Uma vez que eu, um agente claude ou outra ia desenvolvedora concluir algo, deverá ser checado e commitado na branch especifica. 
+
+Cada passo e desenvolvimento importante deve ser validado por mim antes da IA continuar. Ao mesmo tempo, a IA tem total autonomia e aprovação para me sugerir abordagens diferentes ou melhorias, desde que melhore e vise as boas práticas para o sistema e que seja possível de incluir. 
+
+Qualquer dúvidas de sua parte, me notifique. 

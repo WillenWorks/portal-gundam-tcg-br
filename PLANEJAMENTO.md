@@ -1,170 +1,93 @@
-# Planejamento — Pós-v1.0
+# Planejamento — Pós-v1.0 (Versão Expandida e Consolidada)
 
-> Cópia portátil (pra abrir de qualquer ambiente/máquina sem navegar pasta
-> por pasta) do épico canônico em
-> [`.planning/epics/pos-v1-traducao-e-st03-st04.md`](.planning/epics/pos-v1-traducao-e-st03-st04.md).
-> Atualize os dois juntos — este arquivo existe só por conveniência de acesso.
-
-# Epic: Pós-v1.0 — Tradução de textos de carta + ST03/ST04 no Simulador
-
-**Created**: 2026-09-04
-**Status**: planning
-**Owner**: Willen
+> **Documento Canônico de Planejamento e Roadmap**  
+> Última atualização: 2026-09-05 | Arquiteto & Engenharia: Willen & Antigravity / Claude Code  
+> Guia operacional para IAs e desenvolvedores: consulte [AI_GUIDE.md](AI_GUIDE.md) na raiz.
 
 ---
 
-## Why
+## 1. Visão Geral e Contexto
 
-A v1.0 está pronta e em teste com jogadores reais. As duas próximas frentes,
-apontadas pelo Willen, atacam as duas maiores lacunas de conteúdo do
-catálogo/simulador: (1) hoje toda carta cai no fallback em inglês porque
-`effectPt` nunca foi populado pelo pipeline principal de import — e (2) o
-simulador só roda 2 dos vários starter decks do jogo real (ST01/ST02),
-limitando a variedade de partidas que os testers conseguem jogar.
+O Portal Gundam TCG BR atingiu estabilidade em sua versão 1.0 com catálogo, deckbuilder, rulings e a primeira versão do simulador já em testes reais com jogadores (cobrindo os Starter Decks ST01 e ST02).
 
----
+A fase **Pós-v1.0** endereça quatro frentes estratégicas simultâneas, integrando a expansão de conteúdo, a evolução técnica de rede, o redesenho ergonômico do simulador e as melhorias solicitadas no relatório `Feedback.pdf`:
 
-## Success Criteria
-
-- [ ] O texto de efeito (não as keywords) de pelo menos ST01+ST02+ST03+ST04
-      aparece em português em TODOS os lugares que hoje mostram `effectEn`
-      (database, detalhe de carta, deckbuilder, inspetor do simulador) —
-      com um plano claro pra continuar traduzindo o resto do catálogo depois.
-- [ ] ST03 e ST04 são jogáveis ponta a ponta no Simulador (deploy, combate,
-      todas as habilidades das 32 cartas únicas), com a mesma cobertura de
-      teste que ST01/ST02 têm hoje (`pnpm test` verde, zero regressão).
-- [ ] Lobby do Simulador (`SimulatorSandboxPage`) oferece ST03/ST04 como
-      opção de deck, qualquer combinação entre os 4 decks é válida.
+1. **Frente 1 (Traduções PT-BR)**: Automação da tradução dos efeitos livres das cartas (`effectPt`), preservando estritamente termos e keywords oficiais em inglês (`docs/17`).
+2. **Frente 2 (Waves de Cartas ST03 & ST04)**: Expansão do motor de jogo para cobrir 100% das regras e efeitos dos decks ST03 e ST04, estabelecendo a base para futuras coleções.
+3. **Frente 3 (Layout & UX do Simulador)**: Overhaul do tabuleiro com visual de playmat oficial, viewport adaptativo sem scroll (desktop e mobile landscape), microinterações táteis e correção de todas as dores apontadas pela comunidade no `Feedback.pdf`.
+4. **Frente 4 (WebSocket & Multiplayer Avançado)**: Substituição do modelo SSE/polling por WebSockets bidirecionais (`socket.io`), permitindo partidas ranqueadas, convites por link direto e estabilidade de conexão.
+5. **Melhorias de Plataforma (Deckbuilder)**: Curva de nível de Units, estatísticas de nível na mão inicial e reposicionamento da escolha de estilo visual/capa do deck.
 
 ---
 
-## Features
+## 2. Critérios de Sucesso
 
-| # | Feature | Status | Spec | Plan | Depends On |
-|---|---------|--------|------|------|------------|
-| 1 | Medir escopo real (tradução: IA + revisão, decidido) | todo | — | — | — |
-| 2 | Pipeline/ferramenta de tradução de `effectPt` | todo | — | — | #1 |
-| 3 | Traduzir ST01+ST02 (prioridade — já jogáveis) | todo | — | — | #2 |
-| 4 | Auditoria carta-a-carta ST03+ST04 (tipo docs/26 V1) | todo | — | — | — |
-| 5 | `CardDef` + `EffectSpec` + testes — ST03 | todo | — | — | #4 |
-| 6 | `CardDef` + `EffectSpec` + testes — ST04 | todo | — | — | #4 |
-| 7 | Habilitar ST03/ST04 no lobby do Simulador | todo | — | — | #5, #6 |
-| 8 | Traduzir o restante do catálogo (demais coleções) | todo | — | — | #2, #3 |
-| 9 | Organizar feedback dos testers reais | blocked | — | — | — |
-
-Frentes 1-3/8 (tradução) e 4-7 (ST03/ST04) são independentes entre si —
-podem correr em paralelo. #9 está bloqueada até o Willen trazer o feedback.
+- [ ] Textos de efeito traduzidos para pt-BR em ST01, ST02, ST03 e ST04 exibidos no simulador e catálogo, com keywords originais intactas.
+- [ ] ST03 e ST04 jogáveis ponta a ponta no simulador (`npx vitest run src/modules/simulator` 100% aprovado).
+- [ ] Tabuleiro do simulador adaptado a qualquer resolução (1080p, Ultrawide, Notebook, Mobile Landscape) com cartas legíveis, sem barra de rolagem, com recursos empilhados e mira tática correta para Base/Escudos à esquerda.
+- [ ] Motor WebSocket em produção com suporte a salas de partida, reconexão automática e convite direto por link.
+- [ ] Deckbuilder exibindo gráfico de curva de nível e cálculo de nível na mão inicial.
 
 ---
 
-## Feature Briefs
+## 3. Matriz de Frentes, Branches e Prioridades
 
-### Feature 1: Medir escopo real
-Rodar uma query real no banco (`SELECT COUNT(*) FROM "CardModel" WHERE
-"effectEn" IS NOT NULL`) pra saber quantos textos únicos existem de
-verdade (tradução é por `CardModel` — identidade de jogo deduplicada,
-docs/13 — não por `Card`/print, que infla o número à toa).
-
-**Decidido (Willen, 2026-09-04): tradução assistida por IA + revisão
-humana.** Lote traduzido preservando o vocabulário oficial (keywords
-【Deploy】/<Blocker>/etc. NUNCA traduzidas, mesma convenção de `/rules`);
-Willen revisa os termos técnicos antes de publicar. Decidir ainda se cabe
-expor edição de `effectPt` direto no AdminPage (hoje só rulings têm form
-de edição visível ali) ou se o lote revisado entra direto via script/seed.
-
-### Feature 2: Pipeline/ferramenta de tradução de `effectPt`
-Construir o que a Feature 1 decidir: um script batch (lote de traduções
-revisadas → `UPDATE CardModel SET effectPt = ...`), uma extensão do
-`scripts/catalog-import.mjs` (já tem suporte a `textSectionsJson` com
-`textPt`/`textEn` por seção — pode já ser o caminho certo), e/ou um campo
-de edição no AdminPage. Zero mudança de schema necessária (`effectPt` já
-existe em `CardModel` e `Card`); zero mudança de UI de leitura necessária
-(`effectPt ?? effectEn` já está em todo consumidor).
-
-### Feature 3: Traduzir ST01+ST02
-Prioridade alta — essas 32 cartas (16+16) já são jogadas de verdade no
-Simulador todo dia pelos testers. Primeiro lote real usando o pipeline da
-Feature 2, sem esperar o catálogo inteiro.
-
-### Feature 4: Auditoria carta-a-carta ST03+ST04
-Antes de escrever qualquer `CardDef`/`EffectSpec`, repetir o processo que
-`docs/26` já fez pra ST01/ST02: ler `data/gcg-official-cards.json` (32
-cartas, ST03 = Mobile Suit Gundam Unicorn/Sinanju, ST04 = Mobile Suit
-Gundam SEED/Strike Gundam) carta a carta contra `docs/29` (checklist de
-carta nova + vocabulário disponível hoje) e marcar qual mecânica de cada
-carta já é coberta vs. precisa de primitiva nova no motor. Já achei pelo
-menos 2 candidatas a primitiva nova numa leitura rápida (não substitui a
-auditoria de verdade):
-- **ST03-006 Char's Zaku Ⅱ**: "Look at top 3 cards of your deck, may
-  reveal 1 matching card and add to hand, return the rest" — não existe
-  hoje uma primitiva de "olhar N do topo + filtrar + revelar
-  condicionalmente" (`moveWithinDeck` só reordena 1 carta JÁ revelada).
-- **ST03-010 Full Frontal**: "【When Paired】may deploy 1 Unit card Lv.4 or
-  lower FROM A MÃO" como efeito DISPARADO — diferente da ação normal de
-  Main Phase (`deployCard`), pode precisar de um novo `PrimitiveCall.op`
-  ou reaproveitar o fluxo de deploy de um jeito que hoje não existe.
-
-A maioria das outras 30 cartas parece caber no vocabulário já existente
-(Support/Blocker/Breach/High-Maneuver já são keywords genéricas;
-`spawnToken` já aceita `rested: true`; `moveZone` pra "hand" deve cobrir
-bounce; `targetFilter` "hp<=N"/"level<=N" já existem) — mas isso precisa
-ser confirmado carta a carta, não só por amostragem.
-
-### Feature 5: `CardDef` + `EffectSpec` + testes — ST03
-Seguindo `docs/29` à risca: `fixtures/st03Deck.ts` (CardDef das 16 cartas,
-campos estruturados primeiro — `staticAbilities`/`combatTriggers`/
-`attackTargetRules`/`pilotMode` antes de qualquer EffectSpec) +
-`content/st03.ts` (EffectSpec só pro que sobrar, gatilho pontual → ação) +
-`content/st03.test.ts` (mesmo padrão de `st01.test.ts`/`st02.test.ts`).
-Qualquer primitiva nova encontrada na Feature 4 é implementada aqui, no
-motor genérico (`engine/effectSpec.ts`), nunca como caso especial só de
-ST03.
-
-### Feature 6: `CardDef` + `EffectSpec` + testes — ST04
-Mesma estrutura da Feature 5, pras 16 cartas de ST04. Independente de #5
-(podem rodar em paralelo), mas ambas dependem da auditoria conjunta (#4).
-
-### Feature 7: Habilitar ST03/ST04 no lobby do Simulador
-`SimulatorSandboxPage.tsx` (`DECK_OPTIONS`) + a fixture de decklist real
-(50 cartas principais + 10 de recurso, não só as 16 únicas — mesmo padrão
-de `st01Deck.ts`/`st02Deck.ts` provavelmente já tem essa distinção) +
-`ART_SET_CODES` em `SimulatorMatchPage.tsx` pra arte real aparecer.
-Trabalho pequeno, é só ligar o que já foi construído nas Features 5/6.
-
-### Feature 8: Traduzir o restante do catálogo
-As outras ~18 coleções (fora ST01-04) — menor prioridade que #3 porque
-não afetam o Simulador ainda, só a Database/Deckbuilder pública. Pode ser
-incremental (uma coleção por vez) usando o mesmo pipeline da Feature 2.
-
-### Feature 9: Organizar feedback dos testers reais
-Bloqueada — o Willen ainda não trouxe o feedback pra esta conversa. Quando
-chegar: triar por severidade/área (bug vs. sugestão, simulador vs.
-catálogo), decidir o que vira hotfix imediato vs. o que entra nesta epic
-ou numa nova.
+| # | Frente | Branch | Agente / Lead | Documento Detalhado |
+|---|---|---|---|---|
+| **F1** | Feedback Pontual Deckbuilder | `dev` | `ai-designer` | [docs/38-plano-detalhado-layout-e-ux.md](docs/38-plano-detalhado-layout-e-ux.md) |
+| **F2** | Pipeline de Tradução PT-BR (RAG) | `dev` | `solution-architect-cto` | [docs/40-plano-detalhado-traducao-rag-mcp.md](docs/40-plano-detalhado-traducao-rag-mcp.md) |
+| **F3** | Waves ST03 / ST04 & Novas Primitivas | `dev` | `phase-reviewer` | [docs/41-plano-detalhado-waves-st03-st04.md](docs/41-plano-detalhado-waves-st03-st04.md) |
+| **F4** | Redesign do Layout & Microinterações | `feature/simulator-layout` | `ai-designer` | [docs/38-plano-detalhado-layout-e-ux.md](docs/38-plano-detalhado-layout-e-ux.md) |
+| **F5** | WebSocket & Multiplayer Avançado | `feature/simulator-websocket` | `solution-architect-cto` | [docs/39-plano-detalhado-websocket-multiplayer.md](docs/39-plano-detalhado-websocket-multiplayer.md) |
 
 ---
 
-## Risks
+## 4. Estratégia de Branches Git e Sincronização
 
-- **Escopo de tradução desconhecido de verdade** — não consegui rodar uma
-  query no banco nesta sessão (Docker não estava de pé). O número real de
-  `CardModel` com `effectEn` preenchido pode ser bem maior ou menor do que
-  "1.812" (esse número é de `Card`, prints, não de modelos únicos).
-- **ST03/ST04 podem esconder mais mecânica nova do que as 2 cartas que já
-  achei numa leitura rápida** — só a auditoria completa (Feature 4) sabe
-  de verdade; o processo (docs/29) foi desenhado pra isso, mas "a maioria
-  do vocabulário já existe" é uma hipótese, não uma garantia.
-- ~~Confirmar se "ST03"/"ST04" é literal~~ — **confirmado (Willen,
-  2026-09-04): sim, exatamente ST03 (Mobile Suit Gundam Unicorn/Sinanju) e
-  ST04 (Mobile Suit Gundam SEED/Strike Gundam)**, os dados já importados
-  em `data/gcg-official-cards.json`.
+```mermaid
+gitGraph
+   commit id: "v1.0 (dev atual)"
+   branch "feature/simulator-layout"
+   branch "feature/simulator-websocket"
+   checkout dev
+   commit id: "F1: Deckbuilder Stats & Capa"
+   commit id: "F2: Tradução ST01-ST04"
+   commit id: "F3: Motor ST03/ST04"
+   checkout "feature/simulator-layout"
+   merge dev id: "Sync dev -> layout"
+   commit id: "F4: Playmat, Recursos, Seta, HUD"
+   checkout "feature/simulator-websocket"
+   merge dev id: "Sync dev -> websocket"
+   commit id: "F5: Socket.io Engine & Lobby"
+   checkout dev
+   merge "feature/simulator-layout" id: "Merge Layout Estável"
+   merge "feature/simulator-websocket" id: "Merge WebSocket Estável"
+   commit id: "Release v1.1"
+```
+
+1. **`dev`**: Base estável. Recebe primeiro F1, F2 e F3.
+2. **`feature/simulator-layout`**: Desenvolve a nova UI do tabuleiro sem bloquear quem testa regras na `dev`.
+3. **`feature/simulator-websocket`**: Desenvolve a camada de rede Socket.io sem instabilizar as partidas em produção.
+4. **Sincronização**: `dev` é mergeada regularmente nas branches filhas.
+5. **Merge Final**: Somente após aprovação de testes automatizados e validação pelo Willen.
 
 ---
 
-## Notes
+## 5. RAG e MCPs para Desenvolvimento Contínuo
 
-- As 2 frentes (tradução e ST03/ST04) são independentes — não precisam
-  ser feitas em ordem uma da outra, só internamente cada uma tem
-  dependência sequencial.
-- `docs/29` já é o "spec" de como fazer carta nova — as specs das
-  Features 5/6 devem referenciar esse doc em vez de reescrever o processo.
+- **RAG para Tradução**: Indexação de `docs/17` e Comprehensive Rules para fornecer grounding terminológico ao script de tradução, prevenindo alucinações e garantindo que termos de jogo permaneçam inalterados.
+- **RAG para Motor de Jogo**: Recuperação de `EffectSpecs` similares para apoiar a escrita de novos cards de ST03/ST04.
+- **Servidor MCP Customizado (`scripts/mcp-gundam-engine.mjs`)**: Fornece aos agentes de IA ferramentas atômicas (`get_card_details`, `search_rules`, `run_card_suite`) para acelerar ciclos de feedback e economizar tokens.
+
+---
+
+## 6. Documentos de Referência Técnica
+
+- [AI_GUIDE.md](AI_GUIDE.md) — Guia de execução atômica, prompts e regras para IAs.
+- [docs/17-glossario-traducao.md](docs/17-glossario-traducao.md) — Glossário oficial de termos e keywords.
+- [docs/20-estado-do-projeto-e-avaliacao-rag-mcp.md](docs/20-estado-do-projeto-e-avaliacao-rag-mcp.md) — Avaliação inicial de arquitetura.
+- [docs/29-simulador-vv-sprint-v4-processo-carta-nova.md](docs/29-simulador-vv-sprint-v4-processo-carta-nova.md) — Protocolo obrigatório para adição de cartas novas.
+- [docs/38-plano-detalhado-layout-e-ux.md](docs/38-plano-detalhado-layout-e-ux.md) — Especificação técnica do novo layout.
+- [docs/39-plano-detalhado-websocket-multiplayer.md](docs/39-plano-detalhado-websocket-multiplayer.md) — Arquitetura de sockets e multiplayer.
+- [docs/40-plano-detalhado-traducao-rag-mcp.md](docs/40-plano-detalhado-traducao-rag-mcp.md) — Arquitetura de tradução e MCPs.
+- [docs/41-plano-detalhado-waves-st03-st04.md](docs/41-plano-detalhado-waves-st03-st04.md) — Auditoria carta a carta e novas primitivas.
