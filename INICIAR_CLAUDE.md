@@ -50,6 +50,12 @@ Abra o **PowerShell** na raiz do projeto e execute o script automatizado:
 .\scripts\iniciar-paralelo.ps1
 ```
 
+O script usa **git worktrees**: o repo principal fica em `dev` e cada frente
+`feature/*` ganha um diretório próprio em
+`..\portal-gundam-tcg-br-worktrees\`. Assim um `git checkout` em uma aba não
+afeta as outras. Para desmontar os worktrees ao terminar (as branches e commits
+são preservados), rode `.\scripts\parar-paralelo.ps1`.
+
 Ou abra manualmente 3 abas no seu terminal:
 
 ### Aba 1: Core, Tradução e Waves ST03/ST04
@@ -65,7 +71,7 @@ claude
 
 ### Aba 2: Layout do Simulador, HUD e Ergonomia
 ```powershell
-git checkout feature/simulator-layout
+cd ..\portal-gundam-tcg-br-worktrees\simulator-layout
 claude
 ```
 > Cole:
@@ -76,7 +82,7 @@ claude
 
 ### Aba 3: WebSocket & Multiplayer em Tempo Real
 ```powershell
-git checkout feature/simulator-websocket
+cd ..\portal-gundam-tcg-br-worktrees\simulator-websocket
 claude
 ```
 > Cole:
