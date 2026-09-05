@@ -168,6 +168,7 @@ claude
 - [x] Ajustar mira do ataque em `CombatLane.tsx` para apontar para a Base/Escudos na lateral esquerda.
 - [x] Corrigir dimensionamento do container de ação superior em `ActionDock.tsx` para evitar cortes.
 - [x] Adicionar animações suaves de compra de cartas, revelação de escudo e ataque (tw-animate-css + `motion-reduce`).
+- [x] Página de preview de layout DEV-only sem auth (`src/pages/SimulatorLayoutPreviewPage.tsx`, rota `/simulador/preview-layout`) — monta o `ArenaPlaymat` completo com fixture estático (zero motor/rede) pra validar a F4 em displays reais. Excluída do build de produção (`import.meta.env.DEV`).
 - [ ] Commit: `feat(simulator-ui): playmat overhaul and feedback improvements`
 
 ### Frente 5: WebSocket & Multiplayer Avançado (Branch: `feature/simulator-websocket`)
