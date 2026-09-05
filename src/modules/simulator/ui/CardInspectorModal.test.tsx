@@ -65,6 +65,38 @@ describe("CardInspectorModal", () => {
     expect(screen.queryByText("Custo")).toBeNull();
   });
 
+  it("efeito: mostra effectPt por padrão e alterna pro EN pelo toggle", () => {
+    render(
+      <CardInspectorModal
+        card={card({ nameEn: "Zaku", cardType: "UNIT" })}
+        art={{}}
+        onClose={vi.fn()}
+        effectPt="【Deploy】Compre 1 carta."
+        effectEn="【Deploy】Draw 1."
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("【Deploy】Compre 1 carta.")).toBeInTheDocument();
+    expect(screen.queryByText("【Deploy】Draw 1.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "en" }));
+    expect(screen.getByText("【Deploy】Draw 1.")).toBeInTheDocument();
+    expect(screen.queryByText("【Deploy】Compre 1 carta.")).toBeNull();
+  });
+
+  it("efeito: sem effectPt, cai no effectText (compat) e não mostra toggle", () => {
+    render(
+      <CardInspectorModal
+        card={card({ nameEn: "Zaku", cardType: "UNIT" })}
+        art={{}}
+        onClose={vi.fn()}
+        effectText="【Deploy】Draw 1."
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("【Deploy】Draw 1.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "en" })).toBeNull();
+  });
+
   it("link pilotName: mostra o nome do piloto + badge de disponibilidade", () => {
     render(
       <CardInspectorModal

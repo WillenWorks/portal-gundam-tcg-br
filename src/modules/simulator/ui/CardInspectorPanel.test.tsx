@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardDef, CardInstance } from "@/modules/simulator/engine/types";
 import { CardInspectorPanel } from "./CardInspectorPanel";
 
@@ -47,6 +47,26 @@ describe("CardInspectorPanel", () => {
     render(<CardInspectorPanel card={buffed} art={{}} inPlay />);
     expect(screen.getByText("Ativo agora")).toBeInTheDocument();
     expect(screen.getByText("AP +2")).toBeInTheDocument();
+  });
+
+  it("efeito: renderiza o bloco 'Efeito' com effectPt e alterna pro EN pelo toggle", () => {
+    render(
+      <CardInspectorPanel
+        card={card({ nameEn: "Guntank", cardType: "UNIT" })}
+        art={{}}
+        effectPt="【Deploy】Escolha 1 Unidade inimiga. Rest-a."
+        effectEn="【Deploy】Choose 1 enemy Unit. Rest it."
+      />,
+    );
+    expect(screen.getByText("Efeito")).toBeInTheDocument();
+    expect(screen.getByText("【Deploy】Escolha 1 Unidade inimiga. Rest-a.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "en" }));
+    expect(screen.getByText("【Deploy】Choose 1 enemy Unit. Rest it.")).toBeInTheDocument();
+  });
+
+  it("efeito: sem texto, não renderiza o bloco 'Efeito'", () => {
+    render(<CardInspectorPanel card={card({ nameEn: "GM", cardType: "UNIT" })} art={{}} />);
+    expect(screen.queryByText("Efeito")).toBeNull();
   });
 
   it("blockedReason aparece em âmbar", () => {
