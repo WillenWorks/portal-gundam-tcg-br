@@ -139,7 +139,7 @@ claude
 ### Frente 2: Pipeline de Tradução PT-BR (Branch: `dev`)
 - [x] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais (tokenizer + validador + Gemini + flags `--dry-run/--resume/--apply/--revalidate`, 14 testes).
 - [x] Gerar arquivo de lote de tradução para ST01, ST02, ST03 e ST04 (`data/translations-st01-04.json` — 52 com `effectPt`, 12 sem efeito, 0 rejeitadas pelo validador de tokens). Chave Gemini era free-tier e travou em quota; 51/52 traduzidas à mão seguindo `docs/17` e revalidadas.
-- [ ] Aplicar traduções no Postgres (`node scripts/translate-card-effects.mjs --apply` gera o SQL de `CardModel` + `Card`). **PENDENTE** — rodar via MCP Supabase ou Postgres local.
+- [x] Aplicar traduções no Postgres — via MCP Supabase (projeto `portal-gundam-tcg-br`), 2026-09-05: `CardModel` 52 cartas, `Card` 52 códigos / 188 prints. `effectPt` normalizado pro formato do catálogo (`【X】`→`[X]`, quebra→`<br>`; keywords `<X>` mantidas).
 - [x] Validar exibição de `effectPt` no `CardInspectorModal.tsx` / `CardInspectorPanel.tsx` (componente `CardEffectText`, toggle PT/EN quando ambos diferem).
 - [x] Commit: `feat(catalog): automated pt-br effect translation pipeline` (`d5d009a`)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, isProperNounParen, restore, tokenize, validate } from "./translate-card-effects.mjs";
+import { buildPrompt, isProperNounParen, normalizeForCatalog, restore, tokenize, validate } from "./translate-card-effects.mjs";
 
 describe("tokenize", () => {
   it("isola gatilhos 【...】 e keywords <...> como placeholders", () => {
@@ -115,5 +115,19 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("Gundam Trading Card Game");
     expect(prompt).toContain("§0§Draw 1.");
     expect(prompt).toMatch(/JAMAIS s[aã]o traduzidas/i);
+  });
+});
+
+describe("normalizeForCatalog", () => {
+  it("converte 【X】 -> [X] com espaco e quebra de linha -> <br>", () => {
+    expect(normalizeForCatalog("【Deploy】Escolha 1 Unidade.")).toBe("[Deploy] Escolha 1 Unidade.");
+    expect(normalizeForCatalog("【Burst】A.\n【Deploy】B.")).toBe("[Burst] A.<br>[Deploy] B.");
+  });
+  it("mantem keywords <X>, nomes [X] e blocos ((X)) intactos", () => {
+    const pt = "【Deploy】Faça o Deploy de 1 ficha [Zaku Ⅱ]((Zeon)･AP1･HP1). <High-Maneuver>";
+    expect(normalizeForCatalog(pt)).toBe("[Deploy] Faça o Deploy de 1 ficha [Zaku Ⅱ]((Zeon)･AP1･HP1). <High-Maneuver>");
+  });
+  it("nao mete espaco antes de <br> ou /", () => {
+    expect(normalizeForCatalog("【Main】/【Action】Escolha.")).toBe("[Main]/[Action] Escolha.");
   });
 });

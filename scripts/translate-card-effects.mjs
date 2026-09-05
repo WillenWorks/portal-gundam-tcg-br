@@ -532,14 +532,31 @@ function sqlEscape(value) {
   return value.replace(/'/g, "''");
 }
 
+/**
+ * O JSON guarda os gatilhos no formato oficial 【...】 (mesma fonte que o
+ * simulador usa). O catalogo no Postgres, porem, guarda effectEn com gatilho
+ * entre colchetes [ ... ] e quebra de linha como <br> (0 de 52 cartas ST01-04
+ * usam 【】). Pra o effectPt ficar consistente com o effectEn exibido lado a
+ * lado, --apply converte: 【X】 -> [X], quebra de linha -> <br>. Keywords <X>
+ * ficam como estao (forma oficial, mantida na maioria das cartas). */
+export function normalizeForCatalog(effectPt) {
+  return effectPt
+    .replace(/\r?\n/g, "<br>")
+    // 【X】 -> [X] com 1 espaco depois (o catalogo escreve "[Deploy] Escolha ..."),
+    // menos quando ja vem <br> ou "/" logo apos.
+    .replace(/【([^】]*)】(?!<br>|\/)\s*/g, "[$1] ")
+    .replace(/【([^】]*)】/g, "[$1]");
+}
+
 async function runApply() {
   const results = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
   const applicable = results.filter((r) => r.status === "OK" && r.effectPt);
   console.error(`-- Traducoes OK com texto: ${applicable.length} (de ${results.length} no lote)`);
   console.error("-- Rode este SQL no Postgres do catalogo. Atualiza CardModel e os prints (Card).");
+  console.error("-- effectPt normalizado pro formato do catalogo: 【X】 -> [X], quebra -> <br>.");
   console.log("BEGIN;");
   for (const row of applicable) {
-    const value = sqlEscape(row.effectPt);
+    const value = sqlEscape(normalizeForCatalog(row.effectPt));
     const code = sqlEscape(row.code);
     console.log(`UPDATE "CardModel" SET "effectPt" = '${value}' WHERE code = '${code}';`);
     console.log(`UPDATE "Card" SET "effectPt" = '${value}' WHERE code = '${code}';`);
