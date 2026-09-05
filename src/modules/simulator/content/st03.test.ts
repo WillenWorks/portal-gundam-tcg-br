@@ -16,6 +16,7 @@ import {
   INDIGNATION_MAIN,
   REWLOOLA_DEPLOY,
   ST03_EFFECT_SPECS,
+  THE_BLUE_GIANT_ACTION,
   ZAKU_II_ATTACK,
 } from "./st03";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
@@ -53,10 +54,12 @@ describe("ST03 — fixtures e cobertura", () => {
     expect(buildSt03DeckList().resources).toHaveLength(10);
   });
 
-  it("16 EffectSpecs cadastrados cobrindo 8 das 16 cartas únicas (resto é vanilla/keyword)", () => {
+  it("17 EffectSpecs cadastrados cobrindo 10 das 16 cartas únicas (resto é vanilla/keyword)", () => {
     const codes = new Set(ST03_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST03_EFFECT_SPECS).toHaveLength(16);
-    expect(codes).toEqual(new Set(["ST03-006", "ST03-008", "ST03-009", "ST03-010", "ST03-011", "ST03-012", "ST03-013", "ST03-015", "ST03-016"]));
+    expect(ST03_EFFECT_SPECS).toHaveLength(17);
+    expect(codes).toEqual(
+      new Set(["ST03-006", "ST03-008", "ST03-009", "ST03-010", "ST03-011", "ST03-012", "ST03-013", "ST03-014", "ST03-015", "ST03-016"]),
+    );
   });
 });
 
@@ -152,6 +155,35 @@ describe("ST03 — EffectSpecs bespoke", () => {
     const next = applyEvents(state, resolveEffectSpec(FALMEL_DEPLOY, ctxFor(state, baseId)));
     expect(next.players.A.battleArea).toHaveLength(before + 1);
     expect(next.players.A.battleArea[next.players.A.battleArea.length - 1].def.code).toBe("T-006");
+  });
+
+  it("ST03-014 The Blue Giant — 【Action】instala unitDamageProtection na Unit amiga escolhida", () => {
+    const state = freshGame();
+    // combate em andamento é pré-requisito de SET_UNIT_DAMAGE_PROTECTION; monta um mínimo
+    const allyId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "battleArea");
+    state.combat = {
+      step: "action",
+      attackerId: "x",
+      attackingPlayer: "B",
+      defendingPlayer: "A",
+      originalTarget: "player",
+      currentTarget: "player",
+      actionPasses: { A: false, B: false },
+      actionPriority: "A",
+    };
+    const cmdId = place(state, "A", ST03_CARD_DEFS.THE_BLUE_GIANT, "trash");
+    const events = resolveEffectSpec(THE_BLUE_GIANT_ACTION, ctxFor(state, cmdId, { target: [allyId] }));
+    expect(events).toContainEqual({ type: "SET_UNIT_DAMAGE_PROTECTION", instanceId: allyId, maxAttackerAp: 2 });
+    const next = applyEvents(state, events);
+    expect(next.combat?.unitDamageProtection).toEqual({ instanceId: allyId, maxAttackerAp: 2 });
+  });
+
+  it("ST03-001 Sinanju — combatTrigger de destruição de shield registrado no CardDef", () => {
+    expect(ST03_CARD_DEFS.SINANJU.combatTriggers).toContainEqual({
+      condition: "always",
+      on: "destroyEnemyShieldInBattle",
+      action: { kind: "damageChosenEnemyUnit", amount: 2 },
+    });
   });
 
   it("defaultTargetFilterResolver — ap<=5 aceita Unit fraca e rejeita Unit forte", () => {

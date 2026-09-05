@@ -137,6 +137,27 @@ export type PrimitiveCall =
   /** ST02-013 Peaceful Timbre — impede que shields recebam dano de Units inimigas até o level dado, durante esta batalha (docs/18, lacuna #7). Não-op fora de combate. */
   | { op: "preventShieldDamage"; maxAttackerLevel: number }
   /**
+   * ST03-014 The Blue Giant 【Action】 — "Choose 1 friendly Unit. It can't receive
+   * battle damage from enemy Units with 2 or less AP during this battle." Instala
+   * `CombatState.unitDamageProtection` pra a Unit escolhida (`target` nomeado).
+   * Não-op fora de combate. `maxAttackerAp` inclusivo.
+   */
+  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp: number }
+  /**
+   * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
+   * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
+   * `CardInstance.attackTargetRelaxUntilTurn` na Unit alvo (normalmente
+   * `{ kind: "pairedUnit" }` — "this Unit" no texto do Pilot), válido só no
+   * turno atual.
+   */
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel: number }
+  /**
+   * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
+   * Marca `CardInstance.cannotAttackUntilTurn = turno atual` na Unit alvo;
+   * `declareAttack` barra enquanto for o mesmo turno.
+   */
+  | { op: "preventAttackThisTurn"; target: TargetRef }
+  /**
    * "Look at the top N cards of your deck. You may reveal 1 <filtro> card among
    * them and add it to your hand. Return the remaining cards randomly to the
    * bottom of your deck." — ST03-006 Char's Zaku Ⅱ 【Destroyed】 (docs/41,
@@ -299,6 +320,21 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "preventShieldDamage": {
       return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel }];
+    }
+    case "preventUnitBattleDamage": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({ type: "SET_UNIT_DAMAGE_PROTECTION", instanceId, maxAttackerAp: call.maxAttackerAp }),
+      );
+    }
+    case "grantAttackTargetRelax": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({ type: "GRANT_ATTACK_TARGET_RELAX", instanceId, maxLevel: call.maxLevel, turn: ctx.turnNumber }),
+      );
+    }
+    case "preventAttackThisTurn": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({ type: "SET_CANNOT_ATTACK", instanceId, turn: ctx.turnNumber }),
+      );
     }
     case "addShieldToHand": {
       const player = resolvePlayerRef(call.player, ctx.controller);

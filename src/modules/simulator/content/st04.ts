@@ -13,15 +13,13 @@ import { TOKEN_AILE_STRIKE, TOKEN_LAUNCHER_STRIKE, TOKEN_SWORD_STRIKE } from "..
  *   ST04-008 Ginn (ver st04Deck.ts).
  * - Bespoke via EffectSpec: abaixo.
  *
- * APROXIMAÇÕES / DEFERIMENTOS CONHECIDOS (docs/41, revisão do Willen):
- * - ST04-011 Athrun Zala: 【When Linked】"during this turn, this Unit may choose
- *   an active enemy Unit that is Lv.5 or lower as its attack target" — hoje
- *   `attackTargetRules.mayTargetActiveEnemyUnit` é campo estático de `CardDef`
- *   (ST02-001 Wing Gundam), não uma concessão temporária disparada por gatilho.
- *   O 【Burst】 (add to hand) funciona; a concessão de alvo ativo fica DEFERIDA.
- * - ST04-015 Archangel 【Activate･Main】: o "Set it as active" funciona; a
- *   cláusula "It can't attack during this turn" (debuff de proibição de ataque)
- *   fica DEFERIDA — não há hoje um `grantKeyword` de "não pode atacar".
+ * CLÁUSULAS FECHADAS NESTA RODADA (antes deferidas — docs/43 §4):
+ * - ST04-011 Athrun Zala 【When Linked】: `ATHRUN_ZALA_WHEN_LINKED` abaixo,
+ *   primitiva `grantAttackTargetRelax` + `CardInstance.attackTargetRelaxUntilTurn`
+ *   (concessão temporária, consumida por `declareAttack` em combat.ts).
+ * - ST04-015 Archangel 【Activate･Main】: cláusula "It can't attack during this
+ *   turn" — primitiva `preventAttackThisTurn` + `CardInstance.cannotAttackUntilTurn`,
+ *   adicionada a `ARCHANGEL_ACTIVATE_MAIN.actions` depois do `setActive`.
  */
 
 // ST04-001 Aile Strike Gundam — 【When Paired･Lv.4 or Higher Pilot】Choose 1 enemy
@@ -101,14 +99,31 @@ export const KIRA_YAMATO_ATTACK: EffectSpec = {
   sourceText: "【Attack】Choose 1 enemy Unit. It gets AP-2 during this battle.",
 };
 
-// ST04-011 Athrun Zala — 【Burst】Add this card to your hand. (o 【When Linked】 de
-// alvo ativo está DEFERIDO — ver cabeçalho)
+// ST04-011 Athrun Zala — 【Burst】Add this card to your hand.
 export const ATHRUN_ZALA_BURST: EffectSpec = {
   id: "ST04-011-Burst",
   cardCode: "ST04-011",
   trigger: "Burst",
   actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
   sourceText: "【Burst】Add this card to your hand.",
+};
+
+// ST04-011 Athrun Zala — 【When Linked】During this turn, this Unit may choose an
+// active enemy Unit that is Lv.5 or lower as its attack target. "this Unit" = a
+// Unit pareada com o Pilot (TargetRef "pairedUnit"). A condição
+// `sourcePairedUnitIsLinkUnit` é redundante com o próprio 【When Linked】, mas
+// mantida como guarda (mesmo predicado de ST03-011 Char Aznable).
+export const ATHRUN_ZALA_WHEN_LINKED: EffectSpec = {
+  id: "ST04-011-WhenLinked",
+  cardCode: "ST04-011",
+  trigger: "When Linked",
+  condition: {
+    predicate: "sourcePairedUnitIsLinkUnit",
+    then: [{ op: "grantAttackTargetRelax", target: { kind: "pairedUnit" }, maxLevel: 5 }],
+  },
+  actions: [],
+  sourceText:
+    "【When Linked】During this turn, this Unit may choose an active enemy Unit that is Lv.5 or lower as its attack target.",
 };
 
 // ST04-012 Striker Pack — 【Burst】If you have no (Earth Alliance) Unit tokens in
@@ -173,8 +188,7 @@ export const MAGIC_BULLET_ACTION: EffectSpec = { ...MAGIC_BULLET_MAIN, id: "ST04
 
 // ST04-015 Archangel — 【Burst】Deploy this card. / 【Deploy】Add 1 of your Shields
 // to your hand. / 【Activate･Main】【Once per Turn】②：Choose 1 friendly Unit with
-// <Blocker>. Set it as active. (a cláusula "It can't attack during this turn"
-// está DEFERIDA — ver cabeçalho)
+// <Blocker>. Set it as active. It can't attack during this turn.
 export const ARCHANGEL_BURST: EffectSpec = {
   id: "ST04-015-Burst",
   cardCode: "ST04-015",
@@ -194,7 +208,10 @@ export const ARCHANGEL_ACTIVATE_MAIN: EffectSpec = {
   cardCode: "ST04-015",
   trigger: "Activate·Main",
   cost: [{ op: "payResourceCost", player: "controller", n: 2 }],
-  actions: [{ op: "setActive", target: { kind: "named", name: "target" } }],
+  actions: [
+    { op: "setActive", target: { kind: "named", name: "target" } },
+    { op: "preventAttackThisTurn", target: { kind: "named", name: "target" } },
+  ],
   targetScope: "friendlyUnit",
   targetFilter: "hasKeyword:Blocker",
   sourceText:
@@ -236,6 +253,7 @@ export const ST04_EFFECT_SPECS: EffectSpec[] = [
   KIRA_YAMATO_BURST,
   KIRA_YAMATO_ATTACK,
   ATHRUN_ZALA_BURST,
+  ATHRUN_ZALA_WHEN_LINKED,
   STRIKER_PACK_BURST,
   STRIKER_PACK_MAIN,
   HAWK_OF_ENDYMION_MAIN,

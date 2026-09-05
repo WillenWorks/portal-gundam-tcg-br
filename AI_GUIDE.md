@@ -154,11 +154,11 @@ claude
 - [x] Rodar testes gerais: `npx vitest run src/modules/simulator` — 456 verdes.
 - [x] Commit: `feat(simulator): st03 and st04 deck engine implementation`
 
-**Deferido (precisa de extensão de motor — revisar com Willen, docs/41):**
-- ST03-001 Sinanju: gatilho "destrói carta de shield area em batalha → 2 de dano em Unit escolhida" (combat.ts só tem `destroyEnemyInBattle`). O <High-Maneuver> During Pair está como keyword fixa (aproximação).
-- ST03-014 The Blue Giant: prevenção de dano de batalha por AP do atacante (só o modo Pilot funciona).
-- ST04-011 Athrun Zala: 【When Linked】concessão temporária de "mirar Unit inimiga ativa Lv≤5" (hoje `attackTargetRules` é estático). O 【Burst】 funciona.
-- ST04-015 Archangel: cláusula "It can't attack during this turn" do 【Activate･Main】 (o Set active funciona).
+**As 4 cláusulas antes deferidas — FECHADAS (2026-09-05, a partir do texto EN oficial):**
+- ✅ ST03-001 Sinanju: gatilho "destrói carta de shield area em batalha → 2 de dano em Unit escolhida" — `CombatTrigger.on` ganhou `"destroyEnemyShieldInBattle"` + `action: "damageChosenEnemyUnit"` (auto-mira a 1ª Unit inimiga legal; não há sistema de decisão em combate). O <High-Maneuver> During Pair segue como keyword fixa (aproximação MANTIDA — `hasKeyword` é consultado sem `state` em ~9 pontos, não vale propagar por 1 carta).
+- ✅ ST03-014 The Blue Giant 【Action】: primitiva `preventUnitBattleDamage` + `CombatState.unitDamageProtection` (por Unit, condicionada ao AP efetivo do atacante).
+- ✅ ST04-011 Athrun Zala 【When Linked】: primitiva `grantAttackTargetRelax` + `CardInstance.attackTargetRelaxUntilTurn` (concessão temporária consumida por `declareAttack`; dispatch de "When Linked" ligado em `deploy.ts`). Limpo em `CLEAR_TURN_MODIFIERS`.
+- ✅ ST04-015 Archangel 【Activate･Main】: primitiva `preventAttackThisTurn` + `CardInstance.cannotAttackUntilTurn` (`declareAttack` barra no mesmo turno). Limpo em `CLEAR_TURN_MODIFIERS`.
 
 ### Frente 4: Overhaul Visual & UX do Simulador (Branch: `feature/simulator-layout`)
 - [x] Ajustar proporções e piso de `--card-w` em `useArenaScale.ts` e `ArenaPlaymat.tsx` para Full HD e mobile.

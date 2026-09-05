@@ -147,8 +147,8 @@ import {
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
-/** Espelha `DECK_OPTIONS` de SimulatorSandboxPage.tsx -- os únicos sets jogáveis hoje, usados pra buscar a arte real de cada carta por `code`. Se um novo set entrar no simulador, precisa entrar aqui também. */
-const ART_SET_CODES = ["ST01", "ST02"];
+/** Espelha `DECK_OPTIONS` de SimulatorSandboxPage.tsx -- os únicos sets jogáveis hoje, usados pra buscar a arte real E o texto (effectPt/effectEn) de cada carta por `code`. Se um novo set entrar no simulador, precisa entrar aqui também. */
+const ART_SET_CODES = ["ST01", "ST02", "ST03", "ST04"];
 /** Só pra resolver a arte de recursos/EX/tokens genéricos: o motor usa códigos
  *  (`ST01-RESOURCE`, `TOKEN-EX-BASE`, ...) que não existem em ST01/ST02 — a arte
  *  canônica vive em GD01. Ver docs/legado/PLANO_CORRECAO_ARTE_EFEITOS.md §1.3. */
