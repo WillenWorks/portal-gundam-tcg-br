@@ -150,7 +150,7 @@ const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Comp
 const ART_SET_CODES = ["ST01", "ST02"];
 /** Só pra resolver a arte de recursos/EX/tokens genéricos: o motor usa códigos
  *  (`ST01-RESOURCE`, `TOKEN-EX-BASE`, ...) que não existem em ST01/ST02 — a arte
- *  canônica vive em GD01. Ver PLANO_CORRECAO_ARTE_EFEITOS.md §1.3. */
+ *  canônica vive em GD01. Ver docs/legado/PLANO_CORRECAO_ARTE_EFEITOS.md §1.3. */
 const GENERIC_ART_SET_CODES = ["GD01"];
 /** Código do motor -> código do catálogo (arte canônica). */
 const ART_CODE_ALIASES: Record<string, string> = {

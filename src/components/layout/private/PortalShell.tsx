@@ -45,7 +45,7 @@ const adminNav = [
   { href: "/admin/seasons", label: "Temporadas", icon: CalendarRange },
   { href: "/admin/media", label: "Mídias", icon: Image },
   { href: "/admin/traits", label: "Traits", icon: Tags },
-  { href: "/admin/rulings", label: "Rulings", icon: ScrollText },
+  { href: "/admin/rulings", label: "Regras", icon: ScrollText },
   { href: "/admin/events", label: "Eventos", icon: CalendarDays },
 ] as const;
 
@@ -61,7 +61,7 @@ const titles: Record<string, string> = {
   "/admin/seasons": "Temporadas",
   "/admin/media": "Mídias",
   "/admin/traits": "Traits",
-  "/admin/rulings": "Rulings",
+  "/admin/rulings": "Regras",
   "/admin/events": "Eventos",
   "/organizador": "Meus eventos",
   "/simulador": "Simulador",

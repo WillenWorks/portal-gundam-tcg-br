@@ -114,7 +114,7 @@ export default function AuthPage() {
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Fluxo correto</p>
               <h3 className="mt-3 font-heading text-3xl uppercase">Site público separado do painel</h3>
-              <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Home, decks, database, eventos e rulings ficam no site. Dashboard e admin ficam atrás do login e recebem layout próprio.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Home, decks, database, eventos e regras ficam no site. Dashboard e admin ficam atrás do login e recebem layout próprio.</p>
             </CardContent>
           </Card>
 

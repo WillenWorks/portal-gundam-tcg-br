@@ -43,7 +43,7 @@ export default function RulingDetailPage() {
         setMoreRules(result.filter((item) => item.id !== detail.id).slice(0, 5));
       } catch (err: any) {
         if (!active) return;
-        setError(err.message || "Falha ao carregar a ruling.");
+        setError(err.message || "Falha ao carregar a regra.");
       }
     }
 
@@ -57,7 +57,7 @@ export default function RulingDetailPage() {
     if (!rule) return [{ label: "Regras", href: "/rules" }, { label: params?.id || "Detalhe" }];
     const trail: Array<{ label: string; href?: string }> = [{ label: "Regras", href: "/rules" }];
     if (rule.card) trail.push({ label: rule.card.code || rule.card.namePt || rule.card.nameEn, href: `/cards/${rule.card.id}` });
-    trail.push({ label: translateRuleTitle(rule.title) || "Ruling" });
+    trail.push({ label: translateRuleTitle(rule.title) || "Regra" });
     return trail;
   }, [rule, params?.id]);
 
@@ -69,17 +69,17 @@ export default function RulingDetailPage() {
             {error ? (
               <p className="text-sm text-red-300">{error}</p>
             ) : !rule ? (
-              <p className="text-sm text-slate-300">Carregando detalhe da ruling...</p>
+              <p className="text-sm text-slate-300">Carregando detalhe da regra...</p>
             ) : (
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Ruling individual · {translateRuleTitle(rule.title)}</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Regra individual · {translateRuleTitle(rule.title)}</p>
                   <h2 className="mt-2 font-heading text-4xl uppercase leading-tight lg:text-5xl">{rule.questionPt || rule.title || "Sem pergunta cadastrada."}</h2>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[rule.sourceType] || rule.sourceType}</Badge>
                   {rule.relatedKeyword ? (
-                    <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} title={`Ver todas as rulings de ${rule.relatedKeyword}`}>
+                    <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} title={`Ver todas as regras de ${rule.relatedKeyword}`}>
                       <Badge className="cursor-pointer rounded-none border border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{rule.relatedKeyword}</Badge>
                     </Link>
                   ) : null}
@@ -146,7 +146,7 @@ export default function RulingDetailPage() {
 
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="space-y-4 p-5">
-                <h3 className="font-heading text-3xl uppercase">Mais rulings relacionadas</h3>
+                <h3 className="font-heading text-3xl uppercase">Mais regras relacionadas</h3>
                 {moreRules.length ? (
                   <div className="grid gap-4 xl:grid-cols-2">
                     {moreRules.map((item) => (
@@ -154,7 +154,7 @@ export default function RulingDetailPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[item.sourceType] || item.sourceType}</Badge>
                           {item.relatedKeyword ? (
-                            <Link href={`/rules?relatedKeyword=${encodeURIComponent(item.relatedKeyword)}`} title={`Ver todas as rulings de ${item.relatedKeyword}`}>
+                            <Link href={`/rules?relatedKeyword=${encodeURIComponent(item.relatedKeyword)}`} title={`Ver todas as regras de ${item.relatedKeyword}`}>
                               <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{item.relatedKeyword}</Badge>
                             </Link>
                           ) : null}
@@ -170,7 +170,7 @@ export default function RulingDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">Não encontrei outras rulings com a mesma keyword ainda.</p>
+                  <p className="text-sm text-slate-400">Não encontrei outras regras com a mesma keyword ainda.</p>
                 )}
               </CardContent>
             </Card>

@@ -19,7 +19,7 @@ export const publicTopNav = [
   ] },
   { href: "/eventos", label: "Eventos" },
   { href: "/stats", label: "Estatísticas" },
-  { href: "/rules", label: "Rulings" },
+  { href: "/rules", label: "Regras" },
 ] as const;
 
 function isActiveRoute(currentPath: string, href: string) {
