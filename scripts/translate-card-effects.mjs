@@ -40,8 +40,14 @@
  *        do free tier estoura no meio -- rodar de novo depois retoma de onde parou)
  *   node scripts/translate-card-effects.mjs --dry-run   -> roda tokenizer+validador com
  *        traducao fake (identidade), sem gastar API -- so pra testar o encanamento
+ *   node scripts/translate-card-effects.mjs --push      -> aplica as traducoes DIRETO
+ *        no Postgres via Prisma Client (DATABASE_URL do .env). SEM shell/pipe ->
+ *        UTF-8 intacto. E o modo recomendado pra aplicar localmente.
  *   node scripts/translate-card-effects.mjs --apply     -> le data/translations-st01-04.json
- *        e imprime os UPDATE SQL das traducoes OK (nao conecta no banco)
+ *        e imprime os UPDATE SQL das traducoes OK (nao conecta no banco). CUIDADO:
+ *        `--apply | psql` / `| prisma db execute` no Windows PowerShell corrompe
+ *        UTF-8 (【 】 ･ e acentos viram "?"). Use `--apply > x.sql` (UTF-8) + rodar
+ *        o arquivo, ou prefira `--push`.
  *   node scripts/translate-card-effects.mjs --revalidate -> re-roda o validador de
  *        tokens sobre o effectPt atual de cada linha do JSON (pra quando as
  *        traducoes foram preenchidas/editadas a mao) e reescreve status/motivo
@@ -605,8 +611,44 @@ async function runRevalidate() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 8. --push: aplica as traducoes DIRETO no Postgres via Prisma Client.
+//    Usa DATABASE_URL do .env. NAO passa por shell/pipe -> nao corrompe UTF-8
+//    (o `--apply | psql` no Windows vira mojibake: 【 】 ･ acentos viram "?").
+//    Prefira ESTE modo pra aplicar localmente.
+// ---------------------------------------------------------------------------
+
+async function runPush() {
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  try {
+    const rows = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+    const applicable = rows.filter((r) => r.status === "OK" && r.effectPt);
+    console.log(`Aplicando ${applicable.length} traducoes via Prisma (DATABASE_URL do .env)...`);
+    let models = 0;
+    let prints = 0;
+    for (const row of applicable) {
+      const pt = normalizeForCatalog(row.effectPt);
+      const m = await prisma.cardModel.updateMany({ where: { code: row.code }, data: { effectPt: pt } });
+      const c = await prisma.card.updateMany({ where: { code: row.code }, data: { effectPt: pt } });
+      models += m.count;
+      prints += c.count;
+    }
+    console.log(`OK: CardModel ${models} linhas, Card ${prints} prints.`);
+    if (models === 0) {
+      console.log("AVISO: 0 CardModel atualizado -- o catalogo ST01-04 esta semeado neste banco? (pnpm run catalog:bootstrap)");
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function main() {
   const args = new Set(process.argv.slice(2));
+  if (args.has("--push")) {
+    await runPush();
+    return;
+  }
   if (args.has("--apply")) {
     await runApply();
     return;

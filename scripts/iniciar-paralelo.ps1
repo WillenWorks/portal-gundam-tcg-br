@@ -37,6 +37,17 @@ function Ensure-Worktree($branch, $dir) {
     } else {
         Write-Host "  worktree ja existe: $dir" -ForegroundColor DarkGray
     }
+    # .env e .spartan/ai.env sao gitignored -> o checkout do worktree nao os traz.
+    # Sem .env, `prisma` e o servidor quebram com "Environment variable not found: DATABASE_URL".
+    foreach ($rel in @(".env", ".spartan/ai.env")) {
+        $src = Join-Path $root $rel
+        $dst = Join-Path $dir $rel
+        if ((Test-Path $src) -and (-not (Test-Path $dst))) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
+            Copy-Item $src $dst
+            Write-Host "  copiado $rel -> worktree" -ForegroundColor DarkGray
+        }
+    }
     if (-not (Test-Path (Join-Path $dir "node_modules"))) {
         Write-Host "  instalando dependencias (pnpm) em $dir ..." -ForegroundColor Yellow
         Invoke-PnpmInstall $dir
