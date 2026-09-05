@@ -7,15 +7,15 @@
 
 ## 1. Resumo executivo
 
-| Frente | Branch | Estado | Testes | Push |
-|---|---|---|---|---|
-| **F1** Deckbuilder (curva de nível + mão inicial + estilo visual) | `dev` | ✅ 4/4 | +8 | ✅ `origin/dev` |
-| **F2** Pipeline de tradução PT-BR | `dev` | 🟡 4/5 (falta `--apply` no banco) | +28 | ✅ `origin/dev` |
-| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + 4 cláusulas antes deferidas fechadas | +46 | 🟡 local |
-| **F4** Overhaul visual/UX do simulador | `feature/simulator-layout` | ✅ 7/7 | 433 verdes | ❌ local (6 commits) |
-| **F5** WebSocket & multiplayer | `feature/simulator-websocket` | 🟡 5/7 (migração do cliente + prod diferidos) | 488 verdes | ❌ local (3 commits) |
+| Frente | Branch | Estado | Push |
+|---|---|---|---|
+| **F1** Deckbuilder (curva de nível + mão inicial + estilo visual) | `dev` | ✅ 4/4 | ✅ `origin/dev` |
+| **F2** Pipeline de tradução PT-BR | `dev` | ✅ 5/5 (traduções aplicadas no banco via MCP Supabase) | ✅ `origin/dev` |
+| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + as 4 cláusulas antes deferidas **fechadas 100%** | ✅ `origin/dev` |
+| **F4** Overhaul visual/UX do simulador + página de preview | `feature/simulator-layout` | ✅ 7/7 + preview DEV-only | ❌ local (8 commits) |
+| **F5** WebSocket & multiplayer | `feature/simulator-websocket` | 🟡 5/7 (migração do cliente + prod diferidos) | ❌ local (3 commits) |
 
-`dev` HEAD: `d5d009a`. Suíte completa em `dev`: **515 testes verdes**, `tsc -b` + `vite build` OK.
+`dev` HEAD: `0965587`. Suíte completa em `dev`: **531 testes verdes**, `tsc -b` + `vite build` OK.
 
 Commits em `dev` (novos nesta rodada):
 - `7f068f7` chore(scripts): execução paralela via git worktrees
@@ -23,6 +23,10 @@ Commits em `dev` (novos nesta rodada):
 - `81acadc` feat(simulator): primitivas lookAtTopFilterReveal e deployFromHandTriggered — **F3**
 - `41c5770` feat(simulator): st03 and st04 deck engine implementation — **F3**
 - `d5d009a` feat(catalog): automated pt-br effect translation pipeline — **F2**
+- `c15f597` docs: relatório de estado pos-v1 + checklist F2
+- `5a5f273` feat(catalog): --apply normaliza effectPt + aplicado no banco — **F2**
+- `60222ff` feat(simulator): fecha as 4 cláusulas de carta ST03/ST04 antes deferidas — **F3**
+- `0965587` chore(simulator): remove import não usado
 
 ---
 
@@ -90,12 +94,12 @@ Sem colisão de arquivos entre executores. Cada subagente commitou na sua própr
 - [x] Commit `5dd1e19`.
 - Base: `src/lib/deck-level-stats.ts` (helpers puros) + 8 testes.
 
-### Frente 2 — Tradução PT-BR (`dev`) — 4/5 🟡
-- [x] Script `scripts/translate-card-effects.mjs` — tokenizer léxico, grounding docs/17, motor Gemini `gemini-3.6-flash`, validador de tokens, flags `--dry-run/--resume/--apply/--revalidate`. 14 testes.
+### Frente 2 — Tradução PT-BR (`dev`) — 5/5 ✅
+- [x] Script `scripts/translate-card-effects.mjs` — tokenizer léxico, grounding docs/17, motor Gemini `gemini-3.6-flash`, validador de tokens, flags `--dry-run/--resume/--apply/--revalidate`. 17 testes.
 - [x] Lote `data/translations-st01-04.json` — 64 cartas ST01–ST04: 52 com `effectPt`, 12 sem efeito (OK vazias), **0 rejeitadas** pelo validador.
-- [ ] **`--apply` no Postgres — PENDENTE.** `node scripts/translate-card-effects.mjs --apply` gera `BEGIN; UPDATE "CardModel" ...; UPDATE "Card" ...; COMMIT;`. Rodar via MCP Supabase ou Postgres local.
+- [x] **`--apply` no Postgres — FEITO (2026-09-05, via MCP Supabase, projeto `portal-gundam-tcg-br`).** `CardModel` 52 cartas, `Card` 52 códigos / 188 prints. `effectPt` normalizado pro formato do catálogo: `【X】`→`[X]` (com espaço), quebra→`<br>`; keywords `<X>`, nomes `[X]`, blocos `((X))` intactos (0/52 cartas ST01-04 usavam `【】` no `effectEn` do banco). As 12 sem efeito seguem `NULL`.
 - [x] Exibição no simulador — `CardInspectorModal`/`Panel` ganharam o componente `CardEffectText` (PT por padrão, toggle PT/EN quando `effectPt` e `effectEn` chegam e diferem). 14 testes.
-- [x] Commit `d5d009a`.
+- [x] Commits `d5d009a` + `5a5f273`.
 - **Nota:** a chave Gemini fornecida é free-tier e travou em `429 RESOURCE_EXHAUSTED` após ~1 carta. 1/52 traduzida pelo Gemini (ST01-010), 51/52 traduzidas à mão seguindo `docs/17` e revalidadas com `--revalidate`. Decisão do Willen: manter as traduções como estão. `Rest`/`Active` ficaram como token literal (regra docs/17) → gera "Coloque-a em Rest".
 - **Follow-up:** `SimulatorMatchPage.tsx` passa hoje só `effectText={cardText[code]}` (que já resolve `effectPt || effectEn`); pra o toggle PT/EN aparecer no simulador falta um ajuste de 1–2 linhas nessa página (passar `effectPt`/`effectEn` separados). Catálogo (`CardDetailPage`/`CardsPage`) ainda não consome `effectPt` — depende do `--apply`.
 
@@ -143,25 +147,34 @@ Sem colisão de arquivos entre executores. Cada subagente commitou na sua própr
 
 | Critério | Estado |
 |---|---|
-| Textos de efeito traduzidos ST01–04, exibidos no simulador e catálogo, keywords intactas | 🟡 traduções ✅ + validador ✅ + inspetor do simulador ✅; **catálogo + banco pendem do `--apply`**; toggle no `SimulatorMatchPage` pende de follow-up de 1–2 linhas |
-| ST03/ST04 jogáveis ponta a ponta, `vitest src/modules/simulator` 100% | ✅ 515 verdes; cartas jogáveis (4 cláusulas deferidas não impedem partida) |
-| Tabuleiro adaptável a qualquer resolução, sem scroll, recursos empilhados, mira à esquerda | 🟡 código ✅ (F4); **falta validação visual em navegador real** |
-| Motor WebSocket em produção, salas, reconexão, convite por link | 🟡 infra ✅ (F5); **não em produção, cliente do tabuleiro não migrado** |
+| Textos de efeito traduzidos ST01–04, exibidos no simulador e catálogo, keywords intactas | ✅ traduções ✅ + validador ✅ + inspetor do simulador ✅ + **banco aplicado** (`CardModel`/`Card`, catálogo já exibe pt-BR). Follow-up menor: toggle PT/EN no `SimulatorMatchPage` pende de ajuste de 1–2 linhas (passar `effectPt`/`effectEn` separados). |
+| ST03/ST04 jogáveis ponta a ponta, `vitest src/modules/simulator` 100% | ✅ 531 verdes na suíte completa; partida ST03 vs ST04 inicia sem erro; 0 cláusula deferida |
+| Tabuleiro adaptável a qualquer resolução, sem scroll, recursos empilhados, mira à esquerda | ✅ código (F4) + página de preview DEV-only (`/simulador/preview-layout`) pra validar em navegador sem logar. **Falta o Willen abrir e conferir.** |
+| Motor WebSocket em produção, salas, reconexão, convite por link | 🟡 infra ✅ (F5); **não em produção, cliente do tabuleiro não migrado** (diferido) |
 | Deckbuilder com curva de nível + cálculo na mão inicial | ✅ |
 
 ## 6. Critérios de Homologação para merge em `dev` (AI_GUIDE §7)
 
 | Critério | Estado |
 |---|---|
-| `vitest src/modules/simulator` verde | ✅ em `dev` (515); F4 (433) e F5 (488) verdes independentemente nas suas branches. **Falta a run combinada pós-merge.** |
+| `vitest src/modules/simulator` verde | ✅ em `dev` (531 na suíte completa); F4 (496) e F5 (488) verdes independentemente nas suas branches. **Falta a run combinada pós-merge das feature branches.** |
 | `check:types` sem erro | ✅ em `dev`; ✅ nas branches independentemente |
-| Validação manual em navegador — partida ST03 vs ST04 via convite WebSocket + conferência do `Feedback.pdf` | ❌ **não feito** |
+| Validação manual em navegador — partida ST03 vs ST04 via convite WebSocket + conferência do `Feedback.pdf` | 🟡 página de preview de layout pronta (F4); partida real ST03 vs ST04 + WebSocket ainda dependem do Willen rodar |
 
 ---
 
-## 7. Próximos passos (autorizados nesta rodada)
+## 7. Próximos passos
 
-1. **F2 `--apply`** — rodar o SQL de tradução via MCP Supabase (ou Postgres local/Docker). Após isso, o catálogo passa a exibir `effectPt`.
-2. **Página de teste visual cru** — rota dev-only (`import.meta.env.DEV`, sem auth) na branch `feature/simulator-layout` que renderiza o playmat/arena com dados de amostra estáticos (cartas sample, campos fixos), pra validar F4 em navegadores/displays reais sem logar nem entrar no simulador.
-3. ~~**F3 — 4 cláusulas deferidas**~~ — ✅ FEITO (2026-09-05, ver §4 F3). Falta só commitar/push.
-4. **Aguardando decisão do Willen:** push das branches `feature/*`; ordem de merge; squash dos commits de F4/F5; migração do cliente do simulador pra socket.io (F5); infra real de MCP/RAG (opcional).
+**Feito nesta rodada (2026-09-05):**
+1. ✅ **F2 `--apply`** — traduções aplicadas via MCP Supabase (`CardModel` 52, `Card` 188 prints). Catálogo já exibe `effectPt`.
+2. ✅ **Página de preview de layout** — `/simulador/preview-layout` (hash-router), DEV-only, sem auth, dados estáticos. Commit `8d3ced4` em `feature/simulator-layout`.
+3. ✅ **F3 — 4 cláusulas antes deferidas** — fechadas 100% (ver §4 F3). Commit `60222ff` em `dev`, pushado.
+
+**Aguardando decisão do Willen:**
+- Push das branches `feature/simulator-layout` (8 commits) e `feature/simulator-websocket` (3 commits).
+- Ordem de merge (`dev` já tem F1–F3; sincronizar `dev → feature/*` de novo antes de mergear de volta).
+- Squash dos commits de F4/F5 no merge (foram 8 / 3, não 1).
+- Migração do cliente do simulador (`SimulatorMatchPage.tsx`) de SSE → socket.io (F5) — `socketClient` pronto.
+- Toggle PT/EN de `effectPt`/`effectEn` no `SimulatorMatchPage` (ajuste de 1–2 linhas).
+- Infra real de MCP/RAG (opcional — hoje é grounding embutido, ver §3).
+- Revisão visual da partida real ST03 vs ST04 + WebSocket em navegador.
