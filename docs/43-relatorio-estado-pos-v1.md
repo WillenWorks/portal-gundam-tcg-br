@@ -7,17 +7,25 @@
 
 ## 1. Resumo executivo
 
+> Atualizado 2026-09-05 pós-rodada de validação manual do Willen.
+
 | Frente | Branch | Estado | Push |
 |---|---|---|---|
-| **F1** Deckbuilder (curva de nível + mão inicial + estilo visual) | `dev` | ✅ 4/4 | ✅ `origin/dev` |
-| **F2** Pipeline de tradução PT-BR | `dev` | ✅ 5/5 (traduções aplicadas no banco via MCP Supabase) | ✅ `origin/dev` |
-| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + as 4 cláusulas antes deferidas **fechadas 100%** | ✅ `origin/dev` |
-| **F4** Overhaul visual/UX do simulador + página de preview | `feature/simulator-layout` | ✅ 7/7 + preview DEV-only | ❌ local (8 commits) |
-| **F5** WebSocket & multiplayer | `feature/simulator-websocket` | 🟡 5/7 (migração do cliente + prod diferidos) | ❌ local (3 commits) |
+| **F1** Deckbuilder (curva de nível + mão inicial + estilo visual) | `dev` | ✅ validado pelo Willen | ✅ `origin/dev` |
+| **F2** Pipeline de tradução PT-BR | `dev` | ✅ código + `--push` (Prisma, UTF-8) + toggle PT/EN no inspetor. Willen roda `--push` no banco local. Aplicado no Supabase. | ✅ `origin/dev` |
+| **F3** Waves ST03 + ST04 no motor | `dev` | ✅ 8/8 + 4 cláusulas deferidas fechadas + Char Aznable Lv.3 + Full Frontal escolha-da-mão + 【Destroyed】 no combate | ✅ `origin/dev` |
+| **F4** Overhaul visual/UX + preview | `feature/simulator-layout` | ✅ 7 itens de 3 rodadas de feedback + componentes de animação (demo na preview). Pendente: ligar animações no fluxo real. | ❌ local (~16 commits) |
+| **F5** WebSocket & multiplayer | `feature/simulator-websocket` | ✅ validado pelo Willen. Pendente: migração `SimulatorMatchPage` SSE→socket.io (diferida). | ❌ local (3 commits) |
 
-`dev` HEAD: `0965587`. Suíte completa em `dev`: **531 testes verdes**, `tsc -b` + `vite build` OK.
+`dev` HEAD: `a72bfee`. Suíte completa em `dev`: **552 testes verdes**, `tsc -b` + `vite build` OK.
 
-Commits em `dev` (novos nesta rodada):
+### Rodada de validação — fixes pós-teste (2026-09-05)
+- `e0c32a8` — `ART_SET_CODES` inclui ST03/ST04 (arte + texto no simulador); `--push` UTF-8-safe (o `--apply | psql` no Windows corrompia); `.env` copiado pras worktrees.
+- `db4c856` — Char Aznable Lv.3 (era Lv.4 de variante SP; auditados os 32 CardDefs, só ele errado); inspetor recebe `effectPt`/`effectEn` separados → toggle PT/EN.
+- `e9fd003` — escolha interativa de `deployFromHandTriggered` (Full Frontal) e `lookAtTopFilterReveal` (camada de decisão); `AbilityResolutionModal`.
+- `a72bfee` — 【Destroyed】 dispara no Damage Step (ST04-009 Miguel's Ginn compra; ST03-006 Char's Zaku II pausa pra revelar). Pendente: 【Destroyed】 fora de combate; 2 pausas cross-player simultâneas.
+
+Commits em `dev` (rodada Pós-v1.0 original):
 - `7f068f7` chore(scripts): execução paralela via git worktrees
 - `5dd1e19` feat(deckbuilder): level curve stats and visual style position — **F1**
 - `81acadc` feat(simulator): primitivas lookAtTopFilterReveal e deployFromHandTriggered — **F3**

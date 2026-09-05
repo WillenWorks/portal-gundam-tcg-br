@@ -67,12 +67,14 @@ export const AEGIS_GUNDAM_ATTACK: EffectSpec = {
 };
 
 // ST04-009 Miguel's Ginn — 【During Pair】【Destroyed】If you have another Link Unit
-// in play, draw 1. (o prefixo 【During Pair】 = o 【Destroyed】 só dispara pareada;
-// quem despacha checa isso, igual às outras tags condicionais)
+// in play, draw 1. O prefixo 【During Pair】 (`duringPair: true`) faz o motor de
+// combate (`dispatchDestroyedTriggers`) só disparar o 【Destroyed】 se a Unit
+// estava PAREADA no instante da destruição (`DestroyedInBattle.wasPaired`).
 export const MIGUELS_GINN_DESTROYED: EffectSpec = {
   id: "ST04-009-Destroyed",
   cardCode: "ST04-009",
   trigger: "Destroyed",
+  duringPair: true,
   condition: {
     predicate: "controllerHasOtherLinkUnit",
     then: [{ op: "draw", player: "controller", n: 1 }],

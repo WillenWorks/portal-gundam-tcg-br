@@ -25,7 +25,7 @@ import { payResourceCostEvents } from "./costs";
 
 export type PlayerRef = PlayerId | "controller" | "opponent";
 
-function resolvePlayerRef(ref: PlayerRef, controller: PlayerId): PlayerId {
+export function resolvePlayerRef(ref: PlayerRef, controller: PlayerId): PlayerId {
   if (ref === "controller") return controller;
   if (ref === "opponent") return otherPlayer(controller);
   return ref;
@@ -427,6 +427,13 @@ export interface EffectSpec {
    */
   optional?: boolean;
   /**
+   * `true` quando o texto oficial prefixa o gatilho com 【During Pair】 (ex.
+   * ST04-009 Miguel's Ginn 【During Pair】【Destroyed】) — quem despacha só ativa
+   * o efeito se a Unit fonte estava PAREADA no momento do gatilho. Hoje só
+   * consultado por `dispatchDestroyedTriggers` (via `DestroyedInBattle.wasPaired`).
+   */
+  duringPair?: boolean;
+  /**
    * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
    * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
    */
@@ -499,6 +506,34 @@ export function specNeedsNamedTarget(spec: EffectSpec): boolean {
       return target?.kind === "named" && target.name === "target";
     });
   return uses(spec.actions) || uses(spec.condition?.then) || uses(spec.condition?.else);
+}
+
+/**
+ * Primitivas que exigem uma ESCOLHA DE CARTA feita fora de campo (na mão, ou
+ * entre as N do topo do deck) — diferente de `ctx.targets.target`, que é uma
+ * Unit/Recurso já visível no tabuleiro. Hoje: `deployFromHandTriggered`
+ * (ST03-010 Full Frontal 【When Paired】) e `lookAtTopFilterReveal` (ST03-006
+ * Char's Zaku Ⅱ 【Destroyed】). A camada de decisão (`abilityDispatch.ts`) usa
+ * isto pra montar `handChoice`/`deckTopReveal` na fila da `PendingDecision` e
+ * pra marcar o gatilho como interativo mesmo quando `optional` é `false`.
+ */
+export type ChoicePrimitive =
+  | Extract<PrimitiveCall, { op: "deployFromHandTriggered" }>
+  | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>;
+
+export function specChoicePrimitive(spec: EffectSpec): ChoicePrimitive | undefined {
+  const all: PrimitiveCall[] = [
+    ...(spec.cost ?? []),
+    ...(spec.condition?.then ?? []),
+    ...(spec.condition?.else ?? []),
+    ...spec.actions,
+  ];
+  return all.find((call): call is ChoicePrimitive => call.op === "deployFromHandTriggered" || call.op === "lookAtTopFilterReveal");
+}
+
+/** `true` se o spec consome uma escolha de carta na mão / no topo do deck (ver `specChoicePrimitive`). */
+export function specNeedsChoice(spec: EffectSpec): boolean {
+  return specChoicePrimitive(spec) !== undefined;
 }
 
 export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolvePredicate?: PredicateResolver): GameEvent[] {

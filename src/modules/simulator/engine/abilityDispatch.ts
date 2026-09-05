@@ -9,10 +9,62 @@
  * simultâneos, escolhe o alvo de cada um e ativa/pula os optativos. Os demais
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { computeLegalTargets, specNeedsNamedTarget } from "./effectSpec";
+import {
+  computeLegalTargets,
+  matchesCardDefFilter,
+  peekAndReorderDeck,
+  resolvePlayerRef,
+  specChoicePrimitive,
+  specNeedsChoice,
+  specNeedsNamedTarget,
+} from "./effectSpec";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { applyEvents } from "./events";
-import type { GameState, PlayerId } from "./types";
+import { applyEvents, findCard } from "./events";
+import type { DestroyedInBattle, GameState, PendingDecision, PlayerId } from "./types";
+import { otherPlayer } from "./types";
+
+type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
+
+/**
+ * Monta a entrada da fila de `abilityResolution` pra 1 spec interativo. Se o
+ * spec usa `deployFromHandTriggered`/`lookAtTopFilterReveal`, calcula aqui (no
+ * servidor, uma única vez) o conjunto de cartas elegíveis — `resolveAbility`
+ * valida a escolha do cliente contra ele, nunca confia cegamente.
+ */
+function buildQueueEntry(
+  state: GameState,
+  player: PlayerId,
+  spec: EffectSpec,
+  sourceInstanceId: string,
+  targetFilterResolver?: TargetFilterResolver,
+): AbilityQueueEntry {
+  const needsTarget = specNeedsNamedTarget(spec);
+  const entry: AbilityQueueEntry = {
+    sourceInstanceId,
+    specId: spec.id,
+    label: spec.sourceText,
+    optional: spec.optional ?? false,
+    needsTarget,
+    targetScope: spec.targetScope ?? "enemyUnit",
+    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver) : [],
+  };
+
+  const choice = specChoicePrimitive(spec);
+  if (!choice) return entry;
+
+  if (choice.op === "deployFromHandTriggered") {
+    const chooser = resolvePlayerRef(choice.player, player);
+    const legalHandIds = state.players[chooser].hand
+      .filter((c) => c.def.cardType === "UNIT" && matchesCardDefFilter(c.def, choice.filter))
+      .map((c) => c.instanceId);
+    return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
+  }
+
+  const chooser = resolvePlayerRef(choice.player, player);
+  const topCards = peekAndReorderDeck(state, chooser, choice.count);
+  const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+  return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
+}
 
 export interface AbilitySource {
   code: string;
@@ -33,7 +85,9 @@ export function deferOrDispatchAbilities(
   if (entries.length === 0) return state;
 
   const dispatchOpts = { targets: opts.targets, predicateResolver: opts.predicateResolver };
-  const interactive = entries.filter(({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec));
+  const interactive = entries.filter(
+    ({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec) || specNeedsChoice(spec),
+  );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
   if (interactive.length === 0 || opts.targets) {
@@ -56,21 +110,92 @@ export function deferOrDispatchAbilities(
       decision: {
         kind: "abilityResolution",
         trigger,
-        queue: interactive.map(({ spec, sourceInstanceId }) => ({
-          sourceInstanceId,
-          specId: spec.id,
-          label: spec.sourceText,
-          optional: spec.optional ?? false,
-          needsTarget: specNeedsNamedTarget(spec),
-          targetScope: spec.targetScope ?? "enemyUnit",
-          // V0 (docs/25): calculado UMA VEZ aqui, no servidor — a UI só lista,
-          // `resolveAbility` valida contra isto (nunca confia no que o
-          // cliente manda de volta).
-          legalTargets: specNeedsNamedTarget(spec) ? computeLegalTargets(state, spec, player, opts.targetFilterResolver) : [],
-        })),
+        // V0 (docs/25): candidatos legais (alvo em campo, carta da mão, topo do
+        // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
+        // `resolveAbility` valida contra isto (nunca confia no cliente).
+        queue: interactive.map(({ spec, sourceInstanceId }) =>
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver),
+        ),
       },
     },
   ]);
+}
+
+/**
+ * Compara o estado imediatamente ANTES de aplicar os eventos do Damage Step
+ * com o de DEPOIS e devolve as Units que saíram da Battle Area pro trash neste
+ * passo (mortes de batalha, `pairedPilotFollowEvents`, Breach letal,
+ * combatTrigger letal). `wasPaired` vem do snapshot de antes — depois do
+ * `DESTROY_CARD` a Unit já perdeu `pairedPilotId`. Units devolvidas pra
+ * mão/deck (não pro trash) NÃO contam como destruídas.
+ */
+export function collectDestroyedInBattle(before: GameState, after: GameState): DestroyedInBattle[] {
+  const out: DestroyedInBattle[] = [];
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const stillInPlay = new Set(after.players[pid].battleArea.map((c) => c.instanceId));
+    const inTrashNow = new Set(after.players[pid].trash.map((c) => c.instanceId));
+    for (const card of before.players[pid].battleArea) {
+      if (stillInPlay.has(card.instanceId)) continue;
+      if (!inTrashNow.has(card.instanceId)) continue;
+      out.push({ instanceId: card.instanceId, owner: pid, wasPaired: !!card.pairedPilotId });
+    }
+  }
+  return out;
+}
+
+/**
+ * Dispara 【Destroyed】 das Units destruídas num Damage Step (docs/44). Chamado
+ * UMA vez por batalha (ver `actions.ts`), sempre DEPOIS do dano/Breach e da
+ * fila de 【Burst】 — Comprehensive Rules: 【Burst】 e 【Destroyed】 do mesmo evento
+ * são simultâneos e o jogador ativo os ordena; fixamos 【Burst】→【Destroyed】
+ * (decisão documentada, evita interleave de duas pausas).
+ *
+ * - 【During Pair】【Destroyed】 (`spec.duringPair`): só dispara se `wasPaired`.
+ * - Sem pausa (ST04-009 Miguel's Ginn — `condition` + `draw`): resolve inline
+ *   via `dispatchTrigger`.
+ * - Com pausa (ST03-006 Char's Zaku Ⅱ — `lookAtTopFilterReveal`, `optional`):
+ *   vira `PendingDecision.abilityResolution` com `deckTopReveal` pro dono,
+ *   resolvida antes do Battle End Step (ver `resolveAbility` em `actions.ts`).
+ *
+ * Ordem: Units do jogador ativo primeiro. Se os DOIS lados têm 【Destroyed】 que
+ * pausa no mesmo step (extremamente raro — exige 2 Char's Zaku Ⅱ mortas num
+ * AoE, uma de cada lado), só o do jogador ativo vira decisão nesta versão (o
+ * motor não suporta 2 `pendingDecision` simultâneos — deadlock em `actions.ts`).
+ */
+export function dispatchDestroyedTriggers(
+  state: GameState,
+  destroyed: DestroyedInBattle[],
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  const active = state.activePlayer;
+  const ordered = [...destroyed].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
+
+  let next = state;
+  const interactiveByOwner: Record<PlayerId, AbilitySource[]> = { A: [], B: [] };
+
+  for (const d of ordered) {
+    const card = findCard(next, d.instanceId);
+    const triggerSpecs = findTriggerSpecs(specs, card.def.code, "Destroyed").filter(
+      (s) => !((s.duringPair ?? false) && !d.wasPaired),
+    );
+    if (triggerSpecs.length === 0) continue;
+
+    const interactive = triggerSpecs.filter(
+      (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
+    );
+    for (const spec of triggerSpecs.filter((s) => !interactive.includes(s))) {
+      next = dispatchTrigger(next, d.instanceId, "Destroyed", [spec], { predicateResolver: opts.predicateResolver });
+    }
+    if (interactive.length > 0) interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId });
+  }
+
+  for (const owner of [active, otherPlayer(active)] as PlayerId[]) {
+    if (interactiveByOwner[owner].length === 0) continue;
+    if (next.pendingDecision.A || next.pendingDecision.B) break;
+    next = deferOrDispatchAbilities(next, owner, "Destroyed", interactiveByOwner[owner], specs, opts);
+  }
+  return next;
 }
 
 /**

@@ -1452,6 +1452,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             if (resourceIndex >= 0) return `Recurso ${resourceIndex + 1} (gasto)`;
             return "Carta";
           }}
+          // ST03-010 Full Frontal 【When Paired】 — a escolha é uma carta da própria
+          // mão (sempre visível ao dono na view).
+          resolveHandLabel={(instanceId) => {
+            const card = view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === instanceId);
+            return card && !isHidden(card) ? card.def.nameEn : "Carta";
+          }}
           busy={busy}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
         />

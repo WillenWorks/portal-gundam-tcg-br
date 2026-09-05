@@ -12,10 +12,15 @@ import { applyEvent, applyEvents, findCard } from "./events";
  * ortogonal a autoria de conteúdo", comentário no topo de `content/st01.ts`).
  *
  * Escopo desta wave: dispara os triggers pontuais que já têm EffectSpec real
- * (Deploy, When Paired, Attack, Burst, Main, Action, Activate·Main). Não
- * cobre "Destroyed" porque nenhuma carta do ST01/ST02 tem EffectSpec desse
- * trigger ainda — o dispatcher já é genérico o bastante pra cobrir quando
- * aparecer (ver `dispatchTrigger`, funciona pra qualquer rótulo).
+ * (Deploy, When Paired, Attack, Burst, Main, Action, Activate·Main).
+ *
+ * "Destroyed" (ST03-006 Char's Zaku Ⅱ, ST04-009 Miguel's Ginn) É despachado —
+ * mas pelo motor de COMBATE, não por aqui: `actions.ts` chama
+ * `collectDestroyedInBattle` + `dispatchDestroyedTriggers` (abilityDispatch.ts)
+ * depois do Damage Step (docs/44). `dispatchTrigger` abaixo continua genérico
+ * e é o que aquele helper usa pro caso não-pausante. PENDENTE: destruição FORA
+ * de combate (`destroy`/`damageUnit` letal via `resolveEffectSpec` — ex. Close
+ * Combat 【Main】 matando uma HP1) ainda não dispara 【Destroyed】.
  */
 
 export interface DispatchOptions {

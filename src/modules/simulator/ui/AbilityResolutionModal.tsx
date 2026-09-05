@@ -23,6 +23,13 @@ interface AbilityResolutionModalProps {
    * componente só resolve o RÓTULO, nunca decide quem é legal.
    */
   resolveLabel: (instanceId: string) => string;
+  /**
+   * Nome de uma carta da MÃO do jogador por `instanceId` — usado só pelas
+   * entradas com `handChoice` (ST03-010 Full Frontal 【When Paired】). O pai
+   * monta a partir de `view.players[seat].hand` (a própria mão é sempre
+   * visível ao dono).
+   */
+  resolveHandLabel?: (instanceId: string) => string;
   busy?: boolean;
   onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>) => void;
 }
@@ -33,7 +40,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   Deploy: "Carta implantada — 【Deploy】",
 };
 
-export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve }: AbilityResolutionModalProps) {
+export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabel, busy, onResolve }: AbilityResolutionModalProps) {
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
   const [activate, setActivate] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
@@ -42,6 +49,11 @@ export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve
 
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
   const optionsFor = (specId: string) => itemFor(specId).legalTargets.map((instanceId) => ({ instanceId, label: resolveLabel(instanceId) }));
+
+  /** `deckTopReveal` ignora o toggle Ativar/Pular: sempre resolve (revela 1 ou nenhuma). */
+  const showActivateToggle = (specId: string) => itemFor(specId).optional && !itemFor(specId).deckTopReveal;
+  const pickTarget = (specId: string, instanceId: string) =>
+    setTarget((s) => (s[specId] === instanceId ? withoutKey(s, specId) : { ...s, [specId]: instanceId }));
 
   const move = (index: number, dir: -1 | 1) => {
     setOrder((current) => {
@@ -55,18 +67,23 @@ export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve
 
   const canConfirm = order.every((specId) => {
     const q = itemFor(specId);
+    if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
     if (!activate[specId]) return true;
+    if (q.handChoice) return q.handChoice.legalHandIds.length === 0 || Boolean(target[specId]);
     if (q.needsTarget && optionsFor(specId).length > 0) return Boolean(target[specId]);
     return true;
   });
 
   const confirm = () =>
     onResolve(
-      order.map((specId) => ({
-        specId,
-        activate: Boolean(activate[specId]),
-        targetIds: itemFor(specId).needsTarget && target[specId] ? [target[specId]] : [],
-      })),
+      order.map((specId) => {
+        const q = itemFor(specId);
+        const chosen = target[specId];
+        if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
+        const on = Boolean(activate[specId]);
+        if (q.handChoice) return { specId, activate: on, targetIds: on && chosen ? [chosen] : [] };
+        return { specId, activate: on, targetIds: q.needsTarget && chosen ? [chosen] : [] };
+      }),
     );
 
   return (
@@ -107,7 +124,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve
                   ) : null}
                 </div>
 
-                {q.optional ? (
+                {showActivateToggle(specId) ? (
                   <div className="mt-2 flex gap-1">
                     <Toggle active={on} onClick={() => setActivate((s) => ({ ...s, [specId]: true }))}>
                       Ativar
@@ -135,6 +152,55 @@ export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
                   )
                 ) : null}
+
+                {on && q.handChoice ? (
+                  q.handChoice.legalHandIds.length > 0 ? (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[10px] text-muted-portal">Escolha 1 Unidade da sua mão pra implantar sem custo:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {q.handChoice.legalHandIds.map((instanceId) => (
+                          <Toggle
+                            key={instanceId}
+                            active={target[specId] === instanceId}
+                            onClick={() => pickTarget(specId, instanceId)}
+                          >
+                            {resolveHandLabel?.(instanceId) ?? "Carta"}
+                          </Toggle>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-muted-portal">Nenhuma Unidade elegível na mão — o efeito não faz nada.</p>
+                  )
+                ) : null}
+
+                {q.deckTopReveal ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] text-muted-portal">
+                      Topo do deck ({q.deckTopReveal.count}) — revele 1 Unidade (Zeon)/(Neo Zeon) ou nenhuma. O resto vai
+                      pro fundo.
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {q.deckTopReveal.topCards.map((card) => {
+                        const revealable = q.deckTopReveal!.revealableIds.includes(card.instanceId);
+                        return (
+                          <Toggle
+                            key={card.instanceId}
+                            active={target[specId] === card.instanceId}
+                            disabled={!revealable}
+                            onClick={() => pickTarget(specId, card.instanceId)}
+                          >
+                            {card.def.nameEn}
+                            {revealable ? "" : " (não revelável)"}
+                          </Toggle>
+                        );
+                      })}
+                      <Toggle active={!target[specId]} onClick={() => setTarget((s) => withoutKey(s, specId))}>
+                        Não revelar
+                      </Toggle>
+                    </div>
+                  </div>
+                ) : null}
               </li>
             );
           })}
@@ -152,15 +218,33 @@ export function AbilityResolutionModal({ decision, resolveLabel, busy, onResolve
   );
 }
 
-function Toggle({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+function withoutKey(map: Record<string, string>, key: string): Record<string, string> {
+  const next = { ...map };
+  delete next[key];
+  return next;
+}
+
+function Toggle({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={cn(
         "min-h-8 rounded-arena border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
         active ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-black/40 text-slate-300 hover:border-amber-400/50",
+        disabled && "cursor-not-allowed opacity-40 hover:border-white/10",
       )}
     >
       {children}

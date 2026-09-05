@@ -414,6 +414,18 @@ export type AttackTarget = "player" | { unitId: string };
  * relógio; o `viewState` repassa pros dois lados (o oponente vê que há uma
  * decisão pendente, mas o conteúdo só embute `instanceId`/carta já pública).
  */
+/**
+ * Uma Unit que saiu da Battle Area pro trash durante um Damage Step (morte de
+ * batalha, Breach letal, combatTrigger letal). `wasPaired` é capturado ANTES do
+ * `DESTROY_CARD` (a Unit perde `pairedPilotId` ao ir pro trash) — habilita o
+ * gate 【During Pair】【Destroyed】 (ST04-009 Miguel's Ginn).
+ */
+export interface DestroyedInBattle {
+  instanceId: string;
+  owner: PlayerId;
+  wasPaired: boolean;
+}
+
 export type PendingDecision =
   | {
       kind: "burst";
@@ -424,6 +436,15 @@ export type PendingDecision =
       choices: string[];
       /** outras shields quebradas no MESMO Damage Step, ainda por decidir (fila FIFO) — resolvida uma por vez */
       queuedInstanceIds: string[];
+      /**
+       * 【Destroyed】 das Units destruídas no MESMO Damage Step (docs/44). O
+       * 【Burst】 resolve primeiro (fila FIFO acima); quando ela esvazia,
+       * `resolveBurstDecision` dispara estes 【Destroyed】 antes do Battle End
+       * Step (Comprehensive Rules — 【Burst】 e 【Destroyed】 são simultâneos; o
+       * jogador ativo ordena — aqui fixamos 【Burst】→【Destroyed】). Ver
+       * `collectDestroyedInBattle`/`dispatchDestroyedTriggers`.
+       */
+      pendingDestroyed?: DestroyedInBattle[];
     }
   | {
       kind: "triggerOrder";
@@ -456,6 +477,28 @@ export type PendingDecision =
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
+        /**
+         * ST03-010 Full Frontal 【When Paired】 — "You may deploy 1 (Neo Zeon)/(Zeon)
+         * Unit card Lv.4 or lower from your hand." O jogador escolhe 1 carta da
+         * própria mão (não uma carta em campo, por isso não é `legalTargets`).
+         * `legalHandIds` é calculado no servidor ao montar a fila (mão do
+         * controller que casa o filtro trait/nível e é Unit); `resolveAbility`
+         * valida contra ele. Presente só quando o spec usa `deployFromHandTriggered`.
+         * A escolha viaja em `resolution.targetIds` (0 ou 1 id) e vira
+         * `ctx.targets.deploy`.
+         */
+        handChoice?: { legalHandIds: string[]; label: string };
+        /**
+         * ST03-006 Char's Zaku Ⅱ 【Destroyed】 — "Look at the top 3 cards of your
+         * deck. You may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it
+         * to your hand. Return the remaining cards randomly to the bottom." O dono
+         * vê todas as `topCards` (instâncias embutidas — a redação de `viewState`
+         * as esvazia pro oponente, já que o topo do deck é oculto); `revealableIds`
+         * é o subconjunto que casa o filtro (revela 1 dessas OU nenhuma). A escolha
+         * viaja em `resolution.targetIds` (0 ou 1 id) e vira `ctx.targets.reveal`.
+         * "Não revelar" ainda dispara o efeito (as N cartas vão pro fundo).
+         */
+        deckTopReveal?: { topCards: CardInstance[]; revealableIds: string[]; count: number; label: string };
       }>;
     }
   | {

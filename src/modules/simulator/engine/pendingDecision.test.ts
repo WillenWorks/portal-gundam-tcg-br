@@ -6,7 +6,9 @@ import { buildVanillaDeckList, VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction, playerHasActionStepPlay } from "./actions";
+import { deferOrDispatchAbilities } from "./abilityDispatch";
 import { findCard } from "./events";
+import { buildSt03DeckList, ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 
 /**
@@ -333,6 +335,172 @@ describe("zoneOverflow — limite de 6 Units na Battle Area (V2, docs/27)", () =
 
     expect(next.players.A.battleArea).toHaveLength(7); // spawnou o token normalmente
     expect(next.pendingDecision.A?.kind).toBe("zoneOverflow");
+  });
+});
+
+describe("abilityResolution — deployFromHandTriggered (ST03-010 Full Frontal 【When Paired】)", () => {
+  function freshSt03(): GameState {
+    return advanceToMainPhase(createGame(buildSt03DeckList(), buildSt03DeckList(), { seed: 7, firstPlayer: "A" }));
+  }
+
+  function pairFullFrontal() {
+    const state = freshSt03();
+    state.players.B.baseSection = [];
+    state.players.A.hand = []; // a mão inicial do deck ST03 já traz Units elegíveis — parte-se de mão vazia
+    // link de Char's Zaku Ⅱ é "Char Aznable" -> não vira Link Unit com Full Frontal
+    const unitId = place(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "battleArea");
+    const ffId = place(state, "A", ST03_CARD_DEFS.FULL_FRONTAL, "hand");
+    giveResources(state, "A", 6); // Pilot Lv.6 / custo 1
+    const gearaId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "hand"); // L3 Neo Zeon -> elegível
+    const draId = place(state, "A", ST03_CARD_DEFS.DRA_C, "hand"); // L1 Neo Zeon -> elegível
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU, "hand"); // L6 -> NÃO elegível
+    return { state, unitId, ffId, gearaId, draId, sinanjuId };
+  }
+
+  it("parear Full Frontal PAUSA em abilityResolution com handChoice (Units Lv≤4 (Neo Zeon)/(Zeon) da mão)", () => {
+    const { state, unitId, ffId, gearaId, draId, sinanjuId } = pairFullFrontal();
+    const next = apply(state, "A", { kind: "deployCard", cardInstanceId: ffId, pairWithUnitId: unitId });
+
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution pendente");
+    expect(d.trigger).toBe("When Paired");
+    const q = d.queue.find((x) => x.specId === "ST03-010-WhenPaired");
+    expect(q?.handChoice).toBeDefined();
+    expect(q?.handChoice?.legalHandIds.slice().sort()).toEqual([gearaId, draId].slice().sort());
+    expect(q?.handChoice?.legalHandIds).not.toContain(sinanjuId);
+    expect(findCard(next, gearaId).zone).toBe("hand"); // nada implantado ainda
+  });
+
+  it("escolher 1 Unidade -> vai pro battleArea SEM custo de recurso; sai da mão", () => {
+    const { state, unitId, ffId, gearaId } = pairFullFrontal();
+    const paused = apply(state, "A", { kind: "deployCard", cardInstanceId: ffId, pairWithUnitId: unitId });
+
+    const next = apply(paused, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "ST03-010-WhenPaired", activate: true, targetIds: [gearaId] }],
+    });
+
+    expect(next.pendingDecision.A).toBeNull();
+    expect(findCard(next, gearaId).zone).toBe("battleArea");
+    expect(next.players.A.hand.some((c) => c.instanceId === gearaId)).toBe(false);
+    // deployFromHandTriggered não paga custo: Resource Area intacta entre a pausa e a resolução
+    expect(next.players.A.resourceArea.length).toBe(paused.players.A.resourceArea.length);
+    expect(next.players.A.resourceArea.filter((r) => r.rested).length).toBe(
+      paused.players.A.resourceArea.filter((r) => r.rested).length,
+    );
+  });
+
+  it("'pular' (activate:false) -> nada implantado, carta fica na mão", () => {
+    const { state, unitId, ffId, gearaId } = pairFullFrontal();
+    const paused = apply(state, "A", { kind: "deployCard", cardInstanceId: ffId, pairWithUnitId: unitId });
+    const next = apply(paused, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "ST03-010-WhenPaired", activate: false, targetIds: [] }],
+    });
+    expect(next.pendingDecision.A).toBeNull();
+    expect(findCard(next, gearaId).zone).toBe("hand");
+  });
+
+  it("server-authoritative: escolher carta fora de legalHandIds lança", () => {
+    const { state, unitId, ffId, sinanjuId } = pairFullFrontal();
+    const paused = apply(state, "A", { kind: "deployCard", cardInstanceId: ffId, pairWithUnitId: unitId });
+    expect(() =>
+      apply(paused, "A", {
+        kind: "resolveAbility",
+        resolutions: [{ specId: "ST03-010-WhenPaired", activate: true, targetIds: [sinanjuId] }],
+      }),
+    ).toThrow(/não está entre as cartas elegíveis/i);
+  });
+});
+
+describe("abilityResolution — lookAtTopFilterReveal (ST03-006 Char's Zaku Ⅱ 【Destroyed】)", () => {
+  // A CAMADA DE DECISÃO, exercitada diretamente via `deferOrDispatchAbilities`.
+  // O wiring com o motor de combate (destruição em batalha -> este pause) é
+  // testado em `destroyedTrigger.test.ts` (docs/44).
+  function destroyedZaku() {
+    const state = advanceToMainPhase(createGame(buildSt03DeckList(), buildSt03DeckList(), { seed: 7, firstPlayer: "A" }));
+    const zakuId = place(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "trash");
+    const topIds: string[] = [];
+    // top 3 forçado: Zaku I (Zeon Unit), Indignation (Command), Dra-C (Neo Zeon Unit)
+    for (const def of [ST03_CARD_DEFS.ZAKU_I, ST03_CARD_DEFS.INDIGNATION, ST03_CARD_DEFS.DRA_C]) {
+      topIds.push(place(state, "A", def, "deck"));
+    }
+    const three = state.players.A.deck.splice(-3, 3);
+    state.players.A.deck.unshift(...three);
+    return { state, zakuId, topIds };
+  }
+
+  function deferDestroyed(state: GameState, zakuId: string): GameState {
+    return deferOrDispatchAbilities(state, "A", "Destroyed", [{ code: "ST03-006", instanceId: zakuId }], SPECS, {
+      predicateResolver: R,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+  }
+
+  it("Char's Zaku Ⅱ destruída PAUSA em abilityResolution com deckTopReveal (top 3; reveláveis = Units Zeon/Neo Zeon)", () => {
+    const { state, zakuId, topIds } = destroyedZaku();
+    const [zakuI, indignation, draC] = topIds;
+    const next = deferDestroyed(state, zakuId);
+
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution pendente");
+    const q = d.queue.find((x) => x.specId === "ST03-006-Destroyed");
+    expect(q?.deckTopReveal?.count).toBe(3);
+    expect(q?.deckTopReveal?.topCards.map((c) => c.instanceId)).toEqual([zakuI, indignation, draC]);
+    expect(q?.deckTopReveal?.revealableIds.slice().sort()).toEqual([zakuI, draC].slice().sort());
+  });
+
+  it("revelar a Unit Zeon -> vai pra mão; as outras 2 vão pro fundo do deck", () => {
+    const { state, zakuId, topIds } = destroyedZaku();
+    const [zakuI, indignation, draC] = topIds;
+    const paused = deferDestroyed(state, zakuId);
+    const deckLenBefore = paused.players.A.deck.length;
+
+    const next = apply(paused, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "ST03-006-Destroyed", activate: true, targetIds: [zakuI] }],
+    });
+
+    expect(next.pendingDecision.A).toBeNull();
+    expect(next.players.A.hand.some((c) => c.instanceId === zakuI)).toBe(true);
+    expect(next.players.A.deck.length).toBe(deckLenBefore - 1);
+    const top3 = next.players.A.deck.slice(0, 3).map((c) => c.instanceId);
+    expect(top3).not.toContain(indignation);
+    expect(top3).not.toContain(draC);
+    expect(
+      next.players.A.deck
+        .slice(-2)
+        .map((c) => c.instanceId)
+        .sort(),
+    ).toEqual([indignation, draC].slice().sort());
+  });
+
+  it("declinar (targetIds vazio) -> nada pra mão; as 3 vão pro fundo", () => {
+    const { state, zakuId, topIds } = destroyedZaku();
+    const paused = deferDestroyed(state, zakuId);
+    const next = apply(paused, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "ST03-006-Destroyed", activate: true, targetIds: [] }],
+    });
+    expect(next.pendingDecision.A).toBeNull();
+    expect(
+      next.players.A.deck
+        .slice(-3)
+        .map((c) => c.instanceId)
+        .sort(),
+    ).toEqual(topIds.slice().sort());
+  });
+
+  it("server-authoritative: revelar carta não-revelável (Command) lança", () => {
+    const { state, zakuId, topIds } = destroyedZaku();
+    const indignation = topIds[1];
+    const paused = deferDestroyed(state, zakuId);
+    expect(() =>
+      apply(paused, "A", {
+        kind: "resolveAbility",
+        resolutions: [{ specId: "ST03-006-Destroyed", activate: true, targetIds: [indignation] }],
+      }),
+    ).toThrow(/não está entre as cartas reveláveis/i);
   });
 });
 

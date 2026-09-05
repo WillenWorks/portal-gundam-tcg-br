@@ -33,6 +33,10 @@ import { TOKEN_CHARS_ZAKU_II, TOKEN_ZAKU_II } from "../fixtures/st03Deck";
 // ST03-006 Char's Zaku Ⅱ — 【Destroyed】Look at the top 3 cards of your deck. You
 // may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it to your hand.
 // Return the remaining cards randomly to the bottom of your deck.
+// Despachado pelo motor de combate: `actions.ts` -> `dispatchDestroyedTriggers`
+// (abilityDispatch.ts) depois do Damage Step. Por ter `lookAtTopFilterReveal`
+// (`optional`), PAUSA em `PendingDecision.abilityResolution` com `deckTopReveal`
+// antes do Battle End Step (docs/44).
 export const CHARS_ZAKU_II_DESTROYED: EffectSpec = {
   id: "ST03-006-Destroyed",
   cardCode: "ST03-006",
