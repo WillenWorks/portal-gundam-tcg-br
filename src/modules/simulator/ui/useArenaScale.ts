@@ -24,7 +24,7 @@
  */
 import { useEffect, useRef } from "react";
 
-const HAND_FOOTER_FACTOR = 1.75; // ArenaPlaymat.tsx: min-h-[calc(var(--card-w)*1.75)]
+const HAND_FOOTER_FACTOR = 1.35; // ArenaPlaymat.tsx: min-h-[calc(var(--card-w)*1.35)] (Willen 3ª rodada: 1.75 → 1.35, sobra mais tela pro board)
 // Frente 4 (docs/38 §2.1 + feedback Willen 2ª rodada) — piso subiu 44 → 64 → 80px.
 // Com 64px a carta ainda escalava pra `--card-w-std` ≈ 42px e o Willen achou
 // "pequena demais". 80px dá `--card-w-std` ≈ 53px (fator 0.66) — cartas,

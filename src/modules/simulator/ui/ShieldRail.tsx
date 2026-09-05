@@ -114,12 +114,16 @@ export function ShieldRail({
         // precisa achar a classe inteira como texto literal no código-fonte
         // pra gerar o CSS; um template literal montando só o número em
         // runtime não seria escaneado.
+        // Frente 4 (feedback Willen 3ª rodada): cascata MAIS JUNTA — antes
+        // subtraía só a LARGURA (`1 × --card-w-std`), deixando uma tira alta por
+        // shield; a coluna toda invadia o centro. Agora subtrai `1.3 ×` (fica
+        // só uma fresta visível, lê como bloco só). `compact` segue quase full.
         const cascade =
           !vertical || i === 0
             ? undefined
             : compact
               ? "-mt-[calc(var(--card-w-std,2.17rem)*88/63)]"
-              : "-mt-[var(--card-w-std,2.17rem)]";
+              : "-mt-[calc(var(--card-w-std,2.17rem)*1.3)]";
 
         const piece = vertical ? (
           <span

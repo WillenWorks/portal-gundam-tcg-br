@@ -185,7 +185,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
       {/* ── Rodapé: mão ancorada (fora da inclinação, pra leitura). Altura
           mínima reservada (Sprint 6 · P3) pra a mão não encolher junto com o
           canvas a ponto de cortar a carta. ───────────────────────────────── */}
-      <div className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
+      {/* Frente 4 (feedback Willen 3ª rodada): rodapé da mão MENOR (fator
+          1.75 → 1.35) — sobra mais tela pro tabuleiro (cartas/infos maiores). */}
+      <div className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.35)] border-t border-primary/15 bg-slate-950/40">
         {hand}
       </div>
 
@@ -203,11 +205,15 @@ const STATION_WIDTH = "w-[var(--card-w-std,2.17rem)]";
  * usa a MESMA largura pra alinhar com a Battle Area. */
 const BATTLE_ROW_WIDTH = "calc(var(--card-w-std, 2.17rem) * 6 + 1.875rem)";
 
-/** trilha de recursos: centrada, travada na largura da Battle Area, scroll fantasma. */
+/** trilha de recursos: centrada, travada na largura da Battle Area.
+ *  Frente 4 (feedback Willen 3ª rodada): `overflow-visible` — o `overflow-x-auto`
+ *  antigo (herança de quando os recursos rolavam) clipava os badges `xN` das
+ *  pilhas (`-top-1 -right-1`). Com o empilhamento (docs/38 §3.3) a trilha nunca
+ *  passa da largura da Battle Area, então não precisa de scroll. */
 function ResourceLane({ children }: { children: ReactNode }) {
   return (
     <div
-      className="scrollbar-ghost mx-auto flex min-w-0 max-w-full justify-center overflow-x-auto overscroll-x-contain"
+      className="mx-auto flex min-w-0 max-w-full justify-center overflow-visible pt-1.5"
       style={{ width: BATTLE_ROW_WIDTH }}
     >
       {children}

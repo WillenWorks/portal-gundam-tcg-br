@@ -77,7 +77,7 @@ describe("useArenaScale", () => {
     renderHook(() => useArenaScale({ current: container }, { current: group }));
     triggerResize(); // 2ª medição (resize real) — deve CONVERGIR no mesmo valor, não divergir.
 
-    // largura: 900 / (400/80) = 180px. altura: 1400 / (2*(200/80) + 1.75) = 1400/6.75 ≈ 207px.
+    // largura: 900 / (400/80) = 180px. altura: 1400 / (2*(200/80) + 1.35) = 1400/6.35 ≈ 220px.
     // menor dos dois = largura (180px).
     const applied = parseFloat(container.style.getPropertyValue("--card-w"));
     expect(applied).toBeCloseTo(180, 0);
@@ -89,7 +89,7 @@ describe("useArenaScale", () => {
     renderHook(() => useArenaScale({ current: container }, { current: group }));
     triggerResize();
 
-    // altura: 300 / (2*(200/80) + 1.75) = 300/6.75 ≈ 44.4px — abaixo do piso (80px), clampa no piso.
+    // altura: 300 / (2*(200/80) + 1.35) = 300/6.35 ≈ 47px — abaixo do piso (80px), clampa no piso.
     const applied = parseFloat(container.style.getPropertyValue("--card-w"));
     expect(applied).toBe(80);
   });
