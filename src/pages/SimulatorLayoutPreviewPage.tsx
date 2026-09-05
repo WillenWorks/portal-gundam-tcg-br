@@ -2,20 +2,25 @@
  *
  * O Willen valida a F4 em navegadores / displays reais SEM logar nem entrar
  * numa partida. Esta página monta o `ArenaPlaymat` COMPLETO (os dois lados +
- * mão + overlay) com um fixture ESTÁTICO: zero motor, zero rede, zero fetch —
- * todas as cartas usam a arte de verso (`cardBackUrl`) e campos fixos.
+ * mão + overlay) com um fixture ESTÁTICO: zero motor, zero rede, zero fetch.
+ * As cartas são os `CardDef` REAIS de ST01 (`ST01_CARD_DEFS`) e ST02
+ * (`ST02_CARD_DEFS`) — nomes/stats/keywords/link corretos; a arte usa o verso
+ * genérico (`cardBackUrl`) como amostra, igual ao resto do simulador quando
+ * não há arte do set.
  *
- * Barra de controle (fora do canvas): alterna POV, nº de recursos ativos,
- * liga/desliga a seta de ataque "no jogador" (pra ver a mira na coluna
- * Base/Escudos à esquerda — docs/38 §3.4), força `prefers-reduced-motion` via
- * classe e dispara as microinterações (draw / Burst / embaralhamento) on demand.
+ * Barra de controle (fora do canvas): alterna POV, nº de recursos ativos do
+ * jogador, liga/desliga a seta de ataque "no jogador" (pra ver a mira na
+ * coluna Base/Escudos à esquerda — docs/38 §3.4), força `prefers-reduced-motion`
+ * via classe e dispara as microinterações (draw / Burst / embaralhamento).
  *
  * Rota: `/simulador/preview-layout` (só existe em `import.meta.env.DEV`, sem
  * `RequireAuth` — ver `App.tsx`). O componente ainda retorna `null` fora de DEV
  * como segunda trava. */
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { CardDef, CardInstance, CardType, CombatState, PlayerId } from "@/modules/simulator/engine/types";
+import type { CardDef, CardInstance, CombatState, PlayerId } from "@/modules/simulator/engine/types";
+import { ST01_CARD_DEFS } from "@/modules/simulator/fixtures/st01Deck";
+import { ST02_CARD_DEFS } from "@/modules/simulator/fixtures/st02Deck";
 import {
   ActionDock,
   type ActionDockState,
@@ -25,6 +30,8 @@ import {
   BattleSlot,
   BurstModal,
   cardBackUrl,
+  CardInspectorModal,
+  type LinkedPilot,
   CombatLane,
   CounterChip,
   FirstPlayerReveal,
@@ -38,8 +45,11 @@ import {
   type ArtLookup,
 } from "@/modules/simulator/ui";
 
+const S1 = ST01_CARD_DEFS;
+const S2 = ST02_CARD_DEFS;
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Fixture estático
+// Fixture estático (cartas reais ST01 / ST02)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface PreviewSlot {
@@ -69,22 +79,16 @@ interface PreviewSidePlayer {
 export interface LayoutPreviewFixture {
   A: PreviewSidePlayer;
   B: PreviewSidePlayer;
-  /** mão do POV atual (o mesmo baralho pros dois — é só amostra visual). */
+  /** mão mostrada em leque (a mesma pros dois — é só amostra visual). */
   hand: { card: CardInstance; playable: boolean; blockedReason?: string }[];
 }
 
 let SEQ = 0;
 
-function mkCard(
-  nameEn: string,
-  cardType: CardType,
-  def: Partial<CardDef> = {},
-  inst: Partial<CardInstance> = {},
-): CardInstance {
-  const code = def.code ?? `PREV-${nameEn.replace(/[^A-Za-z0-9]+/g, "-").toUpperCase()}`;
-  const base: CardInstance = {
+function mkInst(def: CardDef, inst: Partial<CardInstance> = {}): CardInstance {
+  return {
     instanceId: `prev-${SEQ++}`,
-    def: { code, nameEn, cardType, color: "blue", ...def },
+    def,
     owner: "A",
     zone: "battleArea",
     rested: false,
@@ -93,78 +97,104 @@ function mkCard(
     keywordGrants: [],
     usedKeywordsThisTurn: [],
     enteredZoneOnTurn: 0,
+    ...inst,
   };
-  return { ...base, ...inst, def: base.def };
 }
 
-function makeSide(owner: PlayerId, opts: { shields: number; baseDamage: number }): PreviewSidePlayer {
-  const u = (nameEn: string, ap: number, hp: number, over: Partial<CardInstance> = {}, def: Partial<CardDef> = {}) =>
-    mkCard(nameEn, "UNIT", { ap, hp, level: 3, cost: 3, ...def }, { owner, zone: "battleArea", ...over });
-  const pilot = (nameEn: string, ap: number, hp: number) =>
-    mkCard(nameEn, "PILOT", { ap, hp }, { owner, zone: "battleArea" });
+/** Burst de amostra pro cenário "Revelação de Burst". */
+const BURST_DEF: CardDef = {
+  code: "ST01-014",
+  nameEn: S1.UNFORESEEN_INCIDENT.nameEn,
+  cardType: "COMMAND",
+  color: "white",
+  hasBurst: true,
+};
 
-  const slots: PreviewSlot[] = [
-    {
-      // Unit com Pilot LINKado (link casa pelo nome do Pilot) — badge LINK dourado
-      unit: u("RX-78-2 Gundam", 3, 4, {}, { link: { kind: "pilotName", values: ["Amuro"] } }),
-      pilot: pilot("Amuro Ray", 1, 1),
-    },
-    { unit: u("Guncannon", 2, 3, { damage: 2 }), pilot: null }, // dano marcado, sem pilot
-    { unit: u("GM Sniper", 2, 2, { rested: true }), pilot: null }, // rested
-    { unit: u("Zaku II", 2, 3), pilot: pilot("Char Aznable", 2, 0) }, // pareado, sem link
-    { unit: u("Gundam Aerial", 3, 4, { damage: 1, rested: true }), pilot: null }, // dano + rested
-    { unit: u("Demi Trainer", 1, 2), pilot: null },
-  ];
+const BURST_DECISION = {
+  kind: "burst" as const,
+  cardInstanceId: "prev-burst",
+  cardDef: BURST_DEF,
+  choices: [] as string[],
+  queuedInstanceIds: [] as string[],
+};
 
-  const trash = [
-    mkCard("Zaku I", "UNIT", { ap: 1, hp: 2 }, { owner, zone: "trash" }),
-    mkCard("Haro", "COMMAND", { cost: 1 }, { owner, zone: "trash" }),
-    mkCard("GM", "UNIT", { ap: 2, hp: 2 }, { owner, zone: "trash" }),
-  ];
-  const exile = [mkCard("Gundam Barbatos", "UNIT", { ap: 4, hp: 4 }, { owner, zone: "exile" })];
-
-  const resources: PreviewResource[] = [
-    ...Array.from({ length: 6 }, (_, i) => ({ instanceId: `${owner}-res-${i}`, rested: false, isEx: false, code: "PREV-RES" })),
-    { instanceId: `${owner}-res-r0`, rested: true, isEx: false, code: "PREV-RES" },
-    { instanceId: `${owner}-res-r1`, rested: true, isEx: false, code: "PREV-RES" },
-    { instanceId: `${owner}-res-ex`, rested: false, isEx: true, code: "PREV-EXRES" },
-  ];
-
+function sideA(): PreviewSidePlayer {
+  const p = (def: CardDef, over: Partial<CardInstance> = {}) => mkInst(def, { owner: "A", ...over });
   return {
-    slots,
-    base: mkCard("White Base", "BASE", { hp: 6 }, { owner, zone: "baseSection", damage: opts.baseDamage }),
-    shields: opts.shields,
-    resources,
+    slots: [
+      // Gundam + Amuro Ray — Link ativo (link "Amuro Ray")
+      { unit: p(S1.GUNDAM, { pairedPilotId: "amuro" }), pilot: p(S1.AMURO_RAY, { instanceId: "amuro", owner: "A" }) },
+      { unit: p(S1.GUNCANNON, { damage: 2 }), pilot: null }, // dano marcado
+      { unit: p(S1.GM, { rested: true }), pilot: null }, // rested
+      // Guntank + Amuro Ray — PAREADO mas SEM Link (Guntank pede "Hayato Kobayashi")
+      { unit: p(S1.GUNTANK, { pairedPilotId: "amuro2" }), pilot: p(S1.AMURO_RAY, { instanceId: "amuro2", owner: "A" }) },
+      { unit: p(S1.AERIAL_BIT_FORM, { damage: 1, rested: true }), pilot: null }, // dano + rested
+      { unit: p(S1.DEMI_TRAINER), pilot: null }, // Blocker
+    ],
+    base: p(S1.WHITE_BASE, { zone: "baseSection", damage: 3 }), // hp 5 → 2/5
+    shields: 5,
+    resources: buildResources("A", { active: 6, rested: 2, ex: 1, code: S1.RESOURCE.code }),
     deckCount: 34,
     resourceDeckCount: 7,
-    trash,
-    exile,
+    trash: [p(S1.GM, { zone: "trash" }), p(S1.THOROUGHLY_DAMAGED, { zone: "trash" }), p(S1.ZOWORT, { zone: "trash" })],
+    exile: [p(S1.KAIS_RESOLVE, { zone: "exile" })],
     handCount: 6,
   };
 }
 
+function sideB(): PreviewSidePlayer {
+  const p = (def: CardDef, over: Partial<CardInstance> = {}) => mkInst(def, { owner: "B", ...over });
+  return {
+    slots: [
+      // Wing Gundam + Heero Yuy — Link ativo (link "Heero Yuy")
+      { unit: p(S2.WING_GUNDAM, { pairedPilotId: "heero" }), pilot: p(S2.HEERO_YUY, { instanceId: "heero", owner: "B" }) },
+      // Tallgeese + Zechs Merquise — Link ativo (link "Zechs Merquise")
+      { unit: p(S2.TALLGEESE, { pairedPilotId: "zechs" }), pilot: p(S2.ZECHS_MERQUISE, { instanceId: "zechs", owner: "B" }) },
+      { unit: p(S2.GUNDAM_HEAVYARMS, { damage: 2 }), pilot: null },
+      { unit: p(S2.LEO, { rested: true }), pilot: null },
+      { unit: p(S2.ARIES), pilot: null }, // Blocker
+      { unit: p(S2.TRAGOS, { rested: true }), pilot: null }, // Blocker + rested
+    ],
+    base: p(S2.SAINT_GABRIEL_INSTITUTE, { zone: "baseSection", damage: 1 }), // hp 5 → 4/5
+    shields: 2,
+    resources: buildResources("B", { active: 4, rested: 3, ex: 0, code: S2.RESOURCE.code }),
+    deckCount: 12,
+    resourceDeckCount: 4,
+    trash: [p(S2.LEO, { zone: "trash" }), p(S2.SIEGE_PLOY, { zone: "trash" })],
+    exile: [p(S2.MAGANAC, { zone: "exile" }), p(S2.ARIES, { zone: "exile" })],
+    handCount: 5,
+  };
+}
+
+function buildResources(
+  owner: string,
+  o: { active: number; rested: number; ex: number; code: string },
+): PreviewResource[] {
+  return [
+    ...Array.from({ length: o.active }, (_, i) => ({ instanceId: `${owner}-r-a${i}`, rested: false, isEx: false, code: o.code })),
+    ...Array.from({ length: o.rested }, (_, i) => ({ instanceId: `${owner}-r-r${i}`, rested: true, isEx: false, code: o.code })),
+    ...Array.from({ length: o.ex }, (_, i) => ({ instanceId: `${owner}-r-x${i}`, rested: false, isEx: true, code: o.code })),
+  ];
+}
+
 export function buildLayoutPreviewFixture(): LayoutPreviewFixture {
   SEQ = 0;
-  const hand = [
-    { card: mkCard("RX-78-2 Gundam", "UNIT", { ap: 3, hp: 4, cost: 3, level: 3 }, { zone: "hand" }), playable: true },
-    { card: mkCard("Guntank", "UNIT", { ap: 2, hp: 5, cost: 2, level: 2 }, { zone: "hand" }), playable: true },
-    {
-      card: mkCard("Kai's Reckless Fire", "COMMAND", { cost: 1 }, { zone: "hand" }),
-      playable: false,
-      blockedReason: "Fora da Fase Principal.",
-    },
-    { card: mkCard("Amuro Ray", "PILOT", { ap: 1, hp: 1, cost: 1 }, { zone: "hand" }), playable: true },
-    {
-      card: mkCard("Gundam Aerial", "UNIT", { ap: 3, hp: 4, cost: 4, level: 4 }, { zone: "hand" }),
-      playable: false,
-      blockedReason: "Recursos insuficientes.",
-    },
-    { card: mkCard("Haro", "COMMAND", { cost: 1 }, { zone: "hand" }), playable: true },
-  ];
+  const h = (def: CardDef, playable: boolean, blockedReason?: string) => ({
+    card: mkInst(def, { zone: "hand" as const }),
+    playable,
+    blockedReason,
+  });
   return {
-    A: makeSide("A", { shields: 4, baseDamage: 2 }),
-    B: makeSide("B", { shields: 2, baseDamage: 4 }),
-    hand,
+    A: sideA(),
+    B: sideB(),
+    hand: [
+      h(S1.GUNDAM, true),
+      h(S1.GUNTANK, true),
+      h(S1.THOROUGHLY_DAMAGED, false, "Fora da Fase Principal."),
+      h(S1.AMURO_RAY, true),
+      h(S1.AERIAL_SCORE_SIX, false, "Recursos insuficientes."),
+      h(S2.SIMULTANEOUS_FIRE, true),
+    ],
   };
 }
 
@@ -184,24 +214,18 @@ function buildPreviewArt(fx: LayoutPreviewFixture): ArtLookup {
     side.exile.forEach((c) => put(c.def.code));
     side.resources.forEach((r) => put(r.code));
   }
-  fx.hand.forEach((h) => put(h.card.def.code));
-  put("PREV-BURST");
+  fx.hand.forEach((entry) => put(entry.card.def.code));
+  put(BURST_DEF.code);
   return art;
 }
 
-const BURST_DECISION = {
-  kind: "burst" as const,
-  cardInstanceId: "prev-burst",
-  cardDef: {
-    code: "PREV-BURST",
-    nameEn: "Saturn Nights",
-    cardType: "COMMAND" as CardType,
-    color: "blue",
-    hasBurst: true,
-  } satisfies CardDef,
-  choices: [] as string[],
-  queuedInstanceIds: [] as string[],
-};
+/** pilotos que satisfazem o link `pilotName` da Unit (pra o inspetor). */
+function linkedPilotsFor(unit: CardInstance, pilot: CardInstance | null): LinkedPilot[] {
+  const link = unit.def.link;
+  if (link?.kind !== "pilotName" || !pilot) return [];
+  const matches = link.values.some((v) => pilot.def.nameEn.includes(v));
+  return matches ? [{ name: pilot.def.nameEn, note: "No seu campo" }] : [];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Página
@@ -226,6 +250,8 @@ function LayoutPreview() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [scenario, setScenario] = useState<Scenario>("normal");
   const [replayKey, setReplayKey] = useState(0);
+  const [inspect, setInspect] = useState<CardInstance | null>(null);
+  const [inspectLinkedPilots, setInspectLinkedPilots] = useState<LinkedPilot[]>([]);
   const [vw, setVw] = useState(() => (typeof window === "undefined" ? 0 : window.innerWidth));
 
   useEffect(() => {
@@ -234,20 +260,27 @@ function LayoutPreview() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // POV = puro espelhamento: só troca qual lado renderiza embaixo (você) vs no
+  // topo (oponente). A câmera e o layout do `ArenaPlaymat` são idênticos;
+  // nenhum controle depende do POV além disso.
   const viewer = pov;
   const opp: PlayerId = pov === "A" ? "B" : "A";
 
-  /** aplica o nº de recursos ativos escolhido no controle (só ao lado visível). */
-  function scaledResources(side: PreviewSidePlayer, isViewer: boolean): PreviewResource[] {
-    if (!isViewer) return side.resources;
-    const nonActive = side.resources.filter((r) => r.rested || r.isEx);
+  function openInspect(card: CardInstance, linked: LinkedPilot[] = []) {
+    setInspectLinkedPilots(linked);
+    setInspect(card);
+  }
+
+  /** nº de recursos ATIVOS do jogador vem do controle (pra ver o badge xN crescer). */
+  function viewerResources(side: PreviewSidePlayer): PreviewResource[] {
+    const keep = side.resources.filter((r) => r.rested || r.isEx);
     const active = Array.from({ length: activeResources }, (_, i) => ({
-      instanceId: `${viewer}-res-scaled-${i}`,
+      instanceId: `${viewer}-r-scaled-${i}`,
       rested: false,
       isEx: false,
-      code: "PREV-RES",
+      code: side.resources[0]?.code ?? "ST01-RESOURCE",
     }));
-    return [...active, ...nonActive];
+    return [...active, ...keep];
   }
 
   const combat: CombatState | null = useMemo(() => {
@@ -271,7 +304,7 @@ function LayoutPreview() {
   function arenaSide(pid: PlayerId): ArenaSide {
     const isViewer = pid === viewer;
     const side = fixture[pid];
-    const resources = scaledResources(side, isViewer);
+    const resources = isViewer ? viewerResources(side) : side.resources;
 
     return {
       shields: (
@@ -281,7 +314,7 @@ function LayoutPreview() {
           underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
         />
       ),
-      base: <BaseCardGauge base={side.base} art={art} onInspect={() => {}} />,
+      base: <BaseCardGauge base={side.base} art={art} onInspect={(c) => openInspect(c)} />,
       resources: (
         <div className="flex items-end justify-center gap-2">
           <CounterChip variant="stack" label="Deck de Recursos" count={side.resourceDeckCount} />
@@ -296,8 +329,12 @@ function LayoutPreview() {
           tone={side.deckCount <= 2 ? "crit" : side.deckCount <= 5 ? "warn" : "normal"}
         />
       ),
-      trash: <PileTray label="Trash" count={side.trash.length} cards={side.trash} art={art} onInspect={() => {}} />,
-      exile: <PileTray label="Exílio" count={side.exile.length} cards={side.exile} art={art} onInspect={() => {}} />,
+      trash: (
+        <PileTray label="Descarte" count={side.trash.length} cards={side.trash} art={art} onInspect={(c) => openInspect(c)} />
+      ),
+      exile: (
+        <PileTray label="Exílio" count={side.exile.length} cards={side.exile} art={art} onInspect={(c) => openInspect(c)} />
+      ),
       battleRow: (
         <>
           {Array.from({ length: 6 }).map((_, i) => {
@@ -309,7 +346,11 @@ function LayoutPreview() {
                 pilot={slot?.pilot ?? null}
                 art={art}
                 isAttacker={Boolean(slot && combat?.attackerId === slot.unit.instanceId)}
-                onInspect={() => {}}
+                onInspect={(c) =>
+                  slot && c.instanceId === slot.unit.instanceId
+                    ? openInspect(c, linkedPilotsFor(slot.unit, slot.pilot))
+                    : openInspect(c)
+                }
                 registerRef={slot ? board.register(slot.unit.instanceId) : undefined}
               />
             );
@@ -362,8 +403,8 @@ function LayoutPreview() {
                 anchored
                 cards={fixture.hand}
                 art={art}
-                onPeek={() => {}}
-                onInspect={() => {}}
+                onPeek={(c) => openInspect(c)}
+                onInspect={(c) => openInspect(c)}
               />
             }
             overlay={
@@ -379,6 +420,16 @@ function LayoutPreview() {
 
       <ActionDock state={dockState} />
 
+      {inspect ? (
+        <CardInspectorModal
+          card={inspect}
+          art={art}
+          inPlay
+          linkedPilots={inspectLinkedPilots}
+          onClose={() => setInspect(null)}
+        />
+      ) : null}
+
       {scenario === "burst" ? (
         <BurstModal decision={BURST_DECISION} art={art} onResolve={() => setScenario("normal")} />
       ) : null}
@@ -388,7 +439,7 @@ function LayoutPreview() {
 
       <div className="pointer-events-none fixed bottom-1.5 left-2 z-[70] flex flex-col gap-0.5 text-[10px] uppercase tracking-[0.14em] text-amber-300/80">
         <span className="font-black">Preview de layout — dados estáticos, sem motor</span>
-        <span className="text-slate-500">viewport {vw}px · POV {pov}</span>
+        <span className="text-slate-500">viewport {vw}px · POV {pov} · cartas ST01/ST02 reais</span>
       </div>
     </div>
   );
@@ -424,13 +475,13 @@ function ControlBar(p: ControlBarProps) {
           onChange={(e) => p.onPov(e.target.value as PlayerId)}
           className="rounded-arena border border-white/15 bg-slate-900 px-1.5 py-0.5"
         >
-          <option value="A">Jogador A</option>
-          <option value="B">Jogador B</option>
+          <option value="A">Jogador A (ST01)</option>
+          <option value="B">Jogador B (ST02)</option>
         </select>
       </label>
 
       <label className="flex items-center gap-1.5">
-        <span className="text-muted-portal">Recursos ativos</span>
+        <span className="text-muted-portal">Recursos ativos (você)</span>
         <input
           type="range"
           min={0}
@@ -467,9 +518,10 @@ function ControlBar(p: ControlBarProps) {
       <button
         type="button"
         onClick={p.onReplayDraw}
+        title="Remonta a mão pra re-disparar a animação de compra de carta"
         className="rounded-arena border border-primary/40 px-2 py-0.5 font-semibold text-primary hover:bg-primary/10"
       >
-        ▶ tocar draw
+        ▶ animar compra
       </button>
     </div>
   );
