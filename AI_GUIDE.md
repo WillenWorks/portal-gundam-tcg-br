@@ -168,7 +168,8 @@ claude
 - [x] Ajustar mira do ataque em `CombatLane.tsx` para apontar para a Base/Escudos na lateral esquerda.
 - [x] Corrigir dimensionamento do container de ação superior em `ActionDock.tsx` para evitar cortes.
 - [x] Adicionar animações suaves de compra de cartas, revelação de escudo e ataque (tw-animate-css + `motion-reduce`).
-- [x] Página de preview de layout DEV-only sem auth (`src/pages/SimulatorLayoutPreviewPage.tsx`, rota `/simulador/preview-layout`) — monta o `ArenaPlaymat` completo com fixture estático (zero motor/rede) pra validar a F4 em displays reais. Excluída do build de produção (`import.meta.env.DEV`).
+- [x] Página de preview de layout DEV-only sem auth (`src/pages/SimulatorLayoutPreviewPage.tsx`, rota `/simulador/preview-layout`) — monta o `ArenaPlaymat` completo com fixture estático (cartas ST01/ST02 reais, zero motor/rede) pra validar a F4 em displays reais. Excluída do build de produção (`import.meta.env.DEV`).
+- [x] Ajustes 2ª rodada de feedback do Willen: cartas maiores (câmera rotateX 12°, `perspective` 900px, piso `--card-w` 80px, fator `--card-w-std` 0.66); badges/chip de piloto escalam com `clamp(--card-w-std)`; bandeja de pilha (Exílio/Descarte) com largura limitada + fecha no backdrop/Esc + 1 por vez; inspetor no clique fiado na preview; botão de replay renomeado ("animar compra").
 - [ ] Commit: `feat(simulator-ui): playmat overhaul and feedback improvements`
 
 ### Frente 5: WebSocket & Multiplayer Avançado (Branch: `feature/simulator-websocket`)
