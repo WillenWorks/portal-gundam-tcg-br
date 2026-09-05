@@ -18,7 +18,7 @@
  * como segunda trava. */
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { CardDef, CardInstance, CombatState, PlayerId } from "@/modules/simulator/engine/types";
+import type { CardDef, CardInstance, CombatState, GameState, PlayerId } from "@/modules/simulator/engine/types";
 import { ST01_CARD_DEFS } from "@/modules/simulator/fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "@/modules/simulator/fixtures/st02Deck";
 import {
@@ -123,11 +123,17 @@ function sideA(): PreviewSidePlayer {
   return {
     slots: [
       // Gundam + Amuro Ray — Link ativo (link "Amuro Ray")
-      { unit: p(S1.GUNDAM, { pairedPilotId: "amuro" }), pilot: p(S1.AMURO_RAY, { instanceId: "amuro", owner: "A" }) },
+      {
+        unit: p(S1.GUNDAM, { instanceId: "A-gundam", pairedPilotId: "A-amuro" }),
+        pilot: p(S1.AMURO_RAY, { instanceId: "A-amuro", owner: "A", pairedUnitId: "A-gundam" }),
+      },
       { unit: p(S1.GUNCANNON, { damage: 2 }), pilot: null }, // dano marcado
       { unit: p(S1.GM, { rested: true }), pilot: null }, // rested
       // Guntank + Amuro Ray — PAREADO mas SEM Link (Guntank pede "Hayato Kobayashi")
-      { unit: p(S1.GUNTANK, { pairedPilotId: "amuro2" }), pilot: p(S1.AMURO_RAY, { instanceId: "amuro2", owner: "A" }) },
+      {
+        unit: p(S1.GUNTANK, { instanceId: "A-guntank", pairedPilotId: "A-amuro2" }),
+        pilot: p(S1.AMURO_RAY, { instanceId: "A-amuro2", owner: "A", pairedUnitId: "A-guntank" }),
+      },
       { unit: p(S1.AERIAL_BIT_FORM, { damage: 1, rested: true }), pilot: null }, // dano + rested
       { unit: p(S1.DEMI_TRAINER), pilot: null }, // Blocker
     ],
@@ -146,10 +152,16 @@ function sideB(): PreviewSidePlayer {
   const p = (def: CardDef, over: Partial<CardInstance> = {}) => mkInst(def, { owner: "B", ...over });
   return {
     slots: [
-      // Wing Gundam + Heero Yuy — Link ativo (link "Heero Yuy")
-      { unit: p(S2.WING_GUNDAM, { pairedPilotId: "heero" }), pilot: p(S2.HEERO_YUY, { instanceId: "heero", owner: "B" }) },
+      // Wing Gundam + Heero Yuy — Link ativo (link "Heero Yuy"), + 【During Link】 AP+1/HP+1
+      {
+        unit: p(S2.WING_GUNDAM, { instanceId: "B-wing", pairedPilotId: "B-heero" }),
+        pilot: p(S2.HEERO_YUY, { instanceId: "B-heero", owner: "B", pairedUnitId: "B-wing" }),
+      },
       // Tallgeese + Zechs Merquise — Link ativo (link "Zechs Merquise")
-      { unit: p(S2.TALLGEESE, { pairedPilotId: "zechs" }), pilot: p(S2.ZECHS_MERQUISE, { instanceId: "zechs", owner: "B" }) },
+      {
+        unit: p(S2.TALLGEESE, { instanceId: "B-tallgeese", pairedPilotId: "B-zechs" }),
+        pilot: p(S2.ZECHS_MERQUISE, { instanceId: "B-zechs", owner: "B", pairedUnitId: "B-tallgeese" }),
+      },
       { unit: p(S2.GUNDAM_HEAVYARMS, { damage: 2 }), pilot: null },
       { unit: p(S2.LEO, { rested: true }), pilot: null },
       { unit: p(S2.ARIES), pilot: null }, // Blocker
@@ -198,6 +210,18 @@ export function buildLayoutPreviewFixture(): LayoutPreviewFixture {
   };
 }
 
+/** GameState mínimo pra os componentes computarem os bônus estáticos
+ *  (【During Link】/【During Pair】) — só o que `computeStaticStatBonus` lê:
+ *  `players[owner].battleArea` + `activePlayer`. */
+function buildPreviewState(fx: LayoutPreviewFixture, activePlayer: PlayerId): GameState {
+  const areaOf = (side: PreviewSidePlayer): CardInstance[] =>
+    side.slots.flatMap((s) => (s.pilot ? [s.unit, s.pilot] : [s.unit]));
+  return {
+    activePlayer,
+    players: { A: { battleArea: areaOf(fx.A) }, B: { battleArea: areaOf(fx.B) } },
+  } as unknown as GameState;
+}
+
 /** Arte de amostra: todo `code` do fixture aponta pro verso genérico. */
 function buildPreviewArt(fx: LayoutPreviewFixture): ArtLookup {
   const art: ArtLookup = {};
@@ -243,8 +267,9 @@ function LayoutPreview() {
   const fixture = useMemo(() => buildLayoutPreviewFixture(), []);
   const art = useMemo(() => buildPreviewArt(fixture), [fixture]);
   const board = useBoardElements();
-
   const [pov, setPov] = useState<PlayerId>("A");
+  const previewState = useMemo(() => buildPreviewState(fixture, pov), [fixture, pov]);
+
   const [activeResources, setActiveResources] = useState(6);
   const [showArrow, setShowArrow] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -345,6 +370,7 @@ function LayoutPreview() {
                 unit={slot?.unit ?? null}
                 pilot={slot?.pilot ?? null}
                 art={art}
+                state={previewState}
                 isAttacker={Boolean(slot && combat?.attackerId === slot.unit.instanceId)}
                 onInspect={(c) =>
                   slot && c.instanceId === slot.unit.instanceId
@@ -415,7 +441,14 @@ function LayoutPreview() {
       </div>
 
       {combat ? (
-        <CombatLane combat={combat} attacker={attackerCard} targetUnit={null} viewerSeat={viewer} rectOf={board.rectOf} />
+        <CombatLane
+          combat={combat}
+          attacker={attackerCard}
+          targetUnit={null}
+          viewerSeat={viewer}
+          state={previewState}
+          rectOf={board.rectOf}
+        />
       ) : null}
 
       <ActionDock state={dockState} />
@@ -425,6 +458,7 @@ function LayoutPreview() {
           card={inspect}
           art={art}
           inPlay
+          state={previewState}
           linkedPilots={inspectLinkedPilots}
           onClose={() => setInspect(null)}
         />
