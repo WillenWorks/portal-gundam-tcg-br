@@ -7,6 +7,7 @@
  * do piloto viram chips com POPOVER de hover mostrando a arte do piloto. */
 import { useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
@@ -30,8 +31,14 @@ interface CardInspectorModalProps {
   inPlay?: boolean;
   /** estado do jogo — pros AP/HP efetivos incluírem bônus estáticos 【During Pair】/【During Link】. */
   state?: GameState;
-  /** texto de efeito (do catálogo — o CardDef do motor não carrega). */
+  /** texto de efeito já resolvido (PT com fallback pro EN — do catálogo). Mantido
+   *  por compat; prefira passar `effectPt`/`effectEn` separados pra habilitar o
+   *  toggle PT/EN. */
   effectText?: string;
+  /** texto de efeito traduzido pt-BR (`CardModel.effectPt`). Exibido por padrão. */
+  effectPt?: string;
+  /** texto de efeito original em inglês (`CardModel.effectEn`). */
+  effectEn?: string;
   /** pilotos que satisfazem a link condition (`link.kind === "pilotName"`). */
   linkedPilots?: LinkedPilot[];
 }
@@ -45,6 +52,8 @@ export function CardInspectorModal({
   inPlay,
   state,
   effectText,
+  effectPt,
+  effectEn,
   linkedPilots,
 }: CardInspectorModalProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -58,6 +67,9 @@ export function CardInspectorModal({
   const activeBuffs = card.statModifiers.map((m) => `${m.stat.toUpperCase()} ${m.amount >= 0 ? "+" : ""}${m.amount}`);
   const grantedKeywords = card.keywordGrants.map((g) => g.keyword);
   const pilots = def.link?.kind === "pilotName" ? (linkedPilots ?? []) : [];
+  const hasEffectBody = Boolean(
+    effectPt?.trim() || effectText?.trim() || effectEn?.trim(),
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
@@ -137,10 +149,9 @@ export function CardInspectorModal({
               </p>
             ) : null}
 
-            {effectText ? (
+            {hasEffectBody ? (
               <div className="mt-2 border-t border-white/10 pt-2">
-                <p className="mb-1 text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
-                <p className="whitespace-pre-line text-[11px] leading-relaxed text-slate-200">{effectText}</p>
+                <CardEffectText effectPt={effectPt} effectEn={effectEn} effectText={effectText} />
               </div>
             ) : uniqueKeywords.length ? (
               <div className="mt-2 flex flex-wrap gap-1">
@@ -178,6 +189,56 @@ export function CardInspectorModal({
           {footer}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Bloco "Efeito" compartilhado pelo modal e pelo `CardInspectorPanel`.
+ *  Padrão: mostra `effectPt`; se `effectPt` E `effectEn` vierem e forem diferentes,
+ *  renderiza um toggle PT/EN. `effectText` é o fallback já resolvido (compat). */
+export function CardEffectText({
+  effectPt,
+  effectEn,
+  effectText,
+  className,
+}: {
+  effectPt?: string;
+  effectEn?: string;
+  effectText?: string;
+  className?: string;
+}) {
+  const pt = effectPt?.trim() || undefined;
+  const en = effectEn?.trim() || undefined;
+  const generic = effectText?.trim() || undefined;
+  const hasToggle = Boolean(pt && en && pt !== en);
+  const [lang, setLang] = useState<"pt" | "en">("pt");
+  const body = hasToggle ? (lang === "pt" ? pt : en) : (pt ?? generic ?? en);
+  if (!body) return null;
+
+  return (
+    <div className={className}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
+        {hasToggle ? (
+          <div className="flex overflow-hidden rounded-arena border border-white/15 text-[8px] font-bold uppercase tracking-wide">
+            {(["pt", "en"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={lang === option}
+                onClick={() => setLang(option)}
+                className={cn(
+                  "px-1.5 py-0.5 transition-colors motion-reduce:transition-none",
+                  lang === option ? "bg-primary/25 text-primary" : "text-slate-500 hover:text-slate-300",
+                )}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <p className="whitespace-pre-line text-[11px] leading-relaxed text-slate-200">{body}</p>
     </div>
   );
 }

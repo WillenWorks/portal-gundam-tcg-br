@@ -25,7 +25,7 @@ import { PortalShell } from "@/components/layout/PortalShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const DECK_OPTIONS = ["ST01", "ST02"];
+const DECK_OPTIONS = ["ST01", "ST02", "ST03", "ST04"];
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;

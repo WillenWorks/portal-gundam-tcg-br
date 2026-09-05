@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
+import { CardEffectText } from "./CardInspectorModal";
 import { CardFace } from "./CardFace";
 
 interface CardInspectorPanelProps {
@@ -24,17 +25,46 @@ interface CardInspectorPanelProps {
   state?: GameState;
   /** ex.: motivo de não poder jogar a carta (mostrado em âmbar). */
   blockedReason?: string;
+  /** texto de efeito já resolvido (PT com fallback pro EN — compat). */
+  effectText?: string;
+  /** texto de efeito traduzido pt-BR (`CardModel.effectPt`). Exibido por padrão. */
+  effectPt?: string;
+  /** texto de efeito original em inglês (`CardModel.effectEn`). */
+  effectEn?: string;
   className?: string;
 }
 
-export function CardInspectorPanel({ card, art, inPlay, state, blockedReason, className }: CardInspectorPanelProps) {
+export function CardInspectorPanel({
+  card,
+  art,
+  inPlay,
+  state,
+  blockedReason,
+  effectText,
+  effectPt,
+  effectEn,
+  className,
+}: CardInspectorPanelProps) {
   return (
     <aside
       aria-label="Detalhes da carta"
       className={cn("panel-cut surface-panel flex w-full flex-col border border-primary/20 p-3", className)}
     >
       <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-400">Detalhes da carta</p>
-      {card ? <PanelBody card={card} art={art} inPlay={inPlay} state={state} blockedReason={blockedReason} /> : <PanelIdle />}
+      {card ? (
+        <PanelBody
+          card={card}
+          art={art}
+          inPlay={inPlay}
+          state={state}
+          blockedReason={blockedReason}
+          effectText={effectText}
+          effectPt={effectPt}
+          effectEn={effectEn}
+        />
+      ) : (
+        <PanelIdle />
+      )}
     </aside>
   );
 }
@@ -57,12 +87,18 @@ function PanelBody({
   inPlay,
   state,
   blockedReason,
+  effectText,
+  effectPt,
+  effectEn,
 }: {
   card: CardInstance;
   art: ArtLookup;
   inPlay?: boolean;
   state?: GameState;
   blockedReason?: string;
+  effectText?: string;
+  effectPt?: string;
+  effectEn?: string;
 }) {
   const { def } = card;
   const ap = inPlay ? effectiveAp(card, state) : def.ap;
@@ -141,6 +177,12 @@ function PanelBody({
               {k}
             </span>
           ))}
+        </div>
+      ) : null}
+
+      {effectPt?.trim() || effectText?.trim() || effectEn?.trim() ? (
+        <div className="border-t border-white/10 pt-2">
+          <CardEffectText effectPt={effectPt} effectEn={effectEn} effectText={effectText} />
         </div>
       ) : null}
 

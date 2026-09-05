@@ -137,22 +137,28 @@ claude
 - [x] Commit: `feat(deckbuilder): level curve stats and visual style position`
 
 ### Frente 2: Pipeline de Tradução PT-BR (Branch: `dev`)
-- [ ] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais.
-- [ ] Gerar arquivo de lote de tradução para ST01, ST02, ST03 e ST04.
-- [ ] Aplicar traduções no Postgres (`UPDATE CardModel SET effectPt = ...`).
-- [ ] Validar exibição de `effectPt` no `CardInspectorModal.tsx` com alternância ou fallback.
-- [ ] Commit: `feat(catalog): automated pt-br effect translation pipeline`
+- [x] Criar script `scripts/translate-card-effects.mjs` com proteção léxica a tokens oficiais (tokenizer + validador + Gemini + flags `--dry-run/--resume/--apply/--revalidate`, 14 testes).
+- [x] Gerar arquivo de lote de tradução para ST01, ST02, ST03 e ST04 (`data/translations-st01-04.json` — 52 com `effectPt`, 12 sem efeito, 0 rejeitadas pelo validador de tokens). Chave Gemini era free-tier e travou em quota; 51/52 traduzidas à mão seguindo `docs/17` e revalidadas.
+- [x] Aplicar traduções no Postgres — via MCP Supabase (projeto `portal-gundam-tcg-br`), 2026-09-05: `CardModel` 52 cartas, `Card` 52 códigos / 188 prints. `effectPt` normalizado pro formato do catálogo (`【X】`→`[X]`, quebra→`<br>`; keywords `<X>` mantidas).
+- [x] Validar exibição de `effectPt` no `CardInspectorModal.tsx` / `CardInspectorPanel.tsx` (componente `CardEffectText`, toggle PT/EN quando ambos diferem).
+- [x] Commit: `feat(catalog): automated pt-br effect translation pipeline` (`d5d009a`)
 
 ### Frente 3: Waves de Cartas ST03 e ST04 (Branch: `dev`)
-- [ ] Auditar cartas de ST03 e ST04 contra o motor atual (`docs/41-plano-detalhado-waves-st03-st04.md`).
-- [ ] Implementar novas primitivas no motor (`lookAtTopFilterReveal`, `deployFromHandTriggered`).
-- [ ] Criar fixture e CardDefs de ST03: `src/modules/simulator/fixtures/st03Deck.ts`.
-- [ ] Criar specs e testes de ST03: `src/modules/simulator/content/st03.ts` e `st03.test.ts`.
-- [ ] Criar fixture e CardDefs de ST04: `src/modules/simulator/fixtures/st04Deck.ts`.
-- [ ] Criar specs e testes de ST04: `src/modules/simulator/content/st04.ts` e `st04.test.ts`.
-- [ ] Habilitar ST03 e ST04 no seletor de decks do simulador (`SimulatorSandboxPage.tsx`).
-- [ ] Rodar testes gerais: `npx vitest run src/modules/simulator` (100% verde).
-- [ ] Commit: `feat(simulator): st03 and st04 deck engine implementation`
+- [x] Auditar cartas de ST03 e ST04 contra o motor atual (`docs/41-plano-detalhado-waves-st03-st04.md`).
+- [x] Implementar novas primitivas no motor (`lookAtTopFilterReveal`, `deployFromHandTriggered`) + `discardNamed`, `TargetRef.pairedUnit`, filtros `ap<=N`/`level>=N`/`hasKeyword:X`, predicados `selfApAtLeast`/`controllerHasOtherLinkUnit`/`pairedPilotLevelAtLeast`/`namedChoiceEquals`/`sourcePairedUnitIsLinkUnit`/`noControllerUnitTokenWithTrait`.
+- [x] Criar fixture e CardDefs de ST03: `src/modules/simulator/fixtures/st03Deck.ts` (16 únicas + tokens T-006/T-007).
+- [x] Criar specs e testes de ST03: `src/modules/simulator/content/st03.ts` (16 specs, 9 cartas) e `st03.test.ts` (12 testes).
+- [x] Criar fixture e CardDefs de ST04: `src/modules/simulator/fixtures/st04Deck.ts` (16 únicas + tokens T-008/T-009/T-010).
+- [x] Criar specs e testes de ST04: `src/modules/simulator/content/st04.ts` (19 specs, 11 cartas) e `st04.test.ts` (14 testes).
+- [x] Habilitar ST03 e ST04 no seletor de decks (`SimulatorSandboxPage.tsx`) e no servidor (`server/index.ts` `SIMULATOR_DECKS`).
+- [x] Rodar testes gerais: `npx vitest run src/modules/simulator` — 456 verdes.
+- [x] Commit: `feat(simulator): st03 and st04 deck engine implementation`
+
+**Deferido (precisa de extensão de motor — revisar com Willen, docs/41):**
+- ST03-001 Sinanju: gatilho "destrói carta de shield area em batalha → 2 de dano em Unit escolhida" (combat.ts só tem `destroyEnemyInBattle`). O <High-Maneuver> During Pair está como keyword fixa (aproximação).
+- ST03-014 The Blue Giant: prevenção de dano de batalha por AP do atacante (só o modo Pilot funciona).
+- ST04-011 Athrun Zala: 【When Linked】concessão temporária de "mirar Unit inimiga ativa Lv≤5" (hoje `attackTargetRules` é estático). O 【Burst】 funciona.
+- ST04-015 Archangel: cláusula "It can't attack during this turn" do 【Activate･Main】 (o Set active funciona).
 
 ### Frente 4: Overhaul Visual & UX do Simulador (Branch: `feature/simulator-layout`)
 - [x] Ajustar proporções e piso de `--card-w` em `useArenaScale.ts` e `ArenaPlaymat.tsx` para Full HD e mobile.

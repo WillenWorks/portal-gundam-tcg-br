@@ -14,6 +14,8 @@ import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
+import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
+import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
@@ -3256,6 +3258,8 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
 const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
+  ST03: buildSt03DeckList,
+  ST04: buildSt04DeckList,
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
