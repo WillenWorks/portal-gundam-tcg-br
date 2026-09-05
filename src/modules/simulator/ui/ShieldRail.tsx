@@ -37,6 +37,9 @@ interface ShieldRailProps {
   onSelectIndex?: (index: number) => void;
   /** realce transitório de dano recém-tomado (o pai controla por quanto tempo). */
   justBroken?: boolean;
+  /** Frente 4 (docs/38 §3.4) — a trilha está sob mira direta de um ataque
+   *  "no jogador": pulso sutil na borda. */
+  underAim?: boolean;
   /** "vertical" = cascata na coluna lateral; "horizontal" (padrão) = linha de glifos. */
   orientation?: "horizontal" | "vertical";
   /** V6.2 (docs/33) — achata a cascata (só `vertical`), ver docstring do arquivo. */
@@ -50,6 +53,7 @@ export function ShieldRail({
   selectedIndexes = [],
   onSelectIndex,
   justBroken,
+  underAim,
   orientation = "horizontal",
   compact,
 }: ShieldRailProps) {
@@ -67,6 +71,7 @@ export function ShieldRail({
         "rounded-arena",
         vertical ? "relative flex flex-col items-center" : "flex items-center gap-0.5",
         justBroken && "ring-1 ring-red-500/60",
+        underAim && "ring-2 ring-red-400/70 animate-pulse motion-reduce:animate-none",
       )}
     >
       {/* V6 (docs/31): número fixo no canto, não se move conforme shields

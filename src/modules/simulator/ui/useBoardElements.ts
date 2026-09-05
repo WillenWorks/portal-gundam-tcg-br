@@ -41,3 +41,9 @@ export function useBoardElements(): BoardElements {
 export function playerAreaKey(playerId: string): string {
   return `player:${playerId}`;
 }
+
+/** Frente 4 (docs/38 §3.4) — chave da coluna Base/Escudos (lateral esquerda).
+ *  A seta de ataque "no jogador" mira AQUI, não no centro da Battle Area. */
+export function playerShieldKey(playerId: string): string {
+  return `shield:${playerId}`;
+}

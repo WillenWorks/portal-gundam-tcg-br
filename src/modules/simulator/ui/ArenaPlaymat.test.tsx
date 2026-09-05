@@ -158,4 +158,15 @@ describe("ArenaPlaymat", () => {
     render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>h</div>} />);
     expect(refs.some((el) => el instanceof HTMLElement)).toBe(true);
   });
+
+  it("Frente 4 (docs/38 §3.4): shieldStationRef recebe a coluna Base/Escudos (alvo da seta de ataque)", () => {
+    const refs: (HTMLElement | null)[] = [];
+    const withRef: ArenaSide = { ...side("me"), shieldStationRef: (el) => refs.push(el) };
+    render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>h</div>} />);
+    const el = refs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(el).toBeTruthy();
+    // a coluna contém a Base e os Shields do jogador
+    expect(el!.textContent).toContain("me-base");
+    expect(el!.textContent).toContain("me-shields");
+  });
 });

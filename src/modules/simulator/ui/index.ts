@@ -29,6 +29,6 @@ export { GameOverOverlay } from "./GameOverOverlay";
 export { gameOverReasonLabel } from "./gameOverReason";
 export { MatchPrompt } from "./MatchPrompt";
 export { SettingsMenu } from "./SettingsMenu";
-export { useBoardElements, playerAreaKey, type BoardElements } from "./useBoardElements";
+export { useBoardElements, playerAreaKey, playerShieldKey, type BoardElements } from "./useBoardElements";
 export { BattleLogDrawer } from "./BattleLogDrawer";
 export { buildBattleLog, describeEvent, makeNameResolver, type BattleLogEntry, type BattleLogKind } from "./battleLog";

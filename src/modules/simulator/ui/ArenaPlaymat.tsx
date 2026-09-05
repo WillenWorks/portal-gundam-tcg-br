@@ -65,6 +65,9 @@ export interface ArenaSide {
   battleRow: ReactNode;
   /** ref-callback pra o `CombatLane` medir a Battle Area (alvo "no jogador"). */
   battleAreaRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (docs/38 §3.4) — ref-callback pra o `CombatLane` medir a coluna
+   *  Base/Escudos (a seta de ataque "no jogador" mira nela, não no centro). */
+  shieldStationRef?: (el: HTMLElement | null) => void;
   /** só o oponente: leitura da mão (contagem de cartas). */
   handSummary?: ReactNode;
 }
@@ -142,7 +145,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
           <DeckStation side={opponent} mirrored />
           <OpponentTheater side={opponent} />
-          <ShieldStation side={opponent} mirrored compact={compact} />
+          <ShieldStation side={opponent} mirrored compact={compact} stationRef={opponent.shieldStationRef} />
         </div>
 
         <Seam />
@@ -164,7 +167,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
               `flex-1`/stretch nenhum, então mede exatamente o que os 3 filhos
               pedem de verdade (nem mais, nem menos). `gap-2` migrou pra cá. */}
           <div ref={groupRef} className="flex items-start gap-2">
-            <ShieldStation side={self} compact={compact} />
+            <ShieldStation side={self} compact={compact} stationRef={self.shieldStationRef} />
             <SelfTheater side={self} />
             <DeckStation side={self} />
           </div>
@@ -209,7 +212,17 @@ function ResourceLane({ children }: { children: ReactNode }) {
  * descendo. Oponente (`mirrored`, rotação 180° do playmat): Shields no topo,
  * Base embaixo — encostada na seam, entre os shields e a Battle Area dele.
  */
-function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?: boolean; compact?: boolean }) {
+function ShieldStation({
+  side,
+  mirrored,
+  compact,
+  stationRef,
+}: {
+  side: ArenaSide;
+  mirrored?: boolean;
+  compact?: boolean;
+  stationRef?: (el: HTMLElement | null) => void;
+}) {
   // V6.2 (docs/33): `side.shields` já vem pronto (o `<ShieldRail>` é montado
   // pelo `SimulatorMatchPage.tsx`, antes do `ArenaPlaymat` existir) — a única
   // forma de injetar o `compact` calculado aqui é clonar o elemento com a
@@ -217,7 +230,7 @@ function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?
   // tipado como `ReactNode` genérico).
   const shields = isValidElement(side.shields) ? cloneElement(side.shields as ReactElement<{ compact?: boolean }>, { compact }) : side.shields;
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
+    <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
           {shields}

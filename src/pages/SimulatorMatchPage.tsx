@@ -130,6 +130,7 @@ import {
   HandFan,
   PileTray,
   playerAreaKey,
+  playerShieldKey,
   ResourceMeter,
   RotateDevicePrompt,
   ShieldRail,
@@ -1003,6 +1004,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <ShieldRail
           orientation="vertical"
           count={player.counts.shields}
+          underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
           selectable={selecting}
           selectedIndexes={selectedShieldIndexes(player)}
           onSelectIndex={(i) => {
@@ -1073,6 +1075,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ),
       battleRow: renderBattleSlots(player, isSelf),
       battleAreaRef: board.register(playerAreaKey(pid)),
+      shieldStationRef: board.register(playerShieldKey(pid)),
       handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
     };
   }
