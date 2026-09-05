@@ -5,9 +5,18 @@
  * girada 90° = gasta, dourada = EX). Cada peça tem `title`; o container tem
  * `aria-label` com a leitura completa pra acessibilidade.
  *
+ * Frente 4 (docs/38 §3.3) — EMPILHAMENTO: recursos idênticos (mesma
+ * combinação ativo/gasto × normal/EX) são agrupados numa ÚNICA pilha com um
+ * badge numérico (`x3`, `x5`) no topo direito. Isso derruba a largura total em
+ * >60% e mata de vez a barra de rolagem horizontal que aparecia ao acumular
+ * recursos normais + EX (Feedback.pdf §3). O modo interativo (pagamento de
+ * custo) continua mostrando as peças ATIVAS uma a uma — mas agora sobrepostas
+ * (leque), nunca com scroll.
+ *
  * `selectable` (pagamento de custo): só as peças ATIVAS viram <button>;
  * selecionada = realce esmeralda. Com `costProgress`, uma barra "{paid}/{total}
  * pago" aparece abaixo. `readOnly` (medidor do oponente): sem clique, compacto. */
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { artSrc, cardBackUrl, type ArtLookup } from "./cardArt";
 
@@ -32,6 +41,14 @@ interface ResourceMeterProps {
   className?: string;
 }
 
+function pieceTitle(r: ResourceMeterItem): string {
+  return r.isEx ? "EX Resource — sai de jogo se gasto" : r.rested ? "Recurso gasto" : "Recurso ativo";
+}
+
+/** largura-padrão da carta na arena (docs/34) — retrato; a peça gasta ocupa a
+ *  mesma área girada 90° (paisagem). */
+const PORTRAIT_W = "var(--card-w-std,2.17rem)";
+
 export function ResourceMeter({
   resources,
   level,
@@ -45,105 +62,125 @@ export function ResourceMeter({
 }: ResourceMeterProps) {
   const active = resources.filter((r) => !r.rested).length;
   const summary = `${active} recurso(s) ativo(s) de ${resources.length} · nível ${level}`;
+  const interactive = Boolean(selectable && !readOnly && onSelect);
+
+  function pieceVisual(r: ResourceMeterItem, selected: boolean, pickable: boolean) {
+    const tone = selected
+      ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+      : r.isEx
+        ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
+        : r.rested
+          ? "border-white/10 opacity-60"
+          : "border-primary/50";
+    // caixa EXTERNA já nasce em paisagem quando gasto (footprint = retrato
+    // rotacionado); só a imagem por dentro gira 90° (docs/34).
+    const shape = cn(
+      "relative block shrink-0 overflow-hidden rounded-arena border transition-all duration-100 motion-reduce:transition-none",
+      r.rested ? "aspect-[88/63]" : "aspect-[63/88]",
+      tone,
+      pickable && "cursor-pointer hover:border-emerald-300",
+    );
+    const shapeStyle: CSSProperties = { width: r.rested ? `calc(${PORTRAIT_W} * 88 / 63)` : PORTRAIT_W };
+    const tint = selected
+      ? "bg-emerald-500/35"
+      : r.isEx
+        ? "bg-accent/25"
+        : r.rested
+          ? "bg-slate-950/45"
+          : "bg-transparent";
+    // recurso é carta virada PRA CIMA — ilustração real; verso só se faltar arte.
+    const face = (art && r.code && artSrc(art, r.code, "sm")) || cardBackUrl;
+    const artBox = <img src={face} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />;
+    return { shape, shapeStyle, tint, artBox };
+  }
+
+  function Piece({ r, selected, pickable }: { r: ResourceMeterItem; selected: boolean; pickable: boolean }) {
+    const { shape, shapeStyle, tint, artBox } = pieceVisual(r, selected, pickable);
+    const title = pieceTitle(r);
+    const inner = (
+      <>
+        {r.rested ? (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <span className="relative aspect-[63/88] overflow-hidden rotate-90" style={{ width: PORTRAIT_W }}>
+              {artBox}
+            </span>
+          </span>
+        ) : (
+          artBox
+        )}
+        <span className={cn("absolute inset-0", tint)} />
+      </>
+    );
+    return pickable ? (
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        aria-pressed={selected}
+        onClick={() => onSelect?.(r.instanceId)}
+        className={shape}
+        style={shapeStyle}
+      >
+        {inner}
+      </button>
+    ) : (
+      <span title={title} aria-label={title} className={shape} style={shapeStyle}>
+        {inner}
+      </span>
+    );
+  }
+
+  // ── Modo empilhado (padrão / oponente): 1 pilha por tipo + badge xN ────────
+  const groups = (() => {
+    const order: string[] = [];
+    const byKey = new Map<string, { sample: ResourceMeterItem; count: number }>();
+    for (const r of resources) {
+      const key = `${r.isEx ? "ex" : "std"}-${r.rested ? "rested" : "active"}`;
+      const g = byKey.get(key);
+      if (g) {
+        g.count += 1;
+      } else {
+        byKey.set(key, { sample: r, count: 1 });
+        order.push(key);
+      }
+    }
+    return order.map((k) => byKey.get(k)!);
+  })();
 
   return (
-    <div
-      aria-label={summary}
-      title={summary}
-      className={cn("flex flex-col gap-1", readOnly && "opacity-90", className)}
-    >
-      <div
-        className={cn(
-          "scrollbar-ghost flex min-w-0 items-end gap-1 overflow-x-auto overscroll-x-contain pb-0.5",
-          readOnly && "gap-0.5",
-        )}
-      >
-        {resources.map((r) => {
-          const selected = selectedIds.includes(r.instanceId);
-          const pickable = Boolean(selectable && !readOnly && !r.rested && onSelect);
-          const title = r.isEx
-            ? "EX Resource — sai de jogo se gasto"
-            : r.rested
-              ? "Recurso gasto"
-              : "Recurso ativo";
-          // V6.3 (docs/34) — tamanho-padrão único: era uma proporção própria
-          // (0.5×0.7 ativo / 0.34×0.5 gasto), sem `aspect-*` nenhum e SEM
-          // `rounded-arena` (achado do Willen: cantos retos, tamanho
-          // diferente do Deck de Recursos ao lado). Agora usa a MESMA
-          // largura-padrão `--card-w-std` que toda outra peça.
-          // V6.4 (docs/36) — o `readOnly` (recursos do oponente) ainda
-          // encolhia pra 70% desse padrão: uma FRAÇÃO própria de novo, o
-          // mesmo tipo de inconsistência que essa variável existe pra matar
-          // (bug real reportado pelo Willen no mobile — "resources não estão
-          // no tamanho padrão"). Nenhuma outra peça do oponente (Deck/Trash/
-          // Base/Battle Area) tem esse desconto — removido, `--card-w-std`
-          // cheio dos dois lados agora.
-          const portraitWidth = "var(--card-w-std,2.17rem)";
-          const tone = selected
-            ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-            : r.isEx
-              ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
-              : r.rested
-                ? "border-white/10 opacity-60"
-                : "border-primary/50";
-          // V6.3 (docs/34) — corrige o corte da imagem no estado "gasto": antes,
-          // `rotate-90` girava a MESMA caixa retrato (o `object-cover` já tinha
-          // recortado pro formato ERRADO antes do giro). Agora a caixa EXTERNA já
-          // nasce em paisagem (`aspect-[88/63]`, footprint = a caixa retrato
-          // rotacionada) — e só a imagem por dentro (numa caixa retrato do
-          // tamanho normal) gira 90°, preenchendo a paisagem certinho.
-          const shape = cn(
-            "relative block shrink-0 overflow-hidden rounded-arena border transition-all duration-100 motion-reduce:transition-none",
-            r.rested ? "aspect-[88/63]" : "aspect-[63/88]",
-            tone,
-            pickable && "cursor-pointer hover:border-emerald-300",
-          );
-          const shapeStyle = { width: r.rested ? `calc(${portraitWidth} * 88 / 63)` : portraitWidth };
-          const tint = selected
-            ? "bg-emerald-500/35"
-            : r.isEx
-              ? "bg-accent/25"
-              : r.rested
-                ? "bg-slate-950/45"
-                : "bg-transparent";
-          // recurso é carta virada PRA CIMA — mostra a ilustração real (via alias
-          // ST01-RESOURCE→R-001 / TOKEN-EX-RESOURCE→EXR-001); verso só se faltar arte.
-          const face = (art && r.code && artSrc(art, r.code, "sm")) || cardBackUrl;
-          const artBox = <img src={face} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />;
-          const inner = (
-            <>
-              {r.rested ? (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="relative aspect-[63/88] overflow-hidden rotate-90" style={{ width: portraitWidth }}>
-                    {artBox}
-                  </span>
+    <div aria-label={summary} title={summary} className={cn("flex flex-col gap-1", readOnly && "opacity-90", className)}>
+      {interactive ? (
+        // leque sobreposto das peças (sem scrollbar): 1ª peça normal, as
+        // seguintes com margem negativa. As ATIVAS são <button> pickable.
+        <div className={cn("flex min-w-0 flex-wrap items-end gap-y-1 pb-0.5")}>
+          {resources.map((r, i) => {
+            const selected = selectedIds.includes(r.instanceId);
+            const pickable = Boolean(!r.rested && onSelect);
+            return (
+              <span
+                key={r.instanceId}
+                className="shrink-0"
+                style={i === 0 ? undefined : { marginLeft: `calc(${PORTRAIT_W} * -0.34)` }}
+              >
+                <Piece r={r} selected={selected} pickable={pickable} />
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={cn("flex min-w-0 items-end gap-2", readOnly && "gap-1.5")}>
+          {groups.map((g, i) => (
+            <span key={i} className="relative shrink-0">
+              <Piece r={g.sample} selected={false} pickable={false} />
+              {g.count > 1 ? (
+                <span className="absolute -right-1 -top-1 z-10 rounded-arena border border-white/25 bg-slate-950 px-1 font-mono text-[10px] font-black leading-tight tabular-nums text-slate-100">
+                  x{g.count}
                 </span>
-              ) : (
-                artBox
-              )}
-              <span className={cn("absolute inset-0", tint)} />
-            </>
-          );
-          return pickable ? (
-            <button
-              key={r.instanceId}
-              type="button"
-              title={title}
-              aria-label={title}
-              aria-pressed={selected}
-              onClick={() => onSelect?.(r.instanceId)}
-              className={shape}
-              style={shapeStyle}
-            >
-              {inner}
-            </button>
-          ) : (
-            <span key={r.instanceId} title={title} aria-label={title} className={shape} style={shapeStyle}>
-              {inner}
+              ) : null}
             </span>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {costProgress ? (
         <div className="flex flex-col gap-0.5">
