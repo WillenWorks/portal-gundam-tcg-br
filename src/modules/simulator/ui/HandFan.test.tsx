@@ -86,8 +86,19 @@ describe("HandFan", () => {
 
     jogar.click();
     expect(onPeek).toHaveBeenCalledWith(zaku);
+    // Frente 4 (feedback Willen 3ª rodada): clicar no ▶ NÃO abre a modal de inspeção.
+    expect(onInspect).not.toHaveBeenCalled();
     verZaku.click();
     expect(onInspect).toHaveBeenCalledWith(zaku);
+  });
+
+  it("Frente 4 (feedback Willen 3ª rodada): ▶ tem cursor-pointer e z acima da área de inspeção", () => {
+    render(
+      <HandFan cards={[{ card: unit("Zaku"), playable: true }]} art={{}} onPeek={vi.fn()} onInspect={vi.fn()} />,
+    );
+    const jogar = screen.getByRole("button", { name: /Jogar Zaku/ });
+    expect(jogar.className).toMatch(/cursor-pointer/);
+    expect(jogar.parentElement?.className).toMatch(/z-50/);
   });
 
   it("Frente 4: o corpo da carta é o alvo de inspeção (Jogar no canto + Ver no corpo)", () => {
@@ -144,11 +155,15 @@ describe("HandFan", () => {
     expect(screen.getByText("6")).toBeTruthy();
   });
 
-  it("modo anchored: lift de -1.5rem no hover/foco", () => {
-    hand([{ card: unit("Gundam"), playable: true }], { anchored: true });
-    const [c] = containers();
-    expect(c.className).toMatch(/hover:-translate-y-6/);
-    expect(c.className).toMatch(/focus-within:-translate-y-6/);
+  it("Frente 4 (feedback Willen 3ª rodada): lift do hover fica no wrapper da ARTE, não no container (o ▶ não se move)", () => {
+    hand([{ card: unit("Gundam"), playable: true }], { anchored: true, onInspect: vi.fn() });
+    const [container] = containers();
+    // o container NÃO lifta
+    expect(container.className).not.toMatch(/-translate-y/);
+    // o wrapper interno (a área de inspeção, role=button) lifta via group-hover
+    const artWrapper = container.querySelector('[role="button"]')!;
+    expect(artWrapper.className).toMatch(/group-hover\/hc:-translate-y-3/);
+    expect(artWrapper.className).toMatch(/group-focus-within\/hc:-translate-y-3/);
   });
 
   it("Frente 4 (docs/38 §4.1): carta entra deslizando de baixo (draw), motion-reduce desliga", () => {

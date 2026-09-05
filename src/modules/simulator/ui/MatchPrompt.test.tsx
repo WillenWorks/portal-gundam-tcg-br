@@ -24,4 +24,12 @@ describe("MatchPrompt", () => {
     render(<MatchPrompt message="Defenda ou passe" tone="warn" />);
     expect(screen.getByRole("status").className).toMatch(/border-amber-400/);
   });
+
+  it("Frente 4 (feedback Willen 3ª rodada): sem chanfro `panel-cut` (cortava o fim do texto), usa rounded-arena", () => {
+    render(<MatchPrompt message="Escolha o alvo do ataque (Unit ou jogador)" />);
+    const panel = screen.getByRole("status");
+    expect(panel.className).not.toMatch(/panel-cut/);
+    expect(panel.className).toMatch(/rounded-arena/);
+    expect(panel.className).toMatch(/w-fit/);
+  });
 });

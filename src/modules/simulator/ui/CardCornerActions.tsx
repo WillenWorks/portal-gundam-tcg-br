@@ -62,7 +62,11 @@ export function CardCornerActions({ actions, className }: CardCornerActionsProps
       // absoluto encostado no canto direito, DENTRO da carta (nunca mais
       // salta pra fora — mão e campo usam o mesmo `top-0.5 right-0.5`
       // default agora); cresce pra ESQUERDA conforme ganha botões.
-      className={cn("absolute top-0.5 right-0.5 z-40 flex items-start gap-0.5", className)}
+      // Frente 4 (feedback Willen 3ª rodada): `z-50` + `pointer-events-auto` +
+      // `stopPropagation` já no `onMouseDown`/`onClick` — o clique no botão
+      // NUNCA cai no corpo da carta (que abre a modal de inspeção).
+      className={cn("absolute top-0.5 right-0.5 z-50 flex items-start gap-0.5 pointer-events-auto", className)}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {actions.map((a) => (
@@ -72,12 +76,15 @@ export function CardCornerActions({ actions, className }: CardCornerActionsProps
           title={a.label}
           aria-label={a.label}
           disabled={a.disabled}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             a.onClick();
           }}
           className={cn(
-            "flex items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
+            // `cursor-pointer` explícito: o Preflight do Tailwind v4 deixa
+            // `<button>` com `cursor: default` (feedback Willen: "cursor vira seta").
+            "flex cursor-pointer items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
             BUTTON_SIZE,
             TONE[a.tone],
           )}

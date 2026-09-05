@@ -142,15 +142,18 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
         </svg>
       ) : null}
 
+      {/* Frente 4 (feedback Willen 3ª rodada): banner de combate NUNCA trunca.
+          `rounded-arena` (não `panel-cut` — o chanfro de 16px cortava o "O" de
+          "DECLARAÇÃO"), `whitespace-nowrap` e `w-fit`/`max-w` pra caber sempre. */}
       <div className="pointer-events-none fixed inset-x-0 top-16 z-[46] flex justify-center px-2">
-        <div className="panel-cut flex items-center gap-2 border border-red-500/50 bg-slate-950/92 px-3 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
+        <div className="flex w-fit max-w-[calc(100vw-1rem)] items-center gap-2 whitespace-nowrap rounded-arena border border-red-500/50 bg-slate-950/92 px-3.5 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
           <Swords className="size-4 shrink-0 text-red-400" />
           <span className="font-semibold text-soft">{attacker?.def.nameEn ?? "Atacante"}</span>
-          {attacker ? <span className="font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
+          {attacker ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
           <ArrowRight className="size-4 shrink-0 animate-pulse text-red-400" />
           <span className="font-semibold text-soft">{targetLabel}</span>
-          {targetUnit ? <span className="font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
-          <span className="ml-1 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
+          {targetUnit ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
+          <span className="ml-1 shrink-0 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
             {STEP_LABEL[combat.step]}
           </span>
         </div>
