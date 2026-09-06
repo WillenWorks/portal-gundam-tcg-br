@@ -36,6 +36,17 @@ const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
+// Preview de layout cru do simulador (docs/38, Frente 4) — SEM auth. Liberada
+// quando: DEV local, OU `VITE_LAYOUT_PREVIEW=1` no build (staging/Railway).
+// Produção não seta a flag e `import.meta.env.DEV` é `false` estático → o
+// `import()` cai numa branch morta, o bundler remove o chunk e a rota não monta.
+// Serve pra iterar o visual e pra simular efeitos nos tutoriais de Regras.
+const LAYOUT_PREVIEW_ENABLED = import.meta.env.DEV || import.meta.env.VITE_LAYOUT_PREVIEW === "1";
+const SimulatorLayoutPreviewPage = lazy(() =>
+  LAYOUT_PREVIEW_ENABLED
+    ? import("@/pages/SimulatorLayoutPreviewPage")
+    : Promise.resolve({ default: () => null }),
+);
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -113,6 +124,17 @@ function AppRouter() {
             </RequireAuth>
           )}
         </Route>
+        {/* SEM auth — preview de layout cru (docs/38). DEV local ou
+            VITE_LAYOUT_PREVIEW=1 (staging). Não existe no build de produção. */}
+        {LAYOUT_PREVIEW_ENABLED && (
+          <Route path="/simulador/preview-layout">
+            {() => (
+              <LazyRoute label="Preview de Layout">
+                <SimulatorLayoutPreviewPage />
+              </LazyRoute>
+            )}
+          </Route>
+        )}
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

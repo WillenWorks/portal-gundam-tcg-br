@@ -85,4 +85,27 @@ describe("ResourceMeter", () => {
     render(<ResourceMeter resources={[res("a")]} level={1} readOnly selectable onSelect={() => {}} />);
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("Frente 4 (docs/38 §3.3): recursos idênticos viram 1 pilha com badge xN", () => {
+    render(
+      <ResourceMeter
+        resources={[res("a"), res("b"), res("c"), res("d", { isEx: true }), res("e", { isEx: true })]}
+        level={5}
+      />,
+    );
+    // 3 normais ativos → 1 pilha "Recurso ativo" com badge x3
+    expect(screen.getAllByLabelText("Recurso ativo")).toHaveLength(1);
+    expect(screen.getByText("x3")).toBeInTheDocument();
+    // 2 EX → 1 pilha com badge x2
+    expect(screen.getAllByLabelText("EX Resource — sai de jogo se gasto")).toHaveLength(1);
+    expect(screen.getByText("x2")).toBeInTheDocument();
+  });
+
+  it("Frente 4 (docs/38 §3.3): sem badge quando a pilha tem 1 só; nunca há scroll horizontal", () => {
+    const { container } = render(
+      <ResourceMeter resources={[res("a"), res("b", { rested: true })]} level={2} />,
+    );
+    expect(screen.queryByText(/^x\d/)).toBeNull();
+    expect(container.querySelector(".overflow-x-auto")).toBeNull();
+  });
 });

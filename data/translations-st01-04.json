@@ -1,0 +1,830 @@
+[
+  {
+    "code": "ST01-001",
+    "name": "Gundam",
+    "set": "ST01",
+    "effectEn": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)\n【During Pair】During your turn, all your Units get AP+1.",
+    "effectPt": "<Repair 2> (No fim do seu turno, esta Unidade recupera a quantidade de HP indicada.)\n【During Pair】Durante o seu turno, todas as suas Unidades recebem AP+1.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "<Repair 2>",
+      "HP",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "ST01-002",
+    "name": "Gundam (MA Form)",
+    "set": "ST01",
+    "effectEn": "【When Paired･(White Base Team) Pilot】Draw 1.",
+    "effectPt": "【When Paired･(White Base Team) Pilot】Compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired･(White Base Team) Pilot】"
+    ]
+  },
+  {
+    "code": "ST01-003",
+    "name": "Guncannon",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST01-004",
+    "name": "Guntank",
+    "set": "ST01",
+    "effectEn": "【Deploy】Choose 1 enemy Unit with 2 or less HP. Rest it.",
+    "effectPt": "【Deploy】Escolha 1 Unidade inimiga com 2 ou menos de HP. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST01-005",
+    "name": "GM",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST01-006",
+    "name": "Gundam Aerial (Permet Score Six)",
+    "set": "ST01",
+    "effectEn": "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn.",
+    "effectPt": "【When Paired】Escolha 1 Unidade inimiga que seja Lv.5 ou menos. Ela recebe AP-3 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "AP-3",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST01-007",
+    "name": "Gundam Aerial (Bit on Form)",
+    "set": "ST01",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST01-008",
+    "name": "Demi Trainer",
+    "set": "ST01",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST01-009",
+    "name": "Zowort",
+    "set": "ST01",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't choose the enemy player as its attack target.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEsta Unidade não pode escolher o jogador inimigo como alvo do seu ataque.",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST01-010",
+    "name": "Amuro Ray",
+    "set": "ST01",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 enemy Unit with 5 or less HP. Rest it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade inimiga com 5 ou menos de HP. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST01-011",
+    "name": "Suletta Mercury",
+    "set": "ST01",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】【Once per Turn】Choose 1 of your Resources. Set it as active.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】【Once per Turn】Escolha 1 dos seus Recursos. Deixe-o em Active.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "【Once per Turn】"
+    ]
+  },
+  {
+    "code": "ST01-012",
+    "name": "Thoroughly Damaged",
+    "set": "ST01",
+    "effectEn": "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.\n【Pilot】[Hayato Kobayashi]",
+    "effectPt": "【Main】Escolha 1 Unidade inimiga em Rest. Cause 1 de dano a ela.\n【Pilot】[Hayato Kobayashi]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Hayato Kobayashi]"
+    ]
+  },
+  {
+    "code": "ST01-013",
+    "name": "Kai's Resolve",
+    "set": "ST01",
+    "effectEn": "【Main】Choose 1 friendly Unit. It recovers 3 HP.\n【Pilot】[Kai Shiden]",
+    "effectPt": "【Main】Escolha 1 Unidade aliada. Ela recupera 3 de HP.\n【Pilot】[Kai Shiden]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Kai Shiden]",
+      "HP"
+    ]
+  },
+  {
+    "code": "ST01-014",
+    "name": "Unforeseen Incident",
+    "set": "ST01",
+    "effectEn": "【Burst】Activate this card's 【Main】.\n【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn.",
+    "effectPt": "【Burst】Ative o 【Main】 desta carta.\n【Main】/【Action】Escolha 1 Unidade inimiga. Ela recebe AP-3 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Main】",
+      "【Action】",
+      "AP-3"
+    ]
+  },
+  {
+    "code": "ST01-015",
+    "name": "White Base",
+    "set": "ST01",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】②：Deploy 1 [Gundam]((White Base Team)･AP3･HP3) Unit token if you have no Units in play, deploy 1 [Guncannon]((White Base Team)･AP2･HP2) Unit token if you have only 1 Unit in play, or deploy 1 [Guntank]((White Base Team)･AP1･HP1) Unit token if you have 2 or more Units in play.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】②：Faça o Deploy de 1 ficha de Unidade [Gundam]((White Base Team)･AP3･HP3) se você não tiver Unidades em jogo, de 1 ficha de Unidade [Guncannon]((White Base Team)･AP2･HP2) se você tiver só 1 Unidade em jogo, ou de 1 ficha de Unidade [Guntank]((White Base Team)･AP1･HP1) se você tiver 2 ou mais Unidades em jogo.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "[Gundam]",
+      "[Guncannon]",
+      "[Guntank]",
+      "((White Base Team)･AP3･HP3)",
+      "((White Base Team)･AP2･HP2)",
+      "((White Base Team)･AP1･HP1)",
+      "②"
+    ]
+  },
+  {
+    "code": "ST01-016",
+    "name": "Asticassia School of Technology, Earth House",
+    "set": "ST01",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：All friendly Link Units get AP+1 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Todas as Unidades aliadas com Link recebem AP+1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "AP+1",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST02-001",
+    "name": "Wing Gundam",
+    "set": "ST02",
+    "effectEn": "<Breach 5> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\nThis Unit may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+    "effectPt": "<Breach 5> (Quando o ataque desta Unidade destrói uma Unidade inimiga, cause a quantidade de dano indicada à primeira carta da área de escudo daquele oponente.)\nEsta Unidade pode escolher uma Unidade inimiga em Active que seja Lv.4 ou menos como alvo do seu ataque.",
+    "status": "OK",
+    "tokens": [
+      "<Breach 5>",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST02-002",
+    "name": "Wing Gundam (Bird Mode)",
+    "set": "ST02",
+    "effectEn": "【Deploy】Place 1 EX Resource.",
+    "effectPt": "【Deploy】Coloque 1 EX Resource.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST02-003",
+    "name": "Gundam Heavyarms",
+    "set": "ST02",
+    "effectEn": "【During Pair】During your turn, when this Unit destroys an enemy Unit with battle damage, deal 1 damage to all enemy Units that are Lv.3 or lower.",
+    "effectPt": "【During Pair】Durante o seu turno, quando esta Unidade destrói uma Unidade inimiga com dano de batalha, cause 1 de dano a todas as Unidades inimigas que sejam Lv.3 ou menos.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "ST02-004",
+    "name": "Gundam Sandrock",
+    "set": "ST02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST02-005",
+    "name": "Maganac",
+    "set": "ST02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST02-006",
+    "name": "Tallgeese",
+    "set": "ST02",
+    "effectEn": "【Activate･Main】【Once per Turn】④：Set this Unit as active.",
+    "effectPt": "【Activate･Main】【Once per Turn】④：Deixe esta Unidade em Active.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "④"
+    ]
+  },
+  {
+    "code": "ST02-007",
+    "name": "Leo",
+    "set": "ST02",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST02-008",
+    "name": "Aries",
+    "set": "ST02",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST02-009",
+    "name": "Tragos",
+    "set": "ST02",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST02-010",
+    "name": "Heero Yuy",
+    "set": "ST02",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】This Unit gets AP+1 and HP+1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Esta Unidade recebe AP+1 e HP+1.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "AP+1",
+      "HP+1"
+    ]
+  },
+  {
+    "code": "ST02-011",
+    "name": "Zechs Merquise",
+    "set": "ST02",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, draw 1.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Durante o seu turno, quando esta Unidade destrói uma Unidade inimiga com dano de batalha, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】"
+    ]
+  },
+  {
+    "code": "ST02-012",
+    "name": "Simultaneous Fire",
+    "set": "ST02",
+    "effectEn": "【Main】Choose 1 of your Units. It gains <Breach 3> during this turn.\n\n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)\n【Pilot】[Trowa Barton]",
+    "effectPt": "【Main】Escolha 1 das suas Unidades. Ela ganha <Breach 3> durante este turno.\n\n(Quando o ataque desta Unidade destrói uma Unidade inimiga, cause a quantidade de dano indicada à primeira carta da área de escudo daquele oponente.)\n【Pilot】[Trowa Barton]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Pilot】",
+      "[Trowa Barton]",
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "ST02-013",
+    "name": "Peaceful Timbre",
+    "set": "ST02",
+    "effectEn": "【Action】During this battle, your shield area cards can't receive damage from enemy Units that are Lv.4 or lower.\n【Pilot】[Quatre Raberba Winner]",
+    "effectPt": "【Action】Durante esta batalha, as cartas da sua área de escudo não podem receber dano de Unidades inimigas que sejam Lv.4 ou menos.\n【Pilot】[Quatre Raberba Winner]",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Quatre Raberba Winner]",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST02-014",
+    "name": "Siege Ploy",
+    "set": "ST02",
+    "effectEn": "【Burst】Activate this card's 【Main】.\n【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it.",
+    "effectPt": "【Burst】Ative o 【Main】 desta carta.\n【Main】/【Action】Escolha 1 Unidade inimiga com 5 ou menos de HP. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Main】",
+      "【Action】",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST02-015",
+    "name": "Saint Gabriel Institute",
+    "set": "ST02",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Depois, olhe as 2 cartas do topo do seu deck e devolva 1 ao topo e 1 ao fundo.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST02-016",
+    "name": "Corsica Base",
+    "set": "ST02",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, deploy 1 [Tallgeese]((OZ)･AP4･HP2) Unit token. If it is your turn and a card with \"Corsica Base\" in its card name is in your trash, deploy 2 [Leo]((OZ)･AP1･HP1) Unit tokens instead.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Depois, se for o seu turno, faça o Deploy de 1 ficha de Unidade [Tallgeese]((OZ)･AP4･HP2). Se for o seu turno e houver uma carta com \"Corsica Base\" no nome no seu lixo, em vez disso faça o Deploy de 2 fichas de Unidade [Leo]((OZ)･AP1･HP1).",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "[Tallgeese]",
+      "[Leo]",
+      "((OZ)･AP4･HP2)",
+      "((OZ)･AP1･HP1)"
+    ]
+  },
+  {
+    "code": "ST03-001",
+    "name": "Sinanju",
+    "set": "ST03",
+    "effectEn": "【During Pair】This Unit gains <High-Maneuver>.\n\n(This Unit can't be blocked.)\nDuring your turn, when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it.",
+    "effectPt": "【During Pair】Esta Unidade ganha <High-Maneuver>.\n\n(Esta Unidade não pode ser bloqueada.)\nDurante o seu turno, quando esta Unidade destrói uma carta da área de escudo inimiga com dano de batalha, escolha 1 Unidade inimiga. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "<High-Maneuver>"
+    ]
+  },
+  {
+    "code": "ST03-002",
+    "name": "Angelo's Geara Zulu",
+    "set": "ST03",
+    "effectEn": "【Activate･Main】<Support 2> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Activate･Main】<Support 2> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade indicada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "<Support 2>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST03-003",
+    "name": "Geara Zulu",
+    "set": "ST03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST03-004",
+    "name": "Gaza D (Sleeves)",
+    "set": "ST03",
+    "effectEn": "【Activate･Main】<Support 2> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)",
+    "effectPt": "【Activate･Main】<Support 2> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade indicada) durante este turno.)",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "<Support 2>",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST03-005",
+    "name": "Dra-C (Sleeves)",
+    "set": "ST03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST03-006",
+    "name": "Char's Zaku Ⅱ",
+    "set": "ST03",
+    "effectEn": "【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "effectPt": "【Destroyed】Olhe as 3 cartas do topo do seu deck. Você pode revelar 1 carta de Unidade (Zeon)/(Neo Zeon) entre elas e adicioná-la à sua mão. Devolva as cartas restantes ao fundo do seu deck em ordem aleatória.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "(Zeon)",
+      "(Neo Zeon)"
+    ]
+  },
+  {
+    "code": "ST03-007",
+    "name": "Zaku Ⅰ",
+    "set": "ST03",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST03-008",
+    "name": "Zaku Ⅱ",
+    "set": "ST03",
+    "effectEn": "【Attack】This Unit gets AP+2 during this turn.",
+    "effectPt": "【Attack】Esta Unidade recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST03-009",
+    "name": "Gouf",
+    "set": "ST03",
+    "effectEn": "【Deploy】Deploy 1 rested [Zaku Ⅱ]((Zeon)･AP1･HP1) Unit token.",
+    "effectPt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [Zaku Ⅱ]((Zeon)･AP1･HP1) em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "[Zaku Ⅱ]",
+      "((Zeon)･AP1･HP1)"
+    ]
+  },
+  {
+    "code": "ST03-010",
+    "name": "Full Frontal",
+    "set": "ST03",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】You may deploy 1 (Neo Zeon)/(Zeon) Unit card that is Lv.4 or lower from your hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Você pode fazer o Deploy de 1 carta de Unidade (Neo Zeon)/(Zeon) que seja Lv.4 ou menos da sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(Neo Zeon)",
+      "(Zeon)",
+      "Lv.4"
+    ]
+  },
+  {
+    "code": "ST03-011",
+    "name": "Char Aznable",
+    "set": "ST03",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】During this turn, this Unit gets AP+1 and, if it is a Link Unit, it gains <High-Maneuver>.\n\n(This Unit can't be blocked.)",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Durante este turno, esta Unidade recebe AP+1 e, se for uma Unidade com Link, ganha <High-Maneuver>.\n\n(Esta Unidade não pode ser bloqueada.)",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "<High-Maneuver>",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "ST03-012",
+    "name": "Indignation",
+    "set": "ST03",
+    "effectEn": "【Main】/【Action】Choose 1 friendly Unit. It gets AP+2 during this turn.\n【Pilot】[Angelo Sauper]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade aliada. Ela recebe AP+2 durante este turno.\n【Pilot】[Angelo Sauper]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Angelo Sauper]",
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST03-013",
+    "name": "Close Combat",
+    "set": "ST03",
+    "effectEn": "【Burst】Activate this card's 【Main】.\n【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it.",
+    "effectPt": "【Burst】Ative o 【Main】 desta carta.\n【Main】/【Action】Escolha 1 Unidade inimiga. Cause 2 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "【Main】",
+      "【Action】"
+    ]
+  },
+  {
+    "code": "ST03-014",
+    "name": "The Blue Giant",
+    "set": "ST03",
+    "effectEn": "【Action】Choose 1 friendly Unit. It can't receive battle damage from enemy Units with 2 or less AP during this battle.\n【Pilot】[Ramba Ral]",
+    "effectPt": "【Action】Escolha 1 Unidade aliada. Ela não pode receber dano de batalha de Unidades inimigas com 2 ou menos de AP durante esta batalha.\n【Pilot】[Ramba Ral]",
+    "status": "OK",
+    "tokens": [
+      "【Action】",
+      "【Pilot】",
+      "[Ramba Ral]",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST03-015",
+    "name": "Rewloola",
+    "set": "ST03",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Depois, escolha 1 Unidade inimiga com 5 ou menos de AP. Cause 1 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "AP"
+    ]
+  },
+  {
+    "code": "ST03-016",
+    "name": "Falmel",
+    "set": "ST03",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, deploy 1 rested [Char's Zaku Ⅱ]((Zeon)･AP3･HP1) Unit token.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Depois, se for o seu turno, faça o Deploy de 1 ficha de Unidade [Char's Zaku Ⅱ]((Zeon)･AP3･HP1) em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "[Char's Zaku Ⅱ]",
+      "((Zeon)･AP3･HP1)"
+    ]
+  },
+  {
+    "code": "ST04-001",
+    "name": "Aile Strike Gundam",
+    "set": "ST04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【When Paired･Lv.4 or Higher Pilot】Choose 1 enemy Unit with 4 or less HP. Return it to its owner's hand.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【When Paired･Lv.4 or Higher Pilot】Escolha 1 Unidade inimiga com 4 ou menos de HP. Devolva-a à mão do dono.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired･Lv.4 or Higher Pilot】",
+      "<Blocker>",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST04-002",
+    "name": "Strike Gundam",
+    "set": "ST04",
+    "effectEn": "【Deploy】Draw 1. Then, discard 1.",
+    "effectPt": "【Deploy】Compre 1 carta. Depois, descarte 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】"
+    ]
+  },
+  {
+    "code": "ST04-003",
+    "name": "Moebius Zero",
+    "set": "ST04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST04-004",
+    "name": "Moebius",
+    "set": "ST04",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST04-005",
+    "name": "Strike Dagger",
+    "set": "ST04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST04-006",
+    "name": "Aegis Gundam",
+    "set": "ST04",
+    "effectEn": "【Attack】If this Unit has 5 or more AP, choose 1 enemy Unit that is Lv.5 or higher. Deal 3 damage to it.",
+    "effectPt": "【Attack】Se esta Unidade tiver 5 ou mais de AP, escolha 1 Unidade inimiga que seja Lv.5 ou mais. Cause 3 de dano a ela.",
+    "status": "OK",
+    "tokens": [
+      "【Attack】",
+      "AP",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST04-007",
+    "name": "Aegis Gundam (MA Mode)",
+    "set": "ST04",
+    "effectEn": "<Breach 3> (When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)",
+    "effectPt": "<Breach 3> (Quando o ataque desta Unidade destrói uma Unidade inimiga, cause a quantidade de dano indicada à primeira carta da área de escudo daquele oponente.)",
+    "status": "OK",
+    "tokens": [
+      "<Breach 3>"
+    ]
+  },
+  {
+    "code": "ST04-008",
+    "name": "Ginn",
+    "set": "ST04",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST04-009",
+    "name": "Miguel's Ginn",
+    "set": "ST04",
+    "effectEn": "【During Pair】【Destroyed】If you have another Link Unit in play, draw 1.",
+    "effectPt": "【During Pair】【Destroyed】Se você tiver outra Unidade com Link em jogo, compre 1 carta.",
+    "status": "OK",
+    "tokens": [
+      "【During Pair】",
+      "【Destroyed】"
+    ]
+  },
+  {
+    "code": "ST04-010",
+    "name": "Kira Yamato",
+    "set": "ST04",
+    "effectEn": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit. It gets AP-2 during this battle.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 Unidade inimiga. Ela recebe AP-2 durante esta batalha.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Attack】",
+      "AP-2"
+    ]
+  },
+  {
+    "code": "ST04-011",
+    "name": "Athrun Zala",
+    "set": "ST04",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Linked】During this turn, this Unit may choose an active enemy Unit that is Lv.5 or lower as its attack target.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Linked】Durante este turno, esta Unidade pode escolher uma Unidade inimiga em Active que seja Lv.5 ou menos como alvo do seu ataque.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Linked】",
+      "Lv.5"
+    ]
+  },
+  {
+    "code": "ST04-012",
+    "name": "Striker Pack",
+    "set": "ST04",
+    "effectEn": "【Burst】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>) Unit token.\n【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token.",
+    "effectPt": "【Burst】Se você não tiver fichas de Unidade (Earth Alliance) em jogo, faça o Deploy de 1 ficha de Unidade [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>).\n【Main】Se você não tiver fichas de Unidade (Earth Alliance) em jogo, faça o Deploy de 1 ficha de Unidade [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) ou de 1 ficha de Unidade [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>).",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "[Aile Strike Gundam]",
+      "[Sword Strike Gundam]",
+      "[Launcher Strike Gundam]",
+      "((Earth Alliance)･AP3･HP3･<Blocker>)",
+      "((Earth Alliance)･AP4･HP2･<Blocker>)",
+      "((Earth Alliance)･AP2･HP4･<Blocker>)",
+      "(Earth Alliance)",
+      "(Earth Alliance)"
+    ]
+  },
+  {
+    "code": "ST04-013",
+    "name": "Hawk of Endymion",
+    "set": "ST04",
+    "effectEn": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Pilot】[Mu La Flaga]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade inimiga com 3 ou menos de HP. Devolva-a à mão do dono.\n【Pilot】[Mu La Flaga]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Mu La Flaga]",
+      "HP"
+    ]
+  },
+  {
+    "code": "ST04-014",
+    "name": "The Magic Bullet of Dusk",
+    "set": "ST04",
+    "effectEn": "【Main】/【Action】Choose 1 friendly Unit that is Lv.2 or lower. It gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【Pilot】[Miguel Ayman]",
+    "effectPt": "【Main】/【Action】Escolha 1 Unidade aliada que seja Lv.2 ou menos. Ela ganha <First Strike> durante este turno.\n\n(Enquanto esta Unidade está atacando, ela causa dano antes da Unidade inimiga.)\n【Pilot】[Miguel Ayman]",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "【Pilot】",
+      "[Miguel Ayman]",
+      "<First Strike>",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "ST04-015",
+    "name": "Archangel",
+    "set": "ST04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】【Once per Turn】②：Choose 1 friendly Unit with <Blocker>. Set it as active. It can't attack during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】【Once per Turn】②：Escolha 1 Unidade aliada com <Blocker>. Deixe-a em Active. Ela não pode atacar durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "【Once per Turn】",
+      "<Blocker>",
+      "②"
+    ]
+  },
+  {
+    "code": "ST04-016",
+    "name": "Vesalius",
+    "set": "ST04",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：Choose 1 friendly Unit. It gets AP+1 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Escolha 1 Unidade aliada. Ela recebe AP+1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "AP+1",
+      "Rest"
+    ]
+  }
+]

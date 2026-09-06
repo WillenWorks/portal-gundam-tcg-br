@@ -1,11 +1,16 @@
-import type { AttackTarget, GameState, PlayerId } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PlayerId } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
+import {
+  collectDestroyedInBattle,
+  deferOrDispatchAbilities,
+  dispatchDestroyedTriggers,
+  filterDispatchableSpecs,
+} from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
@@ -244,14 +249,24 @@ function applyPlayerActionInner(
       next = resolveDamageStep(next);
       if (next.gameOver) return next; // GAME_OVER pode disparar dentro do próprio Damage Step
 
+      // 【Destroyed】 (docs/44): Units que morreram neste Damage Step — capturado
+      // ANTES de qualquer dispatch (o snapshot `beforeDamage` ainda tem o
+      // `pairedPilotId`, que o 【During Pair】【Destroyed】 de Miguel's Ginn checa).
+      const destroyed = collectDestroyedInBattle(beforeDamage, next);
+
       const defendingPlayer = beforeDamage.combat!.defendingPlayer;
       const burstIds = burstEligibleShieldIds(beforeDamage, next, defendingPlayer, specs);
       if (burstIds.length > 0) {
         // PAUSA autoritativa (docs/19, Sessão 2): combate fica parado no Damage
-        // Step, o defensor decide via `resolveBurstDecision`. O Battle End só
-        // roda quando a fila de Burst esvazia.
-        return setPendingBurst(next, defendingPlayer, burstIds);
+        // Step, o defensor decide via `resolveBurstDecision`. 【Burst】 primeiro,
+        // 【Destroyed】 depois (ver `resolveBurstDecision`); o Battle End só roda
+        // quando as duas filas esvaziam.
+        return setPendingBurst(next, defendingPlayer, burstIds, destroyed);
       }
+
+      next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
+      if (next.gameOver) return next;
+      if (next.pendingDecision[actingPlayer] || next.pendingDecision[otherPlayer(actingPlayer)]) return next;
       return resolveBattleEndStep(next);
     }
 
@@ -306,6 +321,8 @@ function applyPlayerActionInner(
           targets: action.targets,
           costResourceIds: action.resourceInstanceIds,
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
 
@@ -341,14 +358,29 @@ function applyPlayerActionInner(
         next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
           targets: action.targets ?? {},
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
       if (decision.queuedInstanceIds.length > 0) {
-        return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds);
+        return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds, decision.pendingDestroyed ?? []);
       }
-      // Fila esvaziou: fecha o combate se ele ainda está parado no Damage Step.
+      // Fila de 【Burst】 esvaziou: agora os 【Destroyed】 do MESMO Damage Step
+      // (docs/44) — não-pausantes inline, pausante (Char's Zaku Ⅱ) vira
+      // `abilityResolution` resolvida antes do Battle End.
       if (!next.gameOver && next.combat?.step === "damage") {
-        next = resolveBattleEndStep(next);
+        next = dispatchDestroyedTriggers(next, decision.pendingDestroyed ?? [], specs, {
+          predicateResolver,
+          targetFilterResolver,
+        });
+        if (
+          !next.gameOver &&
+          !next.pendingDecision[actingPlayer] &&
+          !next.pendingDecision[otherPlayer(actingPlayer)] &&
+          next.combat?.step === "damage"
+        ) {
+          next = resolveBattleEndStep(next);
+        }
       }
       return next;
     }
@@ -376,6 +408,8 @@ function applyPlayerActionInner(
         // usado em `playCommand`/`activateAbility`/`resolveBurstDecision`.
         next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
       return next;
@@ -395,22 +429,60 @@ function applyPlayerActionInner(
       // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
       for (const r of action.resolutions) {
         const q = decision.queue.find((x) => x.specId === r.specId)!;
-        // pulado, ou "Choose 1 ..." sem alvo legal disponível = nada acontece (regra oficial).
-        if (!r.activate || (q.needsTarget && r.targetIds.length === 0)) continue;
-        // V0 (docs/25): `legalTargets` foi calculado no servidor ao montar a
-        // fila (`deferOrDispatchAbilities`) — nunca confia cegamente no que o
-        // cliente manda de volta aqui.
-        if (q.needsTarget && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
+        const deckReveal = q.deckTopReveal;
+        const handChoice = q.handChoice;
+
+        // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
+        // pro fundo) — por isso `deckTopReveal` NUNCA cai nos `continue` de skip.
+        if (!deckReveal) {
+          // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
+          if (!r.activate) continue;
+          if (q.needsTarget && r.targetIds.length === 0) continue;
+          if (handChoice && r.targetIds.length === 0) continue;
+        }
+
+        // V0 (docs/25): os candidatos legais foram calculados no servidor ao
+        // montar a fila (`deferOrDispatchAbilities`) — nunca confia cegamente no
+        // que o cliente manda de volta aqui.
+        if (q.needsTarget && r.targetIds.length > 0 && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
           throw new Error(`Alvo inválido pra ${r.specId} — não está entre os alvos legais.`);
         }
+        if (handChoice && r.targetIds.length > 0 && !r.targetIds.every((id) => handChoice.legalHandIds.includes(id))) {
+          throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da mão.`);
+        }
+        if (deckReveal && r.targetIds.length > 0 && !r.targetIds.every((id) => deckReveal.revealableIds.includes(id))) {
+          throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas reveláveis do topo do deck.`);
+        }
+
+        const targets: Record<string, string[]> = { target: r.targetIds, shield: r.targetIds };
+        if (handChoice) targets.deploy = r.targetIds;
+        if (deckReveal) targets.reveal = r.targetIds;
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
-          targets: { target: r.targetIds, shield: r.targetIds },
+          targets,
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
+      }
+      // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou
+      // Units-com-【Destroyed】-que-pausa dos dois lados): agora que a decisão do
+      // jogador ativo fechou, dispara a do oponente (FIFO).
+      if (decision.queuedDestroyed && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
+        const qd = decision.queuedDestroyed;
+        next = deferOrDispatchAbilities(next, qd.owner, "Destroyed", qd.sources, specs, {
+          predicateResolver,
+          targetFilterResolver,
+        });
+        if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
       if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
+      }
+      // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44): o combate estava parado no
+      // Damage Step esperando esta escolha -> fecha o Battle End Step agora.
+      if (decision.trigger === "Destroyed" && !next.gameOver && next.combat?.step === "damage") {
+        return resolveBattleEndStep(next);
       }
       return next;
     }
@@ -516,13 +588,29 @@ export function playerHasActionStepPlay(state: GameState, player: PlayerId, spec
   return false;
 }
 
-/** Grava a decisão de 【Burst】 do defensor pra 1ª shield da fila; o resto fica em `queuedInstanceIds`. */
-function setPendingBurst(state: GameState, player: PlayerId, shieldIds: string[]): GameState {
+/**
+ * Grava a decisão de 【Burst】 do defensor pra 1ª shield da fila; o resto fica em
+ * `queuedInstanceIds`. `pendingDestroyed` carrega os 【Destroyed】 do mesmo Damage
+ * Step, disparados quando a fila de 【Burst】 esvazia (docs/44).
+ */
+function setPendingBurst(
+  state: GameState,
+  player: PlayerId,
+  shieldIds: string[],
+  pendingDestroyed: DestroyedInBattle[] = [],
+): GameState {
   const [first, ...rest] = shieldIds;
   const card = findCard(state, first);
   return applyEvent(state, {
     type: "SET_PENDING_DECISION",
     player,
-    decision: { kind: "burst", cardInstanceId: first, cardDef: card.def, choices: [], queuedInstanceIds: rest },
+    decision: {
+      kind: "burst",
+      cardInstanceId: first,
+      cardDef: card.def,
+      choices: [],
+      queuedInstanceIds: rest,
+      pendingDestroyed,
+    },
   });
 }

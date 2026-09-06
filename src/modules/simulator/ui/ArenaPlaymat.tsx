@@ -65,6 +65,16 @@ export interface ArenaSide {
   battleRow: ReactNode;
   /** ref-callback pra o `CombatLane` medir a Battle Area (alvo "no jogador"). */
   battleAreaRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (docs/38 §3.4) — ref-callback pra o `CombatLane` medir a coluna
+   *  Base/Escudos (a seta de ataque "no jogador" mira nela, não no centro). */
+  shieldStationRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (feedback Willen 4ª rodada) — ref-callback pra a coluna
+   *  Exílio/Descarte/Deck: origem da `DeckDealAnimation` (compra / mulligan /
+   *  montagem de escudos animam A PARTIR daqui). */
+  deckStationRef?: (el: HTMLElement | null) => void;
+  /** Frente 4 (feedback Willen 4ª rodada) — ref-callback pra o rodapé da mão
+   *  (destino da `DeckDealAnimation` de compra). Só faz sentido no `self`. */
+  handRef?: (el: HTMLElement | null) => void;
   /** só o oponente: leitura da mão (contagem de cartas). */
   handSummary?: ReactNode;
 }
@@ -86,12 +96,19 @@ interface ArenaPlaymatProps {
 }
 
 /** perspectiva fixa da mesa — não depende de `--card-w`, então fica fora do
- *  hook de escala (ver `useArenaScale.ts`). */
-const PERSPECTIVE_STYLE: CSSProperties = { perspective: "1200px", perspectiveOrigin: "50% 65%" };
+ *  hook de escala (ver `useArenaScale.ts`).
+ *  Frente 4 (feedback Willen 2ª rodada): `perspective` mais curta (900px) +
+ *  ponto de fuga mais alto (55%) intensifica a diferença de tamanho câmera↔topo
+ *  — cartas do jogador ficam maiores, estilo Master Duel. */
+const PERSPECTIVE_STYLE: CSSProperties = { perspective: "900px", perspectiveOrigin: "50% 55%" };
 
 /** inclinação tática da mesa (Master Duel) — SEM `preserve-3d` (ver docstring):
- *  a subárvore achata num plano clicável, o tilt fica só no visual. */
-const TABLE_STYLE: CSSProperties = { transform: "rotateX(5deg)" };
+ *  a subárvore achata num plano clicável, o tilt fica só no visual.
+ *  Frente 4: 5° → 12° (2ª rodada) → 15° (3ª rodada, "cartas maiores / mais
+ *  tabuleiro"). Origem no rodapé (`center 88%`) pra a fileira do jogador
+ *  crescer em direção à câmera sem empurrar o topo (recursos do oponente) pra
+ *  fora do `overflow-hidden`. */
+const TABLE_STYLE: CSSProperties = { transform: "rotateX(15deg)", transformOrigin: "center 88%" };
 /** o lado do oponente recua um pouco (2D, achatado). */
 const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 
@@ -101,7 +118,7 @@ const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
  *  RESULTADO real da medição (não mais um breakpoint de viewport chutado —
  *  era exatamente isso que causava as rodadas anteriores baterem em
  *  limiares diferentes por arquivo, docs/32 §achado de raiz). */
-const SHIELD_COMPACT_THRESHOLD_PX = 64; // 4rem
+const SHIELD_COMPACT_THRESHOLD_PX = 88; // = piso de `--card-w` (útil: cramped ⇒ shields achatados)
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -124,7 +141,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         // as peças). `--card-w-std`, derivada 1 vez aqui, é a ÚNICA fonte —
         // todo mundo (incluindo Battle Row/Mão agora) referencia ela, nunca
         // mais reescreve `*0.62` cada um por conta própria.
-        "[--card-w-std:calc(var(--card-w)*0.62)]",
+        // Frente 4 (feedback Willen 2ª rodada): 0.62 → 0.66 — a peça-padrão
+        // (Unit/Base/Shield/Deck) ganha ~6% de largura relativa.
+        "[--card-w-std:calc(var(--card-w)*0.66)]",
         // V6.2 (docs/33): `expanded` solta a trava de 16:9 — sem isso, a caixa
         // do canvas nunca crescia além de altura×16/9 mesmo com as asas
         // escondidas (largura sobrando ficava sempre de fora, inalcançável,
@@ -139,10 +158,10 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
         {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
             pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
-        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-1 opacity-90" style={OPPONENT_STYLE}>
-          <DeckStation side={opponent} mirrored />
+        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90" style={OPPONENT_STYLE}>
+          <DeckStation side={opponent} mirrored stationRef={opponent.deckStationRef} />
           <OpponentTheater side={opponent} />
-          <ShieldStation side={opponent} mirrored compact={compact} />
+          <ShieldStation side={opponent} mirrored compact={compact} stationRef={opponent.shieldStationRef} />
         </div>
 
         <Seam />
@@ -157,16 +176,16 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             partir do tamanho REAL renderizado, não de uma fórmula chutada. Só
             precisa medir 1 dos 2 lados (mesmo tamanho — o oponente só tem o
             `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
-        <div className="flex min-h-0 flex-1 items-start justify-center px-1 pt-3">
+        <div className="flex min-h-0 flex-1 items-start justify-center px-2 pt-3">
           {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é
               `flex-1` (altura ALOCADA pela metade jogador/oponente, não o
               tamanho natural do conteúdo); o wrapper interno não tem
               `flex-1`/stretch nenhum, então mede exatamente o que os 3 filhos
               pedem de verdade (nem mais, nem menos). `gap-2` migrou pra cá. */}
           <div ref={groupRef} className="flex items-start gap-2">
-            <ShieldStation side={self} compact={compact} />
+            <ShieldStation side={self} compact={compact} stationRef={self.shieldStationRef} />
             <SelfTheater side={self} />
-            <DeckStation side={self} />
+            <DeckStation side={self} stationRef={self.deckStationRef} />
           </div>
         </div>
       </div>
@@ -174,7 +193,14 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
       {/* ── Rodapé: mão ancorada (fora da inclinação, pra leitura). Altura
           mínima reservada (Sprint 6 · P3) pra a mão não encolher junto com o
           canvas a ponto de cortar a carta. ───────────────────────────────── */}
-      <div className="shrink-0 min-h-[calc(var(--card-w,3.5rem)*1.75)] border-t border-primary/15 bg-slate-950/40">
+      {/* Frente 4 (feedback Willen 3ª rodada): rodapé da mão MENOR (fator
+          1.75 → 1.35) — sobra mais tela pro tabuleiro (cartas/infos maiores).
+          4ª rodada: `self.handRef` marca esta faixa como destino da
+          `DeckDealAnimation` de compra. */}
+      <div
+        ref={self.handRef}
+        className="shrink-0 min-h-[calc(var(--card-w,4rem)*1.35)] border-t border-primary/15 bg-slate-950/40"
+      >
         {hand}
       </div>
 
@@ -192,11 +218,15 @@ const STATION_WIDTH = "w-[var(--card-w-std,2.17rem)]";
  * usa a MESMA largura pra alinhar com a Battle Area. */
 const BATTLE_ROW_WIDTH = "calc(var(--card-w-std, 2.17rem) * 6 + 1.875rem)";
 
-/** trilha de recursos: centrada, travada na largura da Battle Area, scroll fantasma. */
+/** trilha de recursos: centrada, travada na largura da Battle Area.
+ *  Frente 4 (feedback Willen 3ª rodada): `overflow-visible` — o `overflow-x-auto`
+ *  antigo (herança de quando os recursos rolavam) clipava os badges `xN` das
+ *  pilhas (`-top-1 -right-1`). Com o empilhamento (docs/38 §3.3) a trilha nunca
+ *  passa da largura da Battle Area, então não precisa de scroll. */
 function ResourceLane({ children }: { children: ReactNode }) {
   return (
     <div
-      className="scrollbar-ghost mx-auto flex min-w-0 max-w-full justify-center overflow-x-auto overscroll-x-contain"
+      className="mx-auto flex min-w-0 max-w-full justify-center overflow-visible pt-1.5"
       style={{ width: BATTLE_ROW_WIDTH }}
     >
       {children}
@@ -209,7 +239,17 @@ function ResourceLane({ children }: { children: ReactNode }) {
  * descendo. Oponente (`mirrored`, rotação 180° do playmat): Shields no topo,
  * Base embaixo — encostada na seam, entre os shields e a Battle Area dele.
  */
-function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?: boolean; compact?: boolean }) {
+function ShieldStation({
+  side,
+  mirrored,
+  compact,
+  stationRef,
+}: {
+  side: ArenaSide;
+  mirrored?: boolean;
+  compact?: boolean;
+  stationRef?: (el: HTMLElement | null) => void;
+}) {
   // V6.2 (docs/33): `side.shields` já vem pronto (o `<ShieldRail>` é montado
   // pelo `SimulatorMatchPage.tsx`, antes do `ArenaPlaymat` existir) — a única
   // forma de injetar o `compact` calculado aqui é clonar o elemento com a
@@ -217,7 +257,7 @@ function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?
   // tipado como `ReactNode` genérico).
   const shields = isValidElement(side.shields) ? cloneElement(side.shields as ReactElement<{ compact?: boolean }>, { compact }) : side.shields;
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
+    <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
           {shields}
@@ -238,9 +278,17 @@ function ShieldStation({ side, mirrored, compact }: { side: ArenaSide; mirrored?
  * você). Oponente (`mirrored`): Deck no topo, Exílio embaixo (perto da seam) —
  * o playmat dele girado 180°.
  */
-function DeckStation({ side, mirrored }: { side: ArenaSide; mirrored?: boolean }) {
+function DeckStation({
+  side,
+  mirrored,
+  stationRef,
+}: {
+  side: ArenaSide;
+  mirrored?: boolean;
+  stationRef?: (el: HTMLElement | null) => void;
+}) {
   return (
-    <div className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
+    <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
           {side.deck}

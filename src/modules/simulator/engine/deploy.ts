@@ -1,4 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
+import { effectivePilotDef, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { dispatchTrigger } from "./dispatcher";
@@ -142,6 +143,9 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       predicateResolver: options.predicateResolver,
       targetFilterResolver: options.targetFilterResolver,
     });
+    // docs/45 — um 【Deploy】 que matou uma Unit com 【Destroyed】-que-pausa (ex.
+    // Rewloola matando Char's Zaku Ⅱ) deixa `pendingDecision` setado: trava aqui.
+    if (next.pendingDecision.A || next.pendingDecision.B) return next;
     if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) resolvido num
       // momento SEPARADO da escolha da Unit — pausa se optativo/precisa de alvo.
@@ -156,6 +160,21 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
         specs,
         { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
       );
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
+      // 【When Linked】 (ST04-011 Athrun Zala) — dispara só quando o pareamento
+      // resultante forma uma Link Unit (3-2-6). "this Unit" no texto do Pilot =
+      // a Unit pareada; a fonte do EffectSpec é o próprio Pilot.
+      const pairedUnit = findCard(next, options.pairWithUnitId);
+      if (satisfiesLinkCondition(effectivePilotDef(findCard(next, cardInstanceId)), pairedUnit.def)) {
+        next = deferOrDispatchAbilities(
+          next,
+          player,
+          "When Linked",
+          [{ code: def.code, instanceId: cardInstanceId }],
+          specs,
+          { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
+        );
+      }
     }
   }
 
@@ -229,7 +248,12 @@ export function playCommand(
     options.targets?.target,
     options.targetFilterResolver,
   );
-  next = dispatchTrigger(next, cardInstanceId, trigger, dispatchable, { targets: options.targets, predicateResolver: options.predicateResolver });
+  next = dispatchTrigger(next, cardInstanceId, trigger, dispatchable, {
+    targets: options.targets,
+    predicateResolver: options.predicateResolver,
+    targetFilterResolver: options.targetFilterResolver,
+    allSpecs: specs,
+  });
 
   // a carta pode já ter se movido (nenhum EffectSpec de Command faz isso hoje,
   // mas o dispatcher não impede) — só manda pro trash se ainda estiver na mão.

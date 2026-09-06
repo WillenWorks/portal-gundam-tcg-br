@@ -26,12 +26,15 @@ export function MatchPrompt({ message, tone = "info" }: MatchPromptProps) {
         key={message}
         role="status"
         className={cn(
-          "panel-cut flex max-w-md items-center gap-2 border bg-slate-950/95 px-3.5 py-2 shadow-2xl backdrop-blur-sm",
+          // Frente 4 (feedback Willen 3ª rodada): `rounded-arena` (não
+          // `panel-cut` — o chanfro cortava o fim do texto); `w-fit`/`max-w`
+          // pra caber sem truncar.
+          "flex w-fit max-w-[min(38rem,calc(100vw-1.5rem))] items-center gap-2 rounded-arena border bg-slate-950/95 px-3.5 py-2 shadow-2xl backdrop-blur-sm",
           tone === "warn" ? "border-amber-400/60 text-amber-200" : "border-primary/45 text-primary",
         )}
       >
         <Icon className="size-4 shrink-0" aria-hidden />
-        <p className="text-xs font-bold uppercase leading-tight tracking-[0.04em] sm:text-sm">{message}</p>
+        <p className="text-xs font-bold uppercase leading-snug tracking-[0.04em] sm:text-sm">{message}</p>
       </div>
     </div>
   );

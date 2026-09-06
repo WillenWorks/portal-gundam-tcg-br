@@ -140,10 +140,33 @@ export interface StaticAbility {
   duringYourTurnOnly?: boolean;
 }
 
+/**
+ * Condição de um `CombatTrigger`. `"duringPair"`/`"duringLink"` são as mesmas
+ * de `StaticAbility`; `"always"` é pra cláusula de combate que o texto oficial
+ * NÃO prende a estar pareada/em Link (ex. ST03-001 Sinanju — "During your turn,
+ * when this Unit destroys an enemy shield area card with battle damage ...").
+ */
+export type CombatTriggerCondition = StaticEffectCondition | "always";
+
 export interface CombatTrigger {
-  condition: StaticEffectCondition;
-  on: "destroyEnemyInBattle";
-  action: { kind: "draw"; amount: number } | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number };
+  condition: CombatTriggerCondition;
+  /**
+   * `destroyEnemyInBattle` — "esta Unit destruiu uma Unit inimiga em batalha"
+   * (ST02-003/ST02-011). `destroyEnemyShieldInBattle` — "esta Unit destruiu uma
+   * carta da shield area inimiga com dano de batalha" (ST03-001 Sinanju), só no
+   * ataque direto ao jogador que consome shield (não Breach).
+   */
+  on: "destroyEnemyInBattle" | "destroyEnemyShieldInBattle";
+  action:
+    | { kind: "draw"; amount: number }
+    | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number }
+    /**
+     * ST03-001 Sinanju — "choose 1 enemy Unit. Deal 2 damage to it". Sem sistema
+     * de decisão em combate (docs/43 §4), o motor AUTO-MIRA a 1ª Unit inimiga
+     * legal na Battle Area — determinístico e testável; se/quando o Action Step
+     * ganhar escolha real de alvo, isto passa a consumir a escolha do jogador.
+     */
+    | { kind: "damageChosenEnemyUnit"; amount: number };
 }
 
 export type StatKey = "ap" | "hp";
@@ -184,6 +207,20 @@ export interface CardInstance {
   usedKeywordsThisTurn: string[];
   /** turno em que entrou na zona atual — usado por regras tipo "Link ataca imediato ao ser deployada" */
   enteredZoneOnTurn: number;
+  /**
+   * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
+   * an active enemy Unit that is Lv.5 or lower as its attack target." Concessão
+   * TEMPORÁRIA (na Unit pareada), diferente de `CardDef.attackTargetRules`
+   * (estático, ST02-001 Wing Gundam). `turn` = só vale enquanto
+   * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
+   */
+  attackTargetRelaxUntilTurn?: { maxLevel: number; turn: number };
+  /**
+   * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
+   * Guarda o `turnNumber` em que a proibição foi imposta; `declareAttack` barra
+   * enquanto `=== state.turnNumber`. Limpo em `CLEAR_TURN_MODIFIERS`.
+   */
+  cannotAttackUntilTurn?: number;
 }
 
 /**
@@ -377,6 +414,18 @@ export type AttackTarget = "player" | { unitId: string };
  * relógio; o `viewState` repassa pros dois lados (o oponente vê que há uma
  * decisão pendente, mas o conteúdo só embute `instanceId`/carta já pública).
  */
+/**
+ * Uma Unit que saiu da Battle Area pro trash durante um Damage Step (morte de
+ * batalha, Breach letal, combatTrigger letal). `wasPaired` é capturado ANTES do
+ * `DESTROY_CARD` (a Unit perde `pairedPilotId` ao ir pro trash) — habilita o
+ * gate 【During Pair】【Destroyed】 (ST04-009 Miguel's Ginn).
+ */
+export interface DestroyedInBattle {
+  instanceId: string;
+  owner: PlayerId;
+  wasPaired: boolean;
+}
+
 export type PendingDecision =
   | {
       kind: "burst";
@@ -387,6 +436,15 @@ export type PendingDecision =
       choices: string[];
       /** outras shields quebradas no MESMO Damage Step, ainda por decidir (fila FIFO) — resolvida uma por vez */
       queuedInstanceIds: string[];
+      /**
+       * 【Destroyed】 das Units destruídas no MESMO Damage Step (docs/44). O
+       * 【Burst】 resolve primeiro (fila FIFO acima); quando ela esvazia,
+       * `resolveBurstDecision` dispara estes 【Destroyed】 antes do Battle End
+       * Step (Comprehensive Rules — 【Burst】 e 【Destroyed】 são simultâneos; o
+       * jogador ativo ordena — aqui fixamos 【Burst】→【Destroyed】). Ver
+       * `collectDestroyedInBattle`/`dispatchDestroyedTriggers`.
+       */
+      pendingDestroyed?: DestroyedInBattle[];
     }
   | {
       kind: "triggerOrder";
@@ -419,7 +477,39 @@ export type PendingDecision =
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
+        /**
+         * ST03-010 Full Frontal 【When Paired】 — "You may deploy 1 (Neo Zeon)/(Zeon)
+         * Unit card Lv.4 or lower from your hand." O jogador escolhe 1 carta da
+         * própria mão (não uma carta em campo, por isso não é `legalTargets`).
+         * `legalHandIds` é calculado no servidor ao montar a fila (mão do
+         * controller que casa o filtro trait/nível e é Unit); `resolveAbility`
+         * valida contra ele. Presente só quando o spec usa `deployFromHandTriggered`.
+         * A escolha viaja em `resolution.targetIds` (0 ou 1 id) e vira
+         * `ctx.targets.deploy`.
+         */
+        handChoice?: { legalHandIds: string[]; label: string };
+        /**
+         * ST03-006 Char's Zaku Ⅱ 【Destroyed】 — "Look at the top 3 cards of your
+         * deck. You may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it
+         * to your hand. Return the remaining cards randomly to the bottom." O dono
+         * vê todas as `topCards` (instâncias embutidas — a redação de `viewState`
+         * as esvazia pro oponente, já que o topo do deck é oculto); `revealableIds`
+         * é o subconjunto que casa o filtro (revela 1 dessas OU nenhuma). A escolha
+         * viaja em `resolution.targetIds` (0 ou 1 id) e vira `ctx.targets.reveal`.
+         * "Não revelar" ainda dispara o efeito (as N cartas vão pro fundo).
+         */
+        deckTopReveal?: { topCards: CardInstance[]; revealableIds: string[]; count: number; label: string };
       }>;
+      /**
+       * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO
+       * evento (efeito AoE que matou Units-com-【Destroyed】-que-pausa dos dois
+       * lados). FIFO: a decisão do jogador ativo resolve primeiro (esta); ao
+       * fechá-la, `resolveAbility` dispara a do oponente. Mesma ideia de
+       * `queuedInstanceIds`/`pendingDestroyed` do 【Burst】. Cross-player raríssimo
+       * (exige 2 Char's Zaku Ⅱ, uma de cada lado, mortas por um único AoE que
+       * atinge os dois — nenhuma carta ST01–ST04 faz isso).
+       */
+      queuedDestroyed?: { owner: PlayerId; sources: Array<{ code: string; instanceId: string }> };
     }
   | {
       /**
@@ -472,6 +562,14 @@ export interface CombatState {
    * jogador cujos shields podem receber dano nesta batalha).
    */
   shieldProtection?: { maxAttackerLevel: number } | null;
+  /**
+   * ST03-014 The Blue Giant 【Action】 — "Choose 1 friendly Unit. It can't receive
+   * battle damage from enemy Units with 2 or less AP during this battle." Mesma
+   * ideia de `shieldProtection` (vive em `combat`, some com `COMBAT_ENDED`), mas
+   * por Unit específica e condicionada ao AP EFETIVO do atacante. Só 1 Unit
+   * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
+   */
+  unitDamageProtection?: { instanceId: string; maxAttackerAp: number } | null;
 }
 
 /**
@@ -579,6 +677,12 @@ export type GameEvent =
   | { type: "MOVE_WITHIN_DECK"; instanceId: string; position: "top" | "bottom" }
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
   | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
+  /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
+  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp: number }
+  /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
+  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel: number; turn: number }
+  /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
+  | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }

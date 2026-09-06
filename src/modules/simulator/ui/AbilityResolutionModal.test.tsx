@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { PendingDecision } from "@/modules/simulator/engine/types";
+import type { CardInstance, PendingDecision } from "@/modules/simulator/engine/types";
 import { AbilityResolutionModal } from "./AbilityResolutionModal";
 
 afterEach(cleanup);
@@ -72,6 +72,112 @@ describe("AbilityResolutionModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-011-Attack", activate: true, targetIds: ["r1"] }]);
+  });
+
+  const handChoiceDecision: AR = {
+    kind: "abilityResolution",
+    trigger: "When Paired",
+    queue: [
+      {
+        sourceInstanceId: "ff1",
+        specId: "ST03-010-WhenPaired",
+        label: "You may deploy 1 (Neo Zeon)/(Zeon) Unit card Lv.4 or lower from your hand.",
+        optional: true,
+        needsTarget: false,
+        targetScope: "enemyUnit",
+        legalTargets: [],
+        handChoice: { legalHandIds: ["h1", "h2"], label: "deploy from hand" },
+      },
+    ],
+  };
+
+  it("handChoice (Full Frontal): escolhe carta da mão e envia como targetIds", () => {
+    const onResolve = vi.fn();
+    render(
+      <AbilityResolutionModal
+        decision={handChoiceDecision}
+        resolveLabel={resolveLabel}
+        resolveHandLabel={(id) => ({ h1: "Geara Zulu", h2: "Dra-C" })[id] ?? id}
+        onResolve={onResolve}
+      />,
+    );
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Geara Zulu" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-010-WhenPaired", activate: true, targetIds: ["h1"] }]);
+  });
+
+  it("handChoice (Full Frontal): 'Pular' → activate false, sem carta", () => {
+    const onResolve = vi.fn();
+    render(
+      <AbilityResolutionModal
+        decision={handChoiceDecision}
+        resolveLabel={resolveLabel}
+        resolveHandLabel={(id) => id}
+        onResolve={onResolve}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pular" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-010-WhenPaired", activate: false, targetIds: [] }]);
+  });
+
+  function fakeCard(instanceId: string, nameEn: string, cardType: CardInstance["def"]["cardType"]): CardInstance {
+    return {
+      instanceId,
+      owner: "A",
+      zone: "deck",
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: 0,
+      def: { code: instanceId, nameEn, cardType, color: "green" },
+    };
+  }
+
+  const deckRevealDecision: AR = {
+    kind: "abilityResolution",
+    trigger: "Destroyed",
+    queue: [
+      {
+        sourceInstanceId: "z1",
+        specId: "ST03-006-Destroyed",
+        label: "Look at the top 3 cards of your deck. You may reveal 1 ...",
+        optional: true,
+        needsTarget: false,
+        targetScope: "enemyUnit",
+        legalTargets: [],
+        deckTopReveal: {
+          count: 3,
+          topCards: [fakeCard("t1", "Zaku I", "UNIT"), fakeCard("t2", "Indignation", "COMMAND"), fakeCard("t3", "Dra-C", "UNIT")],
+          revealableIds: ["t1", "t3"],
+          label: "reveal from deck top",
+        },
+      },
+    ],
+  };
+
+  it("deckTopReveal (Char's Zaku Ⅱ): sem Ativar/Pular; revela 1 Unit e envia", () => {
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={deckRevealDecision} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    expect(screen.queryByRole("button", { name: "Pular" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeEnabled(); // "revelar 1 ou nenhuma" é sempre válido
+    expect(screen.getByRole("button", { name: /Indignation/ })).toBeDisabled(); // Command não é revelável
+    fireEvent.click(screen.getByRole("button", { name: "Zaku I" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-006-Destroyed", activate: true, targetIds: ["t1"] }]);
+  });
+
+  it("deckTopReveal (Char's Zaku Ⅱ): 'Não revelar' → targetIds vazio, activate true", () => {
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={deckRevealDecision} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    fireEvent.click(screen.getByRole("button", { name: "Não revelar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-006-Destroyed", activate: true, targetIds: [] }]);
   });
 
   it("optativo: 'Pular' → activate false", () => {

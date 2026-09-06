@@ -7,9 +7,44 @@
  * do piloto viram chips com POPOVER de hover mostrando a arte do piloto. */
 import { useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
-import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
+import { effectiveAp, effectiveHp, effectivePilotDef } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
+
+/** AP/HP a exibir por tipo de carta (feedback Willen 3ª rodada — Command não
+ *  tem AP/HP, não mostrar "0"). Unit: AP+HP efetivos/base. Base: só HP.
+ *  Pilot: o modificador impresso (+X/+Y). Command: nada. */
+export function inspectorStats(
+  card: CardInstance,
+  inPlay: boolean,
+  state?: GameState,
+): { ap?: number; hp?: number; isModifier: boolean } {
+  const { def } = card;
+  const isUnit = def.cardType === "UNIT";
+  const isBase = def.cardType === "BASE";
+  const actsAsPilot = def.cardType === "PILOT" || card.asPilot === true;
+  if (isUnit) {
+    return {
+      ap: inPlay ? effectiveAp(card, state) : def.ap,
+      hp: inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp,
+      isModifier: false,
+    };
+  }
+  if (isBase) {
+    return {
+      hp: inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp,
+      isModifier: false,
+    };
+  }
+  if (actsAsPilot) {
+    const pd = effectivePilotDef(card);
+    const ap = pd.ap ?? 0;
+    const hp = pd.hp ?? 0;
+    return { ap: ap || hp ? ap : undefined, hp: ap || hp ? hp : undefined, isModifier: true };
+  }
+  return { isModifier: false };
+}
 
 export interface LinkedPilot {
   name: string;
@@ -30,8 +65,14 @@ interface CardInspectorModalProps {
   inPlay?: boolean;
   /** estado do jogo — pros AP/HP efetivos incluírem bônus estáticos 【During Pair】/【During Link】. */
   state?: GameState;
-  /** texto de efeito (do catálogo — o CardDef do motor não carrega). */
+  /** texto de efeito já resolvido (PT com fallback pro EN — do catálogo). Mantido
+   *  por compat; prefira passar `effectPt`/`effectEn` separados pra habilitar o
+   *  toggle PT/EN. */
   effectText?: string;
+  /** texto de efeito traduzido pt-BR (`CardModel.effectPt`). Exibido por padrão. */
+  effectPt?: string;
+  /** texto de efeito original em inglês (`CardModel.effectEn`). */
+  effectEn?: string;
   /** pilotos que satisfazem a link condition (`link.kind === "pilotName"`). */
   linkedPilots?: LinkedPilot[];
 }
@@ -45,19 +86,26 @@ export function CardInspectorModal({
   inPlay,
   state,
   effectText,
+  effectPt,
+  effectEn,
   linkedPilots,
 }: CardInspectorModalProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { def } = card;
   const src = artSrc(art, def.code, "xl");
-  const ap = inPlay ? effectiveAp(card, state) : def.ap;
-  const hp = inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp;
+  const { ap, hp, isModifier: statsAreModifier } = inspectorStats(card, Boolean(inPlay), state);
+  const fmtStat = (v: number | undefined) => (statsAreModifier && v !== undefined ? `+${v}` : v);
+  const apLabel = statsAreModifier ? "AP (mod)" : "AP";
+  const hpLabel = statsAreModifier ? "HP (mod)" : "HP";
   const uniqueKeywords = [
     ...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])]),
   ];
   const activeBuffs = card.statModifiers.map((m) => `${m.stat.toUpperCase()} ${m.amount >= 0 ? "+" : ""}${m.amount}`);
   const grantedKeywords = card.keywordGrants.map((g) => g.keyword);
   const pilots = def.link?.kind === "pilotName" ? (linkedPilots ?? []) : [];
+  const hasEffectBody = Boolean(
+    effectPt?.trim() || effectText?.trim() || effectEn?.trim(),
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
@@ -86,10 +134,14 @@ export function CardInspectorModal({
               </div>
             ) : null}
 
-            {inPlay && (ap !== undefined || hp !== undefined) ? (
+            {(inPlay || statsAreModifier) && (ap !== undefined || hp !== undefined) ? (
               <div className="absolute inset-x-0 bottom-0 flex text-sm font-black">
-                {ap !== undefined ? <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">AP {ap}</span> : null}
-                {hp !== undefined ? <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">HP {hp}</span> : null}
+                {ap !== undefined ? (
+                  <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">{apLabel} {fmtStat(ap)}</span>
+                ) : null}
+                {hp !== undefined ? (
+                  <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">{hpLabel} {fmtStat(hp)}</span>
+                ) : null}
               </div>
             ) : null}
 
@@ -126,8 +178,8 @@ export function CardInspectorModal({
             <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
               {def.cost !== undefined ? <Attr label="Custo" value={def.cost} /> : null}
               {def.level !== undefined ? <Attr label="Nível" value={def.level} /> : null}
-              {ap !== undefined ? <Attr label="AP" value={ap} /> : null}
-              {hp !== undefined ? <Attr label="HP" value={hp} /> : null}
+              {ap !== undefined ? <Attr label={apLabel} value={fmtStat(ap)} /> : null}
+              {hp !== undefined ? <Attr label={hpLabel} value={fmtStat(hp)} /> : null}
             </div>
 
             {def.traits?.length ? (
@@ -137,10 +189,9 @@ export function CardInspectorModal({
               </p>
             ) : null}
 
-            {effectText ? (
+            {hasEffectBody ? (
               <div className="mt-2 border-t border-white/10 pt-2">
-                <p className="mb-1 text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
-                <p className="whitespace-pre-line text-[11px] leading-relaxed text-slate-200">{effectText}</p>
+                <CardEffectText effectPt={effectPt} effectEn={effectEn} effectText={effectText} />
               </div>
             ) : uniqueKeywords.length ? (
               <div className="mt-2 flex flex-wrap gap-1">
@@ -178,6 +229,56 @@ export function CardInspectorModal({
           {footer}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Bloco "Efeito" compartilhado pelo modal e pelo `CardInspectorPanel`.
+ *  Padrão: mostra `effectPt`; se `effectPt` E `effectEn` vierem e forem diferentes,
+ *  renderiza um toggle PT/EN. `effectText` é o fallback já resolvido (compat). */
+export function CardEffectText({
+  effectPt,
+  effectEn,
+  effectText,
+  className,
+}: {
+  effectPt?: string;
+  effectEn?: string;
+  effectText?: string;
+  className?: string;
+}) {
+  const pt = effectPt?.trim() || undefined;
+  const en = effectEn?.trim() || undefined;
+  const generic = effectText?.trim() || undefined;
+  const hasToggle = Boolean(pt && en && pt !== en);
+  const [lang, setLang] = useState<"pt" | "en">("pt");
+  const body = hasToggle ? (lang === "pt" ? pt : en) : (pt ?? generic ?? en);
+  if (!body) return null;
+
+  return (
+    <div className={className}>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
+        {hasToggle ? (
+          <div className="flex overflow-hidden rounded-arena border border-white/15 text-[8px] font-bold uppercase tracking-wide">
+            {(["pt", "en"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={lang === option}
+                onClick={() => setLang(option)}
+                className={cn(
+                  "px-1.5 py-0.5 transition-colors motion-reduce:transition-none",
+                  lang === option ? "bg-primary/25 text-primary" : "text-slate-500 hover:text-slate-300",
+                )}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <p className="whitespace-pre-line text-[11px] leading-relaxed text-slate-200">{body}</p>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
-import type { EffectContext, EffectSpec, PredicateResolver } from "./effectSpec";
+import { otherPlayer } from "./types";
+import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { resolveEffectSpec } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
+import { MAX_DESTROYED_CHAIN, dispatchDestroyedFromEffect } from "./abilityDispatch";
 
 /**
  * Dispatcher automático de trigger (docs/18, "Motor de jogo real + gaps
@@ -12,10 +14,18 @@ import { applyEvent, applyEvents, findCard } from "./events";
  * ortogonal a autoria de conteúdo", comentário no topo de `content/st01.ts`).
  *
  * Escopo desta wave: dispara os triggers pontuais que já têm EffectSpec real
- * (Deploy, When Paired, Attack, Burst, Main, Action, Activate·Main). Não
- * cobre "Destroyed" porque nenhuma carta do ST01/ST02 tem EffectSpec desse
- * trigger ainda — o dispatcher já é genérico o bastante pra cobrir quando
- * aparecer (ver `dispatchTrigger`, funciona pra qualquer rótulo).
+ * (Deploy, When Paired, Attack, Burst, Main, Action, Activate·Main).
+ *
+ * "Destroyed" é despachado por dois caminhos, sem sobreposição:
+ * - No Damage Step (morte de batalha / Breach / combatTrigger letal): `actions.ts`
+ *   chama `collectDestroyedInBattle` + `dispatchDestroyedTriggers` depois do
+ *   Damage Step (docs/44) — `resolveDamageStep`/`combat.ts` nunca passam por aqui.
+ * - FORA do Damage Step (docs/45): `dispatchTrigger` abaixo, depois de aplicar os
+ *   eventos de CADA EffectSpec, chama `dispatchDestroyedFromEffect` — acha as
+ *   Units que o efeito acabou de matar (`destroy`/`damageUnit` letal via
+ *   `resolveEffectSpec` — ex. Close Combat 【Main】, Rewloola 【Deploy】) e dispara o
+ *   【Destroyed】 de cada uma. Não-pausante resolve inline; pausante (Char's Zaku Ⅱ)
+ *   vira `PendingDecision.abilityResolution`, e o loop de specs desta carta para.
  */
 
 export interface DispatchOptions {
@@ -24,6 +34,17 @@ export interface DispatchOptions {
   predicateResolver?: PredicateResolver;
   /** recursos escolhidos pra pagar `payResourceCost` da habilidade (ver EffectContext.costResourceIds). */
   costResourceIds?: string[];
+  /** repassado ao 【Destroyed】 fora de combate (docs/45) — filtro de alvo de um 【Destroyed】 direcionado (ex. GD01-056). */
+  targetFilterResolver?: TargetFilterResolver;
+  /**
+   * docs/45 — lista COMPLETA de EffectSpecs (não a `specs` filtrada que este
+   * `dispatchTrigger` recebe): usada pra achar o 【Destroyed】 de Units mortas
+   * por dano/destroy direto do efeito que acabou de resolver. Ausente = usa
+   * `specs` (só cobre 【Destroyed】 da própria carta fonte).
+   */
+  allSpecs?: EffectSpec[];
+  /** docs/45 — profundidade da cascata 【Destroyed】→【Destroyed】 (guarda anti-loop). */
+  destroyedChainDepth?: number;
 }
 
 /** Acha os EffectSpec de uma carta pra um trigger específico (ex.: "Deploy", "Burst", "Attack"). */
@@ -50,6 +71,8 @@ export function dispatchTrigger(
 ): GameState {
   const source = findCard(state, sourceInstanceId);
   const matching = findTriggerSpecs(specs, source.def.code, trigger);
+  const allSpecs = opts.allSpecs ?? specs;
+  const chainDepth = opts.destroyedChainDepth ?? 0;
   let next = state;
 
   for (const spec of matching) {
@@ -64,12 +87,29 @@ export function dispatchTrigger(
       targets: opts.targets ?? {},
       costResourceIds: opts.costResourceIds,
     };
+    const before = next;
     const events = resolveEffectSpec(spec, ctx, opts.predicateResolver);
     next = applyEvents(next, events);
+
+    // docs/45 — 【Destroyed】 FORA do Damage Step: Units que este efeito acabou
+    // de matar por dano/destroy direto (Close Combat 【Main】, Rewloola 【Deploy】,
+    // GD01-044 Kshatriya 【When Paired】…) disparam seu 【Destroyed】 agora. O
+    // Damage Step tem caminho próprio (actions.ts) e não passa por aqui.
+    if (chainDepth < MAX_DESTROYED_CHAIN) {
+      next = dispatchDestroyedFromEffect(before, next, allSpecs, {
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        destroyedChainDepth: chainDepth + 1,
+      });
+    }
 
     if (current.def.oncePerTurn) {
       next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword: trigger });
     }
+
+    // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
+    // loop de specs desta carta — a decisão pendente resolve antes de seguir.
+    if (next.pendingDecision[current.owner] || next.pendingDecision[otherPlayer(current.owner)]) break;
   }
 
   return next;
@@ -138,7 +178,7 @@ export function dispatchBurstForNewlyTrashedShields(
     if (matching.length === 0) continue;
     const targets = chooseBurst(card, matching);
     if (targets === false) continue;
-    next = dispatchTrigger(next, card.instanceId, "Burst", specs, { targets, predicateResolver });
+    next = dispatchTrigger(next, card.instanceId, "Burst", specs, { targets, predicateResolver, allSpecs: specs });
   }
   return next;
 }

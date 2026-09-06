@@ -2,12 +2,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { Eye, Play, Swords } from "lucide-react";
+import { Crosshair, Play, Swords } from "lucide-react";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 
 afterEach(cleanup);
 
-const view = (onClick = vi.fn()): CornerAction => ({ key: "view", icon: Eye, label: "Ver X", tone: "view", onClick });
+// Frente 4 (docs/38 §3.1): sem o tom "view"/olho — o cluster só tem ações
+// operacionais. Aqui um genérico "Mirar" faz o papel de 2ª ação nos testes.
+const view = (onClick = vi.fn()): CornerAction => ({ key: "aim", icon: Crosshair, label: "Ver X", tone: "sky", onClick });
 
 describe("CardCornerActions", () => {
   it("lista vazia não renderiza nada", () => {
