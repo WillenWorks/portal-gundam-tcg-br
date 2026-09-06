@@ -160,6 +160,12 @@ claude
 - ✅ ST04-011 Athrun Zala 【When Linked】: primitiva `grantAttackTargetRelax` + `CardInstance.attackTargetRelaxUntilTurn` (concessão temporária consumida por `declareAttack`; dispatch de "When Linked" ligado em `deploy.ts`). Limpo em `CLEAR_TURN_MODIFIERS`.
 - ✅ ST04-015 Archangel 【Activate･Main】: primitiva `preventAttackThisTurn` + `CardInstance.cannotAttackUntilTurn` (`declareAttack` barra no mesmo turno). Limpo em `CLEAR_TURN_MODIFIERS`.
 
+**【Destroyed】 fora de combate — FECHADO (2026-09-05, docs/45):**
+- ✅ Antes o 【Destroyed】 só disparava no Damage Step. Agora `dispatchTrigger` (dispatcher.ts), depois de aplicar os eventos de cada EffectSpec, chama `dispatchDestroyedFromEffect` (`abilityDispatch.ts`) — Units mortas por dano/destroy direto de efeito (**ST03-013 Close Combat 【Main】**, **ST03-015 Rewloola 【Deploy】**, futuros GD01-044 Kshatriya / GD01-093 Marida Cruz) disparam seu 【Destroyed】. Não-pausante inline (Miguel's Ginn); pausante (Char's Zaku Ⅱ `lookAtTopFilterReveal`) vira `PendingDecision.abilityResolution`, resolvida por `resolveAbility`. `wasPaired` capturado ANTES do `DESTROY_CARD` (gate 【During Pair】). Guarda anti-loop `MAX_DESTROYED_CHAIN`.
+- ✅ Edge cross-player (2 Char's Zaku Ⅱ, uma de cada lado, mortas por 1 AoE): FIFO — a do jogador ativo pausa, a do oponente vai em `queuedDestroyed` e é drenada quando a primeira fecha. Nenhuma carta ST01–ST04 chega a produzir esse caso.
+- ✅ Confirmado: dano-por-efeito **NÃO** dispara `<Breach>`/`<Suppression>` (essas checam "when this Unit's ATTACK destroys" — `combatTriggerEvents` só roda no Damage Step). Cobertura completa em `docs/45-cobertura-dano-e-condicionais.md`.
+- Tests: `engine/destroyedOutOfCombat.test.ts` (7) + regressão `engine/destroyedTrigger.test.ts` (combate).
+
 ### Frente 4: Overhaul Visual & UX do Simulador (Branch: `feature/simulator-layout`)
 - [x] Ajustar proporções e piso de `--card-w` em `useArenaScale.ts` e `ArenaPlaymat.tsx` para Full HD e mobile.
 - [x] Remover o botão de olho dos cards em `CardCornerActions.tsx` e habilitar inspeção via clique na carta (área neutra do corpo em `BattleSlot`/`BaseCardGauge`/`HandFan`).

@@ -500,6 +500,16 @@ export type PendingDecision =
          */
         deckTopReveal?: { topCards: CardInstance[]; revealableIds: string[]; count: number; label: string };
       }>;
+      /**
+       * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO
+       * evento (efeito AoE que matou Units-com-【Destroyed】-que-pausa dos dois
+       * lados). FIFO: a decisão do jogador ativo resolve primeiro (esta); ao
+       * fechá-la, `resolveAbility` dispara a do oponente. Mesma ideia de
+       * `queuedInstanceIds`/`pendingDestroyed` do 【Burst】. Cross-player raríssimo
+       * (exige 2 Char's Zaku Ⅱ, uma de cada lado, mortas por um único AoE que
+       * atinge os dois — nenhuma carta ST01–ST04 faz isso).
+       */
+      queuedDestroyed?: { owner: PlayerId; sources: Array<{ code: string; instanceId: string }> };
     }
   | {
       /**
