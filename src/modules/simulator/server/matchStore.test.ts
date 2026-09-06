@@ -16,6 +16,7 @@ import {
   loadMatch,
   MatchError,
   matchViewFor,
+  queuePositionFor,
   queueStatusFor,
   reportSituation,
   resignMatch,
@@ -23,6 +24,7 @@ import {
   setAutoPass,
   setMatchPersistence,
   subscribe,
+  subscribeAllMatches,
   touchPresence,
   type MatchPersistence,
   type StoredMatch,
@@ -164,6 +166,58 @@ describe("subscribe / notify", () => {
     unsubscribe();
     applyAction(match.id, "user-2", { kind: "finishTurn" }); // agora é vez de B — não deve notificar mais ninguém
     expect(received).toHaveLength(3);
+  });
+});
+
+describe("subscribeAllMatches — emitter global pro broadcast Socket.io (Frente 5 / docs/39)", () => {
+  it("cada mutação emite as DUAS visões, redigidas por jogador (A e B diferentes)", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+    const seen: Array<{ matchId: string; viewerA: string; viewerB: string; seatA: string }> = [];
+    const stop = subscribeAllMatches((matchId, views) => {
+      seen.push({ matchId, viewerA: views.A.view.viewer, viewerB: views.B.view.viewer, seatA: views.A.seat });
+    });
+
+    applyAction(match.id, "user-1", { kind: "finishTurn" });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].matchId).toBe(match.id);
+    expect(seen[0].seatA).toBe("A");
+    expect(seen[0].viewerA).toBe("A");
+    expect(seen[0].viewerB).toBe("B");
+
+    // as duas visões são objetos distintos, cada uma redigida pro seu dono
+    stop();
+    applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
+    expect(seen).toHaveLength(1); // cancelou — não recebe mais
+  });
+
+  it("mão do oponente sai oculta na visão redigida de cada lado", () => {
+    const match = newMatch();
+    joinMatch(match.id, "A", { userId: "u1", displayName: "A" });
+    joinMatch(match.id, "B", { userId: "u2", displayName: "B" });
+
+    let captured: Record<"A" | "B", { view: { players: Record<"A" | "B", { hand: unknown[] }> } }> | null = null;
+    const stop = subscribeAllMatches((_id, views) => {
+      captured = views as never;
+    });
+    applyAction(match.id, "u1", { kind: "finishTurn" });
+    stop();
+
+    const views = captured!;
+    // na visão de A, a mão de B vem redigida (cartas ocultas -> { hidden: true }); na de B, a mão de A.
+    expect(views.A.view.players.B.hand.every((c) => (c as { hidden?: boolean }).hidden === true)).toBe(true);
+    expect(views.B.view.players.A.hand.every((c) => (c as { hidden?: boolean }).hidden === true)).toBe(true);
+  });
+});
+
+describe("queuePositionFor", () => {
+  it("devolve posição 1-based e 0 pra quem não está na fila", () => {
+    joinQueue({ userId: "u1", displayName: "A", deckKey: "ST01", deckList: buildSt01DeckList() });
+    expect(queuePositionFor("u1").position).toBe(1);
+    expect(queuePositionFor("desconhecido")).toEqual({ position: 0, waitTimeSec: 0 });
   });
 });
 

@@ -102,8 +102,9 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
-import { api, ApiError, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
+import { api, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
@@ -164,8 +165,6 @@ const ART_CODE_ALIASES: Record<string, string> = {
 };
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
-/** Intervalo do heartbeat de presença do cliente -- bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
-const PRESENCE_PING_MS = 15_000;
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
  *  mostramos o `RotateDevicePrompt` pedindo o modo paisagem (Sprint 4). */
 const PORTRAIT_QUERY = "(max-width: 900px) and (orientation: portrait)";
@@ -357,11 +356,6 @@ type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlay
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
-  /** estado da conexão SSE — `connecting` (1ª vez) · `live` · `reconnecting` (com backoff) · `dead` (sem volta: sessão expirada ou partida encerrada). */
-  const [connState, setConnState] = useState<"connecting" | "live" | "reconnecting" | "dead">("connecting");
-  const [deadReason, setDeadReason] = useState<string | null>(null);
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
-  const connected = connState === "live";
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
   /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
@@ -403,7 +397,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
-  const eventSourceRef = useRef<EventSource | null>(null);
   const { art, artLoading, cardText, cardByName } = useCardArtLookup();
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
@@ -423,89 +416,35 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     });
   }, []);
 
-  // Stream SSE com reconexão própria: `EventSource` nativo já re-tenta sozinho,
-  // mas sem `retry:` do servidor, sem aviso na UI e sem resync se a reconexão
-  // falhar. Aqui: backoff exponencial (1s→15s), resync autoritativo via REST a
-  // cada tentativa, e tratamento de 401 (sessão expirada).
-  useEffect(() => {
-    let stopped = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let attempt = 0;
-
-    // reconexão sem volta: fecha tudo, para o backoff e marca `dead`. Sem isto,
-    // um 404 (partida varrida do banco após o fim) mandava o cliente reconectar
-    // pra sempre (o /stream responde 404, `onerror`, repete).
-    const stopHard = (reason: string, toLobby: boolean) => {
-      stopped = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+  // Frente 5 (docs/39) — transporte da partida: `simulatorSocket` como caminho
+  // PRIMÁRIO (`match:view_update`/`match:action`/`match:ping`), com FALLBACK
+  // automático pro laço SSE + POST antigo se o socket não conectar / ficar `dead`
+  // (o servidor mantém `/stream` e as rotas POST intactos — só o cliente muda o
+  // caminho preferido). Toda a máquina de conexão/reconexão vive no hook.
+  const onTransportExpired = useCallback(
+    ({ reason, toLobby }: { reason: string; toLobby: boolean }) => {
       toast.error(reason);
-      setDeadReason(reason);
-      setConnState("dead");
       if (toLobby) setLocation("/simulador");
-    };
-
-    const connect = () => {
-      if (stopped) return;
-      const url = buildSimulatorStreamUrl(matchId);
-      if (!url) {
-        toast.error("Sessão inválida — faça login de novo.");
-        setConnState("dead");
-        return;
-      }
-      const source = new EventSource(url);
-      eventSourceRef.current = source;
-
-      source.addEventListener("state", (event: MessageEvent) => {
-        attempt = 0;
-        setReconnectAttempt(0);
-        setConnState("live");
-        applyIncomingView(JSON.parse(event.data) as SimulatorMatchView);
-      });
-
-      source.onerror = () => {
-        source.close();
-        eventSourceRef.current = null;
-        if (stopped) return;
-        setConnState("reconnecting");
-        attempt += 1;
-        setReconnectAttempt(attempt);
-        // resync autoritativo — se o SSE não voltar, ao menos o board não fica velho
-        void api
-          .getSimulatorMatch(matchId)
-          .then((res) => {
-            if (stopped) return;
-            if ("seated" in res && res.seated) {
-              applyIncomingView(res as SimulatorMatchView);
-              return;
-            }
-            // a partida respondeu mas você não está mais nela (encerrada e
-            // liberada, ou assento perdido) — reconectar não recupera nada
-            stopHard("Esta partida foi encerrada.", true);
-          })
-          .catch((err) => {
-            if (stopped) return;
-            if (err instanceof ApiError && err.status === 401) {
-              stopHard("Sessão expirada — faça login de novo.", false);
-            } else if (err instanceof ApiError && err.status === 404) {
-              stopHard("Esta partida não está mais disponível.", true);
-            }
-            // outros erros (queda de rede momentânea) → o backoff abaixo segue
-          });
-        const delay = Math.min(15_000, 1_000 * 2 ** (attempt - 1));
-        retryTimer = setTimeout(connect, delay);
-      };
-    };
-
-    connect();
-    return () => {
-      stopped = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
-    };
-  }, [matchId, applyIncomingView, setLocation]);
+    },
+    [setLocation],
+  );
+  const onTransportMatchError = useCallback((message: string) => toast.error(message), []);
+  const {
+    connState,
+    transport: transportKind,
+    deadReason,
+    reconnectAttempt,
+    lastPingMs,
+    opponentOnline,
+    sendAction,
+    teardown: teardownTransport,
+  } = useMatchTransport({
+    matchId,
+    applyIncomingView,
+    onExpired: onTransportExpired,
+    onMatchError: onTransportMatchError,
+  });
+  const connected = connState === "live";
 
   // Relógio local pro countdown do timer de turno e pro "há quanto tempo o oponente sumiu" --
   // só exibição/UX; a decisão real (agir sozinho no timeout, liberar o W.O.) é sempre do servidor.
@@ -514,20 +453,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Heartbeat de presença -- só dispara enquanto a aba está visível, de propósito: é exatamente o
-  // sinal "o jogador está no navegador" que o Willen pediu, e alimenta o W.O. por abandono (matchStore.touchPresence).
-  useEffect(() => {
-    const ping = () => {
-      if (document.visibilityState === "visible") api.pingSimulatorMatch(matchId).catch(() => {});
-    };
-    ping();
-    const interval = setInterval(ping, PRESENCE_PING_MS);
-    document.addEventListener("visibilitychange", ping);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", ping);
-    };
-  }, [matchId]);
+  // Heartbeat de presença (`matchStore.touchPresence`, alimenta o W.O. por
+  // abandono): agora vive dentro do `useMatchTransport` — `simulatorSocket.ping()`
+  // no modo socket, `api.pingSimulatorMatch` no modo SSE, só com a aba visível.
 
   const clearSelection = () => {
     setPending(null);
@@ -540,8 +468,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     async (action: PlayerAction) => {
       setBusy(true);
       try {
-        const res = await api.sendSimulatorAction(matchId, action);
-        applyIncomingView(res);
+        // Modo socket: o eco vem pelo broadcast `match:view_update` (o hook
+        // resolve quando chega). Modo SSE: `sendAction` faz o POST e aplica a
+        // resposta. Nos dois casos a view já está aplicada quando isto resolve.
+        await sendAction(action);
         clearSelection();
       } catch (err) {
         toast.error(errorMessage(err, "Ação inválida."));
@@ -549,7 +479,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [matchId, applyIncomingView],
+    [sendAction],
   );
 
   const toggleAutoPass = async (value: boolean) => {
@@ -591,10 +521,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
 
   const leaveMatchScreen = useCallback(() => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
+    teardownTransport();
     setLocation(EXIT_ROUTE);
-  }, [setLocation]);
+  }, [setLocation, teardownTransport]);
 
   const exitToLobby = async () => {
     // "Sair" = desistir da partida: encerra o duelo e concede a vitória a quem
@@ -622,12 +551,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setRedirectAt(null);
       return;
     }
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
+    teardownTransport();
     setRedirectAt(Date.now() + GAME_OVER_REDIRECT_MS);
     const timer = setTimeout(() => setLocation(EXIT_ROUTE), GAME_OVER_REDIRECT_MS);
     return () => clearTimeout(timer);
-  }, [gameOver, setLocation]);
+  }, [gameOver, setLocation, teardownTransport]);
 
   // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
   // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
@@ -1348,11 +1276,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         ) : null}
       </div>
 
-      {/* Info de SISTEMA (não de jogo): status de conexão — chip minúsculo e
-          discreto no canto inferior esquerdo. */}
+      {/* Info de SISTEMA (não de jogo): status de conexão + transporte/RTT — chip
+          minúsculo e discreto no canto inferior esquerdo (Frente 5, telemetria). */}
       <p className="pointer-events-none absolute bottom-1.5 left-2 z-30 flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-slate-600">
         <RefreshCw className={`size-2.5 ${connected ? "text-primary/70" : "animate-pulse text-slate-500"}`} />
-        {connState === "live" ? "conectado" : connState === "dead" ? "desconectado" : "conectando…"}
+        {connState === "live"
+          ? `conectado · ${
+              transportKind === "socket"
+                ? lastPingMs !== null
+                  ? `ws ${lastPingMs}ms`
+                  : "ws"
+                : "sse"
+            }`
+          : connState === "dead"
+            ? "desconectado"
+            : "conectando…"}
+        {connected && transportKind === "socket" && opponentOnline === false ? (
+          <span className="text-amber-500/70">· oponente ausente</span>
+        ) : null}
       </p>
 
       {/* Banner de reconexão — só quando o SSE caiu e está tentando voltar. */}

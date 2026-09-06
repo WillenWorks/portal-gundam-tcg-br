@@ -187,12 +187,12 @@ claude
 - [ ] Commit: `feat(simulator-ui): playmat overhaul and feedback improvements`
 
 ### Frente 5: WebSocket & Multiplayer Avançado (Branch: `feature/simulator-websocket`)
-- [ ] Instalar e configurar `socket.io` no servidor Express (`server/index.ts`).
-- [ ] Adicionar suporte a eventos de sala em `src/modules/simulator/server/matchStore.ts`.
-- [ ] Implementar `socketClient.ts` com reconexão automática e heartbeat.
-- [ ] Migrar `SimulatorMatchPage.tsx` para consumir eventos do Socket.io.
-- [ ] Implementar sistema de desafio direto via link (`/simulator/match/join?code=...`).
-- [ ] Executar testes de rede e concorrência (`matchStore.test.ts`).
+- [x] Instalar e configurar `socket.io` no servidor Express (`server/index.ts` + `server/simulatorSocket.ts`, ao lado do SSE — aditivo).
+- [x] Adicionar suporte a eventos de sala em `src/modules/simulator/server/matchStore.ts` (`subscribeAllMatches` — emitter global pro broadcast `match:view_update` por sala/assento).
+- [x] Implementar `socketClient.ts` (`src/modules/simulator/network/socketClient.ts`) com reconexão backoff 500ms→10s, reemissão de `match:join`, fila de ações com `actionSeq` e telemetria de ping.
+- [x] Migrar `SimulatorMatchPage.tsx` para consumir eventos do Socket.io. _(hook `src/modules/simulator/network/useMatchTransport.ts`: `simulatorSocket` como transporte primário — `match:view_update`/`match:action`/`match:ping`/`match:opponent_status` — com **fallback automático pro laço SSE + POST** se o socket ficar `dead` ou não entregar o 1º snapshot no timeout; volta pro socket sozinho quando ele se recupera. SSE (`/stream`) e rotas POST intactos no servidor. Telemetria (transporte + RTT) no chip de conexão. 7 testes em `useMatchTransport.test.ts`.)_
+- [x] Implementar sistema de desafio direto via link (`/simulador?challenge=CÓDIGO` — eventos `challenge:create`/`challenge:accept`/`challenge:ready`, UI em `SimulatorSandboxPage.tsx`).
+- [x] Executar testes de rede e concorrência (`src/modules/simulator/server/socketBridge.test.ts`, adições em `matchStore.test.ts`, integração real em `server/simulatorSocket.test.ts`).
 - [ ] Commit: `feat(simulator-network): socket.io real-time multiplayer engine`
 
 ---
