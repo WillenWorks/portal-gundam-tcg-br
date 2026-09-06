@@ -9,7 +9,25 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ---
 
-## [Não lançado] — rumo ao v1.0.0
+## [Não lançado]
+
+### No radar
+- Bot de treino (heurístico → IA) e pipeline de correção assistida — ver plano interno.
+- Analytics competitivos mais profundos (meta por temporada/arquétipo, uso por
+  carta) — Fase 2 do produto.
+- Perfis públicos, decks favoritos/compartilháveis — Fase 3.
+- Ranking no simulador — Fase 4.
+- `【Pilot】[X]` como pré-requisito de jogar carta, ponte deckbuilder → simulador.
+- Cobertura de efeitos das coleções GD/EB (dano a múltiplos alvos, filtros
+  relativos à carta-fonte).
+
+---
+
+## [1.0.0] — 2026-09-06
+
+Primeiro lançamento numerado como **1.0**. Catálogo, deckbuilder, rulings e
+simulador (ST01–ST04) fechados; rede em tempo real e overhaul visual do
+simulador entregues.
 
 ### 🎴 Deckbuilder
 - **Curva de nível das Units** — gráfico novo na aba Estatísticas (Lv.1–5 e "6+"),
@@ -57,20 +75,13 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 - Ferramentas de desenvolvimento: enumerador de ações legais, self-play,
   fuzzing de regressão, servidor MCP do motor, CI.
 
-### Em validação (o que falta pro v1.0.0)
-- **Simulador remoto entre 2 jogadores reais** — rodada de teste com contas de
-  verdade em máquinas/redes diferentes.
-- Deploy do transporte Socket.io em produção.
-
-### No radar
-- Bot de treino (heurístico → IA) e pipeline de correção assistida — ver plano interno.
-- Analytics competitivos mais profundos (meta por temporada/arquétipo, uso por
-  carta) — Fase 2 do produto.
-- Perfis públicos, decks favoritos/compartilháveis — Fase 3.
-- Ranking no simulador — Fase 4.
-- `【Pilot】[X]` como pré-requisito de jogar carta, ponte deckbuilder → simulador.
-- Cobertura de efeitos das coleções GD/EB (dano a múltiplos alvos, filtros
-  relativos à carta-fonte).
+### ⚠️ Limitações conhecidas (próxima etapa)
+- O transporte **Socket.io** ainda não foi promovido a produção — o SSE segue
+  como caminho padrão até a validação de rede com 2 jogadores reais em
+  máquinas/redes diferentes.
+- Matchmaking **ranqueado** aceito no protocolo, sem fila própria ainda.
+- 【Destroyed】 direcionado que pausa e efeitos de dano a múltiplos alvos
+  (coleções GD/EB) — no backlog.
 
 ---
 
