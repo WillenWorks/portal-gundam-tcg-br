@@ -67,9 +67,11 @@ export const AEGIS_GUNDAM_ATTACK: EffectSpec = {
 };
 
 // ST04-009 Miguel's Ginn — 【During Pair】【Destroyed】If you have another Link Unit
-// in play, draw 1. O prefixo 【During Pair】 (`duringPair: true`) faz o motor de
-// combate (`dispatchDestroyedTriggers`) só disparar o 【Destroyed】 se a Unit
-// estava PAREADA no instante da destruição (`DestroyedInBattle.wasPaired`).
+// in play, draw 1. O prefixo 【During Pair】 (`duringPair: true`) faz o dispatcher
+// (tanto `dispatchDestroyedTriggers` no Damage Step quanto
+// `dispatchDestroyedFromEffect` fora de combate, docs/45) só disparar o
+// 【Destroyed】 se a Unit estava PAREADA no instante da destruição
+// (`DestroyedInBattle.wasPaired`, capturado ANTES do DESTROY_CARD).
 export const MIGUELS_GINN_DESTROYED: EffectSpec = {
   id: "ST04-009-Destroyed",
   cardCode: "ST04-009",
