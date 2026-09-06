@@ -11,17 +11,66 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ## [Não lançado] — rumo ao v1.0.0
 
+### 🎴 Deckbuilder
+- **Curva de nível das Units** — gráfico novo na aba Estatísticas (Lv.1–5 e "6+"),
+  clicável pra ver as cartas de cada nível.
+- **Mão inicial** ganhou a chance de abrir com pelo menos 1 Unit de nível baixo
+  (Lv.1–3) — cálculo hipergeométrico, junto com a de custo baixo.
+- Seleção de **capa/estilo visual do deck** subiu pra logo abaixo do nome/Salvar.
+
+### 🌐 Cartas em português
+- **Texto de efeito das cartas dos Starters ST01–ST04 traduzido pra pt-BR** —
+  keywords (`[Deploy]`, `[Burst]`, `<Blocker>`…) e nomes/atributos ficam em
+  inglês, só a explicação é traduzida. Aparece no catálogo e no inspetor do
+  simulador (com alternância PT/EN quando os dois textos existem).
+
+### 🎮 Simulador — Waves ST03 e ST04 jogáveis
+- **ST03 "Zeon's Fangs"** (Sinanju / Unicorn / Full Frontal) e **ST04
+  "Aile of Justice"** (Strike Gundam / SEED / Kira & Athrun) — as 32 cartas
+  únicas jogáveis no motor, com efeitos, tokens e habilidades.
+- Novos padrões de efeito cobertos: revelar cartas do topo do deck, deploy
+  gratuito de Unidade da mão, gatilho **【Destroyed】** (dentro e fora de combate),
+  concessão temporária de alvo, proibição de ataque no turno, prevenção de dano
+  condicional.
+
+### ✨ Simulador — visual e ergonomia (Feedback da comunidade)
+- Tabuleiro **sem barra de rolagem** em qualquer resolução (Full HD, ultrawide,
+  notebook, mobile landscape), câmera mais inclinada estilo Master Duel, cartas
+  e números maiores.
+- **Fim do botão de "olho"** — clicar no corpo da carta abre o inspetor.
+- Dano da Base no canto, **recursos idênticos empilhados** (`x3`, `x5`) sem
+  scroll horizontal, seta de ataque mirando a Base/Escudos no lado certo,
+  banner de fase/ação sem cortar texto.
+- Bandejas de Exílio/Descarte com largura controlada, fecham clicando fora.
+- **Microinterações**: compra de carta, embaralhamento, mulligan, revelação de
+  escudo, deploy (leve/pesado por custo), avanço de ataque.
+
+### 🔌 Simulador — rede em tempo real
+- Servidor **Socket.io** rodando ao lado do SSE, com salas por partida,
+  reconexão com backoff e telemetria de ping.
+- **Convite direto por link** ("Jogar com um amigo" → código `GC-####`).
+- Cliente do simulador migrado pro Socket.io com fallback automático pro SSE.
+
+### 🛠️ Bastidores
+- Pipeline de tradução automatizada com validação de tokens
+  (`scripts/translate-card-effects.mjs`).
+- Ferramentas de desenvolvimento: enumerador de ações legais, self-play,
+  fuzzing de regressão, servidor MCP do motor, CI.
+
 ### Em validação (o que falta pro v1.0.0)
-- **Simulador remoto entre 2 jogadores reais** — motor, persistência e
-  reconexão já prontos, faltando só a rodada de teste com contas de verdade
-  em máquinas/redes diferentes.
+- **Simulador remoto entre 2 jogadores reais** — rodada de teste com contas de
+  verdade em máquinas/redes diferentes.
+- Deploy do transporte Socket.io em produção.
 
 ### No radar
+- Bot de treino (heurístico → IA) e pipeline de correção assistida — ver plano interno.
 - Analytics competitivos mais profundos (meta por temporada/arquétipo, uso por
   carta) — Fase 2 do produto.
 - Perfis públicos, decks favoritos/compartilháveis — Fase 3.
-- IA oponente e ranking no simulador — Fase 4.
+- Ranking no simulador — Fase 4.
 - `【Pilot】[X]` como pré-requisito de jogar carta, ponte deckbuilder → simulador.
+- Cobertura de efeitos das coleções GD/EB (dano a múltiplos alvos, filtros
+  relativos à carta-fonte).
 
 ---
 
