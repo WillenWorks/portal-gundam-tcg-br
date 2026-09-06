@@ -27,8 +27,17 @@ const subscribeToHashUpdates = (callback: () => void) => {
   };
 };
 
-// leading '#' é ignorado, leading '/' é opcional
-const currentHashLocation = () => "/" + window.location.hash.replace(/^#?\/?/, "");
+// leading '#' é ignorado, leading '/' é opcional. Query string desta app mora em
+// `window.location.search` (ver cabeçalho), então o hash normalmente não tem '?'.
+// Mas um link colado à mão pode trazer o '?' DENTRO do hash
+// (`#/rota?preview=1`) -- aí o wouter não casa a rota (`/rota?preview=1` != `/rota`)
+// e cai no NotFound. Cortamos tudo a partir do '?' pro casamento de rota; quem
+// precisa do valor (ex.: previewLayoutGate) lê de `window.location.href` direto.
+const currentHashLocation = () => {
+  const raw = window.location.hash.replace(/^#?\/?/, "");
+  const q = raw.indexOf("?");
+  return "/" + (q >= 0 ? raw.slice(0, q) : raw);
+};
 
 type NavigateOptions = { state?: unknown; replace?: boolean };
 
