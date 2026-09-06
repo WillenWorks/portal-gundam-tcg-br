@@ -11,9 +11,8 @@ import type { ReactNode } from "react";
 import { Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
-import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
-import { CardEffectText } from "./CardInspectorModal";
+import { CardEffectText, inspectorStats } from "./CardInspectorModal";
 import { CardFace } from "./CardFace";
 
 interface CardInspectorPanelProps {
@@ -101,9 +100,13 @@ function PanelBody({
   effectEn?: string;
 }) {
   const { def } = card;
-  const ap = inPlay ? effectiveAp(card, state) : def.ap;
-  const hp = inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp;
-  const apBuffed = ap !== undefined && ap !== (def.ap ?? 0);
+  // Feedback Willen 3ª rodada: Command não tem AP/HP (não mostrar "0");
+  // Pilot mostra o modificador impresso (+X/+Y).
+  const { ap, hp, isModifier: statsAreModifier } = inspectorStats(card, Boolean(inPlay), state);
+  const fmtStat = (v: number | undefined) => (statsAreModifier && v !== undefined ? `+${v}` : v);
+  const apLabel = statsAreModifier ? "AP (mod)" : "AP";
+  const hpLabel = statsAreModifier ? "HP (mod)" : "HP";
+  const apBuffed = !statsAreModifier && ap !== undefined && ap !== (def.ap ?? 0);
   const hpDamaged = inPlay && card.damage > 0;
 
   const keywords = [...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])])];
@@ -151,8 +154,8 @@ function PanelBody({
       <div className="grid grid-cols-2 gap-1.5 text-xs">
         {def.level !== undefined ? <Stat label="Nível" value={def.level} /> : null}
         {def.cost !== undefined ? <Stat label="Custo" value={def.cost} /> : null}
-        {ap !== undefined ? <Stat label="AP" value={ap} tone={apBuffed ? "buff" : undefined} /> : null}
-        {hp !== undefined ? <Stat label="HP" value={hp} tone={hpDamaged ? "damage" : undefined} /> : null}
+        {ap !== undefined ? <Stat label={apLabel} value={fmtStat(ap)} tone={apBuffed ? "buff" : undefined} /> : null}
+        {hp !== undefined ? <Stat label={hpLabel} value={fmtStat(hp)} tone={hpDamaged ? "damage" : undefined} /> : null}
       </div>
 
       {def.traits?.length ? (

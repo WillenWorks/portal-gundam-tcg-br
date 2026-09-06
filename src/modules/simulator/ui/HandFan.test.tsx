@@ -60,7 +60,7 @@ describe("HandFan", () => {
     expect(blocked.querySelector('[class*="grayscale"]')).not.toBeNull();
   });
 
-  it('"Ver" (olho) SEMPRE presente; "Jogar" só quando jogável, à esquerda do "Ver"', () => {
+  it('Frente 4 (docs/38 §3.1): sem botão de olho — "Jogar" só quando jogável, inspeção no corpo da carta', () => {
     const onPeek = vi.fn();
     const onInspect = vi.fn();
     const zaku = unit("Zaku II");
@@ -75,24 +75,34 @@ describe("HandFan", () => {
         onInspect={onInspect}
       />,
     );
-    // jogável: [Jogar, Ver]
     const jogar = screen.getByRole("button", { name: /Jogar Zaku II/ });
     const verZaku = screen.getByRole("button", { name: /^Ver Zaku II/ });
+    // o cluster de canto tem só "Jogar" (não "Ver")
     const strip = jogar.closest("div")!;
-    expect(Array.from(strip.children)).toEqual([jogar, verZaku]);
-    // injogável: só "Ver"
+    expect(Array.from(strip.children)).toEqual([jogar]);
+    // injogável: sem "Jogar", mas o corpo ainda é "Ver"
     expect(screen.getByRole("button", { name: /^Ver Guncannon/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Jogar Guncannon/ })).toBeNull();
 
     jogar.click();
     expect(onPeek).toHaveBeenCalledWith(zaku);
+    // Frente 4 (feedback Willen 3ª rodada): clicar no ▶ NÃO abre a modal de inspeção.
+    expect(onInspect).not.toHaveBeenCalled();
     verZaku.click();
     expect(onInspect).toHaveBeenCalledWith(zaku);
   });
 
-  it("o corpo da carta NÃO é mais um botão (sem conflito de clique)", () => {
+  it("Frente 4 (feedback Willen 3ª rodada): ▶ tem cursor-pointer e z acima da área de inspeção", () => {
+    render(
+      <HandFan cards={[{ card: unit("Zaku"), playable: true }]} art={{}} onPeek={vi.fn()} onInspect={vi.fn()} />,
+    );
+    const jogar = screen.getByRole("button", { name: /Jogar Zaku/ });
+    expect(jogar.className).toMatch(/cursor-pointer/);
+    expect(jogar.parentElement?.className).toMatch(/z-50/);
+  });
+
+  it("Frente 4: o corpo da carta é o alvo de inspeção (Jogar no canto + Ver no corpo)", () => {
     hand([{ card: unit("Gundam"), playable: true }], { onInspect: vi.fn() });
-    // só existem os botões do canto (Jogar / Ver), não um botão envolvendo a arte
     const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
     expect(names.some((n) => n?.startsWith("Jogar Gundam"))).toBe(true);
     expect(names.some((n) => n?.startsWith("Ver Gundam"))).toBe(true);
@@ -145,11 +155,23 @@ describe("HandFan", () => {
     expect(screen.getByText("6")).toBeTruthy();
   });
 
-  it("modo anchored: lift de -1.5rem no hover/foco", () => {
-    hand([{ card: unit("Gundam"), playable: true }], { anchored: true });
+  it("Frente 4 (feedback Willen 3ª rodada): lift do hover fica no wrapper da ARTE, não no container (o ▶ não se move)", () => {
+    hand([{ card: unit("Gundam"), playable: true }], { anchored: true, onInspect: vi.fn() });
+    const [container] = containers();
+    // o container NÃO lifta
+    expect(container.className).not.toMatch(/-translate-y/);
+    // o wrapper interno (a área de inspeção, role=button) lifta via group-hover
+    const artWrapper = container.querySelector('[role="button"]')!;
+    expect(artWrapper.className).toMatch(/group-hover\/hc:-translate-y-3/);
+    expect(artWrapper.className).toMatch(/group-focus-within\/hc:-translate-y-3/);
+  });
+
+  it("Frente 4 (docs/38 §4.1): carta entra deslizando de baixo (draw), motion-reduce desliga", () => {
+    hand([{ card: unit("Gundam"), playable: true }]);
     const [c] = containers();
-    expect(c.className).toMatch(/hover:-translate-y-6/);
-    expect(c.className).toMatch(/focus-within:-translate-y-6/);
+    expect(c.className).toMatch(/animate-in/);
+    expect(c.className).toMatch(/slide-in-from-bottom-4/);
+    expect(c.className).toMatch(/motion-reduce:animate-none/);
   });
 
   it("onHoverCard dispara com a carta no mouseenter e null no mouseleave", () => {

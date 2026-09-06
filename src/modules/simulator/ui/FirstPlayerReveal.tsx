@@ -3,6 +3,7 @@
  * clique ou depois de alguns segundos. O pai controla a visibilidade. */
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { cardBackUrl } from "./cardArt";
 
 interface FirstPlayerRevealProps {
   goesFirst: boolean;
@@ -34,6 +35,20 @@ export function FirstPlayerReveal({ goesFirst, onDismiss, autoDismissMs = 3500 }
       className="fixed inset-0 z-[55] flex cursor-pointer items-center justify-center bg-slate-950/80 backdrop-blur-sm"
     >
       <div className="panel-cut hero-surface flex flex-col items-center gap-2 border border-primary/40 px-8 py-6 text-center">
+        {/* Frente 4 (docs/38 §4.4) — "embaralhamento": 3 cartas deslizam
+            lateralmente na abertura da partida (o deck acabou de ser
+            embaralhado). Decorativo; `motion-reduce` desliga. */}
+        <div className="mb-1 flex justify-center motion-reduce:hidden" aria-hidden>
+          {[0, 90, 180].map((delay, i) => (
+            <img
+              key={i}
+              src={cardBackUrl}
+              alt=""
+              className="-ml-4 h-14 w-10 rounded-arena border border-primary/30 object-cover shadow-lg first:ml-0 animate-in slide-in-from-left-6 fade-in duration-500 ease-out"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </div>
         <p className="text-[11px] uppercase tracking-[0.22em] text-muted-portal">Sorteio de iniciativa</p>
         <p
           className={cn(

@@ -115,9 +115,13 @@ export function ActionDock({
                   números pra desalinhar entre arquivos, é 1 fórmula).
                   V6.3: sem `truncate` — a coluna estreita do mobile precisa
                   poder quebrar linha em vez de cortar informação. */}
+              {/* Frente 4 (docs/38 §3.5) — no desktop (lg:) o texto de
+                  fase/ação NUNCA quebra nem trunca ("Fase Principal · Ação"
+                  aparecia cortada no canto direito, Feedback.pdf §5). No mobile
+                  a coluna é estreita: aí deixa quebrar linha (nunca truncar). */}
               <p
                 className={cn(
-                  "text-[clamp(0.6875rem,1.5vw,0.875rem)] font-black uppercase tracking-wide",
+                  "text-[clamp(0.6875rem,1.5vw,0.875rem)] font-black uppercase tracking-wide lg:whitespace-nowrap",
                   state.yourTurn ? "text-primary" : "text-muted-portal",
                 )}
               >
@@ -316,7 +320,10 @@ export function ActionDock({
       // `useArenaScale` já faz pro tabuleiro — nunca deixa o painel passar do
       // rodapé realmente visível, com ou sem suporte a `dvh`.
       style={mobileMaxHeightPx !== undefined ? { maxHeight: `${mobileMaxHeightPx}px` } : undefined}
-      className="fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-[clamp(13rem,38vw,23rem)] lg:overflow-visible"
+      // Frente 4 (docs/38 §3.5) — desktop: a caixa acompanha o conteúdo
+      // (`lg:w-fit`) entre um piso e um teto, com `min-w-fit`, pra "Fase
+      // Principal · Ação" nunca ser truncada no canto direito (Feedback.pdf §5).
+      className="fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-fit lg:min-w-[13rem] lg:max-w-[26rem] lg:overflow-visible"
     >
       <div
         className={cn(

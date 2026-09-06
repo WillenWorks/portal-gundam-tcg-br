@@ -28,16 +28,26 @@ describe("ShieldRail", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
+  it("Frente 4 (docs/38 §3.4): `underAim` acende um pulso na borda da trilha", () => {
+    const { rerender } = render(<ShieldRail count={4} orientation="vertical" />);
+    expect(screen.getByRole("list").className).not.toMatch(/animate-pulse/);
+    rerender(<ShieldRail count={4} orientation="vertical" underAim />);
+    const list = screen.getByRole("list");
+    expect(list.className).toMatch(/animate-pulse/);
+    expect(list.className).toMatch(/ring-2/);
+    expect(list.className).toMatch(/motion-reduce:animate-none/);
+  });
+
   it("V6.2/V6.3 (docs/33, docs/34): `compact` (prop, não breakpoint) achata a cascata (~altura inteira)", () => {
     render(<ShieldRail count={3} orientation="vertical" compact />);
     const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
     expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w-std,2.17rem)*88/63)]");
   });
 
-  it("sem `compact`, mantém a cascata normal (subtrai só a largura)", () => {
+  it("Frente 4 (feedback Willen 3ª rodada): cascata normal fica MAIS JUNTA (subtrai 1.3× a largura, não 1×)", () => {
     render(<ShieldRail count={3} orientation="vertical" />);
     const pieces = document.querySelectorAll("[role='list'] > span[role='listitem']");
-    expect(pieces[1]?.className).toContain("-mt-[var(--card-w-std,2.17rem)]");
+    expect(pieces[1]?.className).toContain("-mt-[calc(var(--card-w-std,2.17rem)*1.3)]");
   });
 
   it("reserva `max` peças por padrão (vivas + quebradas)", () => {

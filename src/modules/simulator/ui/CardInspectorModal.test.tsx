@@ -117,6 +117,34 @@ describe("CardInspectorModal", () => {
     expect(screen.queryByText("Ninguém")).toBeNull();
   });
 
+  it("Frente 4 (feedback Willen 3ª rodada): Command NÃO mostra AP/HP (nem 0)", () => {
+    render(
+      <CardInspectorModal card={card({ nameEn: "Kai's Resolve", cardType: "COMMAND", cost: 1 })} art={{}} onClose={vi.fn()} inPlay />,
+    );
+    expect(screen.queryByText(/^AP/)).toBeNull();
+    expect(screen.queryByText(/^HP/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.queryByText(/^AP/)).toBeNull();
+    expect(screen.queryByText(/^HP/)).toBeNull();
+    expect(screen.getByText("Custo")).toBeInTheDocument();
+  });
+
+  it("Frente 4: Base mostra só HP (sem AP)", () => {
+    render(
+      <CardInspectorModal card={card({ nameEn: "White Base", cardType: "BASE", hp: 5 }, { zone: "baseSection" })} art={{}} onClose={vi.fn()} inPlay />,
+    );
+    expect(screen.getByText("HP 5")).toBeInTheDocument();
+    expect(screen.queryByText(/^AP /)).toBeNull();
+  });
+
+  it("Frente 4: Pilot mostra o modificador impresso como (mod) +X", () => {
+    render(
+      <CardInspectorModal card={card({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 })} art={{}} onClose={vi.fn()} inPlay />,
+    );
+    expect(screen.getByText(/AP \(mod\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\+2/)).toBeInTheDocument();
+  });
+
   it("renderiza o footer de ações", () => {
     render(
       <CardInspectorModal

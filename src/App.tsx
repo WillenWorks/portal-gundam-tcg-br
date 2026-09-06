@@ -36,6 +36,14 @@ const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
+// DEV-ONLY — preview de layout cru do simulador (docs/38, Frente 4). Em
+// produção `import.meta.env.DEV` é `false` estático: o `import()` cai numa
+// branch morta e o bundler remove o chunk; a rota abaixo também só monta em DEV.
+const SimulatorLayoutPreviewPage = lazy(() =>
+  import.meta.env.DEV
+    ? import("@/pages/SimulatorLayoutPreviewPage")
+    : Promise.resolve({ default: () => null }),
+);
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -113,6 +121,17 @@ function AppRouter() {
             </RequireAuth>
           )}
         </Route>
+        {/* DEV-ONLY, SEM auth — preview de layout cru pra validar a F4 em
+            displays reais (docs/38). Não existe no build de produção. */}
+        {import.meta.env.DEV && (
+          <Route path="/simulador/preview-layout">
+            {() => (
+              <LazyRoute label="Preview de Layout">
+                <SimulatorLayoutPreviewPage />
+              </LazyRoute>
+            )}
+          </Route>
+        )}
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

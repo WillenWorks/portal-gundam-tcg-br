@@ -9,7 +9,7 @@ import { useEffect, useReducer } from "react";
 import { Swords, ArrowRight } from "lucide-react";
 import type { CombatState, CardInstance, GameState, PlayerId } from "@/modules/simulator/engine/types";
 import { effectiveAp } from "@/modules/simulator/engine/types";
-import { playerAreaKey } from "./useBoardElements";
+import { playerAreaKey, playerShieldKey } from "./useBoardElements";
 
 interface CombatLaneProps {
   combat: CombatState;
@@ -40,7 +40,11 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
 
   const iAttack = combat.attackingPlayer === viewerSeat;
   const defender = combat.defendingPlayer;
-  const targetKey = combat.currentTarget === "player" ? playerAreaKey(defender) : combat.currentTarget.unitId;
+  // Frente 4 (docs/38 §3.4) — ataque "no jogador" mira a coluna Base/Escudos
+  // (lateral esquerda), não o centro da Battle Area. Fallback pra Battle Area
+  // se a coluna ainda não estiver registrada.
+  const targetKey = combat.currentTarget === "player" ? playerShieldKey(defender) : combat.currentTarget.unitId;
+  const targetsPlayer = combat.currentTarget === "player";
 
   // re-mede quando o layout pode ter mudado: scroll (inclusive de containers
   // internos, daí `capture`), resize, e um rAF logo após montar/trocar de alvo.
@@ -67,7 +71,7 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
   }, [combat.step, combat.attackerId, targetKey]);
 
   const attackerRect = rectOf(combat.attackerId);
-  const targetRect = rectOf(targetKey);
+  const targetRect = rectOf(targetKey) ?? (targetsPlayer ? rectOf(playerAreaKey(defender)) : null);
 
   const targetLabel =
     combat.currentTarget === "player"
@@ -113,8 +117,23 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
                   <animate attributeName="stroke-dashoffset" from="26" to="0" dur="0.6s" repeatCount="indefinite" />
                 </line>
                 <circle cx={a.x} cy={a.y} r={4} fill="rgb(56 189 248)" />
-                <circle cx={b.x} cy={b.y} r={7} fill="none" stroke="rgb(248 113 113)" strokeWidth={2}>
-                  <animate attributeName="r" from="7" to="13" dur="0.9s" repeatCount="indefinite" />
+                {/* Frente 4 (docs/38 §3.4) — pulso sob mira; maior quando o alvo
+                    é a coluna Base/Escudos (não uma Unit pontual). */}
+                <circle
+                  cx={b.x}
+                  cy={b.y}
+                  r={targetsPlayer ? 12 : 7}
+                  fill="none"
+                  stroke="rgb(248 113 113)"
+                  strokeWidth={2}
+                >
+                  <animate
+                    attributeName="r"
+                    from={targetsPlayer ? "12" : "7"}
+                    to={targetsPlayer ? "24" : "13"}
+                    dur="0.9s"
+                    repeatCount="indefinite"
+                  />
                   <animate attributeName="opacity" from="0.9" to="0" dur="0.9s" repeatCount="indefinite" />
                 </circle>
               </>
@@ -123,15 +142,18 @@ export function CombatLane({ combat, attacker, targetUnit, viewerSeat, state, re
         </svg>
       ) : null}
 
+      {/* Frente 4 (feedback Willen 3ª rodada): banner de combate NUNCA trunca.
+          `rounded-arena` (não `panel-cut` — o chanfro de 16px cortava o "O" de
+          "DECLARAÇÃO"), `whitespace-nowrap` e `w-fit`/`max-w` pra caber sempre. */}
       <div className="pointer-events-none fixed inset-x-0 top-16 z-[46] flex justify-center px-2">
-        <div className="panel-cut flex items-center gap-2 border border-red-500/50 bg-slate-950/92 px-3 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
+        <div className="flex w-fit max-w-[calc(100vw-1rem)] items-center gap-2 whitespace-nowrap rounded-arena border border-red-500/50 bg-slate-950/92 px-3.5 py-1.5 text-xs shadow-[0_0_18px_rgba(239,68,68,0.35)]">
           <Swords className="size-4 shrink-0 text-red-400" />
           <span className="font-semibold text-soft">{attacker?.def.nameEn ?? "Atacante"}</span>
-          {attacker ? <span className="font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
+          {attacker ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(attacker, state)}</span> : null}
           <ArrowRight className="size-4 shrink-0 animate-pulse text-red-400" />
           <span className="font-semibold text-soft">{targetLabel}</span>
-          {targetUnit ? <span className="font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
-          <span className="ml-1 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
+          {targetUnit ? <span className="shrink-0 font-black text-cyan-300">AP{effectiveAp(targetUnit, state)}</span> : null}
+          <span className="ml-1 shrink-0 border-l border-white/10 pl-2 text-[9px] uppercase tracking-wide text-red-300/80">
             {STEP_LABEL[combat.step]}
           </span>
         </div>

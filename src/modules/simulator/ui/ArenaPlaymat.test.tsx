@@ -57,7 +57,7 @@ describe("ArenaPlaymat", () => {
     // ResizeObserver/getBoundingClientRect mockados) medindo a caixa real.
     // jsdom não faz layout de verdade (getBoundingClientRect sempre 0), então
     // aqui só o piso inicial (antes de qualquer medição real) é observável.
-    expect(canvas.style.getPropertyValue("--card-w")).toBe("56px");
+    expect(canvas.style.getPropertyValue("--card-w")).toBe("88px");
   });
 
   it("V6.2 (docs/33): `expanded` troca aspect-[16/9] por h-full w-full (canvas usa a caixa toda, sem travar 16:9)", () => {
@@ -149,7 +149,8 @@ describe("ArenaPlaymat", () => {
 
   it("aplica a perspectiva 3D no canvas", () => {
     const { container } = renderArena();
-    expect((container.firstElementChild as HTMLElement).style.perspective).toBe("1200px");
+    // Frente 4 (feedback Willen 2ª rodada): perspective mais curta (900px).
+    expect((container.firstElementChild as HTMLElement).style.perspective).toBe("900px");
   });
 
   it("battleAreaRef recebe o elemento do grid de slots", () => {
@@ -157,5 +158,32 @@ describe("ArenaPlaymat", () => {
     const withRef: ArenaSide = { ...side("me"), battleAreaRef: (el) => refs.push(el) };
     render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>h</div>} />);
     expect(refs.some((el) => el instanceof HTMLElement)).toBe(true);
+  });
+
+  it("Frente 4 (feedback Willen 4ª rodada): deckStationRef recebe a coluna Exílio/Descarte/Deck; handRef o rodapé da mão", () => {
+    const deckRefs: (HTMLElement | null)[] = [];
+    const handRefs: (HTMLElement | null)[] = [];
+    const withRef: ArenaSide = {
+      ...side("me"),
+      deckStationRef: (el) => deckRefs.push(el),
+      handRef: (el) => handRefs.push(el),
+    };
+    render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>hand-fan</div>} />);
+    const deckEl = deckRefs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(deckEl!.textContent).toContain("me-deck");
+    expect(deckEl!.textContent).toContain("me-trash");
+    const handEl = handRefs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(handEl!.textContent).toContain("hand-fan");
+  });
+
+  it("Frente 4 (docs/38 §3.4): shieldStationRef recebe a coluna Base/Escudos (alvo da seta de ataque)", () => {
+    const refs: (HTMLElement | null)[] = [];
+    const withRef: ArenaSide = { ...side("me"), shieldStationRef: (el) => refs.push(el) };
+    render(<ArenaPlaymat opponent={side("opp")} self={withRef} hand={<div>h</div>} />);
+    const el = refs.find((r): r is HTMLElement => r instanceof HTMLElement);
+    expect(el).toBeTruthy();
+    // a coluna contém a Base e os Shields do jogador
+    expect(el!.textContent).toContain("me-base");
+    expect(el!.textContent).toContain("me-shields");
   });
 });
