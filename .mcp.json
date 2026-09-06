@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "gundam": {
+      "command": "node",
+      "args": ["scripts/mcp-gundam/server.mjs"]
+    }
+  }
+}
