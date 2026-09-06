@@ -170,6 +170,9 @@ const ABANDON_THRESHOLD_MS = 180_000;
 const PORTRAIT_QUERY = "(max-width: 900px) and (orientation: portrait)";
 /** A partir daqui há folga lateral pras asas (inspetor de carta + log). */
 const WIDE_QUERY = "(min-width: 1400px)";
+/** faixa "mobile" — solta a trava de 16:9 do canvas (o tabuleiro usa toda a
+ *  área entre o topo e o `ActionDock` em vez de sobrar espaço e encolher). */
+const MOBILE_QUERY = "(max-width: 1023px)";
 /** Rota pra onde "Sair"/fim de jogo devolvem o jogador (a "Minha Área" do portal, com o shell/nav normal). */
 const EXIT_ROUTE = "/portal";
 /** Ao encerrar a partida (fim de jogo por qualquer motivo), o jogador é levado de volta ao site depois disso. */
@@ -400,6 +403,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const { art, artLoading, cardText, cardByName } = useCardArtLookup();
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const dockMaxHeightPx = useMobileDockMaxHeight();
 
   // Aplica uma visão que chegou (SSE ou resposta de POST ou resync REST),
@@ -1352,7 +1356,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             media a caixa). */}
         <div className="flex min-w-0 flex-1 justify-center">
           <ArenaPlaymat
-            expanded={isWide && boardExpanded}
+            // No mobile (< 1024px) solta a trava de 16:9 — a proporção fixa
+            // sobrava altura/largura sem uso e forçava o `useArenaScale` a
+            // encolher o tabuleiro demais / cortá-lo (feedback Willen, celular).
+            // Sem asas laterais nessa faixa, o canvas já ocupa a largura toda.
+            expanded={(isWide && boardExpanded) || isMobile}
             opponent={arenaSide(opponentSeat, false)}
             self={arenaSide(seat, true)}
             hand={
@@ -1533,6 +1541,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           mode={setupAnim}
           label={SETUP_ANIM_LABEL[setupAnim]}
           origin={rectCenter(board.rectOf(`deckStation:${seat}`))}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width}
           dest={rectCenter(
             board.rectOf(setupAnim === "deal-shields" ? playerShieldKey(seat) : "hand:self"),
           )}

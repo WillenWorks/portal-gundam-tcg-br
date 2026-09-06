@@ -89,9 +89,20 @@ describe("useArenaScale", () => {
     renderHook(() => useArenaScale({ current: container }, { current: group }));
     triggerResize();
 
-    // altura: 300 / (2*(200/88) + 1.35) = 300/5.895 ≈ 51px — abaixo do piso (88px), clampa no piso.
+    // altura: 300 / (2*(200/88) + 1.35) = 300/5.895 ≈ 51px. Acima do piso de
+    // legibilidade (44) — encolhe pra caber em vez de clampar pra cima e cortar.
     const applied = parseFloat(container.style.getPropertyValue("--card-w"));
-    expect(applied).toBe(88);
+    expect(applied).toBeCloseTo(51, 0);
+  });
+
+  it("respeita o piso de legibilidade (44px) numa caixa minúscula", () => {
+    const container = makeEl(() => rect(120, 90)); // absurdamente pequena
+    const group = makeScalingGroup(container, 400, 200);
+    renderHook(() => useArenaScale({ current: container }, { current: group }));
+    triggerResize();
+
+    // largura: 120/(400/88) ≈ 26; altura: 90/5.895 ≈ 15 — os dois abaixo de 44 → piso.
+    expect(parseFloat(container.style.getPropertyValue("--card-w"))).toBe(44);
   });
 
   it("nunca ultrapassa o teto de sanidade num caso degenerado", () => {
