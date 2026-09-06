@@ -13,11 +13,12 @@
  * coluna Base/Escudos à esquerda — docs/38 §3.4), força `prefers-reduced-motion`
  * via classe e dispara as microinterações (draw / Burst / embaralhamento).
  *
- * Rota: `/simulador/preview-layout` (só existe em `import.meta.env.DEV`, sem
- * `RequireAuth` — ver `App.tsx`). O componente ainda retorna `null` fora de DEV
- * como segunda trava. */
+ * Rota: `/simulador/preview-layout`, sem `RequireAuth` — ver `App.tsx`. A rota
+ * existe sempre; a permissão é de runtime (`previewLayoutEnabled`): DEV,
+ * `VITE_LAYOUT_PREVIEW=1`, ou abrir a rota com `?preview=1` uma vez. */
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { previewLayoutEnabled } from "@/lib/previewLayoutGate";
 import type { CardDef, CardInstance, CombatState, GameState, PlayerId } from "@/modules/simulator/engine/types";
 import { ST01_CARD_DEFS } from "@/modules/simulator/fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "@/modules/simulator/fixtures/st02Deck";
@@ -286,8 +287,20 @@ const SCENARIO_LABEL: Record<Scenario, string> = {
 };
 
 export default function SimulatorLayoutPreviewPage() {
-  // 2ª trava além do guard de rota em App.tsx — DEV local ou VITE_LAYOUT_PREVIEW=1 (staging).
-  if (!import.meta.env.DEV && import.meta.env.VITE_LAYOUT_PREVIEW !== "1") return null;
+  if (!previewLayoutEnabled()) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-8 text-center">
+        <p className="text-lg font-semibold">Preview de layout indisponível</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Esta página é uma ferramenta interna de visualização do simulador. Abra o link com{" "}
+          <code>?preview=1</code> no final para liberá-la neste navegador.
+        </p>
+        <a href="#/" className="text-sm text-primary underline">
+          Voltar ao início
+        </a>
+      </div>
+    );
+  }
   return <LayoutPreview />;
 }
 
