@@ -23,6 +23,17 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ---
 
+## [1.0.1] — 2026-09-06
+
+### 🛠️ Ajustes
+- **Preview de layout do simulador** (`/#/simulador/preview-layout`) agora abre
+  também em produção. É uma ferramenta interna de visualização — só dados de
+  exemplo, sem login — usada pra iterar o visual do tabuleiro e ilustrar os
+  tutoriais de Regras. Fica liberada no navegador ao abrir o link uma vez com
+  `?preview=1` no fim.
+
+---
+
 ## [1.0.0] — 2026-09-06
 
 Primeiro lançamento numerado como **1.0**. Catálogo, deckbuilder, rulings e
