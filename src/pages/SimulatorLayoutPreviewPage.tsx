@@ -286,8 +286,8 @@ const SCENARIO_LABEL: Record<Scenario, string> = {
 };
 
 export default function SimulatorLayoutPreviewPage() {
-  // 2ª trava além do guard de rota em App.tsx — nunca renderiza fora de DEV.
-  if (!import.meta.env.DEV) return null;
+  // 2ª trava além do guard de rota em App.tsx — DEV local ou VITE_LAYOUT_PREVIEW=1 (staging).
+  if (!import.meta.env.DEV && import.meta.env.VITE_LAYOUT_PREVIEW !== "1") return null;
   return <LayoutPreview />;
 }
 

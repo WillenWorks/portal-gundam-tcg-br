@@ -36,11 +36,14 @@ const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
-// DEV-ONLY — preview de layout cru do simulador (docs/38, Frente 4). Em
-// produção `import.meta.env.DEV` é `false` estático: o `import()` cai numa
-// branch morta e o bundler remove o chunk; a rota abaixo também só monta em DEV.
+// Preview de layout cru do simulador (docs/38, Frente 4) — SEM auth. Liberada
+// quando: DEV local, OU `VITE_LAYOUT_PREVIEW=1` no build (staging/Railway).
+// Produção não seta a flag e `import.meta.env.DEV` é `false` estático → o
+// `import()` cai numa branch morta, o bundler remove o chunk e a rota não monta.
+// Serve pra iterar o visual e pra simular efeitos nos tutoriais de Regras.
+const LAYOUT_PREVIEW_ENABLED = import.meta.env.DEV || import.meta.env.VITE_LAYOUT_PREVIEW === "1";
 const SimulatorLayoutPreviewPage = lazy(() =>
-  import.meta.env.DEV
+  LAYOUT_PREVIEW_ENABLED
     ? import("@/pages/SimulatorLayoutPreviewPage")
     : Promise.resolve({ default: () => null }),
 );
@@ -121,9 +124,9 @@ function AppRouter() {
             </RequireAuth>
           )}
         </Route>
-        {/* DEV-ONLY, SEM auth — preview de layout cru pra validar a F4 em
-            displays reais (docs/38). Não existe no build de produção. */}
-        {import.meta.env.DEV && (
+        {/* SEM auth — preview de layout cru (docs/38). DEV local ou
+            VITE_LAYOUT_PREVIEW=1 (staging). Não existe no build de produção. */}
+        {LAYOUT_PREVIEW_ENABLED && (
           <Route path="/simulador/preview-layout">
             {() => (
               <LazyRoute label="Preview de Layout">
