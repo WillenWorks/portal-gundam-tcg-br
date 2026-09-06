@@ -25,13 +25,14 @@
 import { useEffect, useRef } from "react";
 
 const HAND_FOOTER_FACTOR = 1.35; // ArenaPlaymat.tsx: min-h-[calc(var(--card-w)*1.35)] (Willen 3ª rodada: 1.75 → 1.35, sobra mais tela pro board)
-// Frente 4 (docs/38 §2.1 + feedback Willen) — piso subiu 44 → 64 → 80 → 88px.
-// O Willen seguia achando "pequena demais"; com a mão encolhida (fator 1.35)
-// sobra altura pro board. 88px dá `--card-w-std` ≈ 58px (fator 0.66). A câmera
-// mais inclinada (`TABLE_STYLE` rotateX 15°) encolhe a altura MEDIDA do grupo,
-// então a escala calculada abaixo já cresce sozinha pra ocupar a sobra.
-// `overflow-hidden` do canvas absorve o excesso em telas minúsculas.
-const DEFAULT_MIN_PX = 88; // piso confortável — cartas/badges/chip de piloto legíveis
+// Frente 4 (docs/38 §2.1 + feedback Willen) — piso oscilou 44 → 64 → 80 → 88px
+// enquanto o Willen achava "pequena demais" no desktop. Aí no MOBILE (retrato E
+// paisagem) o piso alto passou a estourar as laterais: a escala era forçada pra
+// 88 mesmo quando 88 não cabia, e o `overflow-hidden` do canvas cortava ~15-40%
+// do tabuleiro de cada lado. Voltou pra 44 (só legibilidade) — "caber inteiro"
+// ganha do "confortável". No desktop o que "cabe" já passa de 88 na esmagadora
+// maioria dos casos, então lá nada muda na prática.
+const DEFAULT_MIN_PX = 44;
 const DEFAULT_MAX_PX = 360; // teto de sanidade — nunca descontrolado num caso degenerado
 const DEFAULT_INITIAL_PX = 88; // 5.5rem @16px — só o chute inicial antes da 1ª medição real
 

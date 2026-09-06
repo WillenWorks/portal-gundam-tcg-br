@@ -118,7 +118,9 @@ const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
  *  RESULTADO real da medição (não mais um breakpoint de viewport chutado —
  *  era exatamente isso que causava as rodadas anteriores baterem em
  *  limiares diferentes por arquivo, docs/32 §achado de raiz). */
-const SHIELD_COMPACT_THRESHOLD_PX = 88; // = piso de `--card-w` (útil: cramped ⇒ shields achatados)
+// Abaixo disso a caixa está apertada (mobile em geral, ou desktop numa janela
+// pequena) — a cascata do Shield vira o modo achatado pra não roubar altura.
+const SHIELD_COMPACT_THRESHOLD_PX = 88;
 
 export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);

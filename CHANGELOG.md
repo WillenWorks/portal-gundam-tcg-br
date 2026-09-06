@@ -31,6 +31,13 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
   exemplo, sem login — usada pra iterar o visual do tabuleiro e ilustrar os
   tutoriais de Regras. Fica liberada no navegador ao abrir o link uma vez com
   `?preview=1` no fim.
+- **Simulador no mobile** — o tabuleiro não corta mais as laterais em telas de
+  celular (retrato e paisagem): a escala deixa de forçar um tamanho "confortável"
+  que estourava a tela e passa a caber por inteiro, e a proporção fixa 16:9 do
+  canvas é solta abaixo de 1024px pra usar toda a altura disponível.
+- **Animações de setup** (embaralhar / comprar mão / mulligan / montar escudos)
+  passam a usar o tamanho real das cartas do tabuleiro, em vez de um tamanho fixo
+  pequeno que quase não aparecia.
 
 ---
 

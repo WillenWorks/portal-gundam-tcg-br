@@ -90,6 +90,14 @@ describe("DeckDealAnimation", () => {
     expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(5);
   });
 
+  it("cardW dimensiona as card-backs no tamanho das cartas do board", () => {
+    mockMatchMedia(false);
+    const { container } = render(<DeckDealAnimation mode="deal-hand" onDone={vi.fn()} cardW={90} />);
+    const travelling = container.querySelector(".sim-anim-deal") as HTMLElement;
+    expect(travelling.style.width).toBe("90px");
+    expect(travelling.style.marginLeft).toBe("-45px");
+  });
+
   it("prefers-reduced-motion: sem animação, onDone quase imediato", () => {
     mockMatchMedia(true);
     const onDone = vi.fn();

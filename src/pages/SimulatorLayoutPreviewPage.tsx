@@ -497,6 +497,9 @@ function LayoutPreview() {
         <div className="flex min-w-0 flex-1 justify-center">
           <ArenaPlaymat
             key={`${pov}-${replayKey}`}
+            // mobile (< 1024px): solta a trava de 16:9 pro tabuleiro usar toda a
+            // altura disponível em vez de sobrar espaço e encolher as cartas.
+            expanded={vw > 0 && vw < 1024}
             opponent={arenaSide(opp)}
             self={arenaSide(viewer)}
             hand={
@@ -550,6 +553,7 @@ function LayoutPreview() {
           mode="shuffle"
           label="Embaralhando o deck…"
           origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          cardW={board.rectOf(`deckStation:${viewer}`)?.width}
           dest={rectCenter(board.rectOf(`deckStation:${viewer}`))}
           onDone={() => setScenario("normal")}
         />
@@ -559,6 +563,7 @@ function LayoutPreview() {
           mode="deal-hand"
           label="Comprando a mão inicial…"
           origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          cardW={board.rectOf(`deckStation:${viewer}`)?.width}
           dest={rectCenter(board.rectOf(`hand:${viewer}`))}
           onDone={() => setScenario("normal")}
         />
@@ -568,6 +573,7 @@ function LayoutPreview() {
           mode="mulligan"
           label="Mulligan…"
           origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          cardW={board.rectOf(`deckStation:${viewer}`)?.width}
           dest={rectCenter(board.rectOf(`hand:${viewer}`))}
           onDone={() => setScenario("normal")}
         />
@@ -577,6 +583,7 @@ function LayoutPreview() {
           mode="deal-shields"
           label="Montando os escudos…"
           origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          cardW={board.rectOf(`deckStation:${viewer}`)?.width}
           dest={rectCenter(board.rectOf(playerShieldKey(viewer)))}
           onDone={() => setScenario("normal")}
         />
@@ -610,10 +617,10 @@ interface ControlBarProps {
 
 function ControlBar(p: ControlBarProps) {
   return (
-    <div className="z-[60] flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-primary/25 bg-slate-950/95 px-3 py-2 text-xs">
-      <span className="font-black uppercase tracking-[0.16em] text-primary">F4 · preview</span>
+    <div className="z-[60] flex flex-nowrap items-center gap-x-4 gap-y-2 overflow-x-auto whitespace-nowrap border-b border-primary/25 bg-slate-950/95 px-3 py-2 text-xs md:flex-wrap md:overflow-x-visible md:whitespace-normal">
+      <span className="shrink-0 font-black uppercase tracking-[0.16em] text-primary">F4 · preview</span>
 
-      <label className="flex items-center gap-1.5">
+      <label className="flex shrink-0 items-center gap-1.5">
         <span className="text-muted-portal">POV</span>
         <select
           value={p.pov}
@@ -625,7 +632,7 @@ function ControlBar(p: ControlBarProps) {
         </select>
       </label>
 
-      <label className="flex items-center gap-1.5">
+      <label className="flex shrink-0 items-center gap-1.5">
         <span className="text-muted-portal">Recursos ativos (você)</span>
         <input
           type="range"
@@ -637,17 +644,17 @@ function ControlBar(p: ControlBarProps) {
         <span className="w-5 font-mono tabular-nums">{p.activeResources}</span>
       </label>
 
-      <label className="flex items-center gap-1.5">
+      <label className="flex shrink-0 items-center gap-1.5">
         <input type="checkbox" checked={p.showArrow} onChange={(e) => p.onShowArrow(e.target.checked)} />
         <span>Seta + avanço de ataque (no jogador)</span>
       </label>
 
-      <label className="flex items-center gap-1.5">
+      <label className="flex shrink-0 items-center gap-1.5">
         <input type="checkbox" checked={p.reducedMotion} onChange={(e) => p.onReducedMotion(e.target.checked)} />
         <span>Forçar reduced-motion</span>
       </label>
 
-      <label className="flex items-center gap-1.5">
+      <label className="flex shrink-0 items-center gap-1.5">
         <span className="text-muted-portal">Animação / cenário</span>
         <select
           value={p.scenario}
@@ -666,7 +673,7 @@ function ControlBar(p: ControlBarProps) {
         type="button"
         onClick={p.onReplayDraw}
         title="Remonta a mão pra re-disparar a animação de compra (slide-in) no HandFan real"
-        className="rounded-arena border border-primary/40 px-2 py-0.5 font-semibold text-primary hover:bg-primary/10"
+        className="shrink-0 rounded-arena border border-primary/40 px-2 py-0.5 font-semibold text-primary hover:bg-primary/10"
       >
         ▶ re-animar mão
       </button>

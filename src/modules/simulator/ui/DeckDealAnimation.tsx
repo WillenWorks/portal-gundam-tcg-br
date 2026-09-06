@@ -36,32 +36,51 @@ interface DeckDealAnimationProps {
   origin?: DeckDealPoint | null;
   /** zona de destino (mão / escudos) em coords de viewport (opcional). */
   dest?: DeckDealPoint | null;
+  /** largura da carta no tabuleiro (px) — `--card-w-std`, medida de uma zona
+   *  real pelo pai. As card-backs animadas usam ESTE tamanho pra bater com as
+   *  cartas do jogo (feedback Willen: "no mesmo tamanho das cartas"). Sem isso
+   *  cai no fallback fixo. */
+  cardW?: number | null;
 }
 
-const CARD_W = 48;
+/** fallback quando o pai não mede a carta (ex.: testes) — antes era o tamanho
+ *  fixo de TODAS as instâncias, pequeno demais no board real. */
+const FALLBACK_CARD_W = 56;
 
-/** posições-alvo (px, relativas ao ponto de origem do palco) por modo.
+/** posições-alvo (px, relativas ao ponto de origem do palco) por modo. Os
+ *  offsets de espalhamento escalam com `u` (= cardW / referência) pra o leque /
+ *  a coluna acompanharem o tamanho da carta.
  *  `base` = vetor origem→destino quando ancorado nas zonas reais; `null` = modo
  *  centrado (offsets fixos em torno do centro do palco). */
-function targets(mode: DeckDealMode, base: { dx: number; dy: number } | null): { dx: number; dy: number }[] {
+function targets(
+  mode: DeckDealMode,
+  base: { dx: number; dy: number } | null,
+  u: number,
+): { dx: number; dy: number }[] {
   if (base) {
     if (mode === "deal-shields") {
-      return Array.from({ length: 6 }, (_, i) => ({ dx: base.dx, dy: base.dy - 40 + i * 16 }));
+      return Array.from({ length: 6 }, (_, i) => ({ dx: base.dx, dy: base.dy + (-40 + i * 16) * u }));
     }
-    return Array.from({ length: 5 }, (_, i) => ({ dx: base.dx - 120 + i * 60, dy: base.dy }));
+    return Array.from({ length: 5 }, (_, i) => ({ dx: base.dx + (-120 + i * 60) * u, dy: base.dy }));
   }
   if (mode === "deal-shields") {
     // coluna vertical (zona de escudos, à esquerda)
-    return Array.from({ length: 6 }, (_, i) => ({ dx: -170, dy: -70 + i * 16 }));
+    return Array.from({ length: 6 }, (_, i) => ({ dx: -170 * u, dy: (-70 + i * 16) * u }));
   }
   // leque horizontal (zona da mão, embaixo)
-  return Array.from({ length: 5 }, (_, i) => ({ dx: -140 + i * 70, dy: 96 }));
+  return Array.from({ length: 5 }, (_, i) => ({ dx: (-140 + i * 70) * u, dy: 96 * u }));
 }
 
 const DEAL_STAGGER = 110;
 const SHUFFLE_MS = 1300;
 
-export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDealAnimationProps) {
+/** referência em que os offsets de `targets()` foram calibrados. */
+const OFFSET_REF_W = 48;
+
+export function DeckDealAnimation({ mode, onDone, label, origin, dest, cardW }: DeckDealAnimationProps) {
+  const w = cardW && cardW > 0 ? cardW : FALLBACK_CARD_W;
+  const h = w * (88 / 63); // aspect-[63/88]
+  const u = w / OFFSET_REF_W; // escala dos offsets de espalhamento
   const anchored = Boolean(origin && dest);
   const ox = origin?.x ?? null;
   const oy = origin?.y ?? null;
@@ -90,7 +109,8 @@ export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDea
       return () => clearTimeout(t);
     }
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const dealMs = () => targets(mode, base).length * DEAL_STAGGER + 360;
+    const dealCount = mode === "deal-shields" ? 6 : 5;
+    const dealMs = () => dealCount * DEAL_STAGGER + 360;
 
     if (mode === "shuffle") {
       timers.push(setTimeout(() => onDoneRef.current(), SHUFFLE_MS));
@@ -105,7 +125,7 @@ export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDea
     return () => timers.forEach(clearTimeout);
   }, [mode, reduced, base]);
 
-  const pts = targets(mode, base);
+  const pts = targets(mode, base, u);
   const shuffling = !reduced && phase === "shuffle";
   const showTravel = !reduced && (phase === "deal" || phase === "return");
 
@@ -134,7 +154,7 @@ export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDea
               key={i}
               src={cardBackUrl}
               alt=""
-              style={{ width: CARD_W, marginTop: i === 0 ? 0 : -CARD_W * 1.36, marginLeft: i * 2 }}
+              style={{ width: w, marginTop: i === 0 ? 0 : -h, marginLeft: i * 2 }}
               className={cn(
                 "block aspect-[63/88] rounded-arena border border-primary/40 object-cover shadow-lg",
                 shuffling && "sim-anim-shuffle",
@@ -152,14 +172,16 @@ export function DeckDealAnimation({ mode, onDone, label, origin, dest }: DeckDea
               alt=""
               style={
                 {
-                  width: CARD_W,
+                  width: w,
+                  marginLeft: -w / 2,
+                  marginTop: -h / 2,
                   "--dx": `${t.dx}px`,
                   "--dy": `${t.dy}px`,
                   animationDelay: `${i * DEAL_STAGGER}ms`,
                 } as React.CSSProperties
               }
               className={cn(
-                "absolute left-1/2 top-1/2 -ml-6 -mt-8 block aspect-[63/88] rounded-arena border border-primary/50 object-cover shadow-xl",
+                "absolute left-1/2 top-1/2 block aspect-[63/88] rounded-arena border border-primary/50 object-cover shadow-xl",
                 phase === "deal" ? "sim-anim-deal" : "sim-anim-return",
               )}
             />
