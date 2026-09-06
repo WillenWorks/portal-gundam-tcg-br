@@ -75,7 +75,7 @@ const ANGLE_EFFECT_SET = new Set([
 
 function normalizeKeywordToken(raw: string) {
   const cleaned = raw
-    .replace(/[【】<>\[\]]/g, "")
+    .replace(/[【】<>[\]]/g, "")
     .replace(/[･·]/g, " · ")
     .replace(/[_-]+/g, "-")
     .replace(/\s+/g, " ")

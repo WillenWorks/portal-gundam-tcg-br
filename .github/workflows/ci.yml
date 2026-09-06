@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: corepack pnpm exec prisma generate
+
+      - name: Type check
+        run: corepack pnpm run check:types
+
+      - name: Unit tests
+        run: corepack pnpm test
+
+      - name: Build
+        run: corepack pnpm run build
+
+      - name: Fuzz (regressão do motor — 100 partidas/par ST01-04)
+        run: corepack pnpm run gundam:fuzz -- --games=100

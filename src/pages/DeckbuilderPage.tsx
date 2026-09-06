@@ -1,6 +1,6 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Upload } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -17,11 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
+import { OPENING_HAND_SIZE, buildLevelCurve, hypergeometricAtLeastOne, lowLevelUnitStats } from "@/lib/deck-level-stats";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -55,20 +57,6 @@ function extractKeywordValue(effect: string, name: string): number | null {
 // seja, é um segundo sorteio independente da mesma população de N cartas, não um
 // redesenho parcial. P(pelo menos 1 sucesso) = 1 - P(0 sucessos), calculado direto por
 // produto de razões em vez de fatorial/combinação pra não estourar precisão com N até 50.
-const OPENING_HAND_SIZE = 5;
-function hypergeometricAtLeastOne(populationSize: number, successCount: number, drawSize: number): number {
-  if (populationSize <= 0 || successCount <= 0 || drawSize <= 0) return 0;
-  if (successCount >= populationSize) return 1;
-  const draws = Math.min(drawSize, populationSize);
-  let probabilityOfZero = 1;
-  for (let i = 0; i < draws; i++) {
-    const remainingFailures = populationSize - successCount - i;
-    if (remainingFailures < 0) return 1;
-    probabilityOfZero *= remainingFailures / (populationSize - i);
-  }
-  return 1 - probabilityOfZero;
-}
-
 function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntry[]) {
   const expandedAll = entries
     .map((entry) => {
@@ -280,11 +268,11 @@ function AltArtModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-4xl border-white/10 bg-slate-950 text-white">
         <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Galeria de arte</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">{modelLabel || "Carregando…"}</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">{modelLabel || "Carregando…"}</DialogTitle>
           </div>
         </div>
         {!prints ? (
@@ -327,7 +315,8 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
   const modelId = card.cardModelId || card.id;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
           {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
         </div>
@@ -401,10 +390,10 @@ function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onCl
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
         <div className="border-b border-white/10 pb-3">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Prévia de jogo</p>
-          <h3 className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</h3>
+          <DialogTitle className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</DialogTitle>
           <p className="mt-1 text-xs leading-5 text-slate-500">5 cartas sorteadas do deck principal embaralhado -- a mesma população do cálculo hipergeométrico ao lado. Sortear de novo é matematicamente idêntico a um mulligan (sorteio novo e independente).</p>
         </div>
         {population.length === 0 ? (
@@ -489,11 +478,11 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[85vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{title.label}</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">{title.value}</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">{title.value}</DialogTitle>
             <p className="mt-1 text-xs text-slate-500">{rows.length} carta(s) única(s) · {total} no total</p>
           </div>
           <div className="flex border border-white/15">
@@ -547,12 +536,12 @@ export default function DeckbuilderPage() {
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
-  const [groupMainByType, setGroupMainByType] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [openingHandOpen, setOpeningHandOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
   const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
+  const [handOddsBreakdownOpen, setHandOddsBreakdownOpen] = useState(false);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [generatingImage, setGeneratingImage] = useState(false);
@@ -840,6 +829,26 @@ export default function DeckbuilderPage() {
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
   const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
+
+  // AP/HP só existem em Unidades (ver CardRecord) -- por isso os histogramas abaixo
+  // filtram por type === "UNIT" antes de agrupar, senão as barras ficariam poluídas
+  // com pilotos/comandos que não têm esses atributos (inspirado nos histogramas
+  // "AP Range"/"HP Range" do ExBurst, que fazem o mesmo recorte).
+  const unitRows = useMemo(() => mainDeckRows.filter((row) => row.type === "UNIT"), [mainDeckRows]);
+  const apData = useMemo(() => {
+    const map = new Map<number, number>();
+    unitRows.forEach((row) => { if (typeof row.ap === "number") map.set(row.ap, (map.get(row.ap) ?? 0) + row.quantity); });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([ap, quantity]) => ({ ap: String(ap), quantity }));
+  }, [unitRows]);
+  const hpData = useMemo(() => {
+    const map = new Map<number, number>();
+    unitRows.forEach((row) => { if (typeof row.hp === "number") map.set(row.hp, (map.get(row.hp) ?? 0) + row.quantity); });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([hp, quantity]) => ({ hp: String(hp), quantity }));
+  }, [unitRows]);
+  // Curva de nível das Units (docs/38 §5) -- espelha a Curva de custo, mas em Lv. com 6+ agrupado.
+  const levelData = useMemo(() => buildLevelCurve(unitRows), [unitRows]);
+  // Chance de abrir com pelo menos 1 Unit de nível baixo (Lv.1-3) -- abertura sólida no turno 1.
+  const lowLevelStats = useMemo(() => lowLevelUnitStats(unitRows, stats.mainDeckCount), [unitRows, stats.mainDeckCount]);
   const topTraits = useMemo(() => Object.entries(stats.traitMap).sort((a, b) => b[1] - a[1]).slice(0, 3), [stats.traitMap]);
   const poolActiveFilters = useMemo(() => Object.values(poolFilters).filter(Boolean).length, [poolFilters]);
 
@@ -1402,6 +1411,52 @@ export default function DeckbuilderPage() {
           </CardContent>
         </Card>
 
+        {/* Estilo visual — logo abaixo da barra de salvamento (docs/38 §5): é configuração
+            do deck, fica perto de nome/Salvar. Recolhido por padrão pra não competir com a
+            decklist. Capa = as cartas escolhidas, divididas ao meio (ver FeaturedCoverImage). */}
+        <details className="panel-cut border surface-strong open:pb-5">
+          <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
+          <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
+            <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
+              <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
+                <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
+              </div>
+              {featuredCardIds.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {featuredCardIds.map((id) => {
+                    const card = featuredCardDetails[id];
+                    if (!card) return null;
+                    return (
+                      <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
+                        {card.name} <span className="text-primary">✕</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
+              <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
+                {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
+                {featuredResults.map((card) => {
+                  const active = featuredCardIds.includes(card.id);
+                  const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
+                  return (
+                    <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
+                      <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
+                      <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </details>
+
         {/* Abas — Montar é o padrão (pool + decklist), Estatísticas junta diagnóstico/arquétipo/recomendações/gráficos */}
         <div className="flex gap-2 border-b border-white/10">
           {([["montar", "Montar"], ["estatisticas", "Estatísticas"]] as const).map(([key, label]) => (
@@ -1533,52 +1588,6 @@ export default function DeckbuilderPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Estilo visual — opcional, recolhido por padrão pra não competir com a decklist.
-              Capa = as próprias cartas escolhidas, divididas ao meio (sem processar imagem,
-              não temos arte sem moldura/SAMPLE na base — ver FeaturedCoverImage). */}
-          <details className="panel-cut border surface-strong open:pb-5">
-            <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
-            <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
-              <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
-                <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
-                  <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
-                </div>
-                {featuredCardIds.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {featuredCardIds.map((id) => {
-                      const card = featuredCardDetails[id];
-                      if (!card) return null;
-                      return (
-                        <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
-                          {card.name} <span className="text-primary">✕</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
-                <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                  {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
-                  {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
-                  {featuredResults.map((card) => {
-                    const active = featuredCardIds.includes(card.id);
-                    const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
-                    return (
-                      <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
-                        <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
-                        <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </details>
         </div>
         </div>
         ) : (
@@ -1800,7 +1809,7 @@ export default function DeckbuilderPage() {
                 <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}><Eye className="mr-2 size-4" />Simular abertura</Button>
               </div>
               {stats.mainDeckCount > 0 ? (
-                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)</p>
                     <p className="mt-2 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}</p>
@@ -1811,15 +1820,48 @@ export default function DeckbuilderPage() {
                     <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%</p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.</p>
                   </div>
+                  <div className="panel-cut border border-accent/30 bg-accent/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit de nível baixo na abertura</p>
+                    <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(lowLevelStats.openingHand * 100)}%</p>
+                    <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 Unit Lv.1–3 ({lowLevelStats.lowLevelUnitCount} na lista), em 5 compradas.</p>
+                  </div>
                   <div className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan</p>
                     <p className="mt-2 text-lg heading-portal">{Math.round(handOdds.withMulligan * 100)}%</p>
-                    <p className="mt-2 text-sm text-muted-portal">Contando a chance de acertar na mão original ou na redistribuída.</p>
+                    <p className="mt-2 text-sm text-muted-portal">Custo baixo, contando a mão original ou a redistribuída.</p>
                   </div>
                 </div>
               ) : (
                 <p className="mt-6 text-sm text-muted-portal">Adicione cartas ao deck principal para calcular a chance de abertura.</p>
               )}
+              {stats.mainDeckCount > 0 ? (
+                <Collapsible open={handOddsBreakdownOpen} onOpenChange={setHandOddsBreakdownOpen} className="mt-5 border-t border-white/10 pt-4">
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary transition hover:opacity-80">
+                      <ChevronDown className={`size-3.5 transition-transform ${handOddsBreakdownOpen ? "rotate-180" : ""}`} />
+                      Ver detalhamento do cálculo
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-3">
+                    <p className="text-sm text-muted-portal">
+                      Cálculo hipergeométrico — probabilidade de comprar pelo menos 1 sucesso numa amostra sem reposição:
+                    </p>
+                    <div className="panel-cut border surface-strong p-4 font-mono text-xs text-soft">
+                      <p>P(pelo menos 1) = 1 − C(N−K, n) / C(N, n)</p>
+                      <p className="mt-2 text-slate-500">onde:</p>
+                      <p className="mt-1">N = {stats.mainDeckCount} <span className="text-slate-500">(cartas no deck principal)</span></p>
+                      <p>K = {stats.lowCostCount} <span className="text-slate-500">(cartas de custo ≤2, os "sucessos")</span></p>
+                      <p>n = {OPENING_HAND_SIZE} <span className="text-slate-500">(tamanho da mão comprada)</span></p>
+                      <p className="mt-2 border-t border-white/10 pt-2">P = 1 − C({stats.mainDeckCount - stats.lowCostCount}, {OPENING_HAND_SIZE}) / C({stats.mainDeckCount}, {OPENING_HAND_SIZE}) = <span className="text-primary">{(handOdds.openingHand * 100).toFixed(2)}%</span></p>
+                    </div>
+                    <p className="text-sm text-muted-portal">
+                      "Com 1 mulligan" trata cada tentativa como um sorteio independente da mesma população de {stats.mainDeckCount} cartas
+                      (mulligan oficial: devolve a mão, embaralha e compra 5 de novo — não é uma troca parcial). A chance de acertar em pelo
+                      menos uma das duas tentativas é 1 − (1 − P)² = <span className="text-primary">{(handOdds.withMulligan * 100).toFixed(2)}%</span>.
+                    </p>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -1840,6 +1882,64 @@ export default function DeckbuilderPage() {
               </div>
             </CardContent>
           </Card>
+
+          {unitRows.length > 0 ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 04</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de nível<InfoHint text="Distribuição das Units do deck principal por Lv. (Lv.6 e acima somam na faixa 6+). Clique numa barra pra ver as cartas daquele nível." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={levelData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="level" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("Nível", entry.level, (row) => row.type === "UNIT" && (entry.level === "6+" ? Number(row.level) >= 6 : String(row.level) === entry.level))} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de AP<InfoHint text="AP (poder de ataque) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele AP." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={apData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="ap" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("AP", entry.ap, (row) => row.type === "UNIT" && String(row.ap) === entry.ap)} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 06</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de HP<InfoHint text="HP (pontos de vida) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele HP." /></h3>
+                <div className="mt-6 h-[220px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart data={hpData}>
+                      <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="hp" tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="quantity" radius={0} fill="var(--color-quantity)" onClick={(entry: any) => openStatDetail("HP", entry.hp, (row) => row.type === "UNIT" && String(row.hp) === entry.hp)} className="cursor-pointer" />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          ) : null}
         </div>
         )}
       </div>
@@ -1849,10 +1949,10 @@ export default function DeckbuilderPage() {
       <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
       <OpeningHandModal open={openingHandOpen} onClose={() => setOpeningHandOpen(false)} mainDeckRows={mainDeckRows} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-        <DialogContent className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Importar decklist</p>
-            <h3 className="font-heading text-2xl uppercase heading-portal">Colar lista em texto</h3>
+            <DialogTitle className="font-heading text-2xl uppercase heading-portal">Colar lista em texto</DialogTitle>
             <p className="mt-2 text-sm text-soft">Uma carta por linha, formato "4x CODE" (mesmo que a exportação MSA/Exburst gera). Substitui o deck principal e o de recursos atuais — EX Base/Resource não são afetados.</p>
           </div>
           <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={10} placeholder={"4x ST01-001\n2x ST01-002\n..."} className="field-shell w-full resize-none p-3 font-mono text-xs" />
@@ -1863,11 +1963,11 @@ export default function DeckbuilderPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={Boolean(deckImagePreviewUrl)} onOpenChange={(open) => !open && closeDeckImagePreview()}>
-        <DialogContent className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
           <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pré-visualização</p>
-              <h3 className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</h3>
+              <DialogTitle className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</DialogTitle>
             </div>
           </div>
           {deckImagePreviewUrl ? <img src={deckImagePreviewUrl} alt="Prévia da decklist" className="max-h-[65vh] w-full overflow-auto border border-white/10 object-contain" /> : null}

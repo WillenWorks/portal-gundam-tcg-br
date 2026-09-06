@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Tutorial do Portal Gundam TCG BR — v1.0</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #1c2430;
+    background: #ffffff;
+    line-height: 1.55;
+    font-size: 12.5px;
+  }
+  .cover {
+    min-height: 240mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    background: linear-gradient(160deg, #0b1220 0%, #0e2a3a 55%, #0b1220 100%);
+    color: #eaf6ff;
+    padding: 40mm 20mm;
+    page-break-after: always;
+  }
+  .cover .eyebrow {
+    color: #38bdf8;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 40px;
+    line-height: 1.15;
+    margin: 0 0 10px 0;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .cover h1 .accent { color: #38bdf8; }
+  .cover p.sub {
+    font-size: 15px;
+    color: #b7c8d8;
+    max-width: 120mm;
+    margin-top: 8px;
+  }
+  .cover .footer-note {
+    margin-top: 60px;
+    font-size: 11px;
+    color: #7d93a8;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  section { page-break-inside: avoid; margin-bottom: 26px; }
+  h2 {
+    font-size: 20px;
+    color: #0b3a53;
+    border-bottom: 3px solid #38bdf8;
+    padding-bottom: 6px;
+    margin: 0 0 14px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  h3 {
+    font-size: 14.5px;
+    color: #0b3a53;
+    margin: 18px 0 6px 0;
+  }
+  p { margin: 0 0 10px 0; }
+  ul, ol { margin: 0 0 12px 0; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  .figure {
+    margin: 14px 0 20px 0;
+    page-break-inside: avoid;
+  }
+  .figure img {
+    max-width: 100%;
+    border: 1px solid #d6dee6;
+    border-radius: 4px;
+    display: block;
+  }
+  .figure figcaption {
+    font-size: 11px;
+    color: #55677a;
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .tip {
+    background: #eef7fb;
+    border-left: 4px solid #38bdf8;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 12px;
+    border-radius: 0 4px 4px 0;
+  }
+  .tip strong { color: #0b3a53; }
+  .warn {
+    background: #fff7e6;
+    border-left: 4px solid #f5a623;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 12px;
+    border-radius: 0 4px 4px 0;
+  }
+  code {
+    background: #eef1f4;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11.5px;
+  }
+  .toc { background: #f4f8fb; border: 1px solid #dde6ee; border-radius: 6px; padding: 16px 22px; }
+  .toc ol { margin: 0; }
+  .toc a { color: #0b3a53; text-decoration: none; }
+  .two-col { display: flex; gap: 16px; }
+  .two-col .figure { flex: 1; }
+  .stepnum {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0b3a53;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="eyebrow">Base Tática da Comunidade BR</div>
+  <h1>Tutorial do<br/><span class="accent">Portal Gundam<br/>TCG BR</span></h1>
+  <p class="sub">Guia completo pra jogar, montar decks e usar o Simulador — versão 1.0, feito com capturas de tela reais do site em produção.</p>
+  <div class="footer-note">portal-gundam-tcg-br.vercel.app · 2026</div>
+</div>
+
+<div class="toc">
+  <h2 style="border:none;margin-bottom:8px;">Neste tutorial</h2>
+  <ol>
+    <li><a href="#intro">O que é o Portal</a></li>
+    <li><a href="#conta">Criando sua conta</a></li>
+    <li><a href="#catalogo">Explorando o catálogo de cartas</a></li>
+    <li><a href="#deckbuilder">Montando seu primeiro deck</a></li>
+    <li><a href="#colecao">Sua coleção pessoal (Pastas)</a></li>
+    <li><a href="#simulador">Jogando no Simulador — passo a passo</a></li>
+    <li><a href="#dicas">Dicas finais e avisos da versão beta</a></li>
+  </ol>
+</div>
+
+<section id="intro">
+  <h2>1. O que é o Portal Gundam TCG BR</h2>
+  <p>
+    O Portal Gundam TCG BR é um ecossistema em português pra jogar, estudar e organizar o Gundam Card Game.
+    Ele reúne quatro áreas principais:
+  </p>
+  <ul>
+    <li><strong>Catálogo de cartas</strong> — busca e filtros sobre um banco extenso de cartas, com arte oficial.</li>
+    <li><strong>Deckbuilder</strong> — montagem de deck com validação das regras oficiais em tempo real.</li>
+    <li><strong>Coleção pessoal (Pastas)</strong> — organize as cartas físicas ou digitais que você tem.</li>
+    <li><strong>Simulador</strong> — jogue uma partida completa contra outra pessoa, direto do navegador (inclusive no celular).</li>
+  </ul>
+  <div class="figure">
+    <img src="assets/01-home.png" alt="Página inicial do Portal Gundam TCG BR" />
+    <figcaption>Fig. 1 — A página inicial (pública, não precisa de login pra ver).</figcaption>
+  </div>
+</section>
+
+<section id="conta">
+  <h2>2. Criando sua conta</h2>
+  <p>
+    No canto superior direito de qualquer página pública, clique em <strong>Criar conta</strong>. A tela de
+    login/cadastro é pública — o painel privado (dashboard) só existe depois que você entra.
+  </p>
+  <div class="two-col">
+    <div class="figure">
+      <img src="assets/02-login.png" alt="Tela de login" />
+      <figcaption>Fig. 2 — Tela de acesso: alterne entre "Login" e "Criar conta".</figcaption>
+    </div>
+    <div class="figure">
+      <img src="assets/04-cadastro-preenchido.png" alt="Formulário de cadastro preenchido" />
+      <figcaption>Fig. 3 — Cadastro: nome de exibição, email e senha. É isso, sem confirmação por email.</figcaption>
+    </div>
+  </div>
+  <p>Depois de clicar em <strong>Criar conta e entrar</strong>, você já cai direto na sua Área privada:</p>
+  <div class="figure">
+    <img src="assets/06-dashboard.png" alt="Dashboard / Minha Área" />
+    <figcaption>Fig. 4 — "Minha Área": atalhos pra Novo Deck, Pastas e Configurações, além dos seus números (decks salvos, cartas guardadas etc.).</figcaption>
+  </div>
+  <p>Você também pode entrar com sua conta Google direto na tela de login, se preferir não usar senha.</p>
+</section>
+
+<section id="catalogo">
+  <h2>3. Explorando o catálogo de cartas</h2>
+  <p>
+    O menu <strong>Database</strong> (ou <strong>Decks → Ver Database</strong>) abre o catálogo público — funciona mesmo
+    sem estar logado. Você pode buscar por nome, código, série ou trait, e filtrar por cor, tipo, keyword, raridade e coleção.
+    Os filtros ficam salvos no link, então dá pra compartilhar uma busca pronta com qualquer pessoa.
+  </p>
+  <div class="figure">
+    <img src="assets/07-catalogo.png" alt="Catálogo de cartas com filtros" />
+    <figcaption>Fig. 5 — Catálogo filtrado: busca por nome/código/série, mais filtros de cor, tipo, série, trait, keyword, raridade e set.</figcaption>
+  </div>
+  <p>Clicar em qualquer carta abre o detalhe completo: arte, texto de efeito, estatísticas e rulings relacionadas.</p>
+  <div class="figure">
+    <img src="assets/08-detalhe-carta.png" alt="Página de detalhe de uma carta" />
+    <figcaption>Fig. 6 — Detalhe de uma carta individual.</figcaption>
+  </div>
+</section>
+
+<section id="deckbuilder">
+  <h2>4. Montando seu primeiro deck</h2>
+  <p>
+    Com a conta logada, acesse <strong>Decks</strong> no menu lateral. Você vê a lista dos seus decks e o botão
+    <strong>Novo deck</strong>.
+  </p>
+  <div class="figure">
+    <img src="assets/09-lista-decks.png" alt="Lista de decks do usuário" />
+    <figcaption>Fig. 7 — Sua lista de decks (vazia pra uma conta nova).</figcaption>
+  </div>
+  <p>
+    O editor de deck mostra a pool de cartas à esquerda/centro (com busca e filtros por cor/tipo/série/trait) e o
+    deck em montagem à direita, já com a validação oficial em tempo real (50+10 cartas, limite de 2 cores, até 4 cópias
+    por carta, mais o Deck de Recursos separado e EX Base/EX Resource inclusos automaticamente).
+  </p>
+  <div class="figure">
+    <img src="assets/11-deckbuilder-com-cartas.png" alt="Editor de deck com cartas adicionadas" />
+    <figcaption>Fig. 8 — Editor de deck: pool de cartas à esquerda, resumo do deck (incluindo Deck de Recursos e EX Base/EX Resource) à direita.</figcaption>
+  </div>
+  <div class="tip">
+    <strong>Dica:</strong> passe o mouse sobre uma carta da pool pra ver o botão <strong>+</strong> de adicionar; o contador
+    de cópias e o limite (4 por carta, respeitando banimentos) aparecem direto na miniatura.
+  </div>
+</section>
+
+<section id="colecao">
+  <h2>5. Sua coleção pessoal (Pastas)</h2>
+  <p>
+    Em <strong>Pastas</strong> você organiza sua coleção física ou digital em "binders" — crie quantas pastas quiser
+    (por coleção, por trade, por deck etc.) e adicione cartas a cada uma.
+  </p>
+  <div class="figure">
+    <img src="assets/12-colecao-binders.png" alt="Lista de pastas (binders) da coleção pessoal" />
+    <figcaption>Fig. 9 — Suas pastas de coleção — clique em "Nova pasta" pra começar a primeira.</figcaption>
+  </div>
+</section>
+
+<section id="simulador">
+  <h2>6. Jogando no Simulador — passo a passo</h2>
+  <p>
+    O Simulador é uma partida <strong>completa</strong> de Gundam Card Game, jogada em tempo real contra outra pessoa,
+    com o motor de regras rodando no servidor (nada de "combinar por fora" quem ganhou uma disputa). Na versão 1.0 os
+    decks disponíveis são os dois starter decks oficiais, <strong>ST01</strong> e <strong>ST02</strong> — qualquer
+    combinação entre os dois jogadores é válida, inclusive os dois lados com o mesmo deck.
+  </p>
+
+  <h3><span class="stepnum">1</span>Entrando na fila</h3>
+  <p>
+    Acesse <strong>Simulador</strong> no menu, escolha seu deck (ST01 ou ST02) e clique em <strong>Entrar na fila</strong>.
+    Você é pareado automaticamente com o próximo jogador que entrar — sem escolher adversário nem assento.
+  </p>
+  <div class="two-col">
+    <div class="figure">
+      <img src="assets/13-simulador-lobby.png" alt="Lobby do simulador, escolha de deck" />
+      <figcaption>Fig. 10 — Lobby do Simulador: escolha ST01 ou ST02 e entre na fila.</figcaption>
+    </div>
+    <div class="figure">
+      <img src="assets/15-aguardando-oponente.png" alt="Tela de espera na fila" />
+      <figcaption>Fig. 11 — Enquanto ninguém mais entrou na fila, você espera aqui (pode cancelar a qualquer momento).</figcaption>
+    </div>
+  </div>
+  <p>Assim que outro jogador entra na fila, a partida abre pros dois automaticamente.</p>
+
+  <h3><span class="stepnum">2</span>Sorteio de iniciativa e mulligan</h3>
+  <p>
+    A partida começa revelando quem joga primeiro (sorteado). Em seguida, cada jogador vê sua mão inicial de 5 cartas
+    e decide, de forma independente: ficar com essa mão ou trocá-la por 5 novas (mulligan — só uma vez).
+  </p>
+  <div class="figure">
+    <img src="assets/18-tabuleiro.png" alt="Modal de decisão da mão inicial (mulligan)" />
+    <figcaption>Fig. 12 — Decida sua mão inicial: "Ficar com esta mão" ou "Trocar a mão (Mulligan)".</figcaption>
+  </div>
+
+  <h3><span class="stepnum">3</span>O tabuleiro</h3>
+  <p>
+    Depois do mulligan você já está na Fase Principal do turno 1. O tabuleiro mostra, de cima pra baixo: o campo do
+    oponente (espelhado), a linha de combate central e o seu próprio campo — com Base, Shields, Deck, Trash, Exílio,
+    Recursos e Battle Area sempre nas mesmas posições dos dois lados. Sua mão fica ancorada na base da tela.
+  </p>
+  <div class="figure">
+    <img src="assets/27-turno2.png" alt="Tabuleiro completo com cartas jogáveis na mão" />
+    <figcaption>Fig. 13 — Tabuleiro completo (turno 2): cartas jogáveis na mão ganham borda colorida e o ícone ▶ de "Jogar".</figcaption>
+  </div>
+  <div class="warn">
+    <strong>Atenção:</strong> um recurso recém-colocado entra <em>descansado</em> (rested) — só fica disponível pra pagar
+    custos a partir do seu próximo turno. É normal não ter nenhuma carta jogável logo no turno 1.
+  </div>
+
+  <h3><span class="stepnum">4</span>Inspecionando uma carta</h3>
+  <p>
+    Em telas largas (widescreen), passar o mouse sobre qualquer carta do campo ou da mão abre o inspetor lateral, com
+    a arte ampliada e todas as informações (nível, custo, AP/HP, traits, keywords e buffs ativos no momento).
+  </p>
+  <div class="figure">
+    <img src="assets/18-inspetor-lateral.png" alt="Inspetor lateral de carta" />
+    <figcaption>Fig. 14 — Inspetor lateral: hover numa carta pra ver os detalhes sem abrir modal nenhum.</figcaption>
+  </div>
+
+  <h3><span class="stepnum">5</span>Jogando uma carta (pagando o custo)</h3>
+  <p>
+    Clique no ícone ▶ "Jogar" no canto da carta. Se ela tiver custo em recursos, o jogo abre o modo de pagamento: clique
+    exatamente na quantidade de recursos ativos pedida (o próprio jogo mostra o progresso, tipo "0/2 recursos") e depois
+    em <strong>Confirmar</strong>.
+  </p>
+  <div class="figure">
+    <img src="assets/28-jogando-carta.png" alt="Pagando o custo de uma carta" />
+    <figcaption>Fig. 15 — Jogando um Unit: selecione os recursos pra pagar o custo e confirme.</figcaption>
+  </div>
+
+  <h3><span class="stepnum">6</span>Atacar, bloquear e ativar habilidades</h3>
+  <p>
+    Toda ação de campo (Atacar, Ativar habilidade, Blocker, Mirar) aparece como um botão no canto superior direito da
+    própria carta — sempre ao lado do ícone "Ver" (olho), que abre o zoom da carta a qualquer momento.
+  </p>
+
+  <h3><span class="stepnum">7</span>Acompanhando o jogo</h3>
+  <p>
+    O painel <strong>Ação atual</strong> (canto inferior direito no desktop, coluna à esquerda no celular) sempre mostra
+    o que fazer agora — sua vez, um custo pendente, um ataque em andamento, hora de bloquear etc. — com o botão certo
+    pra cada situação (Encerrar turno, Confirmar/Cancelar, Atacar o jogador, Não bloquear...).
+  </p>
+  <div class="figure">
+    <img src="assets/22-log-batalha.png" alt="Log de batalha aberto" />
+    <figcaption>Fig. 16 — O LOG (aba vertical na lateral direita) guarda o histórico completo da partida: compras, recursos, jogadas, combates.</figcaption>
+  </div>
+
+  <h3><span class="stepnum">8</span>Configurações e saindo da partida</h3>
+  <p>
+    O ícone de engrenagem (canto superior esquerdo) abre o menu de configurações da partida: ligar o auto-pass do
+    Passo de Ação, e o botão <strong>Desistir da partida</strong> — que encerra o duelo na hora e concede a vitória ao
+    oponente (pede confirmação antes).
+  </p>
+  <div class="figure">
+    <img src="assets/30-menu-config.png" alt="Menu de configurações da partida" />
+    <figcaption>Fig. 17 — Menu de configurações: auto-pass e desistir da partida.</figcaption>
+  </div>
+
+  <h3><span class="stepnum">9</span>Fim de jogo</h3>
+  <p>
+    Quando a partida termina (por dano, deck-out ou desistência), os dois jogadores veem uma tela de resultado com o
+    motivo — e são levados de volta ao site automaticamente depois de alguns segundos.
+  </p>
+  <div class="figure">
+    <img src="assets/31-fim-de-jogo-vitoria.png" alt="Tela de fim de jogo, vitória" />
+    <figcaption>Fig. 18 — Fim de jogo: motivo da vitória/derrota e contagem regressiva pra voltar ao site.</figcaption>
+  </div>
+
+  <h3>Jogando no celular</h3>
+  <p>
+    O Simulador funciona no navegador do celular — em modo <strong>paisagem</strong> (o app pede pra girar a tela se
+    você estiver em retrato). O tabuleiro, os botões de ação e o painel "Ação atual" se reorganizam automaticamente
+    pra caber numa tela pequena, mantendo tudo tocável.
+  </p>
+  <div class="figure">
+    <img src="assets/24-partida-mobile.png" alt="Simulador rodando em viewport mobile paisagem" />
+    <figcaption>Fig. 19 — O mesmo tabuleiro, agora no celular (paisagem): painel de ação vira uma coluna à esquerda.</figcaption>
+  </div>
+</section>
+
+<section id="dicas">
+  <h2>7. Dicas finais e avisos da versão beta</h2>
+  <ul>
+    <li>O Simulador está em fase de testes — hoje cobre os decks <strong>ST01</strong> e <strong>ST02</strong> ponta a
+      ponta (todas as fases de turno, etapas de combate e as 8 keywords oficiais). Mais decks devem chegar depois.</li>
+    <li>A fila de pareamento é por ordem de chegada: assim que 2 pessoas estão esperando, a partida começa na hora —
+      não existe "sala" nem escolha de adversário.</li>
+    <li>Se a conexão cair no meio de uma partida, ela <strong>não</strong> é perdida — reabrir o Simulador reconecta
+      você de volta pro jogo em andamento.</li>
+    <li>Ficar muito tempo sem responder (ausente) libera o oponente pra declarar vitória por W.O. depois de alguns
+      minutos — então não deixe o oponente esperando parado.</li>
+    <li>Encontrou um bug ou algo que não fez sentido? Use o ícone 🐞 (ao lado da engrenagem, dentro da partida) pra
+      reportar direto de onde você está.</li>
+  </ul>
+  <div class="tip">
+    <strong>Resumo rápido:</strong> Criar conta → escolher/montar um deck → entrar na fila do Simulador → decidir a mão
+    inicial → jogar cartas pagando o custo em recursos → atacar/bloquear/ativar habilidades pelos botões da própria
+    carta → encerrar o turno → repetir até o fim de jogo.
+  </div>
+</section>
+
+</body>
+</html>

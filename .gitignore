@@ -25,3 +25,34 @@ backups/
 *.njsproj
 *.sln
 *.sw?
+
+# Spartan AI config (contains API keys)
+.spartan/ai.env
+
+# --- Artefatos de trabalho com IA / orquestração (não sobem; ficam no disco) ---
+# Planejamento, prompts e relatórios de sessão ficam locais. Mudanças relevantes
+# vão pro CHANGELOG.md. Documentação técnica de manutenção fica em docs/00-37.
+.planning/
+.handoff/
+.memory/
+AI_GUIDE.md
+PLANEJAMENTO.md
+implementation_plan.md
+INICIAR_CLAUDE.md
+Instruções.txt
+Feedback.pdf
+Captura*.png
+captura*.png
+iniciar-paralelo.bat
+parar-paralelo.bat
+scripts/iniciar-paralelo.ps1
+scripts/parar-paralelo.ps1
+docs/38-plano-detalhado-layout-e-ux.md
+docs/39-plano-detalhado-websocket-multiplayer.md
+docs/40-plano-detalhado-traducao-rag-mcp.md
+docs/41-plano-detalhado-waves-st03-st04.md
+docs/42-execucao-frente2-traducao-ptbr.md
+docs/43-relatorio-estado-pos-v1.md
+docs/44-melhorias-rag-mcp-bot.md
+docs/45-cobertura-dano-e-condicionais.md
+docs/46-mcp-gundam-uso.md

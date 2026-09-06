@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { api, mapApiCard, type ApiBinder } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 type BinderRow = ReturnType<typeof mapApiCard> & { quantity: number };
 
@@ -31,7 +31,8 @@ function CardPreviewModal({ rows, index, onNavigate, onClose }: { rows: BinderRo
   const image = card.imageLargeUrl || card.imageMediumUrl || card.imageUrl;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+        <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="relative mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
           {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
           {rows.length > 1 ? (

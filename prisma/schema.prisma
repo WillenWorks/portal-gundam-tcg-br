@@ -129,6 +129,32 @@ model User {
   hostedEvents            HostedEvent[]
   deckSnapshots           DeckSnapshot[]
   hostedEventParticipants HostedEventParticipant[]
+  deckChangeLogsMade      TournamentEntryDeckChangeLog[]
+}
+
+// Temporada real de metagame -- agrupa um lançamento de coleção principal com os
+// produtos que entram na mesma "era" competitiva (ex: GD05 + os 4 starter decks que
+// saem depois dela, ainda dentro da mesma season). Só uma Season tem isCurrent=true
+// por vez (garantido em aplicação, ver PUT /api/seasons/:id/set-current); tudo que
+// não pertence à season atual passa a ser tratado como legado nas leituras de
+// metagame (StatsPage "Competitivo"). Também é o ponto de apoio pra um futuro
+// sistema de rotação (cartas legais só a partir de X): a relação já existe.
+model Season {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  startDate DateTime?
+  endDate   DateTime?
+  isCurrent Boolean   @default(false)
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  cardSets     CardSet[]
+  tournaments  Tournament[]
+  hostedEvents HostedEvent[]
+
+  @@index([isCurrent])
 }
 
 model CardSet {
@@ -150,12 +176,18 @@ model CardSet {
   sourceTitles          String[]
   starterDeckVariantOf  String?
   metadataJson          Json?
+  // Nullable de propósito: coleções cadastradas antes do modelo Season existir (ou
+  // ainda não classificadas pelo admin) ficam sem season até alguém revisar.
+  seasonId              String?
   isActive              Boolean   @default(true)
   deletedAt             DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  cards Card[]
+  season Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  cards  Card[]
+
+  @@index([seasonId])
 }
 
 model TaxonomyEntry {
@@ -430,7 +462,14 @@ model Tournament {
   country          String?
   city             String?
   format           String            @default("constructed")
+  // Legado: texto livre usado antes do model Season existir. Mantido só pra não
+  // perder o rótulo de torneios antigos já cadastrados -- não alimenta mais os
+  // filtros novos de metagame, que passam a usar seasonId. Ver seasonId abaixo.
   season           String?
+  // Season "de verdade" (relacional). Nullable porque torneios antigos não têm
+  // como ser reclassificados com certeza (ver pedido do usuário) -- só torneios
+  // novos, ou antigos revisados manualmente pelo admin, carregam esse vínculo.
+  seasonId         String?
   sourceUrl        String?
   participantCount Int?
   roundCount       Int?
@@ -442,7 +481,10 @@ model Tournament {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  entries TournamentEntry[]
+  seasonRef Season?           @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  entries   TournamentEntry[]
+
+  @@index([seasonId])
 }
 
 model TournamentEntry {
@@ -468,6 +510,31 @@ model TournamentEntry {
   deck         Deck?         @relation(fields: [deckId], references: [id], onDelete: SetNull)
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   deckSnapshot DeckSnapshot? @relation(fields: [deckSnapshotId], references: [id], onDelete: SetNull)
+
+  deckChangeLogs TournamentEntryDeckChangeLog[]
+}
+
+// Auditoria de troca de deck vinculado num TournamentEntry já registrado. O
+// TournamentEntry (report retroativo) não trava de forma rígida como o
+// HostedEventParticipant -- o admin pode corrigir um vínculo errado a qualquer
+// momento -- mas toda troca de deckId fica logada aqui (quem trocou, quando, qual
+// era o snapshot anterior) pra manter rastreabilidade de qualquer alteração no
+// "deck usado" de um resultado histórico. Ver pedido do usuário: "garantir que os
+// decks utilizados em eventos jamais sejam modificados, para manter log".
+model TournamentEntryDeckChangeLog {
+  id                     String   @id @default(cuid())
+  tournamentEntryId      String
+  previousDeckId         String?
+  previousDeckSnapshotId String?
+  nextDeckId             String?
+  nextDeckSnapshotId     String?
+  changedByUserId        String?
+  createdAt              DateTime @default(now())
+
+  tournamentEntry TournamentEntry @relation(fields: [tournamentEntryId], references: [id], onDelete: Cascade)
+  changedByUser   User?           @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tournamentEntryId])
 }
 
 // Evento "ao vivo" organizado por um usuário com a flag isHoster (ou um ADMIN),
@@ -481,6 +548,10 @@ model HostedEvent {
   name        String
   description String?           @db.Text
   format      String            @default("constructed")
+  // Season "de verdade" do evento -- opcional (organizador de loja pode não saber
+  // classificar na hora), mas é o que passa a alimentar os filtros de metagame por
+  // temporada, no lugar do texto livre que o Tournament legado usava.
+  seasonId    String?
   venueName   String?
   city        String?
   country     String?
@@ -494,12 +565,14 @@ model HostedEvent {
   updatedAt   DateTime          @updatedAt
 
   hoster       User                      @relation(fields: [hosterId], references: [id], onDelete: Cascade)
+  seasonRef    Season?                   @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   participants HostedEventParticipant[]
   rounds       HostedEventRound[]
 
   @@index([hosterId])
   @@index([status])
   @@index([dateStart])
+  @@index([seasonId])
 }
 
 // Fase B: participante de um HostedEvent -- sempre um usuário cadastrado (diferente
@@ -629,4 +702,29 @@ model Post {
   updatedAt   DateTime   @updatedAt
 
   author User @relation(fields: [authorId], references: [id])
+}
+
+/// Persistência da partida do Simulador (docs/23). O `matchStore` server-side
+/// continua usando um Map em memória como cache de trabalho — esta tabela é o
+/// write-through pra a partida SOBREVIVER a restart/deploy/idle do Render.
+/// `state` é o `GameState` real (server-side, nunca vai redigido pro cliente).
+/// Sem relação FK — é um blob de estado autocontido.
+model SimulatorMatch {
+  id             String    @id
+  state          Json
+  seats          Json
+  deckKeys       Json
+  version        Int       @default(1)
+  phase          String
+  turnDeadlineAt BigInt?
+  lastSeenAt     Json      @default("{}")
+  gameOver       Json?
+  /// set quando o `GameState` fica com `gameOver` != null — usado pelo índice
+  /// pra separar partidas vivas das terminadas (limpeza / futura hidratação em lote).
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([updatedAt])
+  @@index([finishedAt])
 }

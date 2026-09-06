@@ -27,12 +27,26 @@ import BinderPage from "@/pages/BinderPage";
 import BinderListPage from "@/pages/BinderListPage";
 import AuthPage from "@/pages/AuthPage";
 import TournamentsPage from "@/pages/TournamentsPage";
+import ChangelogPage from "@/pages/ChangelogPage";
 
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
+const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
+const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
+// Preview de layout cru do simulador (docs/38, Frente 4) — SEM auth. Liberada
+// quando: DEV local, OU `VITE_LAYOUT_PREVIEW=1` no build (staging/Railway).
+// Produção não seta a flag e `import.meta.env.DEV` é `false` estático → o
+// `import()` cai numa branch morta, o bundler remove o chunk e a rota não monta.
+// Serve pra iterar o visual e pra simular efeitos nos tutoriais de Regras.
+const LAYOUT_PREVIEW_ENABLED = import.meta.env.DEV || import.meta.env.VITE_LAYOUT_PREVIEW === "1";
+const SimulatorLayoutPreviewPage = lazy(() =>
+  LAYOUT_PREVIEW_ENABLED
+    ? import("@/pages/SimulatorLayoutPreviewPage")
+    : Promise.resolve({ default: () => null }),
+);
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -85,6 +99,7 @@ function AppRouter() {
         <Route path="/sets" component={CollectionsPage} />
         <Route path="/database" component={CardsPage} />
         <Route path="/eventos" component={TournamentsPage} />
+        <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
         <Route path="/tournaments" component={TournamentsPage} />
         <Route path="/cards/:id" component={CardDetailPage} />
@@ -95,6 +110,31 @@ function AppRouter() {
         <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
+            de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
+        <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
+            no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
+        <Route path="/simulador/partida/:matchId">
+          {(params) => (
+            <RequireAuth>
+              <LazyRoute label="Partida">
+                <SimulatorMatchPage matchId={params.matchId} />
+              </LazyRoute>
+            </RequireAuth>
+          )}
+        </Route>
+        {/* SEM auth — preview de layout cru (docs/38). DEV local ou
+            VITE_LAYOUT_PREVIEW=1 (staging). Não existe no build de produção. */}
+        {LAYOUT_PREVIEW_ENABLED && (
+          <Route path="/simulador/preview-layout">
+            {() => (
+              <LazyRoute label="Preview de Layout">
+                <SimulatorLayoutPreviewPage />
+              </LazyRoute>
+            )}
+          </Route>
+        )}
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>

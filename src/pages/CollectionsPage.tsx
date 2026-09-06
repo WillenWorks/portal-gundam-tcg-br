@@ -71,7 +71,7 @@ export default function CollectionsPage() {
                 </div>
 
                 <p className="text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
-                  {set.shortDescription || "Coleção preparada para ligar catálogo, detalhes de cartas, rulings e assets locais sem depender de placeholder genérico."}
+                  {set.shortDescription || "Coleção preparada para ligar catálogo, detalhes de cartas, regras e assets locais sem depender de placeholder genérico."}
                 </p>
 
                 <div className="flex flex-wrap gap-3">

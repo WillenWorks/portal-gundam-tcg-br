@@ -34,7 +34,7 @@ const modules = [
     icon: FileText,
     title: "Regras em pt-BR + original lado a lado",
     description:
-      "Guia de regras, FAQ, rulings e exemplos práticos para reduzir a barreira do inglês sem esconder a fonte oficial.",
+      "Guia de regras, FAQ e exemplos práticos para reduzir a barreira do inglês sem esconder a fonte oficial.",
   },
   {
     icon: Layers3,
@@ -220,7 +220,7 @@ export default function Home({ targetSection }: HomeProps) {
             <SectionHeading
               eyebrow="Missão"
               title="Um portal de uso constante, não só uma vitrine"
-              description="A ideia é reduzir a fricção do jogador brasileiro e criar recorrência: consultar uma ruling, montar um deck, analisar o meta, ver um vídeo e voltar no dia seguinte para comparar o próximo evento."
+              description="A ideia é reduzir a fricção do jogador brasileiro e criar recorrência: consultar uma regra, montar um deck, analisar o meta, ver um vídeo e voltar no dia seguinte para comparar o próximo evento."
             />
 
             <div className="grid gap-4 md:grid-cols-3">

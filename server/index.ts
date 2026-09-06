@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import crypto from "node:crypto";
+import { createServer } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
@@ -11,9 +12,93 @@ import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
+import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
+import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
+import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
+import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
+import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
+import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
+import {
+  applyAction,
+  claimAbandonWin,
+  createMatch,
+  getMatch,
+  joinMatch,
+  joinQueue,
+  leaveQueue,
+  listMatches,
+  loadMatch,
+  matchViewFor,
+  MatchError,
+  queueStatusFor,
+  reportSituation,
+  resignMatch,
+  seatFor,
+  setAutoPass,
+  setMatchPersistence,
+  subscribe,
+  touchPresence,
+  type StoredMatch,
+} from "../src/modules/simulator/server/matchStore.ts";
+import type { GameState } from "../src/modules/simulator/engine/types.ts";
+import { attachSimulatorSocket } from "./simulatorSocket.ts";
 
 const prisma = new PrismaClient();
+
+// docs/23 — persistência da partida do Simulador (write-through no Supabase).
+// O `matchStore` segue com o Map em memória como cache; isto é só o backup que
+// deixa a partida sobreviver a restart/deploy/idle do Render.
+setMatchPersistence({
+  async upsert(m: StoredMatch) {
+    const data = {
+      state: m.state as unknown as Prisma.InputJsonValue,
+      seats: m.seats as unknown as Prisma.InputJsonValue,
+      deckKeys: m.deckKeys as unknown as Prisma.InputJsonValue,
+      version: m.version,
+      phase: m.state.phase,
+      turnDeadlineAt: m.turnDeadlineAt != null ? BigInt(m.turnDeadlineAt) : null,
+      lastSeenAt: m.lastSeenAt as unknown as Prisma.InputJsonValue,
+      gameOver: m.state.gameOver ? (m.state.gameOver as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      finishedAt: m.state.gameOver ? new Date() : null,
+    } as unknown as Prisma.SimulatorMatchUpdateManyMutationInput;
+    // `persist()` no matchStore é fire-and-forget — dois writes rápidos podem
+    // resolver fora de ordem no Postgres. O guard `version <= m.version` garante
+    // que uma escrita mais antiga (version menor) nunca sobrescreva uma mais
+    // nova já gravada. `<=` (não `<`) porque ping/auto-pass persistem sem bumpar
+    // a version — esses reescrevem a mesma version de propósito.
+    const updated = await prisma.simulatorMatch.updateMany({
+      where: { id: m.id, version: { lte: m.version } },
+      data,
+    });
+    if (updated.count === 0) {
+      await prisma.simulatorMatch
+        .create({ data: { id: m.id, ...data } as unknown as Prisma.SimulatorMatchCreateInput })
+        .catch((e) => {
+          // P2002 = a linha já existe com version MAIOR (write fora de ordem) — ignora
+          if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") throw e;
+        });
+    }
+  },
+  async load(id: string): Promise<StoredMatch | null> {
+    const row = await prisma.simulatorMatch.findUnique({ where: { id } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      state: row.state as unknown as GameState,
+      seats: row.seats as StoredMatch["seats"],
+      deckKeys: row.deckKeys as StoredMatch["deckKeys"],
+      version: row.version,
+      turnDeadlineAt: row.turnDeadlineAt != null ? Number(row.turnDeadlineAt) : null,
+      lastSeenAt: row.lastSeenAt as StoredMatch["lastSeenAt"],
+    };
+  },
+  async remove(id: string) {
+    await prisma.simulatorMatch.delete({ where: { id } }).catch(() => {});
+  },
+});
+
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 8787);
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
@@ -123,6 +208,15 @@ type SetInput = {
   sourceTitles?: string[];
   starterDeckVariantOf?: string | null;
   metadataJson?: unknown;
+  seasonId?: string | null;
+};
+
+type SeasonInput = {
+  code: string;
+  name: string;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+  notes?: string | null;
 };
 
 type RulingImportInput = {
@@ -184,6 +278,28 @@ function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) 
     try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
   }
   next();
+}
+
+/**
+ * Como authRequired, mas aceita o token via query string (`?token=`) além do
+ * header `Authorization`. Só existe pro endpoint de SSE do simulador
+ * (`/api/simulator/matches/:id/stream`, docs/18 passo 4) — a API nativa
+ * `EventSource` do navegador não deixa mandar headers customizados, então
+ * não tem como usar `Authorization: Bearer` nela. Todas as outras rotas
+ * continuam exigindo o header normal; isso é uma exceção pontual, não uma
+ * segunda forma "oficial" de autenticar.
+ */
+function authFromQueryOrHeader(req: RequestWithUser, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken;
+  if (!token) return res.status(401).json({ error: "Token ausente." });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Token inválido." });
+  }
 }
 
 function roleRequired(roles: UserRole[]) {
@@ -486,6 +602,7 @@ async function upsertSets(items: SetInput[]) {
         sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
         starterDeckVariantOf: set.starterDeckVariantOf || null,
         metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        seasonId: set.seasonId || null,
         isActive: true,
         deletedAt: null,
       },
@@ -507,6 +624,7 @@ async function upsertSets(items: SetInput[]) {
         sourceTitles: Array.isArray(set.sourceTitles) ? set.sourceTitles.filter(Boolean) : [],
         starterDeckVariantOf: set.starterDeckVariantOf || null,
         metadataJson: (set.metadataJson as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        seasonId: set.seasonId || null,
       },
     });
     setMap.set(set.code, saved.id);
@@ -758,13 +876,21 @@ async function requireActiveUser(req: RequestWithUser, res: Response) {
 }
 
 async function ensureAdminSeed() {
+  // Bootstrap de conveniência: só cria a conta admin padrão se o banco ainda não tiver
+  // NENHUM admin (instalação nova). Uma vez que existe um admin real, esta função não
+  // mexe mais em nada — nem cria, nem atualiza senha de ninguém. Isso evita duas falhas
+  // que já aconteceram em produção: (1) colisão de unique constraint em `username` contra
+  // uma conta admin real já existente (derrubava a API inteira, já que o `app.listen()`
+  // só roda depois desta função resolver), e (2) reset silencioso da senha do admin real
+  // pra "admin123" (ou o valor de SEED_ADMIN_PASSWORD) a cada reinício do processo.
+  const existingAdminCount = await prisma.user.count({ where: { role: UserRole.ADMIN } });
+  if (existingAdminCount > 0) return;
+
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@gundambr.local";
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, isActive: true, preferredCardLanguage: CardLanguage.PT_BR, preferredTheme: "dark" },
-    create: {
+  await prisma.user.create({
+    data: {
       email,
       username: "admin-portal",
       displayName: "Administrador Portal BR",
@@ -1306,6 +1432,7 @@ app.put("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.ED
     sourceTitles: body.sourceTitles ?? existing.sourceTitles,
     starterDeckVariantOf: body.starterDeckVariantOf ?? existing.starterDeckVariantOf,
     metadataJson: body.metadataJson ?? existing.metadataJson,
+    seasonId: body.seasonId === undefined ? existing.seasonId : body.seasonId,
   };
   const setMap = await upsertSets([payload]);
   const updated = await prisma.cardSet.findUnique({ where: { id: setMap.get(payload.code)! } });
@@ -1317,6 +1444,80 @@ app.delete("/api/sets/:id", authRequired, roleRequired([UserRole.ADMIN]), async 
   const existing = await prisma.cardSet.findUnique({ where: { id } });
   if (!existing) return res.status(404).json({ error: "Coleção não encontrada." });
   await prisma.cardSet.update({ where: { id }, data: { isActive: false, deletedAt: new Date() } });
+  res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Season -- temporada de metagame de verdade (código/nome/datas + flag "atual"),
+ * relacionada a CardSet (uma season pode juntar mais de um lançamento, ex: GD05 +
+ * starters de setembro) e a Tournament/HostedEvent. Só uma Season deve ter
+ * isCurrent=true por vez -- garantido aqui em transação, não em constraint SQL.
+ * Tudo que não pertence à season atual é tratado como "legado" nas leituras de
+ * metagame (GET /api/stats/metagame), sem precisar mover ou apagar nada.
+ * ------------------------------------------------------------------------- */
+
+app.get("/api/seasons", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasons = await prisma.season.findMany({ orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }] });
+  res.json(seasons);
+});
+
+app.post("/api/seasons", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const body = req.body as SeasonInput;
+  if (!body.code?.trim() || !body.name?.trim()) return res.status(400).json({ error: "Código e nome são obrigatórios." });
+  const season = await prisma.season.create({
+    data: {
+      code: body.code.trim(),
+      name: body.name.trim(),
+      startDate: toDateOrNull(body.startDate),
+      endDate: toDateOrNull(body.endDate),
+      notes: body.notes || null,
+    },
+  });
+  res.status(201).json(season);
+});
+
+app.put("/api/seasons/:id", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  const body = req.body as Partial<SeasonInput>;
+  const season = await prisma.season.update({
+    where: { id },
+    data: {
+      code: body.code?.trim() || existing.code,
+      name: body.name?.trim() || existing.name,
+      startDate: body.startDate === undefined ? existing.startDate : toDateOrNull(body.startDate),
+      endDate: body.endDate === undefined ? existing.endDate : toDateOrNull(body.endDate),
+      notes: body.notes === undefined ? existing.notes : (body.notes || null),
+    },
+  });
+  res.json(season);
+});
+
+// Marca essa Season como a atual e desmarca qualquer outra -- ação explícita do
+// admin (ex: "saiu a GD06, agora é a season atual"). A partir daqui, tudo que
+// ficou associado a seasons anteriores passa a contar como legado nas leituras de
+// metagame, sem precisar mexer em nenhum registro histórico.
+app.put("/api/seasons/:id/set-current", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  const [, season] = await prisma.$transaction([
+    prisma.season.updateMany({ where: { isCurrent: true, id: { not: id } }, data: { isCurrent: false } }),
+    prisma.season.update({ where: { id }, data: { isCurrent: true } }),
+  ]);
+  res.json(season);
+});
+
+app.delete("/api/seasons/:id", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const id = String(req.params.id);
+  const existing = await prisma.season.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: "Temporada não encontrada." });
+  // Sem soft-delete aqui (Season não tem isActive/deletedAt, igual TournamentEntry) --
+  // CardSet/Tournament/HostedEvent vinculados ficam com seasonId=null (onDelete: SetNull),
+  // não perdem nenhum outro dado.
+  await prisma.season.delete({ where: { id } });
   res.status(204).send();
 });
 
@@ -1666,12 +1867,230 @@ app.get("/api/cards/:id", async (req, res) => {
   // aparece. Não depende de torneio, só do corpus de decks com visibility=PUBLIC.
   const printIds = model.prints.map((print) => print.id);
   const publicDeckCount = printIds.length
-    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { not: "token_reference" } } } } })
+    ? await prisma.deck.count({ where: { visibility: "PUBLIC", items: { some: { cardId: { in: printIds }, section: { notIn: NON_STATS_SECTIONS } } } } })
     : 0;
 
   const selectedPrint = (requestedPrintId && model.prints.find((p) => p.id === requestedPrintId)) || model.prints[0];
   const { prints, ...modelFields } = model;
   res.json({ ...modelFields, ...selectedPrint, id: model.id, printId: selectedPrint?.id ?? null, prints, publicDeckCount });
+});
+
+// Estatísticas competitivas por CardModel -- agrega os dois "informes" que o site
+// conhece (Tournament/TournamentEntry, retroativo, e HostedEvent/HostedEventParticipant
+// já finalizado) através de DeckSnapshotItem, que é o único ponto em comum entre eles
+// (ambos travam a decklist real numa DeckSnapshot no momento do resultado). Gated por
+// amostra mínima: cartas sem uso real relevante voltam hasEnoughData=false e o
+// frontend simplesmente não mostra a seção, pra não passar segurança falsa numa
+// amostra de 1 partida (ver pedido do usuário: "validável, confiável e útil").
+const CARD_STATS_MIN_MATCHES = 8;
+const CARD_STATS_MIN_DECKS = 3;
+
+app.get("/api/cards/:id/stats", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const id = String(req.params.id);
+
+  let model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
+  if (!model) {
+    const print = await prisma.card.findUnique({ where: { id }, select: { cardModelId: true } });
+    if (print?.cardModelId) model = await prisma.cardModel.findUnique({ where: { id: print.cardModelId }, select: { id: true } });
+  }
+  if (!model) return res.status(404).json({ error: "Carta não encontrada." });
+
+  const prints = await prisma.card.findMany({ where: { cardModelId: model.id }, select: { id: true } });
+  const printIds = prints.map((print) => print.id);
+
+  const emptyStats = { cardModelId: model.id, hasEnoughData: false, deckAppearances: 0, totalDecks: 0, usageRate: null as number | null, wins: 0, losses: 0, draws: 0, totalMatches: 0, winRate: null as number | null };
+  if (!printIds.length) return res.json(emptyStats);
+
+  // Snapshots (de qualquer um dos dois sistemas) que realmente incluem essa carta em
+  // alguma cópia jogável -- fora token de referência, mesmo critério do publicDeckCount acima.
+  const snapshotsWithCard = await prisma.deckSnapshotItem.findMany({
+    where: { cardId: { in: printIds }, section: { notIn: NON_STATS_SECTIONS } },
+    select: { deckSnapshotId: true },
+    distinct: ["deckSnapshotId"],
+  });
+  const snapshotIdsWithCard = snapshotsWithCard.map((item) => item.deckSnapshotId);
+
+  let wins = 0, losses = 0, draws = 0, deckAppearances = 0;
+
+  if (snapshotIdsWithCard.length) {
+    const reportEntries = await prisma.tournamentEntry.findMany({
+      where: { deckSnapshotId: { in: snapshotIdsWithCard } },
+      select: { wins: true, losses: true, draws: true },
+    });
+    for (const entry of reportEntries) {
+      deckAppearances += 1;
+      wins += entry.wins ?? 0;
+      losses += entry.losses ?? 0;
+      draws += entry.draws ?? 0;
+    }
+
+    // Eventos "ao vivo" só entram na conta quando já finalizados -- mesma regra usada
+    // em GET /api/hosted-events/public, pra não misturar resultado parcial/em andamento.
+    const hostedParticipants = await prisma.hostedEventParticipant.findMany({
+      where: { deckSnapshotId: { in: snapshotIdsWithCard }, event: { status: HostedEventStatus.COMPLETED } },
+      select: { matchesAsA: { select: { result: true } }, matchesAsB: { select: { result: true } } },
+    });
+    for (const participant of hostedParticipants) {
+      deckAppearances += 1;
+      for (const m of participant.matchesAsA) {
+        if (m.result === HostedEventMatchResult.PLAYER_A_WIN || m.result === HostedEventMatchResult.BYE) wins += 1;
+        else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) losses += 1;
+        else if (m.result === HostedEventMatchResult.DRAW) draws += 1;
+      }
+      for (const m of participant.matchesAsB) {
+        if (m.result === HostedEventMatchResult.PLAYER_B_WIN) wins += 1;
+        else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) losses += 1;
+        else if (m.result === HostedEventMatchResult.DRAW) draws += 1;
+      }
+    }
+  }
+
+  // Denominador da taxa de uso: todo deck já congelado num resultado real (report OU
+  // evento finalizado), tenha ou não essa carta -- não é "todo deck público do site".
+  const totalDecks = await prisma.deckSnapshot.count({
+    where: { OR: [{ tournamentEntries: { some: {} } }, { hostedEventParticipants: { some: { event: { status: HostedEventStatus.COMPLETED } } } }] },
+  });
+
+  const totalMatches = wins + losses + draws;
+  const hasEnoughData = totalMatches >= CARD_STATS_MIN_MATCHES || deckAppearances >= CARD_STATS_MIN_DECKS;
+
+  res.json({
+    cardModelId: model.id,
+    hasEnoughData,
+    deckAppearances,
+    totalDecks,
+    usageRate: totalDecks > 0 ? Number(((deckAppearances / totalDecks) * 100).toFixed(1)) : null,
+    wins,
+    losses,
+    draws,
+    totalMatches,
+    winRate: totalMatches > 0 ? Number(((wins / totalMatches) * 100).toFixed(1)) : null,
+  });
+});
+
+// Metagame público sourced SOMENTE de decks travados em resultado real (TournamentEntry
+// ou HostedEventParticipant já finalizado) via DeckSnapshot -- nunca de Deck/DeckItem
+// público, que pode ser editado ou apagado livremente pelo dono a qualquer momento (ver
+// pedido do usuário: "decks públicos... não são considerados", metagame vem só das
+// versões travadas no momento do registro em evento). seasonId aceita "current"
+// (default -- usa a Season com isCurrent=true), "all" (ignora o filtro, mistura tudo
+// incluindo legado) ou um id específico (permite consultar uma season legada isolada,
+// depois que ela deixar de ser a atual). setId filtra pra só contar snapshots com pelo
+// menos 1 carta daquela coleção; dentro desse recorte, topCards e colorDistribution
+// focam nas cartas da coleção filtrada (pedido explícito: "cartas mais usadas daquela
+// coleção" e "cores mais usadas"). colorCombos sempre reflete a identidade de cor do
+// deck inteiro (não só da coleção filtrada), pra continuar fazendo sentido como
+// "assinatura de arquétipo".
+app.get("/api/stats/metagame", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+
+  let seasonId: string | null = null;
+  let season: { id: string; code: string; name: string } | null = null;
+  if (seasonParam === "all") {
+    seasonId = null;
+  } else if (seasonParam === "current") {
+    const current = await prisma.season.findFirst({ where: { isCurrent: true } });
+    seasonId = current?.id ?? null;
+    season = current ? { id: current.id, code: current.code, name: current.name } : null;
+  } else {
+    const found = await prisma.season.findUnique({ where: { id: seasonParam } });
+    if (!found) return res.status(404).json({ error: "Temporada não encontrada." });
+    seasonId = found.id;
+    season = { id: found.id, code: found.code, name: found.name };
+  }
+
+  const [reportSnapshots, hostedSnapshots] = await Promise.all([
+    prisma.tournamentEntry.findMany({
+      where: { deckSnapshotId: { not: null }, tournament: { isActive: true, ...(seasonId ? { seasonId } : {}) } },
+      select: { deckSnapshotId: true },
+    }),
+    prisma.hostedEventParticipant.findMany({
+      where: { deckSnapshotId: { not: null }, event: { status: HostedEventStatus.COMPLETED, isActive: true, ...(seasonId ? { seasonId } : {}) } },
+      select: { deckSnapshotId: true },
+    }),
+  ]);
+  const snapshotIds = Array.from(
+    new Set([...reportSnapshots, ...hostedSnapshots].map((row) => row.deckSnapshotId).filter((v): v is string => Boolean(v))),
+  );
+
+  const empty = { season, setId: setId ?? null, totalDecks: 0, topCards: [] as unknown[], colorDistribution: [] as unknown[], colorCombos: [] as unknown[] };
+  if (!snapshotIds.length) return res.json(empty);
+
+  const items = await prisma.deckSnapshotItem.findMany({
+    where: { deckSnapshotId: { in: snapshotIds }, section: { notIn: NON_STATS_SECTIONS } },
+    select: {
+      deckSnapshotId: true,
+      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true, cardType: true } },
+    },
+  });
+
+  // Agrupa por snapshot pra poder aplicar o filtro de coleção (>=1 carta daquela
+  // coleção conta o deck inteiro pro recorte) antes de calcular presença "por deck"
+  // (não por cópia) em cada leitura.
+  const bySnapshot = new Map<string, typeof items>();
+  for (const item of items) {
+    const list = bySnapshot.get(item.deckSnapshotId) || [];
+    list.push(item);
+    bySnapshot.set(item.deckSnapshotId, list);
+  }
+
+  const eligibleSnapshotIds = setId
+    ? Array.from(bySnapshot.entries()).filter(([, list]) => list.some((entry) => entry.card?.setId === setId)).map(([id]) => id)
+    : Array.from(bySnapshot.keys());
+
+  const totalDecks = eligibleSnapshotIds.length;
+
+  const cardCount = new Map<string, { key: string; name: string; color: string | null; decks: number }>();
+  const colorCount = new Map<string, number>();
+  const comboCount = new Map<string, number>();
+
+  for (const snapshotId of eligibleSnapshotIds) {
+    const list = bySnapshot.get(snapshotId) || [];
+    const seenScopedCardKeys = new Set<string>();
+    const deckColorsScoped = new Set<string>();
+    const deckColorsFull = new Set<string>();
+    for (const item of list) {
+      const card = item.card;
+      if (!card) continue;
+      if (NON_STATS_CARD_TYPES.includes(card.cardType)) continue;
+      if (card.color) deckColorsFull.add(card.color);
+      if (setId && card.setId !== setId) continue;
+      if (card.color) deckColorsScoped.add(card.color);
+      const key = card.cardModelId || card.id;
+      if (seenScopedCardKeys.has(key)) continue;
+      seenScopedCardKeys.add(key);
+      const entry = cardCount.get(key) || { key, name: card.namePt || card.nameEn, color: card.color || null, decks: 0 };
+      entry.decks += 1;
+      cardCount.set(key, entry);
+    }
+    const colorsForDistribution = setId ? deckColorsScoped : deckColorsFull;
+    colorsForDistribution.forEach((color) => colorCount.set(color, (colorCount.get(color) ?? 0) + 1));
+    if (deckColorsFull.size) {
+      const combo = Array.from(deckColorsFull).sort().join(" + ");
+      comboCount.set(combo, (comboCount.get(combo) ?? 0) + 1);
+    }
+  }
+
+  const presenceRate = (decks: number) => (totalDecks > 0 ? Number(((decks / totalDecks) * 100).toFixed(1)) : null);
+
+  const topCards = Array.from(cardCount.values())
+    .sort((a, b) => b.decks - a.decks)
+    .slice(0, 10)
+    .map((entry) => ({ cardModelId: entry.key, name: entry.name, color: entry.color, appearances: entry.decks, presenceRate: presenceRate(entry.decks) }));
+
+  const colorDistribution = Array.from(colorCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([color, decks]) => ({ color, decks, presenceRate: presenceRate(decks) }));
+
+  const colorCombos = Array.from(comboCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([combo, decks]) => ({ combo, decks, presenceRate: presenceRate(decks) }));
+
+  res.json({ season, setId: setId ?? null, totalDecks, topCards, colorDistribution, colorCombos });
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
@@ -2018,6 +2437,7 @@ async function createDeckSnapshot(deckId: string) {
 // Fase B: deckSnapshot traz a decklist congelada no momento em que o deckId foi
 // vinculado, pra sobreviver a uma edição/exclusão do Deck original.
 const tournamentEntryInclude = {
+  seasonRef: true,
   entries: {
     include: {
       user: { select: { id: true, username: true, displayName: true } },
@@ -2086,31 +2506,53 @@ app.post("/api/tournaments/:id/entries", authRequired, roleRequired([UserRole.AD
   res.status(201).json(entry);
 });
 
-app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+app.put("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req: RequestWithUser, res) => {
   const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
   const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
   if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
   const body = req.body as { playerName?: string; placement?: number | null; wins?: number | null; losses?: number | null; draws?: number | null; archetype?: string | null; deckId?: string | null; userId?: string | null };
   const nextDeckId = body.deckId === undefined ? existing.deckId : (body.deckId || null);
+  const deckChanged = nextDeckId !== existing.deckId;
   // Fase B: só gera uma nova snapshot quando o deckId muda de fato -- evita recongelar
   // a decklist a cada edição de campo que não mexe no deck vinculado.
-  const deckSnapshotId = nextDeckId === existing.deckId
-    ? existing.deckSnapshotId
-    : (nextDeckId ? await createDeckSnapshot(nextDeckId) : null);
-  const entry = await prisma.tournamentEntry.update({
-    where: { id: entryId },
-    data: {
-      playerName: body.playerName?.trim() || existing.playerName,
-      placement: body.placement === undefined ? existing.placement : body.placement,
-      wins: body.wins === undefined ? existing.wins : body.wins,
-      losses: body.losses === undefined ? existing.losses : body.losses,
-      draws: body.draws === undefined ? existing.draws : body.draws,
-      archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
-      deckId: nextDeckId,
-      userId: body.userId === undefined ? existing.userId : (body.userId || null),
-      deckSnapshotId,
-    },
-  });
+  const deckSnapshotId = deckChanged
+    ? (nextDeckId ? await createDeckSnapshot(nextDeckId) : null)
+    : existing.deckSnapshotId;
+  // Fase D (pedido do usuário: "garantir que os decks utilizados em eventos jamais
+  // sejam modificados, para manter log"): TournamentEntry não trava de forma rígida
+  // como HostedEventParticipant (admin pode corrigir vínculo errado), mas toda troca
+  // de deckId fica auditada -- a snapshot antiga nunca é apagada nem sobrescrita, só
+  // deixa de ser a "atual" da entry, e o log abaixo preserva pra quem trocou e quando.
+  const [entry] = await prisma.$transaction([
+    prisma.tournamentEntry.update({
+      where: { id: entryId },
+      data: {
+        playerName: body.playerName?.trim() || existing.playerName,
+        placement: body.placement === undefined ? existing.placement : body.placement,
+        wins: body.wins === undefined ? existing.wins : body.wins,
+        losses: body.losses === undefined ? existing.losses : body.losses,
+        draws: body.draws === undefined ? existing.draws : body.draws,
+        archetype: body.archetype === undefined ? existing.archetype : (body.archetype?.trim() || null),
+        deckId: nextDeckId,
+        userId: body.userId === undefined ? existing.userId : (body.userId || null),
+        deckSnapshotId,
+      },
+    }),
+    ...(deckChanged
+      ? [
+          prisma.tournamentEntryDeckChangeLog.create({
+            data: {
+              tournamentEntryId: entryId,
+              previousDeckId: existing.deckId,
+              previousDeckSnapshotId: existing.deckSnapshotId,
+              nextDeckId,
+              nextDeckSnapshotId: deckSnapshotId,
+              changedByUserId: req.user!.userId,
+            },
+          }),
+        ]
+      : []),
+  ]);
   res.json(entry);
 });
 
@@ -2123,6 +2565,20 @@ app.delete("/api/tournaments/:id/entries/:entryId", authRequired, roleRequired([
   // com ciclo de vida próprio, então aqui é exclusão de verdade mesmo, não soft-delete.
   await prisma.tournamentEntry.delete({ where: { id: entryId } });
   res.status(204).send();
+});
+
+// Auditoria de troca de deck do TournamentEntry (ver comentário na rota PUT acima) --
+// só admin/editor enxerga, não é exposta na leitura pública de torneios.
+app.get("/api/tournaments/:id/entries/:entryId/deck-change-log", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
+  const { id: tournamentId, entryId } = req.params as { id: string; entryId: string };
+  const existing = await prisma.tournamentEntry.findFirst({ where: { id: entryId, tournamentId } });
+  if (!existing) return res.status(404).json({ error: "Participante não encontrado." });
+  const logs = await prisma.tournamentEntryDeckChangeLog.findMany({
+    where: { tournamentEntryId: entryId },
+    include: { changedByUser: { select: { id: true, username: true, displayName: true } } },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  res.json(logs);
 });
 
 /* ---------------------------------------------------------------------------
@@ -2157,6 +2613,7 @@ const hostedEventRoundInclude = {
 
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
+  seasonRef: true,
   participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
   rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
 } as const;
@@ -2190,6 +2647,32 @@ app.get("/api/hosted-events/admin", authRequired, roleRequired([UserRole.ADMIN])
   res.json(events);
 });
 
+// Pública (sem auth) -- eventos "ao vivo" já finalizados, pra aparecer na tela pública
+// de Eventos ao lado dos Tournament/TournamentEntry (report retroativo do admin). Até
+// aqui o HostedEvent nunca tinha rota pública nenhuma: um evento rodado pelo Hoster via
+// /organizador (participantes, rodadas, bye, status = COMPLETED) ficava invisível pra
+// qualquer visitante, mesmo já encerrado -- só aparecia se o admin *também* cadastrasse
+// um Tournament report separado pro mesmo evento. Precisa estar declarada ANTES de
+// GET /api/hosted-events/:id (Express casa rota literal antes de :id só se vier primeiro
+// no arquivo), senão "public" seria interpretado como um :id.
+app.get("/api/hosted-events/public", async (_req, res) => {
+  setPublicCache(res, 20, 90);
+  const events = await prisma.hostedEvent.findMany({
+    where: { isActive: true, status: HostedEventStatus.COMPLETED },
+    select: {
+      id: true, name: true, description: true, format: true, venueName: true, city: true, country: true,
+      dateStart: true, dateEnd: true, status: true, seasonId: true,
+      hoster: { select: { id: true, username: true, displayName: true } },
+      seasonRef: true,
+    },
+    orderBy: [{ dateStart: "desc" }],
+  });
+  const withStandings = await Promise.all(
+    events.map(async (event) => ({ ...event, standings: await computeHostedEventStandings(event.id) }))
+  );
+  res.json(withStandings);
+});
+
 app.get("/api/hosted-events/:id", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
   const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
   if (!event) return;
@@ -2200,7 +2683,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
   const body = req.body as {
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
-    maxPlayers?: number | null; status?: HostedEventStatus;
+    maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
   };
   if (!body.name?.trim()) return res.status(400).json({ error: "Nome do evento é obrigatório." });
   if (!body.dateStart) return res.status(400).json({ error: "Data/hora de início é obrigatória." });
@@ -2217,6 +2700,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
       dateEnd: body.dateEnd ? new Date(body.dateEnd) : null,
       maxPlayers: body.maxPlayers ?? null,
       status: body.status ?? HostedEventStatus.DRAFT,
+      seasonId: body.seasonId || null,
     },
     include: hostedEventOwnerInclude,
   });
@@ -2229,7 +2713,7 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
   const body = req.body as {
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
-    maxPlayers?: number | null; status?: HostedEventStatus;
+    maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
   };
   const event = await prisma.hostedEvent.update({
     where: { id: existing.id },
@@ -2244,6 +2728,7 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
       dateEnd: body.dateEnd === undefined ? existing.dateEnd : (body.dateEnd ? new Date(body.dateEnd) : null),
       maxPlayers: body.maxPlayers === undefined ? existing.maxPlayers : body.maxPlayers,
       status: body.status ?? existing.status,
+      seasonId: body.seasonId === undefined ? existing.seasonId : (body.seasonId || null),
     },
     include: hostedEventOwnerInclude,
   });
@@ -2344,12 +2829,12 @@ const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
 async function computeHostedEventStandings(eventId: string) {
   const participants = await prisma.hostedEventParticipant.findMany({
     where: { eventId },
-    select: { id: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    select: { id: true, deckSnapshotId: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
   });
-  type Row = { participantId: string; user: (typeof participants)[number]["user"]; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
+  type Row = { participantId: string; user: (typeof participants)[number]["user"]; hasDeck: boolean; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
   const stats = new Map<string, Row>();
   for (const p of participants) {
-    stats.set(p.id, { participantId: p.id, user: p.user, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
+    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
   }
   const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
   for (const m of matches) {
@@ -2751,23 +3236,277 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
   res.status(204).send();
 });
 
+/* ---------------------------------------------------------------------------
+ * Simulador — passo 4 (docs/18-simulador-fase1-motor-e-dsl.md). Wave
+ * original (2026-08-29): sandbox restrito a admin/hoster, criação/entrada
+ * manual de partida. Wave "Simulador Beta" (2026-08-30, decisão do Willen):
+ * aberto a QUALQUER usuário logado, 1 fila de matchmaking automática (cada
+ * jogador só escolhe o próprio deck — ST01/ST02, qualquer combinação — e
+ * espera; ao ter 2 na fila, a partida é criada e os 2 assentos preenchidos
+ * sozinhos), timer de 90s por decisão (o servidor age sozinho se estourar,
+ * ver `matchStore.ts`) e W.O. por abandono depois de 3min sem sinal de vida
+ * do oponente (nunca automático — só destrava um botão pro outro lado).
+ *
+ * As rotas de criar/entrar manualmente numa partida específica continuam
+ * existindo (usadas internamente pelo pareamento da fila, e como fallback
+ * de depuração), mas ficam `hosterRequired` — não fazem mais parte do fluxo
+ * normal de um jogador, que agora é só a fila.
+ *
+ * O motor real (`GameState`) nunca sai daqui — só a visão redigida de cada
+ * jogador mais os metadados de partida (timer/presença), via `MatchView`
+ * (ver `matchViewFor`, `src/modules/simulator/server/matchStore.ts`).
+ * ------------------------------------------------------------------------- */
+
+const SIMULATOR_DECKS: Record<string, () => DeckList> = {
+  ST01: buildSt01DeckList,
+  ST02: buildSt02DeckList,
+  ST03: buildSt03DeckList,
+  ST04: buildSt04DeckList,
+};
+
+function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
+  const key = typeof raw === "string" ? raw.toUpperCase() : "";
+  const build = SIMULATOR_DECKS[key];
+  return build ? { key, build } : null;
+}
+
+function matchSummary(match: ReturnType<typeof getMatch>) {
+  if (!match) return null;
+  return {
+    id: match.id,
+    seats: {
+      A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
+      B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
+    },
+    deckKeys: match.deckKeys,
+    turnNumber: match.state.turnNumber,
+    activePlayer: match.state.activePlayer,
+    phase: match.state.phase,
+    gameOver: match.state.gameOver,
+    createdAt: match.createdAt,
+    updatedAt: match.updatedAt,
+    version: match.version,
+  };
+}
+
+// --- Fila de matchmaking ("Simulador Beta") — qualquer usuário logado. ---
+
+app.post("/api/simulator/queue/join", authRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deck?: string };
+  const resolved = resolveDeckKey(body.deck);
+  if (!resolved) return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList: resolved.build() });
+  res.json(status);
+});
+
+app.post("/api/simulator/queue/leave", authRequired, (req: RequestWithUser, res) => {
+  leaveQueue(req.user!.userId);
+  res.json({ ok: true });
+});
+
+app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res) => {
+  res.json(queueStatusFor(req.user!.userId));
+});
+
+// --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
+
+app.get("/api/simulator/matches/:id", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.json({ seated: false, ...matchSummary(match) });
+  res.json({ seated: true, ...matchViewFor(match, seat) });
+});
+
+app.post("/api/simulator/matches/:id/actions", authRequired, async (req: RequestWithUser, res) => {
+  const action = req.body as PlayerAction;
+  if (!action || typeof action !== "object" || typeof action.kind !== "string") {
+    return res.status(400).json({ error: "Ação inválida." });
+  }
+  try {
+    await loadMatch(String(req.params.id));
+    const match = applyAction(String(req.params.id), req.user!.userId, action);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Heartbeat de presença — o cliente chama isso periodicamente enquanto a aba está visível
+// (ver SimulatorSandboxPage.tsx). Alimenta o W.O. por abandono (matchStore.claimAbandonWin).
+app.post("/api/simulator/matches/:id/ping", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = touchPresence(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4) — loga o
+// GameState real + histórico no console do servidor pra diagnóstico. Não persiste.
+app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestWithUser, res) => {
+  const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+  try {
+    await loadMatch(String(req.params.id));
+    res.json(reportSituation(String(req.params.id), req.user!.userId, note));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).
+app.post("/api/simulator/matches/:id/auto-pass", authRequired, async (req: RequestWithUser, res) => {
+  const value = (req.body as { value?: unknown })?.value;
+  if (typeof value !== "boolean") return res.status(400).json({ error: "`value` precisa ser booleano." });
+  try {
+    await loadMatch(String(req.params.id));
+    const match = setAutoPass(String(req.params.id), req.user!.userId, value);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+app.post("/api/simulator/matches/:id/claim-abandon-win", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = claimAbandonWin(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// "Sair da partida" -> desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch.
+app.post("/api/simulator/matches/:id/resign", authRequired, async (req: RequestWithUser, res) => {
+  try {
+    await loadMatch(String(req.params.id));
+    const match = resignMatch(String(req.params.id), req.user!.userId);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
+app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Entre num assento (join) antes de abrir o stream." });
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  const send = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // hint de reconexão pro EventSource nativo do cliente (o cliente também tem
+  // backoff próprio + resync REST, mas isso encurta o gap na maioria dos casos).
+  res.write("retry: 3000\n\n");
+  send("state", matchViewFor(match, seat));
+
+  const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
+  // mantém a conexão viva através de proxies que fecham stream ocioso
+  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
+});
+
+// --- Depuração/admin: criar ou entrar numa partida específica manualmente (fora da fila). ---
+
+app.get("/api/simulator/matches", authRequired, hosterRequired, (_req, res) => {
+  res.json(listMatches().map((m) => matchSummary(m)));
+});
+
+app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number };
+  const deckA = resolveDeckKey(body.deckA || "ST01");
+  const deckB = resolveDeckKey(body.deckB || "ST02");
+  if (!deckA || !deckB) {
+    return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
+  }
+  const match = createMatch({
+    deckA: deckA.build(),
+    deckB: deckB.build(),
+    firstPlayer: body.firstPlayer === "B" ? "B" : "A",
+    seed: typeof body.seed === "number" ? body.seed : undefined,
+  });
+  match.deckKeys = { A: deckA.key, B: deckB.key };
+  res.status(201).json(matchSummary(match));
+});
+
+app.post("/api/simulator/matches/:id/join", authRequired, hosterRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { seat?: PlayerId };
+  if (body.seat !== "A" && body.seat !== "B") return res.status(400).json({ error: "seat precisa ser 'A' ou 'B'." });
+  try {
+    const match = joinMatch(String(req.params.id), body.seat, { userId: req.user!.userId, displayName: req.user!.username });
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json({ seated: true, ...matchViewFor(match, seat) });
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
   res.status(500).json({ error: "Erro interno da API." });
 });
 
-ensureAdminSeed()
-  .then(async () => {
-    app.listen(PORT, () => {
-      console.log(`API pronta em http://localhost:${PORT}`);
-    });
-  })
-  .catch(async (error: any) => {
+async function boot() {
+  try {
+    await ensureAdminSeed();
+  } catch (error: any) {
+    // Schema realmente fora de sincronia com o banco é fatal de verdade — servir tráfego
+    // nesse estado só geraria erro 500 em cascata em qualquer rota, então aí sim vale
+    // derrubar o processo cedo com uma mensagem clara, sem chamar app.listen().
     if (error?.code === "P2022" || error?.code === "P2021") {
       console.error("Falha ao iniciar API: o schema do banco está defasado em relação ao prisma/schema.prisma.");
       console.error("Use `pnpm dev:api` para sincronizar automaticamente ou rode `pnpm prisma:push` antes do modo raw.");
+      await prisma.$disconnect();
+      process.exit(1);
     }
-    console.error("Falha ao iniciar API", error);
-    await prisma.$disconnect();
-    process.exit(1);
+    // Qualquer outra falha no bootstrap opcional do admin seed (ex.: um erro transitório
+    // de conexão) não deve derrubar a API inteira — só loga e segue pro app.listen() abaixo.
+    // Antes, qualquer rejeição aqui impedia o app.listen() de rodar, deixando a API inteira
+    // fora do ar (nenhum request chegava a receber resposta) sem nenhum sinal claro do motivo.
+    console.error("Aviso: ensureAdminSeed falhou, API vai subir mesmo assim.", error);
+  }
+  // Socket.io do simulador (Frente 5 / docs/39) — no MESMO HTTP server do Express,
+  // ao lado do SSE que continua funcionando. Contrato de eventos: docs/39 §2.2.
+  const httpServer = createServer(app);
+  attachSimulatorSocket(httpServer, {
+    jwtSecret: JWT_SECRET,
+    allowedOrigins,
+    resolveDeck: resolveDeckKey,
   });
+  httpServer.listen(PORT, () => {
+    console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);
+  });
+}
+
+boot();

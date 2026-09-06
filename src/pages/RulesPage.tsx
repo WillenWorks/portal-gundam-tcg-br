@@ -249,7 +249,7 @@ export default function RulesPage() {
 
         {searchMode ? (
           loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Buscando...</p> : !rules.length ? (
-            <Card className="panel-cut rounded-none surface-panel"><CardContent className="p-8 text-center text-sm text-muted-portal">Nenhuma ruling encontrada com esse filtro.</CardContent></Card>
+            <Card className="panel-cut rounded-none surface-panel"><CardContent className="p-8 text-center text-sm text-muted-portal">Nenhuma regra encontrada com esse filtro.</CardContent></Card>
           ) : (
             <div className="space-y-4">
               {rules.map((item) => (

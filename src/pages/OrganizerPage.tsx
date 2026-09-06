@@ -71,6 +71,8 @@ type HostedEvent = {
   dateEnd?: string | null;
   maxPlayers?: number | null;
   status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  seasonId?: string | null;
+  seasonRef?: { id: string; code: string; name: string } | null;
   participants?: HostedEventParticipant[];
   rounds?: HostedEventRound[];
 };
@@ -99,7 +101,7 @@ const MATCH_RESULT_LABEL: Record<HostedEventMatchResult, string> = {
   BYE: "Bye (folga)",
 };
 
-const emptyForm = { id: "", name: "", description: "", format: "constructed", venueName: "", city: "", country: "", dateStart: "", maxPlayers: "", status: "DRAFT" as HostedEvent["status"] };
+const emptyForm = { id: "", name: "", description: "", format: "constructed", venueName: "", city: "", country: "", dateStart: "", maxPlayers: "", status: "DRAFT" as HostedEvent["status"], seasonId: "" };
 
 function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -123,6 +125,7 @@ export default function OrganizerPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [seasons, setSeasons] = useState<Array<{ id: string; code: string; name: string; isCurrent: boolean }>>([]);
 
   // Fase B: painel de participantes -- aberto por evento, com busca de usuário,
   // adição/remoção e trava de deck (ver comentário no topo do arquivo).
@@ -160,7 +163,10 @@ export default function OrganizerPage() {
     }
   };
 
-  useEffect(() => { load().catch(() => undefined); }, []);
+  useEffect(() => {
+    load().catch(() => undefined);
+    api.listSeasons().then(setSeasons).catch(() => undefined);
+  }, []);
 
   const openModal = (event?: HostedEvent) => {
     setForm(event ? {
@@ -174,6 +180,7 @@ export default function OrganizerPage() {
       dateStart: toDatetimeLocalValue(event.dateStart),
       maxPlayers: event.maxPlayers != null ? String(event.maxPlayers) : "",
       status: event.status,
+      seasonId: event.seasonId || "",
     } : emptyForm);
     setModalOpen(true);
   };
@@ -191,6 +198,7 @@ export default function OrganizerPage() {
       dateStart: new Date(form.dateStart).toISOString(),
       maxPlayers: form.maxPlayers ? Number(form.maxPlayers) : null,
       status: form.status,
+      seasonId: form.seasonId || null,
     };
     try {
       if (form.id) await api.updateHostedEvent(form.id, payload);
@@ -483,7 +491,7 @@ export default function OrganizerPage() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>{form.id ? "Editar evento" : "Novo evento"}</DialogTitle>
           </DialogHeader>
@@ -503,6 +511,12 @@ export default function OrganizerPage() {
                 {(Object.keys(STATUS_LABEL) as HostedEvent["status"][]).map((status) => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}
               </select>
             </FieldBlock>
+            <FieldBlock label="Temporada">
+              <select value={form.seasonId} onChange={(e) => setForm((s) => ({ ...s, seasonId: e.target.value }))} className="field-shell h-10 px-3 text-sm">
+                <option value="">Sem temporada vinculada</option>
+                {seasons.map((season) => <option key={season.id} value={season.id}>{season.code} — {season.name}{season.isCurrent ? " (atual)" : ""}</option>)}
+              </select>
+            </FieldBlock>
           </div>
           <div className="flex gap-2 pt-2">
             <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveEvent}>{form.id ? "Salvar alterações" : "Criar evento"}</Button>
@@ -512,7 +526,7 @@ export default function OrganizerPage() {
       </Dialog>
 
       <Dialog open={Boolean(participantsEvent)} onOpenChange={(open) => { if (!open) setParticipantsEvent(null); }}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="panel-cut max-h-[85vh] max-w-2xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>Participantes{participantsEvent ? ` — ${participantsEvent.name}` : ""}</DialogTitle>
           </DialogHeader>
@@ -590,7 +604,7 @@ export default function OrganizerPage() {
       </Dialog>
 
       <Dialog open={Boolean(roundsEvent)} onOpenChange={(open) => { if (!open) setRoundsEvent(null); }}>
-        <DialogContent className="panel-cut max-h-[85vh] max-w-3xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
+        <DialogContent aria-describedby={undefined} className="panel-cut max-h-[85vh] max-w-3xl overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white">
           <DialogHeader>
             <DialogTitle>Rodadas & resultados{roundsEvent ? ` — ${roundsEvent.name}` : ""}</DialogTitle>
           </DialogHeader>

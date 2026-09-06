@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, CalendarDays, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
+import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Gamepad2, Globe, Home, Image, LogOut, Megaphone, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
 
 import logoWhite from "@/assets/gundam-logo-white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,8 +25,11 @@ type Crumb = { label: string; href?: string };
 const userNav = [
   { href: "/", label: "Página Inicial", icon: Globe },
   { href: "/portal", label: "Home", icon: Home },
+  { href: "/novidades", label: "Novidades", icon: Megaphone },
   { href: "/deckbuilder", label: "Decks", icon: Swords },
   { href: "/binders", label: "Pastas", icon: BookMarked },
+  // Simulador Beta -- aberto a qualquer usuário logado desde 2026-08-30 (era só admin/hoster antes), por isso mora no menu de todo mundo agora.
+  { href: "/simulador", label: "Simulador", icon: Gamepad2 },
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -39,9 +42,10 @@ const adminNav = [
   { href: "/admin/users", label: "Usuários", icon: Users },
   { href: "/admin/cards", label: "Cartas", icon: PanelsTopLeft },
   { href: "/admin/collections", label: "Coleções", icon: BookMarked },
+  { href: "/admin/seasons", label: "Temporadas", icon: CalendarRange },
   { href: "/admin/media", label: "Mídias", icon: Image },
   { href: "/admin/traits", label: "Traits", icon: Tags },
-  { href: "/admin/rulings", label: "Rulings", icon: ScrollText },
+  { href: "/admin/rulings", label: "Regras", icon: ScrollText },
   { href: "/admin/events", label: "Eventos", icon: CalendarDays },
 ] as const;
 
@@ -54,11 +58,13 @@ const titles: Record<string, string> = {
   "/admin/users": "Gestão de usuários",
   "/admin/cards": "Cadastro de cartas",
   "/admin/collections": "Coleções",
+  "/admin/seasons": "Temporadas",
   "/admin/media": "Mídias",
   "/admin/traits": "Traits",
-  "/admin/rulings": "Rulings",
+  "/admin/rulings": "Regras",
   "/admin/events": "Eventos",
   "/organizador": "Meus eventos",
+  "/simulador": "Simulador",
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {

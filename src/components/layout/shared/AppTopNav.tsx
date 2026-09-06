@@ -11,13 +11,15 @@ import { cn } from "@/lib/utils";
 
 export const publicTopNav = [
   { href: "/", label: "Home" },
+  { href: "/novidades", label: "Novidades" },
   { href: "/decks", label: "Decks" },
   { href: "/database", label: "Database", children: [
     { href: "/database", label: "Cartas" },
     { href: "/sets", label: "Coleções" },
   ] },
   { href: "/eventos", label: "Eventos" },
-  { href: "/rules", label: "Rulings" },
+  { href: "/stats", label: "Estatísticas" },
+  { href: "/rules", label: "Regras" },
 ] as const;
 
 function isActiveRoute(currentPath: string, href: string) {
@@ -64,7 +66,7 @@ function NavDropdown({ item, active, currentPath }: { item: (typeof publicTopNav
 }
 
 export function AppTopNav() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);

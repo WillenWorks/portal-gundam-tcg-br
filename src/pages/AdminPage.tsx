@@ -1,6 +1,6 @@
 /* Admin v9.4 — parserização semântica + validação robusta + modal redesenhada. */
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, RotateCcw, Search, Star, Trash2, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, History, Pencil, Plus, RotateCcw, Search, Star, Trash2, Upload, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
  
@@ -98,10 +98,11 @@ const RELATION_TYPE_HINTS: Record<string, string> = {
   STORY_RELATED: "Sem direção fixa. Aparecem juntas na narrativa do anime/mangá (rivais, aliados, família) mas sem nenhuma mecânica de jogo em comum. Última opção — prefira um tipo mais específico se ele se aplicar.",
 };
  
-const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "" };
+const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: "", coverImage: "", galleryImages: [] as string[], releaseDate: "", shortDescription: "", setType: "BOOSTER_PACK", productCodeAlt: "", msrpUsd: "", contentSummaryPt: "", contentSummaryEn: "", raritySummary: "", productNotes: "", sourceTitles: "", seasonId: "" };
+const emptySeasonForm = { id: "", code: "", name: "", startDate: "", endDate: "", notes: "" };
 const emptyTaxonomyForm = { id: "", kind: "TRAIT" as "TRAIT" | "SOURCE_TITLE", name: "", description: "", coverImage: "", galleryImages: [] as string[], officialUrl: "" };
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
-const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
+const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", seasonId: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
 const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "", userId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
 const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
@@ -159,7 +160,12 @@ function mapCardArts(card?: AdminCard) {
 function mapSetToForm(set?: AdminSet) {
   if (!set) return emptySetForm;
   const galleryImages = Array.isArray(set.metadataJson?.galleryImages) ? set.metadataJson.galleryImages.filter((item: unknown) => typeof item === "string") : (set.coverImage ? [set.coverImage] : []);
-  return { id: set.id, code: set.code, nameEn: set.nameEn || "", namePt: set.namePt || "", officialUrl: set.officialUrl || "", coverImage: set.coverImage || galleryImages[0] || "", galleryImages, releaseDate: set.releaseDate ? new Date(set.releaseDate).toISOString().slice(0, 10) : "", shortDescription: set.shortDescription || "", setType: set.setType || "BOOSTER_PACK", productCodeAlt: set.productCodeAlt || "", msrpUsd: set.msrpUsd != null ? String(set.msrpUsd) : "", contentSummaryPt: set.contentSummaryPt || "", contentSummaryEn: set.contentSummaryEn || "", raritySummary: set.raritySummary || "", productNotes: set.productNotes || "", sourceTitles: arrayToCsv(set.sourceTitles) };
+  return { id: set.id, code: set.code, nameEn: set.nameEn || "", namePt: set.namePt || "", officialUrl: set.officialUrl || "", coverImage: set.coverImage || galleryImages[0] || "", galleryImages, releaseDate: set.releaseDate ? new Date(set.releaseDate).toISOString().slice(0, 10) : "", shortDescription: set.shortDescription || "", setType: set.setType || "BOOSTER_PACK", productCodeAlt: set.productCodeAlt || "", msrpUsd: set.msrpUsd != null ? String(set.msrpUsd) : "", contentSummaryPt: set.contentSummaryPt || "", contentSummaryEn: set.contentSummaryEn || "", raritySummary: set.raritySummary || "", productNotes: set.productNotes || "", sourceTitles: arrayToCsv(set.sourceTitles), seasonId: set.seasonId || "" };
+}
+
+function mapSeasonToForm(season?: any) {
+  if (!season) return emptySeasonForm;
+  return { id: season.id, code: season.code || "", name: season.name || "", startDate: season.startDate ? new Date(season.startDate).toISOString().slice(0, 10) : "", endDate: season.endDate ? new Date(season.endDate).toISOString().slice(0, 10) : "", notes: season.notes || "" };
 }
 
 function mapTaxonomyToForm(entry?: AdminTaxonomy) {
@@ -255,7 +261,7 @@ export default function AdminPage() {
     const aliases: Record<string, string> = { collections: "sets", traits: "taxonomies", media: "taxonomies", rulings: "rules", events: "events" };
     return aliases[value] || value || "dashboard";
   }, [location]);
-  const sectionLabel = useMemo(() => ({ dashboard: "Visão geral", users: "Usuários", cards: "Cartas", sets: "Coleções", taxonomies: location.includes("/admin/media") ? "Mídias" : "Traits", rules: "Rulings", events: "Eventos" }[adminSection] || "Gestão"), [adminSection, location]);
+  const sectionLabel = useMemo(() => ({ dashboard: "Visão geral", users: "Usuários", cards: "Cartas", sets: "Coleções", seasons: "Temporadas", taxonomies: location.includes("/admin/media") ? "Mídias" : "Traits", rules: "Regras", events: "Eventos" }[adminSection] || "Gestão"), [adminSection, location]);
   const isMediaManagement = location.split("?")[0] === "/admin/media";
   const urlCardQuery = useMemo<CardCatalogQuery>(() => {
     const params = new URLSearchParams(location.split("?")[1] || "");
@@ -306,8 +312,26 @@ export default function AdminPage() {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
   const [editingEntryId, setEditingEntryId] = useState("");
+  // Auditoria de troca de deck do TournamentEntry (ver comentário em server/index.ts na
+  // rota PUT /api/tournaments/:id/entries/:entryId) -- carregado sob demanda, só quando
+  // o admin pede pra ver, pra não disparar N requisições extras por torneio aberto.
+  const [deckLogEntryId, setDeckLogEntryId] = useState("");
+  const [deckLogEntries, setDeckLogEntries] = useState<any[]>([]);
+  const [deckLogLoading, setDeckLogLoading] = useState(false);
+  const toggleDeckChangeLog = async (tournamentId: string, entryId: string) => {
+    if (deckLogEntryId === entryId) { setDeckLogEntryId(""); return; }
+    setDeckLogEntryId(entryId);
+    setDeckLogLoading(true);
+    try {
+      setDeckLogEntries(await api.getTournamentEntryDeckChangeLog(tournamentId, entryId));
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao carregar histórico de troca de deck.");
+    } finally { setDeckLogLoading(false); }
+  };
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomy[]>([]);
   const [setForm, setSetForm] = useState(emptySetForm);
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [seasonForm, setSeasonForm] = useState(emptySeasonForm);
   const [cardForm, setCardForm] = useState<CardForm>(emptyCardForm);
   const [ruleForm, setRuleForm] = useState(emptyRuleForm);
   const [taxonomyForm, setTaxonomyForm] = useState(emptyTaxonomyForm);
@@ -355,8 +379,8 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listAdminSets(), api.listRulings(), api.listTaxonomies(), api.listAdminTaxonomies(), api.listTournaments(), api.getDeckLegalityData(), api.listPublicDecks()]);
-      const [usersResult, setsResult, adminSetsResult, rulesResult, taxonomiesResult, adminTaxonomiesResult, tournamentsResult, legalityResult, publicDecksResult] = results;
+      const results = await Promise.allSettled([api.listAdminUsers(), api.listSets(), api.listAdminSets(), api.listRulings(), api.listTaxonomies(), api.listAdminTaxonomies(), api.listTournaments(), api.getDeckLegalityData(), api.listPublicDecks(), api.listSeasons()]);
+      const [usersResult, setsResult, adminSetsResult, rulesResult, taxonomiesResult, adminTaxonomiesResult, tournamentsResult, legalityResult, publicDecksResult, seasonsResult] = results;
       if (usersResult.status === "fulfilled") setUsers(usersResult.value);
       if (setsResult.status === "fulfilled") setSets(setsResult.value);
       if (adminSetsResult.status === "fulfilled") setAdminSets(adminSetsResult.value);
@@ -366,8 +390,9 @@ export default function AdminPage() {
       if (tournamentsResult.status === "fulfilled") setTournaments(tournamentsResult.value);
       if (legalityResult.status === "fulfilled") setBanGroups(legalityResult.value.banGroups);
       if (publicDecksResult.status === "fulfilled") setPublicDecks(publicDecksResult.value);
+      if (seasonsResult.status === "fulfilled") setSeasons(seasonsResult.value);
 
-      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "coleções (gestão)", "rulings", "taxonomias", "taxonomias (gestão)", "eventos", "grupos de banimento", "decks públicos"][index] : null).filter(Boolean);
+      const failedResources = results.map((result, index) => result.status === "rejected" ? ["usuários", "coleções", "coleções (gestão)", "regras", "taxonomias", "taxonomias (gestão)", "eventos", "grupos de banimento", "decks públicos", "temporadas"][index] : null).filter(Boolean);
       if (failedResources.length) {
         const firstError = results.find((result): result is PromiseRejectedResult => result.status === "rejected")?.reason;
         toast.error(`Não foi possível carregar: ${failedResources.join(", ")}. ${firstError?.message || "Verifique a API e o banco."}`);
@@ -596,7 +621,7 @@ export default function AdminPage() {
     if (!setForm.nameEn.trim()) { toast.error("Nome em inglês é obrigatório."); return; }
     setSaving(true);
     try {
-      const payload = { code: setForm.code.trim(), nameEn: setForm.nameEn.trim(), namePt: setForm.namePt.trim() || null, officialUrl: setForm.officialUrl.trim() || null, coverImage: setForm.coverImage.trim() || setForm.galleryImages[0] || null, metadataJson: { galleryImages: setForm.galleryImages.filter(Boolean) }, releaseDate: setForm.releaseDate ? new Date(`${setForm.releaseDate}T00:00:00.000Z`).toISOString() : null, shortDescription: setForm.shortDescription.trim() || null, setType: setForm.setType, productCodeAlt: setForm.productCodeAlt.trim() || null, msrpUsd: setForm.msrpUsd ? Number(setForm.msrpUsd) : null, contentSummaryPt: setForm.contentSummaryPt.trim() || null, contentSummaryEn: setForm.contentSummaryEn.trim() || null, raritySummary: setForm.raritySummary.trim() || null, productNotes: setForm.productNotes.trim() || null, sourceTitles: csvToArray(setForm.sourceTitles) };
+      const payload = { code: setForm.code.trim(), nameEn: setForm.nameEn.trim(), namePt: setForm.namePt.trim() || null, officialUrl: setForm.officialUrl.trim() || null, coverImage: setForm.coverImage.trim() || setForm.galleryImages[0] || null, metadataJson: { galleryImages: setForm.galleryImages.filter(Boolean) }, releaseDate: setForm.releaseDate ? new Date(`${setForm.releaseDate}T00:00:00.000Z`).toISOString() : null, shortDescription: setForm.shortDescription.trim() || null, setType: setForm.setType, productCodeAlt: setForm.productCodeAlt.trim() || null, msrpUsd: setForm.msrpUsd ? Number(setForm.msrpUsd) : null, contentSummaryPt: setForm.contentSummaryPt.trim() || null, contentSummaryEn: setForm.contentSummaryEn.trim() || null, raritySummary: setForm.raritySummary.trim() || null, productNotes: setForm.productNotes.trim() || null, sourceTitles: csvToArray(setForm.sourceTitles), seasonId: setForm.seasonId || null };
       if (setForm.id) await api.updateSet(setForm.id, payload); else await api.createSet(payload);
       setSetModalOpen(false); setSetForm(emptySetForm); await loadAll(); await loadAdminCards();
       toast.success(setForm.id ? "Coleção atualizada." : "Coleção criada.");
@@ -604,7 +629,53 @@ export default function AdminPage() {
       toast.error(err?.message || "Erro ao salvar coleção.");
     } finally { setSaving(false); }
   };
- 
+
+  const saveSeason = async () => {
+    if (!seasonForm.code.trim()) { toast.error("Código da temporada é obrigatório."); return; }
+    if (!seasonForm.name.trim()) { toast.error("Nome da temporada é obrigatório."); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        code: seasonForm.code.trim(),
+        name: seasonForm.name.trim(),
+        startDate: seasonForm.startDate ? new Date(`${seasonForm.startDate}T00:00:00.000Z`).toISOString() : null,
+        endDate: seasonForm.endDate ? new Date(`${seasonForm.endDate}T00:00:00.000Z`).toISOString() : null,
+        notes: seasonForm.notes.trim() || null,
+      };
+      if (seasonForm.id) await api.updateSeason(seasonForm.id, payload); else await api.createSeason(payload);
+      setSeasonForm(emptySeasonForm);
+      await loadAll();
+      toast.success(seasonForm.id ? "Temporada atualizada." : "Temporada criada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar temporada.");
+    } finally { setSaving(false); }
+  };
+
+  // Marca uma season como "atual" -- tudo que ficar fora dela passa a contar como
+  // legado nas leituras de metagame (GET /api/stats/metagame usa isCurrent=true por
+  // padrão). Ação deliberada do admin, não automática por data de lançamento.
+  const activateSeason = async (id: string) => {
+    setSaving(true);
+    try {
+      await api.setCurrentSeason(id);
+      await loadAll();
+      toast.success("Temporada marcada como atual. O que ficou fora dela agora é legado nas leituras de metagame.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao ativar temporada.");
+    } finally { setSaving(false); }
+  };
+
+  const removeSeason = async (id: string) => {
+    setSaving(true);
+    try {
+      await api.deleteSeason(id);
+      await loadAll();
+      toast.success("Temporada removida. Coleções e eventos vinculados ficam sem temporada, sem perder nenhum outro dado.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao remover temporada.");
+    } finally { setSaving(false); }
+  };
+
   const saveCard = async () => {
     if (!cardForm.code.trim()) { toast.error("Código da carta é obrigatório."); return; }
     if (!cardForm.nameEn.trim()) { toast.error("Nome em inglês é obrigatório."); return; }
@@ -673,7 +744,7 @@ export default function AdminPage() {
   const openTournamentForm = (tournament?: any) => {
     setTournamentForm(tournament ? {
       id: tournament.id, name: tournament.name || "", organizer: tournament.organizer || "", country: tournament.country || "", city: tournament.city || "",
-      format: tournament.format || "constructed", season: tournament.season || "", sourceUrl: tournament.sourceUrl || "",
+      format: tournament.format || "constructed", season: tournament.season || "", seasonId: tournament.seasonId || "", sourceUrl: tournament.sourceUrl || "",
       participantCount: tournament.participantCount != null ? String(tournament.participantCount) : "",
       roundCount: tournament.roundCount != null ? String(tournament.roundCount) : "",
       topCutSize: tournament.topCutSize != null ? String(tournament.topCutSize) : "",
@@ -685,7 +756,7 @@ export default function AdminPage() {
     if (!tournamentForm.name.trim()) { toast.error("Nome do evento é obrigatório."); return; }
     const payload = {
       name: tournamentForm.name.trim(), organizer: tournamentForm.organizer.trim() || null, country: tournamentForm.country.trim() || null, city: tournamentForm.city.trim() || null,
-      format: tournamentForm.format || "constructed", season: tournamentForm.season.trim() || null, sourceUrl: tournamentForm.sourceUrl.trim() || null,
+      format: tournamentForm.format || "constructed", season: tournamentForm.season.trim() || null, seasonId: tournamentForm.seasonId || null, sourceUrl: tournamentForm.sourceUrl.trim() || null,
       participantCount: tournamentForm.participantCount ? Number(tournamentForm.participantCount) : null,
       roundCount: tournamentForm.roundCount ? Number(tournamentForm.roundCount) : null,
       topCutSize: tournamentForm.topCutSize ? Number(tournamentForm.topCutSize) : null,
@@ -822,7 +893,7 @@ export default function AdminPage() {
         <Tabs value={adminSection} className="space-y-6">
  
           <TabsContent value="dashboard">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[["Usuários", users.length], ["Coleções", sets.length], ["Cartas", cardTotal], ["Rulings", rules.length]].map(([label, value]) => <Card key={String(label)} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{String(label)}</p><p className="mt-4 font-heading text-5xl leading-none">{String(value)}</p></CardContent></Card>)}</div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[["Usuários", users.length], ["Coleções", sets.length], ["Cartas", cardTotal], ["Regras", rules.length]].map(([label, value]) => <Card key={String(label)} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">{String(label)}</p><p className="mt-4 font-heading text-5xl leading-none">{String(value)}</p></CardContent></Card>)}</div>
           </TabsContent>
  
           <TabsContent value="cards">
@@ -885,7 +956,55 @@ export default function AdminPage() {
           <TabsContent value="sets">
             <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-5 p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><SectionTitle title="Coleções e produtos" description="Produtos cadastrados como booster, starter deck, promo pack ou evento com campos próprios." /><div className="flex flex-wrap items-center gap-3"><div className="relative min-w-[280px]"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><Input value={setSearch} onChange={(e) => setSetSearch(e.target.value)} placeholder="Buscar por código, nome ou categoria" className="rounded-none pl-9" /></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openSetModal()}><Plus className="mr-2 size-4" />Nova coleção</Button></div></div><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Produto</th><th className="px-4 py-3">Categoria</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Lançamento</th><th className="px-4 py-3">MSRP</th><th className="px-4 py-3">Cartas</th><th className="px-4 py-3 text-right">Ações</th></tr></thead><tbody>{visibleSets.map((set) => <tr key={set.id} className={`border-t border-white/10 align-top ${set.isActive === false ? "opacity-60" : ""}`}><td className="px-4 py-4"><div className="flex items-start gap-3"><div className="h-16 w-24 overflow-hidden border border-white/10 bg-slate-950/60">{set.coverImage ? <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[9px] uppercase tracking-[0.18em] text-slate-500">Sem capa</div>}</div><div><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{set.code}{set.productCodeAlt ? ` · ${set.productCodeAlt}` : ""}</p><p className="mt-1 font-medium">{set.namePt || set.nameEn}</p><p className="text-xs text-slate-500">{set.sourceTitles?.join(", ") || "sem obras vinculadas"}</p></div></div></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{set.setType || "OTHER"}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${set.isActive === false ? "border border-red-400/40 bg-red-400/10 text-red-300" : "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300"}`}>{set.isActive === false ? "Oculta" : "Ativa"}</Badge></td><td className="px-4 py-4">{set.releaseDate ? new Date(set.releaseDate).toLocaleDateString("pt-BR") : "—"}</td><td className="px-4 py-4">{set.msrpUsd != null ? `US$ ${set.msrpUsd.toFixed(2)}` : "—"}</td><td className="px-4 py-4">{set._count?.cards ?? 0}</td><td className="px-4 py-4"><div className="flex justify-end gap-2"><Button variant="outline" className="rounded-none" onClick={() => openSetModal(set)}><Pencil className="size-4" /></Button>{set.isActive === false ? <Button variant="outline" className="rounded-none text-emerald-300 hover:text-emerald-200" onClick={() => restoreSet(set)}><RotateCcw className="size-4" /></Button> : <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => deleteSet(set)}><Trash2 className="size-4" /></Button>}</div></td></tr>)}</tbody></table></div></CardContent></Card>
           </TabsContent>
- 
+
+          <TabsContent value="seasons">
+            <div className="grid gap-5 xl:grid-cols-[360px_1fr]">
+              <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
+                <CardContent className="space-y-4 p-5">
+                  <SectionTitle title={seasonForm.id ? "Editar temporada" : "Nova temporada"} description="Uma temporada segue um lançamento de coleção principal (com ou sem starters/outros produtos depois). Só uma pode estar 'atual' por vez." />
+                  <Input value={seasonForm.code} onChange={(e) => setSeasonForm((s) => ({ ...s, code: e.target.value }))} placeholder="Código * (ex: GD05)" className="rounded-none" />
+                  <Input value={seasonForm.name} onChange={(e) => setSeasonForm((s) => ({ ...s, name: e.target.value }))} placeholder="Nome * (ex: Temporada GD05)" className="rounded-none" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldBlock label="Início"><Input type="date" value={seasonForm.startDate} onChange={(e) => setSeasonForm((s) => ({ ...s, startDate: e.target.value }))} className="rounded-none" /></FieldBlock>
+                    <FieldBlock label="Fim (opcional)"><Input type="date" value={seasonForm.endDate} onChange={(e) => setSeasonForm((s) => ({ ...s, endDate: e.target.value }))} className="rounded-none" /></FieldBlock>
+                  </div>
+                  <Textarea value={seasonForm.notes} onChange={(e) => setSeasonForm((s) => ({ ...s, notes: e.target.value }))} placeholder="Notas (produtos incluídos, contexto de meta, etc.)" className="min-h-24 rounded-none" />
+                  <div className="flex justify-end gap-3">
+                    {seasonForm.id ? <Button variant="outline" className="rounded-none" onClick={() => setSeasonForm(emptySeasonForm)}>Cancelar edição</Button> : null}
+                    <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveSeason} disabled={saving}>{saving ? "Salvando…" : seasonForm.id ? "Salvar alterações" : "Criar temporada"}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
+                <CardContent className="space-y-4 p-5">
+                  <SectionTitle title="Temporadas cadastradas" description="Marcar uma temporada como 'atual' faz tudo que ficou fora dela virar legado nas leituras públicas de metagame (Estatísticas), sem apagar nem mover nenhum registro histórico." />
+                  <div className="overflow-x-auto border border-white/10">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Temporada</th><th className="px-4 py-3">Período</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Ações</th></tr></thead>
+                      <tbody>
+                        {seasons.map((season) => (
+                          <tr key={season.id} className="border-t border-white/10 align-top">
+                            <td className="px-4 py-4"><p className="text-xs uppercase tracking-[0.18em] text-slate-500">{season.code}</p><p className="mt-1 font-medium">{season.name}</p>{season.notes ? <p className="mt-1 text-xs text-slate-500">{season.notes}</p> : null}</td>
+                            <td className="px-4 py-4 text-xs text-slate-400">{season.startDate ? new Date(season.startDate).toLocaleDateString("pt-BR") : "—"} {season.endDate ? `→ ${new Date(season.endDate).toLocaleDateString("pt-BR")}` : ""}</td>
+                            <td className="px-4 py-4">{season.isCurrent ? <Badge className="rounded-none border border-emerald-400/40 bg-emerald-400/10 text-emerald-300">Atual</Badge> : <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-400">Legado</Badge>}</td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                {!season.isCurrent ? <Button variant="outline" className="rounded-none" onClick={() => activateSeason(season.id)} disabled={saving}>Marcar atual</Button> : null}
+                                <Button variant="outline" className="rounded-none" onClick={() => setSeasonForm(mapSeasonToForm(season))}><Pencil className="size-4" /></Button>
+                                <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => removeSeason(season.id)} disabled={saving}><Trash2 className="size-4" /></Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {!seasons.length ? <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">Nenhuma temporada cadastrada ainda.</td></tr> : null}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="users"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-6"><SectionTitle title="Usuários" description="Listagem operacional de contas, função e permissão de acesso. Bloqueios são lógicos: nenhuma conta é apagada." /><div className="overflow-x-auto border border-white/10"><table className="min-w-full text-sm"><thead className="bg-white/5 text-left uppercase tracking-[0.16em] text-slate-400"><tr><th className="px-4 py-3">Usuário</th><th className="px-4 py-3">Função</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Hoster</th><th className="px-4 py-3 text-right">Ação</th></tr></thead><tbody>{users.map((entry) => <tr key={entry.id} className="border-t border-white/10"><td className="px-4 py-4"><p className="font-medium">{entry.displayName}</p><p className="text-xs text-slate-500">{entry.email}</p></td><td className="px-4 py-4"><Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{entry.role}</Badge></td><td className="px-4 py-4"><Badge className={`rounded-none ${entry.isActive ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border border-red-400/40 bg-red-400/10 text-red-300"}`}>{entry.isActive ? "Ativo" : "Bloqueado"}</Badge></td><td className="px-4 py-4">{entry.isHoster ? <Badge className="rounded-none border border-amber-400/40 bg-amber-400/10 text-amber-300">Hoster</Badge> : <span className="text-xs text-slate-600">—</span>}</td><td className="px-4 py-4 text-right space-x-2"><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isHoster: !entry.isHoster }); await loadAll(); toast.success(entry.isHoster ? "Permissão de Hoster revogada." : "Usuário promovido a Hoster."); }}>{entry.isHoster ? "Revogar Hoster" : "Conceder Hoster"}</Button><Button variant="outline" className="rounded-none" onClick={async () => { await api.updateAdminUser(entry.id, { isActive: !entry.isActive }); await loadAll(); await loadAdminCards(); toast.success(entry.isActive ? "Usuário bloqueado logicamente." : "Usuário reativado."); }}>{entry.isActive ? "Bloquear" : "Reativar"}</Button></td></tr>)}</tbody></table></div></CardContent></Card></TabsContent>
 
           <TabsContent value="taxonomies">
@@ -905,7 +1024,8 @@ export default function AdminPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <FieldBlock label="Formato"><select value={tournamentForm.format} onChange={(e) => setTournamentForm((s) => ({ ...s, format: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="constructed">Constructed</option><option value="team_battle">Team Battle</option><option value="battle_royale">Battle Royale</option></select></FieldBlock>
-              <FieldBlock label="Temporada"><Input value={tournamentForm.season} onChange={(e) => setTournamentForm((s) => ({ ...s, season: e.target.value }))} placeholder="2026 S1" className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Temporada" hint="Vínculo real de Season -- alimenta os filtros de metagame. Deixe em branco pra torneios legados sem Season definida."><select value={tournamentForm.seasonId} onChange={(e) => setTournamentForm((s) => ({ ...s, seasonId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Sem temporada vinculada</option>{seasons.map((season) => <option key={season.id} value={season.id}>{season.code} — {season.name}{season.isCurrent ? " (atual)" : ""}</option>)}</select></FieldBlock>
+              <FieldBlock label="Temporada (texto legado)" hint="Só exibido em torneios antigos cadastrados antes do modelo de Season."><Input value={tournamentForm.season} onChange={(e) => setTournamentForm((s) => ({ ...s, season: e.target.value }))} placeholder="2026 S1" className="rounded-none" /></FieldBlock>
               <FieldBlock label="Fonte (URL)"><Input value={tournamentForm.sourceUrl} onChange={(e) => setTournamentForm((s) => ({ ...s, sourceUrl: e.target.value }))} placeholder="Link da cobertura/resultados oficiais" className="rounded-none" /></FieldBlock>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -959,10 +1079,26 @@ export default function AdminPage() {
                                 </div>
                               </div>
                               <div className="flex gap-1">
+                                <Button variant="outline" size="icon" className="size-7 rounded-none" title="Histórico de troca de deck" onClick={() => toggleDeckChangeLog(tournament.id, entry.id)}><History className="size-3" /></Button>
                                 <Button variant="outline" size="icon" className="size-7 rounded-none" onClick={() => openEntryForm(entry)}><Pencil className="size-3" /></Button>
                                 <Button variant="outline" size="icon" className="size-7 rounded-none text-red-300 hover:text-red-200" onClick={() => deleteEntry(entry)}><Trash2 className="size-3" /></Button>
                               </div>
                             </div>
+                            {deckLogEntryId === entry.id ? (
+                              <div className="mt-3 border-t border-white/10 pt-3">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Histórico de troca de deck</p>
+                                {deckLogLoading ? <p className="mt-2 text-xs text-slate-500">Carregando…</p> : deckLogEntries.length ? (
+                                  <div className="mt-2 space-y-2">
+                                    {deckLogEntries.map((log) => (
+                                      <div key={log.id} className="border border-white/10 bg-white/[0.02] p-2 text-xs text-slate-400">
+                                        <p>{new Date(log.createdAt).toLocaleString("pt-BR")} · {log.changedByUser?.displayName || "admin"}</p>
+                                        <p className="mt-1 text-slate-500">snapshot anterior: {log.previousDeckSnapshotId || "nenhum"} → snapshot novo: {log.nextDeckSnapshotId || "nenhum"}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : <p className="mt-2 text-xs text-slate-500">Nenhuma troca de deck registrada -- o deck vinculado nunca foi alterado depois do cadastro inicial.</p>}
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                         {!(tournament.entries || []).length ? <p className="text-sm text-slate-500">Nenhum participante cadastrado ainda.</p> : null}
@@ -1003,13 +1139,13 @@ export default function AdminPage() {
             </div>
           </CardContent></Card></TabsContent>
 
-          <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova ruling" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); await loadAdminCards(); toast.success("Ruling criada."); }}>Salvar ruling</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
+          <TabsContent value="rules"><Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900"><CardContent className="space-y-4 p-5"><SectionTitle title="Nova regra" description="Registro rápido de FAQ oficial e vínculo opcional com carta." /><Input value={ruleForm.title} onChange={(e) => setRuleForm((s) => ({ ...s, title: e.target.value }))} placeholder="Título" className="rounded-none" /><div className="grid gap-4 md:grid-cols-2"><Textarea value={ruleForm.questionPt} onChange={(e) => setRuleForm((s) => ({ ...s, questionPt: e.target.value }))} placeholder="Pergunta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerPt} onChange={(e) => setRuleForm((s) => ({ ...s, answerPt: e.target.value }))} placeholder="Resposta PT-BR" className="min-h-24 rounded-none" /><Textarea value={ruleForm.questionEn} onChange={(e) => setRuleForm((s) => ({ ...s, questionEn: e.target.value }))} placeholder="Question EN" className="min-h-24 rounded-none" /><Textarea value={ruleForm.answerEn} onChange={(e) => setRuleForm((s) => ({ ...s, answerEn: e.target.value }))} placeholder="Answer EN" className="min-h-24 rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><Input value={ruleForm.relatedKeyword} onChange={(e) => setRuleForm((s) => ({ ...s, relatedKeyword: e.target.value }))} placeholder="Keyword relacionada" className="rounded-none" /><Input value={ruleForm.originalUrl} onChange={(e) => setRuleForm((s) => ({ ...s, originalUrl: e.target.value }))} placeholder="URL da fonte" className="rounded-none" /></div><div className="grid gap-4 md:grid-cols-2"><select value={ruleForm.sourceType} onChange={(e) => setRuleForm((s) => ({ ...s, sourceType: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="OFFICIAL_RULES">Official Rules</option><option value="OFFICIAL_FAQ">Official FAQ</option><option value="COMMUNITY_EXPLAINER">Community</option></select><select value={ruleForm.cardId} onChange={(e) => setRuleForm((s) => ({ ...s, cardId: e.target.value }))} className="field-shell h-10 px-3 text-sm"><option value="">Carta vinculada</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.code} · {card.namePt || card.nameEn}</option>)}</select></div><Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={async () => { await api.createRuling({ ...ruleForm, relatedKeyword: ruleForm.relatedKeyword || null, originalUrl: ruleForm.originalUrl || null, cardId: ruleForm.cardId || null }); setRuleForm(emptyRuleForm); await loadAll(); await loadAdminCards(); toast.success("Regra criada."); }}>Salvar regra</Button><div className="grid gap-3">{rules.map((rule) => <div key={rule.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:bg-slate-50"><p className="text-xs uppercase tracking-[0.22em] text-slate-500">{rule.sourceType} · {rule.relatedKeyword || "sem keyword"}</p><p className="mt-1 text-lg">{rule.title}</p><p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">{rule.originalUrl || "sem fonte externa"}</p></div>)}</div></CardContent></Card></TabsContent>
         </Tabs>
       </div>
  
       {/* ── Modal: Coleção ──────────────────────────────────────────────────── */}
       <Dialog open={setModalOpen} onOpenChange={setSetModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-4xl">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">{setForm.id ? "Editar coleção" : "Nova coleção"}</DialogTitle>
           </DialogHeader>
@@ -1022,6 +1158,10 @@ export default function AdminPage() {
             <Input value={setForm.coverImage} onChange={(e) => setSetForm((s) => ({ ...s, coverImage: e.target.value }))} placeholder="URL da capa principal" className="rounded-none" />
             <Input value={setForm.productCodeAlt} onChange={(e) => setSetForm((s) => ({ ...s, productCodeAlt: e.target.value }))} placeholder="Código variante" className="rounded-none" />
             <Input value={setForm.msrpUsd} onChange={(e) => setSetForm((s) => ({ ...s, msrpUsd: e.target.value }))} placeholder="MSRP USD" className="rounded-none" />
+            <select value={setForm.seasonId} onChange={(e) => setSetForm((s) => ({ ...s, seasonId: e.target.value }))} className="field-shell h-10 px-3 text-sm">
+              <option value="">Sem temporada vinculada</option>
+              {seasons.map((season) => <option key={season.id} value={season.id}>{season.code} — {season.name}{season.isCurrent ? " (atual)" : ""}</option>)}
+            </select>
           </div>
           <div className="border border-white/10 bg-white/[0.02] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs uppercase tracking-[0.22em] text-slate-500">Galeria visual</p><p className="mt-1 text-sm text-slate-400">Envie uma ou mais imagens. Clique em uma miniatura para defini-la como capa.</p></div><input ref={setGalleryUploadInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleSetGalleryUpload} /><Button type="button" variant="outline" className="rounded-none" disabled={saving} onClick={() => setGalleryUploadInputRef.current?.click()}><Upload className="mr-2 size-4" />Adicionar imagens</Button></div>{setForm.galleryImages.length ? <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{setForm.galleryImages.map((url, index) => <div key={`${url}-${index}`} className={`group relative overflow-hidden border ${setForm.coverImage === url ? "border-primary" : "border-white/10"}`}><button type="button" className="block aspect-[4/3] w-full" onClick={() => setSetForm((s) => ({ ...s, coverImage: url }))}><img src={url} alt={`Imagem ${index + 1}`} className="h-full w-full object-cover" /></button><div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-slate-950/85 px-2 py-1.5 text-[10px] uppercase tracking-[0.12em">{setForm.coverImage === url ? <span className="text-primary">Capa</span> : <button type="button" className="text-slate-300" onClick={() => setSetForm((s) => ({ ...s, coverImage: url }))}>Usar como capa</button>}<button type="button" className="text-red-300" onClick={() => setSetForm((s) => { const galleryImages = s.galleryImages.filter((item) => item !== url); return { ...s, galleryImages, coverImage: s.coverImage === url ? galleryImages[0] || "" : s.coverImage }; })}>Remover</button></div></div>)}</div> : <p className="mt-4 text-sm text-slate-500">Nenhuma imagem adicionada ainda.</p>}</div>
           <div className="flex flex-wrap gap-2">{PRODUCT_TYPE_OPTIONS.map((option) => <ToggleCard key={option.value} active={setForm.setType === option.value} label={option.label} onClick={() => setSetForm((s) => ({ ...s, setType: option.value }))} />)}</div>
@@ -1042,7 +1182,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Trait / Mídia ────────────────────────────────────────────── */}
       <Dialog open={taxonomyModalOpen} onOpenChange={setTaxonomyModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">{taxonomyForm.id ? "Editar" : "Nova"} {taxonomyForm.kind === "SOURCE_TITLE" ? "mídia" : "trait"}</DialogTitle>
           </DialogHeader>
@@ -1063,7 +1203,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Piloto rápido ───────────────────────────────────────────── */}
       <Dialog open={quickPilotOpen} onOpenChange={setQuickPilotOpen}>
-        <DialogContent className="rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
+        <DialogContent aria-describedby={undefined} className="rounded-none border-white/10 bg-slate-950 text-white sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-3xl uppercase">Piloto rápido</DialogTitle>
           </DialogHeader>
@@ -1082,7 +1222,7 @@ export default function AdminPage() {
 
       {/* ── Modal: Carta ────────────────────────────────────────────────────── */}
       <Dialog open={cardModalOpen} onOpenChange={setCardModalOpen}>
-        <DialogContent className="max-h-[94vh] !w-[calc(100vw-1.5rem)] !max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto rounded-none border-white/10 bg-slate-950 p-4 text-white sm:!w-[calc(100vw-3rem)] sm:!max-w-[calc(100vw-3rem)] sm:p-6 2xl:!max-w-[1720px]">
+        <DialogContent aria-describedby={undefined} className="max-h-[94vh] !w-[calc(100vw-1.5rem)] !max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto rounded-none border-white/10 bg-slate-950 p-4 text-white sm:!w-[calc(100vw-3rem)] sm:!max-w-[calc(100vw-3rem)] sm:p-6 2xl:!max-w-[1720px]">
  
           {/* Cabeçalho */}
           <DialogHeader className="border-b border-white/8 pb-4">

@@ -1,4 +1,7 @@
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
+import type { PlayerAction } from "@/modules/simulator/engine/actions";
+import type { PlayerId } from "@/modules/simulator/engine/types";
+import type { ViewGameState } from "@/modules/simulator/engine/viewState";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
@@ -186,6 +189,17 @@ export function invalidateApiCache(prefixes: string[]) {
   });
 }
 
+/** Erro de API com o status HTTP preservado (o `request` genérico jogava só a
+ *  mensagem — o simulador precisa distinguir 401 pra tratar sessão expirada). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit, options?: RequestOptions): Promise<T> {
   const token = typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_KEY) : null;
   const headers = new Headers(init?.headers);
@@ -212,7 +226,7 @@ async function request<T>(path: string, init?: RequestInit, options?: RequestOpt
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers, cache: "no-store" });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || "Falha na API.");
+    throw new ApiError(data.error || "Falha na API.", response.status);
   }
   if (response.status === 204) return undefined as T;
   const data = (await response.json()) as T;
@@ -233,6 +247,54 @@ function toQuery(params: Record<string, string | undefined>) {
   });
   const text = search.toString();
   return text ? `?${text}` : "";
+}
+
+// Simulador — "Simulador Beta" (docs/18, passo 4 + expansão 2026-08-30: fila de
+// matchmaking, timer de turno, W.O. por abandono, aberto a qualquer usuário
+// logado). O tabuleiro em si sincroniza via SSE (ver buildSimulatorStreamUrl),
+// então essas chamadas HTTP são só pra ações pontuais (fila/ping/agir/W.O.) --
+// todas sem cache (o estado de uma partida em memória muda a cada ação de
+// qualquer um dos 2 jogadores, cachear aqui só causaria tela desatualizada).
+export type SimulatorMatchSummary = {
+  id: string;
+  seats: Record<PlayerId, { userId: string; displayName: string } | null>;
+  deckKeys: Partial<Record<PlayerId, string>>;
+  turnNumber: number;
+  activePlayer: PlayerId;
+  phase: "start" | "draw" | "resource" | "main" | "end";
+  gameOver: { winner: PlayerId; reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation" } | null;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+};
+
+/** Espelha `MatchView` do servidor (matchStore.ts) — visão redigida do motor + metadados de partida (timer, presença) que não são regra de jogo. */
+export type SimulatorMatchView = {
+  view: ViewGameState;
+  matchId: string;
+  seat: PlayerId;
+  deckKeys: Partial<Record<PlayerId, string>>;
+  /** epoch ms até quando a decisão atual pode ser tomada antes do servidor agir sozinho (90s) — null quando não há decisão pendente. */
+  turnDeadlineAt: number | null;
+  /** último sinal de vida (ping OU ação real) de cada assento — epoch ms — base do W.O. por abandono (3min). */
+  lastSeenAt: Partial<Record<PlayerId, number>>;
+  version: number;
+  /** `Date.now()` do servidor quando esta visão foi montada — pro cliente corrigir skew de relógio. */
+  serverNow: number;
+  /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2). */
+  autoPassActionStep: boolean;
+};
+
+export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
+
+/** Espelha `QueueStatus` do servidor (matchStore.ts). */
+export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?: string; seat?: PlayerId };
+
+/** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
+export function buildSimulatorStreamUrl(matchId: string): string | null {
+  const token = getStoredAuth().token;
+  if (!token) return null;
+  return `${API_BASE_URL}/simulator/matches/${matchId}/stream?token=${encodeURIComponent(token)}`;
 }
 
 export function getStoredAuth() {
@@ -280,6 +342,12 @@ export const api = {
   createSet: (payload: any) => mutate<any>("/sets", { method: "POST", body: JSON.stringify(payload) }, ["/sets"]),
   updateSet: (id: string, payload: any) => mutate<any>(`/sets/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/sets", "/cards", "/cards/filters"]),
   deleteSet: (id: string) => mutate<void>(`/sets/${id}`, { method: "DELETE" }, ["/sets", "/cards", "/cards/filters"]),
+  // Season -- temporada de metagame de verdade (código/nome/datas + flag "atual").
+  listSeasons: () => request<Array<{ id: string; code: string; name: string; startDate?: string | null; endDate?: string | null; isCurrent: boolean; notes?: string | null }>>("/seasons", undefined, { ttlMs: 30_000 }),
+  createSeason: (payload: any) => mutate<any>("/seasons", { method: "POST", body: JSON.stringify(payload) }, ["/seasons"]),
+  updateSeason: (id: string, payload: any) => mutate<any>(`/seasons/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/seasons"]),
+  setCurrentSeason: (id: string) => mutate<any>(`/seasons/${id}/set-current`, { method: "PUT" }, ["/seasons", "/stats", "/tournaments", "/hosted-events"]),
+  deleteSeason: (id: string) => mutate<void>(`/seasons/${id}`, { method: "DELETE" }, ["/seasons", "/sets", "/tournaments", "/hosted-events"]),
   listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
   // Mesma lógica de listAdminSets, mas pra Traits/Séries.
   listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
@@ -292,6 +360,12 @@ export const api = {
   getCardFilters: () => request<{ colors: string[]; cardTypes: string[]; rarities: string[]; statuses: string[]; media: string[]; series: string[]; traits: string[]; keywords: string[]; sets: Array<{ code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null }>; missingRelationCounts: { PILOT: number; UNIT: number; COMMAND: number } }>("/cards/filters", undefined, { ttlMs: 5 * 60_000 }),
   getCard: (id: string) => request<any>(`/cards/${id}`, undefined, { ttlMs: 30_000 }),
   getCardRelations: (id: string) => request<{ outgoing: any[]; incoming: any[] }>(`/cards/${id}/relations`, undefined, { ttlMs: 20_000 }),
+  getCardStats: (id: string) =>
+    request<{ cardModelId: string; hasEnoughData: boolean; deckAppearances: number; totalDecks: number; usageRate: number | null; wins: number; losses: number; draws: number; totalMatches: number; winRate: number | null }>(`/cards/${id}/stats`, undefined, { ttlMs: 60_000 }),
+  // Metagame sourced só de decks travados em evento (DeckSnapshot) -- nunca de decks
+  // públicos. seasonId: "current" (default), "all", ou o id de uma season específica.
+  getMetagameStats: (params: { seasonId?: string; setId?: string } = {}) =>
+    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; totalDecks: number; topCards: Array<{ cardModelId: string; name: string; color: string | null; appearances: number; presenceRate: number | null }>; colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>; colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }> }>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),
   deleteCardRelation: (id: string, relationId: string) => mutate<void>(`/cards/${id}/relations/${relationId}`, { method: "DELETE" }, ["/cards"]),
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),
@@ -320,6 +394,12 @@ export const api = {
   createTournamentEntry: (tournamentId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries`, { method: "POST", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   updateTournamentEntry: (tournamentId: string, entryId: string, payload: any) => mutate<any>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }, ["/tournaments", "/stats"]),
   deleteTournamentEntry: (tournamentId: string, entryId: string) => mutate<void>(`/tournaments/${tournamentId}/entries/${entryId}`, { method: "DELETE" }, ["/tournaments", "/stats"]),
+  // Auditoria de troca de deck vinculado a um TournamentEntry -- só admin/editor.
+  getTournamentEntryDeckChangeLog: (tournamentId: string, entryId: string) =>
+    request<Array<{ id: string; previousDeckId: string | null; previousDeckSnapshotId: string | null; nextDeckId: string | null; nextDeckSnapshotId: string | null; createdAt: string; changedByUser: { id: string; username: string; displayName: string } | null }>>(`/tournaments/${tournamentId}/entries/${entryId}/deck-change-log`, undefined, { ttlMs: 5_000 }),
+  // Pública -- eventos "ao vivo" (via /organizador) já finalizados, pra exibir junto
+  // com os Tournament report na tela pública de Eventos.
+  listCompletedHostedEvents: () => request<any[]>("/hosted-events/public", undefined, { ttlMs: 20_000 }),
   listHostedEventsMine: () => request<any[]>("/hosted-events/mine", undefined, { ttlMs: 5_000 }),
   listHostedEventsAdmin: () => request<any[]>("/hosted-events/admin", undefined, { ttlMs: 5_000 }),
   getHostedEvent: (id: string) => request<any>(`/hosted-events/${id}`, undefined, { ttlMs: 5_000 }),
@@ -372,6 +452,33 @@ export const api = {
   updateMyBinder: (id: string, payload: any) => mutate<ApiBinder>(`/binders/me/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/binders/me", "/users/", "/binders/share"]),
   deleteBinder: (id: string) => mutate<void>(`/binders/me/${id}`, { method: "DELETE" }, ["/binders/me", "/users/"]),
   getSharedBinder: (shareId: string) => request<ApiBinder>(`/binders/share/${shareId}`, undefined, { ttlMs: 20_000 }),
+  // Simulador Beta — fila de matchmaking (docs/18, expansão 2026-08-30): 1 botão só,
+  // sem escolher assento/adversário manualmente; cada lado escolhe o próprio deck.
+  joinSimulatorQueue: (deck: string) => request<SimulatorQueueStatus>("/simulator/queue/join", { method: "POST", body: JSON.stringify({ deck }) }),
+  leaveSimulatorQueue: () => request<{ ok: true }>("/simulator/queue/leave", { method: "POST" }),
+  getSimulatorQueueStatus: () => request<SimulatorQueueStatus>("/simulator/queue/status", undefined, { bypassCache: true }),
+  getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
+  sendSimulatorAction: (id: string, action: PlayerAction) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
+  /** Heartbeat de presença -- chamar periodicamente enquanto a aba está visível (alimenta o W.O. por abandono). */
+  pingSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/ping`, { method: "POST" }),
+  /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */
+  setSimulatorAutoPass: (id: string, value: boolean) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/auto-pass`, { method: "POST", body: JSON.stringify({ value }) }),
+  /** "Reportar Situação de Regra" (docs/19, Sessão 4) — o servidor loga o estado real + histórico e devolve um id curto. */
+  reportSimulatorSituation: (id: string, note?: string) =>
+    request<{ reportId: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
+  /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
+  claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
+  /** "Sair da partida" = desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch. */
+  resignSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/resign`, { method: "POST" }),
+  // Depuração/admin -- fora do fluxo normal (agora hosterRequired no servidor), mantidas
+  // só como fallback pra criar/entrar numa partida específica manualmente.
+  listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),
+  createSimulatorMatch: (payload: { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number }) =>
+    request<SimulatorMatchSummary>("/simulator/matches", { method: "POST", body: JSON.stringify(payload) }),
+  joinSimulatorMatch: (id: string, seat: PlayerId) =>
+    request<{ seated: true } & SimulatorMatchView>(`/simulator/matches/${id}/join`, { method: "POST", body: JSON.stringify({ seat }) }),
 };
 
 export function mapApiCard(card: any): CardRecord {
