@@ -1,9 +1,11 @@
-/* Cluster de ações no canto SUP. DIREITO de uma carta — mão OU campo (pedido do
- * Willen 2026-09-03): "Ver" (olho) SEMPRE presente e ancorado no canto; as ações
- * de contexto (Jogar / Atacar / Ativar / Blocker / Mirar) aparecem à esquerda
- * dele. Sempre visível (não depende de hover — o hover não pegava de forma
- * confiável). Cada botão faz `stopPropagation` pra o clique nunca cair no corpo
- * da carta por baixo (era o conflito "atacar abre a imagem").
+/* Cluster de ações no canto SUP. DIREITO de uma carta — mão OU campo.
+ *
+ * Frente 4 (docs/38 §3.1) — o botão de "olho" (inspeção) foi ELIMINADO: a
+ * inspeção passou a ser por clique na área neutra da carta (ver `CardFace` /
+ * `BattleSlot` / `BaseCardGauge` / `HandFan`). Aqui ficam SÓ ações
+ * operacionais de contexto (Jogar / Atacar / Ativar / Blocker / Mirar). Sempre
+ * visível (não depende de hover). Cada botão faz `stopPropagation` pra o clique
+ * nunca cair no corpo da carta por baixo (era o conflito "atacar abre a imagem").
  *
  * V6.3 (docs/34) — achado do Willen: a mão usava um tamanho/posição
  * (`size-6`, salta pra fora do canto) e o campo usava outro (`size-5`,
@@ -29,10 +31,9 @@ import { cn } from "@/lib/utils";
 const BUTTON_SIZE = "size-[clamp(1.125rem,calc(var(--card-w-std,2.17rem)*0.45),1.75rem)]";
 const ICON_SIZE = "size-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.26),1rem)]";
 
-export type CornerTone = "view" | "primary" | "accent" | "sky" | "emerald";
+export type CornerTone = "primary" | "accent" | "sky" | "emerald";
 
 const TONE: Record<CornerTone, string> = {
-  view: "bg-slate-900/95 text-slate-200 hover:text-primary",
   primary: "bg-primary/95 text-black hover:bg-primary",
   accent: "bg-accent text-black hover:bg-accent/90",
   sky: "bg-sky-500 text-white hover:bg-sky-400",
@@ -49,8 +50,7 @@ export interface CornerAction {
 }
 
 interface CardCornerActionsProps {
-  /** ordem visual da ESQUERDA pra direita — passe as ações de contexto primeiro
-   *  e "Ver" por último, pra "Ver" encostar no canto direito. */
+  /** ordem visual da ESQUERDA pra direita — a última ação encosta no canto. */
   actions: CornerAction[];
   className?: string;
 }
@@ -62,7 +62,11 @@ export function CardCornerActions({ actions, className }: CardCornerActionsProps
       // absoluto encostado no canto direito, DENTRO da carta (nunca mais
       // salta pra fora — mão e campo usam o mesmo `top-0.5 right-0.5`
       // default agora); cresce pra ESQUERDA conforme ganha botões.
-      className={cn("absolute top-0.5 right-0.5 z-40 flex items-start gap-0.5", className)}
+      // Frente 4 (feedback Willen 3ª rodada): `z-50` + `pointer-events-auto` +
+      // `stopPropagation` já no `onMouseDown`/`onClick` — o clique no botão
+      // NUNCA cai no corpo da carta (que abre a modal de inspeção).
+      className={cn("absolute top-0.5 right-0.5 z-50 flex items-start gap-0.5 pointer-events-auto", className)}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {actions.map((a) => (
@@ -72,12 +76,15 @@ export function CardCornerActions({ actions, className }: CardCornerActionsProps
           title={a.label}
           aria-label={a.label}
           disabled={a.disabled}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             a.onClick();
           }}
           className={cn(
-            "flex items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:opacity-40 motion-reduce:transition-none",
+            // `cursor-pointer` explícito: o Preflight do Tailwind v4 deixa
+            // `<button>` com `cursor: default` (feedback Willen: "cursor vira seta").
+            "flex cursor-pointer items-center justify-center rounded-arena border border-black/40 shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
             BUTTON_SIZE,
             TONE[a.tone],
           )}

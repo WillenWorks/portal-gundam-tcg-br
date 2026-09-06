@@ -11,7 +11,7 @@
  *    NÃO é mais clicável (removido o conflito com a ação).
  * `onHoverCard` alimenta o `CardInspectorPanel` das asas largas. */
 import type { CSSProperties } from "react";
-import { Eye, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
@@ -84,20 +84,24 @@ export function HandFan({
   // simplesmente não aplicava. Negando o NÚMERO primeiro, um overlap negativo
   // vira margem POSITIVA (gap real) corretamente.
   const overlapMargin = `calc(var(--card-w-std, 2.17rem) * ${-clampedOverlap})`;
+  // Frente 4 (feedback Willen 3ª rodada): lift MENOR (0.75rem no ancorado) —
+  // o rodapé da mão encolheu (menos `pt-*`), e um lift grande fazia o botão ▶
+  // "fugir" do cursor. Aplicado só no wrapper da ARTE, não no cluster de ações.
   const lift = anchored
-    ? "hover:-translate-y-6 focus-within:-translate-y-6"
-    : "hover:-translate-y-4 focus-within:-translate-y-4";
+    ? "group-hover/hc:-translate-y-3 group-focus-within/hc:-translate-y-3"
+    : "group-hover/hc:-translate-y-3 group-focus-within/hc:-translate-y-3";
 
   return (
     <div className="scrollbar-ghost w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
-      <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-8 pb-1" : "pb-2 pt-9")}>
+      <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-4 pb-1" : "pb-2 pt-6")}>
         {cards.map((entry, index) => {
           const { card, playable, blockedReason } = entry;
           const cost = card.def.cost;
           const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
-          // "Ver" sempre; "Jogar" à esquerda dele quando dá pra jogar.
+          // Frente 4 (docs/38 §3.1) — sem botão de "olho": só "Jogar" no canto
+          // (quando jogável). Inspecionar é por clique na área neutra da carta.
           const cornerActions: CornerAction[] = [];
           if (playable) {
             cornerActions.push({
@@ -106,15 +110,6 @@ export function HandFan({
               label: `Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`,
               tone: "primary",
               onClick: () => onPeek(card),
-            });
-          }
-          if (onInspect) {
-            cornerActions.push({
-              key: "view",
-              icon: Eye,
-              label: `Ver ${card.def.nameEn} · ${state}`,
-              tone: "view",
-              onClick: () => onInspect(card),
             });
           }
 
@@ -129,14 +124,42 @@ export function HandFan({
               onFocus={onHoverCard ? () => onHoverCard(card) : undefined}
               onBlur={onHoverCard ? () => onHoverCard(null) : undefined}
               className={cn(
-                "group/hc relative block shrink-0 border-t-2 bg-slate-950/80 transition-transform duration-100 ease-out",
-                "hover:z-20 focus-within:z-20 motion-reduce:transition-none",
-                lift,
+                "group/hc relative block shrink-0 border-t-2 bg-slate-950/80",
+                "hover:z-20 focus-within:z-20",
+                // Frente 4 (docs/38 §4.1) — "draw de carta": cada carta recém
+                // montada (comprada) desliza de baixo pra cima ~250ms easeOut.
+                // Só cartas NOVAS animam (React reaproveita as já montadas pela
+                // `key`). `motion-reduce` desliga.
+                "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
                 playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
               )}
             >
-              {/* só a ARTE fica em P&B quando injogável — os botões do canto não. */}
-              <div className={cn("block w-full", playable ? "" : "[filter:grayscale(1)_brightness(0.65)]")}>
+              {/* só a ARTE fica em P&B quando injogável — os botões do canto não.
+                  Frente 4 (docs/38 §3.1): a área neutra da carta é o alvo de
+                  inspeção (clique / Enter / Espaço). O lift do hover é SÓ aqui
+                  (não no cluster de ações), pra o ▶ não fugir do cursor. */}
+              <div
+                role={onInspect ? "button" : undefined}
+                tabIndex={onInspect ? 0 : undefined}
+                aria-label={onInspect ? `Ver ${card.def.nameEn} · ${state}` : undefined}
+                onClick={onInspect ? () => onInspect(card) : undefined}
+                onKeyDown={
+                  onInspect
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onInspect(card);
+                        }
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "block w-full transition-transform duration-100 ease-out motion-reduce:transition-none",
+                  lift,
+                  onInspect && "cursor-pointer",
+                  playable ? "" : "[filter:grayscale(1)_brightness(0.65)]",
+                )}
+              >
                 <CardFace
                   nameEn={card.def.nameEn}
                   code={card.def.code}

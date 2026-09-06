@@ -4,7 +4,7 @@
  * BASE"): a carta + a barra de HP + o número de dano sobreposto contam tudo.
  * EX Base = moldura dourada (`--accent`). `title`/`aria-label` carregam a
  * leitura textual como tooltip. Alvo legal realçado em verde. */
-import { Eye, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveHp } from "@/modules/simulator/engine/types";
@@ -47,13 +47,15 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
   const isEx = base.def.isToken ?? false;
   const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
 
-  // "Ver" sempre presente (bug real: a Base não tinha NENHUM botão de ação —
-  // nem pra inspecionar, nem pra ativar habilidade tipo White Base "②").
-  // Mesmo padrão do BattleSlot/HandFan: corpo só é clicável quando é ALVO
-  // LEGAL; inspecionar/ativar sempre pelo cluster do canto.
+  // Frente 4 (docs/38 §3.1) — o botão de "olho" foi eliminado. Inspeção agora
+  // é por clique na área neutra da carta (ver `bodyInspects` abaixo). O cluster
+  // do canto guarda só ações OPERACIONAIS (ex.: Ativar habilidade da Base tipo
+  // White Base "②"). Corpo só é clicável como ALVO LEGAL quando `selecting`.
   const cornerActions: CornerAction[] = [];
   if (onActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => onActivate(base) });
-  if (onInspect) cornerActions.push({ key: "view", icon: Eye, label: `Ver ${base.def.nameEn}`, tone: "view", onClick: () => onInspect(base) });
+
+  // clique na carta (fora de seleção de alvo) abre o inspetor.
+  const bodyInspects = Boolean(onInspect) && !legalTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -87,9 +89,16 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
       )}
     >
       <div
-        role={legalTarget ? "button" : undefined}
-        tabIndex={legalTarget ? 0 : undefined}
-        onClick={legalTarget && onSelect ? () => onSelect(base) : undefined}
+        role={legalTarget || bodyInspects ? "button" : undefined}
+        tabIndex={legalTarget || bodyInspects ? 0 : undefined}
+        aria-label={bodyInspects ? `Ver ${base.def.nameEn}` : undefined}
+        onClick={
+          legalTarget && onSelect
+            ? () => onSelect(base)
+            : bodyInspects && onInspect
+              ? () => onInspect(base)
+              : undefined
+        }
         onKeyDown={
           legalTarget && onSelect
             ? (e) => {
@@ -98,9 +107,16 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
                   onSelect(base);
                 }
               }
-            : undefined
+            : bodyInspects && onInspect
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onInspect(base);
+                  }
+                }
+              : undefined
         }
-        className={cn("relative block aspect-[63/88] w-full", legalTarget ? "cursor-pointer" : "cursor-default")}
+        className={cn("relative block aspect-[63/88] w-full", legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
           nameEn={base.def.nameEn}
@@ -111,7 +127,14 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
           backFallback={isGenericArtCard(base.def.cardType, base.def.isToken)}
         />
         {base.damage > 0 ? (
-          <span className="absolute right-0 top-0 z-10 bg-red-600/95 px-1 py-0.5 text-[8px] font-black tabular-nums text-white">
+          // Frente 4 (docs/38 §3.2) — dano acumulado no canto INFERIOR direito
+          // (não mais topo, onde o "olho" o cobria). Badge preto translúcido,
+          // borda vermelha sutil, mono de alto contraste. Feedback Willen 2ª
+          // rodada: escala com `--card-w-std` (era `text-[9px]` fixo).
+          <span
+            className="absolute bottom-2 right-0 z-10 rounded-arena border border-red-400/70 px-1 py-0.5 font-mono text-[clamp(0.625rem,calc(var(--card-w-std,2.17rem)*0.18),1.0625rem)] font-black leading-none tabular-nums text-white shadow-[0_0_6px_rgba(0,0,0,0.7)]"
+            style={{ backgroundColor: "rgba(0, 0, 0, 0.85)" }}
+          >
             -{base.damage}
           </span>
         ) : null}

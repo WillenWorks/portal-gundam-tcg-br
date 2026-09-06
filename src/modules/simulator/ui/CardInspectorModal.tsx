@@ -9,8 +9,42 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
-import { effectiveAp, effectiveHp } from "@/modules/simulator/engine/types";
+import { effectiveAp, effectiveHp, effectivePilotDef } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
+
+/** AP/HP a exibir por tipo de carta (feedback Willen 3ª rodada — Command não
+ *  tem AP/HP, não mostrar "0"). Unit: AP+HP efetivos/base. Base: só HP.
+ *  Pilot: o modificador impresso (+X/+Y). Command: nada. */
+export function inspectorStats(
+  card: CardInstance,
+  inPlay: boolean,
+  state?: GameState,
+): { ap?: number; hp?: number; isModifier: boolean } {
+  const { def } = card;
+  const isUnit = def.cardType === "UNIT";
+  const isBase = def.cardType === "BASE";
+  const actsAsPilot = def.cardType === "PILOT" || card.asPilot === true;
+  if (isUnit) {
+    return {
+      ap: inPlay ? effectiveAp(card, state) : def.ap,
+      hp: inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp,
+      isModifier: false,
+    };
+  }
+  if (isBase) {
+    return {
+      hp: inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp,
+      isModifier: false,
+    };
+  }
+  if (actsAsPilot) {
+    const pd = effectivePilotDef(card);
+    const ap = pd.ap ?? 0;
+    const hp = pd.hp ?? 0;
+    return { ap: ap || hp ? ap : undefined, hp: ap || hp ? hp : undefined, isModifier: true };
+  }
+  return { isModifier: false };
+}
 
 export interface LinkedPilot {
   name: string;
@@ -59,8 +93,10 @@ export function CardInspectorModal({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { def } = card;
   const src = artSrc(art, def.code, "xl");
-  const ap = inPlay ? effectiveAp(card, state) : def.ap;
-  const hp = inPlay ? Math.max(0, effectiveHp(card, state) - card.damage) : def.hp;
+  const { ap, hp, isModifier: statsAreModifier } = inspectorStats(card, Boolean(inPlay), state);
+  const fmtStat = (v: number | undefined) => (statsAreModifier && v !== undefined ? `+${v}` : v);
+  const apLabel = statsAreModifier ? "AP (mod)" : "AP";
+  const hpLabel = statsAreModifier ? "HP (mod)" : "HP";
   const uniqueKeywords = [
     ...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])]),
   ];
@@ -98,10 +134,14 @@ export function CardInspectorModal({
               </div>
             ) : null}
 
-            {inPlay && (ap !== undefined || hp !== undefined) ? (
+            {(inPlay || statsAreModifier) && (ap !== undefined || hp !== undefined) ? (
               <div className="absolute inset-x-0 bottom-0 flex text-sm font-black">
-                {ap !== undefined ? <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">AP {ap}</span> : null}
-                {hp !== undefined ? <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">HP {hp}</span> : null}
+                {ap !== undefined ? (
+                  <span className="flex-1 bg-cyan-600/95 py-1 text-center text-white">{apLabel} {fmtStat(ap)}</span>
+                ) : null}
+                {hp !== undefined ? (
+                  <span className="flex-1 bg-slate-800/95 py-1 text-center text-white">{hpLabel} {fmtStat(hp)}</span>
+                ) : null}
               </div>
             ) : null}
 
@@ -138,8 +178,8 @@ export function CardInspectorModal({
             <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
               {def.cost !== undefined ? <Attr label="Custo" value={def.cost} /> : null}
               {def.level !== undefined ? <Attr label="Nível" value={def.level} /> : null}
-              {ap !== undefined ? <Attr label="AP" value={ap} /> : null}
-              {hp !== undefined ? <Attr label="HP" value={hp} /> : null}
+              {ap !== undefined ? <Attr label={apLabel} value={fmtStat(ap)} /> : null}
+              {hp !== undefined ? <Attr label={hpLabel} value={fmtStat(hp)} /> : null}
             </div>
 
             {def.traits?.length ? (

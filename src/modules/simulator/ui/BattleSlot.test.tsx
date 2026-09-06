@@ -78,26 +78,22 @@ describe("BattleSlot", () => {
     expect(screen.getByText("-2")).toBeInTheDocument();
   });
 
-  it('cluster de canto: "Ver" SEMPRE presente; Atacar aparece à esquerda dele', () => {
+  it("Frente 4 (docs/38 §3.1): cluster de canto tem só ações operacionais (Atacar), sem botão de olho", () => {
     const onAttack = vi.fn();
     const onInspect = vi.fn();
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={onInspect} actions={{ onAttack }} />);
     const strip = screen.getByRole("button", { name: "Atacar" }).closest("div")!;
     expect(strip.className).toMatch(/absolute/);
-    // no campo o cluster fica DENTRO do canto (não pra fora), pra não cair na
-    // Battle Area do oponente / seam
     expect(strip.className).toMatch(/top-0\.5/);
     expect(strip.className).toMatch(/right-0\.5/);
-    // ordem no DOM: [Atacar, Ver] → "Ver" encosta no canto direito
-    const kids = Array.from(strip.children);
-    expect(kids[0]).toBe(screen.getByRole("button", { name: "Atacar" }));
-    expect(kids[1]).toBe(screen.getByRole("button", { name: /^Ver / }));
+    const clusterButtons = Array.from(strip.querySelectorAll("button")).map((b) => b.getAttribute("aria-label"));
+    expect(clusterButtons).toEqual(["Atacar"]);
   });
 
-  it('sem ação disponível, o cluster ainda tem "Ver"', () => {
+  it("Frente 4: sem ação disponível o cluster some — a inspeção fica no corpo da carta", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /^Ver / })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Atacar" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Ver / })).toBeInTheDocument();
   });
 
   it("clicar em Atacar dispara SÓ onAttack, nunca a inspeção (fim do conflito)", () => {
@@ -109,7 +105,7 @@ describe("BattleSlot", () => {
     expect(onInspect).not.toHaveBeenCalled();
   });
 
-  it('"Ver" dispara onInspect', () => {
+  it("Frente 4: clicar no corpo da carta (fora de seleção) dispara onInspect", () => {
     const onInspect = vi.fn();
     const u = unit();
     render(<BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} />);
@@ -117,26 +113,49 @@ describe("BattleSlot", () => {
     expect(onInspect).toHaveBeenCalledWith(u);
   });
 
-  it("corpo da carta só é clicável quando é alvo legal (não abre inspeção)", () => {
+  it("Frente 4: como ALVO LEGAL o corpo seleciona, não inspeciona", () => {
     const onInspect = vi.fn();
     const onSelect = vi.fn();
     const u = unit();
-    const { rerender } = render(
-      <BattleSlot unit={u} pilot={null} art={{}} onInspect={onInspect} onSelect={onSelect} />,
-    );
-    // sem legalTarget: corpo não tem role button
-    expect(screen.queryByRole("button", { name: u.def.nameEn })).toBeNull();
-    rerender(<BattleSlot unit={u} pilot={null} art={{}} legalTarget onInspect={onInspect} onSelect={onSelect} />);
-    // com legalTarget: corpo vira botão de seleção
+    render(<BattleSlot unit={u} pilot={null} art={{}} legalTarget onInspect={onInspect} onSelect={onSelect} />);
     const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
     body.click();
     expect(onSelect).toHaveBeenCalledWith(u);
     expect(onInspect).not.toHaveBeenCalled();
   });
 
+  it("Frente 4 (feedback Willen 4ª rodada): Link Unit ganha selo curto 'LINK' na arte; o chip do piloto NÃO tem número de bônus nenhum", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Amuro"] } }, { pairedPilotId: "p-amuro" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p-amuro" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    // selo na arte da Unit
+    expect(screen.getByLabelText("Link Unit")).toHaveTextContent(/^Link$/i);
+    // o chip do piloto (DockedPilot) é só o rosto — sem "+2/+1", sem números.
+    const pilotChip = screen.getByRole("button", { name: /Amuro Ray/ });
+    expect(pilotChip.textContent ?? "").not.toMatch(/\+?\d/);
+    expect(pilotChip.textContent ?? "").not.toMatch(/\+\d\/\+\d/);
+  });
+
+  it("Frente 4: Unit pareada mas SEM link não tem selo 'LINK'", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Char"] } }, { pairedPilotId: "p" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    expect(screen.queryByLabelText("Link Unit")).toBeNull();
+  });
+
   it("sem badge 'BLK' na arte (blocker se mostra pelo botão de escudo)", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
     expect(screen.queryByText("Blk")).toBeNull();
+  });
+
+  it("Frente 4 (docs/38 §4): `justDeployed` aplica a animação de pouso/queda na arte", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const cardBox = () => container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox().className).not.toMatch(/sim-anim/);
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} justDeployed="light" />);
+    expect(cardBox().className).toMatch(/sim-anim-land-soft/);
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} justDeployed="heavy" />);
+    expect(cardBox().className).toMatch(/sim-anim-drop-heavy/);
   });
 
   it("botões de ação são só ícone (não cobrem os números AP/HP)", () => {
@@ -166,7 +185,46 @@ describe("BattleSlot", () => {
     // não é mais um overlay absoluto por cima da arte — é fluxo normal, numa
     // tira própria abaixo dela.
     expect(pilotButton.className).not.toMatch(/absolute/);
-    expect(pilotButton.parentElement?.className).toMatch(/h-\[1\.1rem\]/);
+    // Frente 4 (feedback Willen 2ª rodada): a tira escala com `--card-w-std`.
+    expect(pilotButton.parentElement?.className).toMatch(/h-\[clamp\(1\.15rem,calc\(var\(--card-w-std/);
+  });
+
+  it("Frente 4 (docs/38 §4.3): atacante/bloqueador sobem ~6px com leve inclinação (motion-reduce neutraliza)", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const slot = () => container.firstElementChild as HTMLElement;
+    expect(slot().className).not.toMatch(/-translate-y-1\.5/);
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} isAttacker />);
+    expect(slot().className).toMatch(/-translate-y-1\.5/);
+    expect(slot().className).toMatch(/rotate-\[-2deg\]/);
+    expect(slot().className).toMatch(/motion-reduce:transform-none/);
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} isBlocking />);
+    expect(slot().className).toMatch(/-translate-y-1\.5/);
+    expect(slot().className).toMatch(/rotate-\[2deg\]/);
+  });
+
+  it("Frente 4 (feedback Willen 4ª rodada): `attacking` aplica um translate/rotate inline em direção ao alvo", () => {
+    const { container, rerender } = render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    const slot = () => container.firstElementChild as HTMLElement;
+    expect(slot().getAttribute("data-attacking")).toBeNull();
+    expect(slot().style.transform).toBe("");
+
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} attacking={{ towardX: 300, towardY: -100 }} />);
+    expect(slot().getAttribute("data-attacking")).toBe("true");
+    expect(slot().style.transform).toMatch(/translate\(.*px, .*px\) rotate\(.*deg\)/);
+
+    // limpar volta ao repouso (sem transform inline)
+    rerender(<BattleSlot unit={unit()} pilot={null} art={{}} attacking={null} />);
+    expect(slot().getAttribute("data-attacking")).toBeNull();
+  });
+
+  it("Frente 4: a carta atacante mantém a proporção 63/88 (o lunge é no slot, não na arte)", () => {
+    const { container } = render(
+      <BattleSlot unit={unit()} pilot={null} art={{}} attacking={{ towardX: 120, towardY: 40 }} />,
+    );
+    const cardBox = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(cardBox.className).toMatch(/aspect-\[63\/88\]/);
   });
 
   it("onHoverCard dispara com a Unit no hover do slot e null ao sair", () => {

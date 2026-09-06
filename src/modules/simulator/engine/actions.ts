@@ -321,6 +321,8 @@ function applyPlayerActionInner(
           targets: action.targets,
           costResourceIds: action.resourceInstanceIds,
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
 
@@ -356,6 +358,8 @@ function applyPlayerActionInner(
         next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
           targets: action.targets ?? {},
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
       if (decision.queuedInstanceIds.length > 0) {
@@ -404,6 +408,8 @@ function applyPlayerActionInner(
         // usado em `playCommand`/`activateAbility`/`resolveBurstDecision`.
         next = dispatchTrigger(next, trig.instanceId, trig.trigger, specs.filter((s) => s.id === specId), {
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
       }
       return next;
@@ -454,7 +460,20 @@ function applyPlayerActionInner(
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets,
           predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
         });
+      }
+      // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou
+      // Units-com-【Destroyed】-que-pausa dos dois lados): agora que a decisão do
+      // jogador ativo fechou, dispara a do oponente (FIFO).
+      if (decision.queuedDestroyed && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
+        const qd = decision.queuedDestroyed;
+        next = deferOrDispatchAbilities(next, qd.owner, "Destroyed", qd.sources, specs, {
+          predicateResolver,
+          targetFilterResolver,
+        });
+        if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
       if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {

@@ -58,4 +58,40 @@ describe("PileTray", () => {
     fireEvent.click(screen.getByRole("button", { name: "Deck: 0" }));
     expect(screen.getByText("Pilha vazia.")).toBeInTheDocument();
   });
+
+  it("Frente 4 (feedback Willen 2ª rodada): bandeja tem largura limitada (não `inset-x-0`)", () => {
+    render(<PileTray label="Trash" count={1} cards={[card("1")]} art={{}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Trash: 1" }));
+    const dialog = screen.getByRole("dialog", { name: "Pilha: Trash" });
+    expect(dialog.className).toMatch(/w-\[min\(92vw,30rem\)\]/);
+    expect(dialog.className).not.toMatch(/inset-x-0/);
+  });
+
+  it("Frente 4: fecha clicando no backdrop e com Esc", () => {
+    render(<PileTray label="Trash" count={1} cards={[card("1")]} art={{}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Trash: 1" }));
+    // backdrop = o irmão aria-hidden com bg-black/50
+    const backdrop = document.querySelector('[aria-hidden="true"].fixed.inset-0') as HTMLElement;
+    fireEvent.click(backdrop);
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Trash: 1" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("Frente 4: abrir uma pilha fecha qualquer outra (só 1 bandeja por vez)", () => {
+    render(
+      <>
+        <PileTray label="Trash" count={1} cards={[card("1")]} art={{}} />
+        <PileTray label="Exílio" count={1} cards={[card("2")]} art={{}} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Trash: 1" }));
+    expect(screen.getByRole("dialog", { name: "Pilha: Trash" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Exílio: 1" }));
+    expect(screen.queryByRole("dialog", { name: "Pilha: Trash" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Pilha: Exílio" })).toBeInTheDocument();
+  });
 });

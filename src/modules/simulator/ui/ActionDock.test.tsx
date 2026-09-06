@@ -165,6 +165,16 @@ describe("ActionDock — posição (V6.3, docs/34)", () => {
     expect(out).toMatch(/lg:left-auto lg:top-auto lg:bottom-14 lg:right-2/);
   });
 
+  it("Frente 4 (docs/38 §3.5): no desktop a caixa acompanha o conteúdo e o texto de fase não quebra/trunca", () => {
+    const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Principal · Ação", timerSeconds: 120 });
+    // caixa fit-content (nunca corta "Fase Principal · Ação" no canto direito)
+    expect(out).toMatch(/lg:w-fit/);
+    expect(out).toMatch(/lg:min-w-\[13rem\]/);
+    // linha de fase: nowrap no desktop, sem `truncate`
+    expect(out).toMatch(/lg:whitespace-nowrap/);
+    expect(out).not.toMatch(/class="[^"]*\btruncate\b[^"]*"[^>]*>Sua vez/);
+  });
+
   it("V6.4 (docs/36): `mobileMaxHeightPx` (medido pelo pai) vira `style.maxHeight` inline — bug real (Willen: painel cortado mesmo com scroll, `dvh` sozinho não bastou)", () => {
     const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 }, { mobileMaxHeightPx: 260 });
     expect(out).toMatch(/style="max-height:\s*260px"/);

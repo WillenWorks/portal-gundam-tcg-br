@@ -157,8 +157,20 @@ function matchViewsForBothPlayers(match: MatchRecord): Record<PlayerId, MatchVie
 
 type Listener = (views: Record<PlayerId, MatchView>, match: MatchRecord) => void;
 
+/**
+ * Assinante GLOBAL (todas as partidas de uma vez), diferente de `Listener` que
+ * é por-partida. É o "hook/emitter" que a camada Socket.io
+ * (`server/simulatorSocket.ts`, Frente 5 / docs/39) usa pra transmitir
+ * `match:view_update` na sala `match:{id}` sempre que o motor autoritativo muda
+ * — recebe as duas visões JÁ redigidas (uma por assento), sem nunca tocar o
+ * `GameState` real. O SSE (`subscribe` por-partida) segue funcionando em
+ * paralelo, intacto.
+ */
+type GlobalMatchListener = (matchId: string, views: Record<PlayerId, MatchView>, match: MatchRecord) => void;
+
 const matches = new Map<string, MatchRecord>();
 const listeners = new Map<string, Set<Listener>>();
+const globalMatchListeners = new Set<GlobalMatchListener>();
 // `ReturnType<typeof setTimeout>` (não `NodeJS.Timeout`) porque este arquivo mora em `src/`
 // (tipado pra browser, sem @types/node) mesmo só rodando no server em runtime.
 const turnTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
@@ -602,6 +614,17 @@ export function queueStatusFor(userId: string): QueueStatus {
   return { queued: queue.some((entry) => entry.userId === userId), matched: false };
 }
 
+/**
+ * Posição 1-based na fila (0 = não está na fila) + há quanto tempo espera, em
+ * segundos. Só exibição — usado pela camada Socket.io pra montar
+ * `queue:status { position, waitTimeSec }` (docs/39 §2.2).
+ */
+export function queuePositionFor(userId: string): { position: number; waitTimeSec: number } {
+  const index = queue.findIndex((entry) => entry.userId === userId);
+  if (index === -1) return { position: 0, waitTimeSec: 0 };
+  return { position: index + 1, waitTimeSec: Math.floor((Date.now() - queue[index].queuedAt) / 1000) };
+}
+
 export function leaveQueue(userId: string): void {
   const index = queue.findIndex((entry) => entry.userId === userId);
   if (index !== -1) queue.splice(index, 1);
@@ -771,6 +794,18 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
   notify(match);
 }
 
+/**
+ * Assina TODAS as partidas de uma vez (broadcast de rede — ver
+ * `GlobalMatchListener`). Chamada 1× no boot pela camada Socket.io. Devolve o
+ * cancelador. Independente de `subscribe` (SSE) — os dois coexistem.
+ */
+export function subscribeAllMatches(listener: GlobalMatchListener): () => void {
+  globalMatchListeners.add(listener);
+  return () => {
+    globalMatchListeners.delete(listener);
+  };
+}
+
 /** Assina atualizações de uma partida (visão já redigida por jogador). Devolve a função de cancelamento. */
 export function subscribe(matchId: string, listener: Listener): () => void {
   let set = listeners.get(matchId);
@@ -808,9 +843,13 @@ function logGameOverOnce(match: MatchRecord): void {
 function notify(match: MatchRecord): void {
   logGameOverOnce(match);
   const set = listeners.get(match.id);
-  if (!set || set.size === 0) return;
+  const hasLocal = !!set && set.size > 0;
+  if (!hasLocal && globalMatchListeners.size === 0) return;
   const views = matchViewsForBothPlayers(match);
-  for (const listener of set) listener(views, match);
+  if (set) {
+    for (const listener of set) listener(views, match);
+  }
+  for (const listener of globalMatchListeners) listener(match.id, views, match);
 }
 
 export function deleteMatch(matchId: string): void {
@@ -837,6 +876,7 @@ export function _resetAllMatchesForTests(): void {
   turnTimeouts.clear();
   matches.clear();
   listeners.clear();
+  globalMatchListeners.clear();
   queue.length = 0;
   pendingMatches.clear();
   gameOverLogged.clear();

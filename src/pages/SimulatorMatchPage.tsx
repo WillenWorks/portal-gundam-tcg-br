@@ -102,8 +102,9 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
-import { api, ApiError, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
+import { api, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
@@ -127,9 +128,12 @@ import {
   type LinkedPilot,
   CombatLane,
   CounterChip,
+  DeckDealAnimation,
+  type DeckDealMode,
   HandFan,
   PileTray,
   playerAreaKey,
+  playerShieldKey,
   ResourceMeter,
   RotateDevicePrompt,
   ShieldRail,
@@ -161,8 +165,6 @@ const ART_CODE_ALIASES: Record<string, string> = {
 };
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
-/** Intervalo do heartbeat de presença do cliente -- bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
-const PRESENCE_PING_MS = 15_000;
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
  *  mostramos o `RotateDevicePrompt` pedindo o modo paisagem (Sprint 4). */
 const PORTRAIT_QUERY = "(max-width: 900px) and (orientation: portrait)";
@@ -175,6 +177,20 @@ const GAME_OVER_REDIRECT_MS = 8_000;
 
 function isHidden(card: ViewCardInstance): card is HiddenCard {
   return "hidden" in card && (card as HiddenCard).hidden === true;
+}
+
+/** Frente 4 (feedback Willen 4ª rodada) — rótulos da `DeckDealAnimation` ligada
+ *  ao fluxo real (compra inicial / mulligan / montagem de escudos). */
+const SETUP_ANIM_LABEL: Record<DeckDealMode, string> = {
+  shuffle: "Embaralhando…",
+  "deal-hand": "Comprando a mão inicial…",
+  mulligan: "Refazendo a mão (Mulligan)…",
+  "deal-shields": "Montando os escudos…",
+};
+
+/** centro (viewport px) de um `DOMRect`, ou `null`. */
+function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
+  return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
 }
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -340,11 +356,6 @@ type HandPreview = { card: CardInstance; blockedReason?: string; modes: HandPlay
 export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [, setLocation] = useLocation();
   const [matchView, setMatchView] = useState<SimulatorMatchView | null>(null);
-  /** estado da conexão SSE — `connecting` (1ª vez) · `live` · `reconnecting` (com backoff) · `dead` (sem volta: sessão expirada ou partida encerrada). */
-  const [connState, setConnState] = useState<"connecting" | "live" | "reconnecting" | "dead">("connecting");
-  const [deadReason, setDeadReason] = useState<string | null>(null);
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
-  const connected = connState === "live";
   /** offset de relógio servidor↔cliente (`serverNow - Date.now()`) — corrige skew no countdown/idle. */
   const clockOffsetRef = useRef(0);
   /** limiares de aviso do timer de turno já disparados NESTE prazo (reseta quando `turnDeadlineAt` muda). */
@@ -372,10 +383,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [logOpen, setLogOpen] = useState(false);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
+  /** Frente 4 (feedback Willen 4ª rodada) — animação de setup em curso, disparada
+   *  por heurística de diff de contagem (ver o efeito abaixo). `null` = nenhuma. */
+  const [setupAnim, setSetupAnim] = useState<DeckDealMode | null>(null);
+  /** snapshot da rodada anterior pra detectar "o que aconteceu neste tick". */
+  const setupSnapshotRef = useRef<{ turnNumber: number; handLen: number; shields: number; mulliganPending: boolean } | null>(
+    null,
+  );
+  /** instanceIds de Unit que JÁ tocaram a animação de deploy — flag transiente
+   *  (Frente 4, feedback Willen 4ª rodada): `enteredZoneOnTurn === turnNumber`
+   *  fica true o turno todo, mas a animação de pouso só pode rodar 1×. */
+  const deployedSeenRef = useRef<Set<string>>(new Set());
 
   const board = useBoardElements(); // docs/19, Sessão 3 — refs de tabuleiro pra linha de mira do CombatLane
 
-  const eventSourceRef = useRef<EventSource | null>(null);
   const { art, artLoading, cardText, cardByName } = useCardArtLookup();
   const isPortrait = useMediaQuery(PORTRAIT_QUERY);
   const isWide = useMediaQuery(WIDE_QUERY);
@@ -395,89 +416,35 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     });
   }, []);
 
-  // Stream SSE com reconexão própria: `EventSource` nativo já re-tenta sozinho,
-  // mas sem `retry:` do servidor, sem aviso na UI e sem resync se a reconexão
-  // falhar. Aqui: backoff exponencial (1s→15s), resync autoritativo via REST a
-  // cada tentativa, e tratamento de 401 (sessão expirada).
-  useEffect(() => {
-    let stopped = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let attempt = 0;
-
-    // reconexão sem volta: fecha tudo, para o backoff e marca `dead`. Sem isto,
-    // um 404 (partida varrida do banco após o fim) mandava o cliente reconectar
-    // pra sempre (o /stream responde 404, `onerror`, repete).
-    const stopHard = (reason: string, toLobby: boolean) => {
-      stopped = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+  // Frente 5 (docs/39) — transporte da partida: `simulatorSocket` como caminho
+  // PRIMÁRIO (`match:view_update`/`match:action`/`match:ping`), com FALLBACK
+  // automático pro laço SSE + POST antigo se o socket não conectar / ficar `dead`
+  // (o servidor mantém `/stream` e as rotas POST intactos — só o cliente muda o
+  // caminho preferido). Toda a máquina de conexão/reconexão vive no hook.
+  const onTransportExpired = useCallback(
+    ({ reason, toLobby }: { reason: string; toLobby: boolean }) => {
       toast.error(reason);
-      setDeadReason(reason);
-      setConnState("dead");
       if (toLobby) setLocation("/simulador");
-    };
-
-    const connect = () => {
-      if (stopped) return;
-      const url = buildSimulatorStreamUrl(matchId);
-      if (!url) {
-        toast.error("Sessão inválida — faça login de novo.");
-        setConnState("dead");
-        return;
-      }
-      const source = new EventSource(url);
-      eventSourceRef.current = source;
-
-      source.addEventListener("state", (event: MessageEvent) => {
-        attempt = 0;
-        setReconnectAttempt(0);
-        setConnState("live");
-        applyIncomingView(JSON.parse(event.data) as SimulatorMatchView);
-      });
-
-      source.onerror = () => {
-        source.close();
-        eventSourceRef.current = null;
-        if (stopped) return;
-        setConnState("reconnecting");
-        attempt += 1;
-        setReconnectAttempt(attempt);
-        // resync autoritativo — se o SSE não voltar, ao menos o board não fica velho
-        void api
-          .getSimulatorMatch(matchId)
-          .then((res) => {
-            if (stopped) return;
-            if ("seated" in res && res.seated) {
-              applyIncomingView(res as SimulatorMatchView);
-              return;
-            }
-            // a partida respondeu mas você não está mais nela (encerrada e
-            // liberada, ou assento perdido) — reconectar não recupera nada
-            stopHard("Esta partida foi encerrada.", true);
-          })
-          .catch((err) => {
-            if (stopped) return;
-            if (err instanceof ApiError && err.status === 401) {
-              stopHard("Sessão expirada — faça login de novo.", false);
-            } else if (err instanceof ApiError && err.status === 404) {
-              stopHard("Esta partida não está mais disponível.", true);
-            }
-            // outros erros (queda de rede momentânea) → o backoff abaixo segue
-          });
-        const delay = Math.min(15_000, 1_000 * 2 ** (attempt - 1));
-        retryTimer = setTimeout(connect, delay);
-      };
-    };
-
-    connect();
-    return () => {
-      stopped = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
-    };
-  }, [matchId, applyIncomingView, setLocation]);
+    },
+    [setLocation],
+  );
+  const onTransportMatchError = useCallback((message: string) => toast.error(message), []);
+  const {
+    connState,
+    transport: transportKind,
+    deadReason,
+    reconnectAttempt,
+    lastPingMs,
+    opponentOnline,
+    sendAction,
+    teardown: teardownTransport,
+  } = useMatchTransport({
+    matchId,
+    applyIncomingView,
+    onExpired: onTransportExpired,
+    onMatchError: onTransportMatchError,
+  });
+  const connected = connState === "live";
 
   // Relógio local pro countdown do timer de turno e pro "há quanto tempo o oponente sumiu" --
   // só exibição/UX; a decisão real (agir sozinho no timeout, liberar o W.O.) é sempre do servidor.
@@ -486,20 +453,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Heartbeat de presença -- só dispara enquanto a aba está visível, de propósito: é exatamente o
-  // sinal "o jogador está no navegador" que o Willen pediu, e alimenta o W.O. por abandono (matchStore.touchPresence).
-  useEffect(() => {
-    const ping = () => {
-      if (document.visibilityState === "visible") api.pingSimulatorMatch(matchId).catch(() => {});
-    };
-    ping();
-    const interval = setInterval(ping, PRESENCE_PING_MS);
-    document.addEventListener("visibilitychange", ping);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", ping);
-    };
-  }, [matchId]);
+  // Heartbeat de presença (`matchStore.touchPresence`, alimenta o W.O. por
+  // abandono): agora vive dentro do `useMatchTransport` — `simulatorSocket.ping()`
+  // no modo socket, `api.pingSimulatorMatch` no modo SSE, só com a aba visível.
 
   const clearSelection = () => {
     setPending(null);
@@ -512,8 +468,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     async (action: PlayerAction) => {
       setBusy(true);
       try {
-        const res = await api.sendSimulatorAction(matchId, action);
-        applyIncomingView(res);
+        // Modo socket: o eco vem pelo broadcast `match:view_update` (o hook
+        // resolve quando chega). Modo SSE: `sendAction` faz o POST e aplica a
+        // resposta. Nos dois casos a view já está aplicada quando isto resolve.
+        await sendAction(action);
         clearSelection();
       } catch (err) {
         toast.error(errorMessage(err, "Ação inválida."));
@@ -521,7 +479,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [matchId, applyIncomingView],
+    [sendAction],
   );
 
   const toggleAutoPass = async (value: boolean) => {
@@ -563,10 +521,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
 
   const leaveMatchScreen = useCallback(() => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
+    teardownTransport();
     setLocation(EXIT_ROUTE);
-  }, [setLocation]);
+  }, [setLocation, teardownTransport]);
 
   const exitToLobby = async () => {
     // "Sair" = desistir da partida: encerra o duelo e concede a vitória a quem
@@ -594,12 +551,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setRedirectAt(null);
       return;
     }
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
+    teardownTransport();
     setRedirectAt(Date.now() + GAME_OVER_REDIRECT_MS);
     const timer = setTimeout(() => setLocation(EXIT_ROUTE), GAME_OVER_REDIRECT_MS);
     return () => clearTimeout(timer);
-  }, [gameOver, setLocation]);
+  }, [gameOver, setLocation, teardownTransport]);
 
   // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
   // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
@@ -633,6 +589,51 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
     }
   }, [matchView, now]);
+
+  // Frente 4 (feedback Willen 4ª rodada) — liga a `DeckDealAnimation` no fluxo
+  // real. O motor NÃO expõe os `GameEvent` de setup ao cliente de forma
+  // utilizável (o `eventLog` da view é janelado e traduzido pra texto), então a
+  // detecção é por DIFF de contagem entre o snapshot anterior e o atual:
+  //  - escudos 0 → ≥6 no turno 1  ⇒ montagem dos 6 escudos
+  //  - decisão de mulligan que sai de pendente ⇒ refação da mão
+  //  - mão 0 → ≥5 no turno 1       ⇒ compra inicial
+  // Só 1 animação por vez; `prefers-reduced-motion` pula tudo. Precisa vir ANTES
+  // do guard de loading (hook não pode ficar depois de early return) — daí ler
+  // de `matchView` direto em vez dos `const` do corpo (que só existem depois).
+  useEffect(() => {
+    if (!matchView) return;
+    const v = matchView.view;
+    const me = v.players[matchView.seat];
+    const cur = {
+      turnNumber: v.turnNumber,
+      handLen: (me.hand as ViewCardInstance[]).filter((c) => !isHidden(c)).length,
+      shields: me.counts.shields,
+      mulliganPending: v.pendingDecision[matchView.seat]?.kind === "mulligan",
+    };
+    // marca como "já animadas" as Units recém-postas — no PRÓXIMO render elas
+    // não recebem mais `justDeployed` (a animação de pouso já rodou na montagem).
+    for (const pid of ["A", "B"] as PlayerId[]) {
+      for (const c of v.players[pid].battleArea) {
+        if (!isHidden(c) && (c as CardInstance).enteredZoneOnTurn === v.turnNumber) {
+          deployedSeenRef.current.add((c as CardInstance).instanceId);
+        }
+      }
+    }
+
+    const prev = setupSnapshotRef.current;
+    setupSnapshotRef.current = cur;
+    if (!prev || v.gameOver) return;
+    const reduced =
+      typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    if (reduced) return;
+    if (prev.shields === 0 && cur.shields >= 6 && cur.turnNumber <= 1) {
+      setSetupAnim("deal-shields");
+    } else if (prev.mulliganPending && !cur.mulliganPending) {
+      setSetupAnim("mulligan");
+    } else if (prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) {
+      setSetupAnim("deal-hand");
+    }
+  }, [matchView]);
 
   if (!matchView || artLoading) {
     return (
@@ -890,6 +891,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
+      // Frente 4 (feedback Willen 4ª rodada) — Unit recém-posta neste turno que
+      // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
+      const justDeployed: "light" | "heavy" | undefined =
+        unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
+          ? (unit.def.cost ?? 0) <= 3
+            ? "light"
+            : "heavy"
+          : undefined;
       const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
       const canActivate = Boolean(ability && myActiveResources >= ability!.cost);
       const actions =
@@ -909,7 +918,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           art={art}
           legalTarget={Boolean(unit && selecting)}
           selected={Boolean(unit && selected.includes(unit.instanceId))}
-          isAttacker={Boolean(unit && attackerId === unit.instanceId)}
+          isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
+          isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
+          justDeployed={justDeployed}
+          attacking={
+            unit && attackLunge?.id === unit.instanceId
+              ? { towardX: attackLunge.towardX, towardY: attackLunge.towardY }
+              : undefined
+          }
           busy={busy}
           state={boardForStats}
           onSelect={(u) => toggleSelect(u.instanceId)}
@@ -1005,6 +1021,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <ShieldRail
           orientation="vertical"
           count={player.counts.shields}
+          underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
           selectable={selecting}
           selectedIndexes={selectedShieldIndexes(player)}
           onSelectIndex={(i) => {
@@ -1075,6 +1092,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ),
       battleRow: renderBattleSlots(player, isSelf),
       battleAreaRef: board.register(playerAreaKey(pid)),
+      shieldStationRef: board.register(playerShieldKey(pid)),
+      deckStationRef: board.register(`deckStation:${pid}`),
+      handRef: isSelf ? board.register("hand:self") : undefined,
       handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
     };
   }
@@ -1089,6 +1109,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       : null;
   const combatTargetUnit =
     combat && typeof combat.currentTarget === "object" ? findPublicCard(view, combat.currentTarget.unitId) : null;
+
+  // Frente 4 (feedback Willen 4ª rodada) — avanço do atacante em direção ao
+  // alvo (mesma medição de DOM que a seta do `CombatLane` usa). Ativo só nos
+  // steps de declaração/dano; ao sair, o `BattleSlot` volta pro slot via
+  // transição CSS.
+  const attackLunge: { id: string; towardX: number; towardY: number } | null = (() => {
+    if (!combat || (combat.step !== "attack" && combat.step !== "damage")) return null;
+    const a = board.rectOf(combat.attackerId);
+    const tKey =
+      combat.currentTarget === "player" ? playerShieldKey(combat.defendingPlayer) : combat.currentTarget.unitId;
+    const t = board.rectOf(tKey) ?? board.rectOf(playerAreaKey(combat.defendingPlayer));
+    if (!a || !t) return null;
+    return {
+      id: combat.attackerId,
+      towardX: t.left + t.width / 2 - (a.left + a.width / 2),
+      towardY: t.top + t.height / 2 - (a.top + a.height / 2),
+    };
+  })();
 
   // Fase B (plano visual §03) — os ~7 cards de decisão centralizados + o flash de fase
   // viram UM `ActionDock` fixo no canto. Precedência: o 1º que casar vence (1 state por vez).
@@ -1238,11 +1276,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         ) : null}
       </div>
 
-      {/* Info de SISTEMA (não de jogo): status de conexão — chip minúsculo e
-          discreto no canto inferior esquerdo. */}
+      {/* Info de SISTEMA (não de jogo): status de conexão + transporte/RTT — chip
+          minúsculo e discreto no canto inferior esquerdo (Frente 5, telemetria). */}
       <p className="pointer-events-none absolute bottom-1.5 left-2 z-30 flex items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-slate-600">
         <RefreshCw className={`size-2.5 ${connected ? "text-primary/70" : "animate-pulse text-slate-500"}`} />
-        {connState === "live" ? "conectado" : connState === "dead" ? "desconectado" : "conectando…"}
+        {connState === "live"
+          ? `conectado · ${
+              transportKind === "socket"
+                ? lastPingMs !== null
+                  ? `ws ${lastPingMs}ms`
+                  : "ws"
+                : "sse"
+            }`
+          : connState === "dead"
+            ? "desconectado"
+            : "conectando…"}
+        {connected && transportKind === "socket" && opponentOnline === false ? (
+          <span className="text-amber-500/70">· oponente ausente</span>
+        ) : null}
       </p>
 
       {/* Banner de reconexão — só quando o SSE caiu e está tentando voltar. */}
@@ -1474,6 +1525,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {/* Aviso/confirmação da partida (capturas 4) — painel no topo-centro, fora
           do caminho do tabuleiro, nunca bloqueia clique/hover. */}
       <MatchPrompt message={matchPrompt} tone={combat || iAmDefending ? "warn" : "info"} />
+
+      {/* Frente 4 (feedback Willen 4ª rodada) — animação de setup ancorada nas
+          zonas reais: sai da pilha do deck e viaja até a mão / zona de escudos. */}
+      {setupAnim ? (
+        <DeckDealAnimation
+          mode={setupAnim}
+          label={SETUP_ANIM_LABEL[setupAnim]}
+          origin={rectCenter(board.rectOf(`deckStation:${seat}`))}
+          dest={rectCenter(
+            board.rectOf(setupAnim === "deal-shields" ? playerShieldKey(seat) : "hand:self"),
+          )}
+          onDone={() => setSetupAnim(null)}
+        />
+      ) : null}
 
       {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
           os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board.
