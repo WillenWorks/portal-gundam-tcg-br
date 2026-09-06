@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Documentação Técnica — Portal Gundam TCG BR v1.0</title>
+<style>
+  @page { size: A4; margin: 17mm 15mm 20mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #1b232e;
+    background: #fff;
+    line-height: 1.5;
+    font-size: 11.5px;
+  }
+  .cover {
+    min-height: 250mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    background: linear-gradient(160deg, #0b1220 0%, #0e2a3a 55%, #0b1220 100%);
+    color: #eaf6ff;
+    padding: 40mm 20mm;
+    page-break-after: always;
+  }
+  .cover .eyebrow {
+    color: #38bdf8; letter-spacing: 0.26em; text-transform: uppercase;
+    font-size: 11px; font-weight: 700; margin-bottom: 14px;
+  }
+  .cover h1 { font-size: 36px; line-height: 1.15; margin: 0 0 12px 0; font-weight: 900; text-transform: uppercase; }
+  .cover h1 .accent { color: #38bdf8; }
+  .cover p.sub { font-size: 14px; color: #b7c8d8; max-width: 130mm; margin-top: 6px; }
+  .cover .meta { margin-top: 40px; font-size: 11px; color: #8aa2b6; line-height: 1.8; }
+  .cover .footer-note { margin-top: 34px; font-size: 10px; color: #6d8397; text-transform: uppercase; letter-spacing: 0.12em; }
+
+  h2 {
+    font-size: 17px; color: #0b3a53; border-bottom: 3px solid #38bdf8;
+    padding-bottom: 5px; margin: 26px 0 12px 0; page-break-after: avoid;
+  }
+  h3 { font-size: 13.5px; color: #0b3a53; margin: 16px 0 5px 0; page-break-after: avoid; }
+  h4 { font-size: 12px; color: #29506a; margin: 12px 0 4px 0; page-break-after: avoid; }
+  p { margin: 0 0 8px 0; }
+  ul, ol { margin: 0 0 9px 0; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  code { background: #eef1f4; padding: 1px 4px; border-radius: 3px; font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  pre {
+    background: #0f1b26; color: #dbe7f0; padding: 11px 13px; border-radius: 5px;
+    overflow-x: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 10px;
+    line-height: 1.45; margin: 8px 0 12px 0; white-space: pre; page-break-inside: avoid;
+  }
+  pre code { background: none; padding: 0; color: inherit; font-size: 10px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 14px 0; font-size: 10.5px; page-break-inside: avoid; }
+  th, td { border: 1px solid #cdd8e1; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8f1f6; color: #0b3a53; font-weight: 700; }
+  tr:nth-child(even) td { background: #f6f9fb; }
+  .toc { background: #f4f8fb; border: 1px solid #dde6ee; border-radius: 6px; padding: 14px 20px; page-break-after: always; }
+  .toc h2 { border: none; margin: 0 0 6px 0; }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc ol ol { margin-top: 3px; }
+  .toc a { color: #0b3a53; text-decoration: none; }
+  .note {
+    background: #eef7fb; border-left: 4px solid #38bdf8; padding: 8px 12px;
+    margin: 10px 0; font-size: 10.8px; border-radius: 0 4px 4px 0;
+  }
+  .warn {
+    background: #fff7e6; border-left: 4px solid #f5a623; padding: 8px 12px;
+    margin: 10px 0; font-size: 10.8px; border-radius: 0 4px 4px 0;
+  }
+  .section { page-break-before: always; }
+  .mono-inline { font-family: 'Consolas', monospace; font-size: 10.5px; }
+  figure.diagram { margin: 10px 0 14px 0; page-break-inside: avoid; }
+  figure.diagram pre { background: #f3f7fa; color: #23323f; border: 1px solid #d4dfe7; }
+  small.src { color: #5a6b7a; font-style: italic; display: block; margin: -4px 0 10px 0; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="eyebrow">Documentação de Engenharia</div>
+  <h1>Documentação<br/>Técnica —<br/><span class="accent">Portal Gundam<br/>TCG BR</span></h1>
+  <p class="sub">Referência para quem vai manter e estender o sistema: arquitetura, modelo de dados, pipeline de catálogo, tradução pt-BR, motor do simulador, rede em tempo real e ferramentas de desenvolvimento.</p>
+  <div class="meta">
+    Versão do documento: 1.0 &nbsp;·&nbsp; App: v1.0.0<br/>
+    Branch de referência: <span class="mono-inline">dev</span> &nbsp;·&nbsp; Data: 2026-09-06<br/>
+    Base: código do repositório + <span class="mono-inline">docs/</span> internos + <span class="mono-inline">CHANGELOG.md</span>
+  </div>
+  <div class="footer-note">portal-gundam-tcg-br · documentação interna</div>
+</div>
+
+<div class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><a href="#s1">Visão geral e stack</a></li>
+    <li><a href="#s2">Como rodar local</a></li>
+    <li><a href="#s3">Modelo de dados</a></li>
+    <li><a href="#s4">Catálogo de cartas</a></li>
+    <li><a href="#s5">Tradução pt-BR do texto de efeito</a></li>
+    <li><a href="#s6">Motor do simulador</a></li>
+    <li><a href="#s7">Simulador — servidor autoritativo e rede</a></li>
+    <li><a href="#s8">Deckbuilder e legalidade de deck</a></li>
+    <li><a href="#s9">Ferramentas de desenvolvimento</a></li>
+    <li><a href="#s10">Convenções</a></li>
+    <li><a href="#s11">Limitações conhecidas e backlog</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ 1 -->
+<section id="s1">
+  <h2>1. Visão geral e stack</h2>
+  <p>
+    O Portal Gundam TCG BR é uma aplicação web única (monorepo simples, sem workspaces de pacote separados) que reúne
+    quatro produtos: catálogo de cartas, deckbuilder, base de regras (rulings) e simulador de partidas. O frontend é uma
+    SPA React servida como estático; o backend é uma API Express + Prisma sobre PostgreSQL; o simulador acrescenta um
+    motor de regras puro em TypeScript e uma camada de rede em tempo real (SSE + Socket.io).
+  </p>
+
+  <h3>1.1 Stack</h3>
+  <table>
+    <tr><th>Camada</th><th>Tecnologia</th><th>Observações</th></tr>
+    <tr><td>Frontend</td><td>React 19, Vite 7, TypeScript 5.9, Tailwind CSS 4</td><td>Componentes Radix UI + shadcn (<code>components.json</code>), <code>framer-motion</code>, <code>recharts</code> (gráficos do deckbuilder/stats), <code>@dnd-kit</code> (arrastar-soltar nas Pastas).</td></tr>
+    <tr><td>Roteamento</td><td><code>wouter</code> 3</td><td><strong>Hash routing</strong> — <code>src/App.tsx</code> usa <code>&lt;Router hook={useHashLocationWithQuery}&gt;</code> (<code>src/lib/hashLocationWithQuery.ts</code>), que preserva query string no fragmento. Deploy estático não precisa de rewrite de servidor.</td></tr>
+    <tr><td>Estado global</td><td>React Context</td><td><code>src/contexts/</code>: <code>AuthContext</code> (JWT + usuário), <code>ThemeContext</code> (claro/escuro), <code>FactionContext</code>.</td></tr>
+    <tr><td>HTTP client</td><td><code>axios</code> (<code>src/lib/api.ts</code>)</td><td>Conversão de caso camelCase ⇄ snake_case nas bordas (ver §10).</td></tr>
+    <tr><td>Backend</td><td>Express 5, Node 22+, <code>tsx</code> (runtime, sem build)</td><td>Arquivo único <code>server/index.ts</code> (~3.5k linhas). <code>jsonwebtoken</code>, <code>bcryptjs</code>, <code>google-auth-library</code>, <code>multer</code> (upload), <code>cors</code>.</td></tr>
+    <tr><td>ORM / banco</td><td>Prisma 6, PostgreSQL</td><td><code>prisma/schema.prisma</code>. Banco local via Docker (<code>docker-compose.yml</code>).</td></tr>
+    <tr><td>Rede do simulador</td><td><code>socket.io</code> 4 + SSE nativo</td><td><code>server/simulatorSocket.ts</code> (Socket.io) roda ao lado das rotas SSE/POST. Cliente: <code>socket.io-client</code>.</td></tr>
+    <tr><td>Testes</td><td>Vitest 4, Testing Library, jsdom</td><td><code>pnpm test</code> — cerca de 640 casos. Sem subir servidor: motor e libs são funções puras.</td></tr>
+    <tr><td>Gerenciador</td><td><code>pnpm</code> 10 via <code>corepack</code></td><td><code>packageManager</code> fixado no <code>package.json</code>. Comandos: <code>corepack pnpm ...</code>.</td></tr>
+    <tr><td>Ferramentas de IA/motor</td><td>MCP (<code>@modelcontextprotocol/sdk</code>)</td><td><code>scripts/mcp-gundam/</code> — servidor MCP que expõe motor + catálogo. Registrado em <code>.mcp.json</code>.</td></tr>
+  </table>
+
+  <h3>1.2 Layout de pastas</h3>
+<pre><code>portal-gundam-tcg-br/
+├── server/
+│   ├── index.ts              API Express (todas as rotas /api/*)
+│   └── simulatorSocket.ts    camada Socket.io do simulador
+├── src/
+│   ├── App.tsx, main.tsx     shell + router (hash)
+│   ├── pages/                uma página por rota (CardsPage, DeckbuilderPage,
+│   │                         SimulatorSandboxPage, SimulatorMatchPage, AdminPage…)
+│   ├── components/           UI compartilhada (shadcn/Radix + componentes do domínio)
+│   ├── contexts/             AuthContext, ThemeContext, FactionContext
+│   ├── lib/                  api.ts, deck-legality.ts, deck-level-stats.ts,
+│   │                         gundam-card-effects.ts, gundam-catalog.ts, utils
+│   └── modules/
+│       ├── cards/ decks/ rules/ tournaments/ admin/   (domínios do portal)
+│       └── simulator/        (o motor — ver §6/§7)
+│           ├── engine/       motor puro (types, events, phases, combat, effectSpec, …)
+│           ├── content/      EffectSpec por wave (st01..st04) + predicates
+│           ├── fixtures/     CardDef + decklists dos 4 starters + vanillaDeck
+│           ├── server/       matchStore.ts, socketBridge.ts (autoritativo, server-side)
+│           ├── network/      socketClient.ts, useMatchTransport.ts (cliente)
+│           └── ui/           componentes/hlevos visuais da partida
+├── prisma/                   schema + migrations + seeds + scripts de curadoria
+├── scripts/                  catalog-import, translate-card-effects, gundam-fuzz,
+│                             mcp-gundam/, db-backup/restore, dev-api.mjs
+├── data/                     datasets-fonte do catálogo (json)
+├── docs/                     01..46 — decisões de arquitetura e execução
+├── tutoriais/  documentacao/ manuais e este documento
+└── docker-compose.yml  render.yaml  vercel.json  .github/workflows/ci.yml
+</code></pre>
+
+  <h3>1.3 Deploy</h3>
+  <table>
+    <tr><th>Alvo</th><th>O quê</th><th>Config</th></tr>
+    <tr><td>Vercel</td><td>Frontend estático (build Vite)</td><td><code>vercel.json</code>. Domínio público <code>portal-gundam-tcg-br.vercel.app</code>.</td></tr>
+    <tr><td>Render</td><td>API Node (<code>pnpm run start</code> = <code>prisma migrate deploy</code> + <code>tsx server/index.ts</code>)</td><td><code>render.yaml</code> — <code>branch: main</code>, healthcheck <code>/api/health</code>, todas as secrets (<code>DATABASE_URL</code>, <code>JWT_SECRET</code>, <code>GOOGLE_CLIENT_ID</code>, chaves Supabase Storage…) preenchidas no painel, nunca commitadas.</td></tr>
+    <tr><td>Supabase</td><td>PostgreSQL gerenciado (produção) + Storage de imagens de carta</td><td><code>STORAGE_DRIVER=supabase</code> no backend. Local usa <code>STORAGE_DRIVER=local</code> (grava em <code>public/uploads</code>).</td></tr>
+  </table>
+  <p>
+    O modelo de branch é <strong>staging via <code>dev</code></strong> e <strong>produção via <code>main</code></strong>
+    (Render aponta pra <code>main</code>). Ver <code>docs/01-arquitetura-roadmap.md</code>,
+    <code>docs/15-deploy-e-login-google.md</code>.
+  </p>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="s2" class="section">
+  <h2>2. Como rodar local</h2>
+
+  <h3>2.1 Requisitos</h3>
+  <ul>
+    <li>Node.js 22+ (24 ok), <code>pnpm</code> 10+ via <code>corepack enable</code></li>
+    <li>Docker Desktop / Engine + Compose (PostgreSQL local)</li>
+  </ul>
+
+  <h3>2.2 Do zero</h3>
+<pre><code>git clone &lt;url&gt; &amp;&amp; cd portal-gundam-tcg-br
+corepack pnpm install
+cp .env.example .env                 # ajustar se necessário (ver 2.4)
+corepack pnpm run db:up              # sobe o container postgres (docker compose)
+corepack pnpm run setup:fresh-env    # prisma generate + migrate deploy + catalog:bootstrap
+corepack pnpm run dev:full           # API (porta 8787) + frontend (Vite) juntos
+</code></pre>
+  <p><code>dev:full</code> = <code>pnpm run dev:api</code> (que roda <code>scripts/dev-api.mjs</code> → <code>prisma generate</code> + <code>prisma db push</code> + <code>tsx server/index.ts</code>) <strong>e</strong> <code>pnpm run dev</code> (Vite).</p>
+
+  <h3>2.3 Bootstrap do catálogo</h3>
+  <p>
+    <code>setup:fresh-env</code> chama <code>catalog:bootstrap</code>, que é uma cadeia (ver <code>package.json</code>):
+  </p>
+<pre><code>prisma:seed              # usuário admin + registros de exemplo
+prisma:seed:apitcg       # importa o dataset APITCG (data/apitcg-gundam.json) → ~1.812 cartas / 22 sets
+cardmodel:migrate:apply  # sincroniza o CardModel (identidade de jogo) de cada Card (print)
+curation:gcg:apply       # curadoria oficial: série, sourceTitle, relações (data/gcg-official-cards.json)
+keywords:extract:apply   # extrai triggerKeywords/effectKeywords/hasBurst/... do texto
+banlist:apply            # aplica a banlist oficial (legalityStatus / CardBanGroup)
+catalog:apitcg:check     # valida o dataset importado
+</code></pre>
+  <p>
+    Variante destrutiva: <code>catalog:bootstrap:fresh</code> (= <code>prisma db push --force-reset</code> +
+    <code>catalog:bootstrap</code>). Só catálogo, sem resetar o banco: <code>catalog:bootstrap</code>.
+  </p>
+
+  <h3>2.4 <code>.env</code></h3>
+  <p>Copiado de <code>.env.example</code>. Chaves relevantes:</p>
+  <table>
+    <tr><th>Variável</th><th>Uso</th></tr>
+    <tr><td><code>DATABASE_URL</code> / <code>SHADOW_DATABASE_URL</code></td><td>Postgres local (Docker) e banco-sombra fixo pra <code>prisma migrate dev</code>.</td></tr>
+    <tr><td><code>API_PORT</code> (8787)</td><td>Porta da API.</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>Assinatura dos tokens (login e handshake do Socket.io).</td></tr>
+    <tr><td><code>SEED_ADMIN_EMAIL</code> / <code>SEED_ADMIN_PASSWORD</code></td><td>Conta admin criada pelo <code>prisma:seed</code> (default <code>admin@gundambr.local</code> / <code>admin123</code>).</td></tr>
+    <tr><td><code>ALLOWED_ORIGINS</code></td><td>Vazio local = CORS aberto. Em produção, domínios do front separados por vírgula.</td></tr>
+    <tr><td><code>GOOGLE_CLIENT_ID</code> / <code>VITE_GOOGLE_CLIENT_ID</code></td><td>Login Google (opcional — sem isso o botão some e a rota responde "não configurado").</td></tr>
+    <tr><td><code>STORAGE_DRIVER</code></td><td><code>local</code> (grava em <code>public/uploads</code>, servido em <code>/uploads</code>) ou <code>supabase</code>.</td></tr>
+    <tr><td><code>VITE_API_BASE_URL</code></td><td><code>http://localhost:8787/api</code> em dev.</td></tr>
+    <tr><td><code>VITE_LAYOUT_PREVIEW</code></td><td><code>1</code> libera <code>/simulador/preview-layout</code> sem login fora do modo DEV (staging).</td></tr>
+    <tr><td><code>GEMINI_API_KEY</code></td><td>Lido de <code>.spartan/ai.env</code> pelo pipeline de tradução (§5).</td></tr>
+  </table>
+  <div class="warn">
+    <strong>Nunca commitar credenciais.</strong> <code>.env.example</code> traz alguns valores de exemplo/placeholder;
+    trate todos como não-secretos e substitua no <code>.env</code> real. As secrets de produção vivem só no painel do
+    Render / Supabase.
+  </div>
+
+  <h3>2.5 Contas seed</h3>
+  <p>
+    <code>prisma:seed</code> cria a conta admin (<code>SEED_ADMIN_*</code>) com <code>role = ADMIN</code>. Novos usuários
+    entram como <code>role = USER</code>. Papel <code>EDITOR</code> e a flag <code>isHoster</code> são atribuídos pelo
+    admin. Para navegar no admin sem catálogo completo, <code>prisma:seed</code> já basta.
+  </p>
+
+  <h3>2.6 Migrations</h3>
+  <ul>
+    <li>Ambiente novo: <code>prisma migrate deploy</code> (aplica o histórico de <code>prisma/migrations/</code> sem banco-sombra).</li>
+    <li>Dia a dia: <code>dev:api</code> roda <code>prisma db push</code> (sincroniza estrutura, não versiona).</li>
+    <li>Mudança de schema versionada: <code>prisma:migrate --name &lt;nome&gt;</code>. Antes, ver <code>docs/11-checklist-migration.md</code> (risco de <em>drift</em> entre <code>db push</code> e <code>migrate</code>).</li>
+    <li>Backup/restore do banco: <code>pnpm run db:backup</code> / <code>db:restore</code> (<code>scripts/db-*.mjs</code>, ver <code>docs/12</code>).</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="s3" class="section">
+  <h2>3. Modelo de dados</h2>
+  <small class="src">Fonte: <code>prisma/schema.prisma</code>. Regras de schema: <code>.claude/rules/database/SCHEMA.md</code>.</small>
+
+  <p>
+    Postgres com Prisma. Convenções do projeto (ver §10 e <code>SCHEMA.md</code>): <strong>sem foreign keys / sem
+    CASCADE no banco</strong> — as relações do Prisma existem no client mas a integridade é responsabilidade da
+    aplicação; <strong>soft delete</strong> via <code>deletedAt</code> nos modelos de catálogo/evento; timestamps
+    <code>createdAt</code>/<code>updatedAt</code>; PKs <code>cuid()</code>.
+  </p>
+  <div class="note">
+    Exceção prática: alguns modelos <em>de junção</em> puramente internos (<code>DeckItem</code>, <code>CardBinderItem</code>,
+    <code>CardRelation</code>, tabelas de evento) declaram <code>onDelete: Cascade</code>/<code>Restrict</code>/<code>SetNull</code>
+    no Prisma por conveniência de manutenção. O catálogo e as entidades de usuário seguem a regra "sem FK / soft delete".
+  </div>
+
+  <h3>3.1 Modelos principais</h3>
+  <table>
+    <tr><th>Modelo</th><th>Papel</th><th>Campos-chave</th></tr>
+    <tr><td><code>User</code></td><td>Conta. Login email/senha (<code>passwordHash</code> bcrypt) ou Google (<code>googleId</code>).</td><td><code>role</code> (USER/EDITOR/ADMIN), <code>isHoster</code>, <code>preferredCardLanguage</code> (PT_BR/EN), <code>username</code> único.</td></tr>
+    <tr><td><code>Season</code></td><td>Temporada de metagame — agrupa um lançamento principal + produtos da mesma "era". Só uma com <code>isCurrent</code>.</td><td><code>code</code>, <code>isCurrent</code>. Referenciada por <code>CardSet</code>, <code>Tournament</code>, <code>HostedEvent</code>.</td></tr>
+    <tr><td><code>CardSet</code></td><td>Coleção/produto (booster, starter deck, acessório).</td><td><code>code</code>, <code>setType</code> (<code>SetKind</code>), <code>seasonId?</code>, <code>starterDeckVariantOf?</code>, <code>metadataJson</code>.</td></tr>
+    <tr><td><code>CardModel</code></td><td><strong>Identidade de jogo</strong> da carta — nome, efeito, stats, traits, keywords. Compartilhado por todas as impressões do mesmo <code>code</code>.</td><td><code>code</code> único, <code>cardType</code> (<code>CardType</code>), <code>effectEn</code>/<code>effectPt</code>, <code>triggerKeywords[]</code>/<code>effectKeywords[]</code>/<code>keywordTags[]</code>, <code>hasBurst/hasMain/hasAction/oncePerTurn</code>, <code>textSectionsJson</code>, <code>legalityStatus</code>, <code>banGroupId?</code>.</td></tr>
+    <tr><td><code>Card</code></td><td><strong>Impressão (print)</strong> — uma tiragem física: raridade, imagem, set, código de produto. Aponta pro <code>CardModel</code>.</td><td><code>cardModelId?</code>, <code>setId?</code>, <code>rarity</code>, <code>isPrimaryPrint</code>, <code>printLabel</code>, <code>imageUrl</code>/<code>image{Small,Medium,Large}Url</code>, <code>externalId</code> único. Muitos <code>@@index</code> pra filtros do catálogo.</td></tr>
+    <tr><td><code>CardBanGroup</code></td><td>Agrupa <code>CardModel</code> mutuamente incompatíveis além de <code>maxDistinct</code> escolhas — cobre par banido e a regra de categoria genérica oficial.</td><td><code>maxDistinct</code>, <code>members: CardModel[]</code>.</td></tr>
+    <tr><td><code>CardRelation</code></td><td>Relação curada entre modelos (piloto de, apoia, upgrade, mesmo arquétipo, story).</td><td><code>sourceModelId</code>, <code>targetModelId</code>, <code>relationType</code> (<code>CardRelationType</code>).</td></tr>
+    <tr><td><code>TaxonomyEntry</code></td><td>Vocabulário controlado: <code>TRAIT</code> ou <code>SOURCE_TITLE</code> (série/mídia). Com capa + link oficial pro admin.</td><td><code>kind</code>, <code>name</code>, <code>slug</code> (únicos por kind).</td></tr>
+    <tr><td><code>Deck</code> / <code>DeckItem</code></td><td>Deck do usuário e suas cartas.</td><td><code>Deck</code>: <code>visibility</code> (<code>DeckVisibility</code>), <code>shareId</code> único, <code>coverImage</code>, <code>featuredCardIds[]</code>, <code>isPrimary</code>. <code>DeckItem</code>: <code>cardId</code>, <code>quantity</code>, <code>section</code> (<code>main</code>/<code>resource</code>/<code>ex_base</code>/<code>ex_resource</code>/<code>token_reference</code>), único por <code>(deckId, cardId, section)</code>.</td></tr>
+    <tr><td><code>CardBinder</code> / <code>CardBinderItem</code></td><td>Pastas (coleção pessoal) e itens, com <code>position</code> pra ordenação drag-and-drop.</td><td><code>shareId</code> único, <code>isPublic</code>.</td></tr>
+    <tr><td><code>Ruling</code></td><td>Regra/FAQ. Original EN + tradução PT + exemplo. Pode se vincular a <code>Card</code> ou <code>CardModel</code>.</td><td><code>sourceType</code> (<code>RuleSourceType</code>), <code>questionEn/PtBr</code>, <code>answerEn/Pt</code>, <code>relatedKeyword</code>, <code>relatedPhase</code>, <code>translationStatus</code>.</td></tr>
+    <tr><td><code>Tournament</code> / <code>TournamentEntry</code></td><td>Report retroativo de torneio (cadastrado pelo admin). <code>TournamentEntry</code> aceita jogador convidado (sem conta).</td><td><code>seasonId?</code> (relacional; <code>season</code> string é legado), <code>placement</code>, <code>archetype</code>, <code>deckId?</code>, <code>userId?</code>, <code>deckSnapshotId?</code>.</td></tr>
+    <tr><td><code>TournamentEntryDeckChangeLog</code></td><td>Auditoria de troca do deck vinculado a um resultado histórico (quem, quando, snapshot anterior).</td><td>—</td></tr>
+    <tr><td><code>HostedEvent</code> + <code>Participant</code> / <code>Round</code> / <code>Match</code></td><td>Evento "ao vivo" organizado por um <code>isHoster</code>/ADMIN. Fases: esqueleto → participantes (sempre conta cadastrada) → rodadas/confrontos (pareamento manual no MVP).</td><td><code>HostedEventStatus</code>, <code>HostedEventRoundStatus</code>, <code>HostedEventMatchResult</code> (inclui <code>BYE</code>). <code>Participant.deckSnapshotId</code> trava a decklist — não pode reescrever depois.</td></tr>
+    <tr><td><code>DeckSnapshot</code> / <code>DeckSnapshotItem</code></td><td>Cópia <strong>congelada</strong> de uma decklist no momento em que foi vinculada a um resultado histórico ou travada num evento. Sobrevive à edição/remoção do <code>Deck</code> de origem.</td><td><code>sourceDeckId?</code>/<code>sourceUserId?</code> (ficam null se a origem some). <code>DeckSnapshotItem.card</code> usa <code>onDelete: Restrict</code> — carta em lista histórica não pode ser apagada.</td></tr>
+    <tr><td><code>Post</code></td><td>Conteúdo editorial (notícia/preview/review/guia), Markdown.</td><td><code>postType</code>, <code>status</code>, <code>slug</code> único.</td></tr>
+    <tr><td><code>SimulatorMatch</code></td><td><strong>Persistência da partida do simulador</strong> (write-through do <code>matchStore</code> em memória — ver §7). Blob de estado autocontido, <strong>sem relação FK</strong>.</td><td><code>id</code> (= matchId), <code>state: Json</code> (o <code>GameState</code> real, server-side, nunca vai redigido ao cliente), <code>seats</code>, <code>deckKeys</code>, <code>version</code>, <code>phase</code>, <code>turnDeadlineAt: BigInt?</code>, <code>lastSeenAt: Json</code>, <code>gameOver: Json?</code>, <code>finishedAt?</code>. <code>@@index([updatedAt])</code>, <code>@@index([finishedAt])</code>.</td></tr>
+  </table>
+  <p>
+    Não existe <code>SimulatorBugReport</code> — o reporte de bug do simulador (<code>POST /api/simulator/matches/:id/report</code>
+    → <code>reportSituation()</code>) apenas loga o <code>GameState</code> + histórico no console do servidor com um
+    <code>reportId</code> curto; não grava tabela.
+  </p>
+
+  <h3>3.2 Diagrama textual das relações</h3>
+  <p>Sem FK no banco — as setas são relações a nível de aplicação (Prisma client + validação na API).</p>
+  <figure class="diagram">
+<pre><code>Season 1──* CardSet 1──* Card *──1 CardModel *──* CardRelation (self, curada)
+                                   │                └──* Ruling
+                                   │                └──1 CardBanGroup (opcional)
+                                   └──* CardBinderItem *──1 CardBinder *──1 User
+                                   └──* DeckItem *──1 Deck *──1 User
+                                   └──* DeckSnapshotItem *──1 DeckSnapshot
+
+User 1──* Deck 1──* DeckItem
+User 1──* CardBinder 1──* CardBinderItem
+User 1──* Post
+User 1──* HostedEvent (como hoster)
+
+Tournament 1──* TournamentEntry *──0..1 Deck
+                                 *──0..1 User
+                                 *──0..1 DeckSnapshot
+                                 1──* TournamentEntryDeckChangeLog
+
+HostedEvent 1──* HostedEventParticipant *──0..1 Deck / DeckSnapshot
+            1──* HostedEventRound 1──* HostedEventMatch *──2 HostedEventParticipant (A / B?)
+
+DeckSnapshot 0..1── Deck (sourceDeckId, SetNull)   0..1── User (sourceUserId, SetNull)
+
+SimulatorMatch   (ilhado — nenhuma relação; id = matchId do matchStore)
+</code></pre>
+  </figure>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="s4" class="section">
+  <h2>4. Catálogo de cartas</h2>
+  <small class="src">Fonte: <code>scripts/catalog-import.mjs</code>, <code>prisma/seed-apitcg.mjs</code>, <code>prisma/*.mjs</code> de curadoria; <code>data/</code>; <code>docs/05</code>, <code>docs/09</code>, <code>docs/10</code>, <code>docs/13</code>.</small>
+
+  <h3>4.1 Origem dos dados</h3>
+  <table>
+    <tr><th>Arquivo</th><th>Conteúdo</th></tr>
+    <tr><td><code>data/apitcg-gundam.json</code></td><td>Dataset amplo (APITCG) — ~1.812 impressões em 22 sets, com imagens, raridade, código de produto, stats. É a base do catálogo importado por <code>prisma:seed:apitcg</code>.</td></tr>
+    <tr><td><code>data/gcg-official-cards.json</code></td><td>Dados oficiais curados carta a carta (site oficial): texto de efeito EN, <code>textSectionsJson</code> (seções por gatilho), traits, <code>link</code>/<code>linkRefs</code>, série/<code>sourceTitle</code>. Fonte da curadoria e do motor do simulador (fixtures).</td></tr>
+    <tr><td><code>data/catalog/</code></td><td>Diretório opcional pra import local (<code>catalog:import:local</code>).</td></tr>
+  </table>
+
+  <h3>4.2 Pipeline de import / curadoria</h3>
+  <p>Ordem (encadeada em <code>catalog:bootstrap</code>, ver §2.3):</p>
+  <ol>
+    <li><strong><code>prisma:seed</code></strong> — admin + registros de exemplo.</li>
+    <li><strong><code>prisma:seed:apitcg</code></strong> (<code>prisma/seed-apitcg.mjs</code>) — cria <code>CardSet</code> e <code>Card</code> a partir do dataset APITCG. Normaliza URLs de imagem e <code>CardType</code>/<code>SetKind</code>.</li>
+    <li><strong><code>cardmodel:migrate:apply</code></strong> (<code>prisma/migrate-card-model-data.mjs</code>) — para cada <code>code</code>, cria/atualiza um <code>CardModel</code> (identidade de jogo) e liga todas as impressões daquele code a ele. Ver <code>docs/13-migracao-cardmodel.md</code>. <code>cardmodel:validate</code> confere.</li>
+    <li><strong><code>curation:gcg:apply</code></strong> (<code>prisma/apply-gcg-official-curation.mjs</code>) — cruza com <code>gcg-official-cards.json</code>: preenche série, <code>sourceTitle</code>, <code>textSectionsJson</code>, <code>CardRelation</code> (piloto de / apoia / arquétipo). Modo <code>--dry-run</code> por padrão, <code>--apply</code> grava.</li>
+    <li><strong><code>keywords:extract:apply</code></strong> (<code>prisma/extract-keyword-effects.mjs</code>) — roda o parser <code>src/lib/gundam-card-effects.ts</code> sobre o texto e grava <code>triggerKeywords</code>, <code>effectKeywords</code>, <code>keywordTags</code> (com valor numérico, ex. <code>Repair 2</code>), <code>hasBurst</code>/<code>hasMain</code>/<code>hasAction</code>/<code>oncePerTurn</code>.</li>
+    <li><strong><code>banlist:apply</code></strong> (<code>prisma/apply-official-banlist.mjs</code>) — <code>legalityStatus</code> por <code>CardModel</code> + <code>CardBanGroup</code> (par banido e regra de categoria genérica). Ver <code>docs/14</code>.</li>
+    <li><strong><code>rulings:import[:apply]</code></strong> (<code>prisma/import-rulings.mjs</code>) — importa rulings oficiais traduzidos (fora da cadeia principal; ~90 rulings na v1.0).</li>
+    <li>Limpeza: <code>catalog:cleanup:phantom-prints[:apply]</code> remove impressões órfãs; <code>curation</code> e <code>banlist</code> têm sempre um modo dry-run antes do <code>--apply</code>.</li>
+  </ol>
+  <p>
+    Import também disponível pela API (admin): <code>POST /api/import/catalog</code>, <code>/api/import/cards</code>,
+    <code>/api/import/rulings</code>, <code>/api/import/images-manifest</code>. <code>scripts/catalog-import.mjs</code>
+    é a versão CLI (<code>catalog:import</code>), que reconstrói o texto de efeito a partir de <code>textSectionsJson</code>
+    (labels em <code>[bracket reto]</code> — ver §5.4).
+  </p>
+
+  <h3>4.3 CardModel vs Card (prints)</h3>
+  <p>
+    Decisão de <code>docs/13</code>: <strong>separar identidade de jogo de tiragem física</strong>.
+  </p>
+  <ul>
+    <li><strong><code>CardModel</code></strong> — um por <code>code</code> de jogo. É o que o deckbuilder valida (cópias, cores, banlist via <code>banGroupId</code>), o que o motor do simulador consome e onde vivem <code>effectEn</code>/<code>effectPt</code>.</li>
+    <li><strong><code>Card</code></strong> — uma por impressão (reprint, promo, variante de arte, alt-rarity). Guarda <code>rarity</code>, <code>setId</code>, <code>imageUrl</code>, <code>printLabel</code>, <code>isPrimaryPrint</code>. <code>DeckItem</code>/<code>DeckSnapshotItem</code>/<code>CardBinderItem</code> apontam pra <code>Card</code> (uma impressão concreta), mas as regras "sobem" pro <code>CardModel</code> via <code>cardModelId</code>.</li>
+  </ul>
+  <p>
+    Rota de leitura do catálogo: <code>GET /api/cards</code> (filtros: cor, custo, tipo, trait, keyword, raridade, set,
+    busca), <code>GET /api/cards/filters</code> (opções dos filtros), <code>GET /api/cards/:id</code> (detalhe, com
+    <code>CardModel</code> + impressões + rulings), <code>GET /api/cards/:id/relations</code>,
+    <code>GET /api/cards/:id/stats</code>.
+  </p>
+
+  <h3>4.4 Imagens</h3>
+  <p>
+    Cada <code>Card</code> tem várias URLs (<code>imageSmallUrl</code> … <code>imageLargeUrl</code>, <code>thumbUrl</code>,
+    <code>imageSourceUrl</code>). Storage por driver (<code>STORAGE_DRIVER</code>): <code>local</code> serve de
+    <code>/uploads</code> pela própria API; <code>supabase</code> envia pro bucket (<code>SUPABASE_STORAGE_*</code>) com
+    service role no backend. Há um <code>GET /api/image-proxy</code> pra contornar CORS/hotlink de fontes externas. Ver
+    <code>docs/05-image-strategy.md</code>, <code>docs/09-storage-imagens.md</code>.
+  </p>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="s5" class="section">
+  <h2>5. Tradução pt-BR do texto de efeito</h2>
+  <small class="src">Fonte: <code>scripts/translate-card-effects.mjs</code> (+ <code>.test.mjs</code>); <code>docs/17-glossario-traducao.md</code>, <code>docs/40</code>, <code>docs/42</code>.</small>
+
+  <p>
+    Pipeline Node ESM puro que traduz o texto de efeito das cartas de ST01–ST04 (filtro <code>/^ST0[1234]-/</code>,
+    64 cartas; 52 com efeito real). <strong>Regra de vocabulário</strong> (<code>docs/17</code>): a keyword em si
+    <em>nunca</em> traduz (<code>Deploy</code>, <code>Burst</code>, <code>Repair</code>, <code>&lt;Blocker&gt;</code>…),
+    assim como nomes de carta e atributos (AP/HP/Lv.); só a <em>explicação mecânica</em> vira português imperativo
+    ("Compre 1 carta", "Escolha 1 Unidade inimiga", "Cause X de dano a ela").
+  </p>
+
+  <h3>5.1 Fluxo por carta</h3>
+  <figure class="diagram">
+<pre><code>data/gcg-official-cards.json  (ST01..ST04)
+        │
+   tokenize()      protege como placeholders §N§, nesta ordem: 【gatilhos】,
+        │          [nomes de carta], ((blocos de stat de ficha)), &lt;keywords&gt;,
+        │          custos circulados ①..⑳, (traits/nomes próprios 1-3 palavras
+        │          capitalizadas), estatísticas soltas (AP±n, HP n, Lv.x, Rest…)
+        │
+   buildPrompt()   injeta o grounding do glossário (docs/17) + guia gramatical pt-BR
+        │
+   translateCard() Google Gemini REST (GEMINI_MODEL, default gemini-3.6-flash;
+        │          temperature 0.15; 1 request/carta; timeout 60s; retry 3x com
+        │          backoff em 429/5xx/timeout, respeitando retryDelay do 429)
+        │
+   restore()       troca §N§ de volta pelos tokens originais
+        │
+   validate()      compara o multiset de tokens protegidos EN × PT — REJEITA se:
+        │          sobrou §N§; token sumiu/duplicou/foi traduzido; sobrou
+        │          【…】 / &lt;…&gt; / […] / estatística não reconhecida
+        │
+   data/translations-st01-04.json   (lote pra revisão humana; gravação incremental)
+</code></pre>
+  </figure>
+
+  <h3>5.2 Tokenizer léxico e validador de integridade</h3>
+  <p>
+    O tokenizer é a peça central: ele garante que a tradução automática nunca corrompa um termo de jogo. Cada token
+    protegido vira <code>§N§</code>; o LLM traduz só o texto ao redor. O <strong>validador</strong> roda depois do
+    <code>restore()</code> e compara o <em>multiset</em> (conjunto com repetição) de tokens do EN contra o do PT — se
+    algo não bate, a carta recebe <code>status: "REJEITADO"</code> com motivo, e não é aplicada. Isso pega tanto
+    tradução indevida de keyword (<code>【Implantar】</code>, <code>&lt;Bloqueador&gt;</code>) quanto placeholder
+    vazado ou token perdido.
+  </p>
+
+  <h3>5.3 Flags</h3>
+  <table>
+    <tr><th>Flag</th><th>Efeito</th></tr>
+    <tr><td>(nenhuma)</td><td>Roda o lote real (chama Gemini) e grava o JSON.</td></tr>
+    <tr><td><code>--dry-run</code></td><td>Tokenizer + <code>restore</code> + validador com tradução identidade (não chama API). Testa só o encanamento.</td></tr>
+    <tr><td><code>--resume</code></td><td>Mantém as cartas já <code>OK</code> no JSON, re-traduz só as pendentes/rejeitadas. Retoma quando a quota do free tier reseta.</td></tr>
+    <tr><td><code>--revalidate</code></td><td>Re-roda só o validador de tokens sobre o <code>effectPt</code> atual de cada linha (pra quando as traduções foram editadas à mão) e reescreve <code>status</code>/<code>motivo</code>.</td></tr>
+    <tr><td><code>--apply</code></td><td>Lê o JSON e <strong>imprime os <code>UPDATE</code> SQL</strong> das traduções OK (não conecta no banco). <em>Cuidado:</em> <code>--apply | psql</code> no PowerShell corrompe UTF-8 (【 】 ･ e acentos viram "?"). Use <code>--apply &gt; x.sql</code> e rode o arquivo, ou prefira <code>--push</code>.</td></tr>
+    <tr><td><code>--push</code></td><td>Aplica as traduções OK <strong>direto no Postgres via Prisma Client</strong> (<code>DATABASE_URL</code> do <code>.env</code>). Sem shell/pipe → UTF-8 intacto. Modo recomendado pra aplicar localmente.</td></tr>
+  </table>
+  <p>
+    Env: <code>GEMINI_MODEL</code>, <code>TRANSLATE_DELAY_MS</code> (pausa entre cartas, default 500 — subir pra ~15000 no
+    free tier). Gravação é incremental (reescreve o JSON a cada carta); aborta sozinho após 3 falhas seguidas de quota.
+    Chave em <code>.spartan/ai.env</code> (<code>GEMINI_API_KEY</code>).
+  </p>
+
+  <h3>5.4 Convenção de brackets</h3>
+  <table>
+    <tr><th>Contexto</th><th>Gatilho de efeito</th><th>Exemplo</th></tr>
+    <tr><td>JSON oficial (<code>gcg-official-cards.json</code>), fixtures e <strong>simulador</strong> (inspetor, <code>EffectSpec.trigger</code>, <code>textSectionsJson</code>)</td><td><code>【X】</code> (bracket lenticular)</td><td><code>【Deploy】</code>, <code>【Attack】</code>, <code>【Activate･Main】</code>, <code>【When Paired】</code>, <code>【Destroyed】</code>, <code>【Burst】</code></td></tr>
+    <tr><td>Catálogo do portal (texto reconstruído por <code>catalog-import.mjs</code> → <code>buildEffectText</code>, e o parser <code>gundam-card-effects.ts</code>)</td><td><code>[X]</code> (bracket reto)</td><td><code>[Deploy]</code>, <code>[Burst]</code> — labels de seção no formato <code>[label]</code></td></tr>
+  </table>
+  <p>
+    Ou seja: o mesmo gatilho aparece como <code>【Deploy】</code> no pipeline de dados/motor e como <code>[Deploy]</code>
+    na renderização do catálogo. Nomes de carta usam <code>[Colchete]</code> nos dois; keywords de habilidade usam
+    <code>&lt;Chevron&gt;</code> nos dois. Ao mexer no tokenizer ou no parser, manter os dois lados coerentes.
+  </p>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="s6" class="section">
+  <h2>6. Motor do simulador</h2>
+  <small class="src">Fonte: <code>src/modules/simulator/engine/</code> + <code>content/</code>; <code>docs/18</code>, <code>docs/21</code>, <code>docs/29</code>, <code>docs/41</code>, <code>docs/45</code>.</small>
+
+  <p>
+    O motor é <strong>puro</strong> — TypeScript sem dependência de React, rede ou Prisma. Roda igual em teste
+    (<code>vitest</code>), no servidor autoritativo (<code>server/matchStore.ts</code>) e no MCP. É o núcleo do produto
+    "simulador"; ver <code>docs/16</code> ("não é uma feature, é um segundo produto").
+  </p>
+
+  <h3>6.1 <code>GameState</code> serializável</h3>
+  <p>
+    Definido em <code>engine/types.ts</code>. 100% serializável (JSON) — é o que grava em <code>SimulatorMatch.state</code>
+    e o que o MCP/busca clona. 9 zonas por jogador:
+  </p>
+  <table>
+    <tr><th>Zona</th><th>Regra</th></tr>
+    <tr><td><code>deck</code></td><td>50 cartas. Deck-out = derrota ao precisar comprar sem carta.</td></tr>
+    <tr><td><code>resourceDeck</code></td><td>10 cartas, separado. 1 compra por turno na Resource Phase.</td></tr>
+    <tr><td><code>shields</code></td><td>6 do topo do deck, face-down no setup. Cada shield = 1 HP; ao ser destruído, revela e checa <code>【Burst】</code> antes do trash.</td></tr>
+    <tr><td><code>resourceArea</code></td><td>máx. 15 recursos, máx. 5 EX Resource; 2º jogador começa com 1 EX Resource.</td></tr>
+    <tr><td><code>battleArea</code></td><td>máx. 6 Units; 1 Pilot pareia com 1 Unit.</td></tr>
+    <tr><td><code>baseSection</code></td><td>máx. 1 Base; EX Base deployada no setup.</td></tr>
+    <tr><td><code>trash</code></td><td>descarte (público).</td></tr>
+    <tr><td><code>exile</code></td><td>fora do jogo (<code>REMOVE_CARD_FROM_GAME</code> — EX Resource gasto etc.). Público, como o trash.</td></tr>
+    <tr><td><code>hand</code></td><td>máx. 10 — excesso descartado na End Phase.</td></tr>
+  </table>
+  <p>
+    Cada carta em jogo é uma <code>CardInstance</code> (<code>instanceId</code> = <code>"A-12"</code>, <code>def: CardDef</code>,
+    <code>owner</code>, <code>zone</code>, <code>rested</code>, <code>damage</code>, <code>statModifiers[]</code>,
+    <code>keywordGrants[]</code>, <code>usedKeywordsThisTurn[]</code>, <code>enteredZoneOnTurn</code>,
+    <code>pairedPilotId?</code>/<code>pairedUnitId?</code>, <code>cannotAttackUntilTurn?</code>). O <code>CardDef</code> é o
+    dado estático achatado do <code>CardModel</code> (só os campos que o motor usa) — nos fixtures ST01–ST04 é dado
+    literal copiado de <code>gcg-official-cards.json</code>, nenhum parser novo.
+  </p>
+
+  <h3>6.2 Reducer de eventos (<code>applyEvent</code> / <code>applyEvents</code>)</h3>
+  <p>
+    Todo efeito — keyword automática ou bespoke — é expresso como lista de <code>GameEvent</code> e aplicado por um
+    reducer <strong>puro</strong> (<code>engine/events.ts</code>) que <em>nunca</em> muta o estado recebido
+    (<code>cloneState</code> internamente). Isso torna o teste "comparar eventos gerados, não estado mutável" e dá base
+    pronta pra log/replay auditável.
+  </p>
+  <p><code>GameEvent</code> (união discriminada por <code>type</code>) — os principais:</p>
+<pre><code>DRAW_CARD  MOVE_CARD  REST_CARD  SET_ACTIVE  PAIR_CARDS  SPAWN_TOKEN
+DAMAGE_UNIT  DAMAGE_SHIELD  DAMAGE_BASE  HEAL_UNIT  DESTROY_CARD  REMOVE_CARD_FROM_GAME
+MODIFY_STAT  GRANT_KEYWORD  MARK_KEYWORD_USED  CLEAR_TURN_MODIFIERS  MOVE_WITHIN_DECK
+GRANT_ATTACK_TARGET_RELAX  SET_CANNOT_ATTACK  SET_SHIELD_PROTECTION  SET_UNIT_DAMAGE_PROTECTION
+PHASE_CHANGE  TURN_CHANGE  COMBAT_STEP_CHANGE  ATTACK_DECLARED  BLOCK_DECLARED
+ACTION_PASS  BEGIN/END_END_PHASE_ACTION_STEP  END_PHASE_ACTION_PASS  COMBAT_ENDED
+SET_PENDING_DECISION  CLEAR_PENDING_DECISION  DISCARD_TO_HAND_LIMIT  GAME_OVER
+</code></pre>
+
+  <h3>6.3 Estrutura de turno</h3>
+  <p>5 fases (<code>engine/phases.ts</code>): <strong>Start</strong> (rested→active do ativo) → <strong>Draw</strong> (1) →
+    <strong>Resource</strong> (1 do resourceDeck; o motor faz automático, não há ponto de decisão) → <strong>Main</strong>
+    (jogar carta, <code>【Activate･Main】</code>, <code>&lt;Support&gt;</code>, atacar) → <strong>End</strong> (Action Step de
+    fim de turno + descarte pra 10 + <code>&lt;Repair&gt;</code> + troca de turno).
+  </p>
+  <div class="note">
+    O <strong>Action Step também acontece na End Phase</strong>, não só em combate. O motor nunca assume "é meu turno, só
+    eu ajo" — há janelas explícitas em que o jogador em espera age.
+  </div>
+
+  <h3>6.4 Combate (<code>engine/combat.ts</code>, 5 etapas)</h3>
+  <ol>
+    <li><strong>Attack Step</strong> — <code>declareAttack(state, attackerId, target)</code>. Valida: só Unit active do ativo; não recém-deployada (CR 3-2-4) salvo Link Unit (3-2-6-3); <code>attackTargetRules</code> (Zowort não mira o jogador; Wing Gundam pode mirar Unit active Lv.≤N). Dispara <code>【Attack】</code>.</li>
+    <li><strong>Block Step</strong> — <code>activateBlocker(state, blockerId)</code> / <code>skipBlock(state)</code>. <code>&lt;Blocker&gt;</code> muda o alvo; <code>&lt;High-Maneuver&gt;</code> do atacante desabilita.</li>
+    <li><strong>Action Step</strong> — <code>passAction(state, player)</code>, alternado começando pelo jogador em espera, até dois passes consecutivos. Command <code>【Action】</code> e <code>【Activate･Action】</code> aqui.</li>
+    <li><strong>Damage Step</strong> — <code>resolveDamageStep(state)</code>. Dano simultâneo = AP; <code>&lt;First Strike&gt;</code> antecipa; Base recebe no lugar dos shields; <code>&lt;Breach N&gt;</code> e <code>&lt;Suppression&gt;</code> (2 shields) calculados aqui; <code>combatTriggers</code> ("when this Unit's attack destroys…") e <code>pairedPilotFollowEvents</code> aqui.</li>
+    <li><strong>Battle End Step</strong> — <code>resolveBattleEndStep(state)</code>. Efeitos "durante esta batalha" expiram (<code>shieldProtection</code>, <code>unitDamageProtection</code>).</li>
+  </ol>
+  <p>
+    <strong>8 keywords oficiais</strong> — nunca precisam de autoria manual (o dado vem estruturado do <code>CardModel</code>):
+    <code>&lt;Blocker&gt;</code>, <code>&lt;First Strike&gt;</code>, <code>&lt;High-Maneuver&gt;</code>,
+    <code>&lt;Breach N&gt;</code>, <code>&lt;Suppression&gt;</code> (em <code>combat.ts</code>);
+    <code>&lt;Support N&gt;</code>, <code>&lt;Repair N&gt;</code>, <code>【Once per Turn】</code> (em <code>keywords.ts</code>).
+  </p>
+  <p>
+    <strong>Gatilho <code>【Destroyed】</code></strong> — despachado por dois caminhos sem sobreposição
+    (<code>docs/44</code> + <code>docs/45</code>):
+    (a) <em>no</em> Damage Step (morte de batalha / Breach letal / combatTrigger letal): <code>actions.ts</code> chama
+    <code>collectDestroyedInBattle</code> + <code>dispatchDestroyedTriggers</code>;
+    (b) <em>fora</em> do Damage Step (Unit morta por dano de efeito — Close Combat <code>【Main】</code>, Rewloola
+    <code>【Deploy】</code>): <code>dispatcher.ts</code> → <code>dispatchDestroyedFromEffect</code> acha as Units que o
+    efeito matou e dispara o <code>【Destroyed】</code> de cada uma. Não-pausante resolve inline; pausante (Char's Zaku Ⅱ)
+    vira <code>PendingDecision.abilityResolution</code>. Guarda anti-loop <code>MAX_DESTROYED_CHAIN = 8</code>; cascata
+    cross-player em fila FIFO.
+  </p>
+
+  <h3>6.5 DSL de efeitos: <code>EffectSpec</code> → <code>PrimitiveCall</code> → <code>GameEvent</code></h3>
+  <p>
+    Camada 3 formalizada em <code>engine/effectSpec.ts</code>. Em vez de uma closure JS opaca, o texto bespoke de cada
+    carta vira uma estrutura declarativa revisável lado a lado com o <code>effectEn</code> oficial:
+  </p>
+<pre><code>interface EffectSpec {
+  id: string;          // "&lt;code&gt;-&lt;trigger&gt;", ex. "ST01-010-Burst"
+  cardCode: string;
+  trigger: string;      // rótulo do textSectionsJson: "Deploy" | "Attack" |
+                        // "Destroyed" | "Burst" | "Activate·Main" | ...
+  cost?: PrimitiveCall[];
+  condition?: { predicate: string; then: PrimitiveCall[]; else?: PrimitiveCall[] };
+  actions: PrimitiveCall[];
+  sourceText: string;   // effectEn da seção — NUNCA effectPt
+  optional?: boolean; targetScope?: ...; targetFilter?: ...;
+}
+
+resolveEffectSpec(spec, ctx, predicateResolver?, targetFilterResolver?)
+   → roda cost → condition → actions, compilando cada PrimitiveCall via
+     compilePrimitive() para 0+ GameEvent.
+</code></pre>
+  <p><strong>Primitivas</strong> (<code>PrimitiveCall.op</code>) hoje disponíveis:</p>
+<pre><code>draw  discard  discardNamed  damageShield  damageUnit  destroy  heal
+moveZone  moveWithinDeck  modifyStat  grantKeyword  rest  setActive
+addShieldToHand  payResourceCost  spawnToken  spawnTokenByOwnUnitCount
+peekAndReorderDeck  preventShieldDamage  preventUnitBattleDamage
+preventAttackThisTurn  grantAttackTargetRelax
+deployFromHandTriggered  lookAtTopFilterReveal
+</code></pre>
+  <p><strong><code>TargetRef</code></strong>: <code>{kind:"self"}</code>, <code>{kind:"pairedUnit"}</code>,
+    <code>{kind:"instance"}</code>, <code>{kind:"named"}</code> (alvo escolhido externamente, colocado em
+    <code>ctx.targets</code>), <code>{kind:"group", group: TargetGroup}</code> (<code>allFriendlyLinkUnits</code>,
+    <code>allEnemyUnits{maxLevel?}</code> — computado do estado, sem escolha). Toda primitiva que consome alvo passa por
+    <code>resolveTargetIds</code> (0+ ids).
+  </p>
+  <p>
+    Efeitos <strong>não</strong> gatilho→ação viram campo estruturado de <code>CardDef</code>:
+    <code>staticAbilities[]</code> (During Pair / During Link contínuo, reavaliado a cada <code>effectiveAp</code>/
+    <code>effectiveHp</code>), <code>combatTriggers[]</code> (During Link reage a evento de combate no Damage Step),
+    <code>attackTargetRules</code> (legalidade de alvo), <code>link</code> (<code>satisfiesLinkCondition</code>).
+  </p>
+
+  <h3>6.6 <code>PredicateResolver</code> e <code>TargetFilterResolver</code></h3>
+  <small class="src"><code>content/predicates.ts</code> — <code>defaultPredicateResolver</code>, <code>defaultTargetFilterResolver</code>.</small>
+  <p>
+    Resolvers plugáveis, usados <em>tanto</em> pelos testes <em>quanto</em> pelo servidor real (uma implementação só).
+    <strong>Predicados</strong> (<code>EffectSpec.condition.predicate</code>): <code>pairedPilotHasTrait:&lt;t&gt;</code>,
+    <code>pairedPilotLevelAtLeast:&lt;n&gt;</code>, <code>cardInTrashNamed:&lt;name&gt;</code>,
+    <code>namedChoiceEquals:&lt;key&gt;:&lt;val&gt;</code>, <code>selfApAtLeast:&lt;n&gt;</code>,
+    <code>controllerHasOtherLinkUnit</code>, <code>sourcePairedUnitIsLinkUnit</code>,
+    <code>noControllerUnitTokenWithTrait:&lt;t&gt;</code>. <strong>Filtros de alvo</strong> (<code>targetFilter</code>):
+    <code>hp&lt;=N</code>, <code>level&lt;=N</code>, <code>level&gt;=N</code>, <code>ap&lt;=N</code>,
+    <code>hasKeyword:X</code>, <code>rested</code> — resolvidos por candidato em <code>computeLegalTargets</code>
+    (escopo <code>enemyUnit</code>/<code>friendlyUnit</code>/<code>ownResource</code>), calculados uma vez no servidor.
+    Novo padrão = novo membro da union, não reescrita do desenho.
+  </p>
+
+  <h3>6.7 <code>dispatcher.ts</code> / <code>abilityDispatch.ts</code></h3>
+  <ul>
+    <li><strong><code>dispatcher.dispatchTrigger(...)</code></strong> — acha e resolve automaticamente todo
+      <code>EffectSpec</code> de uma carta pra um trigger dado (Deploy / When Paired / Attack / Burst / Main / Action /
+      Activate·Main), aplicando os eventos de cada spec antes do próximo, respeitando <code>【Once per Turn】</code> via
+      <code>CardDef.oncePerTurn</code> + <code>usedKeywordsThisTurn</code>.</li>
+    <li><strong><code>abilityDispatch.ts</code></strong> — vocabulário "dispara agora, ou PAUSA pra o jogador resolver",
+      compartilhado por <code>【When Paired】</code> e <code>【Attack】</code>. Se algum spec é <code>optional</code> ou
+      precisa de alvo/escolha não fornecida, grava <code>PendingDecision.abilityResolution</code> e calcula
+      <em>no servidor</em> o conjunto de opções legais (<code>legalTargets</code>, <code>handChoice.legalHandIds</code>,
+      <code>deckTopReveal</code>) — <code>resolveAbility</code> valida a escolha do cliente contra ele, nunca confia
+      cegamente.</li>
+    <li><strong><code>dispatchBurstForNewlyTrashedShields()</code></strong> — compara o estado antes/depois de um Damage
+      Step, acha shields recém-trashadas com <code>hasBurst</code> + <code>EffectSpec</code> de Burst e oferece a
+      ativação (por escolha de quem defende).</li>
+  </ul>
+
+  <h3>6.8 <code>PendingDecision</code></h3>
+  <p>
+    Campo <code>GameState.pendingDecision: Record&lt;PlayerId, PendingDecision | null&gt;</code>. Enquanto um lado tem
+    decisão pendente, <strong>nenhuma ação de nenhum dos dois avança o estado</strong> (<code>applyPlayerAction</code>
+    recusa no topo). Variantes (por <code>kind</code>):
+  </p>
+  <table>
+    <tr><th><code>kind</code></th><th>Quando</th><th>Resolvido por</th></tr>
+    <tr><td><code>mulligan</code></td><td>Início da partida — manter ou trocar a mão de 5.</td><td><code>resolveMulligan</code></td></tr>
+    <tr><td><code>burst</code></td><td>Shield com <code>【Burst】</code> destruído no Damage Step (fila FIFO se várias).</td><td><code>resolveBurstDecision {activate, targets?}</code></td></tr>
+    <tr><td><code>abilityResolution</code></td><td>Efeito optativo / que pede alvo / escolha (ordem de gatilhos simultâneos, alvo, <code>handChoice</code>, <code>deckTopReveal</code>). Ex.: Full Frontal (deploy da mão), Char's Zaku Ⅱ (revelar do topo).</td><td><code>resolveAbility</code></td></tr>
+    <tr><td><code>triggerOrder</code></td><td>2+ triggers de cartas diferentes no mesmo evento (tipo pronto; nenhuma carta ST01–04 dispara isso ainda).</td><td><code>resolveTriggerOrder {orderedSpecIds}</code></td></tr>
+    <tr><td><code>zoneOverflow</code></td><td>Zona acima do limite (mão &gt; 10 na End Phase; futuro: 7ª Unit).</td><td>escolha de descarte</td></tr>
+  </table>
+  <p>
+    <code>handChoice</code> e <code>deckTopReveal</code> são <em>sub-estruturas</em> de <code>abilityResolution</code>
+    (não <code>kind</code> próprio) — carregam os ids legais pré-computados no servidor.
+  </p>
+
+  <h3>6.9 Conteúdo por wave</h3>
+  <p>
+    <code>content/st0{1..4}.ts</code> — <code>EffectSpec</code> autorado carta a carta <strong>contra o texto oficial EN</strong>
+    (nunca a tradução). <code>content/index.ts</code> agrega <code>ALL_EFFECT_SPECS</code>. Fixtures em
+    <code>fixtures/st0{1..4}Deck.ts</code> (16 <code>CardDef</code> únicos + decklist 50+10 + tokens <code>T-001..T-005</code>)
+    e <code>fixtures/vanillaDeck.ts</code> (deck sintético só-stats pra validar turno/combate).
+  </p>
+  <ul>
+    <li><strong>ST01 "Heroic Beginnings"</strong> / <strong>ST02 "Ruination Ablaze"</strong> — cobertura 100% (as 8 lacunas de DSL originais foram fechadas: token, custo de recurso genérico, alvo em grupo, prevenção de dano condicional, peek-and-reorder, efeito estático During Pair/Link, combatTrigger, legalidade de alvo).</li>
+    <li><strong>ST03 "Zeon's Fangs"</strong> / <strong>ST04 "Aile of Justice"</strong> — as 32 cartas únicas jogáveis; novos padrões: revelar do topo (<code>lookAtTopFilterReveal</code>), deploy grátis da mão (<code>deployFromHandTriggered</code>), <code>【Destroyed】</code> dentro e fora de combate, concessão temporária de alvo, proibição de ataque no turno (<code>preventAttackThisTurn</code>), prevenção de dano condicional.</li>
+  </ul>
+  <p>Cada carta nova segue o protocolo de <code>docs/29</code>: campo estruturado → primitiva → teste (TDD).</p>
+
+  <h3>6.10 Redação de informação oculta</h3>
+  <p>
+    <code>engine/viewState.ts</code> — <code>viewStateFor(state, seat)</code> produz a <code>ViewGameState</code> que sai
+    pra rede: mão do oponente e deck viram contagem; shields face-down não revelam identidade nem pro dono; trash e
+    exile são públicos. O <code>GameState</code> completo <strong>nunca</strong> sai do servidor. <code>pendingDecision</code>
+    é repassado aos dois lados só com o necessário (o <code>cardDef</code> do Burst já é público no trash).
+  </p>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="s7" class="section">
+  <h2>7. Simulador — servidor autoritativo e rede</h2>
+  <small class="src">Fonte: <code>src/modules/simulator/server/matchStore.ts</code>, <code>socketBridge.ts</code>; <code>server/simulatorSocket.ts</code>; <code>src/modules/simulator/network/</code>; <code>server/index.ts</code>; <code>docs/23</code>, <code>docs/24</code>, <code>docs/39</code>.</small>
+
+  <h3>7.1 <code>matchStore.ts</code> — motor 100% server-side</h3>
+  <p>
+    <code>Map&lt;matchId, MatchRecord&gt;</code> em memória como cache de trabalho. Cada <code>MatchRecord</code> guarda o
+    <code>GameState</code> <strong>real</strong> — só <code>matchViewFor(match, seat)</code> / <code>viewStateFor</code>
+    saem pra rede, um por jogador, já redigidos. As rotas HTTP e o Socket.io só chamam funções deste módulo; nenhuma
+    toca <code>GameState</code> direto. API principal:
+  </p>
+  <table>
+    <tr><th>Função</th><th>Uso</th></tr>
+    <tr><td><code>joinQueue</code> / <code>leaveQueue</code> / <code>queuePositionFor</code></td><td>Fila de matchmaking automática (pareia 2 usuários diferentes). Fila efêmera — perder no restart é aceitável.</td></tr>
+    <tr><td><code>createMatch</code> / <code>getMatch</code> / <code>joinMatch</code> / <code>seatFor</code></td><td>Ciclo de vida da partida. <code>createMatch</code> já avança pro mulligan / Main Phase do turno 1.</td></tr>
+    <tr><td><code>applyAction(matchId, userId, action)</code></td><td>Borda ação→motor: autoriza (assento correto), chama <code>applyPlayerAction</code> (reducer que traduz cada <code>PlayerAction</code> pra função do motor), persiste, notifica assinantes.</td></tr>
+    <tr><td><code>touchPresence</code> / <code>claimAbandonWin</code> / <code>resignMatch</code></td><td>Presença (ping), W.O. por abandono, desistência.</td></tr>
+    <tr><td><code>setAutoPass</code></td><td>Liga o auto-pass do Action Step por assento.</td></tr>
+    <tr><td><code>reportSituation</code></td><td>Loga <code>GameState</code> + histórico no console com <code>reportId</code> curto (não grava tabela).</td></tr>
+    <tr><td><code>subscribeAllMatches</code> / <code>subscribe(matchId)</code></td><td>Assinatura pra broadcast (SSE e Socket.io se penduram aqui).</td></tr>
+    <tr><td><code>loadMatch(matchId)</code></td><td>Re-hidrata do Postgres sob demanda e re-arma o timer.</td></tr>
+    <tr><td><code>decisionOwner</code> / <code>defaultActionFor</code></td><td>De quem é a decisão agora, e qual ação o servidor toma se o timer estourar.</td></tr>
+  </table>
+
+  <h4>Timers</h4>
+  <ul>
+    <li><code>TURN_DECISION_MS = 300_000</code> (5 min) — decisão de Main Phase / decisão interativa (Burst, mulligan, ordem de gatilhos, resolução de habilidade).</li>
+    <li><code>ACTION_STEP_DECISION_MS = 30_000</code> — decisão de Action Step (só "Command <code>【Action】</code> ou passar").</li>
+    <li>Estourou: <code>onTurnTimeout</code> aplica <code>defaultActionFor</code> (skipBlock / passAction / finishTurn conforme o passo).</li>
+    <li>W.O. por abandono: após ~3 min sem sinal de vida do oponente, <strong>nunca automático</strong> — destrava um botão pro lado presente clicar (<code>claimAbandonWin</code>).</li>
+    <li>Prioridade da "decisão atual": decisão interativa &gt; combate &gt; Action Step de fim de turno &gt; Main Phase.</li>
+  </ul>
+
+  <h4>Persistência (<code>SimulatorMatch</code>)</h4>
+  <p>
+    Write-through <em>fire-and-forget</em>: o <code>Map</code> é o cache; a cada mutação, um <code>MatchPersistence</code>
+    injetável (<code>setMatchPersistence</code>; <code>null</code> = no-op nos testes de motor) grava
+    <code>StoredMatch</code> em <code>SimulatorMatch</code>. Assim a partida <strong>sobrevive a restart / deploy / idle</strong>
+    do host. <code>finishedAt</code> separa vivas de terminadas; GC oportunista (partida terminada some ~10 min depois,
+    na próxima escrita).
+  </p>
+
+  <h3>7.2 Transporte SSE (caminho padrão da v1.0)</h3>
+  <p>Rotas em <code>server/index.ts</code> (todas <code>authRequired</code>, exceto o stream que aceita token na query):</p>
+<pre><code>POST /api/simulator/queue/join | /queue/leave        GET /api/simulator/queue/status
+GET  /api/simulator/matches/:id                       (snapshot redigido)
+POST /api/simulator/matches/:id/actions              (PlayerAction)
+POST /api/simulator/matches/:id/ping                  (presença)
+POST /api/simulator/matches/:id/report | /auto-pass | /claim-abandon-win | /resign
+GET  /api/simulator/matches/:id/stream                (Server-Sent Events; authFromQueryOrHeader)
+# hoster-only (depuração, fora do fluxo normal):
+GET/POST /api/simulator/matches   POST /api/simulator/matches/:id/join
+</code></pre>
+  <p>
+    O stream SSE janela o <code>eventLog</code> (últimos 150) por SSE em vez de reenviar o log inteiro; faz
+    <code>unsubscribe</code> + <code>clearInterval</code> em <code>req.on("close")</code>.
+  </p>
+
+  <h3>7.3 Transporte Socket.io (<code>server/simulatorSocket.ts</code>)</h3>
+  <p>
+    <strong>Aditivo</strong> — roda AO LADO do SSE e das rotas POST, que ficam intactos. Pendura o <code>io</code> no
+    mesmo HTTP server do Express.
+  </p>
+  <ul>
+    <li>Path: <code>/api/simulator/socket</code>.</li>
+    <li>Handshake: JWT em <code>auth.token</code> (mesmo <code>JWT_SECRET</code>/<code>jwt.verify</code> das rotas). Sem token → <code>guestId</code> efêmero assinado (TTL 12h) pra partida casual sem cadastro.</li>
+    <li>Salas: <code>lobby:global</code> (todos), <code>match:{id}</code> e <code>match:{id}:{seat}</code> (isolamento por partida + por assento pra visão redigida).</li>
+    <li>Broadcast de <code>match:view_update</code> sempre que o motor autoritativo muda — via <code>subscribeAllMatches</code> do matchStore, uma visão por jogador.</li>
+    <li>Fila de matchmaking, convite direto (<code>challenge:*</code>) e ping/RTT.</li>
+    <li>Contrato de eventos: <code>docs/39 §2.2</code>.</li>
+  </ul>
+  <p>
+    <code>src/modules/simulator/server/socketBridge.ts</code> — lógica <strong>pura</strong> de suporte (testável isolada,
+    sem Node): <code>ChallengeRegistry</code> (convite direto) e <code>ActionDeduper</code> (dedup idempotente por
+    <code>actionSeq</code>).
+  </p>
+
+  <h3>7.4 Cliente (<code>network/</code>)</h3>
+  <ul>
+    <li><strong><code>socketClient.ts</code></strong> — singleton Socket.io. Reconexão com backoff exponencial
+      (500ms → 1s → 2s → 4s → teto 10s); ao (re)conectar reemite <code>match:join</code> e recebe o snapshot; fila de
+      ações com <code>actionSeq</code> monotônico (idempotência); telemetria de ping; guarda o <code>guestToken</code>
+      assinado do convidado sem login.</li>
+    <li><strong><code>useMatchTransport.ts</code></strong> — hook que a <code>SimulatorMatchPage</code> usa.
+      <strong>Socket.io é o transporte primário</strong>; <strong>fallback automático pro SSE</strong> se o socket ficar
+      <code>dead</code> (handshake recusado) ou não entregar o 1º snapshot em <code>SOCKET_FIRST_VIEW_TIMEOUT_MS</code>
+      (6s — servidor sem Socket.io / proxy que bloqueia WS). Volta pro socket se ele se recuperar e reentregar uma
+      view. Guarda de ordenação por <code>version</code> em <code>applyIncomingView</code>. Heartbeat de presença a cada 15s.</li>
+  </ul>
+
+  <h3>7.5 Convite por link ("Jogar com um amigo")</h3>
+  <p>
+    <code>ChallengeRegistry</code> (<code>socketBridge.ts</code>): o host gera um convite com código
+    <code>GC-####</code> (prefixo <code>CHALLENGE_CODE_PREFIX = "GC"</code>). Cada host tem no máximo um convite vivo
+    (criar de novo invalida o anterior); TTL <code>CHALLENGE_TTL_MS = 10 min</code>; <code>accept</code> consome o código
+    (vira partida uma vez só). Eventos <code>challenge:created</code> (devolve o código) e <code>challenge:ready</code>
+    (devolve o <code>matchId</code> quando o convidado aceita).
+  </p>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="s8" class="section">
+  <h2>8. Deckbuilder e legalidade de deck</h2>
+  <small class="src">Fonte: <code>src/lib/deck-legality.ts</code>, <code>src/lib/deck-level-stats.ts</code>; <code>docs/14</code>, <code>docs/38</code>.</small>
+
+  <h3>8.1 <code>deck-legality.ts</code> (Pacote A)</h3>
+  <p>
+    Lógica <strong>pura</strong> em <code>src/lib/</code> (não <code>server/</code>) de propósito — usada tanto pela API
+    (<code>server/index.ts</code> importa daqui) quanto pelo deckbuilder no navegador (validação em tempo real, sem
+    round-trip por clique).
+  </p>
+  <p>Constantes: <code>DECK_MAIN_SIZE = 50</code>, <code>DECK_RESOURCE_SIZE = 10</code>, <code>DECK_MAX_COLORS = 2</code>,
+    <code>DECK_MAX_COPIES_DEFAULT = 4</code>.</p>
+  <p><code>computeDeckLegality(items, legality)</code> devolve uma lista de <code>DeckLegalityIssue</code> (não decide UX):</p>
+  <ul>
+    <li><strong>Tamanho</strong> — main = exatamente 50; resource = exatamente 10. Seções <code>ex_base</code>/<code>ex_resource</code> (<code>NON_COUNTED_SECTIONS</code>) e <code>token_reference</code> não contam — são componente fixo do jogo.</li>
+    <li><strong>Cores</strong> — no máximo 2 cores distintas no deck principal.</li>
+    <li><strong>Cópias</strong> — até 4 por carta, salvo <code>restricted</code> (Map <code>CardModel.id → cópias</code>) ou <code>banned</code> (Set).</li>
+    <li><strong>Ban groups</strong> — <code>CardBanGroup</code>: no máximo <code>maxDistinct</code> escolhas diferentes do grupo por deck (cobre par banido e a regra de categoria genérica oficial). <code>DeckLegalityData.banGroups</code>.</li>
+  </ul>
+  <p>
+    <code>NON_STATS_SECTIONS</code> / <code>NON_STATS_CARD_TYPES</code> excluem recurso/EX/token de <em>toda</em>
+    estatística de uso/metagame (senão apareceriam como "100% de presença").
+  </p>
+
+  <h3>8.2 <code>deck-level-stats.ts</code> (aba Estatísticas, <code>docs/38 §5</code>)</h3>
+  <ul>
+    <li><strong>Curva de nível</strong> — <code>buildLevelCurve(rows)</code> devolve sempre 6 faixas (Lv.1..5 e <code>"6+"</code>, <code>LEVEL_CURVE_TOP_BUCKET = 6</code>), só Units com <code>level</code>. Cada barra é clicável no front (lista as Units da faixa).</li>
+    <li><strong>Abertura sólida</strong> — <code>hypergeometricAtLeastOne(populationSize, successCount, drawSize)</code>: P(≥1 sucesso numa amostra sem reposição). Usado pra "chance de abrir com ≥1 Unit de nível baixo (Lv.1–3)" na mão de 5 (<code>OPENING_HAND_SIZE = 5</code>, <code>LOW_LEVEL_MAX = 3</code>) — mesma leitura hipergeométrica que o card "Mão inicial" já fazia pra custo baixo.</li>
+  </ul>
+  <p>
+    Persistência: <code>Deck</code> + <code>DeckItem</code> (<code>section</code> distingue main / resource / ex_base /
+    ex_resource / token_reference). Capa/estilo visual: <code>Deck.coverImage</code> + <code>featuredCardIds[]</code>
+    (bloco reposicionado na UI pra logo abaixo do nome/Salvar).
+  </p>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="s9" class="section">
+  <h2>9. Ferramentas de desenvolvimento</h2>
+  <small class="src">Fonte: <code>src/modules/simulator/engine/legalActions.ts</code>, <code>selfPlay.ts</code>; <code>scripts/gundam-fuzz.mjs</code>; <code>scripts/mcp-gundam/</code>; <code>.mcp.json</code>; <code>.github/workflows/ci.yml</code>; <code>docs/44</code>, <code>docs/46</code>.</small>
+
+  <h3>9.1 Enumerador de ações legais (<code>engine/legalActions.ts</code>)</h3>
+  <p>
+    <code>enumerateLegalActions(state, seat, specs?, opts?) → LegalAction[]</code>, onde <code>LegalAction</code>
+    <strong>é</strong> <code>PlayerAction</code> (1:1). Estratégia: gera candidatos amplos e <strong>filtra</strong> cada
+    um por aplicação de teste (<code>applyPlayerAction</code> é puro). Erro de legalidade (<code>Error</code> "cru")
+    descarta o candidato; qualquer outro throwable (<code>TypeError</code>…) é re-lançado — bug de motor de verdade.
+    Cobre Main Phase (deploy Unit/Base/Pilot/Command, ataque, <code>Activate·Main</code>, <code>&lt;Support&gt;</code>,
+    <code>finishTurn</code>), Block Step, Action Step (combate e fim de turno), e todas as <code>pendingDecision</code>.
+  </p>
+  <div class="warn">
+    Bug de motor conhecido (<code>docs/46 §Achados</code>): <code>cloneState</code> não clona <code>endPhaseAction</code> a
+    fundo. Workaround no módulo novo: <code>enumerateLegalActions</code> faz <code>structuredClone(state)</code> antes de
+    cada aplicação de teste quando <code>state.endPhaseAction</code> está setado.
+  </div>
+
+  <h3>9.2 Self-play (<code>engine/selfPlay.ts</code>)</h3>
+  <p>
+    <code>runSelfPlay({ deckA, deckB, seed, policyA?, policyB?, maxTurns? })</code>. Policy <code>randomLegal</code>
+    exportada. Detecta: exceção do motor (<code>crashed</code>), exceção ao enumerar, estado sem ação legal / travado
+    (<code>illegalState</code>), invariante violada (<code>checkStateInvariants</code>), partida que não termina em
+    <code>maxTurns</code>.
+  </p>
+
+  <h3>9.3 Fuzzing de regressão (<code>scripts/gundam-fuzz.mjs</code>)</h3>
+<pre><code>corepack pnpm run gundam:fuzz -- --games=200 --seed=1 --maxTurns=200
+corepack pnpm run gundam:fuzz -- --decks=ST01,ST03 --games=1 --seed=&lt;seed&gt;   # repro de um achado
+</code></pre>
+  <p>
+    Roda N partidas <code>randomLegal</code>-vs-<code>randomLegal</code> por par de decks (todos os pares ST01–04 por
+    padrão). Exit ≠ 0 se achar crash / estado ilegal / partida infinita, imprimindo <code>par + seed + ação</code> e a
+    linha de repro. Rodada de Fase 1: 0 crashes / 0 estados ilegais / 0 partidas infinitas, média ~22 turnos.
+  </p>
+
+  <h3>9.4 Servidor MCP (<code>scripts/mcp-gundam/</code>)</h3>
+  <p>
+    Servidor MCP único que expõe o motor e o catálogo como ferramentas — base do bot de treino / fuzzing / MCTS
+    (Fases 2–5). Registrado em <code>.mcp.json</code> (<code>{"mcpServers":{"gundam":{"command":"node","args":["scripts/mcp-gundam/server.mjs"]}}}</code>);
+    o Claude Code sobe o processo. <code>server.mjs</code> registra o loader <code>tsx/esm</code> antes de importar o
+    motor TS — roda com <code>node</code> puro, sem build. Smoke: <code>corepack pnpm run mcp:gundam:smoke</code>.
+  </p>
+  <p>HTTP (<code>mcp.mjs</code> → <code>attachMcpHttp(app, {...})</code>, <code>POST /mcp</code> Streamable HTTP) existe mas <strong>não está plugado</strong> no <code>server/index.ts</code> (decisão <code>docs/44</code>: o server é grande e não é type-checked).</p>
+  <table>
+    <tr><th>Grupo</th><th>Tool</th><th>Uso</th></tr>
+    <tr><td rowspan="3"><code>catalog</code></td><td><code>gundam_get_card</code></td><td><code>code</code> → texto oficial EN + stats + <code>CardDef</code> do motor + <code>EffectSpec[]</code> + <code>coverage</code> + <code>postgres</code> (<code>CardModel</code> via Prisma, ou <code>{available:false}</code>).</td></tr>
+    <tr><td><code>gundam_search_glossary</code></td><td><code>term</code> → linhas de <code>docs/17</code> que casam.</td></tr>
+    <tr><td><code>gundam_coverage</code></td><td><code>set?</code> → resumo por set (<code>total / effectSpec / vanilla / faltando</code>); com <code>set</code>, lista carta a carta.</td></tr>
+    <tr><td rowspan="5"><code>sim</code><br/>(partidas efêmeras — <code>Map</code> + TTL 30min, nunca tocam <code>SimulatorMatch</code>)</td><td><code>sim_new</code></td><td><code>deckA</code>, <code>deckB</code> (ST01..ST04), <code>seed?</code> → cria já na Main Phase do turno 1 (mulligan pulado). Devolve <code>matchId</code>.</td></tr>
+    <tr><td><code>sim_view</code></td><td><code>matchId</code>, <code>seat</code> → visão redigida.</td></tr>
+    <tr><td><code>sim_legal</code></td><td><code>matchId</code>, <code>seat</code> → <code>enumerateLegalActions</code>.</td></tr>
+    <tr><td><code>sim_act</code></td><td><code>matchId</code>, <code>seat</code>, <code>action</code> → aplica a <code>PlayerAction</code>, devolve novos eventos + visão.</td></tr>
+    <tr><td><code>sim_selfplay</code></td><td><code>deckA</code>, <code>deckB</code>, <code>games?</code>, <code>seed?</code> → agrega <code>{crashes, illegalStates, unfinished, winA, winB, avgTurns}</code>.</td></tr>
+  </table>
+
+  <h3>9.5 CI (<code>.github/workflows/ci.yml</code>)</h3>
+  <p>Roda em PR pra <code>dev</code> e <code>main</code>, Node 22, <code>corepack</code>:</p>
+<pre><code>corepack pnpm install --frozen-lockfile
+corepack pnpm exec prisma generate
+corepack pnpm run check:types     # tsc -b
+corepack pnpm test                # vitest run
+corepack pnpm run build           # tsc -b && vite build
+corepack pnpm run gundam:fuzz -- --games=100   # regressão do motor, 100 partidas/par ST01-04
+</code></pre>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="s10" class="section">
+  <h2>10. Convenções</h2>
+  <small class="src">Fonte: <code>.claude/rules/</code>, <code>docs/03</code>, <code>docs/10</code>, <code>AI_GUIDE.md</code>.</small>
+
+  <h3>10.1 Nomenclatura e caso</h3>
+  <table>
+    <tr><th>Camada</th><th>Convenção</th></tr>
+    <tr><td>Banco (Postgres / Prisma <code>@map</code> quando preciso)</td><td><code>snake_case</code></td></tr>
+    <tr><td>Código TypeScript (frontend e backend)</td><td><code>camelCase</code></td></tr>
+    <tr><td>JSON na rede (payloads da API)</td><td><code>snake_case</code></td></tr>
+  </table>
+  <p>
+    Conversão nas bordas: <code>src/lib/api.ts</code> (axios) converte request <code>camelCase → snake_case</code> e
+    response <code>snake_case → camelCase</code>. O backend serializa/desserializa em <code>snake_case</code>.
+  </p>
+
+  <h3>10.2 Tempo</h3>
+  <p>
+    Tudo <strong>UTC</strong>. Banco <code>DateTime</code> (Prisma) / <code>timestamptz</code>; código usa
+    <code>Date</code>/ISO 8601 com <code>Z</code>; o frontend converte pra local só na exibição. <code>SimulatorMatch.turnDeadlineAt</code>
+    é <code>BigInt</code> (epoch ms).
+  </p>
+
+  <h3>10.3 Banco</h3>
+  <ul>
+    <li><strong>Sem foreign key / sem CASCADE</strong> no catálogo e entidades de usuário — integridade na aplicação.</li>
+    <li><strong>Soft delete</strong> (<code>deletedAt</code>) nos modelos de catálogo/evento; toda query filtra <code>deletedAt: null</code>.</li>
+    <li><code>TEXT</code> em vez de <code>VARCHAR</code>; PKs <code>cuid()</code>.</li>
+    <li>Migrations: <code>docs/11-checklist-migration.md</code> antes de mexer no schema.</li>
+  </ul>
+
+  <h3>10.4 Motor do simulador</h3>
+  <ul>
+    <li>Motor <strong>puro</strong>, sem React/rede/Prisma. <code>GameState</code> 100% serializável.</li>
+    <li>Reducers nunca mutam o estado recebido.</li>
+    <li><code>EffectSpec</code> autorado contra o <code>effectEn</code> <strong>oficial</strong>, nunca a tradução.</li>
+    <li>Carta nova segue <code>docs/29</code>: campo estruturado de <code>CardDef</code> primeiro; primitiva de <code>EffectSpec</code> só se for gatilho→ação; TDD (teste contra o texto oficial da carta).</li>
+    <li>Novo predicado / filtro / target group = novo membro da union em <code>predicates.ts</code>/<code>effectSpec.ts</code>, não reescrita.</li>
+    <li>Regra de jogo confirmada contra Comprehensive Rules oficial antes de implementar (a Bandai atualiza sem aviso).</li>
+  </ul>
+
+  <h3>10.5 Testes</h3>
+  <p>
+    <code>corepack pnpm test</code> — cerca de 640 casos (<code>vitest run</code>). Convive com <code>check:types</code>
+    (<code>tsc -b</code>) e <code>build</code> (<code>vite build</code>). <code>eslint</code> (<code>lint</code>,
+    <code>lint:simulator</code>). CI roda os 4 + fuzz.
+  </p>
+
+  <h3>10.6 Git</h3>
+  <ul>
+    <li>Commits: <code>&lt;tipo&gt;(&lt;escopo&gt;): &lt;resumo&gt;</code> — <code>feat</code>, <code>fix</code>, <code>refactor</code>, <code>style</code>, <code>docs</code>, <code>chore</code>, <code>test</code>. Escopos: <code>portal</code>, <code>cards</code>, <code>deckbuilder</code>, <code>simulator</code>, <code>prisma</code>, <code>docs</code>…</li>
+    <li>Branches: <code>feature/* → dev → main</code>. Tag por release (<code>chore(release): v1.0.0</code>).</li>
+    <li><code>dev</code> = staging; <code>main</code> = produção (Render).</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="s11" class="section">
+  <h2>11. Limitações conhecidas e backlog</h2>
+  <small class="src">Fonte: <code>CHANGELOG.md</code> [1.0.0], <code>docs/43</code>, <code>docs/45 §3</code>, <code>docs/46 §Achados</code>.</small>
+
+  <h3>11.1 Rede / simulador (operacional)</h3>
+  <ul>
+    <li><strong>Socket.io não promovido a produção</strong> — o SSE segue como caminho padrão até a validação de rede com 2 jogadores reais em máquinas/redes diferentes. O cliente já tenta socket primeiro com fallback automático pro SSE.</li>
+    <li><strong>Matchmaking ranqueado</strong> — aceito no protocolo, sem fila própria nem ranking ainda.</li>
+    <li>Fila de matchmaking é efêmera (perde no restart do servidor — aceitável; a <em>partida</em> persiste).</li>
+    <li>Reporte de bug do simulador só loga no console (<code>reportId</code>), não grava tabela.</li>
+  </ul>
+
+  <h3>11.2 Motor — padrões GD/EB ainda não cobertos (<code>docs/45 §3</code>)</h3>
+  <p>Nenhum é necessário pra ST01–ST04. Entram carta a carta quando as waves GD/EB forem autoradas (protocolo <code>docs/29</code>):</p>
+  <table>
+    <tr><th>Padrão</th><th>Exemplo</th><th>O que falta</th></tr>
+    <tr><td>Dano a "1 to 2" alvos (multi-alvo GD/EB)</td><td>GD01-044 Kshatriya "Choose 1 to 2 enemy Units. Deal 1 damage."</td><td><code>PendingDecision.abilityResolution</code> com contagem min/max; <code>damageUnit</code> iterar sobre ids.</td></tr>
+    <tr><td><code>targetFilter</code> relativo à carta-fonte</td><td>GD01-093 Marida Cruz "Lv. equal to or lower than this Unit"</td><td>Passar <code>sourceInstanceId</code> no contexto do <code>TargetFilterResolver</code> + filtro <code>levelLteSource</code>.</td></tr>
+    <tr><td><code>【Destroyed】</code> direcionado que <em>pausa</em></td><td>GD01-056 "【Destroyed】Choose 1 enemy Unit with 5 or less AP. Deal 1 damage."</td><td>Quase pronto (<code>dispatchDestroyedFromEffect</code> já passa <code>targetFilterResolver</code>) — falta autorar o <code>EffectSpec</code> com <code>targetScope</code>/<code>targetFilter</code> e testar o pause com alvo.</td></tr>
+    <tr><td>Dano condicionado ao próprio estado (além de AP)</td><td>GD "if this Unit is (Zeon)", "while 5+ AP"</td><td>Novos predicados pontuais em <code>predicates.ts</code> (cor/trait da fonte, contagem de recursos…).</td></tr>
+    <tr><td><code>&lt;Breach&gt;</code> condicional / concedido estaticamente</td><td>GD01-034 "【During Pair】This Unit gains &lt;Breach 3&gt;"</td><td>Caminho estático contínuo pra keyword condicional (hoje só concessão por evento com <code>duration</code>).</td></tr>
+    <tr><td>Pilot pareado segue a Unit em morte por <em>efeito</em></td><td>qualquer <code>damageUnit</code>/<code>destroy</code> letal numa Unit pareada</td><td>Gap pré-existente: <code>combat.ts</code> emite <code>pairedPilotFollowEvents</code> no Damage Step, <code>compilePrimitive</code> não (CR 3-3-6).</td></tr>
+  </table>
+
+  <h3>11.3 Motor — achados registrados</h3>
+  <ul>
+    <li><code>cloneState</code> não clona <code>endPhaseAction</code> a fundo (só spread) — corromper o snapshot original ao aplicar 2 ações do MESMO snapshot no Action Step da End Phase. Inócuo no <code>matchStore</code> (descarta o state antigo a cada ação); quebra consumidores que especulam (MCTS, validação do enumerador). Workaround: <code>structuredClone</code> no <code>legalActions.ts</code>. Correção de verdade: clonar <code>endPhaseAction</code> como já se faz com <code>combat</code>.</li>
+    <li>Confirmado <strong>não</strong> ser bug: dano-por-efeito (<code>damageUnit</code>/<code>destroy</code> de <code>EffectSpec</code>) <em>nunca</em> dispara <code>&lt;Breach&gt;</code>/<code>&lt;Suppression&gt;</code>/<code>combatTrigger</code> — esses só rodam dentro do <code>resolveDamageStep</code>. Teste de regressão em <code>engine/destroyedOutOfCombat.test.ts</code>.</li>
+  </ul>
+
+  <h3>11.4 Produto (roadmap — <code>CHANGELOG.md</code> "No radar")</h3>
+  <ul>
+    <li>Bot de treino (heurístico → IA) e pipeline de correção assistida (Fases 2–5 do simulador).</li>
+    <li>Analytics competitivos mais profundos (meta por temporada/arquétipo, uso por carta) — Fase 2.</li>
+    <li>Perfis públicos, decks favoritos/compartilháveis — Fase 3.</li>
+    <li>Ranking no simulador — Fase 4.</li>
+    <li><code>【Pilot】[X]</code> como pré-requisito de <em>jogar</em> a carta (legalidade de jogo, nunca foi uma das 8 lacunas de DSL) — ponte deckbuilder → simulador.</li>
+    <li>Cobertura de efeitos das coleções GD/EB (ver §11.2).</li>
+  </ul>
+</section>
+
+</body>
+</html>
