@@ -235,6 +235,15 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         } else if (q.handChoice) {
           idChoices.push([]);
           for (const id of q.handChoice.legalHandIds) idChoices.push([id]);
+        } else if (q.handDiscard) {
+          if (q.handDiscard.legalHandIds.length === 0) idChoices.push([]);
+          for (const id of q.handDiscard.legalHandIds) idChoices.push([id]); // n=1 nas cartas de ST01-04
+        } else if (q.deckReorder) {
+          const ids = q.deckReorder.topCards.map((c) => c.instanceId).slice(0, q.deckReorder.slots.length);
+          if (ids.length < 2) idChoices.push(ids);
+          else idChoices.push(ids, [...ids].reverse()); // 2 slots: a→topo b→fundo | b→topo a→fundo
+        } else if (q.enumChoice) {
+          for (const opt of q.enumChoice.options) idChoices.push([opt.value]);
         } else if (q.needsTarget) {
           for (const id of q.legalTargets) idChoices.push([id]);
           if (q.legalTargets.length === 0 || q.optional) idChoices.push([]);

@@ -14,6 +14,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { rankSimilarSpecs } from "./similar-specs.mjs";
+import { buildSignatures, INDEX_PATH } from "../gundam-index.mjs";
+
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const sim = (p) => pathToFileURL(path.join(ROOT, "src/modules/simulator", p)).href;
 
@@ -127,6 +130,49 @@ export function coverage(set) {
     summary: [...bySet.values()].sort((a, b) => a.set.localeCompare(b.set)),
     cards: wanted ? rows.sort((a, b) => a.code.localeCompare(b.code)) : undefined,
     note: "status: effectSpec = tem EffectSpec autorado; vanilla = sem texto bespoke (motor cobre); faltando = texto bespoke sem EffectSpec",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// RAG de autoria — specs parecidos por mecânica (docs/44 §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Assinaturas do índice local `content/_index/specs-signatures.json` (gerado por
+ * `pnpm gundam:index`, versionado). Se o arquivo não existir / estiver ilegível,
+ * regenera na hora a partir de `ALL_EFFECT_SPECS` — o ranking nunca depende do
+ * artefato estar em dia.
+ */
+function loadSignatures() {
+  try {
+    const raw = fs.readFileSync(INDEX_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch {
+    // cai no fallback abaixo
+  }
+  return buildSignatures(ALL_EFFECT_SPECS);
+}
+
+export function similarSpecs(effectEn, limit = 3) {
+  const text = String(effectEn ?? "").trim();
+  if (!text) {
+    return { query: text, count: 0, results: [], hint: "passe o texto EN do efeito da carta nova" };
+  }
+  const { query, queryTokens, count, results } = rankSimilarSpecs(loadSignatures(), text, limit);
+  return {
+    query,
+    queryTokens,
+    count,
+    results: results.map(({ id, cardCode, trigger, sourceText, score, ops }) => ({
+      id,
+      cardCode,
+      trigger,
+      sourceText,
+      score,
+      ops,
+    })),
+    note: "score = peso dos n-gramas de mecânica em comum + 0.5 por trigrama literal; reaproveite op/targetScope/predicate do resultado #1",
   };
 }
 

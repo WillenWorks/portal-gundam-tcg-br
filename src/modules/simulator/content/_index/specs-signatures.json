@@ -1,0 +1,843 @@
+[
+  {
+    "id": "ST01-002-WhenPaired",
+    "cardCode": "ST01-002",
+    "trigger": "When Paired",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "pairedPilotHasTrait:White Base Team",
+    "sourceText": "【When Paired･(White Base Team) Pilot】Draw 1."
+  },
+  {
+    "id": "ST01-004-Deploy",
+    "cardCode": "ST01-004",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit with 2 or less HP. Rest it."
+  },
+  {
+    "id": "ST01-006-WhenPaired",
+    "cardCode": "ST01-006",
+    "trigger": "When Paired",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": "level<=5",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn."
+  },
+  {
+    "id": "ST01-010-Burst",
+    "cardCode": "ST01-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST01-010-WhenPaired",
+    "cardCode": "ST01-010",
+    "trigger": "When Paired",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
+    "id": "ST01-011-Attack",
+    "cardCode": "ST01-011",
+    "trigger": "Attack",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": "ownResource",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【Attack】【Once per Turn】Choose 1 of your Resources. Set it as active."
+  },
+  {
+    "id": "ST01-011-Burst",
+    "cardCode": "ST01-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST01-012-Main",
+    "cardCode": "ST01-012",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "ST01-013-Main",
+    "cardCode": "ST01-013",
+    "trigger": "Main",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 friendly Unit. It recovers 3 HP."
+  },
+  {
+    "id": "ST01-014-Action",
+    "cardCode": "ST01-014",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn."
+  },
+  {
+    "id": "ST01-014-Burst",
+    "cardCode": "ST01-014",
+    "trigger": "Burst",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Main】."
+  },
+  {
+    "id": "ST01-014-Main",
+    "cardCode": "ST01-014",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn."
+  },
+  {
+    "id": "ST01-015-ActivateMain",
+    "cardCode": "ST01-015",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "spawnTokenByOwnUnitCount"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】②：Deploy 1 [Gundam]((White Base Team)･AP3･HP3) Unit token if you have no Units in play, deploy 1 [Guncannon]((White Base Team)･AP2･HP2) Unit token if you have only 1 Unit in play, or deploy 1 [Guntank]((White Base Team)･AP1･HP1) Unit token if you have 2 or more Units in play."
+  },
+  {
+    "id": "ST01-015-Burst",
+    "cardCode": "ST01-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST01-015-Deploy",
+    "cardCode": "ST01-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST01-016-ActivateMain",
+    "cardCode": "ST01-016",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】Rest this Base：All friendly Link Units get AP+1 during this turn."
+  },
+  {
+    "id": "ST01-016-Burst",
+    "cardCode": "ST01-016",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST01-016-Deploy",
+    "cardCode": "ST01-016",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST02-002-Deploy",
+    "cardCode": "ST02-002",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Place 1 EX Resource."
+  },
+  {
+    "id": "ST02-006-ActivateMain",
+    "cardCode": "ST02-006",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】④：Set this Unit as active."
+  },
+  {
+    "id": "ST02-010-Burst",
+    "cardCode": "ST02-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST02-011-Burst",
+    "cardCode": "ST02-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST02-012-Main",
+    "cardCode": "ST02-012",
+    "trigger": "Main",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 of your Units. It gains <Breach 3> during this turn."
+  },
+  {
+    "id": "ST02-013-Action",
+    "cardCode": "ST02-013",
+    "trigger": "Action",
+    "ops": [
+      "preventShieldDamage"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】During this battle, your shield area cards can't receive damage from enemy Units that are Lv.4 or lower."
+  },
+  {
+    "id": "ST02-014-Action",
+    "cardCode": "ST02-014",
+    "trigger": "Action",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
+    "id": "ST02-014-Burst",
+    "cardCode": "ST02-014",
+    "trigger": "Burst",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Main】."
+  },
+  {
+    "id": "ST02-014-Main",
+    "cardCode": "ST02-014",
+    "trigger": "Main",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
+    "id": "ST02-015-Burst",
+    "cardCode": "ST02-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST02-015-Deploy",
+    "cardCode": "ST02-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand",
+      "moveWithinDeck",
+      "moveWithinDeck"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom."
+  },
+  {
+    "id": "ST02-016-Burst",
+    "cardCode": "ST02-016",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST02-016-Deploy",
+    "cardCode": "ST02-016",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken",
+      "spawnToken",
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "cardInTrashNamed:Corsica Base",
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, deploy 1 [Tallgeese]((OZ)･AP4･HP2) Unit token. If it is your turn and a card with \"Corsica Base\" in its card name is in your trash, deploy 2 [Leo]((OZ)･AP1･HP1) Unit tokens instead."
+  },
+  {
+    "id": "ST03-006-Destroyed",
+    "cardCode": "ST03-006",
+    "trigger": "Destroyed",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (Zeon)/(Neo Zeon) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "ST03-008-Attack",
+    "cardCode": "ST03-008",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】This Unit gets AP+2 during this turn."
+  },
+  {
+    "id": "ST03-009-Deploy",
+    "cardCode": "ST03-009",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Deploy 1 rested [Zaku Ⅱ]((Zeon)･AP1･HP1) Unit token."
+  },
+  {
+    "id": "ST03-010-Burst",
+    "cardCode": "ST03-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST03-010-WhenPaired",
+    "cardCode": "ST03-010",
+    "trigger": "When Paired",
+    "ops": [
+      "deployFromHandTriggered"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】You may deploy 1 (Neo Zeon)/(Zeon) Unit card that is Lv.4 or lower from your hand."
+  },
+  {
+    "id": "ST03-011-Attack",
+    "cardCode": "ST03-011",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword",
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "sourcePairedUnitIsLinkUnit",
+    "sourceText": "【Attack】During this turn, this Unit gets AP+1 and, if it is a Link Unit, it gains <High-Maneuver>. (This Unit can't be blocked.)"
+  },
+  {
+    "id": "ST03-011-Burst",
+    "cardCode": "ST03-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST03-012-Action",
+    "cardCode": "ST03-012",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "ST03-012-Main",
+    "cardCode": "ST03-012",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "ST03-013-Action",
+    "cardCode": "ST03-013",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "ST03-013-Burst",
+    "cardCode": "ST03-013",
+    "trigger": "Burst",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Main】."
+  },
+  {
+    "id": "ST03-013-Main",
+    "cardCode": "ST03-013",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "ST03-014-Action",
+    "cardCode": "ST03-014",
+    "trigger": "Action",
+    "ops": [
+      "preventUnitBattleDamage"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly Unit. It can't receive battle damage from enemy Units with 2 or less AP during this battle."
+  },
+  {
+    "id": "ST03-015-Burst",
+    "cardCode": "ST03-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST03-015-Deploy-Damage",
+    "cardCode": "ST03-015",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": "ap<=5",
+    "predicate": null,
+    "sourceText": "Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it."
+  },
+  {
+    "id": "ST03-015-Deploy-Shield",
+    "cardCode": "ST03-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST03-016-Burst",
+    "cardCode": "ST03-016",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST03-016-Deploy",
+    "cardCode": "ST03-016",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand",
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, deploy 1 rested [Char's Zaku Ⅱ]((Zeon)･AP3･HP1) Unit token."
+  },
+  {
+    "id": "ST04-001-WhenPaired",
+    "cardCode": "ST04-001",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=4",
+    "predicate": "pairedPilotLevelAtLeast:4",
+    "sourceText": "【When Paired･Lv.4 or Higher Pilot】Choose 1 enemy Unit with 4 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "ST04-002-Deploy",
+    "cardCode": "ST04-002",
+    "trigger": "Deploy",
+    "ops": [
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Draw 1. Then, discard 1."
+  },
+  {
+    "id": "ST04-006-Attack",
+    "cardCode": "ST04-006",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": "level>=5",
+    "predicate": "selfApAtLeast:5",
+    "sourceText": "【Attack】If this Unit has 5 or more AP, choose 1 enemy Unit that is Lv.5 or higher. Deal 3 damage to it."
+  },
+  {
+    "id": "ST04-009-Destroyed",
+    "cardCode": "ST04-009",
+    "trigger": "Destroyed",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerHasOtherLinkUnit",
+    "sourceText": "【During Pair】【Destroyed】If you have another Link Unit in play, draw 1."
+  },
+  {
+    "id": "ST04-010-Attack",
+    "cardCode": "ST04-010",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit. It gets AP-2 during this battle."
+  },
+  {
+    "id": "ST04-010-Burst",
+    "cardCode": "ST04-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST04-011-Burst",
+    "cardCode": "ST04-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST04-011-WhenLinked",
+    "cardCode": "ST04-011",
+    "trigger": "When Linked",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "sourcePairedUnitIsLinkUnit",
+    "sourceText": "【When Linked】During this turn, this Unit may choose an active enemy Unit that is Lv.5 or lower as its attack target."
+  },
+  {
+    "id": "ST04-012-Burst",
+    "cardCode": "ST04-012",
+    "trigger": "Burst",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance",
+    "sourceText": "【Burst】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>) Unit token."
+  },
+  {
+    "id": "ST04-012-Main",
+    "cardCode": "ST04-012",
+    "trigger": "Main",
+    "ops": [
+      "spawnTokenChoice"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance",
+    "sourceText": "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token."
+  },
+  {
+    "id": "ST04-013-Action",
+    "cardCode": "ST04-013",
+    "trigger": "Action",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "ST04-013-Main",
+    "cardCode": "ST04-013",
+    "trigger": "Main",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "ST04-014-Action",
+    "cardCode": "ST04-014",
+    "trigger": "Action",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "level<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit that is Lv.2 or lower. It gains <First Strike> during this turn."
+  },
+  {
+    "id": "ST04-014-Main",
+    "cardCode": "ST04-014",
+    "trigger": "Main",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "level<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit that is Lv.2 or lower. It gains <First Strike> during this turn."
+  },
+  {
+    "id": "ST04-015-ActivateMain",
+    "cardCode": "ST04-015",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】②：Choose 1 friendly Unit with <Blocker>. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "ST04-015-Burst",
+    "cardCode": "ST04-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST04-015-Deploy",
+    "cardCode": "ST04-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST04-016-ActivateMain",
+    "cardCode": "ST04-016",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】Rest this Base：Choose 1 friendly Unit. It gets AP+1 during this turn."
+  },
+  {
+    "id": "ST04-016-Burst",
+    "cardCode": "ST04-016",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST04-016-Deploy",
+    "cardCode": "ST04-016",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  }
+]

@@ -168,7 +168,7 @@ export const WHITE_BASE_BURST: EffectSpec = {
   id: "ST01-015-Burst",
   cardCode: "ST01-015",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 
@@ -212,7 +212,7 @@ export const ASTICASSIA_BURST: EffectSpec = {
   id: "ST01-016-Burst",
   cardCode: "ST01-016",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 

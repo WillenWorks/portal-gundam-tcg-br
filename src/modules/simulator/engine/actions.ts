@@ -427,14 +427,20 @@ function applyPlayerActionInner(
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
       // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
+      const commandSources = new Set<string>();
       for (const r of action.resolutions) {
         const q = decision.queue.find((x) => x.specId === r.specId)!;
         const deckReveal = q.deckTopReveal;
         const handChoice = q.handChoice;
+        const handDiscard = q.handDiscard;
+        const deckReorder = q.deckReorder;
+        const enumChoice = q.enumChoice;
 
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
-        // pro fundo) — por isso `deckTopReveal` NUNCA cai nos `continue` de skip.
-        if (!deckReveal) {
+        // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
+        // (não é "may") — não caem nos `continue` de skip; a validação abaixo
+        // exige a escolha.
+        if (!deckReveal && !handDiscard && !deckReorder && !enumChoice) {
           // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
           if (!r.activate) continue;
           if (q.needsTarget && r.targetIds.length === 0) continue;
@@ -453,6 +459,25 @@ function applyPlayerActionInner(
         if (deckReveal && r.targetIds.length > 0 && !r.targetIds.every((id) => deckReveal.revealableIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas reveláveis do topo do deck.`);
         }
+        if (handDiscard) {
+          const want = Math.min(handDiscard.n, handDiscard.legalHandIds.length);
+          if (r.targetIds.length !== want || !r.targetIds.every((id) => handDiscard.legalHandIds.includes(id))) {
+            throw new Error(`Descarte inválido pra ${r.specId} — escolha ${want} carta(s) da mão.`);
+          }
+        }
+        if (deckReorder) {
+          const topIds = deckReorder.topCards.map((c) => c.instanceId);
+          const want = Math.min(deckReorder.slots.length, topIds.length);
+          if (r.targetIds.length !== want || new Set(r.targetIds).size !== r.targetIds.length || !r.targetIds.every((id) => topIds.includes(id))) {
+            throw new Error(`Reordenação inválida pra ${r.specId} — atribua as ${want} carta(s) do topo, sem repetir.`);
+          }
+        }
+        if (enumChoice) {
+          const values = enumChoice.options.map((o) => o.value);
+          if (r.targetIds.length !== 1 || !values.includes(r.targetIds[0])) {
+            throw new Error(`Escolha inválida pra ${r.specId} — opções: ${values.join(" / ")}.`);
+          }
+        }
 
         // Só `target` — NUNCA aliasar pra `shield`: um EffectSpec que combina
         // `addShieldToHand` + alvo nomeado (ex. ST03-015 Rewloola "Add 1 Shield
@@ -464,12 +489,28 @@ function applyPlayerActionInner(
         const targets: Record<string, string[]> = { target: r.targetIds };
         if (handChoice) targets.deploy = r.targetIds;
         if (deckReveal) targets.reveal = r.targetIds;
+        if (handDiscard) targets.discard = r.targetIds;
+        if (deckReorder) deckReorder.slots.forEach((slot, i) => { targets[slot.name] = r.targetIds[i] ? [r.targetIds[i]] : []; });
+        if (enumChoice) targets[enumChoice.key] = r.targetIds;
+
+        if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets,
           predicateResolver,
           targetFilterResolver,
           allSpecs: specs,
         });
+      }
+
+      // Command 【Main】/【Action】 que pausou pra escolha (ST04-012 Striker Pack):
+      // Comprehensive Rules 3-4-4 — a carta vai pro trash depois do efeito
+      // resolver. `playCommand` faz isso no fluxo síncrono; aqui é o fluxo
+      // pausado.
+      for (const srcId of commandSources) {
+        const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
+        if (src && src.def.cardType === "COMMAND") {
+          next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
+        }
       }
       // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou
       // Units-com-【Destroyed】-que-pausa dos dois lados): agora que a decisão do

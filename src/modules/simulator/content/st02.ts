@@ -139,7 +139,7 @@ export const SAINT_GABRIEL_INSTITUTE_BURST: EffectSpec = {
   id: "ST02-015-Burst",
   cardCode: "ST02-015",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 
@@ -167,7 +167,7 @@ export const CORSICA_BASE_BURST: EffectSpec = {
   id: "ST02-016-Burst",
   cardCode: "ST02-016",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 

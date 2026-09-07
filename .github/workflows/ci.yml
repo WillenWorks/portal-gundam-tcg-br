@@ -35,3 +35,6 @@ jobs:
 
       - name: Fuzz (regressão do motor — 100 partidas/par ST01-04)
         run: corepack pnpm run gundam:fuzz -- --games=100
+
+      - name: Cobertura de efeitos (docs/48 — falha se carta sem EffectSpec nem deferimento)
+        run: corepack pnpm run catalog:coverage:gate

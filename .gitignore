@@ -62,3 +62,5 @@ docs/49-uso-rag-autoria.md
 docs/50-treino-ml.md
 # relatórios regenerados por script (catalog:audit, coverage, …) — não versionam
 docs/_generated/
+# git worktrees criadas por subagentes (orquestração paralela) — efêmeras
+.claude/worktrees/

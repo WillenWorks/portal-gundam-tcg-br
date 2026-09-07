@@ -60,6 +60,22 @@ check("gundam_coverage(ST01)", () => {
   if (!r.cards || r.cards.length === 0) throw new Error("ST01 sem cartas");
   return r.summary;
 });
+check("gundam_similar_specs(deal damage)", () => {
+  const r = catalog.similarSpecs("Choose 1 enemy Unit. Deal 2 damage to it.", 3);
+  if (r.results.length === 0 || r.results.length > 3) throw new Error(`esperava 1..3 resultados, veio ${r.results.length}`);
+  const scores = r.results.map((x) => x.score);
+  if (scores.some((s, i) => i > 0 && s > scores[i - 1])) throw new Error("resultados fora de ordem (score desc)");
+  const top3 = r.results.map((x) => x.cardCode);
+  if (!top3.includes("ST03-013") || !top3.includes("ST03-015")) {
+    throw new Error(`esperava Close Combat (ST03-013) e Rewloola (ST03-015) no top 3, veio ${top3.join(", ")}`);
+  }
+  return { top: r.results.map((x) => `${x.id}=${x.score}`) };
+});
+check("gundam_similar_specs(look at top)", () => {
+  const r = catalog.similarSpecs("Look at the top 3 cards of your deck...", 3);
+  if (r.results[0]?.cardCode !== "ST03-006") throw new Error(`esperava Char's Zaku II (ST03-006) no topo, veio ${r.results[0]?.cardCode}`);
+  return { top: r.results[0].id };
+});
 await checkAsync("gundam_get_card postgres branch", () => catalog.getCardFromPostgres("ST01-001"));
 
 // sim

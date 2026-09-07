@@ -121,8 +121,15 @@ export type PrimitiveCall =
   | { op: "spawnToken"; def: CardDef; player: PlayerRef; zone: Zone; count?: number; rested?: boolean }
   /** variante de spawnToken que escolhe QUAL CardDef instanciar contando as próprias Units em campo (ex.: ST01-015 White Base — Gundam/Guncannon/Guntank token conforme 0/1/2+ Units já em jogo). `thresholds` é avaliado em ordem crescente de `maxUnits`; o 1º cuja contagem atual seja <= maxUnits vence. */
   | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
-  /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. */
+  /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. Com `target.kind: "named"` é interativo (camada de decisão, `deckReorder`). */
   | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" }
+  /**
+   * "deploy 1 [A] or 1 [B] Unit token" — o jogador escolhe QUAL token invocar
+   * (ex. ST04-012 Striker Pack 【Main】: Sword Strike ou Launcher Strike). A
+   * escolha vem em `ctx.targets[key]` (0 ou 1 valor de `options[].value`),
+   * resolvida pela camada de decisão (`enumChoice`). Sem escolha → `options[0]`
+   * (default defensivo — a camada de decisão sempre força a escolha). */
+  | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[] }
   /**
    * "Add N of your Shields to your hand" — o 【Deploy】 que TODA Base do jogo
    * tem (91/91 no dataset oficial, sem exceção; ver docs/18). Como shields
@@ -175,7 +182,15 @@ export type PrimitiveCall =
    * (`ctx.targets[deployName]`) está na mão, é Unit e casa `filter` (trait/level).
    * O limite de 6 Units NÃO bloqueia (igual a `deployCard`: excesso resolvido
    * depois por rules management). Sem escolha → no-op. */
-  | { op: "deployFromHandTriggered"; player: PlayerRef; filter: CardDefFilter; deployName?: string };
+  | { op: "deployFromHandTriggered"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
+  /**
+   * "【Burst】Deploy this card." — coloca a PRÓPRIA carta (BASE → baseSection,
+   * UNIT → battleArea) em campo, aplicando a regra de 1 Base (a Base atual vai
+   * pro trash, ou pro exílio se for token). Depois disso o `dispatcher.ts`
+   * ENCADEIA o 【Deploy】 da carta (Add 1 Shield / token / dano). Sem esta
+   * primitiva o Burst usava `moveZone self → baseSection`, que não trocava a
+   * Base nem disparava o 【Deploy】 (docs/47 Classe B). */
+  | { op: "deployThisCard" };
 
 /**
  * Filtro sobre um `CardDef` — usado pelas primitivas que escolhem carta por
@@ -311,12 +326,18 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone }];
     }
     case "moveWithinDeck": {
-      // Reordenar o topo do deck é uma decisão OPCIONAL de quem controla (ver
+      // Reordenar o topo do deck é uma decisão de quem controla (ver
       // `peekAndReorderDeck`): se ninguém decidiu (`ctx.targets` sem a entrada
-      // nomeada — ex. dispatcher do servidor antes da camada de decisão da
-      // Sessão 2), é no-op, o deck fica como está — resultado legal, não erro.
+      // nomeada — ex. Burst→Base Deploy, que não passa pela camada de decisão),
+      // é no-op, o deck fica como está — resultado legal, não erro.
       if (call.target.kind === "named" && !ctx.targets[call.target.name]?.length) return [];
       return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_WITHIN_DECK", instanceId, position: call.position }));
+    }
+    case "spawnTokenChoice": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = ctx.targets[call.key]?.[0];
+      const match = call.options.find((o) => o.value === chosen) ?? call.options[0];
+      return [{ type: "SPAWN_TOKEN", player, def: match.def, zone: call.zone }];
     }
     case "preventShieldDamage": {
       return [{ type: "SET_SHIELD_PROTECTION", maxAttackerLevel: call.maxAttackerLevel }];
@@ -362,6 +383,26 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         events.push({ type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" });
       }
       return events;
+    }
+    case "deployThisCard": {
+      const source = findCard(ctx.state, ctx.sourceInstanceId);
+      if (source.def.cardType === "BASE") {
+        const events: GameEvent[] = [];
+        const existing = ctx.state.players[source.owner].baseSection[0];
+        if (existing && existing.instanceId !== ctx.sourceInstanceId) {
+          events.push(
+            existing.def.isToken
+              ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId }
+              : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" },
+          );
+        }
+        events.push({ type: "MOVE_CARD", instanceId: ctx.sourceInstanceId, toZone: "baseSection" });
+        return events;
+      }
+      if (source.def.cardType === "UNIT") {
+        return [{ type: "MOVE_CARD", instanceId: ctx.sourceInstanceId, toZone: "battleArea" }];
+      }
+      throw new Error(`deployThisCard: ${source.def.code} não é BASE nem UNIT`);
     }
     case "deployFromHandTriggered": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -509,31 +550,70 @@ export function specNeedsNamedTarget(spec: EffectSpec): boolean {
 }
 
 /**
- * Primitivas que exigem uma ESCOLHA DE CARTA feita fora de campo (na mão, ou
- * entre as N do topo do deck) — diferente de `ctx.targets.target`, que é uma
- * Unit/Recurso já visível no tabuleiro. Hoje: `deployFromHandTriggered`
- * (ST03-010 Full Frontal 【When Paired】) e `lookAtTopFilterReveal` (ST03-006
- * Char's Zaku Ⅱ 【Destroyed】). A camada de decisão (`abilityDispatch.ts`) usa
- * isto pra montar `handChoice`/`deckTopReveal` na fila da `PendingDecision` e
- * pra marcar o gatilho como interativo mesmo quando `optional` é `false`.
+ * Primitivas que exigem uma ESCOLHA feita fora do "alvo em campo"
+ * (`ctx.targets.target`, uma Unit/Recurso visível no tabuleiro):
+ *  - `deployFromHandTriggered` (ST03-010) / `discardNamed` (ST04-002) → carta da MÃO
+ *  - `lookAtTopFilterReveal` (ST03-006) / `moveWithinDeck` nomeado (ST02-015) → topo do DECK
+ *  - `spawnTokenChoice` (ST04-012) → escolha ENUM (Sword / Launcher)
+ * A camada de decisão (`abilityDispatch.ts`) monta `handChoice`/`deckTopReveal`/
+ * `handDiscard`/`deckReorder`/`enumChoice` na fila da `PendingDecision` e marca
+ * o gatilho como interativo mesmo quando `optional` é `false`.
  */
 export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "deployFromHandTriggered" }>
-  | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>;
+  | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>
+  | Extract<PrimitiveCall, { op: "discardNamed" }>
+  | Extract<PrimitiveCall, { op: "spawnTokenChoice" }>
+  | Extract<PrimitiveCall, { op: "moveWithinDeck" }>;
 
-export function specChoicePrimitive(spec: EffectSpec): ChoicePrimitive | undefined {
-  const all: PrimitiveCall[] = [
-    ...(spec.cost ?? []),
-    ...(spec.condition?.then ?? []),
-    ...(spec.condition?.else ?? []),
-    ...spec.actions,
-  ];
-  return all.find((call): call is ChoicePrimitive => call.op === "deployFromHandTriggered" || call.op === "lookAtTopFilterReveal");
+export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive {
+  switch (call.op) {
+    case "deployFromHandTriggered":
+    case "lookAtTopFilterReveal":
+    case "discardNamed":
+    case "spawnTokenChoice":
+      return true;
+    case "moveWithinDeck":
+      return call.target.kind === "named";
+    default:
+      return false;
+  }
 }
 
-/** `true` se o spec consome uma escolha de carta na mão / no topo do deck (ver `specChoicePrimitive`). */
+function specPrimitives(spec: EffectSpec): PrimitiveCall[] {
+  return [...(spec.cost ?? []), ...(spec.condition?.then ?? []), ...(spec.condition?.else ?? []), ...spec.actions];
+}
+
+export function specChoicePrimitive(spec: EffectSpec): ChoicePrimitive | undefined {
+  return specPrimitives(spec).find(isChoicePrimitive);
+}
+
+/** TODAS as primitivas de escolha do spec (ST02-015 tem 2 `moveWithinDeck` = 1 reordenação). */
+export function specChoicePrimitives(spec: EffectSpec): ChoicePrimitive[] {
+  return specPrimitives(spec).filter(isChoicePrimitive);
+}
+
+/** `true` se o spec consome uma escolha de carta / enum (ver `specChoicePrimitive`). */
 export function specNeedsChoice(spec: EffectSpec): boolean {
   return specChoicePrimitive(spec) !== undefined;
+}
+
+/**
+ * IDs de carta elegíveis pra o `discardNamed` de um spec: a mão atual de
+ * `player` MAIS as cartas que serão compradas por `draw` ANTES do
+ * `discardNamed` (ST04-002 "Draw 1. Then, discard 1." — dá pra descartar a
+ * recém-comprada). A ordem do `draw` é determinística (topo do deck) e o
+ * estado não muda entre montar a fila e resolver.
+ */
+export function discardCandidateHandIds(spec: EffectSpec, state: GameState, player: PlayerId): string[] {
+  const hand = state.players[player].hand.map((c) => c.instanceId);
+  let drawn = 0;
+  for (const call of spec.actions) {
+    if (call.op === "draw") drawn += call.n;
+    if (call.op === "discardNamed") break;
+  }
+  const deckIds = state.players[player].deck.slice(0, Math.min(drawn, state.players[player].deck.length)).map((c) => c.instanceId);
+  return [...hand, ...deckIds];
 }
 
 export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolvePredicate?: PredicateResolver): GameEvent[] {
