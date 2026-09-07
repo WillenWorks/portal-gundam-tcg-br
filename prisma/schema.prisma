@@ -757,3 +757,25 @@ model SimulatorBugReport {
   @@index([status])
   @@index([createdAt])
 }
+
+/// Fila em Postgres dos turnos do bot heurístico (docs/44 Fase 2 §10.2 — modo
+/// treino solo). O web server NUNCA roda a policy do bot inline: quando o motor
+/// autoritativo (`matchStore`) fica com a vez no assento do bot, ele só ENFILEIRA
+/// uma linha aqui (`status = pending`). O worker dedicado (`services/sim-bot/`)
+/// faz polling desta tabela, carrega a partida, roda a heurística em loop até o
+/// turno do bot acabar e aplica cada ação de volta pela API autoritativa
+/// (`POST /api/simulator/matches/:id/actions`). Sem relação FK — mesma filosofia
+/// de blob autocontido do `SimulatorMatch`.
+model SimulatorBotTurn {
+  id        String   @id @default(cuid())
+  matchId   String
+  seat      String
+  /// pending | processing | done | failed
+  status    String   @default("pending")
+  attempts  Int      @default(0)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}

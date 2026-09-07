@@ -37,6 +37,7 @@ import {
   resignMatch,
   seatFor,
   setAutoPass,
+  setBotTurnSink,
   setBugReportSink,
   setMatchPersistence,
   subscribe,
@@ -45,6 +46,10 @@ import {
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
+import {
+  createTrainingMatch,
+  TrainingMatchError,
+} from "../src/modules/simulator/server/trainingMatch.ts";
 import {
   buildGithubDispatchRequest,
   canSubmitBugReport,
@@ -166,6 +171,25 @@ setBugReportSink(async (draft) => {
     }
   }
   throw new Error("não foi possível gerar um shortCode único para o bug report");
+});
+
+// docs/44 Fase 2 §10.2 — modo treino solo. Quando o motor autoritativo fica com
+// a vez no assento do bot, o `matchStore` chama este sink (nunca roda a policy
+// inline). A gente só enfileira um `SimulatorBotTurn` `pending` — idempotente:
+// se já existe um turno `pending`/`processing` pra essa partida, não cria outro.
+// O worker dedicado (`services/sim-bot/`) faz o resto. Fire-and-forget: nunca
+// bloqueia o motor; erro só loga.
+setBotTurnSink(({ matchId, seat }) => {
+  void (async () => {
+    const existing = await prisma.simulatorBotTurn.findFirst({
+      where: { matchId, status: { in: ["pending", "processing"] } },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.simulatorBotTurn.create({ data: { matchId, seat } });
+  })().catch((err) => {
+    console.warn(`[SIMULADOR] falha ao enfileirar turno do bot ${matchId}:`, err instanceof Error ? err.message : err);
+  });
 });
 
 const app = express();
@@ -3375,6 +3399,36 @@ app.post("/api/simulator/queue/leave", authRequired, (req: RequestWithUser, res)
 
 app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res) => {
   res.json(queueStatusFor(req.user!.userId));
+});
+
+// --- Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2 / §10.2). ---
+// O jogador entra no assento A, o bot no B (`seats.B.bot`). O web server NUNCA
+// roda a policy do bot: quando a vez cai no assento do bot, o `matchStore`
+// enfileira um `SimulatorBotTurn` que o worker (`services/sim-bot/`) processa,
+// aplicando cada ação de volta por `POST /matches/:id/actions`.
+
+app.post("/api/simulator/training/new", authRequired, (req: RequestWithUser, res) => {
+  const body = req.body as { deckId?: unknown; level?: unknown };
+  try {
+    const { matchId } = createTrainingMatch({
+      deckId: typeof body.deckId === "string" ? body.deckId : "",
+      level: body.level,
+      human: { userId: req.user!.userId, displayName: req.user!.username },
+    });
+    res.status(201).json({ matchId });
+  } catch (err) {
+    if (err instanceof TrainingMatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+app.get("/api/simulator/training/:matchId", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.matchId)); // re-hidrata do banco se a partida esfriou (docs/23)
+  const match = getMatch(String(req.params.matchId));
+  if (!match) return res.status(404).json({ error: "Partida de treino não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Você não é jogador desta partida de treino." });
+  res.json({ seated: true, ...matchViewFor(match, seat) });
 });
 
 // --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
