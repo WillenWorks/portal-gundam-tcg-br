@@ -47,6 +47,8 @@ const adminNav = [
   { href: "/admin/traits", label: "Traits", icon: Tags },
   { href: "/admin/rulings", label: "Regras", icon: ScrollText },
   { href: "/admin/events", label: "Eventos", icon: CalendarDays },
+  { href: "/admin/simulador/cobertura", label: "Cobertura (sim.)", icon: ScrollText },
+  { href: "/admin/simulador/autoria", label: "Autoria (sim.)", icon: ScrollText },
 ] as const;
 
 const titles: Record<string, string> = {
@@ -63,6 +65,8 @@ const titles: Record<string, string> = {
   "/admin/traits": "Traits",
   "/admin/rulings": "Regras",
   "/admin/events": "Eventos",
+  "/admin/simulador/cobertura": "Cobertura de efeitos (simulador)",
+  "/admin/simulador/autoria": "RAG de autoria (simulador)",
   "/organizador": "Meus eventos",
   "/simulador": "Simulador",
 };
