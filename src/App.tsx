@@ -43,6 +43,10 @@ const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
 // É 100% dados de exemplo: sem auth, sem backend. Serve pra iterar o visual e
 // pra simular efeitos nos tutoriais de Regras.
 const SimulatorLayoutPreviewPage = lazy(() => import("@/pages/SimulatorLayoutPreviewPage"));
+// Dashboards de Fase 4 (docs/44 §6.1 e §6.3) — só ADMIN, rotas de 2 segmentos
+// sob /admin (o AdminPage monolítico só casa /admin/:section de 1 segmento).
+const SimulatorCoveragePage = lazy(() => import("@/pages/admin/SimulatorCoveragePage"));
+const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthoringPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -130,6 +134,8 @@ function AppRouter() {
           )}
         </Route>
         <Route path="/u/:username" component={PublicProfilePage} />
+        <Route path="/admin/simulador/cobertura">{() => <RequireAuth adminOnly><LazyRoute label="Cobertura de efeitos"><SimulatorCoveragePage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/simulador/autoria">{() => <RequireAuth adminOnly><LazyRoute label="RAG de autoria"><SimulatorAuthoringPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>
