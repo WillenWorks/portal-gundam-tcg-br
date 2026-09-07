@@ -290,6 +290,9 @@ export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | 
 /** Espelha `QueueStatus` do servidor (matchStore.ts). */
 export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?: string; seat?: PlayerId };
 
+/** Dificuldade do bot no modo treino solo (docs/44 Fase 2 §4.2). */
+export type SimulatorTrainingLevel = "facil" | "normal";
+
 /** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
 export function buildSimulatorStreamUrl(matchId: string): string | null {
   const token = getStoredAuth().token;
@@ -460,6 +463,13 @@ export const api = {
   getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
   sendSimulatorAction: (id: string, action: PlayerAction) =>
     request<SimulatorMatchView>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),
+  // Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). Cria uma
+  // partida com o jogador no assento A e o bot no B; a UI de partida é a mesma
+  // (`/simulador/partida/:matchId`), o bot joga sozinho via worker `sim-bot`.
+  startSimulatorTraining: (payload: { deckId: string; level: SimulatorTrainingLevel }) =>
+    request<{ matchId: string }>("/simulator/training/new", { method: "POST", body: JSON.stringify(payload) }),
+  getSimulatorTraining: (id: string) =>
+    request<{ seated: true } & SimulatorMatchView>(`/simulator/training/${id}`, undefined, { bypassCache: true }),
   /** Heartbeat de presença -- chamar periodicamente enquanto a aba está visível (alimenta o W.O. por abandono). */
   pingSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/ping`, { method: "POST" }),
   /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */

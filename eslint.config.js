@@ -9,7 +9,7 @@ export default defineConfig([
   // `dist` = build output; `scripts/` e `prisma/` são utilitários Node/dados
   // (alguns `.mjs`, um deles é até Python com extensão errada) — não fazem
   // parte do app tipado e nunca foram cobertos pelo lint da UI.
-  globalIgnores(['dist', 'scripts/**', 'prisma/**', '*.config.js']),
+  globalIgnores(['dist', 'scripts/**', 'prisma/**', '*.config.js', '.claude/**', 'services/**/node_modules/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

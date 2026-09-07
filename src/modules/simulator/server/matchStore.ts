@@ -6,6 +6,7 @@ import { applyEvents } from "../engine/events";
 import { viewStateFor, type ViewGameState } from "../engine/viewState";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
+import type { HeuristicLevel } from "../engine/bot";
 
 /**
  * Match store em memória (docs/18, passo 4 — decisão original do Willen: em
@@ -36,6 +37,14 @@ export interface MatchSeat {
    * `false` (o jogador confirma cada passe).
    */
   autoPassActionStep?: boolean;
+  /**
+   * docs/44 Fase 2 §4.2 — assento controlado pelo bot heurístico (modo treino
+   * solo contra a IA). Ausente = jogador humano. Quando a vez cai neste assento,
+   * o `matchStore` enfileira um turno do bot (`setBotTurnSink`) em vez de rodar
+   * a policy inline; o worker (`services/sim-bot/`) processa e aplica as ações
+   * de volta pela API autoritativa.
+   */
+  bot?: { policy: "heuristic"; level: HeuristicLevel };
 }
 
 /**
@@ -539,6 +548,62 @@ export async function reportSituation(matchId: string, userId: string, note?: st
   return bugReportSink(draft);
 }
 
+// ---------------------------------------------------------------------------
+// Turno do bot (docs/44 Fase 2 §10.2) — modo treino solo. Quando a vez fica
+// com um assento marcado como `bot`, o `matchStore` NÃO roda a policy inline:
+// entrega um pedido a um SINK injetável (`setBotTurnSink`, ligado no boot do
+// servidor — grava um `SimulatorBotTurn` `pending`). O worker dedicado
+// (`services/sim-bot/`) faz polling, roda a heurística e aplica cada ação de
+// volta pela API autoritativa (`POST /matches/:id/actions`). `null` (default nos
+// testes de motor) = no-op.
+// ---------------------------------------------------------------------------
+
+export interface BotTurnRequest {
+  matchId: string;
+  seat: PlayerId;
+  level: HeuristicLevel;
+}
+
+export type BotTurnSink = (req: BotTurnRequest) => void;
+
+let botTurnSink: BotTurnSink | null = null;
+
+/** Chamado 1× no boot do servidor. `null` desliga o enfileiramento (default = testes de motor). */
+export function setBotTurnSink(sink: BotTurnSink | null): void {
+  botTurnSink = sink;
+}
+
+/** Qual assento (se algum) desta partida é controlado pelo bot. */
+export function botSeatFor(match: MatchRecord): PlayerId | undefined {
+  for (const seat of ["A", "B"] as PlayerId[]) {
+    if (match.seats[seat]?.bot) return seat;
+  }
+  return undefined;
+}
+
+/**
+ * Se a vez está com o assento do bot (e não é fim de jogo nem decisão do
+ * humano), entrega um pedido ao sink. Idempotência real fica no sink (ele só
+ * insere um `SimulatorBotTurn` se já não houver um `pending`/`processing` pra
+ * essa partida) — aqui a gente só evita chamar quando obviamente não é a vez
+ * do bot. Chamado de `armTurnTimer`, o único ponto por onde toda mutação de
+ * `match.state` passa.
+ */
+function maybeEnqueueBotTurn(match: MatchRecord): void {
+  if (!botTurnSink) return;
+  if (match.state.gameOver) return;
+  const botSeat = botSeatFor(match);
+  if (!botSeat) return;
+  const bot = match.seats[botSeat]?.bot;
+  if (!bot) return;
+  if (decisionOwner(match.state) !== botSeat) return;
+  try {
+    botTurnSink({ matchId: match.id, seat: botSeat, level: bot.level });
+  } catch (err) {
+    console.warn(`[SIMULADOR] botTurnSink falhou pra ${match.id}:`, err instanceof Error ? err.message : err);
+  }
+}
+
 /** Partida ainda não terminada onde esse usuário já ocupa um assento, se alguma — usado pra "reconectar" direto em vez de enfileirar de novo. */
 export function activeMatchForUser(userId: string): { match: MatchRecord; seat: PlayerId } | undefined {
   for (const match of matches.values()) {
@@ -826,6 +891,7 @@ function settleAutoPasses(match: MatchRecord): void {
 /** Cancela e reagenda o timer de turno pro estado atual da partida — chamar depois de QUALQUER mutação de `match.state`. */
 function armTurnTimer(match: MatchRecord): void {
   settleAutoPasses(match);
+  maybeEnqueueBotTurn(match);
   clearTurnTimer(match.id);
 
   if (match.state.gameOver || !match.seats.A || !match.seats.B || !decisionOwner(match.state)) {
@@ -971,4 +1037,5 @@ export function _resetAllMatchesForTests(): void {
   gameOverLogged.clear();
   persistence = null;
   bugReportSink = null;
+  botTurnSink = null;
 }

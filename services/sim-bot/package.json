@@ -1,0 +1,11 @@
+{
+  "name": "@portal-gundam/sim-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Worker do bot heurístico do Simulador (modo treino solo) — polling da fila SimulatorBotTurn.",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node --import tsx index.mjs"
+  }
+}

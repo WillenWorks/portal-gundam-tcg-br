@@ -36,6 +36,7 @@ const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
+const SimulatorTrainingPage = lazy(() => import("@/pages/SimulatorTrainingPage"));
 // Preview de layout cru do simulador (docs/38, Frente 4) — SEM auth. A rota
 // existe sempre (inclusive em produção), mas a página só renderiza pra quem
 // tem a permissão de runtime (DEV, `VITE_LAYOUT_PREVIEW=1`, ou já abriu a rota
@@ -43,6 +44,10 @@ const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
 // É 100% dados de exemplo: sem auth, sem backend. Serve pra iterar o visual e
 // pra simular efeitos nos tutoriais de Regras.
 const SimulatorLayoutPreviewPage = lazy(() => import("@/pages/SimulatorLayoutPreviewPage"));
+// Dashboards de Fase 4 (docs/44 §6.1 e §6.3) — só ADMIN, rotas de 2 segmentos
+// sob /admin (o AdminPage monolítico só casa /admin/:section de 1 segmento).
+const SimulatorCoveragePage = lazy(() => import("@/pages/admin/SimulatorCoveragePage"));
+const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthoringPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -109,6 +114,8 @@ function AppRouter() {
         {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
             de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). */}
+        <Route path="/simulador/treino">{() => <RequireAuth><LazyRoute label="Treino"><SimulatorTrainingPage /></LazyRoute></RequireAuth>}</Route>
         {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
             no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
         <Route path="/simulador/partida/:matchId">
@@ -130,6 +137,8 @@ function AppRouter() {
           )}
         </Route>
         <Route path="/u/:username" component={PublicProfilePage} />
+        <Route path="/admin/simulador/cobertura">{() => <RequireAuth adminOnly><LazyRoute label="Cobertura de efeitos"><SimulatorCoveragePage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/simulador/autoria">{() => <RequireAuth adminOnly><LazyRoute label="RAG de autoria"><SimulatorAuthoringPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>

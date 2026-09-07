@@ -1,0 +1,139 @@
+# Pipeline de auto-fix de bug report do simulador (docs/44 Fase 3 §5.2/§5.3, Lane 3A).
+#
+# GATE (docs/47 §6): este workflow NÃO tem nenhum caminho que toque `main`.
+#   - `dev`  = PR automático + auto-merge QUANDO o CI (ci.yml) fica verde. Label `autofix:rapido`.
+#   - `main` = SEMPRE autorização manual do Willen. Nada aqui abre PR pra `main`.
+#   - COMPLEXO = PR draft + label `autofix:complexo needs-approval`, comenta no report e PARA.
+#
+# Fica INERTE até os secrets abaixo existirem no repo:
+#   - ANTHROPIC_API_KEY   — headless Claude Agent SDK (triagem + fix). Sem ele: heurística + PARA.
+#   - GH_DISPATCH_TOKEN   — já usado pela Fase 3 Wave 2D pra disparar o `repository_dispatch`.
+#   - (GITHUB_TOKEN é automático; precisa de permissão contents:write + pull-requests:write)
+#
+# Trigger: o servidor (`server/index.ts`, rota POST /api/simulator/matches/:id/report)
+# dispara `repository_dispatch` type `bug-report` com `client_payload.shortCode`.
+
+name: bug-autofix
+
+on:
+  repository_dispatch:
+    types: [bug-report]
+  workflow_dispatch:
+    inputs:
+      shortCode:
+        description: "shortCode do bug report (BUG-XXXXXX)"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: bug-autofix-${{ github.event.client_payload.shortCode || github.event.inputs.shortCode }}
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SHORT_CODE: ${{ github.event.client_payload.shortCode || github.event.inputs.shortCode }}
+      ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}
+      ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Guard — sem shortCode não roda
+        run: |
+          if [ -z "$SHORT_CODE" ]; then
+            echo "::error::client_payload.shortCode ausente"
+            exit 1
+          fi
+          echo "shortCode=$SHORT_CODE"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: corepack pnpm exec prisma generate
+
+      - name: Git identity
+        run: |
+          git config user.name "gundam-autofix[bot]"
+          git config user.email "gundam-autofix@users.noreply.github.com"
+
+      # ── Triagem ──────────────────────────────────────────────────────────────
+      - name: Triagem (RÁPIDO vs COMPLEXO)
+        id: triage
+        run: |
+          set -o pipefail
+          corepack pnpm run gundam:triage "$SHORT_CODE" -- --json | tee /tmp/triage-out.json
+          COMPLEXITY=$(node -e "const t=require('/tmp/triage-out.json');process.stdout.write(t.complexity||'complexo')" || echo complexo)
+          echo "complexity=$COMPLEXITY" >> "$GITHUB_OUTPUT"
+          echo "Triagem: $COMPLEXITY"
+
+      # ── RÁPIDO → fix autônomo + PR pra dev + auto-merge ─────────────────────
+      - name: Fix autônomo (RÁPIDO)
+        if: steps.triage.outputs.complexity == 'rapido'
+        id: fix
+        run: corepack pnpm run gundam:fix "$SHORT_CODE" -- --base dev
+
+      - name: Abrir PR pra dev (RÁPIDO)
+        if: steps.triage.outputs.complexity == 'rapido' && success()
+        env:
+          BRANCH: fix/simulator-${{ env.SHORT_CODE }}
+        run: |
+          BRANCH_LC=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]')
+          git push -u origin "HEAD:$BRANCH_LC"
+          gh pr create --base dev --head "$BRANCH_LC" \
+            --title "fix(simulator): $SHORT_CODE (autofix)" \
+            --label "autofix:rapido" \
+            --body "Fix autônomo de $SHORT_CODE (docs/44 Fase 3 §5.3). Repro + gates em \`src/modules/simulator/repro/\`.
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)" || echo "PR já existe"
+          # auto-merge só quando o CI (ci.yml) passar — squash, sem tocar main
+          gh pr merge --squash --auto "$BRANCH_LC" || echo "auto-merge não habilitado no repo — merge manual do Willen"
+
+      # ── COMPLEXO → PR draft + label + comenta no report + PARA ──────────────
+      - name: PR draft + needs-approval (COMPLEXO)
+        if: steps.triage.outputs.complexity != 'rapido'
+        env:
+          BRANCH: chore/triage-${{ env.SHORT_CODE }}
+        run: |
+          BRANCH_LC=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]')
+          git checkout -b "$BRANCH_LC"
+          git add -A src/modules/simulator/repro/ || true
+          git commit -m "chore(simulator): triagem de $SHORT_CODE — COMPLEXO (needs-approval)
+
+          Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>" || echo "nada a commitar"
+          git push -u origin "HEAD:$BRANCH_LC" || echo "push falhou"
+          gh pr create --draft --base dev --head "$BRANCH_LC" \
+            --title "triagem: $SHORT_CODE — COMPLEXO (needs-approval)" \
+            --label "autofix:complexo" --label "needs-approval" \
+            --body "Bug $SHORT_CODE classificado **COMPLEXO** pela triagem — toca engine/**, muda golden, repro não-determinístico, ou sem confiança.
+
+          Repro e veredito em \`src/modules/simulator/repro/$SHORT_CODE.*\`. **Não** há fix autônomo: revisão humana obrigatória.
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)" || echo "PR já existe"
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### bug-autofix — $SHORT_CODE"
+            echo "- Classificação: **${{ steps.triage.outputs.complexity }}**"
+            echo "- dev = automático (CI verde) · main = sempre autorização do Willen"
+          } >> "$GITHUB_STEP_SUMMARY"

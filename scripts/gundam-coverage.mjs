@@ -20,6 +20,10 @@
  *   node scripts/gundam-coverage.mjs --out=docs/_generated/coverage.md
  *
  * O CI (.github/workflows/ci.yml) roda com `--gate` sobre ST01..ST04.
+ *
+ * Além do `.md` (gitignored), grava SEMPRE `src/modules/simulator/content/_index/coverage.json`
+ * (versionado, determinístico, ordenado por code) — fonte dos dashboards de `/admin`
+ * (docs/44 §6.3, Lane 3BC). Rodar 2× → diff vazio.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
@@ -172,6 +176,39 @@ const report = lines.join("\n");
 const outFile = args.outFile ?? "docs/_generated/coverage.md";
 mkdirSync(path.join(REPO_ROOT, path.dirname(outFile)), { recursive: true });
 writeFileSync(path.join(REPO_ROOT, outFile), report, "utf8");
+
+// ── coverage.json — versionado, determinístico (docs/44 §6.3, Lane 3BC) ──────
+// Sempre sobre os sets do gate (ST01–ST04), independente dos argumentos de CLI,
+// pra `pnpm gundam:coverage` 2× dar diff vazio. Cartas ordenadas por code.
+const COUNT_KEY_BY_STATUS = {
+  implementada: "impl",
+  "implementada*": "implStar",
+  vanilla: "vanilla",
+  deferida: "deferida",
+  faltando: "faltando",
+};
+const jsonSets = {};
+for (const set of GATED_SETS) {
+  const codes = official.filter((c) => c.code.startsWith(`${set}-`)).map((c) => c.code).sort();
+  const rows = codes.map(classify);
+  const counts = { impl: 0, implStar: 0, vanilla: 0, deferida: 0, faltando: 0 };
+  const cards = rows.map((r) => {
+    counts[COUNT_KEY_BY_STATUS[r.status]]++;
+    return {
+      code: r.code,
+      name: r.name,
+      status: r.status,
+      deferredClauses: (DEFERRALS_BY_CODE.get(r.code) ?? []).map((d) => d.clause),
+    };
+  });
+  jsonSets[set] = { cards, counts };
+}
+const coverageJson = { generatedFrom: `${ALL_EFFECT_SPECS.length} specs`, sets: jsonSets };
+writeFileSync(
+  path.join(REPO_ROOT, "src/modules/simulator/content/_index/coverage.json"),
+  `${JSON.stringify(coverageJson, null, 2)}\n`,
+  "utf8",
+);
 
 // console
 for (const set of sets) {
