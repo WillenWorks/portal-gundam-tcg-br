@@ -1,0 +1,14 @@
+{
+  "name": "@portal-gundam/sim-trainer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Serviço de treino ML do bot do Simulador (docs/50) — gera dataset de self-play, treina a policy-value net (tfjs) e roda o gate de avaliação. Não roda no web server.",
+  "main": "pipeline.mjs",
+  "scripts": {
+    "pipeline": "node pipeline.mjs",
+    "dataset": "node ../../scripts/train/dataset.mjs",
+    "fit": "node ../../scripts/train/fit.mjs",
+    "eval": "node ../../scripts/train/eval.mjs"
+  }
+}
