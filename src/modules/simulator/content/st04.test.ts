@@ -18,7 +18,8 @@ import {
   MIGUELS_GINN_DESTROYED,
   ST04_EFFECT_SPECS,
   STRIKER_PACK_BURST,
-  STRIKER_PACK_MAIN,
+  STRIKER_PACK_MAIN_LAUNCHER,
+  STRIKER_PACK_MAIN_SWORD,
   STRIKE_GUNDAM_DEPLOY,
   VESALIUS_ACTIVATE_MAIN,
 } from "./st04";
@@ -60,9 +61,9 @@ describe("ST04 — fixtures e cobertura", () => {
     expect(buildSt04DeckList().resources).toHaveLength(10);
   });
 
-  it("20 EffectSpecs cadastrados cobrindo 11 das 16 cartas únicas (resto é vanilla/keyword)", () => {
+  it("21 EffectSpecs cadastrados cobrindo 11 das 16 cartas únicas (resto é vanilla/keyword)", () => {
     const codes = new Set(ST04_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST04_EFFECT_SPECS).toHaveLength(20);
+    expect(ST04_EFFECT_SPECS).toHaveLength(21); // ST04-012 Striker Pack 【Main】 = 2 specs (guarda de token + escolha Sword/Launcher)
     expect(codes).toEqual(
       new Set(["ST04-001", "ST04-002", "ST04-006", "ST04-009", "ST04-010", "ST04-011", "ST04-012", "ST04-013", "ST04-014", "ST04-015", "ST04-016"]),
     );
@@ -136,13 +137,40 @@ describe("ST04 — EffectSpecs bespoke", () => {
     expect(next.players.A.battleArea[next.players.A.battleArea.length - 1].def.code).toBe("T-008");
   });
 
-  it("ST04-012 Striker Pack — 【Main】escolha 'launcher' invoca T-009, senão T-010", () => {
+  // 2 specs de mesmo (cardCode, trigger): a guarda "no Earth Alliance token" +
+  // a escolha Sword/Launcher. Só um dispara — resolvemos os dois e concatenamos.
+  function strikerMain(state: GameState, cmdId: string, choice?: "launcher" | "sword"): GameState {
+    const targets: Record<string, string[]> = choice ? { strikerChoice: [choice] } : {};
+    return applyEvents(state, [
+      ...resolveEffectSpec(STRIKER_PACK_MAIN_LAUNCHER, ctxFor(state, cmdId, targets), defaultPredicateResolver),
+      ...resolveEffectSpec(STRIKER_PACK_MAIN_SWORD, ctxFor(state, cmdId, targets), defaultPredicateResolver),
+    ]);
+  }
+
+  it("ST04-012 Striker Pack — 【Main】sem token Earth Alliance: 'launcher' → T-009, senão (sword / sem escolha) → T-010", () => {
+    let state = freshGame();
+    let cmdId = place(state, "A", ST04_CARD_DEFS.STRIKER_PACK, "trash");
+    const launcher = strikerMain(state, cmdId, "launcher");
+    expect(launcher.players.A.battleArea[launcher.players.A.battleArea.length - 1].def.code).toBe("T-009");
+
+    state = freshGame();
+    cmdId = place(state, "A", ST04_CARD_DEFS.STRIKER_PACK, "trash");
+    const sword = strikerMain(state, cmdId, "sword");
+    expect(sword.players.A.battleArea[sword.players.A.battleArea.length - 1].def.code).toBe("T-010");
+
+    state = freshGame();
+    cmdId = place(state, "A", ST04_CARD_DEFS.STRIKER_PACK, "trash");
+    const noChoice = strikerMain(state, cmdId); // default = sword
+    expect(noChoice.players.A.battleArea[noChoice.players.A.battleArea.length - 1].def.code).toBe("T-010");
+  });
+
+  it("ST04-012 Striker Pack — 【Main】NÃO invoca nada se já há um token (Earth Alliance) em campo", () => {
     const state = freshGame();
     const cmdId = place(state, "A", ST04_CARD_DEFS.STRIKER_PACK, "trash");
-    const launcher = applyEvents(state, resolveEffectSpec(STRIKER_PACK_MAIN, ctxFor(state, cmdId, { strikerChoice: ["launcher"] }), defaultPredicateResolver));
-    expect(launcher.players.A.battleArea[launcher.players.A.battleArea.length - 1].def.code).toBe("T-009");
-    const sword = applyEvents(freshGame(), resolveEffectSpec(STRIKER_PACK_MAIN, ctxFor(freshGame(), cmdId, { strikerChoice: ["sword"] }), defaultPredicateResolver));
-    expect(sword.players.A.battleArea[sword.players.A.battleArea.length - 1].def.code).toBe("T-010");
+    place(state, "A", ST04_CARD_DEFS.TOKEN_AILE_STRIKE, "battleArea"); // já tem token EA
+    const before = state.players.A.battleArea.length;
+    const next = strikerMain(state, cmdId, "launcher");
+    expect(next.players.A.battleArea).toHaveLength(before); // nenhum token novo
   });
 
   it("ST04-013 Hawk of Endymion — 【Main】devolve Unit inimiga HP≤3 pra mão", () => {
