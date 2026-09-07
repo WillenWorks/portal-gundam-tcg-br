@@ -162,7 +162,8 @@ describe("ActionDock — posição (V6.3, docs/34)", () => {
 
   it("lg:+ (desktop/tablet genuíno): restaura a caixa ancorada no canto inferior direito", () => {
     const out = html({ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 120 });
-    expect(out).toMatch(/lg:left-auto lg:top-auto lg:bottom-14 lg:right-2/);
+    expect(out).toMatch(/lg:left-auto lg:top-auto lg:bottom-14/);
+    expect(out).toContain("lg:right-2");
   });
 
   it("Frente 4 (docs/38 §3.5): no desktop a caixa acompanha o conteúdo e o texto de fase não quebra/trunca", () => {
@@ -214,6 +215,20 @@ describe("ActionDock — logTail", () => {
   it("não aparece quando ausente", () => {
     const out = html({ kind: "defending" });
     expect(out).not.toContain("border-t");
+  });
+});
+
+describe("ActionDock — posição vs log de batalha (Feedback.pdf §5)", () => {
+  it("log fechado: ancorado no canto direito (lg:right-2)", () => {
+    const out = html({ kind: "defending" });
+    expect(out).toContain("lg:right-2");
+    expect(out).not.toContain("lg:right-[16.5rem]");
+  });
+
+  it("log aberto: desloca pra a esquerda pra não tapar o histórico", () => {
+    const out = html({ kind: "defending" }, { logOpen: true });
+    expect(out).toContain("lg:right-[16.5rem]");
+    expect(out).not.toContain("lg:right-2");
   });
 });
 
