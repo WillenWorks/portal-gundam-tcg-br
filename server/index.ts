@@ -3478,6 +3478,16 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 async function boot() {
+  // docs/44 §8.4 — `GameState.engineVersion` (setup.ts `resolveEngineVersion`) lê
+  // `process.env.ENGINE_SHA`. Deriva do git sha curto no boot; "dev" fora de um checkout.
+  if (!process.env.ENGINE_SHA) {
+    try {
+      const { execSync } = await import("node:child_process");
+      process.env.ENGINE_SHA = execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim() || "dev";
+    } catch {
+      process.env.ENGINE_SHA = "dev";
+    }
+  }
   try {
     await ensureAdminSeed();
   } catch (error: any) {
