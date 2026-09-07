@@ -26,36 +26,19 @@ export interface DeferredClause {
 }
 
 export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
-  // ─────────────────────────────────────────────────────────────────────────
-  // Classe A — primitivas de ESCOLHA NOMEADA sem camada de decisão.
-  // `deferOrDispatchAbilities` só pausa pra `optional`, `specNeedsNamedTarget`
-  // ("target") ou `specNeedsChoice` (`deployFromHandTriggered`/`lookAtTopFilterReveal`).
-  // `discardNamed`, `moveWithinDeck` (nomeado) e a escolha binária de
-  // `namedChoiceEquals` NÃO estão nessa lista → o efeito resolve inline sem os
-  // `ctx.targets` e vira no-op / branch default. Fechar = adicionar essas
-  // primitivas a `ChoicePrimitive`/`specNeedsChoice` + fila de decisão
-  // (`handChoice`/`deckReveal`-like) em `abilityDispatch.ts` + `resolveAbility`.
-  // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "ST04-002",
-    clause: "Then, discard 1.",
-    reason:
-      "O 【Deploy】 resolve inline (não é interativo): a compra acontece, o descarte não. `discardNamed` lê `ctx.targets.discard`, que ninguém preenche — sem UI de escolha e sem pausa do dispatcher.",
-    blockedBy: "engine:discardNamed-sem-camada-de-decisao",
-  },
+  // Classe A — escolha nomeada sem camada de decisão — FECHADA (docs/47 Lane 1D):
+  // `discardNamed` (ST04-002), `moveWithinDeck` nomeado (ST02-015) e a nova
+  // primitiva `spawnTokenChoice` (ST04-012) entraram em `ChoicePrimitive` /
+  // `specNeedsChoice`; `abilityDispatch.ts` monta `handDiscard` / `deckReorder` /
+  // `enumChoice` na fila e `resolveAbility` valida + injeta em `ctx.targets`.
+  // `playCommand` passou a PAUSAR quando o spec tem escolha (Command vai pro
+  // trash em `resolveAbility`, CR 3-4-4). Sub-caso ainda deferido:
   {
     cardCode: "ST02-015",
-    clause: "Then, look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom.",
+    clause: "look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom",
     reason:
-      "Só o 'Add 1 of your Shields to your hand' dispara. `moveWithinDeck` com alvo nomeado (`toTop`/`toBottom`) vira no-op sem `ctx.targets` — `specNeedsChoice` não reconhece `moveWithinDeck`, então o 【Deploy】 não pausa pra reordenação.",
-    blockedBy: "engine:moveWithinDeck-sem-camada-de-decisao",
-  },
-  {
-    cardCode: "ST04-012",
-    clause: "deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]",
-    reason:
-      "A escolha Sword/Launcher (`strikerChoice`) não tem camada de decisão — `namedChoiceEquals`/`namedChoiceNotEquals` são predicados, não escolhas interativas. O 【Main】 resolve inline e sempre invoca Sword (o branch `namedChoiceNotEquals`, que é verdadeiro quando nada foi escolhido).",
-    blockedBy: "engine:namedChoice-sem-camada-de-decisao",
+      "Só quando o 【Deploy】 vem por JOGADA NORMAL (deployCard → camada de decisão). Via 【Burst】 (Burst→Base Deploy encadeado no dispatcher, Classe B) o 'Add 1 Shield' roda mas a reordenação não — o caminho encadeado não passa por `deferOrDispatchAbilities`. Auto-decidir a ordem mid-combat seria pior que pular (deck fica como está).",
+    blockedBy: "engine:burst-deploy-nao-tem-camada-de-decisao",
   },
 
   // Classe B — 【Burst】Deploy this card não dispara o 【Deploy】 da Base — FECHADA

@@ -180,6 +180,106 @@ describe("AbilityResolutionModal", () => {
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-006-Destroyed", activate: true, targetIds: [] }]);
   });
 
+  it("handDiscard (ST04-002): escolhe 1 carta da mão → targetIds", () => {
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          sourceInstanceId: "u1",
+          specId: "ST04-002-Deploy",
+          label: "Draw 1. Then, discard 1.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          handDiscard: { n: 1, legalHandIds: ["h1", "h2"], label: "Draw 1. Then, discard 1." },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(
+      <AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} resolveHandLabel={(id) => (id === "h1" ? "Ginn" : "Aegis")} onResolve={onResolve} />,
+    );
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Aegis" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST04-002-Deploy", activate: true, targetIds: ["h2"] }]);
+  });
+
+  it("deckReorder (ST02-015): atribui topo/fundo → targetIds na ordem dos slots", () => {
+    const c = (id: string, name: string): CardInstance =>
+      ({ instanceId: id, def: { code: id, nameEn: name, cardType: "UNIT", color: "blue" }, owner: "A", zone: "deck", rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 0 }) as CardInstance;
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          sourceInstanceId: "b1",
+          specId: "ST02-015-Deploy",
+          label: "look at the top 2 ...",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          deckReorder: {
+            topCards: [c("d1", "Wing"), c("d2", "Leo")],
+            slots: [
+              { name: "toTop", position: "top" },
+              { name: "toBottom", position: "bottom" },
+            ],
+            label: "look at the top 2 ...",
+          },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    // Leo → topo, Wing → fundo
+    const topBtns = screen.getAllByRole("button", { name: "↑ topo" });
+    const bottomBtns = screen.getAllByRole("button", { name: "↓ fundo" });
+    fireEvent.click(topBtns[1]); // linha do Leo
+    fireEvent.click(bottomBtns[0]); // linha do Wing
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST02-015-Deploy", activate: true, targetIds: ["d2", "d1"] }]);
+  });
+
+  it("enumChoice (ST04-012): escolhe Sword/Launcher → targetIds com o value", () => {
+    const dec: AR = {
+      kind: "abilityResolution",
+      trigger: "Main",
+      queue: [
+        {
+          sourceInstanceId: "cmd1",
+          specId: "ST04-012-Main",
+          label: "deploy 1 Sword or 1 Launcher ...",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          enumChoice: {
+            key: "strikerChoice",
+            options: [
+              { value: "sword", label: "Sword Strike" },
+              { value: "launcher", label: "Launcher Strike" },
+            ],
+            label: "deploy 1 Sword or 1 Launcher ...",
+          },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Launcher Strike" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST04-012-Main", activate: true, targetIds: ["launcher"] }]);
+  });
+
   it("optativo: 'Pular' → activate false", () => {
     const optional: AR = {
       kind: "abilityResolution",

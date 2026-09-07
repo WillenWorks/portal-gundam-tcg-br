@@ -706,27 +706,15 @@
     "sourceText": "【Burst】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>) Unit token."
   },
   {
-    "id": "ST04-012-Main-Launcher",
+    "id": "ST04-012-Main",
     "cardCode": "ST04-012",
     "trigger": "Main",
     "ops": [
-      "spawnToken"
+      "spawnTokenChoice"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceEquals:strikerChoice:launcher",
-    "sourceText": "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token."
-  },
-  {
-    "id": "ST04-012-Main-Sword",
-    "cardCode": "ST04-012",
-    "trigger": "Main",
-    "ops": [
-      "spawnToken"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceNotEquals:strikerChoice:launcher",
+    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance",
     "sourceText": "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token."
   },
   {

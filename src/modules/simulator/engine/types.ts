@@ -499,6 +499,29 @@ export type PendingDecision =
          * "Não revelar" ainda dispara o efeito (as N cartas vão pro fundo).
          */
         deckTopReveal?: { topCards: CardInstance[]; revealableIds: string[]; count: number; label: string };
+        /**
+         * ST04-002 Strike Gundam 【Deploy】 "Draw 1. Then, discard 1." — o jogador
+         * escolhe `n` cartas da mão pra descartar. `legalHandIds` inclui as
+         * cartas que serão compradas antes do descarte (dá pra descartar a
+         * recém-comprada). A escolha viaja em `resolution.targetIds` e vira
+         * `ctx.targets.discard`. `discardNamed` no `effectSpec`.
+         */
+        handDiscard?: { n: number; legalHandIds: string[]; label: string };
+        /**
+         * ST02-015 Saint Gabriel 【Deploy】 "look at the top 2 cards of your deck
+         * and return 1 to the top and 1 to the bottom" — o jogador atribui cada
+         * carta do topo a `slots[i].name` (o `name` do `moveWithinDeck` nomeado).
+         * `resolution.targetIds[i]` → `slots[i]`. `topCards` é o topo do deck
+         * (redigido a `[]` pro oponente pela `viewState`, igual `deckTopReveal`).
+         */
+        deckReorder?: { topCards: CardInstance[]; slots: Array<{ name: string; position: "top" | "bottom" }>; label: string };
+        /**
+         * ST04-012 Striker Pack 【Main】 "deploy 1 [Sword Strike] or 1 [Launcher
+         * Strike] Unit token" — escolha ENUM. `resolution.targetIds` = `[value]`
+         * de uma das `options`; vira `ctx.targets[key]`. `spawnTokenChoice` no
+         * `effectSpec`.
+         */
+        enumChoice?: { key: string; options: Array<{ value: string; label: string }>; label: string };
       }>;
       /**
        * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO

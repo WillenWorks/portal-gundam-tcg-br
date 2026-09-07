@@ -54,7 +54,8 @@ describe("gundam-index", () => {
     expect(maForm.ops).toEqual(["draw"]);
     expect(maForm.predicate).toBe("pairedPilotHasTrait:White Base Team");
 
-    // ST03-015 Rewloola 【Deploy】: targetFilter preservado
-    expect(bySpec.get("ST03-015-Deploy").targetFilter).toBe("ap<=5");
+    // ST03-015 Rewloola 【Deploy】(spec de dano): targetFilter preservado
+    expect(bySpec.get("ST03-015-Deploy-Damage").targetFilter).toBe("ap<=5");
+    expect(bySpec.get("ST03-015-Deploy-Damage").ops).toEqual(["damageUnit"]);
   });
 });

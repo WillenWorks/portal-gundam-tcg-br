@@ -147,36 +147,31 @@ export const STRIKER_PACK_BURST: EffectSpec = {
     "【Burst】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>) Unit token.",
 };
 
-// A cláusula "If you have no (Earth Alliance) Unit tokens in play" é uma GUARDA
-// que precede a escolha Sword/Launcher — sem `condition` aninhada na DSL, são
-// 2 specs de mesmo (cardCode, trigger): o dispatcher roda os dois, mas cada um
-// só dispara se `noControllerUnitTokenWithTrait:Earth Alliance` E a escolha
-// bater (Launcher explícito; Sword = default / qualquer coisa != launcher).
-const STRIKER_PACK_MAIN_SOURCE =
-  "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token.";
-
-export const STRIKER_PACK_MAIN_LAUNCHER: EffectSpec = {
-  id: "ST04-012-Main-Launcher",
+// A GUARDA "If you have no (Earth Alliance) Unit tokens in play" é o `condition`;
+// dentro dele, `spawnTokenChoice` deixa o jogador escolher Sword ou Launcher
+// (camada de decisão → `enumChoice` na `abilityResolution`, docs/47 Classe A).
+export const STRIKER_PACK_MAIN: EffectSpec = {
+  id: "ST04-012-Main",
   cardCode: "ST04-012",
   trigger: "Main",
   condition: {
-    predicate: "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceEquals:strikerChoice:launcher",
-    then: [{ op: "spawnToken", def: TOKEN_LAUNCHER_STRIKE, player: "controller", zone: "battleArea" }],
+    predicate: "noControllerUnitTokenWithTrait:Earth Alliance",
+    then: [
+      {
+        op: "spawnTokenChoice",
+        player: "controller",
+        zone: "battleArea",
+        key: "strikerChoice",
+        options: [
+          { value: "sword", label: "Sword Strike Gundam (AP4/HP2)", def: TOKEN_SWORD_STRIKE },
+          { value: "launcher", label: "Launcher Strike Gundam (AP2/HP4)", def: TOKEN_LAUNCHER_STRIKE },
+        ],
+      },
+    ],
   },
   actions: [],
-  sourceText: STRIKER_PACK_MAIN_SOURCE,
-};
-
-export const STRIKER_PACK_MAIN_SWORD: EffectSpec = {
-  id: "ST04-012-Main-Sword",
-  cardCode: "ST04-012",
-  trigger: "Main",
-  condition: {
-    predicate: "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceNotEquals:strikerChoice:launcher",
-    then: [{ op: "spawnToken", def: TOKEN_SWORD_STRIKE, player: "controller", zone: "battleArea" }],
-  },
-  actions: [],
-  sourceText: STRIKER_PACK_MAIN_SOURCE,
+  sourceText:
+    "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token.",
 };
 
 // ST04-013 Hawk of Endymion — 【Main】/【Action】Choose 1 enemy Unit with 3 or less
@@ -277,8 +272,7 @@ export const ST04_EFFECT_SPECS: EffectSpec[] = [
   ATHRUN_ZALA_BURST,
   ATHRUN_ZALA_WHEN_LINKED,
   STRIKER_PACK_BURST,
-  STRIKER_PACK_MAIN_LAUNCHER,
-  STRIKER_PACK_MAIN_SWORD,
+  STRIKER_PACK_MAIN,
   HAWK_OF_ENDYMION_MAIN,
   HAWK_OF_ENDYMION_ACTION,
   MAGIC_BULLET_MAIN,
