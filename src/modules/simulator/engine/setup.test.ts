@@ -36,6 +36,12 @@ describe("createGame (Comprehensive Rules 6-2, setup de partida)", () => {
     expect(state.players.A.resourceArea[0].def.code).toBe("TOKEN-EX-RESOURCE");
   });
 
+  it("grava engineVersion no estado (docs/44 §8.4) — 'dev' fora do build", () => {
+    const state = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 1, firstPlayer: "A" });
+    expect(state.engineVersion).toBeTruthy();
+    expect(typeof state.engineVersion).toBe("string");
+  });
+
   it("é determinístico: mesma seed produz a mesma mão inicial", () => {
     const s1 = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 42, firstPlayer: "A" });
     const s2 = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 42, firstPlayer: "A" });

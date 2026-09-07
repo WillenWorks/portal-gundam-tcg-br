@@ -143,6 +143,8 @@ export interface ViewGameState {
   /** de quem é este ponto de vista — a UI usa isso pra saber "sou eu" sem precisar de mais contexto */
   viewer: PlayerId;
   players: Record<PlayerId, ViewPlayerState>;
+  /** versão do motor no momento da criação da partida (docs/44 §8.4) — `"dev"` fora do build. */
+  engineVersion?: string;
 }
 
 /**
@@ -164,6 +166,7 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     gameOver: state.gameOver,
     eventLog: state.eventLog.slice(-EVENT_LOG_WINDOW),
     viewer,
+    engineVersion: state.engineVersion,
     players: {
       [viewer]: redactPlayerState(state.players[viewer], viewer),
       [otherPlayer(viewer)]: redactPlayerState(state.players[otherPlayer(viewer)], viewer),
