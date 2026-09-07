@@ -26,6 +26,7 @@
     "catalog:audit": "node scripts/gundam-audit-catalog.mjs",
     "catalog:coverage": "node scripts/gundam-coverage.mjs",
     "catalog:coverage:gate": "node scripts/gundam-coverage.mjs --gate",
+    "gundam:coverage": "node scripts/gundam-coverage.mjs",
     "mcp:gundam": "node scripts/mcp-gundam/server.mjs",
     "mcp:gundam:smoke": "node scripts/mcp-gundam/smoke.mjs",
     "preview": "vite preview",
