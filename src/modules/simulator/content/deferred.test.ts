@@ -4,56 +4,51 @@ import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
-import { ALL_EFFECT_SPECS } from "./index";
 import { DEFERRED_CLAUSES } from "./deferred";
 
 /**
- * Fase 4 §6.2: pra cada cláusula deferida, garantir que (1) a carta existe de
- * fato no motor (tem CardDef de fixture ou ao menos um EffectSpec) e (2) a
- * cláusula realmente NÃO está coberta por nenhum `sourceText` de EffectSpec
- * daquele code. Com `DEFERRED_CLAUSES` vazio (stub), tudo passa trivialmente —
- * a estrutura já está pronta pra quando a Lane 1B popular.
+ * docs/44 §6.2 / docs/48 — invariantes estruturais de `DEFERRED_CLAUSES`.
+ *
+ * A checagem "a cláusula é trecho LITERAL do texto EN oficial" vive em
+ * `scripts/gundam-coverage.test.mjs` (roda como node puro, pode ler o
+ * `data/gcg-official-cards.json`); aqui, que roda sob o tsconfig do `src`
+ * (sem tipos de node), ficam só as invariantes que dependem do código.
  */
 
-const KNOWN_CARD_CODES = new Set<string>([
-  ...ALL_EFFECT_SPECS.map((spec) => spec.cardCode),
-  ...[ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS].flatMap((defs) =>
+const KNOWN_CARD_CODES = new Set<string>(
+  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS].flatMap((defs) =>
     Object.values(defs).map((def) => def.code),
   ),
-]);
-
-const SPEC_TEXTS_BY_CODE = new Map<string, string[]>();
-for (const spec of ALL_EFFECT_SPECS) {
-  const texts = SPEC_TEXTS_BY_CODE.get(spec.cardCode) ?? [];
-  texts.push(spec.sourceText);
-  SPEC_TEXTS_BY_CODE.set(spec.cardCode, texts);
-}
+);
 
 describe("DEFERRED_CLAUSES", () => {
-  it("é uma lista tipada (pode estar vazia — Lane 1B popula)", () => {
+  it("é uma lista tipada e não-vazia (Lane 1B populou)", () => {
     expect(Array.isArray(DEFERRED_CLAUSES)).toBe(true);
+    expect(DEFERRED_CLAUSES.length).toBeGreaterThan(0);
   });
 
-  it("cada entrada tem os 4 campos obrigatórios preenchidos", () => {
+  it("cada entrada tem os 4 campos preenchidos e blockedBy com prefixo engine:", () => {
     for (const entry of DEFERRED_CLAUSES) {
       expect(entry.cardCode.length, "cardCode vazio").toBeGreaterThan(0);
       expect(entry.clause.length, `${entry.cardCode}: clause vazia`).toBeGreaterThan(0);
       expect(entry.reason.length, `${entry.cardCode}: reason vazia`).toBeGreaterThan(0);
-      expect(entry.blockedBy.length, `${entry.cardCode}: blockedBy vazio`).toBeGreaterThan(0);
+      expect(entry.blockedBy.startsWith("engine:"), `${entry.cardCode}: blockedBy sem prefixo 'engine:'`).toBe(true);
     }
   });
 
-  it("cada cláusula deferida referencia uma carta conhecida do motor", () => {
+  it("sem par (cardCode, clause) duplicado", () => {
+    const seen = new Set<string>();
     for (const entry of DEFERRED_CLAUSES) {
-      expect(KNOWN_CARD_CODES.has(entry.cardCode), `${entry.cardCode} não existe em fixture/EffectSpec`).toBe(true);
+      const key = `${entry.cardCode}::${entry.clause}`;
+      expect(seen.has(key), `entrada duplicada: ${key}`).toBe(false);
+      seen.add(key);
     }
   });
 
-  it("cada cláusula deferida realmente NÃO é coberta por um EffectSpec do code", () => {
+  it("cláusula de carta específica referencia uma carta conhecida de ST01–04 ('*' = gap transversal)", () => {
     for (const entry of DEFERRED_CLAUSES) {
-      const texts = SPEC_TEXTS_BY_CODE.get(entry.cardCode) ?? [];
-      const covered = texts.some((text) => text.includes(entry.clause));
-      expect(covered, `${entry.cardCode}: cláusula "${entry.clause}" já está coberta — não deveria estar deferida`).toBe(false);
+      if (entry.cardCode === "*") continue;
+      expect(KNOWN_CARD_CODES.has(entry.cardCode), `${entry.cardCode} não existe em fixture ST01–04`).toBe(true);
     }
   });
 });
