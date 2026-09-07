@@ -36,5 +36,8 @@ jobs:
       - name: Fuzz (regressão do motor — 100 partidas/par ST01-04)
         run: corepack pnpm run gundam:fuzz -- --games=100
 
+      - name: Golden-master (docs/44 §4.3 — hash do estado final por par; PR que muda regra sem --update falha aqui)
+        run: corepack pnpm run gundam:golden
+
       - name: Cobertura de efeitos (docs/48 — falha se carta sem EffectSpec nem deferimento)
         run: corepack pnpm run catalog:coverage:gate
