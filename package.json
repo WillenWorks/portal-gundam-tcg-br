@@ -21,6 +21,8 @@
     "gundam:golden:update": "node scripts/gundam-golden.mjs --update",
     "gundam:selfplay": "node scripts/gundam-fuzz.mjs --policyA=heuristic --policyB=random --games=200 --maxTurns=40",
     "gundam:index": "node scripts/gundam-index.mjs",
+    "gundam:triage": "node scripts/gundam-triage.mjs",
+    "gundam:fix": "node scripts/gundam-fix.mjs",
     "catalog:audit": "node scripts/gundam-audit-catalog.mjs",
     "catalog:coverage": "node scripts/gundam-coverage.mjs",
     "catalog:coverage:gate": "node scripts/gundam-coverage.mjs --gate",
@@ -132,6 +134,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.263",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.2.2",
     "@testing-library/dom": "^10.4.1",
