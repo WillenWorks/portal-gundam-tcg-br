@@ -103,7 +103,13 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     if (existing) {
       // regra confirmada: a Base excedente vai pro trash, mas NÃO é "destruída" —
       // por isso MOVE_CARD, nunca DESTROY_CARD (não dispara gatilho Destroyed).
-      events.push({ type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" });
+      // Exceção: se a Base atual é um TOKEN (EX Base), ela é removida do jogo,
+      // não vai pro trash (Comprehensive Rules — token que deixa o campo).
+      events.push(
+        existing.def.isToken
+          ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId }
+          : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" },
+      );
     }
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "baseSection" });
   } else if (playAsPilot) {
