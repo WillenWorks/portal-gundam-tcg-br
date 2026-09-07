@@ -1,0 +1,4 @@
+# Artefato gerado por `pnpm gundam:index`. `gundam-index.mjs` sempre grava com
+# LF; sem `eol=lf` um checkout com core.autocrlf=true converteria pra CRLF e a
+# regeneração passaria a produzir diff (quebra o gate "rodar 2x -> git diff vazio").
+src/modules/simulator/content/_index/*.json text eol=lf
