@@ -20,6 +20,10 @@ export interface CardRecord {
   keywords: string[];
   triggerKeywords: string[];
   effect: string;
+  /** Link Condition impressa da Unit ("[Amuro Ray]", "(OZ) Trait", ...) — de CardModel.linkText. */
+  linkText?: string | null;
+  /** Nome do Piloto que uma carta Command/Pilot pode parear (modo Pilot) — de CardModel.pilotName. */
+  pilotName?: string | null;
   rarity?: string;
   setCode?: string;
   setName?: string;
