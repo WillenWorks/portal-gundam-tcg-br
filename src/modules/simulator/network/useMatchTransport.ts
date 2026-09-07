@@ -40,6 +40,13 @@ const SSE_RETRY_MAX_MS = 15_000;
 /** Heartbeat de presença — bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
 const PRESENCE_PING_MS = 15_000;
 
+// Wave 5 (docs/47): cutover — endurecer/remover o fallback SSE aqui.
+// Flags de transporte: hoje ambas ligadas (socket como primário, SSE como
+// fallback automático). Nenhuma muda o comportamento atual — existem só pra
+// tornar o flip trivial no cutover (SSE_FALLBACK_ENABLED = false → socket-only).
+const SOCKET_FIRST = true;
+const SSE_FALLBACK_ENABLED = true;
+
 interface UseMatchTransportOptions {
   matchId: string;
   /** Aplica uma visão nova (com a guarda de ordenação por `version`). Deve ser estável. */
@@ -82,7 +89,7 @@ export function useMatchTransport({
   onExpired,
   onMatchError,
 }: UseMatchTransportOptions): MatchTransport {
-  const [transport, setTransport] = useState<MatchTransportKind>("socket");
+  const [transport, setTransport] = useState<MatchTransportKind>(SOCKET_FIRST ? "socket" : "sse");
   const [connState, setConnState] = useState<MatchConnState>("connecting");
   const [deadReason, setDeadReason] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
@@ -96,7 +103,7 @@ export function useMatchTransport({
   onExpiredRef.current = onExpired;
   const onMatchErrorRef = useRef(onMatchError);
   onMatchErrorRef.current = onMatchError;
-  const transportRef = useRef<MatchTransportKind>("socket");
+  const transportRef = useRef<MatchTransportKind>(SOCKET_FIRST ? "socket" : "sse");
   transportRef.current = transport;
 
   const stoppedRef = useRef(false);
@@ -149,7 +156,7 @@ export function useMatchTransport({
 
     let fallbackTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
       fallbackTimer = null;
-      if (!socketDeliveredRef.current && !stoppedRef.current) {
+      if (SSE_FALLBACK_ENABLED && !socketDeliveredRef.current && !stoppedRef.current) {
         setConnState("reconnecting");
         setTransport("sse");
       }
@@ -193,7 +200,7 @@ export function useMatchTransport({
       simulatorSocket.on("ping", (ms) => setLastPingMs(ms)),
       simulatorSocket.on("status", (status) => {
         if (stoppedRef.current || transportRef.current === "sse") return;
-        if (status === "dead") {
+        if (status === "dead" && SSE_FALLBACK_ENABLED) {
           clearFallbackTimer();
           setConnState("reconnecting");
           setTransport("sse");
@@ -220,7 +227,7 @@ export function useMatchTransport({
 
   // --- Fallback: laço SSE + resync REST (comportamento inalterado, só isolado aqui). ---
   useEffect(() => {
-    if (transport !== "sse" || stoppedRef.current) return;
+    if (!SSE_FALLBACK_ENABLED || transport !== "sse" || stoppedRef.current) return;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
 
