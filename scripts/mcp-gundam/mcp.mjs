@@ -8,7 +8,7 @@
  *              docs/44: só plugar se não houver risco) — ver `docs/46`.
  *
  * Grupos de tool:
- *   catalog — gundam_get_card, gundam_search_glossary, gundam_coverage
+ *   catalog — gundam_get_card, gundam_search_glossary, gundam_coverage, gundam_similar_specs
  *   sim     — sim_new, sim_view, sim_legal, sim_act, sim_selfplay
  */
 
@@ -70,6 +70,19 @@ export function buildServer() {
       inputSchema: { set: z.string().optional().describe("filtra por set, ex. ST03, GD01") },
     },
     wrap(async ({ set }) => catalog.coverage(set)),
+  );
+
+  server.registerTool(
+    "gundam_similar_specs",
+    {
+      description:
+        "RAG de autoria (docs/44 §6.1): dado o texto EN do efeito de uma carta NOVA, devolve os EffectSpec já autorados mais parecidos por MECÂNICA (n-gramas de mecânica + trigramas literais em comum com o `sourceText`), pra reaproveitar op/targetScope/predicate/trigger em vez de inventar. Zero embeddings — usa o índice local `content/_index/specs-signatures.json`.",
+      inputSchema: {
+        effectEn: z.string().describe("texto EN do efeito da carta nova, ex. \"Choose 1 enemy Unit. Deal 2 damage to it.\""),
+        limit: z.number().int().min(1).max(50).default(3).describe("quantos specs devolver (default 3)"),
+      },
+    },
+    wrap(async ({ effectEn, limit }) => catalog.similarSpecs(effectEn, limit ?? 3)),
   );
 
   // -- sim ---------------------------------------------------------------
@@ -143,6 +156,7 @@ export const TOOL_NAMES = [
   "gundam_get_card",
   "gundam_search_glossary",
   "gundam_coverage",
+  "gundam_similar_specs",
   "sim_new",
   "sim_view",
   "sim_legal",
