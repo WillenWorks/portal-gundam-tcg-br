@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import gundamCardBack from "@/assets/gundam-card-back.png";
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
+import { computeDeckPilotCoverage } from "@/lib/deck-pilot-coverage";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -792,6 +793,14 @@ export default function DeckbuilderPage() {
     [deckRows, legalityEngineData],
   );
 
+  // Ponte deckbuilder -> simulador (docs/48b): aviso não-bloqueante quando uma Unit
+  // com Link Condition por nome de Piloto não tem nenhuma fonte daquele Piloto no
+  // deck (Piloto nativo ou Command/Pilot). Não é legalidade — é completude de deck.
+  const pilotCoverageGaps = useMemo(
+    () => computeDeckPilotCoverage(mainDeckRows.map((row) => ({ code: row.code, name: row.name, cardType: row.type, linkText: row.linkText, pilotName: row.pilotName, effect: row.effect }))),
+    [mainDeckRows],
+  );
+
   const stats = useMemo(() => calculateStats(cardCache, entries), [cardCache, entries]);
 
   const curveData = useMemo(() => {
@@ -1537,6 +1546,17 @@ export default function DeckbuilderPage() {
                   </div>
                 )}
               </div>
+              {pilotCoverageGaps.length ? (
+                <div className="mt-4 border border-amber-400/30 bg-amber-500/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Cobertura de Piloto de Link · {pilotCoverageGaps.length}</p>
+                  <ul className="mt-2 space-y-1 text-sm leading-6 text-amber-200/90">
+                    {pilotCoverageGaps.map((gap) => (
+                      <li key={gap.unitCode}>⚠️ {gap.message}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs leading-5 text-amber-200/60">Não bloqueia o deck — só marca Units que nunca formariam Link porque o Piloto nomeado não está na lista (nem como Piloto, nem como Comando/Piloto).</p>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

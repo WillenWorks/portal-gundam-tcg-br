@@ -508,6 +508,8 @@ export function mapApiCard(card: any): CardRecord {
     keywords: card.keywordTags ?? [],
     triggerKeywords: card.triggerKeywords ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
+    linkText: card.linkText ?? null,
+    pilotName: card.pilotName ?? null,
     rarity: card.rarity ?? undefined,
     setCode: card.set?.code ?? card.setCode ?? undefined,
     setName: card.set?.namePt ?? card.set?.nameEn ?? undefined,
