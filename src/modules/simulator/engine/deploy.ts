@@ -2,7 +2,8 @@ import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { effectivePilotDef, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { dispatchTrigger } from "./dispatcher";
+import { specNeedsChoice } from "./effectSpec";
+import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
 
@@ -240,6 +241,19 @@ export function playCommand(
 
   const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);
   let next = applyEvents(state, costEvents);
+
+  // docs/47 Classe A — Command com escolha nomeada (ST04-012 Striker Pack 【Main】:
+  // Sword ou Launcher): PAUSA pra a camada de decisão, igual `deployCard`. A
+  // carta fica na mão até `resolveAbility` rodar o efeito e mandá-la pro trash
+  // (CR 3-4-4). Sem `options.targets` = não veio pré-resolvida (teste/IA).
+  const needsChoice = findTriggerSpecs(specs, card.def.code, trigger).some(specNeedsChoice);
+  if (needsChoice && !options.targets) {
+    next = deferOrDispatchAbilities(next, player, trigger, [{ code: card.def.code, instanceId: cardInstanceId }], specs, {
+      predicateResolver: options.predicateResolver,
+      targetFilterResolver: options.targetFilterResolver,
+    });
+    if (next.pendingDecision.A || next.pendingDecision.B) return next;
+  }
 
   // V0 (docs/25): filtra ANTES de despachar — spec com alvo nomeado ilegal ou
   // não escolhido lança (o cliente devia ter restringido as opções); spec sem

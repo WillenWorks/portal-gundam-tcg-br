@@ -38,6 +38,8 @@ const TRIGGER_LABEL: Record<string, string> = {
   "When Paired": "Vínculo resolvido — 【When Paired】",
   Attack: "Ataque declarado — 【Attack】",
   Deploy: "Carta implantada — 【Deploy】",
+  Main: "Comando — 【Main】",
+  Action: "Comando — 【Action】",
 };
 
 export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabel, busy, onResolve }: AbilityResolutionModalProps) {
@@ -46,12 +48,27 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
   );
   const [target, setTarget] = useState<Record<string, string>>({});
+  /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
+  const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
 
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
   const optionsFor = (specId: string) => itemFor(specId).legalTargets.map((instanceId) => ({ instanceId, label: resolveLabel(instanceId) }));
 
-  /** `deckTopReveal` ignora o toggle Ativar/Pular: sempre resolve (revela 1 ou nenhuma). */
-  const showActivateToggle = (specId: string) => itemFor(specId).optional && !itemFor(specId).deckTopReveal;
+  /** atribui `cardId` a `slotName` (specId), tirando-o de qualquer outro slot do mesmo spec. */
+  const assignReorder = (specId: string, slotName: string, cardId: string) =>
+    setReorder((s) => {
+      const cur = { ...(s[specId] ?? {}) };
+      for (const k of Object.keys(cur)) if (cur[k] === cardId) delete cur[k];
+      cur[slotName] = cur[slotName] === cardId ? "" : cardId;
+      if (!cur[slotName]) delete cur[slotName];
+      return { ...s, [specId]: cur };
+    });
+
+  /** `deckTopReveal`/`handDiscard`/`deckReorder`/`enumChoice` ignoram o toggle Ativar/Pular (mandatórios). */
+  const showActivateToggle = (specId: string) => {
+    const q = itemFor(specId);
+    return q.optional && !q.deckTopReveal && !q.handDiscard && !q.deckReorder && !q.enumChoice;
+  };
   const pickTarget = (specId: string, instanceId: string) =>
     setTarget((s) => (s[specId] === instanceId ? withoutKey(s, specId) : { ...s, [specId]: instanceId }));
 
@@ -68,6 +85,12 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
   const canConfirm = order.every((specId) => {
     const q = itemFor(specId);
     if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
+    if (q.handDiscard) return q.handDiscard.legalHandIds.length === 0 || Boolean(target[specId]);
+    if (q.deckReorder) {
+      const want = Math.min(q.deckReorder.slots.length, q.deckReorder.topCards.length);
+      return Object.keys(reorder[specId] ?? {}).length === want;
+    }
+    if (q.enumChoice) return Boolean(target[specId]);
     if (!activate[specId]) return true;
     if (q.handChoice) return q.handChoice.legalHandIds.length === 0 || Boolean(target[specId]);
     if (q.needsTarget && optionsFor(specId).length > 0) return Boolean(target[specId]);
@@ -80,6 +103,12 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
         const q = itemFor(specId);
         const chosen = target[specId];
         if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
+        if (q.handDiscard) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
+        if (q.deckReorder) {
+          const map = reorder[specId] ?? {};
+          return { specId, activate: true, targetIds: q.deckReorder.slots.map((s) => map[s.name]).filter(Boolean) };
+        }
+        if (q.enumChoice) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
         const on = Boolean(activate[specId]);
         if (q.handChoice) return { specId, activate: on, targetIds: on && chosen ? [chosen] : [] };
         return { specId, activate: on, targetIds: q.needsTarget && chosen ? [chosen] : [] };
@@ -198,6 +227,68 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                       <Toggle active={!target[specId]} onClick={() => setTarget((s) => withoutKey(s, specId))}>
                         Não revelar
                       </Toggle>
+                    </div>
+                  </div>
+                ) : null}
+
+                {q.handDiscard ? (
+                  q.handDiscard.legalHandIds.length > 0 ? (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[10px] text-muted-portal">Escolha 1 carta da mão pra descartar:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {q.handDiscard.legalHandIds.map((instanceId) => (
+                          <Toggle
+                            key={instanceId}
+                            active={target[specId] === instanceId}
+                            onClick={() => pickTarget(specId, instanceId)}
+                          >
+                            {resolveHandLabel?.(instanceId) ?? "Carta"}
+                          </Toggle>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-muted-portal">Mão vazia — nada pra descartar.</p>
+                  )
+                ) : null}
+
+                {q.deckReorder ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] text-muted-portal">
+                      Topo do deck — coloque 1 no topo e 1 no fundo:
+                    </p>
+                    <div className="space-y-1">
+                      {q.deckReorder.topCards.map((card) => (
+                        <div key={card.instanceId} className="flex items-center gap-1">
+                          <span className="min-w-0 flex-1 truncate text-[10px] text-soft">{card.def.nameEn}</span>
+                          {q.deckReorder!.slots.map((slot) => (
+                            <Toggle
+                              key={slot.name}
+                              active={(reorder[specId] ?? {})[slot.name] === card.instanceId}
+                              onClick={() => assignReorder(specId, slot.name, card.instanceId)}
+                            >
+                              {slot.position === "top" ? "↑ topo" : "↓ fundo"}
+                            </Toggle>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {q.enumChoice ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] text-muted-portal">Escolha:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {q.enumChoice.options.map((opt) => (
+                        <Toggle
+                          key={opt.value}
+                          active={target[specId] === opt.value}
+                          onClick={() => setTarget((s) => ({ ...s, [specId]: opt.value }))}
+                        >
+                          {opt.label}
+                        </Toggle>
+                      ))}
                     </div>
                   </div>
                 ) : null}

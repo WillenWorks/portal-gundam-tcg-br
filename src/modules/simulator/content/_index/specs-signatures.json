@@ -161,7 +161,7 @@
     "cardCode": "ST01-015",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -198,7 +198,7 @@
     "cardCode": "ST01-016",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -331,7 +331,7 @@
     "cardCode": "ST02-015",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -357,7 +357,7 @@
     "cardCode": "ST02-016",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -540,7 +540,7 @@
     "cardCode": "ST03-015",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -548,24 +548,35 @@
     "sourceText": "【Burst】Deploy this card."
   },
   {
-    "id": "ST03-015-Deploy",
+    "id": "ST03-015-Deploy-Damage",
     "cardCode": "ST03-015",
     "trigger": "Deploy",
     "ops": [
-      "addShieldToHand",
       "damageUnit"
     ],
     "targetScope": null,
     "targetFilter": "ap<=5",
     "predicate": null,
-    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it."
+    "sourceText": "Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it."
+  },
+  {
+    "id": "ST03-015-Deploy-Shield",
+    "cardCode": "ST03-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
     "id": "ST03-016-Burst",
     "cardCode": "ST03-016",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -695,27 +706,15 @@
     "sourceText": "【Burst】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Aile Strike Gundam]((Earth Alliance)･AP3･HP3･<Blocker>) Unit token."
   },
   {
-    "id": "ST04-012-Main-Launcher",
+    "id": "ST04-012-Main",
     "cardCode": "ST04-012",
     "trigger": "Main",
     "ops": [
-      "spawnToken"
+      "spawnTokenChoice"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceEquals:strikerChoice:launcher",
-    "sourceText": "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token."
-  },
-  {
-    "id": "ST04-012-Main-Sword",
-    "cardCode": "ST04-012",
-    "trigger": "Main",
-    "ops": [
-      "spawnToken"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance && namedChoiceNotEquals:strikerChoice:launcher",
+    "predicate": "noControllerUnitTokenWithTrait:Earth Alliance",
     "sourceText": "【Main】If you have no (Earth Alliance) Unit tokens in play, deploy 1 [Sword Strike Gundam]((Earth Alliance)･AP4･HP2･<Blocker>) or 1 [Launcher Strike Gundam]((Earth Alliance)･AP2･HP4･<Blocker>) Unit token."
   },
   {
@@ -785,7 +784,7 @@
     "cardCode": "ST04-015",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -822,7 +821,7 @@
     "cardCode": "ST04-016",
     "trigger": "Burst",
     "ops": [
-      "moveZone"
+      "deployThisCard"
     ],
     "targetScope": null,
     "targetFilter": null,

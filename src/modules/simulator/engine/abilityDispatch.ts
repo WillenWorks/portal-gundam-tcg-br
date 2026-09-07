@@ -11,10 +11,12 @@
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
   computeLegalTargets,
+  discardCandidateHandIds,
   matchesCardDefFilter,
   peekAndReorderDeck,
   resolvePlayerRef,
   specChoicePrimitive,
+  specChoicePrimitives,
   specNeedsChoice,
   specNeedsNamedTarget,
 } from "./effectSpec";
@@ -60,10 +62,41 @@ function buildQueueEntry(
     return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
   }
 
-  const chooser = resolvePlayerRef(choice.player, player);
-  const topCards = peekAndReorderDeck(state, chooser, choice.count);
-  const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
-  return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
+  if (choice.op === "lookAtTopFilterReveal") {
+    const chooser = resolvePlayerRef(choice.player, player);
+    const topCards = peekAndReorderDeck(state, chooser, choice.count);
+    const revealableIds = topCards.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+    return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
+  }
+
+  if (choice.op === "discardNamed") {
+    return {
+      ...entry,
+      handDiscard: { n: choice.n, legalHandIds: discardCandidateHandIds(spec, state, player), label: spec.sourceText },
+    };
+  }
+
+  if (choice.op === "spawnTokenChoice") {
+    return {
+      ...entry,
+      enumChoice: {
+        key: choice.key,
+        options: choice.options.map((o) => ({ value: o.value, label: o.label })),
+        label: spec.sourceText,
+      },
+    };
+  }
+
+  // moveWithinDeck nomeado — ST02-015 tem 2 (topo + fundo) = 1 reordenação.
+  const reorderCalls = specChoicePrimitives(spec).filter(
+    (c): c is Extract<typeof c, { op: "moveWithinDeck" }> => c.op === "moveWithinDeck" && c.target.kind === "named",
+  );
+  const slots = reorderCalls.map((c) => ({
+    name: c.target.kind === "named" ? c.target.name : "",
+    position: c.position,
+  }));
+  const topCards = peekAndReorderDeck(state, player, slots.length);
+  return { ...entry, deckReorder: { topCards, slots, label: spec.sourceText } };
 }
 
 export interface AbilitySource {
