@@ -56,3 +56,9 @@ docs/43-relatorio-estado-pos-v1.md
 docs/44-melhorias-rag-mcp-bot.md
 docs/45-cobertura-dano-e-condicionais.md
 docs/46-mcp-gundam-uso.md
+docs/47-plano-mestre-pos-v1.1.md
+docs/48-protocolo-auditoria-carta.md
+docs/49-uso-rag-autoria.md
+docs/50-treino-ml.md
+# relatórios regenerados por script (catalog:audit, coverage, …) — não versionam
+docs/_generated/
