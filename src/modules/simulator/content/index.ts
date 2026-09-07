@@ -6,6 +6,14 @@ import { ST04_EFFECT_SPECS } from "./st04";
 
 export { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 export { DEFERRED_CLAUSES, type DeferredClause } from "./deferred";
+export {
+  VALIDATED_DECKS,
+  isValidatedDeck,
+  validatedDeckList,
+  deckListToLegalityItems,
+  checkDeckListLegality,
+  type ValidatedDeck,
+} from "./validatedDecks";
 
 /**
  * Todo EffectSpec real cadastrado até agora (ST01 + ST02 + ST03 + ST04, docs/18

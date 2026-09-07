@@ -22,7 +22,10 @@ import {
   resignMatch,
   seatFor,
   setAutoPass,
+  setBugReportSink,
+  generateBugShortCode,
   setMatchPersistence,
+  type BugReportDraft,
   subscribe,
   subscribeAllMatches,
   touchPresence,
@@ -614,28 +617,90 @@ describe("setAutoPass — auto-pass inteligente do Action Step (docs/19, Sessão
   });
 });
 
-describe("reportSituation — ferramenta in-game de relatório (docs/19, Sessão 4)", () => {
-  it("devolve um reportId curto pra quem é jogador da partida", () => {
+describe("reportSituation — bug report in-game (docs/44 Fase 3 §5.1)", () => {
+  const shortCodeRe = /^BUG-[0-9A-HJKMNP-TV-Z]{6}$/;
+
+  it("generateBugShortCode: BUG- + 6 chars base32 (Crockford), sem repetir na prática", () => {
+    const codes = new Set<string>();
+    for (let i = 0; i < 500; i += 1) {
+      const code = generateBugShortCode();
+      expect(code).toMatch(shortCodeRe);
+      codes.add(code);
+    }
+    expect(codes.size).toBe(500); // 32^6 ~ 1e9 de espaço — colisão em 500 seria bug
+  });
+
+  it("sem sink injetado: só loga e devolve o shortCode gerado", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const match = newMatch();
       joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
       joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
 
-      const { reportId } = reportSituation(match.id, "user-1", "o botão de atacar sumiu");
-      expect(reportId).toMatch(/^[A-Z0-9]{6}$/);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(reportId));
+      const { shortCode } = await reportSituation(match.id, "user-1", "o botão de atacar sumiu");
+      expect(shortCode).toMatch(shortCodeRe);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(shortCode));
     } finally {
       warn.mockRestore();
     }
   });
 
-  it("recusa quem não é jogador da partida", () => {
+  it("com sink: entrega um draft com TODOS os campos (repro completo)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const drafts: BugReportDraft[] = [];
+      setBugReportSink(async (draft) => {
+        drafts.push(draft);
+        return { shortCode: draft.shortCode };
+      });
+
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+      applyAction(match.id, "user-1", { kind: "finishTurn" });
+
+      const { shortCode } = await reportSituation(match.id, "user-2", "  algo estranho  ");
+      expect(drafts).toHaveLength(1);
+      const draft = drafts[0];
+      expect(draft.shortCode).toBe(shortCode);
+      expect(draft.matchId).toBe(match.id);
+      expect(draft.reporterId).toBe("user-2");
+      expect(draft.seat).toBe("B");
+      expect(draft.note).toBe("algo estranho"); // trim aplicado
+      expect(typeof draft.engineVersion).toBe("string");
+      expect(draft.engineVersion.length).toBeGreaterThan(0);
+      expect(draft.gameState.players.A.deck.length).toBeGreaterThan(0); // GameState real
+      expect(Array.isArray(draft.battleLog)).toBe(true);
+      expect(draft.lastAction).toEqual({ kind: "finishTurn" });
+      expect(Array.isArray(draft.cardsInvolved)).toBe(true);
+      expect(draft.cardsInvolved).toContain("TOKEN-EX-BASE"); // EX Base está sempre em baseSection
+      expect([...draft.cardsInvolved]).toEqual([...draft.cardsInvolved].sort()); // ordenado
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("o shortCode devolvido é o que o sink confirmou (não o candidato)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      setBugReportSink(async () => ({ shortCode: "BUG-ZZZZZZ" }));
+      const match = newMatch();
+      joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
+      joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
+
+      const { shortCode } = await reportSituation(match.id, "user-1");
+      expect(shortCode).toBe("BUG-ZZZZZZ");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("recusa quem não é jogador da partida (espectador/estranho → 403)", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const match = newMatch();
       joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
-      expect(() => reportSituation(match.id, "estranho", "oi")).toThrow(/não é jogador/);
+      await expect(reportSituation(match.id, "estranho", "oi")).rejects.toMatchObject({ status: 403 });
     } finally {
       warn.mockRestore();
     }

@@ -102,7 +102,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
-import { api, type SimulatorMatchView } from "@/lib/api";
+import { api, getStoredAuth, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 
@@ -141,6 +141,7 @@ import {
   useBoardElements,
   AbilityResolutionModal,
   ZoneOverflowModal,
+  BugReportModal,
   GameOverOverlay,
   gameOverReasonLabel,
   MatchPrompt,
@@ -384,6 +385,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  asas — reseta sozinho se a tela deixar de ser wide (guard no render). */
   const [boardExpanded, setBoardExpanded] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  /** docs/44 Fase 3 §5.1 — modal de bug report ("Reportar situação"). `code` != null = já enviado, mostra o BUG-XXXXXX. */
+  const [bugReport, setBugReport] = useState<{ open: boolean; busy: boolean; code: string | null }>({ open: false, busy: false, code: null });
   /** Feedback.pdf §5 — erro de JOGADA (jogada ilegal, custo/alvo faltando) numa
    *  faixa própria no topo-centro, FORA da área do log e do `ActionDock`. Some
    *  sozinho. Erros de SISTEMA (conexão, W.O., auto-pass) seguem em `toast`. */
@@ -515,18 +518,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   };
 
-  const reportSituation = async () => {
-    const note = window.prompt("Descreva rapidamente o problema com esta partida (opcional):") ?? undefined;
+  const submitBugReport = async (note: string) => {
+    setBugReport((s) => ({ ...s, busy: true }));
     try {
-      const { reportId } = await api.reportSimulatorSituation(matchId, note);
-      // guarda o estado + id no clipboard como cópia de segurança.
-      try {
-        await navigator.clipboard.writeText(JSON.stringify({ reportId, matchView }, null, 2));
-      } catch {
-        /* clipboard pode falhar sem HTTPS/foco — o registro no servidor já basta */
-      }
-      toast.success(`Problema registrado (#${reportId}). Obrigado pelo aviso!`);
+      const { shortCode } = await api.reportSimulatorSituation(matchId, note || undefined);
+      setBugReport({ open: true, busy: false, code: shortCode });
     } catch (err) {
+      setBugReport((s) => ({ ...s, busy: false }));
       toast.error(errorMessage(err, "Não deu pra registrar o problema."));
     }
   };
@@ -1281,16 +1279,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             busy={busy}
           />
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
-          onClick={reportSituation}
-          title="Relatar um problema com esta partida"
-          aria-label="Relatar um problema com esta partida"
-        >
-          <Bug className="size-4" />
-        </Button>
+        {/* docs/44 Fase 3 §5.1 — bug report só pra jogador logado (guest do desafio
+            por link não tem token; o servidor também recusa com 403). */}
+        {getStoredAuth().token ? (
+          <Button
+            variant="outline"
+            size="icon"
+            className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
+            onClick={() => setBugReport({ open: true, busy: false, code: null })}
+            title="Relatar um problema com esta partida"
+            aria-label="Relatar um problema com esta partida"
+          >
+            <Bug className="size-4" />
+          </Button>
+        ) : null}
         {/* V6.1 (docs/32) — só faz sentido quando as asas laterais existem (isWide). */}
         {isWide ? (
           <Button
@@ -1555,6 +1557,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
           busy={busy}
           onResolve={(instanceId) => runAction({ kind: "resolveZoneOverflow", instanceId })}
+        />
+      ) : null}
+
+      {bugReport.open ? (
+        <BugReportModal
+          busy={bugReport.busy}
+          shortCode={bugReport.code}
+          onSubmit={submitBugReport}
+          onClose={() => setBugReport({ open: false, busy: false, code: null })}
         />
       ) : null}
 

@@ -5,6 +5,7 @@ import { applyPlayerAction, playerHasActionStepPlay, type PlayerAction } from ".
 import { applyEvents } from "../engine/events";
 import { viewStateFor, type ViewGameState } from "../engine/viewState";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
+import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 
 /**
  * Match store em memória (docs/18, passo 4 — decisão original do Willen: em
@@ -99,6 +100,13 @@ export interface MatchRecord {
   turnDeadlineAt: number | null;
   /** último sinal de vida (ping do cliente OU qualquer ação real) de cada assento — base do W.O. por abandono. */
   lastSeenAt: Partial<Record<PlayerId, number>>;
+  /**
+   * Última `PlayerAction` aplicada com sucesso nesta partida (docs/44 Fase 3
+   * §5.1 — vai no bug report como `lastAction`). Só em memória: não entra no
+   * `StoredMatch`, então uma partida re-hidratada do banco volta sem ela
+   * (`undefined` → `null` no report).
+   */
+  lastAction?: PlayerAction;
 }
 
 export class MatchError extends Error {
@@ -394,6 +402,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
   }
 
   match.state = nextState;
+  match.lastAction = action;
   match.lastSeenAt[seat] = Date.now();
   match.updatedAt = Date.now();
   match.version += 1;
@@ -430,24 +439,104 @@ export function setAutoPass(matchId: string, userId: string, value: boolean): Ma
   return match;
 }
 
+// ---------------------------------------------------------------------------
+// Bug report in-game (docs/44 Fase 3 §5.1) — "Reportar situação" no HUD. O
+// `reportSituation` congela o `GameState` completo (repro), o `buildBattleLog`
+// da visão daquele assento e as cartas em jogo, e entrega isso a um SINK
+// injetável (`setBugReportSink`, feito no boot do servidor — grava um
+// `SimulatorBugReport` + dispara o `repository_dispatch`). `null` (default nos
+// testes de motor) = só loga um `console.warn` estruturado e devolve o
+// `shortCode` gerado, sem persistir.
+// ---------------------------------------------------------------------------
+
+/** Payload cru de um bug report, montado por `reportSituation` e entregue ao sink. */
+export interface BugReportDraft {
+  /** "BUG-XXXXXX" (Crockford base32, sem I/L/O/U) — o candidato gerado aqui. */
+  shortCode: string;
+  matchId: string;
+  reporterId: string;
+  seat: PlayerId;
+  note?: string;
+  engineVersion: string;
+  /** `GameState` REAL (server-side, não redigido) — repro completo. */
+  gameState: GameState;
+  battleLog: BattleLogEntry[];
+  lastAction: PlayerAction | null;
+  /** codes únicos em battleArea + baseSection dos dois lados, ordenados. */
+  cardsInvolved: string[];
+  createdAt: number;
+}
+
 /**
- * Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4). Não
- * persiste em banco — só emite um `console.warn` estruturado com o
- * `GameState` REAL (não redigido) + histórico de eventos, pra diagnóstico
- * pelo dev nos logs do servidor. Devolve um `reportId` curto que o jogador
- * vê na tela (e que aparece no log), pra casar o relato com a linha certa.
+ * Persiste o bug report. Recebe o `shortCode` candidato em `draft.shortCode` e
+ * DEVOLVE o `shortCode` de fato gravado — o sink pode ter que regerar em caso
+ * de colisão com o índice único.
  */
-export function reportSituation(matchId: string, userId: string, note?: string): { reportId: string } {
+export type BugReportSink = (draft: BugReportDraft) => Promise<{ shortCode: string }>;
+
+let bugReportSink: BugReportSink | null = null;
+
+/** Chamado 1× no boot do servidor. `null` desliga a persistência (default = testes de motor). */
+export function setBugReportSink(sink: BugReportSink | null): void {
+  bugReportSink = sink;
+}
+
+/** Crockford base32 — dígitos + A-Z sem I, L, O, U (ambíguos quando alguém lê/digita o código). */
+const BUG_CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** `BUG-` + 6 chars base32 aleatórios (ex.: "BUG-A1B2C3"). */
+export function generateBugShortCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  let code = "";
+  for (const byte of bytes) {
+    code += BUG_CODE_ALPHABET[byte % BUG_CODE_ALPHABET.length];
+  }
+  return `BUG-${code}`;
+}
+
+function collectCardsInvolved(state: GameState): string[] {
+  const codes = new Set<string>();
+  for (const player of ["A", "B"] as PlayerId[]) {
+    for (const zone of [state.players[player].battleArea, state.players[player].baseSection]) {
+      for (const card of zone) codes.add(card.def.code);
+    }
+  }
+  return [...codes].sort();
+}
+
+/**
+ * Captura um bug report da partida (docs/44 Fase 3 §5.1). Só um dos assentos
+ * pode reportar (espectador/estranho → 403). Congela o estado + battleLog +
+ * cartas em jogo e entrega ao sink; devolve o `shortCode` que o jogador
+ * acompanha. Sem sink injetado, só loga e devolve o código gerado.
+ */
+export async function reportSituation(matchId: string, userId: string, note?: string): Promise<{ shortCode: string }> {
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
   if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
 
-  const reportId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const trimmedNote = note?.trim();
+  const draft: BugReportDraft = {
+    shortCode: generateBugShortCode(),
+    matchId,
+    reporterId: userId,
+    seat,
+    note: trimmedNote ? trimmedNote : undefined,
+    engineVersion: match.state.engineVersion ?? "dev",
+    gameState: match.state,
+    battleLog: buildBattleLog(viewStateFor(match.state, seat)),
+    lastAction: match.lastAction ?? null,
+    cardsInvolved: collectCardsInvolved(match.state),
+    createdAt: Date.now(),
+  };
+
   console.warn(
-    `[SIMULADOR][RULE-REPORT ${reportId}] match=${matchId} seat=${seat} version=${match.state.turnNumber}t note=${JSON.stringify(note ?? "")}\n` +
-      JSON.stringify({ reportId, matchId, seat, note, at: Date.now(), deckKeys: match.deckKeys, state: match.state }),
+    `[SIMULADOR][BUG-REPORT ${draft.shortCode}] match=${matchId} seat=${seat} turn=${match.state.turnNumber} ` +
+      `engine=${draft.engineVersion} note=${JSON.stringify(draft.note ?? "")}`,
   );
-  return { reportId };
+
+  if (!bugReportSink) return { shortCode: draft.shortCode };
+  return bugReportSink(draft);
 }
 
 /** Partida ainda não terminada onde esse usuário já ocupa um assento, se alguma — usado pra "reconectar" direto em vez de enfileirar de novo. */
@@ -881,4 +970,5 @@ export function _resetAllMatchesForTests(): void {
   pendingMatches.clear();
   gameOverLogged.clear();
   persistence = null;
+  bugReportSink = null;
 }

@@ -37,12 +37,19 @@ import {
   resignMatch,
   seatFor,
   setAutoPass,
+  setBugReportSink,
   setMatchPersistence,
   subscribe,
   touchPresence,
+  generateBugShortCode,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
-import type { GameState } from "../src/modules/simulator/engine/types.ts";
+import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
+import {
+  buildGithubDispatchRequest,
+  canSubmitBugReport,
+  createBugReportRateLimiter,
+} from "../src/modules/simulator/server/bugReport.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 
 const prisma = new PrismaClient();
@@ -86,7 +93,10 @@ setMatchPersistence({
     if (!row) return null;
     return {
       id: row.id,
-      state: row.state as unknown as GameState,
+      // valida o blob antes de devolver pro motor (docs/44 Fase 3 §5.1) — um
+      // `state` corrompido/adulterado vira erro aqui e `loadMatch` trata como
+      // "partida não encontrada" em vez de explodir dentro do `applyPlayerAction`.
+      state: hydrateMatch(row.state),
       seats: row.seats as StoredMatch["seats"],
       deckKeys: row.deckKeys as StoredMatch["deckKeys"],
       version: row.version,
@@ -97,6 +107,65 @@ setMatchPersistence({
   async remove(id: string) {
     await prisma.simulatorMatch.delete({ where: { id } }).catch(() => {});
   },
+});
+
+// docs/44 Fase 3 §5.1 — captura de bug report do Simulador. O `matchStore`
+// monta o `draft` (GameState congelado + battleLog + cartas em jogo); aqui a
+// gente grava o `SimulatorBugReport` e dispara o `repository_dispatch` que
+// acorda o workflow de triagem (Wave 3). Sem `GH_DISPATCH_TOKEN` o dispatch é
+// só pulado — a gravação continua valendo (o workflow ainda nem existe).
+const GH_DISPATCH_TOKEN = process.env.GH_DISPATCH_TOKEN || "";
+const GH_DISPATCH_REPO = process.env.GH_DISPATCH_REPO || "WillenWorks/portal-gundam-tcg-br";
+const BUG_REPORT_SHORTCODE_RETRIES = 5;
+
+async function fireBugReportDispatch(shortCode: string) {
+  const dispatch = buildGithubDispatchRequest(shortCode, { token: GH_DISPATCH_TOKEN, repo: GH_DISPATCH_REPO });
+  if (!dispatch) {
+    console.warn(`[SIMULADOR][BUG-REPORT ${shortCode}] dispatch pulado (sem GH_DISPATCH_TOKEN)`);
+    return;
+  }
+  try {
+    const resp = await fetch(dispatch.url, { method: "POST", headers: dispatch.headers, body: dispatch.body });
+    if (!resp.ok) {
+      const detail = await resp.text().catch(() => "");
+      console.warn(`[SIMULADOR][BUG-REPORT ${shortCode}] repository_dispatch respondeu ${resp.status}: ${detail}`);
+    }
+  } catch (err) {
+    console.warn(`[SIMULADOR][BUG-REPORT ${shortCode}] repository_dispatch falhou:`, err instanceof Error ? err.message : err);
+  }
+}
+
+setBugReportSink(async (draft) => {
+  let shortCode = draft.shortCode;
+  for (let attempt = 0; attempt < BUG_REPORT_SHORTCODE_RETRIES; attempt += 1) {
+    try {
+      await prisma.simulatorBugReport.create({
+        data: {
+          shortCode,
+          matchId: draft.matchId,
+          reporterId: draft.reporterId,
+          seat: draft.seat,
+          note: draft.note ?? null,
+          engineVersion: draft.engineVersion,
+          gameState: draft.gameState as unknown as Prisma.InputJsonValue,
+          battleLog: draft.battleLog as unknown as Prisma.InputJsonValue,
+          lastAction: draft.lastAction ? (draft.lastAction as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          cardsInvolved: draft.cardsInvolved,
+        },
+      });
+      // dispatch é fire-and-forget: nunca derruba o report (o gate da Wave 3
+      // é justamente "o workflow ainda não existe").
+      void fireBugReportDispatch(shortCode);
+      return { shortCode };
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        shortCode = generateBugShortCode(); // colisão no índice único — regera e tenta de novo
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("não foi possível gerar um shortCode único para o bug report");
 });
 
 const app = express();
@@ -3349,17 +3418,67 @@ app.post("/api/simulator/matches/:id/ping", authRequired, async (req: RequestWit
   }
 });
 
-// Ferramenta in-game "Reportar Situação de Regra" (docs/19, Sessão 4) — loga o
-// GameState real + histórico no console do servidor pra diagnóstico. Não persiste.
+// Bug report in-game (docs/44 Fase 3 §5.1) — congela o GameState completo
+// (repro) + battleLog + cartas em jogo num `SimulatorBugReport` e dispara o
+// `repository_dispatch` da triagem. Só jogador logado (guest de F5 não passa);
+// rate-limit de 5/h por reporterId (in-memory, basta nesta fase). Devolve o
+// `shortCode` ("BUG-XXXXXX") que o jogador acompanha.
+const bugReportRateLimiter = createBugReportRateLimiter();
+
 app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestWithUser, res) => {
+  const user = req.user as (AuthPayload & { guest?: boolean }) | undefined;
+  if (!canSubmitBugReport(user)) {
+    return res.status(403).json({ error: "Só jogadores logados podem reportar uma situação." });
+  }
+  const reporterId = user!.userId;
   const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+
+  if (bugReportRateLimiter.isLimited(reporterId)) {
+    return res.status(429).json({ error: "Você já enviou vários relatos na última hora. Tente novamente mais tarde." });
+  }
+
   try {
     await loadMatch(String(req.params.id));
-    res.json(reportSituation(String(req.params.id), req.user!.userId, note));
+    const result = await reportSituation(String(req.params.id), reporterId, note);
+    bugReportRateLimiter.record(reporterId);
+    res.json(result);
   } catch (err) {
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
     throw err;
   }
+});
+
+// Leitura dos bug reports — consumida pelos agentes de triagem/fix (docs/44
+// Fase 3, Wave 3). ADMIN-only por enquanto (a Wave 3 usa um token de serviço
+// com role ADMIN). `?status=` filtra; sem `shortCode` devolve a lista enxuta.
+app.get("/api/simulator/bug-reports", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const take = Math.min(Number(req.query.limit) || 50, 200);
+  const rows = await prisma.simulatorBugReport.findMany({
+    where: status ? { status } : undefined,
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      shortCode: true,
+      matchId: true,
+      reporterId: true,
+      seat: true,
+      note: true,
+      engineVersion: true,
+      cardsInvolved: true,
+      status: true,
+      prUrl: true,
+      createdAt: true,
+    },
+  });
+  res.json(rows);
+});
+
+app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode: String(req.params.shortCode) } });
+  if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
+  res.json(row);
 });
 
 // Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).

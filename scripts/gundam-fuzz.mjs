@@ -13,6 +13,9 @@
  *   node scripts/gundam-fuzz.mjs --decks=ST01,ST03   # só esse par
  *   node scripts/gundam-fuzz.mjs --seed=123          # seed base (default 1)
  *   node scripts/gundam-fuzz.mjs --maxTurns=200
+ *   node scripts/gundam-fuzz.mjs --policy=heuristic          # bot heurístico dos dois lados
+ *   node scripts/gundam-fuzz.mjs --policyA=heuristic --policyB=random   # heurístico vs random
+ *   node scripts/gundam-fuzz.mjs --policyA=facil             # (random|heuristic|facil), default random
  *
  * Reprodução de um achado: o log imprime `par + seed + ação` — rode
  * `node scripts/gundam-fuzz.mjs --decks=<par> --games=1 --seed=<seed>`.
@@ -34,6 +37,17 @@ const { buildSt02DeckList } = await import(sim("fixtures/st02Deck.ts"));
 const { buildSt03DeckList } = await import(sim("fixtures/st03Deck.ts"));
 const { buildSt04DeckList } = await import(sim("fixtures/st04Deck.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
+const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
+const { randomLegal } = await import(sim("engine/selfPlay.ts"));
+
+/** `random` (default) | `heuristic` | `facil` — resolve o nome pra uma Policy do self-play. */
+function resolvePolicy(name) {
+  if (!name || name === "random") return randomLegal;
+  if (name === "heuristic" || name === "normal") return heuristicPolicy({ level: "normal" });
+  if (name === "facil") return heuristicPolicy({ level: "facil" });
+  console.error(`Policy desconhecida: ${name}. Válidas: random, heuristic, facil`);
+  process.exit(2);
+}
 
 const DECKS = {
   ST01: buildSt01DeckList,
@@ -43,7 +57,7 @@ const DECKS = {
 };
 
 function parseArgs(argv) {
-  const args = { games: 200, seed: 1, maxTurns: 200, decks: null };
+  const args = { games: 200, seed: 1, maxTurns: 200, decks: null, policyA: "random", policyB: "random" };
   for (const a of argv) {
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
@@ -52,6 +66,9 @@ function parseArgs(argv) {
     else if (k === "seed") args.seed = Number(v);
     else if (k === "maxTurns") args.maxTurns = Number(v);
     else if (k === "decks") args.decks = v.split(",").map((s) => s.trim().toUpperCase());
+    else if (k === "policy") args.policyA = args.policyB = v.trim().toLowerCase();
+    else if (k === "policyA") args.policyA = v.trim().toLowerCase();
+    else if (k === "policyB") args.policyB = v.trim().toLowerCase();
   }
   return args;
 }
@@ -79,8 +96,11 @@ if (args.decks) {
   pairs = allPairs(deckKeys);
 }
 
+const policyA = resolvePolicy(args.policyA);
+const policyB = resolvePolicy(args.policyB);
+
 console.log(
-  `[gundam:fuzz] ${pairs.length} par(es) x ${args.games} partidas (seed base ${args.seed}, maxTurns ${args.maxTurns})`,
+  `[gundam:fuzz] ${pairs.length} par(es) x ${args.games} partidas (seed base ${args.seed}, maxTurns ${args.maxTurns}, policy A/B ${args.policyA}/${args.policyB})`,
 );
 
 const findings = [];
@@ -104,6 +124,8 @@ for (const [a, b] of pairs) {
         specs: ALL_EFFECT_SPECS,
         predicateResolver: defaultPredicateResolver,
         targetFilterResolver: defaultTargetFilterResolver,
+        policyA,
+        policyB,
       });
     } catch (err) {
       findings.push({ pair: `${a}x${b}`, seed, kind: "throw", detail: err?.stack ?? String(err) });

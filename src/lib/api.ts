@@ -465,9 +465,9 @@ export const api = {
   /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */
   setSimulatorAutoPass: (id: string, value: boolean) =>
     request<SimulatorMatchView>(`/simulator/matches/${id}/auto-pass`, { method: "POST", body: JSON.stringify({ value }) }),
-  /** "Reportar Situação de Regra" (docs/19, Sessão 4) — o servidor loga o estado real + histórico e devolve um id curto. */
+  /** Bug report in-game (docs/44 Fase 3 §5.1) — o servidor congela o GameState + battleLog + cartas em jogo e devolve o `shortCode` ("BUG-XXXXXX") pra acompanhar. */
   reportSimulatorSituation: (id: string, note?: string) =>
-    request<{ reportId: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
+    request<{ shortCode: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
   /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
   claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
   /** "Sair da partida" = desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch. */
@@ -508,6 +508,8 @@ export function mapApiCard(card: any): CardRecord {
     keywords: card.keywordTags ?? [],
     triggerKeywords: card.triggerKeywords ?? [],
     effect: card.effectPt ?? card.effectEn ?? "",
+    linkText: card.linkText ?? null,
+    pilotName: card.pilotName ?? null,
     rarity: card.rarity ?? undefined,
     setCode: card.set?.code ?? card.setCode ?? undefined,
     setName: card.set?.namePt ?? card.set?.nameEn ?? undefined,
