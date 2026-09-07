@@ -143,6 +143,36 @@ describe("BattleSlot", () => {
     expect(screen.queryByLabelText("Link Unit")).toBeNull();
   });
 
+  // Feedback.pdf: "ter uma representação parecida pro Pair, no canto sup. esquerdo".
+  it("Fix 5: Unit pareada SEM link ganha selo 'PAIR' na arte", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Char"] } }, { pairedPilotId: "p" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    expect(screen.getByLabelText("Unit pareada com Piloto")).toHaveTextContent(/^Pair$/i);
+  });
+
+  it("Fix 5: Link Unit mostra só 'LINK', nunca 'PAIR' (mutuamente exclusivos)", () => {
+    const u = unit({ link: { kind: "pilotName", values: ["Amuro"] } }, { pairedPilotId: "p-amuro" });
+    const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p-amuro" });
+    render(<BattleSlot unit={u} pilot={pilot} art={{}} />);
+    expect(screen.getByLabelText("Link Unit")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Unit pareada com Piloto")).toBeNull();
+  });
+
+  it("Fix 5: Unit sem Piloto não tem selo 'PAIR' nem 'LINK'", () => {
+    render(<BattleSlot unit={unit()} pilot={null} art={{}} />);
+    expect(screen.queryByLabelText("Unit pareada com Piloto")).toBeNull();
+    expect(screen.queryByLabelText("Link Unit")).toBeNull();
+  });
+
+  // Fix 2: <Support> reusa o botão de habilidade de campo; a página passa "Support" como rótulo.
+  it("Fix 2: rótulo do botão de habilidade é customizável (activateLabel)", () => {
+    render(
+      <BattleSlot unit={unit()} pilot={null} art={{}} actions={{ onActivate: vi.fn(), activateLabel: "Support" }} />,
+    );
+    expect(screen.getByRole("button", { name: "Support" })).toBeInTheDocument();
+  });
+
   it("sem badge 'BLK' na arte (blocker se mostra pelo botão de escudo)", () => {
     render(<BattleSlot unit={unit()} pilot={null} art={{}} onInspect={vi.fn()} />);
     expect(screen.queryByText("Blk")).toBeNull();
