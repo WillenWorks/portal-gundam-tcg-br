@@ -38,11 +38,17 @@ O bot é um **assento sintético** (não é um usuário do banco), com id fixo
 `sim-bot` (`SIM_BOT_USER_ID` em `src/modules/simulator/server/trainingMatch.ts`).
 O token é um JWT assinado com o **mesmo `JWT_SECRET` do web server**, cujo
 `userId` **precisa** ser exatamente `sim-bot` (é assim que a rota de ações
-resolve o assento):
+resolve o assento).
+
+A partir da raiz do repo:
 
 ```bash
-node -e "console.log(require('jsonwebtoken').sign({ userId: 'sim-bot', username: 'sim-bot', email: 'sim-bot@portal.local', role: 'USER', isHoster: false }, process.env.JWT_SECRET, { expiresIn: '365d' }))"
+JWT_SECRET='<segredo-do-web-server>' pnpm sim-bot:make-token
 ```
+
+O script (`services/sim-bot/scripts/make-token.mjs`) imprime o token em `stdout`
+e a data de expiração em `stderr`. TTL configurável via `SIM_BOT_TOKEN_TTL`
+(default `365d`).
 
 ## Rodar local
 
@@ -55,5 +61,15 @@ SIM_BOT_TOKEN=<jwt> node --import tsx services/sim-bot/index.mjs
 
 ## Deploy
 
-Railway service dedicado (root directory = `services/sim-bot`, `pnpm start`).
-**Ainda não configurado** — só deixado pronto.
+Passo a passo completo em **`docs/52-deploy-sim-bot.md`** (gitignored).
+
+Resumo: o worker importa o motor de `src/modules/simulator/**` direto, então o
+deploy empacota o **monorepo inteiro** via `services/sim-bot/Dockerfile` (contexto
+de build = raiz do repo). No Railway é um **segundo serviço** no mesmo projeto,
+apontando pro mesmo repo, com Root Directory = raiz e Config File =
+`services/sim-bot/railway.json`. Sem healthcheck HTTP (é um worker de fila).
+
+```bash
+# valida a imagem localmente (a partir da raiz do repo)
+docker build -f services/sim-bot/Dockerfile -t sim-bot .
+```
