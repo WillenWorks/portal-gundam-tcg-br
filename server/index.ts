@@ -3496,6 +3496,20 @@ async function boot() {
     // fora do ar (nenhum request chegava a receber resposta) sem nenhum sinal claro do motivo.
     console.error("Aviso: ensureAdminSeed falhou, API vai subir mesmo assim.", error);
   }
+  // docs/46 — MCP sobre HTTP (Streamable HTTP, stateless) atrás de `authRequired`.
+  // Guard por env: só monta `POST /mcp` quando `MCP_HTTP_ENABLED === "true"`
+  // (default: desligado). Montagem defensiva — qualquer falha aqui só loga e a
+  // API sobe normalmente sem a rota. Sem a env e sem auth, `/mcp` não existe.
+  if (process.env.MCP_HTTP_ENABLED === "true") {
+    try {
+      const { attachMcpHttp } = await import("../scripts/mcp-gundam/mcp.mjs");
+      await attachMcpHttp(app, { middleware: [authRequired] });
+      console.log("MCP HTTP habilitado em POST /mcp (atrás de authRequired).");
+    } catch (error) {
+      console.error("Aviso: falha ao montar MCP HTTP em /mcp — API sobe sem ele.", error);
+    }
+  }
+
   // Socket.io do simulador (Frente 5 / docs/39) — no MESMO HTTP server do Express,
   // ao lado do SSE que continua funcionando. Contrato de eventos: docs/39 §2.2.
   const httpServer = createServer(app);
