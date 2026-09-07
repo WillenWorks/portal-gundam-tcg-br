@@ -22,8 +22,11 @@ export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
   onDeclareTarget?: (unit: CardInstance) => void;
   onBlocker?: (unit: CardInstance) => void;
-  /** 【Activate·Main】 de carta em campo (ex.: Tallgeese "Set active") — Etapa 3. */
+  /** habilidade de campo — 【Activate·Main】 com EffectSpec (ex.: Tallgeese "Set
+   *  active") ou a keyword `<Support N>` (ex.: Angelo's Geara Zulu). */
   onActivate?: (unit: CardInstance) => void;
+  /** rótulo do botão de habilidade — "Ativar habilidade" (default) ou "Support". */
+  activateLabel?: string;
 }
 
 interface BattleSlotProps {
@@ -133,7 +136,7 @@ export function BattleSlot({
   // clique na área neutra da carta (ver `bodyInspects`).
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
-  if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
+  if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: actions?.activateLabel ?? "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
   if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
   if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
 
@@ -229,15 +232,24 @@ export function BattleSlot({
           dimmed={unit.rested}
           backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
         >
-          {/* Frente 4 (feedback Willen 3ª rodada): selo curto "LINK" no topo da
-              arte quando é Link Unit — sem números (o AP/HP final já reflete o
-              buff). */}
+          {/* Selo no canto SUP. ESQUERDO da arte: "LINK" (âmbar) quando o
+              pareamento satisfaz a Link condition, ou "PAIR" (ciano) quando só
+              há Piloto pareado sem Link — pedido do feedback (Feedback.pdf): "ter
+              uma representação parecida pro Pair". Mutuamente exclusivos. Sem
+              números: o AP/HP final já reflete o modificador do Piloto. */}
           {isLinkUnit ? (
             <span
               className="absolute left-0 top-0 z-10 rounded-br-arena bg-amber-400 px-1 text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.14),0.8125rem)] font-black uppercase leading-tight tracking-wider text-black shadow-[0_0_6px_rgba(251,191,36,0.6)]"
               aria-label="Link Unit"
             >
               Link
+            </span>
+          ) : pilot ? (
+            <span
+              className="absolute left-0 top-0 z-10 rounded-br-arena bg-cyan-500 px-1 text-[clamp(0.5rem,calc(var(--card-w-std,2.17rem)*0.14),0.8125rem)] font-black uppercase leading-tight tracking-wider text-black shadow-[0_0_6px_rgba(6,182,212,0.6)]"
+              aria-label="Unit pareada com Piloto"
+            >
+              Pair
             </span>
           ) : null}
           {/* AP / HP efetivos — badges de canto (V6.3: sempre no rodapé da

@@ -454,7 +454,14 @@ function applyPlayerActionInner(
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas reveláveis do topo do deck.`);
         }
 
-        const targets: Record<string, string[]> = { target: r.targetIds, shield: r.targetIds };
+        // Só `target` — NUNCA aliasar pra `shield`: um EffectSpec que combina
+        // `addShieldToHand` + alvo nomeado (ex. ST03-015 Rewloola "Add 1 Shield
+        // to hand. Then, choose 1 enemy Unit... deal 1 damage") teria a Unit
+        // inimiga escolhida entrando como "qual shield adicionar", movendo a
+        // Unit pra mão e nunca devolvendo o shield real. `addShieldToHand` cai
+        // no fallback "primeiros N shields" (shield é face-down, a escolha não
+        // carrega informação).
+        const targets: Record<string, string[]> = { target: r.targetIds };
         if (handChoice) targets.deploy = r.targetIds;
         if (deckReveal) targets.reveal = r.targetIds;
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {

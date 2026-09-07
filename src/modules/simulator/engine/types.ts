@@ -643,6 +643,13 @@ export interface GameState {
    * restart do servidor (persistência da Sprint C).
    */
   seed: number;
+  /**
+   * Versão do motor (git sha curto) no momento em que a partida foi criada —
+   * `"dev"` fora do build de produção. A triagem de bug report (docs/44 §8.4)
+   * checa isto primeiro: um report gerado por um motor antigo pode já estar
+   * corrigido. Opcional pra não quebrar estados serializados antes deste campo.
+   */
+  engineVersion?: string;
 }
 
 // ---------------------------------------------------------------------------

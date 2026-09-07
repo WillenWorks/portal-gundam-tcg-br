@@ -22,8 +22,10 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
+import { MetricTooltip } from "@/components/deck/MetricTooltip";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
-import { OPENING_HAND_SIZE, buildLevelCurve, hypergeometricAtLeastOne, lowLevelUnitStats } from "@/lib/deck-level-stats";
+import { LOW_LEVEL_MAX, OPENING_HAND_SIZE, buildLevelCurve, lowLevelUnitStats } from "@/lib/deck-level-stats";
+import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -446,30 +448,9 @@ function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onCl
  *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
  *  aquele número. Lista ou imagem, alternável — clicar numa carta abre o preview
  *  grande dela (reaproveita CardPreviewModal). */
-/** Botão "?" pequeno — clique alterna uma dica curta abaixo do título. Botão em vez de
- *  hover de propósito: hover não existe em touch, botão funciona igual em qualquer tela. */
-function InfoHint({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  return (
-    <span ref={ref} className="relative inline-block align-middle">
-      <button type="button" onClick={() => setOpen((o) => !o)} title={text} className="ml-2 inline-flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-slate-400 transition hover:border-primary hover:text-primary light:border-slate-400 light:text-slate-500">?</button>
-      {open ? (
-        <span className="absolute left-0 top-6 z-20 w-60 border border-border bg-popover p-2.5 text-[11px] font-normal normal-case leading-4 tracking-normal text-popover-foreground shadow-xl [font-family:var(--font-body)]">{text}</span>
-      ) : null}
-    </span>
-  );
-}
+// A dica curta de cada métrica agora vem do componente reutilizável e acessível
+// MetricTooltip (@/components/deck/MetricTooltip) — cada número da tela tem "o que é"
+// + "como ler" e um marcador data-metric, auditado por DeckbuilderPage.metrics.test.
 
 function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { label: string; value: string } | null; rows: DeckRow[]; onClose: () => void; onPreviewCard: (card: DeckRow) => void }) {
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
@@ -820,12 +801,9 @@ export default function DeckbuilderPage() {
   }, [mainDeckRows]);
 
   // Chance de abrir com pelo menos 1 carta de custo baixo (≤2) na mão inicial de 5,
-  // e a mesma conta considerando 1 mulligan (ver hypergeometricAtLeastOne acima).
-  const handOdds = useMemo(() => {
-    const openingHand = hypergeometricAtLeastOne(stats.mainDeckCount, stats.lowCostCount, OPENING_HAND_SIZE);
-    const withMulligan = 1 - (1 - openingHand) * (1 - openingHand);
-    return { openingHand, withMulligan };
-  }, [stats.mainDeckCount, stats.lowCostCount]);
+  // e a mesma conta considerando 1 mulligan (ver deck-cost-stats.ts). Espelha
+  // lowLevelStats (nível baixo), só que o "sucesso" aqui é o custo, não o nível.
+  const handOdds = useMemo(() => lowCostStats(mainDeckRows, stats.mainDeckCount), [mainDeckRows, stats.mainDeckCount]);
 
   const colorData = useMemo(() => Object.entries(stats.colorMap).map(([name, value]) => ({ name, value })), [stats.colorMap]);
   const typeData = useMemo(() => Object.entries(stats.typeMap).map(([name, quantity]) => ({ name: CARD_TYPE_OPTIONS.find((opt) => opt.value === name)?.label || name, quantity })), [stats.typeMap]);
@@ -1597,10 +1575,10 @@ export default function DeckbuilderPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico operacional</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Leitura rápida do deck</h3>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Leitura rápida do deck<MetricTooltip metric="leitura-rapida" what="Cinco checagens rápidas da lista: volume de cartas, variedade, cópias no limite (4x), cobertura por keywords e linha principal (trait dominante)." howToRead="Borda azul = ok, borda âmbar = vale revisar. É diagnóstico, não bloqueia o deck de ser legal." /></h3>
                 </div>
                 <div className="panel-cut border border-primary/30 bg-primary/10 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Sinergia estimada</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Sinergia estimada<MetricTooltip metric="sinergia-estimada" what="Nota de 0 a 100 que estima o quão coeso o deck está: pesa cor dominante, trait dominante, cobertura de keywords e variedade de cartas." howToRead="80+ = sinergia forte; 55–79 = em formação; abaixo = base ainda dispersa. É uma heurística do portal, não uma regra oficial." /></p>
                   <p className="mt-2 font-heading text-4xl heading-portal">{synergyScore}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.18em] text-primary">{synergyLabel}</p>
                 </div>
@@ -1619,7 +1597,7 @@ export default function DeckbuilderPage() {
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista</h3>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista<MetricTooltip metric="identidade-lista" what="Os pilares do arquétipo que o sistema detectou na lista: cor-base, trait-base, série-base e tipo-base, com quantas cartas sustentam cada um." howToRead="Quanto mais definidos os quatro, mais focado o deck. Vazio = ainda faltam cartas pro sistema cravar o arquétipo." /></h3>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {archetypeBlocks.length ? archetypeBlocks.map((block) => (
                   <div key={block.label} className="panel-cut border surface-strong p-4">
@@ -1658,7 +1636,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de cor</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck<InfoHint text="Clique numa cor pra ver quais cartas do deck são dessa cor." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top cores do deck<MetricTooltip metric="top-cores" what="Quantas cartas de cada cor há no deck principal, da mais usada pra menos." howToRead="Um deck usa no máximo 2 cores. Se a 2ª cor aparece com poucas cartas, decida se compensa mantê-la. Clique numa cor pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.</p>
                 <div className="mt-5 space-y-3">
                   {colorBreakdown.length ? colorBreakdown.map((item) => (
@@ -1674,7 +1652,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de trait</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck<InfoHint text="Clique numa trait pra ver quais cartas do deck têm essa trait." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Top traits do deck<MetricTooltip metric="top-traits" what="As traits (marcadores temáticos, tipo 'Zeon' ou 'White Base Team') que mais se repetem entre as cartas." howToRead="Trait repetido costuma indicar sinergia real — efeitos que reagem a uma trait específica. Clique pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.</p>
                 <div className="mt-5 space-y-3">
                   {traitBreakdown.length ? traitBreakdown.map((item) => (
@@ -1692,7 +1670,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de série</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck<InfoHint text="Clique numa série pra ver quais cartas do deck são dela." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Séries no deck<MetricTooltip metric="series-no-deck" what="De quais obras (séries de anime/filme) vêm as cartas do deck." howToRead="Muitas cartas da mesma série tendem a combinar tematicamente, às vezes mecanicamente. Clique numa série pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.</p>
                 <div className="mt-5 space-y-3">
                   {seriesBreakdown.length ? seriesBreakdown.map((item) => (
@@ -1708,7 +1686,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Composição por tipo</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck<InfoHint text="Clique num tipo pra ver quais cartas do deck são desse tipo." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Tipos no deck<MetricTooltip metric="tipos-no-deck" what="Proporção de Unidade / Piloto / Comando / Base na lista principal." howToRead="Mostra se o deck tem recurso pra jogo longo ou é só pressão inicial. Clique num tipo pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.</p>
                 <div className="mt-5 space-y-3">
                   {typeBreakdown.length ? typeBreakdown.map((item) => (
@@ -1726,7 +1704,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito<InfoHint text="Clique numa keyword pra ver quais cartas do deck têm ela." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de efeito<MetricTooltip metric="keywords-efeito" what="Quantas cartas têm cada keyword de efeito (Repair, Breach, Blocker, Support...) — o que a carta FAZ." howToRead="Mais cartas com a mesma keyword = plano mecânico mais consistente. O % é sobre o deck principal. Clique pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.</p>
                 <div className="mt-5 space-y-3">
                   {effectKeywordBreakdown.length ? effectKeywordBreakdown.map((item) => (
@@ -1743,7 +1721,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho<InfoHint text="Clique numa keyword pra ver quais cartas do deck ativam nesse momento." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Keywords de gatilho<MetricTooltip metric="keywords-gatilho" what="Quantas cartas ativam em cada momento do jogo (Deploy, Burst, Once per Turn, Attack...) — QUANDO a carta reage." howToRead="Ajuda a ver se o deck depende de um único momento do turno. Clique pra ver as cartas." /></h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.</p>
                 <div className="mt-5 space-y-3">
                   {triggerKeywordBreakdown.length ? triggerKeywordBreakdown.map((item) => (
@@ -1763,7 +1741,7 @@ export default function DeckbuilderPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
-                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo<InfoHint text="Clique numa barra pra ver as cartas daquele custo." /></h3>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de custo<MetricTooltip metric="curva-custo" what="Quantas cartas do deck principal existem em cada valor de custo." howToRead="Curva concentrada em custo baixo joga cedo; muita carta cara exige sobreviver até montar recurso. Clique numa barra pra ver as cartas." /></h3>
                   </div>
                 </div>
                 <div className="mt-6 h-[260px]">
@@ -1783,7 +1761,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 02</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor<InfoHint text="Clique numa fatia pra ver as cartas dessa cor." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição por cor<MetricTooltip metric="distribuicao-cor" what="A mesma contagem de cores do deck, agora em gráfico de pizza." howToRead="A maior fatia é a cor-base do deck. Clique numa fatia pra ver as cartas." /></h3>
                 <div className="mt-6 h-[260px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <PieChart>
@@ -1804,29 +1782,29 @@ export default function DeckbuilderPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<InfoHint text="Cálculo hipergeométrico: chance de comprar pelo menos 1 carta de custo ≤2 numa mão de 5 cartas puxada do deck principal embaralhado. 'Com 1 mulligan' conta a mão original OU a mão redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente da mesma população, não uma troca parcial." /></h3>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<MetricTooltip metric="mao-inicial" what="Probabilidade de a sua mão de abertura (5 cartas compradas do deck principal embaralhado) conter certos tipos de carta. Cálculo hipergeométrico." howToRead="Quanto maior a %, mais confiável é abrir bem. 'Com 1 mulligan' conta a mão original OU a redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente, não uma troca parcial." /></h3>
                 </div>
                 <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}><Eye className="mr-2 size-4" />Simular abertura</Button>
               </div>
               {stats.mainDeckCount > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="panel-cut border surface-strong p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)</p>
-                    <p className="mt-2 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}</p>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Cartas de custo baixo (≤2)", (row) => typeof row.cost === "number" && Number.isFinite(row.cost) && row.cost >= 0 && row.cost <= LOW_COST_MAX)} className="group panel-cut border surface-strong p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)<MetricTooltip metric="custo-baixo-contagem" what="Quantas cartas do deck principal custam 2 ou menos." howToRead="São as cartas jogáveis já nos primeiros turnos. Poucas = risco de mão travada no começo. Clique pra ver quais são." /></p>
+                    <p className="mt-2 flex items-center gap-1 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">{stats.lowCostRate}% da lista principal.</p>
-                  </div>
-                  <div className="panel-cut border border-primary/30 bg-primary/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Chance na mão de abertura</p>
-                    <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%</p>
+                  </button>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Carta de custo baixo na abertura", (row) => typeof row.cost === "number" && Number.isFinite(row.cost) && row.cost >= 0 && row.cost <= LOW_COST_MAX)} className="group panel-cut border border-primary/30 bg-primary/10 p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Carta de custo baixo na abertura<MetricTooltip metric="custo-baixo-abertura" what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 carta de custo ≤2." howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar cartas baratas. Clique pra ver quais contam." /></p>
+                    <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%<ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.</p>
-                  </div>
-                  <div className="panel-cut border border-accent/30 bg-accent/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit de nível baixo na abertura</p>
-                    <p className="mt-2 font-heading text-4xl heading-portal">{Math.round(lowLevelStats.openingHand * 100)}%</p>
+                  </button>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Unit de nível baixo na abertura", (row) => row.type === "UNIT" && typeof row.level === "number" && row.level >= 1 && row.level <= LOW_LEVEL_MAX)} className="group panel-cut border border-accent/30 bg-accent/10 p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit de nível baixo na abertura<MetricTooltip metric="nivel-baixo-abertura" what="Chance de abrir com pelo menos 1 Unidade de Lv.1 a Lv.3." howToRead="Units de nível baixo entram cedo e seguram o tabuleiro no início. Clique pra ver quais Units contam." /></p>
+                    <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">{Math.round(lowLevelStats.openingHand * 100)}%<ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 Unit Lv.1–3 ({lowLevelStats.lowLevelUnitCount} na lista), em 5 compradas.</p>
-                  </div>
+                  </button>
                   <div className="panel-cut border surface-strong p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan<MetricTooltip metric="custo-baixo-mulligan" what="A mesma chance de custo baixo, mas contando a mão original OU a redistribuída pelo mulligan." howToRead="É sempre ≥ a chance sem mulligan — é o piso realista, já que o mulligan é grátis e independente." /></p>
                     <p className="mt-2 text-lg heading-portal">{Math.round(handOdds.withMulligan * 100)}%</p>
                     <p className="mt-2 text-sm text-muted-portal">Custo baixo, contando a mão original ou a redistribuída.</p>
                   </div>
@@ -1868,7 +1846,7 @@ export default function DeckbuilderPage() {
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 03</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo<InfoHint text="Clique numa barra pra ver as cartas desse tipo." /></h3>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Composição por tipo<MetricTooltip metric="composicao-tipo" what="Quantidade de cartas por tipo (Unidade, Piloto, Comando, Base), em barras horizontais." howToRead="É o mesmo dado de 'Tipos no deck', em gráfico. Clique numa barra pra ver as cartas." /></h3>
               <div className="mt-6 h-[250px]">
                 <ChartContainer config={chartConfig} className="h-full w-full">
                   <BarChart layout="vertical" data={typeData} margin={{ left: 12, right: 12 }}>
@@ -1888,7 +1866,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 04</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de nível<InfoHint text="Distribuição das Units do deck principal por Lv. (Lv.6 e acima somam na faixa 6+). Clique numa barra pra ver as cartas daquele nível." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Curva de nível<MetricTooltip metric="curva-nivel" what="Distribuição das Unidades do deck principal por Lv. (Lv.6 e acima somam na faixa 6+)." howToRead="Nível alto exige mais recurso pra jogar. Concentração em nível baixo abre mais cedo. Clique numa barra pra ver as cartas." /></h3>
                 <div className="mt-6 h-[220px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <BarChart data={levelData}>
@@ -1906,7 +1884,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de AP<InfoHint text="AP (poder de ataque) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele AP." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de AP<MetricTooltip metric="distribuicao-ap" what="AP (poder de ataque) das Unidades do deck principal." howToRead="AP alto pressiona mais e vence trocas; AP baixo depende de keyword ou pareamento. Clique numa barra pra ver as cartas." /></h3>
                 <div className="mt-6 h-[220px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <BarChart data={apData}>
@@ -1924,7 +1902,7 @@ export default function DeckbuilderPage() {
             <Card className="panel-cut rounded-none surface-panel">
               <CardContent className="p-6">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 06</p>
-                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de HP<InfoHint text="HP (pontos de vida) das Unidades no deck principal. Clique numa barra pra ver as cartas com aquele HP." /></h3>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Distribuição de HP<MetricTooltip metric="distribuicao-hp" what="HP (pontos de vida) das Unidades do deck principal." howToRead="HP alto sobrevive a mais dano e a remoções por dano; HP baixo cai fácil de Blocker e efeitos. Clique numa barra pra ver as cartas." /></h3>
                 <div className="mt-6 h-[220px]">
                   <ChartContainer config={chartConfig} className="h-full w-full">
                     <BarChart data={hpData}>

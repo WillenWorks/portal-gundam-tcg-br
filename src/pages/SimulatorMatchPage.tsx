@@ -100,7 +100,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
 import { api, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -384,6 +384,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  asas — reseta sozinho se a tela deixar de ser wide (guard no render). */
   const [boardExpanded, setBoardExpanded] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  /** Feedback.pdf §5 — erro de JOGADA (jogada ilegal, custo/alvo faltando) numa
+   *  faixa própria no topo-centro, FORA da área do log e do `ActionDock`. Some
+   *  sozinho. Erros de SISTEMA (conexão, W.O., auto-pass) seguem em `toast`. */
+  const [actionError, setActionError] = useState<string | null>(null);
+  const actionErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** instante em que o redirecionamento pós-fim-de-jogo dispara (pra mostrar a contagem regressiva). */
   const [redirectAt, setRedirectAt] = useState<number | null>(null);
   /** Frente 4 (feedback Willen 4ª rodada) — animação de setup em curso, disparada
@@ -468,6 +473,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setAttackerId(null);
   };
 
+  /** Erro de jogada — faixa própria no topo, auto-some em 4s. */
+  const showActionError = useCallback((message: string) => {
+    setActionError(message);
+    if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
+    actionErrorTimerRef.current = setTimeout(() => setActionError(null), 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (actionErrorTimerRef.current) clearTimeout(actionErrorTimerRef.current);
+    };
+  }, []);
+
   const runAction = useCallback(
     async (action: PlayerAction) => {
       setBusy(true);
@@ -478,12 +496,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         await sendAction(action);
         clearSelection();
       } catch (err) {
-        toast.error(errorMessage(err, "Ação inválida."));
+        // jogada recusada pelo motor (ex.: atacar com Unit rested) — faixa
+        // própria no topo, não `toast` no canto (que tapava o log — Feedback.pdf §5).
+        showActionError(errorMessage(err, "Ação inválida."));
       } finally {
         setBusy(false);
       }
     },
-    [sendAction],
+    [sendAction, showActionError],
   );
 
   const toggleAutoPass = async (value: boolean) => {
@@ -752,7 +772,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // pra restar. Sem isso o motor pegava os N primeiros do array — e o EX Resource,
     // que fica sempre no índice 0, era gasto (e SAI DO JOGO) sem o jogador querer.
     if (pendingCost > 0 && selectedResources.length !== pendingCost) {
-      toast.error(`Selecione exatamente ${pendingCost} recurso(s) ativo(s) para pagar o custo (clique na sua bandeja de Recursos).`);
+      showActionError(`Selecione exatamente ${pendingCost} recurso(s) ativo(s) para pagar o custo (clique na sua bandeja de Recursos).`);
       return;
     }
     const resourceInstanceIds = pendingCost > 0 ? selectedResources : undefined;
@@ -763,7 +783,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         .map((u) => ({ instanceId: u.instanceId, code: u.def.code, paired: !!u.pairedPilotId }));
       const sel = resolveDeploySelection({ card: pendingCard, selected, ownBattleUnits });
       if (sel.error) {
-        toast.error(sel.error);
+        showActionError(sel.error);
         return;
       }
       // Etapa 4 (When Paired) + fix do Guntank (Deploy) — gatilhos direcionados são
@@ -777,10 +797,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       });
     } else if (pending.kind === "activateAbility") {
       if (pending.abilityNeedsTarget && selected.length === 0) {
-        toast.error("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
+        showActionError("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
         return;
       }
-      const targets = selected.length ? { target: selected, shield: selected } : undefined;
+      // Só `target`. O `addShieldToHand` do motor escolhe o shield sozinho
+      // (é face-down, a escolha não carrega informação). Passar o id do ALVO
+      // também como shield fazia o efeito devolver a carta-alvo pra mão em vez
+      // de um shield (bug do feedback: Rewloola não devolvia shield). Nenhuma
+      // 【Activate·Main】 de ST01–04 usa addShieldToHand, mas o alias era latente.
+      const targets = selected.length ? { target: selected } : undefined;
       runAction({
         kind: "activateAbility",
         sourceInstanceId: pending.cardInstanceId,
@@ -788,7 +813,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         resourceInstanceIds,
       });
     } else {
-      const targets = selected.length ? { target: selected, shield: selected } : undefined;
+      const targets = selected.length ? { target: selected } : undefined;
       runAction({
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
@@ -904,7 +929,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             : "heavy"
           : undefined;
       const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
-      const canActivate = Boolean(ability && myActiveResources >= ability!.cost);
+      const canActivate = Boolean(ability && myActiveResources >= ability.cost);
       const actions =
         unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith || canActivate)
           ? {
@@ -912,6 +937,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
               onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
               onActivate: canActivate && ability ? (u: CardInstance) => startActivateAbility(u, ability) : undefined,
+              // Fix 2 — `<Support>` reusa este botão; rótulo dedicado deixa claro.
+              activateLabel: ability?.kind === "support" ? "Support" : undefined,
             }
           : undefined;
       return (
@@ -1340,6 +1367,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             art={art}
             inPlay
             state={boardForStats}
+            // Demanda 1 — o painel lateral (widescreen) também recebe PT/EN
+            // separados pra o toggle de idioma aparecer aqui, não só no modal.
+            effectPt={hoveredCard ? cardText[hoveredCard.def.code]?.pt : undefined}
+            effectEn={hoveredCard ? cardText[hoveredCard.def.code]?.en : undefined}
             className="min-w-0 max-w-[28rem] flex-1 max-h-full overflow-hidden"
           />
         ) : null}
@@ -1534,6 +1565,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           do caminho do tabuleiro, nunca bloqueia clique/hover. */}
       <MatchPrompt message={matchPrompt} tone={combat || iAmDefending ? "warn" : "info"} />
 
+      {/* Feedback.pdf §5 — erro de JOGADA numa faixa própria (topo-centro, logo
+          abaixo do `MatchPrompt`), longe do log (direita) e do `ActionDock`
+          (canto). Some sozinho em 4s; clique fecha na hora. */}
+      {actionError ? (
+        <div className="fixed inset-x-0 top-16 z-[46] flex justify-center px-3">
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            role="alert"
+            className="panel-cut flex max-w-[min(34rem,calc(100vw-1.5rem))] items-center gap-2 border border-red-500/60 bg-slate-950/97 px-3.5 py-2 text-left text-xs font-semibold leading-snug text-red-200 shadow-2xl"
+          >
+            <AlertTriangle className="size-4 shrink-0" aria-hidden />
+            {actionError}
+          </button>
+        </div>
+      ) : null}
+
       {/* Frente 4 (feedback Willen 4ª rodada) — animação de setup ancorada nas
           zonas reais: sai da pilha do deck e viaja até a mão / zona de escudos. */}
       {setupAnim ? (
@@ -1563,7 +1611,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <ActionDock
           state={computeDockState()}
           busy={busy}
-          logTail={battleLog[battleLog.length - 1]?.text}
+          // Feedback.pdf §5 — o dock não ECOA mais o log (o histórico é só na
+          // gaveta) e some pra a esquerda quando a gaveta está aberta pra não
+          // ficar por cima dela.
+          logOpen={logOpen}
           onConfirm={confirmPending}
           onCancel={clearSelection}
           onEndTurn={() => runAction({ kind: "finishTurn" })}

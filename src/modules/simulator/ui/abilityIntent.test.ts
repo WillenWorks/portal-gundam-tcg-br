@@ -39,7 +39,39 @@ describe("abilityIntent", () => {
     expect(fieldAbilityFor(used)).toBeNull();
   });
 
-  it("fieldAbilityFor: null pra carta sem 【Activate·Main】", () => {
+  it("fieldAbilityFor: null pra carta sem 【Activate·Main】 nem <Support>", () => {
     expect(fieldAbilityFor(inst({ code: "ST01-001" }))).toBeNull();
+  });
+
+  // <Support N> não tem EffectSpec — o motor resolve via `activateSupport`. A UI
+  // precisa oferecer o botão mesmo assim (ST03-002 Angelo's Geara Zulu, ST03-004
+  // Gaza D). Bug do feedback: "unidades com Support não deixam usar no campo".
+  const support: Partial<CardDef> & Pick<CardDef, "code"> = {
+    code: "ST03-002",
+    effectKeywords: ["Support"],
+    keywordTags: ["Support 2"],
+    oncePerTurn: true,
+  };
+
+  it("fieldAbilityFor: <Support> active/não-usada → { kind: 'support', cost 0, needsTarget true }", () => {
+    expect(fieldAbilityFor(inst(support))).toEqual({ kind: "support", cost: 0, needsTarget: true });
+  });
+
+  it("fieldAbilityFor: <Support> rested → null (o custo é 'rest this Unit')", () => {
+    expect(fieldAbilityFor(inst(support, { rested: true }))).toBeNull();
+  });
+
+  it("fieldAbilityFor: <Support> já usada neste turno (oncePerTurn) → null", () => {
+    expect(fieldAbilityFor(inst(support, { usedKeywordsThisTurn: ["Support"] }))).toBeNull();
+  });
+
+  it("fieldAbilityFor: <Support> numa BASE → null (só Unit ativa Support)", () => {
+    expect(fieldAbilityFor(inst({ ...support, cardType: "BASE" }))).toBeNull();
+  });
+
+  it("fieldAbilityFor: 【Activate·Main】 tem precedência sobre <Support> e sai marcada 'activateMain'", () => {
+    expect(fieldAbilityFor(inst({ code: "ST02-006", oncePerTurn: true }))).toEqual(
+      expect.objectContaining({ kind: "activateMain" }),
+    );
   });
 });
