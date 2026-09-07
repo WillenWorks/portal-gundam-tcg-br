@@ -728,3 +728,32 @@ model SimulatorMatch {
   @@index([updatedAt])
   @@index([finishedAt])
 }
+
+/// Bug report capturado de dentro de uma partida do Simulador (docs/44 Fase 3
+/// §5.1). O jogador aperta "Reportar situação" no HUD; o servidor congela o
+/// `GameState` completo (repro), o `buildBattleLog` da visão daquele assento e
+/// as cartas em jogo no momento. Sem relação FK — blob autocontido, mesma
+/// filosofia do `SimulatorMatch`. `shortCode` ("BUG-A1B2C3") é o identificador
+/// que o jogador vê na tela e usa pra acompanhar; os agentes de triagem/fix
+/// (Wave 3) consomem `status`/`triage`/`prUrl`.
+model SimulatorBugReport {
+  id            String   @id @default(cuid())
+  shortCode     String   @unique
+  matchId       String
+  reporterId    String
+  seat          String
+  note          String?
+  engineVersion String
+  gameState     Json
+  battleLog     Json
+  lastAction    Json?
+  cardsInvolved String[]
+  status        String   @default("new")
+  triage        Json?
+  prUrl         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
