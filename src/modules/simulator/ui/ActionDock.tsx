@@ -34,6 +34,11 @@ export interface ActionDockProps {
   busy?: boolean;
   /** última linha do log, ecoada numa tira fina embaixo do dock. */
   logTail?: string;
+  /** Feedback.pdf §5 — no desktop o `BattleLogDrawer` aberto ocupa a borda
+   *  direita inteira (`w-64`); quando `true`, o dock desloca pra a esquerda pra
+   *  não ficar POR CIMA do histórico. No mobile não há colisão (o dock é coluna
+   *  à esquerda). */
+  logOpen?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
   onEndTurn?: () => void;
@@ -97,6 +102,7 @@ export function ActionDock({
   onClaimAbandon,
   onLeaveAfterGameOver,
   mobileMaxHeightPx,
+  logOpen,
 }: ActionDockProps) {
   function renderBody() {
     switch (state.kind) {
@@ -323,7 +329,13 @@ export function ActionDock({
       // Frente 4 (docs/38 §3.5) — desktop: a caixa acompanha o conteúdo
       // (`lg:w-fit`) entre um piso e um teto, com `min-w-fit`, pra "Fase
       // Principal · Ação" nunca ser truncada no canto direito (Feedback.pdf §5).
-      className="fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:right-2 lg:max-h-none lg:w-fit lg:min-w-[13rem] lg:max-w-[26rem] lg:overflow-visible"
+      // Feedback.pdf §5 — com o log aberto (`w-64` na borda direita), o dock
+      // some pra `lg:right-[16.5rem]` (16rem do drawer + 0.5rem de folga) pra
+      // não tapar o histórico; fechado, volta pro canto (`lg:right-2`).
+      className={cn(
+        "fixed left-2 top-12 z-40 max-h-[min(60vh,calc(100dvh-4rem))] w-40 overflow-y-auto lg:left-auto lg:top-auto lg:bottom-14 lg:max-h-none lg:w-fit lg:min-w-[13rem] lg:max-w-[26rem] lg:overflow-visible",
+        logOpen ? "lg:right-[16.5rem]" : "lg:right-2",
+      )}
     >
       <div
         className={cn(
