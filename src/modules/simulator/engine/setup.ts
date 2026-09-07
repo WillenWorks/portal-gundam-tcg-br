@@ -1,6 +1,19 @@
 import type { CardDef, CardInstance, GameState, PlayerId, PlayerState } from "./types";
 import { createRng, shuffleInPlace, type Rng } from "./rng";
 
+/**
+ * Versão do motor gravada em `GameState.engineVersion` (docs/44 §8.4 — a triagem
+ * de bug report checa contra qual motor o estado foi gerado). O motor só roda
+ * server-side (o cliente renderiza `ViewGameState` autoritativo), então a fonte
+ * é `process.env.ENGINE_SHA` / `VITE_ENGINE_SHA`, setado no boot do servidor
+ * (TODO Lane 0D). `"dev"` em teste/fuzz/dev. Acesso via `globalThis` pra não
+ * exigir os tipos de `node` no `tsconfig.app` (só `vite/client`).
+ */
+export function resolveEngineVersion(): string {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return env?.ENGINE_SHA ?? env?.VITE_ENGINE_SHA ?? "dev";
+}
+
 export interface DeckList {
   /** 50 cartas do deck principal (Unit/Pilot/Command/Base) — Comprehensive Rules 6-1-1 */
   main: CardDef[];
@@ -228,5 +241,6 @@ export function createGame(deckA: DeckList, deckB: DeckList, options: CreateGame
     gameOver: null,
     nextInstanceSeq: seqRef.n,
     seed: options.seed,
+    engineVersion: resolveEngineVersion(),
   };
 }

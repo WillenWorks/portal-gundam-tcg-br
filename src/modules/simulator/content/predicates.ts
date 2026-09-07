@@ -16,6 +16,13 @@ import { effectiveAp, effectiveHp, effectivePilotDef, satisfiesLinkCondition, ty
  * não em mais um resolver local duplicado.
  */
 export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: EffectContext) => {
+  // Predicado composto: "a && b && c" → todos precisam ser verdadeiros. Deixa
+  // uma carta expressar "gate X" + "escolha Y" sem `condition` aninhada
+  // (ex. ST04-012 Striker Pack 【Main】: "se não tem token (Earth Alliance)" E
+  // "escolheu Launcher").
+  if (predicate.includes(" && ")) {
+    return predicate.split(" && ").every((p) => defaultPredicateResolver(p.trim(), ctx));
+  }
   const pairedPilotHasTrait = predicate.match(/^pairedPilotHasTrait:(.+)$/);
   if (pairedPilotHasTrait) {
     const source = findCard(ctx.state, ctx.sourceInstanceId);
@@ -34,6 +41,13 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const namedChoice = predicate.match(/^namedChoiceEquals:([^:]+):(.+)$/);
   if (namedChoice) {
     return ctx.targets[namedChoice[1]]?.[0] === namedChoice[2];
+  }
+  // Complemento de `namedChoiceEquals` — verdadeiro quando a escolha NÃO é o
+  // valor dado (inclui "não escolheu nada"). Ex. ST04-012 Striker Pack 【Main】:
+  // o branch Sword dispara quando a escolha não é "launcher".
+  const namedChoiceNot = predicate.match(/^namedChoiceNotEquals:([^:]+):(.+)$/);
+  if (namedChoiceNot) {
+    return ctx.targets[namedChoiceNot[1]]?.[0] !== namedChoiceNot[2];
   }
   // ST04-006 Aegis Gundam — 【Attack】"If this Unit has 5 or more AP, ...".
   const selfApAtLeast = predicate.match(/^selfApAtLeast:(\d+)$/);

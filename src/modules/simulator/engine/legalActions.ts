@@ -319,20 +319,14 @@ export function enumerateLegalActions(
   const candidates = rawCandidates(state, seat, specs, opts);
   if (opts.validate === false) return candidates;
 
-  // `cloneState` (events.ts) protege `players`/`combat`/`eventLog`, mas NÃO
-  // clona `endPhaseAction` a fundo — e o `applyEvent` de `END_PHASE_ACTION_PASS`
-  // muta `.passes`/`.priority` in place. Aplicar duas ações a partir do MESMO
-  // snapshot durante o Action Step da End Phase corromperia o estado do
-  // chamador; só aí a aplicação de teste precisa de um `structuredClone`
-  // completo (o `GameState` é 100% serializável — docs/44 §2). Fora disso,
-  // passar o `state` direto é seguro e muito mais barato.
-  const needsIsolation = state.endPhaseAction !== null;
-
+  // `applyPlayerAction` nunca muta o `state` recebido — todo caminho passa por
+  // `applyEvent`, que faz `cloneState` no topo (`players`, `combat.actionPasses`
+  // e `endPhaseAction.passes` clonados a fundo — docs/46 §Achados 1, corrigido).
+  // Então dá pra reusar o mesmo `state` como base de cada aplicação de teste.
   const legal: LegalAction[] = [];
   for (const action of candidates) {
     try {
-      const trialState = needsIsolation ? (structuredClone(state) as GameState) : state;
-      applyPlayerAction(trialState, seat, action, specs, opts.predicateResolver, opts.targetFilterResolver);
+      applyPlayerAction(state, seat, action, specs, opts.predicateResolver, opts.targetFilterResolver);
       legal.push(action);
     } catch (err) {
       if (isPlainLegalityError(err)) continue; // jogada ilegal — descarta em silêncio

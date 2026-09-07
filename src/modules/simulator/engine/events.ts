@@ -88,6 +88,13 @@ export function cloneState(state: GameState): GameState {
     ...state,
     players,
     combat: state.combat ? { ...state.combat, actionPasses: { ...state.combat.actionPasses } } : null,
+    // `applyEvent` de END_PHASE_ACTION_PASS muta `.passes`/`.priority` in place —
+    // sem clonar o objeto (e o `passes` aninhado), aplicar 2 ações a partir do
+    // mesmo snapshot no Action Step da End Phase corromperia o snapshot original
+    // (docs/46 §Achados 1). Mesmo tratamento dado a `combat.actionPasses`.
+    endPhaseAction: state.endPhaseAction
+      ? { ...state.endPhaseAction, passes: { ...state.endPhaseAction.passes } }
+      : null,
     pendingDecision: { ...state.pendingDecision },
     eventLog: [...state.eventLog],
   };
@@ -198,7 +205,6 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const player = state.players[owner];
       const card = removeFromZone(player, event.instanceId);
       if (!card) return state;
-      card.zone = "trash";
       card.rested = false;
       card.damage = 0;
       card.statModifiers = [];
@@ -208,6 +214,15 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.asPilot = undefined;
       card.attackTargetRelaxUntilTurn = undefined;
       card.cannotAttackUntilTurn = undefined;
+      // Token que deixa o campo é REMOVIDO DO JOGO, não vai pro trash
+      // (Comprehensive Rules — EX Base, EX Resource, tokens de Unit). Vai pra
+      // zona `exile`, igual REMOVE_CARD_FROM_GAME.
+      if (card.def.isToken) {
+        card.zone = "exile";
+        player.exile.push(card);
+        return state;
+      }
+      card.zone = "trash";
       // se destruir uma Unit com Pilot pareado, o Pilot também vai pro trash (ver combat.ts)
       player.trash.push(card);
       return state;
