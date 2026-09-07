@@ -1,0 +1,438 @@
+{
+  "generatedFrom": "69 specs",
+  "sets": {
+    "ST01": {
+      "cards": [
+        {
+          "code": "ST01-001",
+          "name": "Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-002",
+          "name": "Gundam (MA Form)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-003",
+          "name": "Guncannon",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-004",
+          "name": "Guntank",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-005",
+          "name": "GM",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-006",
+          "name": "Gundam Aerial (Permet Score Six)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-007",
+          "name": "Gundam Aerial (Bit on Form)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-008",
+          "name": "Demi Trainer",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-009",
+          "name": "Zowort",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-010",
+          "name": "Amuro Ray",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-011",
+          "name": "Suletta Mercury",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-012",
+          "name": "Thoroughly Damaged",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-013",
+          "name": "Kai's Resolve",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-014",
+          "name": "Unforeseen Incident",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-015",
+          "name": "White Base",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST01-016",
+          "name": "Asticassia School of Technology, Earth House",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 12,
+        "implStar": 0,
+        "vanilla": 4,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST02": {
+      "cards": [
+        {
+          "code": "ST02-001",
+          "name": "Wing Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-002",
+          "name": "Wing Gundam (Bird Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-003",
+          "name": "Gundam Heavyarms",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-004",
+          "name": "Gundam Sandrock",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-005",
+          "name": "Maganac",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-006",
+          "name": "Tallgeese",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-007",
+          "name": "Leo",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-008",
+          "name": "Aries",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-009",
+          "name": "Tragos",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-010",
+          "name": "Heero Yuy",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-011",
+          "name": "Zechs Merquise",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-012",
+          "name": "Simultaneous Fire",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-013",
+          "name": "Peaceful Timbre",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-014",
+          "name": "Siege Ploy",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST02-015",
+          "name": "Saint Gabriel Institute",
+          "status": "implementada*",
+          "deferredClauses": [
+            "look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom"
+          ]
+        },
+        {
+          "code": "ST02-016",
+          "name": "Corsica Base",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 10,
+        "implStar": 1,
+        "vanilla": 5,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST03": {
+      "cards": [
+        {
+          "code": "ST03-001",
+          "name": "Sinanju",
+          "status": "implementada*",
+          "deferredClauses": [
+            "【During Pair】This Unit gains <High-Maneuver>.",
+            "when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it."
+          ]
+        },
+        {
+          "code": "ST03-002",
+          "name": "Angelo's Geara Zulu",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-003",
+          "name": "Geara Zulu",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-004",
+          "name": "Gaza D (Sleeves)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-005",
+          "name": "Dra-C (Sleeves)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-006",
+          "name": "Char's Zaku Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-007",
+          "name": "Zaku Ⅰ",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-008",
+          "name": "Zaku Ⅱ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-009",
+          "name": "Gouf",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-010",
+          "name": "Full Frontal",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-011",
+          "name": "Char Aznable",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-012",
+          "name": "Indignation",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-013",
+          "name": "Close Combat",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-014",
+          "name": "The Blue Giant",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-015",
+          "name": "Rewloola",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST03-016",
+          "name": "Falmel",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 10,
+        "implStar": 1,
+        "vanilla": 5,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST04": {
+      "cards": [
+        {
+          "code": "ST04-001",
+          "name": "Aile Strike Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-002",
+          "name": "Strike Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-003",
+          "name": "Moebius Zero",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-004",
+          "name": "Moebius",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-005",
+          "name": "Strike Dagger",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-006",
+          "name": "Aegis Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-007",
+          "name": "Aegis Gundam (MA Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-008",
+          "name": "Ginn",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-009",
+          "name": "Miguel's Ginn",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-010",
+          "name": "Kira Yamato",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-011",
+          "name": "Athrun Zala",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-012",
+          "name": "Striker Pack",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-013",
+          "name": "Hawk of Endymion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-014",
+          "name": "The Magic Bullet of Dusk",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-015",
+          "name": "Archangel",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST04-016",
+          "name": "Vesalius",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 11,
+        "implStar": 0,
+        "vanilla": 5,
+        "deferida": 0,
+        "faltando": 0
+      }
+    }
+  }
+}
