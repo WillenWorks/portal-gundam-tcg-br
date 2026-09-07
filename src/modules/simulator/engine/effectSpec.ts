@@ -175,7 +175,15 @@ export type PrimitiveCall =
    * (`ctx.targets[deployName]`) está na mão, é Unit e casa `filter` (trait/level).
    * O limite de 6 Units NÃO bloqueia (igual a `deployCard`: excesso resolvido
    * depois por rules management). Sem escolha → no-op. */
-  | { op: "deployFromHandTriggered"; player: PlayerRef; filter: CardDefFilter; deployName?: string };
+  | { op: "deployFromHandTriggered"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
+  /**
+   * "【Burst】Deploy this card." — coloca a PRÓPRIA carta (BASE → baseSection,
+   * UNIT → battleArea) em campo, aplicando a regra de 1 Base (a Base atual vai
+   * pro trash, ou pro exílio se for token). Depois disso o `dispatcher.ts`
+   * ENCADEIA o 【Deploy】 da carta (Add 1 Shield / token / dano). Sem esta
+   * primitiva o Burst usava `moveZone self → baseSection`, que não trocava a
+   * Base nem disparava o 【Deploy】 (docs/47 Classe B). */
+  | { op: "deployThisCard" };
 
 /**
  * Filtro sobre um `CardDef` — usado pelas primitivas que escolhem carta por
@@ -362,6 +370,26 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         events.push({ type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" });
       }
       return events;
+    }
+    case "deployThisCard": {
+      const source = findCard(ctx.state, ctx.sourceInstanceId);
+      if (source.def.cardType === "BASE") {
+        const events: GameEvent[] = [];
+        const existing = ctx.state.players[source.owner].baseSection[0];
+        if (existing && existing.instanceId !== ctx.sourceInstanceId) {
+          events.push(
+            existing.def.isToken
+              ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId }
+              : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" },
+          );
+        }
+        events.push({ type: "MOVE_CARD", instanceId: ctx.sourceInstanceId, toZone: "baseSection" });
+        return events;
+      }
+      if (source.def.cardType === "UNIT") {
+        return [{ type: "MOVE_CARD", instanceId: ctx.sourceInstanceId, toZone: "battleArea" }];
+      }
+      throw new Error(`deployThisCard: ${source.def.code} não é BASE nem UNIT`);
     }
     case "deployFromHandTriggered": {
       const player = resolvePlayerRef(call.player, ctx.controller);

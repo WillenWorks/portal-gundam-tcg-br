@@ -174,19 +174,27 @@ export const REWLOOLA_BURST: EffectSpec = {
   id: "ST03-015-Burst",
   cardCode: "ST03-015",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
-export const REWLOOLA_DEPLOY: EffectSpec = {
-  id: "ST03-015-Deploy",
+// 2 specs pro mesmo 【Deploy】: "Add 1 Shield" é INCONDICIONAL (sempre roda), o
+// "choose 1 enemy Unit... deal 1 damage" precisa de alvo (interativo / auto-mira
+// em combate). Num spec único a camada de decisão descartava o efeito inteiro
+// quando não havia alvo legal — e o shield não era adicionado (docs/47 Lane 1D).
+export const REWLOOLA_DEPLOY_SHIELD: EffectSpec = {
+  id: "ST03-015-Deploy-Shield",
   cardCode: "ST03-015",
   trigger: "Deploy",
-  actions: [
-    { op: "addShieldToHand", player: "controller", count: 1 },
-    { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
-  ],
+  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
+  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+};
+export const REWLOOLA_DEPLOY_DAMAGE: EffectSpec = {
+  id: "ST03-015-Deploy-Damage",
+  cardCode: "ST03-015",
+  trigger: "Deploy",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
   targetFilter: "ap<=5",
-  sourceText: "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
+  sourceText: "Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
 };
 
 // ST03-016 Falmel — 【Burst】Deploy this card. / 【Deploy】Add 1 of your Shields to
@@ -197,7 +205,7 @@ export const FALMEL_BURST: EffectSpec = {
   id: "ST03-016-Burst",
   cardCode: "ST03-016",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 export const FALMEL_DEPLOY: EffectSpec = {
@@ -227,7 +235,8 @@ export const ST03_EFFECT_SPECS: EffectSpec[] = [
   CLOSE_COMBAT_MAIN,
   CLOSE_COMBAT_ACTION,
   REWLOOLA_BURST,
-  REWLOOLA_DEPLOY,
+  REWLOOLA_DEPLOY_SHIELD,
+  REWLOOLA_DEPLOY_DAMAGE,
   FALMEL_BURST,
   FALMEL_DEPLOY,
 ];

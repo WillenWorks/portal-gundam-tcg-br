@@ -215,7 +215,7 @@ export const ARCHANGEL_BURST: EffectSpec = {
   id: "ST04-015-Burst",
   cardCode: "ST04-015",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 export const ARCHANGEL_DEPLOY: EffectSpec = {
@@ -247,7 +247,7 @@ export const VESALIUS_BURST: EffectSpec = {
   id: "ST04-016-Burst",
   cardCode: "ST04-016",
   trigger: "Burst",
-  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "baseSection" }],
+  actions: [{ op: "deployThisCard" }],
   sourceText: "【Burst】Deploy this card.",
 };
 export const VESALIUS_DEPLOY: EffectSpec = {

@@ -1,9 +1,9 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { resolveEffectSpec } from "./effectSpec";
+import { computeLegalTargets, resolveEffectSpec, specNeedsNamedTarget } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { MAX_DESTROYED_CHAIN, dispatchDestroyedFromEffect } from "./abilityDispatch";
+import { MAX_DESTROYED_CHAIN, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
 
 /**
  * Dispatcher automático de trigger (docs/18, "Motor de jogo real + gaps
@@ -103,6 +103,39 @@ export function dispatchTrigger(
       });
     }
 
+    // docs/47 Classe B — 【Burst】Deploy this card: a `deployThisCard` acabou de
+    // pôr a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token
+    // / dano). Burst só acontece no Damage Step, então alvo nomeado é auto-mirado
+    // (mesma aproximação de Sinanju — sem escolha de alvo em combate, deferred.ts
+    // Classe C). Sem `pendingDecision` nova nesse caminho.
+    if (!next.pendingDecision[current.owner] && spec.actions.some((c) => c.op === "deployThisCard")) {
+      const deployTriggerSpecs = findTriggerSpecs(allSpecs, current.def.code, "Deploy");
+      if (deployTriggerSpecs.length > 0) {
+        const autoTargets: Record<string, string[]> = {};
+        for (const ds of deployTriggerSpecs) {
+          if (!specNeedsNamedTarget(ds)) continue;
+          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver);
+          if (legal.length > 0) autoTargets.target = [legal[0]];
+        }
+        const dispatchable = filterDispatchableSpecs(
+          next,
+          current.def.code,
+          "Deploy",
+          allSpecs,
+          current.owner,
+          autoTargets.target,
+          opts.targetFilterResolver,
+        );
+        next = dispatchTrigger(next, sourceInstanceId, "Deploy", dispatchable, {
+          targets: autoTargets,
+          predicateResolver: opts.predicateResolver,
+          targetFilterResolver: opts.targetFilterResolver,
+          allSpecs,
+          destroyedChainDepth: chainDepth,
+        });
+      }
+    }
+
     if (current.def.oncePerTurn) {
       next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword: trigger });
     }
@@ -167,6 +200,7 @@ export function dispatchBurstForNewlyTrashedShields(
   specs: EffectSpec[],
   chooseBurst: BurstChoiceFn = () => false,
   predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
 ): GameState {
   const wasInShields = new Set(before.players[defendingPlayer].shields.map((c) => c.instanceId));
   const newlyTrashed = after.players[defendingPlayer].trash.filter((c) => wasInShields.has(c.instanceId));
@@ -178,7 +212,12 @@ export function dispatchBurstForNewlyTrashedShields(
     if (matching.length === 0) continue;
     const targets = chooseBurst(card, matching);
     if (targets === false) continue;
-    next = dispatchTrigger(next, card.instanceId, "Burst", specs, { targets, predicateResolver, allSpecs: specs });
+    next = dispatchTrigger(next, card.instanceId, "Burst", specs, {
+      targets,
+      predicateResolver,
+      targetFilterResolver,
+      allSpecs: specs,
+    });
   }
   return next;
 }

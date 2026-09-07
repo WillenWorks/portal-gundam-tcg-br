@@ -448,13 +448,11 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     if (shieldToMoveId) expect(findCard(state, shieldToMoveId).zone).toBe("hand"); // WHITE_BASE_DEPLOY
 
     const whiteBaseShieldId = mkInstance(state, "A", ST01_CARD_DEFS.WHITE_BASE, "shields");
-    state = dispatchTrigger(state, whiteBaseShieldId, "Burst", ALL_SPECS);
-    expect(findCard(state, whiteBaseShieldId).zone).toBe("baseSection"); // WHITE_BASE_BURST
-    // nota: o `moveZone self->baseSection` do Burst é uma primitiva de movimento genérica — ao
-    // contrário de `deployCard`, ela não sabe da regra "máx. 1 Base" (rule 11-5-2 cobre isso pra
-    // Burst também, mas essa é uma refinaria de regra fora do escopo desta wave, não uma das 8
-    // lacunas já documentadas nem um dos 27 EffectSpecs). Esvazia por fixture antes do próximo Deploy
-    // só pra isolar o teste de ASTICASSIA_DEPLOY (senão os dois ficariam empilhados na mesma zona).
+    state = dispatchTrigger(state, whiteBaseShieldId, "Burst", ALL_SPECS, { predicateResolver, targetFilterResolver: defaultTargetFilterResolver, allSpecs: ALL_SPECS });
+    expect(findCard(state, whiteBaseShieldId).zone).toBe("baseSection"); // WHITE_BASE_BURST (deployThisCard)
+    // docs/47 Classe B: o Burst agora usa `deployThisCard` (aplica a regra "máx. 1 Base")
+    // e o dispatcher encadeia o 【Deploy】 da Base. Esvazia antes do próximo Deploy só pra
+    // isolar o teste de ASTICASSIA_DEPLOY.
     state.players.A.baseSection = [];
 
     const asticassiaId = mkInstance(state, "A", ST01_CARD_DEFS.ASTICASSIA, "hand");
@@ -467,7 +465,7 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     if (shieldToMoveId2) expect(findCard(state, shieldToMoveId2).zone).toBe("hand");
 
     const asticassiaShieldId = mkInstance(state, "A", ST01_CARD_DEFS.ASTICASSIA, "shields");
-    state = dispatchTrigger(state, asticassiaShieldId, "Burst", ALL_SPECS);
+    state = dispatchTrigger(state, asticassiaShieldId, "Burst", ALL_SPECS, { predicateResolver, targetFilterResolver: defaultTargetFilterResolver, allSpecs: ALL_SPECS });
     expect(findCard(state, asticassiaShieldId).zone).toBe("baseSection"); // ASTICASSIA_BURST
 
     // B terminou a partida com 0 shields (é assim que o GAME_OVER acontece) — repõe um punhado só
@@ -498,11 +496,9 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     expect(state.players.B.deck[state.players.B.deck.length - 1].instanceId).toBe(bTop2.instanceId);
 
     const saintGabrielShieldId = mkInstance(state, "B", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "shields");
-    state = dispatchTrigger(state, saintGabrielShieldId, "Burst", ALL_SPECS);
-    expect(findCard(state, saintGabrielShieldId).zone).toBe("baseSection"); // SAINT_GABRIEL_INSTITUTE_BURST
-    // nota: mesma simplificação de fixture documentada no lado A (`moveZone self->baseSection`
-    // do Burst não sabe da regra "máx. 1 Base" — só `deployCard` sabe). Esvazia antes do próximo
-    // Deploy só pra isolar o teste de CORSICA_BASE_DEPLOY.
+    state = dispatchTrigger(state, saintGabrielShieldId, "Burst", ALL_SPECS, { predicateResolver, targetFilterResolver: defaultTargetFilterResolver, allSpecs: ALL_SPECS });
+    expect(findCard(state, saintGabrielShieldId).zone).toBe("baseSection"); // SAINT_GABRIEL_INSTITUTE_BURST (deployThisCard)
+    // Esvazia antes do próximo Deploy só pra isolar o teste de CORSICA_BASE_DEPLOY.
     state.players.B.baseSection = [];
 
     const corsicaBaseId = mkInstance(state, "B", ST02_CARD_DEFS.CORSICA_BASE, "hand");
@@ -525,7 +521,7 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
     );
 
     const corsicaBaseShieldId = mkInstance(state, "B", ST02_CARD_DEFS.CORSICA_BASE, "shields");
-    state = dispatchTrigger(state, corsicaBaseShieldId, "Burst", ALL_SPECS);
+    state = dispatchTrigger(state, corsicaBaseShieldId, "Burst", ALL_SPECS, { predicateResolver, targetFilterResolver: defaultTargetFilterResolver, allSpecs: ALL_SPECS });
     expect(findCard(state, corsicaBaseShieldId).zone).toBe("baseSection"); // CORSICA_BASE_BURST
   });
 });

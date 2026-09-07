@@ -71,7 +71,7 @@ describe("ST03-015 Rewloola 【Deploy】 — caminho real (deployCard + resolveA
 
     const next = apply(paused, "A", {
       kind: "resolveAbility",
-      resolutions: [{ specId: "ST03-015-Deploy", activate: true, targetIds: [demiId] }],
+      resolutions: [{ specId: "ST03-015-Deploy-Damage", activate: true, targetIds: [demiId] }],
     });
 
     // shield foi pra mão: -1 shield, +1 carta na mão
@@ -105,7 +105,7 @@ describe("ST03-015 Rewloola 【Deploy】 — caminho real (deployCard + resolveA
     });
     const next = apply(paused, "A", {
       kind: "resolveAbility",
-      resolutions: [{ specId: "ST03-015-Deploy", activate: true, targetIds: [draCId] }],
+      resolutions: [{ specId: "ST03-015-Deploy-Damage", activate: true, targetIds: [draCId] }],
     });
 
     expect(next.players.A.shields.length).toBe(shieldsBefore - 1);

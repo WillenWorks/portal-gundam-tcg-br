@@ -58,64 +58,13 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:namedChoice-sem-camada-de-decisao",
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Classe B — 【Burst】Deploy this card não dispara o 【Deploy】 da Base.
-  // O EffectSpec de Burst é `moveZone self → baseSection` (um MOVE_CARD), não o
-  // caminho de `deployCard()`. A Base entra em jogo, mas o seu próprio 【Deploy】
-  // ("Add 1 of your Shields to your hand", token, dano…) nunca roda. O limite de
-  // 1 Base também não é aplicado nesse caminho (rule 11-5-2). Fechar = uma
-  // primitiva `deployThisCard` que reusa `deployCard`/`deferOrDispatchAbilities`,
-  // ou o dispatcher encadear "Deploy" após um `moveZone → baseSection` de Burst.
-  // Confirmado por repro em ST04-015 (base entra, mão não muda).
-  // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "ST01-015",
-    clause: "【Burst】Deploy this card.",
-    reason: "White Base entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield to hand) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST01-016",
-    clause: "【Burst】Deploy this card.",
-    reason: "Asticassia entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield to hand) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST02-015",
-    clause: "【Burst】Deploy this card.",
-    reason: "Saint Gabriel Institute entra em baseSection pelo Burst, mas o seu 【Deploy】 não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST02-016",
-    clause: "【Burst】Deploy this card.",
-    reason: "Corsica Base entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield + token) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST03-015",
-    clause: "【Burst】Deploy this card.",
-    reason: "Rewloola entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield + 1 de dano) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST03-016",
-    clause: "【Burst】Deploy this card.",
-    reason: "Falmel entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield + token Char's Zaku Ⅱ) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST04-015",
-    clause: "【Burst】Deploy this card.",
-    reason: "Archangel entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield to hand) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
-  {
-    cardCode: "ST04-016",
-    clause: "【Burst】Deploy this card.",
-    reason: "Vesalius entra em baseSection pelo Burst, mas o seu 【Deploy】 (Add 1 Shield to hand) não dispara.",
-    blockedBy: "engine:burst-deploy-nao-encadeia-deploy",
-  },
+  // Classe B — 【Burst】Deploy this card não dispara o 【Deploy】 da Base — FECHADA
+  // (docs/47 Lane 1D): primitiva `deployThisCard` (aplica a regra de 1 Base) +
+  // `dispatcher.ts` encadeia o 【Deploy】 logo após. Rewloola (【Deploy】 com alvo
+  // de dano) auto-mira mid-combat, igual Sinanju (ver Classe C). Saint Gabriel:
+  // o "Add 1 Shield" dispara; a reordenação do topo do deck via Burst continua
+  // pulada (o caminho encadeado não passa pela camada de decisão — só o 【Deploy】
+  // por jogada normal reordena; ver Classe A ST02-015).
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe C — ST03-001 Sinanju: aproximações aceitas (docs/43 §4).

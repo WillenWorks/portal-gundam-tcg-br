@@ -14,7 +14,8 @@ import {
   FULL_FRONTAL_WHEN_PAIRED,
   GOUF_DEPLOY,
   INDIGNATION_MAIN,
-  REWLOOLA_DEPLOY,
+  REWLOOLA_DEPLOY_DAMAGE,
+  REWLOOLA_DEPLOY_SHIELD,
   ST03_EFFECT_SPECS,
   THE_BLUE_GIANT_ACTION,
   ZAKU_II_ATTACK,
@@ -54,9 +55,9 @@ describe("ST03 — fixtures e cobertura", () => {
     expect(buildSt03DeckList().resources).toHaveLength(10);
   });
 
-  it("17 EffectSpecs cadastrados cobrindo 10 das 16 cartas únicas (resto é vanilla/keyword)", () => {
+  it("18 EffectSpecs cadastrados cobrindo 10 das 16 cartas únicas (resto é vanilla/keyword)", () => {
     const codes = new Set(ST03_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST03_EFFECT_SPECS).toHaveLength(17);
+    expect(ST03_EFFECT_SPECS).toHaveLength(18); // Rewloola 【Deploy】 = 2 specs (shield incondicional + dano com alvo)
     expect(codes).toEqual(
       new Set(["ST03-006", "ST03-008", "ST03-009", "ST03-010", "ST03-011", "ST03-012", "ST03-013", "ST03-014", "ST03-015", "ST03-016"]),
     );
@@ -138,12 +139,13 @@ describe("ST03 — EffectSpecs bespoke", () => {
     expect(findCard(next, enemyId).damage).toBe(2);
   });
 
-  it("ST03-015 Rewloola — 【Deploy】pega 1 shield e dá 1 de dano em Unit inimiga com AP≤5", () => {
+  it("ST03-015 Rewloola — 【Deploy】pega 1 shield (spec incondicional) e dá 1 de dano em Unit inimiga AP≤5 (spec com alvo)", () => {
     const state = freshGame();
     const baseId = place(state, "A", ST03_CARD_DEFS.REWLOOLA, "baseSection");
     const enemyId = place(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea"); // AP1
     const shieldsBefore = state.players.A.shields.length;
-    const next = applyEvents(state, resolveEffectSpec(REWLOOLA_DEPLOY, ctxFor(state, baseId, { target: [enemyId] })));
+    let next = applyEvents(state, resolveEffectSpec(REWLOOLA_DEPLOY_SHIELD, ctxFor(state, baseId)));
+    next = applyEvents(next, resolveEffectSpec(REWLOOLA_DEPLOY_DAMAGE, ctxFor(next, baseId, { target: [enemyId] })));
     expect(next.players.A.shields.length).toBe(shieldsBefore - 1);
     expect(findCard(next, enemyId).damage).toBe(1);
   });
