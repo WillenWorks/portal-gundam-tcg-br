@@ -12,18 +12,37 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 ## [Não lançado]
 
 ### No radar
-- Bot de treino (heurístico → IA) e pipeline de correção assistida — ver plano interno.
-- Analytics competitivos mais profundos (meta por temporada/arquétipo, uso por
-  carta) — Fase 2 do produto.
-- Perfis públicos, decks favoritos/compartilháveis — Fase 3.
-- Ranking no simulador — Fase 4.
-- `【Pilot】[X]` como pré-requisito de jogar carta, ponte deckbuilder → simulador.
-- Cobertura de efeitos das coleções GD/EB (dano a múltiplos alvos, filtros
-  relativos à carta-fonte).
+- **Validação de Machine Learning**: Análise dos logs reais coletados para validação prática do modelo antes de sua ativação em produção.
+- **Ranking no simulador**: Sistema de pontuação competitiva, temporadas e matchmaking pareado — Fase 4 do produto.
+- **Cobertura de efeitos das coleções GD/EB**: Dano a múltiplos alvos e filtros relativos à carta-fonte.
+- **Comunidade & Social**: Perfis públicos, decks favoritos/compartilháveis e vitrine de arquétipos.
+- **Ponte Deckbuilder → Simulador**: Validação estrita de `【Pilot】[X]` como pré-requisito de jogar carta.
 
 ---
 
-## [1.0.1] — 2026-09-06
+## [1.1.0] — 2026-09-08
+
+Grande atualização trazendo o **Modo Solo (Treino contra o Bot)**, telemetria completa de partidas e infraestrutura otimizada no **Render**.
+
+### 🤖 Modo Solo — Treino contra o Bot
+- **Treino Individual no Simulador** (`/#/simulador/treino` ou pelo menu lateral "Treino Solo") — agora você pode praticar suas estratégias a qualquer hora sem depender de outro jogador online.
+- Escolha entre os Starters **ST01 a ST04** e encare o bot com tempos de resposta naturais e interface imersiva.
+- **Múltiplos Níveis de Dificuldade**:
+  - **Fácil**: Ideal para aprender as regras básicas do jogo.
+  - **Normal**: Executa a política heurística determinística completa com avaliação tática de campo.
+  - **Difícil**: Executa busca em árvore de Monte Carlo (MCTS) antecipando turnos e respostas de combate.
+
+### 📊 Telemetria de Partidas e Histórico
+- **Auditoria de Partidas (`SimulatorMatchLog`)**: Cada turno, ação, tempo de jogada, deck e resultado (amistoso, rankeado ou treino) agora é registrado com segurança no banco de dados.
+- Base essencial para geração de estatísticas reais de metagame e análise de balanceamento de cartas.
+
+### 🧠 Pipeline de Machine Learning (em Dev)
+- **Extração Automatizada de Datasets** (`pnpm train:dataset-from-logs`): Script para anonimizar e formatar as partidas disputadas em tensores de treinamento.
+- **Proteção e Estabilidade em Produção**: O modo de treino em produção utiliza exclusivamente a política heurística segura. A inferência de rede neural fica restrita ao ambiente de desenvolvimento (`dev`) para treinos e baterias de testes práticos antes de qualquer promoção.
+
+### ☁️ Infraestrutura & Conformidade com o Render
+- Otimização do backend da API no **Render** (`render.yaml`), integrando um runner assíncrono nativo para o bot de modo solo sem exigir workers adicionais.
+
 
 ### 🛠️ Ajustes
 - **Preview de layout do simulador** (`/#/simulador/preview-layout`) agora abre

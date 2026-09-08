@@ -23,8 +23,8 @@ import { driveBotTurn } from "./driveBotTurn.mjs";
  * dono do `matchStore`. Aqui a leitura do `state` é só pra DECIDIR; toda
  * mutação passa pela API.
  *
- * Deploy: Railway service dedicado (fora do escopo desta entrega — só deixar
- * pronto). Rodar local: `SIM_BOT_TOKEN=... node --import tsx services/sim-bot/index.mjs`.
+ * Deploy: Render (runner embutido no web service por padrão, ou worker dedicado).
+ * Rodar local: `SIM_BOT_TOKEN=... node --import tsx services/sim-bot/index.mjs`.
  */
 
 const API_URL = (process.env.SIM_BOT_API_URL ?? "http://localhost:8787").replace(/\/$/, "");

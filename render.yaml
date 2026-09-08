@@ -20,6 +20,10 @@ services:
         value: 8787
       - key: STORAGE_DRIVER
         value: supabase
+      - key: NODE_ENV
+        value: production
+      - key: SIM_BOT_ENABLE_ML
+        value: "false"
       # Preencher no painel do Render (não commitar valor real):
       - key: DATABASE_URL
         sync: false
@@ -41,3 +45,22 @@ services:
         sync: false
       - key: SEED_ADMIN_PASSWORD
         sync: false
+
+# Observação: O modo de treino solo com o Bot Heurístico opera nativamente no Web Service acima
+# através do runner embutido assíncrono (server/index.ts -> setBotTurnSink).
+# Caso deseje um serviço Worker separado no Render para escala dedicada, basta descomentar:
+# - type: worker
+#   name: portal-gundam-tcg-br-sim-bot
+#   runtime: node
+#   plan: free
+#   branch: main
+#   buildCommand: pnpm install --frozen-lockfile && pnpm run prisma:generate
+#   startCommand: node --import tsx services/sim-bot/index.mjs
+#   envVars:
+#     - key: DATABASE_URL
+#       sync: false
+#     - key: SIM_BOT_TOKEN
+#       sync: false
+#     - key: SIM_BOT_API_URL
+#       sync: false
+

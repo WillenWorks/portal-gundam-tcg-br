@@ -1,206 +1,136 @@
 # Portal Gundam TCG BR
 
-Base inicial do portal brasileiro focado no **Gundam Card Game**, com direção para evoluir em:
+Portal brasileiro completo focado no **Gundam Card Game**, integrando catálogo oficial, base de regras e rulings em pt-BR, deckbuilder avançado e um **Simulador de Partidas em Tempo Real com Modo Solo (Treino contra Bot)**.
 
-- portal de conteúdo
-- base de regras, FAQ e rulings em pt-BR
-- deckbuilder com estatísticas
-- cadastro e análise de torneios
-- integração com canal de YouTube
-- monetização futura
-- simulador em etapas posteriores
+---
 
-## Stack atual
+## 🚀 O que a plataforma oferece hoje
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS v4
-- shadcn/ui
-- wouter
-- pnpm
-- Prisma
-- PostgreSQL local via Docker
-- Express para API/backend local
-- JWT para autenticação inicial
+### 🎴 Catálogo & Regras Oficiais em pt-BR
+- Catálogo completo com todas as cartas dos Starter Sets (**ST01 a ST04**), Boosters e Promos.
+- **Tradução de textos de efeitos** em português, preservando termos técnicos e keywords oficiais (`[Deploy]`, `[Burst]`, `<Blocker>`).
+- Rulings e FAQ oficiais indexados com busca rápida.
+- Curadoria automatizada de vínculos Unidade ↔ Piloto a partir dos dados oficiais.
 
-## Status atual
+### 🛠️ Deckbuilder Tático
+- Criação, edição e validação de decks de acordo com as regras de construção do GCG.
+- **Análise Estatística Completa**: curva de custos, distribuição de níveis (Lv.1 a Lv.6+), equilíbrio de tipos (Unit, Pilot, Command, Base) e cores.
+- **Cálculo Hipergeométrico de Probabilidade**: chances matemáticas de abrir a mão inicial com unidades jogáveis de custo e nível baixo.
+- Capas customizadas, exportação e compartilhamento público.
 
-- landing page inicial criada com identidade **Hangar Tático Neo-Militar**
-- topo global padronizado para páginas públicas e privadas
-- sidebar isolada para dashboard do usuário e admin
-- modo **escuro/claro** com persistência local
-- loading global técnico entre módulos lazy
-- páginas públicas de decks, coleções, cartas e regras conectadas à API
-- deckbuilder em módulo separado com paginação de pool e cache de API
-- dashboard do usuário com decks, configurações e binders compartilháveis
-- binders de **Lista de Desejos** e **Cartas Possuídas** com links públicos
-- admin focado em cartas, usuários, coleções e regras
-- autenticação com papéis (`USER`, `EDITOR`, `ADMIN`) e bloqueio lógico de usuário
-- schema Prisma evoluído para preferências de usuário, binders e coleções mais ricas
-- seed com dois logins padrão (admin + usuário regular)
-- estratégia de imagens documentada
-- banco remoto ainda não conectado
+### 🎮 Simulador de Partidas em Tempo Real
+- **Motor Autoritativo Server-Side**: partidas executadas com regras estritas, determinismo e validação de legalidade de cada ação.
+- Suporte a partidas remotas com WebSocket / Socket.IO.
+- **Modo Solo — Treino contra o Bot (`/simulador/treino`)**:
+  - Permite aos jogadores logados treinarem contra a IA a qualquer momento sem depender de oponente online.
+  - Níveis de dificuldade: Fácil, Normal (Heurística determinística completa) e Difícil (MCTS - Monte Carlo Tree Search).
+  - Tempo de resposta natural e interface imersiva com inspeção de cartas e animações de setup.
+- **Telemetria e Histórico de Partidas (`SimulatorMatchLog`)**:
+  - Armazenamento em banco de turnos, ações, decks e resultados de todas as partidas (amistosas, rankeadas e treino).
+  - Base para estatísticas de taxa de vitória (winrate) e análise de metagame.
 
-## Documentos
+### 🧠 Pipeline de Machine Learning (em Desenvolvimento)
+- Módulo de extração de dados e dataset estruturado a partir de logs reais (`scripts/train/dataset-from-logs.mjs`).
+- Treinamento contínuo por aprendizado supervisionado/reforço (`pnpm sim:train`) com TensorFlow.js.
+- **Salvaguarda de Produção**: Em ambiente de produção (`NODE_ENV=production`), o bot opera **estritamente via Heurística Determinística testada e estável**. O bot de Machine Learning permanece ativo exclusivamente na branch `dev` e sob a flag `SIM_BOT_ENABLE_ML=true` para validações e testes práticos antes de qualquer promoção para a branch `main`.
 
-- `docs/00-visao-produto.md`
-- `docs/01-arquitetura-roadmap.md`
-- `docs/02-setup-local.md`
-- `docs/03-git-workflow.md`
-- `docs/04-patch-v0.3.0.md`
-- `docs/05-image-strategy.md`
-- `docs/06-patch-v0.4.0.md`
+---
 
-## Como rodar localmente
+## 🏗️ Arquitetura & Stack Tecnológica
+
+| Camada | Tecnologia | Hospedagem / Infraestrutura |
+|---|---|---|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, wouter | **Vercel** (`main`) |
+| **Backend & API** | Node.js (v20), Express, Socket.IO, Prisma ORM | **Render** (`render.yaml` - Web Service) |
+| **Banco de Dados** | PostgreSQL 16 | **Supabase** (com Session Pooler porta 5432) |
+| **Storage de Imagens** | Supabase Storage (bucket `card-images`) | **Supabase** |
+| **Autenticação** | JWT nativo + Google OAuth (GIS / One Tap) | — |
+
+> **Nota sobre o Render**: O web server no Render executa o runner assíncrono embutido para os turnos do bot no modo solo, sem custo ou dependência de containers extras. O `render.yaml` também já conta com modelo opcional para Background Worker caso a plataforma escale para alta concorrência.
+
+---
+
+## 🛠️ Como rodar localmente
+
+### 1. Pré-requisitos
+- Node.js 20+
+- pnpm (`npm i -g pnpm`)
+- Docker (para Postgres local, opcional se usar banco local próprio)
+
+### 2. Configuração e Inicialização
 
 ```bash
-cp .env.example .env
+# Clone o repositório
+git clone https://github.com/WillenWorks/portal-gundam-tcg-br.git
+cd portal-gundam-tcg-br
+
+# Instale as dependências
 pnpm install
+
+# Configure o ambiente
+cp .env.example .env
+
+# Suba o banco local via Docker (se aplicável)
 pnpm db:up
-pnpm dev:api
-pnpm prisma:seed
-pnpm dev
-```
 
-> `pnpm dev:api` agora faz o bootstrap do Prisma automaticamente (`prisma generate` + `prisma db push`) antes de subir a API, evitando erro de schema desatualizado no banco local.
-
-## Rodar frontend e API juntos
-
-```bash
+# Inicie a API e o Frontend juntos
 pnpm dev:full
 ```
 
-## Build do frontend
+Acesse no navegador:
+- **Frontend**: `http://localhost:5173`
+- **API**: `http://localhost:8787` (Healthcheck: `http://localhost:8787/api/health`)
+- **Simulador Solo**: `http://localhost:5173/#/simulador/treino`
 
-```bash
-pnpm build
-```
-
-## Scripts úteis
-
-```bash
-pnpm db:up
-pnpm db:down
-pnpm db:logs
-pnpm prisma:generate
-pnpm prisma:migrate --name api-auth-and-multidecks
-pnpm prisma:seed
-pnpm prisma:studio
-pnpm dev:api
-pnpm dev
-pnpm dev:full
-```
-
-## Curadoria oficial (série + relações Piloto → Unidade)
-
-`data/gcg-official-cards.json` é um espelho enxuto do site oficial `gundam-gcg.com`
-(via [gcg-api](https://github.com/yzRobo/gcg-api), scrape semanal). Ele traz o `Source Title`
-oficial de cada carta e o `Link Condition` das unidades, o que permite curar série e relações
-Piloto → Unidade sem depender de curadoria manual ou inferência.
-
-```bash
-pnpm run curation:gcg:dry-run   # não grava nada, mostra o que seria feito (roda sem banco)
-pnpm run curation:gcg:apply     # aplica de verdade via Prisma (idempotente, pode rodar de novo)
-```
-
-Só cria `CardRelation` para vínculo **direto por nome**: Unidades com `Link Condition`
-= `[Nome do Piloto]` (→ `PILOT_OF`) e Commands que citam um Piloto/Unidade específico entre
-colchetes no texto do efeito (→ `SUPPORTS`). Vínculo por trait (`(Trait) Trait`, qualquer
-piloto daquele trait pode linkar) é deixado para a descoberta automática que a página de
-detalhe da carta já calcula, para não misturar curadoria confirmada com sugestão automática.
-Os Commands sem referência nomeada no efeito (a maioria, 135 de 145) ficam de fora — precisam
-de curadoria manual/híbrida, não têm padrão estrutural extraível com segurança.
-
-> Em ambiente local, prefira iniciar a API com `pnpm dev:api`, porque esse comando sincroniza o schema Prisma automaticamente antes de subir o servidor.
-
-## Credenciais seed padrão
+### 3. Credenciais Padrão de Seed Local
 
 ```text
-Admin
+Admin:
 Email: admin@gundambr.local
 Senha: admin123
 
-Usuário regular
+Jogador / Pilot:
 Email: pilot@gundambr.local
 Senha: pilot123
 ```
 
-## Arquitetura desta fase
+---
 
-Nesta etapa, o projeto passa a ter duas camadas reais:
+## 📜 Scripts Úteis
 
-### 1. Frontend
-Responsável por:
-- landing
-- portal interno
-- admin UI
-- deckbuilder UI
-- consumo da API local
+```bash
+# Testes e Qualidade
+pnpm check:types          # Validação estrita do TypeScript (tsc -b)
+pnpm test                 # Execução de testes unitários com Vitest
+pnpm lint                 # Verificação com ESLint
 
-### 2. Backend/API local
-Responsável por:
-- autenticação inicial
-- papéis de acesso
-- CRUD de cards, rulings e tournaments
-- persistência de decks por usuário
-- uso do Prisma em runtime
+# Banco de Dados & Prisma
+pnpm prisma:generate      # Gera os tipos do Prisma Client
+pnpm prisma:migrate       # Aplica migrations pendentes
+pnpm prisma:studio        # Interface visual do banco de dados
 
-## Estratégia de imagens
+# Pipeline de Treinamento e Logs do Bot (Dev)
+pnpm train:dataset-from-logs   # Extrai histórico de SimulatorMatchLog para dataset
+pnpm sim:train                 # Roda treino do modelo neural do bot (TensorFlow.js)
+```
 
-A decisão atual é **não embutir todas as imagens no repositório**.
+---
 
-A abordagem recomendada nesta fase é:
-- preparar o banco para `imageUrl` e `imageSourceUrl`
-- manter seed de metadados/textos
-- criar pipeline/importador separado para imagens e assets depois
-- otimizar miniaturas e versões maiores para deckbuilder e simulador
+## 🔮 O que está no radar / Desenvolvimento Futuro
 
-Veja o documento:
+1. **Validação Prática dos Modelos Neurais**:
+   - Analisar o desempenho prático do bot heurístico no modo solo em produção.
+   - Avaliar os datasets de partidas coletados na tabela `SimulatorMatchLog`.
+   - Promover os pesos neurais para produção apenas após superarem consistentemente a heurística em taxa de vitória (> 55%) e estabilidade.
+2. **Sistema de Ranking e Matchmaking**:
+   - Partidas ranqueadas competitivas com pontuação ELO e temporadas.
+3. **Expansão de Coleções no Simulador**:
+   - Implementação de efeitos e condicionais específicas dos sets de expansão (GD01, EB01).
+4. **Social & Comunidade**:
+   - Perfis públicos de jogadores, decks em destaque da comunidade e exportação para formatos de impressão.
 
-- `docs/05-image-strategy.md`
+---
 
-## Importante
+## 📄 Licença & Aviso Legal
 
-No ambiente local do usuário, o fluxo completo deve funcionar com Postgres local.
-
-No sandbox desta tarefa:
-- a tipagem do backend foi validada
-- o Prisma Client foi gerado com sucesso
-- o build do frontend foi validado
-- a migration com Docker/Postgres não pôde ser rodada aqui porque o binário `docker` não está disponível no sandbox
-
-## Estratégia de IA no produto
-
-- tradução assistida de regras e cartas com revisão humana
-- busca e FAQ semântica em pt-BR
-- apoio editorial para notícias, previews e reviews
-- enriquecimento de analytics e contexto competitivo
-- geração de peças visuais com AnyGen
-- apoio futuro ao admin, curadoria e importação de dados
-
-## Próximos passos sugeridos
-
-1. tratar imagens reais de coleções, decks e cartas
-2. conectar e validar fluxo completo com Postgres local do usuário
-3. evoluir social/perfis públicos e links de binders/decks
-4. esconder definitivamente estatísticas/campeonatos até a próxima fase pública
-5. preparar importadores mais completos de sets/cartas/rulings e assets
-
-## Patch v8
-
-- menu superior padronizado em todo o portal
-- botão de sair ao lado da área do usuário/admin
-- sidebar somente em páginas do dashboard
-- tema claro/escuro mantendo a linguagem visual do hangar
-- loading global entre módulos lazy
-- cards de decks públicos mais compactos
-- coleções com data e leitura para lançamento futuro
-- regras preparadas para PT-BR + EN + fonte original
-- configurações com idioma preferido das cartas e troca de senha
-- wishlists e cartas possuídas em formato de pasta compartilhável
-- admin com usuários, cartas, coleções e regras como foco do MVP de testes
-
-## Observação importante
-
-Este projeto deve manter posicionamento de **portal de comunidade / não oficial**, salvo eventual parceria futura com os detentores da marca.
+Este é um projeto da comunidade, sem fins comerciais diretos, desenvolvido de fãs para fãs. Gundam, Mobile Suit Gundam e Gundam Card Game são marcas registradas da BANDAI NAMCO Entertainment Inc. / SOTSU・SUNRISE.

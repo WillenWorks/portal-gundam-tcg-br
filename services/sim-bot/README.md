@@ -61,15 +61,18 @@ SIM_BOT_TOKEN=<jwt> node --import tsx services/sim-bot/index.mjs
 
 ## Deploy
 
-Passo a passo completo em **`docs/52-deploy-sim-bot.md`** (gitignored).
+Passo a passo completo e arquitetura em **`docs/15-deploy-e-login-google.md`** e `render.yaml`.
 
-Resumo: o worker importa o motor de `src/modules/simulator/**` direto, então o
-deploy empacota o **monorepo inteiro** via `services/sim-bot/Dockerfile` (contexto
-de build = raiz do repo). No Railway é um **segundo serviço** no mesmo projeto,
-apontando pro mesmo repo, com Root Directory = raiz e Config File =
-`services/sim-bot/railway.json`. Sem healthcheck HTTP (é um worker de fila).
+No **Render**, temos duas opções de execução:
+
+1. **Padrão em Produção (Runner Embutido — Recomendado)**:
+   O web server da API (`server/index.ts`) já possui um runner assíncrono embutido conectado via `setBotTurnSink`. Ele processa as ações do bot em segundo plano diretamente no Web Service do Render (`render.yaml`), sem necessidade de criar ou pagar por um serviço de worker separado.
+
+2. **Worker Dedicado no Render (Opcional para Alta Escala)**:
+   Se desejar isolar a fila de turnos em um processo exclusivo, basta adicionar um Background Worker no Render (`type: worker` no `render.yaml`) apontando para `node --import tsx services/sim-bot/index.mjs` com as variáveis `SIM_BOT_TOKEN`, `DATABASE_URL` e `SIM_BOT_API_URL`.
 
 ```bash
-# valida a imagem localmente (a partir da raiz do repo)
+# Para validar o worker localmente ou em container Docker:
 docker build -f services/sim-bot/Dockerfile -t sim-bot .
 ```
+

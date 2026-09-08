@@ -71,4 +71,4 @@ apontado pra lá (`neuralPolicy({ modelDir, loadArtifacts })`).
 ## Deploy
 
 Fora do escopo desta lane. **Ver Lane 4D / `docs/50`.** Este serviço não
-carrega nenhuma config de deploy (Railway/Docker) de propósito.
+carrega nenhuma config de deploy (Render/Docker) de propósito.
