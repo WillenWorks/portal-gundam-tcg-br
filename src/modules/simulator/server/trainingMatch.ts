@@ -64,7 +64,7 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
   }
 
   const deck = VALIDATED_DECKS[deckId];
-  const match = createMatch({ deckA: deck.build(), deckB: deck.build(), firstPlayer: "A", seed: input.seed });
+  const match = createMatch({ deckA: deck.build(), deckB: deck.build(), firstPlayer: "A", seed: input.seed, mode: "training" });
   match.deckKeys = { A: deckId, B: deckId };
   joinMatch(match.id, "A", { userId: input.human.userId, displayName: input.human.displayName });
   joinMatch(match.id, "B", {

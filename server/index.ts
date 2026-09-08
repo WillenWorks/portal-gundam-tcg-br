@@ -24,6 +24,7 @@ import {
   applyAction,
   claimAbandonWin,
   createMatch,
+  decisionOwner,
   getMatch,
   joinMatch,
   joinQueue,
@@ -40,6 +41,7 @@ import {
   setBotTurnSink,
   setBugReportSink,
   setMatchPersistence,
+  setMatchLogSink,
   subscribe,
   touchPresence,
   generateBugShortCode,
@@ -48,13 +50,19 @@ import {
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
+  SIM_BOT_USER_ID,
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
+import { driveBotTurn } from "../services/sim-bot/driveBotTurn.mjs";
 import {
   buildGithubDispatchRequest,
   canSubmitBugReport,
   createBugReportRateLimiter,
 } from "../src/modules/simulator/server/bugReport.ts";
+import {
+  computeSimulatorMetaStats,
+  computeSimulatorCardStats,
+} from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 
 const prisma = new PrismaClient();
@@ -174,21 +182,101 @@ setBugReportSink(async (draft) => {
 });
 
 // docs/44 Fase 2 §10.2 — modo treino solo. Quando o motor autoritativo fica com
-// a vez no assento do bot, o `matchStore` chama este sink (nunca roda a policy
-// inline). A gente só enfileira um `SimulatorBotTurn` `pending` — idempotente:
-// se já existe um turno `pending`/`processing` pra essa partida, não cria outro.
-// O worker dedicado (`services/sim-bot/`) faz o resto. Fire-and-forget: nunca
-// bloqueia o motor; erro só loga.
-setBotTurnSink(({ matchId, seat }) => {
+// a vez no assento do bot, o `matchStore` chama este sink.
+// 1. Registra o turno no Postgres (`SimulatorBotTurn`) para rastreabilidade/telemetria.
+// 2. Se SIM_BOT_EXTERNAL_WORKER === "true", delega a execução ao worker dedicado.
+// 3. Por padrão, para que o modo treino solo funcione imediatamente em produção e dev
+//    sem requerer múltiplos contêineres, o servidor executa o turno do bot de forma assíncrona
+//    no background após um pequeno delay (450ms) que simula o tempo de raciocínio da IA.
+const activeBotTurns = new Set<string>();
+
+setBotTurnSink(({ matchId, seat, level }) => {
   void (async () => {
-    const existing = await prisma.simulatorBotTurn.findFirst({
-      where: { matchId, status: { in: ["pending", "processing"] } },
-      select: { id: true },
-    });
-    if (existing) return;
-    await prisma.simulatorBotTurn.create({ data: { matchId, seat } });
+    try {
+      const existing = await prisma.simulatorBotTurn.findFirst({
+        where: { matchId, status: { in: ["pending", "processing"] } },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.simulatorBotTurn.create({ data: { matchId, seat } });
+      }
+    } catch {
+      /* segue mesmo se houver lentidão no banco */
+    }
+
+    if (process.env.SIM_BOT_EXTERNAL_WORKER === "true") {
+      return;
+    }
+
+    if (activeBotTurns.has(matchId)) return;
+
+    setTimeout(async () => {
+      if (activeBotTurns.has(matchId)) return;
+      activeBotTurns.add(matchId);
+
+      try {
+        await loadMatch(matchId);
+        const match = getMatch(matchId);
+        if (!match || match.state.gameOver) return;
+        if (decisionOwner(match.state) !== seat) return;
+
+        await driveBotTurn({
+          initialState: match.state,
+          seat,
+          level: (level as "facil" | "normal" | "dificil") || "normal",
+          seed: Math.floor(Math.random() * 1_000_000),
+          commit: (action: unknown) => {
+            applyAction(matchId, SIM_BOT_USER_ID, action as never);
+          },
+        });
+
+        await prisma.simulatorBotTurn.updateMany({
+          where: { matchId, status: { in: ["pending", "processing"] } },
+          data: { status: "done" },
+        }).catch(() => {});
+      } catch (err) {
+        console.warn(`[SIMULADOR] erro no turno do bot para ${matchId}:`, err instanceof Error ? err.message : err);
+        await prisma.simulatorBotTurn.updateMany({
+          where: { matchId, status: { in: ["pending", "processing"] } },
+          data: { status: "failed", error: err instanceof Error ? err.message : String(err) },
+        }).catch(() => {});
+      } finally {
+        activeBotTurns.delete(matchId);
+      }
+    }, 450);
   })().catch((err) => {
     console.warn(`[SIMULADOR] falha ao enfileirar turno do bot ${matchId}:`, err instanceof Error ? err.message : err);
+  });
+});
+
+// Gravação analítica e de treino para partidas finalizadas no Simulador.
+// Fire-and-forget: assíncrono, nunca bloqueia o motor; idempotente por matchId unique.
+setMatchLogSink((log) => {
+  void (async () => {
+    await prisma.simulatorMatchLog.upsert({
+      where: { matchId: log.matchId },
+      update: {},
+      create: {
+        matchId: log.matchId,
+        mode: log.mode,
+        deckKeyA: log.deckKeyA ?? null,
+        deckKeyB: log.deckKeyB ?? null,
+        deckA: log.deckA ? (log.deckA as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        deckB: log.deckB ? (log.deckB as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+        playerAId: log.playerAId ?? null,
+        playerBId: log.playerBId ?? null,
+        winner: log.winner,
+        winReason: log.winReason,
+        turns: log.turns,
+        durationMs: log.durationMs ?? null,
+        seed: BigInt(log.seed),
+        engineVersion: log.engineVersion ?? null,
+        actions: log.actions as unknown as Prisma.InputJsonValue,
+        createdAt: new Date(log.createdAt),
+      },
+    });
+  })().catch((err) => {
+    console.warn(`[SIMULADOR][MATCH-LOG] falha ao gravar log da partida ${log.matchId}:`, err instanceof Error ? err.message : err);
   });
 });
 
@@ -3533,6 +3621,31 @@ app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([Use
   const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode: String(req.params.shortCode) } });
   if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
   res.json(row);
+});
+
+// Telemetria e estatísticas analíticas de metagame geradas a partir das partidas do Simulador
+app.get("/api/simulator/stats/meta", async (req, res) => {
+  try {
+    const mode = req.query.mode as "casual" | "ranked" | "training" | "all" | undefined;
+    const minTurns = req.query.minTurns ? Number(req.query.minTurns) : 3;
+    const stats = await computeSimulatorMetaStats(prisma, { mode, minTurns });
+    res.json(stats);
+  } catch (err) {
+    console.error("[SIMULADOR] falha ao computar estatísticas de meta:", err);
+    res.status(500).json({ error: "Falha ao computar estatísticas do simulador." });
+  }
+});
+
+// Estatísticas de frequência de uso e taxa de vitória por carta jogada no Simulador
+app.get("/api/simulator/stats/cards", async (req, res) => {
+  try {
+    const limit = req.query.limit ? Math.min(2000, Number(req.query.limit)) : 1000;
+    const stats = await computeSimulatorCardStats(prisma, limit);
+    res.json(stats);
+  } catch (err) {
+    console.error("[SIMULADOR] falha ao computar estatísticas de cartas:", err);
+    res.status(500).json({ error: "Falha ao computar estatísticas de cartas." });
+  }
 });
 
 // Liga/desliga o auto-pass de Action Step do assento do usuário (docs/19, Sessão 2).

@@ -18,7 +18,7 @@
     "ops": [
       "rest"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=2",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 enemy Unit with 2 or less HP. Rest it."
@@ -30,7 +30,7 @@
     "ops": [
       "modifyStat"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "level<=5",
     "predicate": null,
     "sourceText": "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn."
@@ -54,7 +54,7 @@
     "ops": [
       "rest"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=5",
     "predicate": null,
     "sourceText": "【When Paired】Choose 1 enemy Unit with 5 or less HP. Rest it."
@@ -90,7 +90,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "rested",
     "predicate": null,
     "sourceText": "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it."
@@ -114,7 +114,7 @@
     "ops": [
       "modifyStat"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn."
@@ -126,7 +126,7 @@
     "ops": [
       "modifyStat"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Activate this card's 【Main】."
@@ -138,7 +138,7 @@
     "ops": [
       "modifyStat"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn."
@@ -297,7 +297,7 @@
     "ops": [
       "rest"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=5",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it."
@@ -309,7 +309,7 @@
     "ops": [
       "rest"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=5",
     "predicate": null,
     "sourceText": "【Burst】Activate this card's 【Main】."
@@ -321,7 +321,7 @@
     "ops": [
       "rest"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=5",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it."
@@ -494,7 +494,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it."
@@ -506,7 +506,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Activate this card's 【Main】."
@@ -518,7 +518,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it."
@@ -554,7 +554,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "ap<=5",
     "predicate": null,
     "sourceText": "Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it."
@@ -603,7 +603,7 @@
     "ops": [
       "moveZone"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=4",
     "predicate": "pairedPilotLevelAtLeast:4",
     "sourceText": "【When Paired･Lv.4 or Higher Pilot】Choose 1 enemy Unit with 4 or less HP. Return it to its owner's hand."
@@ -628,7 +628,7 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "level>=5",
     "predicate": "selfApAtLeast:5",
     "sourceText": "【Attack】If this Unit has 5 or more AP, choose 1 enemy Unit that is Lv.5 or higher. Deal 3 damage to it."
@@ -652,7 +652,7 @@
     "ops": [
       "modifyStat"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Attack】Choose 1 enemy Unit. It gets AP-2 during this battle."
@@ -724,7 +724,7 @@
     "ops": [
       "moveZone"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=3",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
@@ -736,7 +736,7 @@
     "ops": [
       "moveZone"
     ],
-    "targetScope": null,
+    "targetScope": "enemyUnit",
     "targetFilter": "hp<=3",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."

@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Copy, Loader2, Swords, Users } from "lucide-react";
+import { Copy, Loader2, Swords, Users, Bot } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
@@ -337,6 +337,23 @@ export default function SimulatorSandboxPage() {
             >
               {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}
               Jogar com um amigo
+            </Button>
+
+            <div className="relative my-1 flex items-center py-2">
+              <div className="flex-grow border-t border-white/10" />
+              <span className="mx-3 flex-shrink text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-portal">
+                Ou jogue sozinho
+              </span>
+              <div className="flex-grow border-t border-white/10" />
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full rounded-arena border-cyan-500/40 bg-cyan-950/20 text-cyan-400 hover:bg-cyan-900/30 hover:border-cyan-400"
+              onClick={() => navigate("/simulador/treino")}
+            >
+              <Bot className="mr-2 size-4 text-cyan-400" />
+              Modo Solo — Treinar contra o Bot
             </Button>
           </CardContent>
         </Card>

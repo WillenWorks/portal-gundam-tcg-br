@@ -116,6 +116,41 @@ export interface MatchRecord {
    * (`undefined` → `null` no report).
    */
   lastAction?: PlayerAction;
+  /** Histórico sequencial de ações aplicadas nesta partida (para replay determinístico no treino do bot). */
+  actionHistory: PlayerAction[];
+  /** Modo da partida: casual (default), ranked ou training. */
+  mode: "casual" | "ranked" | "training";
+  /** Listas de deck originais usadas na partida. */
+  deckLists?: Partial<Record<PlayerId, DeckList>>;
+  /** Timestamp em que o log final da partida foi gerado (evita duplicação). */
+  loggedAt?: number;
+}
+
+export interface MatchLogDraft {
+  matchId: string;
+  mode: "casual" | "ranked" | "training";
+  deckKeyA?: string;
+  deckKeyB?: string;
+  deckA?: DeckList;
+  deckB?: DeckList;
+  playerAId?: string;
+  playerBId?: string;
+  winner: string;
+  winReason: string;
+  turns: number;
+  durationMs?: number;
+  seed: number;
+  engineVersion?: string;
+  actions: PlayerAction[];
+  createdAt: number;
+}
+
+export type MatchLogSink = (log: MatchLogDraft) => void | Promise<void>;
+let matchLogSink: MatchLogSink | null = null;
+
+/** Registra o sink de persistência analítica para partidas finalizadas. */
+export function setMatchLogSink(sink: MatchLogSink | null): void {
+  matchLogSink = sink;
 }
 
 export class MatchError extends Error {
@@ -208,6 +243,9 @@ export interface StoredMatch {
   version: number;
   turnDeadlineAt: number | null;
   lastSeenAt: MatchRecord["lastSeenAt"];
+  actionHistory?: PlayerAction[];
+  mode?: "casual" | "ranked" | "training";
+  deckLists?: Partial<Record<PlayerId, DeckList>>;
 }
 
 export interface MatchPersistence {
@@ -232,6 +270,9 @@ function toStored(match: MatchRecord): StoredMatch {
     version: match.version,
     turnDeadlineAt: match.turnDeadlineAt,
     lastSeenAt: match.lastSeenAt,
+    actionHistory: match.actionHistory,
+    mode: match.mode,
+    deckLists: match.deckLists,
   };
 }
 
@@ -275,6 +316,9 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
     version: stored.version,
     turnDeadlineAt: null,
     lastSeenAt: stored.lastSeenAt,
+    actionHistory: stored.actionHistory ?? [],
+    mode: stored.mode ?? "casual",
+    deckLists: stored.deckLists,
   };
   matches.set(match.id, match);
   armTurnTimer(match); // prazo fresco pós-restart (justo com o jogador)
@@ -293,6 +337,7 @@ export interface CreateMatchOptions {
    * após `createMatch` usam isto pra não ter que resolver 2 mulligans antes.
    */
   skipMulligan?: boolean;
+  mode?: "casual" | "ranked" | "training";
 }
 
 /**
@@ -319,6 +364,9 @@ export function createMatch(opts: CreateMatchOptions): MatchRecord {
     version: 1,
     turnDeadlineAt: null,
     lastSeenAt: {},
+    actionHistory: [],
+    mode: opts.mode ?? "casual",
+    deckLists: { A: opts.deckA, B: opts.deckB },
   };
   matches.set(match.id, match);
   return match;
@@ -412,6 +460,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
 
   match.state = nextState;
   match.lastAction = action;
+  match.actionHistory.push(action);
   match.lastSeenAt[seat] = Date.now();
   match.updatedAt = Date.now();
   match.version += 1;
@@ -696,6 +745,7 @@ export interface QueueJoinInput {
   /** rótulo do deck escolhido (ex. "ST01") — só exibição, ver `MatchRecord.deckKeys` */
   deckKey: string;
   deckList: DeckList;
+  mode?: "casual" | "ranked" | "training";
 }
 
 export interface QueueStatus {
@@ -727,6 +777,7 @@ export function joinQueue(input: QueueJoinInput): QueueStatus {
   if (existing) {
     existing.deckKey = input.deckKey;
     existing.deckList = input.deckList;
+    if (input.mode) existing.mode = input.mode;
   } else {
     queue.push({ ...input, queuedAt: Date.now() });
   }
@@ -739,7 +790,12 @@ export function joinQueue(input: QueueJoinInput): QueueStatus {
       break;
     }
 
-    const match = createMatch({ deckA: first.deckList, deckB: second.deckList, firstPlayer: Math.random() < 0.5 ? "A" : "B" });
+    const match = createMatch({
+      deckA: first.deckList,
+      deckB: second.deckList,
+      firstPlayer: Math.random() < 0.5 ? "A" : "B",
+      mode: first.mode ?? "casual",
+    });
     match.deckKeys = { A: first.deckKey, B: second.deckKey };
     joinMatch(match.id, "A", { userId: first.userId, displayName: first.displayName });
     joinMatch(match.id, "B", { userId: second.userId, displayName: second.displayName });
@@ -880,6 +936,7 @@ function settleAutoPasses(match: MatchRecord): void {
     const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
     try {
       match.state = applyPlayerAction(match.state, owner, pass, ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+      match.actionHistory.push(pass);
       match.version += 1;
       match.updatedAt = Date.now();
     } catch {
@@ -936,7 +993,9 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
     }
 
     try {
-      match.state = applyPlayerAction(match.state, actingPlayer, defaultActionFor(match.state), ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+      const defAction = defaultActionFor(match.state);
+      match.state = applyPlayerAction(match.state, actingPlayer, defAction, ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+      match.actionHistory.push(defAction);
       match.updatedAt = Date.now();
       match.version += 1;
     } catch {
@@ -980,9 +1039,9 @@ const gameOverLogged = new Set<string>();
 
 /**
  * "Toma nota" do vencedor/perdedor e do motivo (pedido do Willen) — um
- * `console.info` estruturado na 1ª vez que a partida aparece encerrada. Sem
- * banco: é só rastro de diagnóstico nos logs do servidor, casável com o
- * `RULE-REPORT`. Idempotente.
+ * `console.info` estruturado na 1ª vez que a partida aparece encerrada.
+ * Também entrega o snapshot da partida para o sink de treino e telemetria analítica (`matchLogSink`).
+ * Idempotente.
  */
 function logGameOverOnce(match: MatchRecord): void {
   const over = match.state.gameOver;
@@ -993,6 +1052,35 @@ function logGameOverOnce(match: MatchRecord): void {
     `[SIMULADOR][GAME-OVER] match=${match.id} winner=${over.winner}(${match.seats[over.winner]?.displayName ?? "?"}) ` +
       `loser=${loser}(${match.seats[loser]?.displayName ?? "?"}) reason=${over.reason} turn=${match.state.turnNumber}`,
   );
+
+  if (matchLogSink && !match.loggedAt) {
+    match.loggedAt = Date.now();
+    const draft: MatchLogDraft = {
+      matchId: match.id,
+      mode: match.mode ?? "casual",
+      deckKeyA: match.deckKeys?.A,
+      deckKeyB: match.deckKeys?.B,
+      deckA: match.deckLists?.A,
+      deckB: match.deckLists?.B,
+      playerAId: match.seats.A?.userId,
+      playerBId: match.seats.B?.userId,
+      winner: over.winner,
+      winReason: over.reason,
+      turns: match.state.turnNumber,
+      durationMs: Date.now() - match.createdAt,
+      seed: match.state.seed,
+      engineVersion: match.state.engineVersion ?? "dev",
+      actions: match.actionHistory ?? [],
+      createdAt: match.createdAt,
+    };
+    try {
+      void Promise.resolve(matchLogSink(draft)).catch((err) => {
+        console.warn(`[SIMULADOR] falha ao gravar log da partida ${match.id}:`, err instanceof Error ? err.message : err);
+      });
+    } catch (err) {
+      console.warn(`[SIMULADOR] falha ao despachar log da partida ${match.id}:`, err instanceof Error ? err.message : err);
+    }
+  }
 }
 
 function notify(match: MatchRecord): void {
@@ -1038,4 +1126,5 @@ export function _resetAllMatchesForTests(): void {
   persistence = null;
   bugReportSink = null;
   botTurnSink = null;
+  matchLogSink = null;
 }

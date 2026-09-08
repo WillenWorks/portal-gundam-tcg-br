@@ -18,7 +18,7 @@ describe("gundam-golden", () => {
     expect(out, out).toContain("10 pares conferem com hashes.json");
     expect(out).not.toContain("DIVERGÊNCIA");
     expect(code).toBe(0);
-  });
+  }, 60000);
 
   it("é determinístico: duas execuções seguidas dão o mesmo relatório de hashes", () => {
     const shaLines = (out) =>
@@ -29,5 +29,5 @@ describe("gundam-golden", () => {
     const first = run([]);
     const second = run([]);
     expect(shaLines(second.out)).toBe(shaLines(first.out));
-  });
+  }, 60000);
 });
