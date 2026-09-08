@@ -33,6 +33,7 @@ export const AILE_STRIKE_WHEN_PAIRED: EffectSpec = {
     then: [{ op: "moveZone", target: { kind: "named", name: "target" }, toZone: "hand" }],
   },
   actions: [],
+  targetScope: "enemyUnit",
   targetFilter: "hp<=4",
   sourceText: "【When Paired･Lv.4 or Higher Pilot】Choose 1 enemy Unit with 4 or less HP. Return it to its owner's hand.",
 };
@@ -62,6 +63,7 @@ export const AEGIS_GUNDAM_ATTACK: EffectSpec = {
     then: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 3 }],
   },
   actions: [],
+  targetScope: "enemyUnit",
   targetFilter: "level>=5",
   sourceText: "【Attack】If this Unit has 5 or more AP, choose 1 enemy Unit that is Lv.5 or higher. Deal 3 damage to it.",
 };
@@ -100,6 +102,7 @@ export const KIRA_YAMATO_ATTACK: EffectSpec = {
   cardCode: "ST04-010",
   trigger: "Attack",
   actions: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -2, duration: "thisBattle" }],
+  targetScope: "enemyUnit",
   sourceText: "【Attack】Choose 1 enemy Unit. It gets AP-2 during this battle.",
 };
 
@@ -182,6 +185,7 @@ export const HAWK_OF_ENDYMION_MAIN: EffectSpec = {
   cardCode: "ST04-013",
   trigger: "Main",
   actions: HAWK_ACTIONS,
+  targetScope: "enemyUnit",
   targetFilter: "hp<=3",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.",
 };

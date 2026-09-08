@@ -98,6 +98,7 @@ export const SIEGE_PLOY_BURST: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Burst",
   actions: SIEGE_PLOY_ACTIONS,
+  targetScope: "enemyUnit",
   targetFilter: "hp<=5",
   sourceText: "【Burst】Activate this card's 【Main】.",
 };
@@ -107,6 +108,7 @@ export const SIEGE_PLOY_MAIN: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Main",
   actions: SIEGE_PLOY_ACTIONS,
+  targetScope: "enemyUnit",
   targetFilter: "hp<=5",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };
@@ -116,6 +118,7 @@ export const SIEGE_PLOY_ACTION: EffectSpec = {
   cardCode: "ST02-014",
   trigger: "Action",
   actions: SIEGE_PLOY_ACTIONS,
+  targetScope: "enemyUnit",
   targetFilter: "hp<=5",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };

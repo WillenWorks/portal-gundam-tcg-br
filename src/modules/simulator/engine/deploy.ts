@@ -1,8 +1,8 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
 import { effectivePilotDef, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
-import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { specNeedsChoice } from "./effectSpec";
+import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
+import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
@@ -246,7 +246,15 @@ export function playCommand(
   // Sword ou Launcher): PAUSA pra a camada de decisão, igual `deployCard`. A
   // carta fica na mão até `resolveAbility` rodar o efeito e mandá-la pro trash
   // (CR 3-4-4). Sem `options.targets` = não veio pré-resolvida (teste/IA).
-  const needsChoice = findTriggerSpecs(specs, card.def.code, trigger).some(specNeedsChoice);
+  const triggerSpecs = findTriggerSpecs(specs, card.def.code, trigger);
+  const cmdCtx: EffectContext = {
+    state: next,
+    controller: player,
+    sourceInstanceId: cardInstanceId,
+    turnNumber: next.turnNumber,
+    targets: options.targets ?? {},
+  };
+  const needsChoice = triggerSpecs.some((s) => callsNeedChoice(specActiveCalls(s, cmdCtx, options.predicateResolver)));
   if (needsChoice && !options.targets) {
     next = deferOrDispatchAbilities(next, player, trigger, [{ code: card.def.code, instanceId: cardInstanceId }], specs, {
       predicateResolver: options.predicateResolver,
@@ -267,6 +275,8 @@ export function playCommand(
     player,
     options.targets?.target,
     options.targetFilterResolver,
+    options.predicateResolver,
+    cardInstanceId,
   );
   next = dispatchTrigger(next, cardInstanceId, trigger, dispatchable, {
     targets: options.targets,
