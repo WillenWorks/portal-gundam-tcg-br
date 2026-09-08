@@ -32,6 +32,8 @@
     "gundam:coverage": "node scripts/gundam-coverage.mjs",
     "mcp:gundam": "node scripts/mcp-gundam/server.mjs",
     "mcp:gundam:smoke": "node scripts/mcp-gundam/smoke.mjs",
+    "sim-bot:start": "node --import tsx services/sim-bot/index.mjs",
+    "sim-bot:make-token": "node services/sim-bot/scripts/make-token.mjs",
     "preview": "vite preview",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",

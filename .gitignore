@@ -62,6 +62,7 @@ docs/48b-pilot-prerequisito.md
 docs/49-uso-rag-autoria.md
 docs/50-treino-ml.md
 docs/51-pipeline-autofix.md
+docs/52-deploy-sim-bot.md
 # relatórios regenerados por script (catalog:audit, coverage, …) — não versionam
 docs/_generated/
 # git worktrees criadas por subagentes (orquestração paralela) — efêmeras
@@ -69,3 +70,5 @@ docs/_generated/
 # datasets e pesos de modelo do treino ML do bot (docs/50) — nunca versionam
 services/sim-trainer/data/
 services/sim-trainer/models/
+# log de progresso do benchmark do bot MCTS (gundam:mcts:bench) — efêmero
+.mcts-bench-progress.log

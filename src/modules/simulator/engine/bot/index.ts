@@ -21,3 +21,17 @@ export {
   type NeuralPolicyHandle,
   type NeuralPolicyOptions,
 } from "./neuralPolicy";
+
+export {
+  mctsPolicy,
+  determinize,
+  chooseAction as chooseMctsAction,
+  type MctsPolicyOptions,
+} from "./mctsPolicy";
+
+export {
+  simulateToEnd,
+  type SimulateResolvers,
+  type SimulateToEndOptions,
+  type SimulateToEndResult,
+} from "./simulateToEnd";

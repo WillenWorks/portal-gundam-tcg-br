@@ -6,6 +6,7 @@
   "description": "Worker do bot heurístico do Simulador (modo treino solo) — polling da fila SimulatorBotTurn.",
   "main": "index.mjs",
   "scripts": {
-    "start": "node --import tsx index.mjs"
+    "start": "node --import tsx index.mjs",
+    "make-token": "node scripts/make-token.mjs"
   }
 }

@@ -55,6 +55,12 @@ describe("createTrainingMatch", () => {
     }
   });
 
+  it("aceita nivel dificil para o bot de treino", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "dificil", human: HUMAN });
+    expect(matchId).toBeDefined();
+    expect(getMatch(matchId)?.seats.B?.bot).toEqual({ policy: "mcts", level: "dificil" });
+  });
+
   it("recusa o próprio bot como jogador humano", () => {
     expect(() =>
       createTrainingMatch({ deckId: "ST01", level: "normal", human: { userId: SIM_BOT_USER_ID, displayName: "x" } }),
