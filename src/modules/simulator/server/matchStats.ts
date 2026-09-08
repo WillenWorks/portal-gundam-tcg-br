@@ -1,6 +1,18 @@
 import type { PrismaClient } from "@prisma/client";
 import type { PlayerAction } from "../engine/actions";
 
+/**
+ * Interface permissiva/defensiva para clientes Prisma com acesso a simulatorMatchLog,
+ * prevenindo falhas de tipagem estrita em ambientes de build (Vercel/CI) onde
+ * o PrismaClient possa ser gerado em etapas assíncronas.
+ */
+export type PrismaWithSimulatorLogs = (PrismaClient & {
+  simulatorMatchLog: {
+    findMany: (args: any) => Promise<any[]>;
+    count?: (args?: any) => Promise<number>;
+  };
+}) | any;
+
 export interface SimulatorMetaStats {
   totalMatches: number;
   firstPlayerWinrate: number;
@@ -45,7 +57,7 @@ export interface MetaStatsFilter {
  * Computa estatísticas agregadas de metagame a partir de SimulatorMatchLog.
  */
 export async function computeSimulatorMetaStats(
-  prisma: PrismaClient,
+  prisma: PrismaWithSimulatorLogs,
   filter: MetaStatsFilter = {},
 ): Promise<SimulatorMetaStats> {
   const where: {
@@ -161,7 +173,7 @@ export async function computeSimulatorMetaStats(
  * Computa estatísticas de cartas jogadas e taxas de vitória associadas.
  */
 export async function computeSimulatorCardStats(
-  prisma: PrismaClient,
+  prisma: PrismaWithSimulatorLogs,
   limitMatches = 1000,
 ): Promise<SimulatorCardStats> {
   const logs = await prisma.simulatorMatchLog.findMany({
