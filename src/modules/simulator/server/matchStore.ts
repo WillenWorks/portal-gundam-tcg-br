@@ -44,7 +44,7 @@ export interface MatchSeat {
    * a policy inline; o worker (`services/sim-bot/`) processa e aplica as ações
    * de volta pela API autoritativa.
    */
-  bot?: { policy: "heuristic"; level: HeuristicLevel };
+  bot?: { policy: "heuristic" | "mcts"; level: HeuristicLevel | "dificil" };
 }
 
 /**
@@ -561,7 +561,7 @@ export async function reportSituation(matchId: string, userId: string, note?: st
 export interface BotTurnRequest {
   matchId: string;
   seat: PlayerId;
-  level: HeuristicLevel;
+  level: HeuristicLevel | "dificil";
 }
 
 export type BotTurnSink = (req: BotTurnRequest) => void;

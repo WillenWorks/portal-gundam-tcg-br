@@ -70,7 +70,7 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
   joinMatch(match.id, "B", {
     userId: SIM_BOT_USER_ID,
     displayName: SIM_BOT_DISPLAY_NAME,
-    bot: { policy: "heuristic", level: input.level },
+    bot: { policy: input.level === "dificil" ? "mcts" : "heuristic", level: input.level },
   });
   return { matchId: match.id };
 }
