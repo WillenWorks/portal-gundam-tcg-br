@@ -21,6 +21,7 @@
     "gundam:golden:update": "node scripts/gundam-golden.mjs --update",
     "gundam:selfplay": "node scripts/gundam-fuzz.mjs --policyA=heuristic --policyB=random --games=200 --maxTurns=40",
     "train:dataset": "node scripts/train/dataset.mjs",
+    "train:dataset-from-logs": "node scripts/train/dataset-from-logs.mjs",
     "train:fit": "node scripts/train/fit.mjs",
     "train:eval": "node scripts/train/eval.mjs",
     "gundam:index": "node scripts/gundam-index.mjs",

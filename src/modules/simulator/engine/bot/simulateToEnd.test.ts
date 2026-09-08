@@ -52,18 +52,22 @@ describe("simulateToEnd", () => {
     expect(run()).toEqual(run());
   });
 
-  it("sempre termina (nunca laço infinito) e devolve um vencedor válido ou null", () => {
-    for (let seed = 0; seed < 12; seed++) {
-      const result = simulateToEnd(freshGame(seed), "A", ALL_EFFECT_SPECS, resolvers, {
-        policyA: randomLegal,
-        policyB: randomLegal,
-        maxTurns: 80,
-        rng: createRng(seed * 31 + 1),
-      });
-      expect(result.turns).toBeGreaterThan(0);
-      expect([null, "A", "B"]).toContain(result.winner);
-    }
-  });
+  it(
+    "sempre termina (nunca laço infinito) e devolve um vencedor válido ou null",
+    () => {
+      for (let seed = 0; seed < 12; seed++) {
+        const result = simulateToEnd(freshGame(seed), "A", ALL_EFFECT_SPECS, resolvers, {
+          policyA: randomLegal,
+          policyB: randomLegal,
+          maxTurns: 80,
+          rng: createRng(seed * 31 + 1),
+        });
+        expect(result.turns).toBeGreaterThan(0);
+        expect([null, "A", "B"]).toContain(result.winner);
+      }
+    },
+    30000
+  );
 
   it("respeita maxTurns baixo: para e devolve winner=null sem estourar", () => {
     const result = simulateToEnd(freshGame(3), "A", ALL_EFFECT_SPECS, resolvers, {

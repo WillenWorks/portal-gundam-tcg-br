@@ -779,3 +779,32 @@ model SimulatorBotTurn {
 
   @@index([status, createdAt])
 }
+
+/// Log analítico e de treino de partida finalizada no Simulador.
+/// Gravado assincronamente ao término da partida para replay determinístico no treino do bot
+/// e consolidação de telemetria estatística.
+model SimulatorMatchLog {
+  id            String   @id @default(cuid())
+  matchId       String   @unique
+  mode          String   @default("casual")
+  deckKeyA      String?
+  deckKeyB      String?
+  deckA         Json?
+  deckB         Json?
+  playerAId     String?
+  playerBId     String?
+  winner        String
+  winReason     String
+  turns         Int
+  durationMs    Int?
+  seed          BigInt
+  engineVersion String?
+  actions       Json
+  createdAt     DateTime @default(now())
+
+  @@index([mode])
+  @@index([winner])
+  @@index([createdAt])
+  @@index([deckKeyA, deckKeyB])
+}
+
