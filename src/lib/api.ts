@@ -291,7 +291,7 @@ export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | 
 export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?: string; seat?: PlayerId };
 
 /** Dificuldade do bot no modo treino solo (docs/44 Fase 2 §4.2). */
-export type SimulatorTrainingLevel = "facil" | "normal";
+export type SimulatorTrainingLevel = "facil" | "normal" | "dificil";
 
 /** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
 export function buildSimulatorStreamUrl(matchId: string): string | null {

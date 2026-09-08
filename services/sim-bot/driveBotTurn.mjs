@@ -2,7 +2,7 @@ import { applyPlayerAction } from "../../src/modules/simulator/engine/actions.ts
 import { actionOwner, enumerateLegalActions } from "../../src/modules/simulator/engine/legalActions.ts";
 import { viewStateFor } from "../../src/modules/simulator/engine/viewState.ts";
 import { createRng } from "../../src/modules/simulator/engine/rng.ts";
-import { heuristicPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
+import { heuristicPolicy, mctsPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
 import {
   ALL_EFFECT_SPECS,
   defaultPredicateResolver,
@@ -10,9 +10,9 @@ import {
 } from "../../src/modules/simulator/content/index.ts";
 
 /**
- * Núcleo do worker do bot de treino (docs/44 Fase 2 §10.2). Puro e testável:
+ * Núcleo do worker do bot de treino (docs/44 Fase 2 §10.2, Fase 5 Lane 4A). Puro e testável:
  * dado o `GameState` autoritativo (já hidratado) e o assento do bot, roda a
- * heurística EM LOOP até o turno do bot acabar, e para cada ação chama
+ * policy (heurística ou MCTS) EM LOOP até o turno do bot acabar, e para cada ação chama
  * `commit(action)` — que é o caminho autoritativo de verdade (`POST
  * /matches/:id/actions` em produção, `matchStore.applyAction` no teste).
  *
@@ -32,14 +32,23 @@ const DEFAULT_MAX_ACTIONS = 400;
  * @param {object} opts
  * @param {import("../../src/modules/simulator/engine/types.ts").GameState} opts.initialState
  * @param {"A"|"B"} opts.seat
- * @param {"facil"|"normal"} opts.level
+ * @param {"facil"|"normal"|"dificil"} opts.level
  * @param {number} opts.seed
  * @param {(action: unknown) => (void | Promise<void>)} opts.commit
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}
  */
 export async function driveBotTurn({ initialState, seat, level, seed, commit, maxActions = DEFAULT_MAX_ACTIONS }) {
-  const policy = heuristicPolicy({ level: level === "facil" ? "facil" : "normal" });
+  const policy =
+    level === "dificil"
+      ? mctsPolicy({
+          rollouts: 16,
+          depthTurns: 8,
+          specs: ALL_EFFECT_SPECS,
+          predicateResolver: defaultPredicateResolver,
+          targetFilterResolver: defaultTargetFilterResolver,
+        })
+      : heuristicPolicy({ level: level === "facil" ? "facil" : "normal" });
   const rng = createRng((seed ?? 1) >>> 0);
   let state = initialState;
   let actionsApplied = 0;

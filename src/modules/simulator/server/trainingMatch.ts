@@ -18,7 +18,7 @@ import { VALIDATED_DECKS, isValidatedDeck } from "../content/validatedDecks";
 export const SIM_BOT_USER_ID = "sim-bot";
 export const SIM_BOT_DISPLAY_NAME = "Bot de Treino";
 
-export const TRAINING_LEVELS = ["facil", "normal"] as const;
+export const TRAINING_LEVELS = ["facil", "normal", "dificil"] as const;
 export type TrainingLevel = (typeof TRAINING_LEVELS)[number];
 
 export function isTrainingLevel(value: unknown): value is TrainingLevel {

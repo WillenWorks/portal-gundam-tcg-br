@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const LEVELS: { value: SimulatorTrainingLevel; label: string; hint: string }[] = [
   { value: "facil", label: "Fácil", hint: "Joga o básico: deploy simples, ataca só o jogador, sem efeitos nem bloqueio." },
   { value: "normal", label: "Normal", hint: "Heurística cheia: forma Link, troca favorável, bloqueia, usa remoção na maior ameaça." },
+  { value: "dificil", label: "Difícil (MCTS)", hint: "Busca em profundidade com MCTS: simula árvores de cenários futuros para maximizar vitórias." },
 ];
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -95,7 +96,7 @@ export default function SimulatorTrainingPage() {
 
             <div className="space-y-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Dificuldade</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {LEVELS.map((option) => (
                   <button
                     key={option.value}
