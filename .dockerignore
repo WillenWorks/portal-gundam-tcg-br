@@ -1,0 +1,37 @@
+# Contexto de build do Docker. Hoje o único Dockerfile do repo é
+# `services/sim-bot/Dockerfile` (worker do bot de treino), cujo contexto é a
+# raiz. Render/Vercel/nixpacks NÃO leem este arquivo — só o `docker build`.
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+node_modules
+**/node_modules
+dist
+dist-ssr
+build
+coverage
+.screenshots
+backups
+
+# Segredos e ambiente local
+.env
+.env.*
+!.env.example
+
+# Dados/artefatos pesados que o worker NÃO importa (o motor em
+# `src/modules/simulator/**` é TypeScript autocontido).
+data
+public/uploads
+documentacao
+tutoriais
+docs
+
+# Logs e temporários
+*.log
+npm-debug.log*
+pnpm-debug.log*
+*.local
