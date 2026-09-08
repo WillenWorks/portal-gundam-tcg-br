@@ -70,3 +70,5 @@ docs/_generated/
 # datasets e pesos de modelo do treino ML do bot (docs/50) — nunca versionam
 services/sim-trainer/data/
 services/sim-trainer/models/
+# log de progresso do benchmark do bot MCTS (gundam:mcts:bench) — efêmero
+.mcts-bench-progress.log
