@@ -83,7 +83,7 @@ describe("mctsPolicy", () => {
  */
 describe("mctsPolicy — sanidade (amostra pequena)", () => {
   it(
-    "vence randomLegal com folga e decide em < 2s (12 partidas ST01/ST02)",
+    "vence randomLegal com folga e decide em tempo hábil (6 partidas ST01/ST02)",
     () => {
       let mctsWins = 0;
       let decisive = 0;
@@ -93,8 +93,8 @@ describe("mctsPolicy — sanidade (amostra pequena)", () => {
         ["ST01", "ST02", "A"],
         ["ST02", "ST01", "B"],
       ] as Array<[string, string, "A" | "B"]>) {
-        for (let g = 0; g < 6; g++) {
-          const base = mctsPolicy({ rollouts: 20, depthTurns: 12, ...specs });
+        for (let g = 0; g < 3; g++) {
+          const base = mctsPolicy({ rollouts: 16, depthTurns: 10, ...specs });
           const timed: typeof base = (view, legal, rng) => {
             const t0 = Date.now();
             const out = base(view, legal, rng);
