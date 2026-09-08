@@ -536,17 +536,26 @@ export function computeLegalTargets(
 }
 
 /**
+ * `true` se algum `PrimitiveCall` de `calls` consome o alvo nomeado `"target"`.
+ */
+export function callsNeedNamedTarget(calls: PrimitiveCall[] | undefined): boolean {
+  return (calls ?? []).some((call) => {
+    const target = (call as { target?: { kind?: string; name?: string } }).target;
+    return target?.kind === "named" && target.name === "target";
+  });
+}
+
+/**
  * `true` se algum `PrimitiveCall` do spec (em `actions`, `condition.then` ou
  * `condition.else`) consome o alvo nomeado `"target"` (`ctx.targets.target`).
  * Usado pra decidir se um gatilho precisa de interação do jogador.
  */
 export function specNeedsNamedTarget(spec: EffectSpec): boolean {
-  const uses = (calls: PrimitiveCall[] | undefined) =>
-    (calls ?? []).some((call) => {
-      const target = (call as { target?: { kind?: string; name?: string } }).target;
-      return target?.kind === "named" && target.name === "target";
-    });
-  return uses(spec.actions) || uses(spec.condition?.then) || uses(spec.condition?.else);
+  return (
+    callsNeedNamedTarget(spec.actions) ||
+    callsNeedNamedTarget(spec.condition?.then) ||
+    callsNeedNamedTarget(spec.condition?.else)
+  );
 }
 
 /**
@@ -584,6 +593,14 @@ function specPrimitives(spec: EffectSpec): PrimitiveCall[] {
   return [...(spec.cost ?? []), ...(spec.condition?.then ?? []), ...(spec.condition?.else ?? []), ...spec.actions];
 }
 
+export function callsChoicePrimitive(calls: PrimitiveCall[]): ChoicePrimitive | undefined {
+  return calls.find(isChoicePrimitive);
+}
+
+export function callsNeedChoice(calls: PrimitiveCall[]): boolean {
+  return callsChoicePrimitive(calls) !== undefined;
+}
+
 export function specChoicePrimitive(spec: EffectSpec): ChoicePrimitive | undefined {
   return specPrimitives(spec).find(isChoicePrimitive);
 }
@@ -596,6 +613,32 @@ export function specChoicePrimitives(spec: EffectSpec): ChoicePrimitive[] {
 /** `true` se o spec consome uma escolha de carta / enum (ver `specChoicePrimitive`). */
 export function specNeedsChoice(spec: EffectSpec): boolean {
   return specChoicePrimitive(spec) !== undefined;
+}
+
+/**
+ * Retorna as chamadas ativas de um EffectSpec considerando a avaliação dinâmica
+ * de sua condição (se houver) no contexto atual.
+ */
+export function specActiveCalls(
+  spec: EffectSpec,
+  ctx: EffectContext,
+  predicateResolver?: PredicateResolver,
+): PrimitiveCall[] {
+  const calls: PrimitiveCall[] = [...(spec.actions ?? [])];
+  if (spec.condition) {
+    if (predicateResolver) {
+      const passes = predicateResolver(spec.condition.predicate, ctx);
+      if (passes) {
+        calls.push(...spec.condition.then);
+      } else if (spec.condition.else) {
+        calls.push(...spec.condition.else);
+      }
+    } else {
+      // Sem resolver fornecido, assume a cláusula then
+      calls.push(...spec.condition.then);
+    }
+  }
+  return calls;
 }
 
 /**

@@ -10,17 +10,21 @@
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
+  callsChoicePrimitive,
+  callsNeedChoice,
+  callsNeedNamedTarget,
   computeLegalTargets,
   discardCandidateHandIds,
   matchesCardDefFilter,
   peekAndReorderDeck,
   resolvePlayerRef,
+  specActiveCalls,
   specChoicePrimitive,
   specChoicePrimitives,
   specNeedsChoice,
   specNeedsNamedTarget,
 } from "./effectSpec";
-import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
+import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
 import type { DestroyedInBattle, GameState, PendingDecision, PlayerId } from "./types";
 import { otherPlayer } from "./types";
@@ -39,8 +43,9 @@ function buildQueueEntry(
   spec: EffectSpec,
   sourceInstanceId: string,
   targetFilterResolver?: TargetFilterResolver,
+  activeCalls?: PrimitiveCall[],
 ): AbilityQueueEntry {
-  const needsTarget = specNeedsNamedTarget(spec);
+  const needsTarget = activeCalls ? callsNeedNamedTarget(activeCalls) : specNeedsNamedTarget(spec);
   const entry: AbilityQueueEntry = {
     sourceInstanceId,
     specId: spec.id,
@@ -51,7 +56,7 @@ function buildQueueEntry(
     legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver) : [],
   };
 
-  const choice = specChoicePrimitive(spec);
+  const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
   if (!choice) return entry;
 
   if (choice.op === "deployFromHandTriggered") {
@@ -88,7 +93,9 @@ function buildQueueEntry(
   }
 
   // moveWithinDeck nomeado — ST02-015 tem 2 (topo + fundo) = 1 reordenação.
-  const reorderCalls = specChoicePrimitives(spec).filter(
+  const reorderPool =
+    activeCalls ?? [...(spec.cost ?? []), ...(spec.condition?.then ?? []), ...(spec.condition?.else ?? []), ...spec.actions];
+  const reorderCalls = reorderPool.filter(
     (c): c is Extract<typeof c, { op: "moveWithinDeck" }> => c.op === "moveWithinDeck" && c.target.kind === "named",
   );
   const slots = reorderCalls.map((c) => ({
@@ -123,14 +130,37 @@ export function deferOrDispatchAbilities(
     targetFilterResolver: opts.targetFilterResolver,
     allSpecs: specs,
   };
-  const interactive = entries.filter(
-    ({ spec }) => (spec.optional ?? false) || specNeedsNamedTarget(spec) || specNeedsChoice(spec),
+
+  // Avalia as chamadas ativas de cada spec no contexto atual
+  const entriesWithCalls = entries.map(({ spec, sourceInstanceId }) => {
+    const ctx: EffectContext = {
+      state,
+      controller: player,
+      sourceInstanceId,
+      turnNumber: state.turnNumber,
+      targets: opts.targets ?? {},
+    };
+    const activeCalls = specActiveCalls(spec, ctx, opts.predicateResolver);
+    return { spec, sourceInstanceId, activeCalls };
+  });
+
+  // Descarta specs cujo efeito é incondicionalmente vazio no estado atual
+  // (ex: condição falhou e não tem `else` nem `actions` fora da condição)
+  const activeEntries = entriesWithCalls.filter(({ spec, activeCalls }) => {
+    if (spec.condition && activeCalls.length === 0) return false;
+    return true;
+  });
+  if (activeEntries.length === 0) return state;
+
+  const interactive = activeEntries.filter(
+    ({ spec, activeCalls }) =>
+      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls),
   );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
   if (interactive.length === 0 || opts.targets) {
     let next = state;
-    for (const { spec, sourceInstanceId } of entries) {
+    for (const { spec, sourceInstanceId } of activeEntries) {
       next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
       if (next.pendingDecision.A || next.pendingDecision.B) return next; // 【Destroyed】 fora de combate pausou
     }
@@ -139,7 +169,7 @@ export function deferOrDispatchAbilities(
 
   // automáticos primeiro; interativos vão pra fila da decisão.
   let next = state;
-  for (const { spec, sourceInstanceId } of entries.filter((e) => !interactive.includes(e))) {
+  for (const { spec, sourceInstanceId } of activeEntries.filter((e) => !interactive.includes(e))) {
     next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
     if (next.pendingDecision.A || next.pendingDecision.B) return next;
   }
@@ -153,8 +183,8 @@ export function deferOrDispatchAbilities(
         // V0 (docs/25): candidatos legais (alvo em campo, carta da mão, topo do
         // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
         // `resolveAbility` valida contra isto (nunca confia no cliente).
-        queue: interactive.map(({ spec, sourceInstanceId }) =>
-          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver),
+        queue: interactive.map(({ spec, sourceInstanceId, activeCalls }) =>
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls),
         ),
       },
     },
@@ -318,9 +348,20 @@ export function filterDispatchableSpecs(
   controller: PlayerId,
   suppliedTargetIds: string[] | undefined,
   targetFilterResolver?: TargetFilterResolver,
+  predicateResolver?: PredicateResolver,
+  sourceInstanceId?: string,
 ): EffectSpec[] {
   return findTriggerSpecs(specs, cardCode, trigger).filter((spec) => {
-    if (!specNeedsNamedTarget(spec)) return true;
+    const ctx: EffectContext = {
+      state,
+      controller,
+      sourceInstanceId: sourceInstanceId ?? "",
+      turnNumber: state.turnNumber,
+      targets: suppliedTargetIds ? { target: suppliedTargetIds } : {},
+    };
+    const activeCalls = specActiveCalls(spec, ctx, predicateResolver);
+    if (spec.condition && activeCalls.length === 0) return false;
+    if (!callsNeedNamedTarget(activeCalls)) return true;
     const legal = computeLegalTargets(state, spec, controller, targetFilterResolver);
     if (legal.length === 0) return false;
     const chosen = suppliedTargetIds?.[0];

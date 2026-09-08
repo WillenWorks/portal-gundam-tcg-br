@@ -181,16 +181,13 @@ describe("ST04-012 Striker Pack 【Main】 — deploy 1 Sword ou 1 Launcher (enu
   it("com token (Earth Alliance) em campo: a Command resolve (vai pro trash) mas nenhum token novo", () => {
     const { state, cmdId } = setup();
     place(state, "A", ST04_CARD_DEFS.TOKEN_AILE_STRIKE, "battleArea");
-    const paused = playCommand(state, "A", cmdId, "Main", ALL_EFFECT_SPECS, {
+    const afterPlay = playCommand(state, "A", cmdId, "Main", ALL_EFFECT_SPECS, {
       predicateResolver: defaultPredicateResolver,
       targetFilterResolver: defaultTargetFilterResolver,
     });
-    const q = paused.pendingDecision.A?.kind === "abilityResolution" ? paused.pendingDecision.A.queue[0] : undefined;
-    const next = apply(paused, "A", {
-      kind: "resolveAbility",
-      resolutions: [{ specId: q!.specId, activate: true, targetIds: ["sword"] }],
-    });
-    expect(next.players.A.battleArea.filter((c) => c.def.isToken)).toHaveLength(1); // só o Aile Strike que já estava
-    expect(next.players.A.trash.some((c) => c.instanceId === cmdId)).toBe(true);
+    // Condição do Striker Pack é falsa (já há token Earth Alliance em jogo) -> não pausa pra escolha
+    expect(afterPlay.pendingDecision.A).toBeNull();
+    expect(afterPlay.players.A.battleArea.filter((c) => c.def.isToken)).toHaveLength(1); // só o Aile Strike que já estava
+    expect(afterPlay.players.A.trash.some((c) => c.instanceId === cmdId)).toBe(true);
   });
 });

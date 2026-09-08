@@ -150,6 +150,7 @@ export const CLOSE_COMBAT_BURST: EffectSpec = {
   cardCode: "ST03-013",
   trigger: "Burst",
   actions: CLOSE_COMBAT_ACTIONS,
+  targetScope: "enemyUnit",
   sourceText: "【Burst】Activate this card's 【Main】.",
 };
 export const CLOSE_COMBAT_MAIN: EffectSpec = { ...CLOSE_COMBAT_BURST, id: "ST03-013-Main", trigger: "Main", sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it." };
@@ -193,6 +194,7 @@ export const REWLOOLA_DEPLOY_DAMAGE: EffectSpec = {
   cardCode: "ST03-015",
   trigger: "Deploy",
   actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "enemyUnit",
   targetFilter: "ap<=5",
   sourceText: "Then, choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it.",
 };

@@ -43,6 +43,7 @@ export const GUNTANK_DEPLOY: EffectSpec = {
   cardCode: "ST01-004",
   trigger: "Deploy",
   actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
   targetFilter: "hp<=2",
   sourceText: "【Deploy】Choose 1 enemy Unit with 2 or less HP. Rest it.",
 };
@@ -54,6 +55,7 @@ export const AERIAL_SCORE_SIX_WHEN_PAIRED: EffectSpec = {
   cardCode: "ST01-006",
   trigger: "When Paired",
   actions: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -3, duration: "endOfTurn" }],
+  targetScope: "enemyUnit",
   targetFilter: "level<=5",
   sourceText: "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn.",
 };
@@ -73,6 +75,7 @@ export const AMURO_RAY_WHEN_PAIRED: EffectSpec = {
   cardCode: "ST01-010",
   trigger: "When Paired",
   actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
   targetFilter: "hp<=5",
   sourceText: "【When Paired】Choose 1 enemy Unit with 5 or less HP. Rest it.",
 };
@@ -114,6 +117,7 @@ export const THOROUGHLY_DAMAGED_MAIN: EffectSpec = {
   // O lado 【Pilot】[Hayato Kobayashi] é modo de jogo alternativo (pilotMode),
   // não afeta esta seção 【Main】.
   actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "enemyUnit",
   targetFilter: "rested",
   sourceText: "【Main】Choose 1 rested enemy Unit. Deal 1 damage to it.",
 };
@@ -144,6 +148,7 @@ export const UNFORESEEN_INCIDENT_BURST: EffectSpec = {
   cardCode: "ST01-014",
   trigger: "Burst",
   actions: UNFORESEEN_INCIDENT_ACTIONS,
+  targetScope: "enemyUnit",
   sourceText: "【Burst】Activate this card's 【Main】.",
 };
 
@@ -152,6 +157,7 @@ export const UNFORESEEN_INCIDENT_MAIN: EffectSpec = {
   cardCode: "ST01-014",
   trigger: "Main",
   actions: UNFORESEEN_INCIDENT_ACTIONS,
+  targetScope: "enemyUnit",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn.",
 };
 
@@ -160,6 +166,7 @@ export const UNFORESEEN_INCIDENT_ACTION: EffectSpec = {
   cardCode: "ST01-014",
   trigger: "Action",
   actions: UNFORESEEN_INCIDENT_ACTIONS,
+  targetScope: "enemyUnit",
   sourceText: "【Main】/【Action】Choose 1 enemy Unit. It gets AP-3 during this turn.",
 };
 
