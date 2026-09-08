@@ -66,3 +66,6 @@ docs/51-pipeline-autofix.md
 docs/_generated/
 # git worktrees criadas por subagentes (orquestração paralela) — efêmeras
 .claude/worktrees/
+# datasets e pesos de modelo do treino ML do bot (docs/50) — nunca versionam
+services/sim-trainer/data/
+services/sim-trainer/models/
