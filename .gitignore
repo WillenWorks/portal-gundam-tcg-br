@@ -66,3 +66,5 @@ docs/51-pipeline-autofix.md
 docs/_generated/
 # git worktrees criadas por subagentes (orquestração paralela) — efêmeras
 .claude/worktrees/
+# log de progresso do benchmark do bot MCTS (gundam:mcts:bench) — efêmero
+.mcts-bench-progress.log
