@@ -120,15 +120,19 @@ export async function driveBotTurn({ initialState, seat, level, seed, commit, ma
     const view = viewStateFor(state, seat);
     const action = policy(view, legal, rng);
 
-    await commit(action); // caminho autoritativo — pode lançar (motor recusou / rede)
-    state = applyPlayerAction(
-      state,
-      seat,
-      action,
-      ALL_EFFECT_SPECS,
-      defaultPredicateResolver,
-      defaultTargetFilterResolver,
-    );
+    const committedState = await commit(action); // caminho autoritativo — pode lançar (motor recusou / rede)
+    if (committedState && typeof committedState === "object" && committedState.players) {
+      state = committedState;
+    } else {
+      state = applyPlayerAction(
+        state,
+        seat,
+        action,
+        ALL_EFFECT_SPECS,
+        defaultPredicateResolver,
+        defaultTargetFilterResolver,
+      );
+    }
     actionsApplied += 1;
   }
 

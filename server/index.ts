@@ -233,9 +233,10 @@ setBotTurnSink(({ matchId, seat, level }) => {
             level: (level as "facil" | "normal" | "dificil") || "normal",
             seed: Math.floor(Math.random() * 1_000_000),
             commit: async (action: unknown) => {
-              applyAction(matchId, SIM_BOT_USER_ID, action as never);
+              const updated = applyAction(matchId, SIM_BOT_USER_ID, action as never);
               // Delay suave de 400ms para permitir renderização fluida e visibilidade no frontend
               await new Promise((r) => setTimeout(r, 400));
+              return updated.state;
             },
           });
         }

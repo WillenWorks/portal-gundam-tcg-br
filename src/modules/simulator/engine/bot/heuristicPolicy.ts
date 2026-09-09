@@ -250,7 +250,10 @@ function scoreNormal(action: LegalAction, _index: number, ctx: Ctx): number {
       if (activated.length === 0) return 2;
       let score = 4 * activated.length;
       for (const r of activated) {
-        for (const id of r.targetIds) score += targetBonus(ctx, id);
+        if (r.targetIds.length > 0) {
+          score += 10 * r.targetIds.length;
+          for (const id of r.targetIds) score += targetBonus(ctx, id);
+        }
       }
       return score;
     }
@@ -296,8 +299,10 @@ function scoreFacil(action: LegalAction, index: number, ctx: Ctx): number {
     }
     case "resolveBurstDecision":
       return action.activate ? 0 : 5;
-    case "resolveAbility":
-      return 5 - index;
+    case "resolveAbility": {
+      const picks = action.resolutions.reduce((acc, r) => acc + (r.activate ? r.targetIds.length + 1 : 0), 0);
+      return 5 + picks - index * 0.001;
+    }
     case "declareAttack":
       return action.target === "player" ? 5 : -1;
     case "deployCard": {
