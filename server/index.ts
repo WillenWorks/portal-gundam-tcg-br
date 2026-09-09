@@ -53,6 +53,11 @@ import {
   SIM_BOT_USER_ID,
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
+import {
+  buildDeckListFromUserDeck,
+  UserDeckSimulatorError,
+} from "../src/modules/simulator/content/userDeckBuilder.ts";
+import { isValidatedDeck, VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
 import { driveBotTurn } from "../services/sim-bot/driveBotTurn.mjs";
 import {
   buildGithubDispatchRequest,
@@ -3500,17 +3505,53 @@ app.get("/api/simulator/queue/status", authRequired, (req: RequestWithUser, res)
 // enfileira um `SimulatorBotTurn` que o worker (`services/sim-bot/`) processa,
 // aplicando cada ação de volta por `POST /matches/:id/actions`.
 
-app.post("/api/simulator/training/new", authRequired, (req: RequestWithUser, res) => {
-  const body = req.body as { deckId?: unknown; level?: unknown };
+app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUser, res) => {
+  const body = req.body as {
+    deckId?: unknown;
+    playerDeckId?: unknown;
+    botDeckId?: unknown;
+    level?: unknown;
+  };
+
+  const rawPlayerId = String(body.playerDeckId || body.deckId || "").trim();
+  const rawBotId = String(body.botDeckId || rawPlayerId).trim();
+
   try {
+    const resolveDeckForTraining = async (id: string) => {
+      const upper = id.toUpperCase();
+      if (isValidatedDeck(upper)) {
+        return { key: upper, list: VALIDATED_DECKS[upper].build() };
+      }
+      // Busca deck do usuário no banco
+      const dbDeck = await prisma.deck.findFirst({
+        where: { id, userId: req.user!.userId },
+        include: { items: { include: { card: true } } },
+      });
+      if (!dbDeck) {
+        throw new TrainingMatchError(
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${Object.keys(VALIDATED_DECKS).sort().join(", ")}).`,
+        );
+      }
+      const list = buildDeckListFromUserDeck(dbDeck);
+      return { key: dbDeck.name, list };
+    };
+
+    const resolvedA = await resolveDeckForTraining(rawPlayerId);
+    const resolvedB = rawBotId === rawPlayerId ? resolvedA : await resolveDeckForTraining(rawBotId);
+
     const { matchId } = createTrainingMatch({
-      deckId: typeof body.deckId === "string" ? body.deckId : "",
+      playerDeckId: resolvedA.key,
+      botDeckId: resolvedB.key,
+      playerDeckList: resolvedA.list,
+      botDeckList: resolvedB.list,
       level: body.level,
       human: { userId: req.user!.userId, displayName: req.user!.username },
     });
     res.status(201).json({ matchId });
   } catch (err) {
-    if (err instanceof TrainingMatchError) return res.status(err.status).json({ error: err.message });
+    if (err instanceof TrainingMatchError || err instanceof UserDeckSimulatorError) {
+      return res.status(err.status).json({ error: err.message });
+    }
     throw err;
   }
 });

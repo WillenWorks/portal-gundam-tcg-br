@@ -34,8 +34,19 @@ export class TrainingMatchError extends Error {
   }
 }
 
+import type { DeckList } from "../engine/setup";
+
 export interface CreateTrainingMatchInput {
-  deckId: string;
+  /** Legado: define o deck para ambos os lados caso playerDeckId / botDeckId não sejam passados. */
+  deckId?: string;
+  /** Identificador do deck do jogador (ex: "ST01" ou ID de deck salvo). */
+  playerDeckId?: string;
+  /** Identificador do deck do bot (ex: "ST02" ou ID de deck salvo; se omitido, usa o do jogador). */
+  botDeckId?: string;
+  /** DeckList pré-construída opcional para o jogador A. */
+  playerDeckList?: DeckList;
+  /** DeckList pré-construída opcional para o bot B. */
+  botDeckList?: DeckList;
   /** `unknown` de propósito — vem cru do corpo HTTP; `isTrainingLevel` valida. */
   level: unknown;
   human: { userId: string; displayName: string };
@@ -44,17 +55,15 @@ export interface CreateTrainingMatchInput {
 }
 
 /**
- * Cria a partida de treino: jogador no assento A, bot no B (mesmo deck dos dois
- * lados — o foco é treinar as decisões, não o matchup). Reusa `createMatch` +
- * `joinMatch` do `matchStore`, então nasce com o Mulligan interativo pendente,
- * igual a uma partida normal.
+ * Cria a partida de treino: jogador no assento A, bot no B.
+ * Suporta qualquer combinação de starter decks (ST01..ST04) e decks customizados do usuário.
  */
 export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId: string } {
-  const deckId = typeof input.deckId === "string" ? input.deckId.toUpperCase() : "";
-  if (!isValidatedDeck(deckId)) {
-    throw new TrainingMatchError(
-      `Deck "${input.deckId}" não está liberado para treino. Use um de: ${Object.keys(VALIDATED_DECKS).sort().join(", ")}.`,
-    );
+  const rawPlayerId = (input.playerDeckId || input.deckId || "").trim();
+  const rawBotId = (input.botDeckId || rawPlayerId).trim();
+
+  if (!rawPlayerId) {
+    throw new TrainingMatchError("Deck do jogador não informado.");
   }
   if (!isTrainingLevel(input.level)) {
     throw new TrainingMatchError(`Dificuldade inválida — use "${TRAINING_LEVELS.join('" ou "')}".`);
@@ -63,9 +72,41 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
     throw new TrainingMatchError("Jogador inválido para uma partida de treino.", 403);
   }
 
-  const deck = VALIDATED_DECKS[deckId];
-  const match = createMatch({ deckA: deck.build(), deckB: deck.build(), firstPlayer: "A", seed: input.seed, mode: "training" });
-  match.deckKeys = { A: deckId, B: deckId };
+  const upperPlayer = rawPlayerId.toUpperCase();
+  const upperBot = rawBotId.toUpperCase();
+
+  let deckA: DeckList;
+  if (input.playerDeckList) {
+    deckA = input.playerDeckList;
+  } else if (isValidatedDeck(upperPlayer)) {
+    deckA = VALIDATED_DECKS[upperPlayer].build();
+  } else {
+    throw new TrainingMatchError(
+      `Deck do jogador "${rawPlayerId}" não está liberado para treino. Use um dos starters (${Object.keys(VALIDATED_DECKS).sort().join(", ")}) ou um deck válido do seu perfil.`,
+    );
+  }
+
+  let deckB: DeckList;
+  if (input.botDeckList) {
+    deckB = input.botDeckList;
+  } else if (isValidatedDeck(upperBot)) {
+    deckB = VALIDATED_DECKS[upperBot].build();
+  } else {
+    throw new TrainingMatchError(
+      `Deck do bot "${rawBotId}" não está liberado para treino. Use um dos starters (${Object.keys(VALIDATED_DECKS).sort().join(", ")}) ou um deck válido do seu perfil.`,
+    );
+  }
+
+  const match = createMatch({
+    deckA,
+    deckB,
+    firstPlayer: "A",
+    seed: input.seed,
+    mode: "training",
+  });
+  const keyA = isValidatedDeck(upperPlayer) ? upperPlayer : rawPlayerId;
+  const keyB = isValidatedDeck(upperBot) ? upperBot : rawBotId;
+  match.deckKeys = { A: keyA, B: keyB };
   joinMatch(match.id, "A", {
     userId: input.human.userId,
     displayName: input.human.displayName,

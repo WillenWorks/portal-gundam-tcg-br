@@ -9,9 +9,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bot, Loader2, Swords } from "lucide-react";
+import { Bot, Loader2, Swords, User, ShieldCheck } from "lucide-react";
 
-import { api, type SimulatorTrainingLevel } from "@/lib/api";
+import { api, type ApiDeck, type SimulatorTrainingLevel } from "@/lib/api";
 import { validatedDeckList } from "@/modules/simulator/content/validatedDecks";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Button } from "@/components/ui/button";
@@ -29,10 +29,30 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export default function SimulatorTrainingPage() {
   const [, navigate] = useLocation();
-  const decks = useMemo(() => validatedDeckList(), []);
-  const [deckId, setDeckId] = useState<string>(decks[0]?.id ?? "ST01");
+  const starters = useMemo(() => validatedDeckList(), []);
+  const [myDecks, setMyDecks] = useState<ApiDeck[]>([]);
+  const [playerDeckId, setPlayerDeckId] = useState<string>(starters[0]?.id ?? "ST01");
+  const [botDeckId, setBotDeckId] = useState<string>("SAME");
   const [level, setLevel] = useState<SimulatorTrainingLevel>("normal");
   const [starting, setStarting] = useState(false);
+
+  // Carrega decks salvos do usuário para permitir treino com decks do perfil
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listMyDecks()
+      .then((list) => {
+        if (!cancelled && Array.isArray(list)) {
+          setMyDecks(list);
+        }
+      })
+      .catch(() => {
+        /* segue só com os starters */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Reconexão: se o jogador já está numa partida ativa (treino ou não), a
   // própria tela de partida resolve — aqui a gente só oferece começar uma nova.
@@ -54,7 +74,12 @@ export default function SimulatorTrainingPage() {
   const startTraining = async () => {
     setStarting(true);
     try {
-      const { matchId } = await api.startSimulatorTraining({ deckId, level });
+      const actualBotDeckId = botDeckId === "SAME" ? playerDeckId : botDeckId;
+      const { matchId } = await api.startSimulatorTraining({
+        playerDeckId,
+        botDeckId: actualBotDeckId,
+        level,
+      });
       navigate(`/simulador/partida/${matchId}`);
     } catch (err) {
       toast.error(errorMessage(err, "Não deu pra começar o treino."));
@@ -71,31 +96,78 @@ export default function SimulatorTrainingPage() {
               <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Treino solo</p>
               <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Contra o bot</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Escolha um deck validado e a dificuldade. Você joga contra a IA — sem esperar oponente, sem fila. A partida
-                abre na tela normal do simulador.
+                Treine contra a inteligência artificial com qualquer Starter Deck oficial ou contra seus próprios decks customizados.
+                A partida abre diretamente no simulador autoritativo.
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="training-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Seu deck (o bot usa o mesmo)
-              </label>
-              <select
-                id="training-deck"
-                value={deckId}
-                onChange={(event) => setDeckId(event.target.value)}
-                className="panel-cut w-full border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-soft focus:border-primary focus:outline-none"
-              >
-                {decks.map((deck) => (
-                  <option key={deck.id} value={deck.id}>
-                    {deck.label}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Deck do Jogador */}
+              <div className="space-y-1.5">
+                <label htmlFor="training-player-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 flex items-center gap-1.5">
+                  <User className="size-3 text-primary" />
+                  Seu Deck
+                </label>
+                <select
+                  id="training-player-deck"
+                  value={playerDeckId}
+                  onChange={(event) => setPlayerDeckId(event.target.value)}
+                  className="panel-cut w-full border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-soft focus:border-primary focus:outline-none"
+                >
+                  <optgroup label="Starter Decks Oficiais">
+                    {starters.map((deck) => (
+                      <option key={deck.id} value={deck.id}>
+                        {deck.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {myDecks.length > 0 && (
+                    <optgroup label="Meus Decks Salvos">
+                      {myDecks.map((deck) => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              {/* Deck do Bot */}
+              <div className="space-y-1.5">
+                <label htmlFor="training-bot-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 flex items-center gap-1.5">
+                  <Bot className="size-3 text-secondary-portal" />
+                  Deck do Bot
+                </label>
+                <select
+                  id="training-bot-deck"
+                  value={botDeckId}
+                  onChange={(event) => setBotDeckId(event.target.value)}
+                  className="panel-cut w-full border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-soft focus:border-primary focus:outline-none"
+                >
+                  <option value="SAME">Mesmo deck que o seu (Espelho)</option>
+                  <optgroup label="Starter Decks Oficiais">
+                    {starters.map((deck) => (
+                      <option key={deck.id} value={deck.id}>
+                        {deck.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  {myDecks.length > 0 && (
+                    <optgroup label="Meus Decks Salvos">
+                      {myDecks.map((deck) => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Dificuldade</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Dificuldade da IA</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {LEVELS.map((option) => (
                   <button
@@ -125,10 +197,16 @@ export default function SimulatorTrainingPage() {
               Começar treino
             </Button>
 
-            <p className="flex items-center gap-2 text-xs text-muted-portal">
-              <Bot className="size-3.5" />
-              O bot pode levar alguns segundos pra jogar cada turno.
-            </p>
+            <div className="flex items-center justify-between text-xs text-muted-portal pt-1 border-t border-white/5">
+              <span className="flex items-center gap-1.5">
+                <Bot className="size-3.5 text-primary" />
+                Motor server-authoritative
+              </span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-emerald-400" />
+                Suporte ST01..ST04 + Decks do Perfil
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>

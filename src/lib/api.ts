@@ -466,7 +466,7 @@ export const api = {
   // Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). Cria uma
   // partida com o jogador no assento A e o bot no B; a UI de partida é a mesma
   // (`/simulador/partida/:matchId`), o bot joga sozinho via worker `sim-bot`.
-  startSimulatorTraining: (payload: { deckId: string; level: SimulatorTrainingLevel }) =>
+  startSimulatorTraining: (payload: { deckId?: string; playerDeckId?: string; botDeckId?: string; level: SimulatorTrainingLevel }) =>
     request<{ matchId: string }>("/simulator/training/new", { method: "POST", body: JSON.stringify(payload) }),
   getSimulatorTraining: (id: string) =>
     request<{ seated: true } & SimulatorMatchView>(`/simulator/training/${id}`, undefined, { bypassCache: true }),
