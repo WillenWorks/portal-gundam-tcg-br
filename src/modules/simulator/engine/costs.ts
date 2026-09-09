@@ -25,7 +25,13 @@ export function payResourceCostEvents(
   if (n <= 0) return [];
   const resourceArea = state.players[player].resourceArea;
   const activeResources = resourceArea.filter((r) => !r.rested);
-  const payWith = resourceInstanceIds ?? activeResources.slice(0, n).map((r) => r.instanceId);
+  // Prioriza gastar recursos normais (que desviram a cada turno) e poupa o EX Resource (token descartável de uso único)
+  const prioritizedResources = [...activeResources].sort((a, b) => {
+    const aIsEx = a.def.code === TOKEN_EX_RESOURCE_CODE ? 1 : 0;
+    const bIsEx = b.def.code === TOKEN_EX_RESOURCE_CODE ? 1 : 0;
+    return aIsEx - bIsEx;
+  });
+  const payWith = resourceInstanceIds ?? prioritizedResources.slice(0, n).map((r) => r.instanceId);
 
   if (payWith.length < n) {
     throw new Error(`Recursos active insuficientes pra pagar custo ${n}: só ${activeResources.length} active`);

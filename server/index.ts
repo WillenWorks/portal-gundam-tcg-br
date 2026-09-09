@@ -216,19 +216,24 @@ setBotTurnSink(({ matchId, seat, level }) => {
 
       try {
         await loadMatch(matchId);
-        const match = getMatch(matchId);
-        if (!match || match.state.gameOver) return;
-        if (decisionOwner(match.state) !== seat) return;
+        let turnIterations = 0;
+        while (turnIterations < 15) {
+          turnIterations++;
+          const currentMatch = getMatch(matchId);
+          if (!currentMatch || currentMatch.state.gameOver || decisionOwner(currentMatch.state) !== seat) break;
 
-        await driveBotTurn({
-          initialState: match.state,
-          seat,
-          level: (level as "facil" | "normal" | "dificil") || "normal",
-          seed: Math.floor(Math.random() * 1_000_000),
-          commit: (action: unknown) => {
-            applyAction(matchId, SIM_BOT_USER_ID, action as never);
-          },
-        });
+          await driveBotTurn({
+            initialState: currentMatch.state,
+            seat,
+            level: (level as "facil" | "normal" | "dificil") || "normal",
+            seed: Math.floor(Math.random() * 1_000_000),
+            commit: async (action: unknown) => {
+              applyAction(matchId, SIM_BOT_USER_ID, action as never);
+              // Delay suave de 400ms para permitir renderização fluida e visibilidade no frontend
+              await new Promise((r) => setTimeout(r, 400));
+            },
+          });
+        }
 
         await prisma.simulatorBotTurn.updateMany({
           where: { matchId, status: { in: ["pending", "processing"] } },

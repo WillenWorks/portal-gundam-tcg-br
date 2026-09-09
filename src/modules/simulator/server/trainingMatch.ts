@@ -66,10 +66,15 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
   const deck = VALIDATED_DECKS[deckId];
   const match = createMatch({ deckA: deck.build(), deckB: deck.build(), firstPlayer: "A", seed: input.seed, mode: "training" });
   match.deckKeys = { A: deckId, B: deckId };
-  joinMatch(match.id, "A", { userId: input.human.userId, displayName: input.human.displayName });
+  joinMatch(match.id, "A", {
+    userId: input.human.userId,
+    displayName: input.human.displayName,
+    autoPassActionStep: true,
+  });
   joinMatch(match.id, "B", {
     userId: SIM_BOT_USER_ID,
     displayName: SIM_BOT_DISPLAY_NAME,
+    autoPassActionStep: true,
     bot: { policy: input.level === "dificil" ? "mcts" : "heuristic", level: input.level },
   });
   return { matchId: match.id };

@@ -930,7 +930,8 @@ function settleAutoPasses(match: MatchRecord): void {
     const inCombatActionStep = match.state.combat?.step === "action";
     const inEndPhaseActionStep = match.state.endPhaseAction != null;
     if (!inCombatActionStep && !inEndPhaseActionStep) return;
-    if (!match.seats[owner]?.autoPassActionStep) return;
+    const isBot = Boolean(match.seats[owner]?.bot);
+    if (!isBot && !match.seats[owner]?.autoPassActionStep) return;
     if (playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
 
     const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
