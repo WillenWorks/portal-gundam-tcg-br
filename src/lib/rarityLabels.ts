@@ -46,6 +46,6 @@ export function expandRarityFilter(value: string, groups: Map<string, string[]>)
     .map((v) => v.trim())
     .filter(Boolean);
   if (!labels.length) return "";
-  const raw = labels.flatMap((label) => groups.get(label) ?? [label]);
+  const raw = labels.flatMap((label) => groups.get(normalizeRarityLabel(label)) ?? groups.get(label) ?? [label]);
   return Array.from(new Set(raw)).join(",");
 }

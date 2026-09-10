@@ -1859,10 +1859,31 @@ app.get("/api/cards", async (req, res) => {
   const traits = normalizeMultiQueryValue(req.query.trait);
   const keyword = normalizeQueryValue(req.query.keyword);
   const setCode = normalizeQueryValue(req.query.setCode);
-  // Multi-valor igual cor/trait (?rarity=Common,C+,C++) -- o front agrupa variações de
-  // foil/parallel (C+, LR++ etc.) sob o rótulo canônico e expande de volta pra essa
-  // lista antes de consultar, então aqui é só um IN normal.
-  const rarities = normalizeMultiQueryValue(req.query.rarity);
+  // Expande rótulos canônicos (ex.: "Legend Rare" ou "LR" -> ["Legend Rare", "LR", "LR+", "LR++"])
+  // garantindo compatibilidade com buscas diretas via link ou expansão já feita pelo cliente.
+  const rawRarities = normalizeMultiQueryValue(req.query.rarity);
+  const rarityExpansionMap: Record<string, string[]> = {
+    "legend rare": ["Legend Rare", "LR", "LR+", "LR++"],
+    "lr": ["Legend Rare", "LR", "LR+", "LR++"],
+    "common": ["Common", "C", "C+", "C++"],
+    "c": ["Common", "C", "C+", "C++"],
+    "uncommon": ["Uncommon", "U", "U+"],
+    "u": ["Uncommon", "U", "U+"],
+    "rare": ["Rare", "R", "R+"],
+    "r": ["Rare", "R", "R+"],
+    "super rare": ["Super Rare", "SR", "SR+"],
+    "sr": ["Super Rare", "SR", "SR+"],
+    "secret": ["Secret", "SEC", "SEC+"],
+    "sec": ["Secret", "SEC", "SEC+"],
+  };
+  const rarities = Array.from(
+    new Set(
+      rawRarities.flatMap((r) => {
+        const key = r.toLowerCase().trim();
+        return rarityExpansionMap[key] || [r];
+      })
+    )
+  );
   const status = normalizeQueryValue(req.query.status ?? req.query.legalityStatus);
   const link = normalizeQueryValue(req.query.link);
   const relation = normalizeQueryValue(req.query.relation);

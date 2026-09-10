@@ -1,43 +1,25 @@
-/* Home v9.0 (Versão 1.2.0) — Asticassia TCG Hub.
- * Reformulada para apresentar a plataforma como um produto completo, maduro e sério.
- * Foco em: Fonte de notícias, hub de deckbuilders, arena de partidas, e acolhimento
- * a novatos na franquia e jogadores com barreira no idioma inglês. */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Activity,
   ArrowRight,
-  BookOpen,
-  Bot,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
-  Gamepad2,
-  Globe,
-  Layers,
-  Play,
   Radio,
-  Shield,
-  Sparkles,
-  Swords,
-  Video,
-  Zap,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { AppTopNav } from "@/components/layout/AppTopNav";
-import { DeckPreviewCard } from "@/components/deck/DeckPreviewCard";
 import { LatestCardsCarousel } from "@/components/home/LatestCardsCarousel";
 import { HomeDirectivesSection } from "@/components/home/HomeDirectivesSection";
 import { PopularMainCardsSection } from "@/components/home/PopularMainCardsSection";
 import { RecentPopularDecksCarousel } from "@/components/home/RecentPopularDecksCarousel";
-import { useAuth } from "@/contexts/AuthContext";
+import { LatestCollectionsSection } from "@/components/home/LatestCollectionsSection";
+import { RecentTournamentsSection } from "@/components/home/RecentTournamentsSection";
+import { CockpitRegistrationSection } from "@/components/home/CockpitRegistrationSection";
+import { GundamSeriesShowcase } from "@/components/home/GundamSeriesShowcase";
+import { AboutAnaheimHubSection } from "@/components/home/AboutAnaheimHubSection";
 import { useFaction } from "@/contexts/FactionContext";
-import { api, type ApiDeck } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 import rx78HeadOff from "@/assets/home/rx78_head_off.jpg";
@@ -54,78 +36,6 @@ import newsVedaTerminal from "@/assets/home/news_veda_terminal.jpg";
 interface HomeProps {
   targetSection?: string;
 }
-
-const NEWS_ARTICLES = [
-  {
-    tag: "Artigo & Previews",
-    date: "08 Set 2026",
-    title: "Análise Tática dos Starters ST01 a ST04",
-    summary:
-      "Entenda as estratégias fundamentais de cada cor no Gundam Card Game: a pressão militar de Zeon, a versatilidade da Federação, o controle de SEED e os combos tecnológicos de Witch from Mercury.",
-    link: "/sets",
-  },
-  {
-    tag: "Regras Oficiais",
-    date: "06 Set 2026",
-    title: "Guia Completo de Link de Pilotos e Palavras-chave",
-    summary:
-      "Como funcionam as sinergias de link entre Mobile Suits e Pilotos, bônus de AP/HP e resolução de efeitos de disparo de escudo (Burst).",
-    link: "/rules",
-  },
-  {
-    tag: "Metagame",
-    date: "03 Set 2026",
-    title: "Curva de Recursos e Gerenciamento de Energia",
-    summary:
-      "Dicas avançadas de deckbuilding: proporção ideal entre Unidades, Pilotos e Comandos para nunca faltar recurso no início de partida.",
-    link: "/stats",
-  },
-];
-
-const COMMUNITY_VIDEOS = [
-  {
-    channel: "Gundam TCG Brasil",
-    title: "Como Jogar Gundam Card Game — Tutorial do Zero ao Avançado",
-    duration: "18:42",
-    type: "Tutorial Básico",
-    url: "https://www.youtube.com/results?search_query=gundam+card+game+tutorial+brasil",
-  },
-  {
-    channel: "Hangar Competitivo",
-    title: "Gameplay Comentado: ST01 Federação vs ST02 Zeon",
-    duration: "24:15",
-    type: "Partida Real",
-    url: "https://www.youtube.com/results?search_query=gundam+tcg+gameplay+st01+st02",
-  },
-  {
-    channel: "Deck Tech BR",
-    title: "Construindo seu Primeiro Deck Competitivo — Dicas e Staples",
-    duration: "15:30",
-    type: "Deck Tech",
-    url: "https://www.youtube.com/results?search_query=gundam+card+game+deck+tech",
-  },
-];
-
-const BEGINNER_GUIDES = [
-  {
-    icon: Globe,
-    title: "Barreira com o Inglês? Regras em Português",
-    description:
-      "Todas as cartas e regras oficiais traduzidas fielmente com os termos originais (Active, Rest, Shield, Burst, Link) preservados lado a lado para você aprender sem medo.",
-  },
-  {
-    icon: Shield,
-    title: "Novo na Franquia Gundam?",
-    description:
-      "Não precisa ser veterano de anime para jogar! Nossos guias explicam o universo, as facções (Federação, Zeon, Asticassia, ZAFT) e como cada série se comporta na mesa.",
-  },
-  {
-    icon: Bot,
-    title: "Treine no Seu Ritmo com Modo Solo",
-    description:
-      "Pratique suas jogadas e teste decks a qualquer hora contra o bot tático nos níveis Fácil, Normal e Difícil, sem pressão de tempo ou adversário.",
-  },
-];
 
 const CAROUSEL_SLIDES = [
   {
@@ -175,17 +85,11 @@ const CAROUSEL_SLIDES = [
 ];
 
 export default function Home({ targetSection }: HomeProps) {
-  const { isAuthenticated, user, register } = useAuth();
   const { faction } = useFaction();
   const isZeon = faction === "zeon";
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [featuredDecks, setFeaturedDecks] = useState<ApiDeck[]>([]);
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
     if (isPaused) return;
@@ -208,26 +112,6 @@ export default function Home({ targetSection }: HomeProps) {
       document.getElementById(targetSection)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [targetSection]);
-
-  useEffect(() => {
-    api
-      .listPublicDecksPage({ page: 1, pageSize: 3 }, { sort: "recent" })
-      .then((res) => setFeaturedDecks(res.items))
-      .catch(() => undefined);
-  }, []);
-
-  const submitQuickRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!displayName.trim() || !email.trim() || !password.trim()) return;
-    setRegistering(true);
-    try {
-      await register({ displayName: displayName.trim(), email: email.trim(), password: password.trim() });
-    } catch {
-      // toast já tratado no AuthContext
-    } finally {
-      setRegistering(false);
-    }
-  };
 
   return (
     <div className="relative overflow-x-hidden min-h-screen">
@@ -540,325 +424,20 @@ export default function Home({ targetSection }: HomeProps) {
         {/* ── CARTAS PRINCIPAIS POPULARES (LR RANKING) ──────────────────── */}
         <PopularMainCardsSection />
 
-        {/* ── SEÇÃO DE RECRUTAMENTO / GUIA PARA NOVATOS ─────────────────── */}
-        <section id="recrutamento" className="relative mx-auto max-w-[1760px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
-              <div>
-                <Badge className="rounded-none border border-accent/40 bg-accent/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-accent">
-                  Novos Recrutas
-                </Badge>
-                <h2 className="heading-portal font-heading text-4xl uppercase mt-2 md:text-5xl">
-                  Portal Aberto para Jogadores Iniciantes
-                </h2>
-                <p className="text-soft mt-2 max-w-3xl text-sm leading-7">
-                  Criamos esta plataforma especialmente para derrubar barreiras: tanto para quem nunca jogou um card game
-                  de Gundam quanto para quem se sente inseguro com os termos em inglês do material internacional.
-                </p>
-              </div>
-              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em] shrink-0">
-                <Link href="/rules">Acessar manual completo <ArrowRight className="ml-1.5 size-3.5" /></Link>
-              </Button>
-            </div>
+        {/* ── ÚLTIMAS COLEÇÕES (PRODUTOS EM LINHA) ─────────────────────── */}
+        <LatestCollectionsSection />
 
-            <div className="grid gap-6 md:grid-cols-3">
-              {BEGINNER_GUIDES.map((guide) => {
-                const Icon = guide.icon;
-                return (
-                  <Card key={guide.title} className="panel-cut rounded-none surface-panel border border-white/10 p-6 flex flex-col justify-between">
-                    <div>
-                      <div className="flex size-12 items-center justify-center border border-primary/40 bg-primary/10 text-primary mb-4">
-                        <Icon className="size-6" />
-                      </div>
-                      <h3 className="font-heading text-2xl uppercase leading-snug">{guide.title}</h3>
-                      <p className="text-soft mt-3 text-sm leading-6">{guide.description}</p>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+        {/* ── ÚLTIMOS EVENTOS & METAGAME NACIONAL ───────────────────────── */}
+        <RecentTournamentsSection />
 
-            {/* Glossário Rápido de Termos em Inglês */}
-            <div className="panel-cut surface-strong border border-white/10 p-6">
-              <p className="text-xs uppercase tracking-[0.22em] text-primary font-semibold mb-4">
-                Glossário Tático Rápido (Inglês ⇄ Português)
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
-                {[
-                  ["Active / Rest", "Carta em pé (pronta) ou virada (usada/cansada)"],
-                  ["Unit & Pilot", "O Mobile Suit de combate e seu piloto embarcado"],
-                  ["Shield Rail", "Linha de escudos que protege a sua Base contra dano"],
-                  ["Burst Trigger", "Efeito ativado imediatamente quando o escudo é destruído"],
-                ].map(([term, desc]) => (
-                  <div key={term} className="panel-cut border border-white/10 bg-slate-950/60 p-3">
-                    <p className="font-heading text-base text-accent uppercase">{term}</p>
-                    <p className="text-slate-400 mt-1 leading-5">{desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* ── CADASTRE-SE AQUI E PILOTE (COCKPIT DO GUNDAM) ─────────────── */}
+        <CockpitRegistrationSection />
 
-        {/* ── MURAL DE NOTÍCIAS & ARTIGOS ───────────────────────────────── */}
-        <section id="noticias" className="border-t border-white/10 bg-slate-950/50 py-16 sm:py-20">
-          <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
-              <div>
-                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary">
-                  Informativo
-                </Badge>
-                <h2 className="heading-portal font-heading text-4xl uppercase mt-2 md:text-5xl">
-                  Notícias, Cards & Análises
-                </h2>
-                <p className="text-soft mt-2 max-w-2xl text-sm leading-7">
-                  Fique por dentro das revelações de novas coleções, análises estratégicas de cartas e novidades do
-                  cenário nacional.
-                </p>
-              </div>
-              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em]">
-                <Link href="/sets">Ver todas as coleções <ArrowRight className="ml-1.5 size-3.5" /></Link>
-              </Button>
-            </div>
+        {/* ── CONHEÇA AS SÉRIES DE GUNDAM (LORE & ROADMAP WIKI) ─────────── */}
+        <GundamSeriesShowcase />
 
-            <div className="grid gap-6 md:grid-cols-3">
-              {NEWS_ARTICLES.map((article) => (
-                <Card key={article.title} className="panel-cut rounded-none surface-panel border border-white/10 flex flex-col justify-between transition-all hover:border-primary/50">
-                  <CardContent className="p-6 space-y-4">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <Badge variant="outline" className="rounded-none border-primary/30 text-primary text-[0.68rem]">
-                        {article.tag}
-                      </Badge>
-                      <span>{article.date}</span>
-                    </div>
-                    <h3 className="font-heading text-2xl uppercase leading-snug">{article.title}</h3>
-                    <p className="text-soft text-sm leading-6">{article.summary}</p>
-                    <div className="pt-2">
-                      <Button asChild variant="outline" size="sm" className="rounded-none border-white/15 text-xs uppercase tracking-wider">
-                        <Link href={article.link}>Ler análise</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── CENTRAL DE VÍDEOS & CRIADORES DA COMUNIDADE ───────────────── */}
-        <section id="videos" className="mx-auto max-w-[1760px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20 space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
-            <div>
-              <Badge className="rounded-none border border-red-500/40 bg-red-950/20 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-red-300">
-                Conteúdo em Vídeo
-              </Badge>
-              <h2 className="heading-portal font-heading text-4xl uppercase mt-2 md:text-5xl">
-                Criadores & Comunidade
-              </h2>
-              <p className="text-soft mt-2 max-w-2xl text-sm leading-7">
-                Assista a tutoriais em vídeo, gameplays comentados e unboxings feitos pela comunidade brasileira de
-                Gundam Card Game.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Video className="size-4 text-red-400" />
-              <span>Vídeos recomendados</span>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {COMMUNITY_VIDEOS.map((vid) => (
-              <Card key={vid.title} className="panel-cut rounded-none surface-panel border border-white/10 overflow-hidden flex flex-col justify-between">
-                <div className="relative aspect-video bg-slate-950/90 border-b border-white/10 flex items-center justify-center group">
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent" />
-                  <div className="relative z-10 size-14 rounded-full border border-red-500/60 bg-red-600/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Play className="size-6 text-white ml-0.5" />
-                  </div>
-                  <span className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 font-mono text-[0.68rem] text-slate-300 border border-white/10">
-                    {vid.duration}
-                  </span>
-                  <span className="absolute top-2 left-2 bg-red-950/80 px-2 py-0.5 text-[0.65rem] uppercase tracking-wider text-red-300 border border-red-500/40">
-                    {vid.type}
-                  </span>
-                </div>
-                <CardContent className="p-5 space-y-3">
-                  <p className="text-[0.7rem] uppercase tracking-[0.2em] text-slate-400">{vid.channel}</p>
-                  <h3 className="font-heading text-xl uppercase leading-snug">{vid.title}</h3>
-                  <div className="pt-2">
-                    <a
-                      href={vid.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-xs uppercase tracking-wider text-primary hover:underline"
-                    >
-                      Assistir no YouTube <ExternalLink className="ml-1 size-3" />
-                    </a>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        {/* ── VITRINE DE DECKS EM DESTAQUE ──────────────────────────────── */}
-        <section id="decks" className="border-t border-white/10 bg-slate-950/40 py-16 sm:py-20">
-          <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-8">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
-              <div>
-                <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary">
-                  Arsenal Aberto da OZ
-                </Badge>
-                <h2 className="heading-portal font-heading text-4xl uppercase mt-2 md:text-5xl">
-                  Projetos de Decks da Comunidade
-                </h2>
-                <p className="text-soft mt-2 max-w-2xl text-sm leading-7">
-                  Veja o que outros comandantes estão pilotando. Abra qualquer lista para ver curva de custo, contagem de
-                  Mobile Suits e exportar o código oficial.
-                </p>
-              </div>
-              <Button asChild variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.14em]">
-                <Link href="/decks">Explorar todos os decks <ArrowRight className="ml-1.5 size-3.5" /></Link>
-              </Button>
-            </div>
-
-            {featuredDecks.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-3">
-                {featuredDecks.map((deck) => (
-                  <DeckPreviewCard key={deck.id} deck={deck} />
-                ))}
-              </div>
-            ) : (
-              <div className="panel-cut surface-panel p-8 text-center text-sm text-slate-400">
-                <p>Nenhum deck público no momento. Crie sua conta e seja o primeiro a publicar!</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ── ARENA DE PARTIDAS & SIMULADOR ─────────────────────────────── */}
-        <section id="arena" className="mx-auto max-w-[1760px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="panel-cut hero-surface border border-primary/40 p-8 lg:p-12 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-accent/10 pointer-events-none" />
-            <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-              <div className="space-y-4">
-                <Badge className="rounded-none border border-primary/50 bg-primary/20 px-3 py-1 text-[0.7rem] uppercase tracking-[0.24em] text-primary font-semibold">
-                  Arena de Combate Asticassia
-                </Badge>
-                <h2 className="heading-portal font-heading text-4xl uppercase md:text-5xl leading-none">
-                  Entre na Cabine: Dispute Partidas Online ou Solo
-                </h2>
-                <p className="text-soft text-base leading-7 max-w-2xl">
-                  Nosso simulador reproduz fielmente as regras oficiais do Mobile Suit Arena: zonas de combate,
-                  destruição de escudos com efeitos Burst, docking de pilotos e contadores de dano. Jogue contra amigos
-                  com link direto ou pratique contra a IA tática.
-                </p>
-                <div className="flex flex-wrap gap-4 pt-2">
-                  <Button asChild size="lg" className="rounded-none bg-primary text-xs uppercase tracking-[0.16em] text-primary-foreground hover:bg-primary/90">
-                    <Link href="/simulador">
-                      <Swords className="mr-2 size-4" />
-                      Entrar na Central de Partidas
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="rounded-none border-white/20 bg-white/5 text-xs uppercase tracking-[0.16em] text-white hover:bg-white/10 light:border-slate-400/90 light:bg-white light:text-slate-950">
-                    <Link href="/simulador/treino">
-                      <Bot className="mr-2 size-4" />
-                      Treino Solo contra Bot
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                {[
-                  ["Partida Online Pareada", "Encontre adversários de todo o Brasil na fila de espera rápida."],
-                  ["Desafio com Link Privado", "Gere um código de sala e convide amigos para amistosos."],
-                  ["Treino com IA Heurística", "Níveis Fácil, Normal e Difícil para refinar suas estratégias."],
-                ].map(([title, desc]) => (
-                  <div key={title} className="panel-cut surface-strong border border-white/10 p-4">
-                    <p className="font-heading text-lg uppercase text-white flex items-center gap-2">
-                      <Zap className="size-4 text-accent" />
-                      {title}
-                    </p>
-                    <p className="text-slate-400 text-xs mt-1 leading-5">{desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── CADASTRO RÁPIDO & ALISTAMENTO ─────────────────────────────── */}
-        {!isAuthenticated ? (
-          <section id="cadastro" className="border-t border-white/10 bg-slate-950/60 py-16 sm:py-20">
-            <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8">
-              <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr] items-center">
-                <div className="space-y-5">
-                  <Badge className="rounded-none border border-accent/40 bg-accent/10 px-3 py-1 text-[0.7rem] uppercase tracking-[0.24em] text-accent font-semibold">
-                    Alistamento
-                  </Badge>
-                  <h2 className="heading-portal font-heading text-4xl uppercase md:text-5xl leading-none">
-                    Crie sua conta de piloto gratuitamente.
-                  </h2>
-                  <p className="text-soft text-sm leading-7 max-w-xl">
-                    Salve listas ilimitadas de decks, compartilhe links públicos com amigos, organize suas cartas na
-                    pasta de coleção e registre suas partidas na arena.
-                  </p>
-
-                  <form onSubmit={submitQuickRegister} className="grid gap-3 sm:grid-cols-3 max-w-2xl pt-2">
-                    <Input
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="Nome de Piloto"
-                      className="field-shell sm:col-span-3"
-                      required
-                    />
-                    <Input
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Seu melhor email"
-                      className="field-shell sm:col-span-2"
-                      type="email"
-                      required
-                    />
-                    <Input
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Senha de acesso"
-                      className="field-shell"
-                      type="password"
-                      required
-                    />
-                    <div className="sm:col-span-3 pt-2">
-                      <Button
-                        type="submit"
-                        className="rounded-none bg-accent text-xs uppercase tracking-[0.16em] text-accent-foreground hover:bg-accent/90"
-                        disabled={registering}
-                      >
-                        {registering ? "Cadastrando..." : "Criar conta agora"}
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-
-                <div className="grid gap-4">
-                  {[
-                    ["Perfil Personalizado", "Escolha facção visual (Hangar ou Zeon), avatar e bio de comandante."],
-                    ["Deckbuilder em Nuvem", "Acesse seus decks pelo computador, tablet ou celular."],
-                    ["Exportação MSA", "Gere listas oficiais formatadas para torneios nacionais e regionais."],
-                  ].map(([title, desc]) => (
-                    <div key={title} className="panel-cut surface-panel border border-white/10 p-5 flex items-start gap-3">
-                      <CheckCircle2 className="size-5 text-primary shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-heading text-lg uppercase text-white">{title}</p>
-                        <p className="text-soft text-xs mt-1 leading-5">{desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : null}
+        {/* ── SOBRE A ANAHEIM HUB (CARD INSTITUCIONAL COM LOGO) ─────────── */}
+        <AboutAnaheimHubSection />
       </main>
 
       {/* ── FOOTER INSTITUCIONAL ──────────────────────────────────────── */}

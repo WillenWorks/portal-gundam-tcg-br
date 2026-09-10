@@ -18,7 +18,7 @@ import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 9999] as const;
-const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 20;
 
 const defaultFilters: CardFilters = {
   q: "",
@@ -29,7 +29,7 @@ const defaultFilters: CardFilters = {
   keyword: "",
   setCode: "",
   rarity: "",
-  sort: "created_desc",
+  sort: "code_asc",
 };
 
 // Lê os filtros da URL REAL (?color=Blue), não do hash -- o wouter guarda a query da
@@ -47,8 +47,8 @@ function readFiltersFromLocation(): { filters: CardFilters; page: number; pageSi
       trait: params.get("trait") ?? "",
       keyword: params.get("keyword") ?? "",
       setCode: params.get("setCode") ?? "",
-      rarity: params.get("rarity") ?? "",
-      sort: params.get("sort") ?? "created_desc",
+      rarity: normalizeRarityLabel(params.get("rarity") ?? "") || (params.get("rarity") ?? ""),
+      sort: params.get("sort") ?? "code_asc",
     },
     page: Number(params.get("page")) || 1,
     pageSize: Number(params.get("pageSize")) || DEFAULT_PAGE_SIZE,
@@ -167,7 +167,7 @@ export default function CardsPage() {
               <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
               <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.sort ?? "created_desc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="created_desc">Últimas cadastradas</option><option value="code_asc">Ordenar por código</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
+              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="created_desc">Últimas cadastradas</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">

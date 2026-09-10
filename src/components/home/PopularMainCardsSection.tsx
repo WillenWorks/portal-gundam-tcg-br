@@ -157,9 +157,9 @@ export function PopularMainCardsSection() {
                 );
               })}
 
-              {/* ── CARD FINAL "BROWSE MORE" ──────────────────────────── */}
+              {/* ── CARD FINAL "VER MAIS" (FILTRO LR) ────────────────── */}
               <Link
-                href="/cards"
+                href="/cards?rarity=Legend Rare&sort=code_asc&pageSize=20"
                 className="group relative flex w-[145px] sm:w-[165px] md:w-[180px] shrink-0 aspect-[63/88] flex-col items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-slate-950/70 p-4 text-center shadow-lg backdrop-blur-md transition-all duration-300 hover:scale-[1.03] hover:border-cyan-400/80 hover:shadow-[0_0_24px_rgba(6,182,212,0.35)]"
               >
                 {/* Background com leve blur / padrão tático */}
@@ -169,10 +169,10 @@ export function PopularMainCardsSection() {
                     <Sparkles className="size-5" />
                   </div>
                   <span className="font-heading text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition-colors">
-                    Browse More
+                    Ver mais
                   </span>
                   <span className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">
-                    Ver Database
+                    Ver LRs no Database
                   </span>
                 </div>
               </Link>
