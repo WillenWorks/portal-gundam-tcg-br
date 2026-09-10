@@ -1,25 +1,42 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Eye, ExternalLink, ImagesIcon, Minus, Plus, Save, Share2, Upload } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Eye,
+  ExternalLink,
+  Globe,
+  ImagesIcon,
+  Lock,
+  Minus,
+  Plus,
+  Save,
+  Share2,
+  Shield,
+  Sparkles,
+  Upload,
+} from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { motion } from "framer-motion";
 
 import gundamCardBack from "@/assets/gundam-card-back.png";
+import { useAuth } from "@/contexts/AuthContext";
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { computeDeckPilotCoverage } from "@/lib/deck-pilot-coverage";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
@@ -28,6 +45,8 @@ import { VedaTelemetryAssistant } from "@/components/deck/VedaTelemetryAssistant
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { LOW_LEVEL_MAX, OPENING_HAND_SIZE, buildLevelCurve, lowLevelUnitStats } from "@/lib/deck-level-stats";
 import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
+import { downloadDeckImage, generateDeckImageBlob, type ExportCardEntry } from "@/utils/deckImageExport";
+import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -511,14 +530,17 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
 
 export default function DeckbuilderPage() {
   const [, navigate] = useLocation();
+  const { isAuthenticated, user } = useAuth();
   const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
-  const deckId = params?.id && params.id !== "new" ? params.id : null;
+  const deckId = params?.id && params.id !== "new" && params.id !== "novo" ? params.id : null;
 
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState<"montar" | "estatisticas">("montar");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [openingHandOpen, setOpeningHandOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
@@ -527,6 +549,7 @@ export default function DeckbuilderPage() {
   const [handOddsBreakdownOpen, setHandOddsBreakdownOpen] = useState(false);
   const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
   const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
+  const [exportImageModalOpen, setExportImageModalOpen] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importText, setImportText] = useState("");
@@ -1112,7 +1135,24 @@ export default function DeckbuilderPage() {
     });
   };
 
-  const saveDeck = async () => {
+  const handleSaveClick = () => {
+    if (!isAuthenticated) {
+      // Salva rascunho em localStorage para visitantes
+      const draft = {
+        deckName,
+        visibility,
+        coverImage,
+        featuredCardIds,
+        entries,
+      };
+      localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify(draft));
+      setAuthModalOpen(true);
+      return;
+    }
+    setSaveModalOpen(true);
+  };
+
+  const executeSaveDeck = async () => {
     const payload = {
       name: deckName,
       format: "constructed",
@@ -1123,20 +1163,27 @@ export default function DeckbuilderPage() {
       items: entries.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section || "main" })),
     };
 
-    if (selectedDeckId) {
-      const updated = await api.updateMyDeck(selectedDeckId, payload);
-      setSelectedShareId(updated.shareId);
-    } else {
-      const created = await api.createMyDeck(payload);
-      setSelectedDeckId(created.id);
-      setSelectedShareId(created.shareId);
-      // Troca a URL de /deckbuilder/new pra /deckbuilder/:id — assim um F5 ou
-      // "voltar" do navegador não tenta criar outro deck do zero por engano.
-      navigate(`/deckbuilder/${created.id}`, { replace: true });
+    try {
+      if (selectedDeckId) {
+        const updated = await api.updateMyDeck(selectedDeckId, payload);
+        setSelectedShareId(updated.shareId);
+      } else {
+        const created = await api.createMyDeck(payload);
+        setSelectedDeckId(created.id);
+        setSelectedShareId(created.shareId);
+        navigate(`/deckbuilder/${created.id}`, { replace: true });
+      }
+      setSaveModalOpen(false);
+      localStorage.removeItem("gundam_deckbuilder_draft");
+      toast.success(
+        visibility === "PUBLIC"
+          ? "Deck salvo e publicado no Hangar da OZ!"
+          : "Deck salvo com sucesso como projeto privado!"
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao salvar deck no servidor.");
     }
-    toast.success("Deck salvo no backend.");
   };
-
 
   const toggleFeaturedCard = (card: { id: string; name: string; imageUrl: string | null }) => {
     setFeaturedCardIds((current) => {
@@ -1163,12 +1210,18 @@ export default function DeckbuilderPage() {
 
   const copyShareLink = async () => {
     if (!selectedShareId) {
-      toast.error("Salve o deck primeiro para gerar o share link.");
+      if (!isAuthenticated) {
+        toast.error("Para gerar um link permanente, faça login e salve o deck no Arsenal.");
+        setAuthModalOpen(true);
+      } else {
+        toast.error("Salve o deck primeiro para gerar o link permanente.");
+        setSaveModalOpen(true);
+      }
       return;
     }
     const url = `${window.location.origin}${window.location.pathname}#/deck/${selectedShareId}`;
     await navigator.clipboard.writeText(url);
-    toast.success("Share link copiado.");
+    toast.success("Link permanente de compartilhamento copiado.");
   };
 
   const copyDecklist = async () => {
@@ -1183,10 +1236,7 @@ export default function DeckbuilderPage() {
     toast.success("Decklist copiada em texto.");
   };
 
-  /** Formato Exburst/MSA (Mobile Suit Arena) — "4x CODE" por linha, sem cabeçalho, sem
-   *  nome, EX Base/Resource fora (não fazem parte do deckbuilding nesses simuladores
-   *  também). É o formato que a comunidade usa pra importar deck pronto no MSA — ver
-   *  msafixer.com, que documenta esse como "Exburst Format". */
+  /** Formato Exburst/MSA (Mobile Suit Arena) — "4x CODE" por linha */
   const copyDecklistMSA = async () => {
     if (!mainDeckRows.length && !resourceDeckRows.length) {
       toast.error("Monte pelo menos uma carta para copiar a decklist.");
@@ -1197,14 +1247,32 @@ export default function DeckbuilderPage() {
     toast.success("Decklist copiada no formato MSA/Exburst.");
   };
 
-  /** Importa uma decklist colada em texto — aceita "4x CODE", "4 CODE" ou só "CODE"
-   *  (1 cópia), uma por linha, mesmo formato que a exportação MSA/Exburst gera (então
-   *  o que sai daqui volta a entrar sem editar nada). Substitui o deck principal e o
-   *  de recursos atuais — EX Base/Resource ficam intocados, não fazem parte do formato.
-   *  Busca cada code em paralelo (não é 1 chamada por linha sequencial). */
+  /** Formato Wing Table */
+  const copyDecklistWingTable = async () => {
+    if (!mainDeckRows.length && !resourceDeckRows.length) {
+      toast.error("Monte pelo menos uma carta para copiar a decklist.");
+      return;
+    }
+    const lines: string[] = ["// Main Deck"];
+    for (const row of mainDeckRows) {
+      lines.push(`${row.quantity}x ${row.code}`);
+    }
+    if (resourceDeckRows.length > 0) {
+      lines.push("", "// Resource Deck");
+      for (const row of resourceDeckRows) {
+        lines.push(`${row.quantity}x ${row.code}`);
+      }
+    }
+    await navigator.clipboard.writeText(lines.join("\n"));
+    toast.success("Decklist copiada no formato Wing Table.");
+  };
+
+  /** Importa uma decklist colada em texto */
   const importDecklistText = async (text: string) => {
     const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
     const parsed = lines.map((line) => {
+      // Ignora comentários de seção como // Main Deck ou # Resource Deck
+      if (line.startsWith("//") || line.startsWith("#")) return null;
       const match = line.match(/^(\d+)\s*x?\s+(\S+)$/i) || line.match(/^(\S+)$/);
       if (!match) return null;
       if (match.length === 3) return { quantity: Number(match[1]) || 1, code: match[2].toUpperCase() };
@@ -1246,179 +1314,105 @@ export default function DeckbuilderPage() {
     }
   };
 
-  /** Imagem PNG da decklist inteira, tipo pôster (como o ExBurst faz) — desenha a grade
-   *  de cartas num canvas e baixa como arquivo. Cliente-side, sem servidor — mas por
-   *  isso depende de as imagens das cartas permitirem uso entre domínios (CORS). Se a
-   *  fonte não permitir, o canvas fica "contaminado" e a exportação falha com aviso
-   *  claro em vez de travar silenciosamente. */
-  const generateDeckImage = async () => {
+  /** Modal de Exportação de Imagem com Prévia Reativa e Toggles (Exburst style) */
+  const generateDeckImage = () => {
     if (!mainDeckRows.length && !resourceDeckRows.length) {
       toast.error("Monte pelo menos uma carta para gerar a imagem.");
       return;
     }
-    setGeneratingImage(true);
-    try {
-      const CARD_W = 140;
-      const CARD_H = Math.round((CARD_W * 88) / 63);
-      const GAP = 10;
-      const COLS = 8;
-      const MARGIN = 24;
-      const SECTION_LABEL_H = 26;
-      const SECTION_GAP = 30;
-      // Cor do tema ativo (Hangar/Zeon) lida em tempo real -- canvas nao resolve
-      // var(--primary) sozinho como o CSS resolveria num elemento DOM normal, mas
-      // aceita a string oklch() resolvida direto (navegadores modernos suportam
-      // CSS Color 4 no canvas 2D). Fallback pro azul original se algo vier vazio.
-      const themePrimaryColor = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#3b82f6";
-
-      // Passa pelo nosso proxy (ver server/index.ts: /api/image-proxy) — o CDN de
-      // origem (tcgplayer-cdn.tcgplayer.com) não libera CORS pra uso em canvas de outro
-      // domínio, então canvas.toBlob() ficaria "contaminado" e travaria com a imagem
-      // crua. Same-origin (via nosso proxy) resolve isso.
-      const proxied = (src: string) => (src ? `${API_BASE_URL}/image-proxy?url=${encodeURIComponent(src)}` : "");
-      const loadImage = (src: string): Promise<HTMLImageElement | null> =>
-        new Promise((resolve) => {
-          if (!src) { resolve(null); return; }
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = proxied(src);
-        });
-
-      const buildSection = async (rows: DeckRow[]) => {
-        const images = await Promise.all(rows.map((row) => loadImage(row.imageMediumUrl || row.imageUrl || "")));
-        return rows.map((row, i) => ({ row, image: images[i] }));
-      };
-      const [mainSection, resourceSection] = await Promise.all([buildSection(mainDeckRows), buildSection(resourceDeckRows)]);
-
-      const sectionRows = (count: number) => Math.max(1, Math.ceil(count / COLS));
-      const sectionHeight = (count: number) => SECTION_LABEL_H + sectionRows(count) * (CARD_H + GAP);
-      const totalWidth = MARGIN * 2 + COLS * CARD_W + (COLS - 1) * GAP;
-      const totalHeight = MARGIN + 44 + sectionHeight(mainSection.length) + SECTION_GAP + sectionHeight(resourceSection.length) + MARGIN;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = totalWidth;
-      canvas.height = totalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas não suportado neste navegador.");
-
-      ctx.fillStyle = "#0b1220";
-      ctx.fillRect(0, 0, totalWidth, totalHeight);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 24px sans-serif";
-      ctx.fillText(deckName || "Deck", MARGIN, MARGIN + 22);
-
-      let cursorY = MARGIN + 44;
-      const drawSection = (label: string, section: { row: DeckRow; image: HTMLImageElement | null }[]) => {
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "bold 13px sans-serif";
-        ctx.fillText(label.toUpperCase(), MARGIN, cursorY);
-        const gridTop = cursorY + SECTION_LABEL_H;
-        section.forEach((entry, index) => {
-          const col = index % COLS;
-          const row = Math.floor(index / COLS);
-          const x = MARGIN + col * (CARD_W + GAP);
-          const y = gridTop + row * (CARD_H + GAP);
-          if (entry.image) {
-            ctx.drawImage(entry.image, x, y, CARD_W, CARD_H);
-          } else {
-            ctx.fillStyle = "#1e293b";
-            ctx.fillRect(x, y, CARD_W, CARD_H);
-            ctx.fillStyle = "#64748b";
-            ctx.font = "11px sans-serif";
-            ctx.fillText(entry.row.code, x + 8, y + CARD_H / 2);
-          }
-          ctx.fillStyle = themePrimaryColor;
-          ctx.beginPath();
-          ctx.arc(x + CARD_W - 14, y + 14, 13, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 13px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(String(entry.row.quantity), x + CARD_W - 14, y + 15);
-          ctx.textAlign = "left";
-          ctx.textBaseline = "alphabetic";
-        });
-        cursorY = gridTop + sectionRows(section.length) * (CARD_H + GAP) + SECTION_GAP;
-      };
-
-      drawSection(`Deck principal (${stats.mainDeckCount}/${DECK_MAIN_SIZE})`, mainSection);
-      drawSection(`Deck de recursos (${stats.resourceDeckCount}/${DECK_RESOURCE_SIZE})`, resourceSection);
-
-      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Não consegui gerar o arquivo da imagem.");
-
-      setDeckImageBlob(blob);
-      setDeckImagePreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(blob); });
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar a imagem.");
-    } finally {
-      setGeneratingImage(false);
-    }
+    setExportImageModalOpen(true);
   };
-
-  const confirmDownloadDeckImage = () => {
-    if (!deckImageBlob) return;
-    const url = URL.createObjectURL(deckImageBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(deckName || "deck").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Imagem baixada.");
-  };
-
-  const closeDeckImagePreview = () => {
-    setDeckImagePreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return null; });
-    setDeckImageBlob(null);
-  };
-
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Hangar da OZ", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo projeto" }]}>
+    <PublicShell breadcrumbs={[{ label: "Decks", href: "/decks" }, { label: "Hangar da OZ", href: "/decks" }, { label: deckId ? deckName || "Editando" : "Novo projeto" }]}>
       {loadingDeck ? (
         <p className="text-sm text-muted-portal">Carregando deck...</p>
       ) : (
       <div className="space-y-6">
-        {/* Barra compacta — nome, visibilidade, status de validade e ações, tudo visível sem rolar */}
+        {/* Barra compacta — nome, visibilidade traduzida, status de validade e ações */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-              <Input value={deckName} onChange={(e) => setDeckName(e.target.value)} className="field-shell font-heading text-xl uppercase heading-portal sm:max-w-xs" />
-              <div className="flex flex-wrap gap-1.5">
-                {(["PRIVATE", "UNLISTED", "PUBLIC"] as DeckVisibility[]).map((mode) => (
-                  <button key={mode} type="button" onClick={() => setVisibility(mode)} className={`rounded-none border px-2.5 py-1.5 text-[11px] uppercase tracking-[0.14em] transition ${visibility === mode ? "border-primary/40 bg-primary/12 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10 hover:text-white"}`}>
-                    {mode}
-                  </button>
-                ))}
+              <Input
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                className="field-shell font-heading text-xl uppercase heading-portal sm:max-w-xs"
+                placeholder="Nome do Deck"
+              />
+
+              {/* Seletor visual e intuitivo de visibilidade (Traduzido) */}
+              <div className="flex items-center gap-1 bg-slate-900/80 p-1 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setVisibility("PUBLIC")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold uppercase tracking-wider transition ${
+                    visibility === "PUBLIC"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Público: Visível para toda a comunidade no Hangar da OZ"
+                >
+                  <Globe className="size-3.5" />
+                  Público
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibility("PRIVATE")}
+                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold uppercase tracking-wider transition ${
+                    visibility === "PRIVATE"
+                      ? "bg-slate-700/60 text-slate-200 border border-white/20 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title="Privado: Visível apenas para você em sua área de piloto"
+                >
+                  <Lock className="size-3.5" />
+                  Privado
+                </button>
               </div>
+
               <div className={`inline-flex items-center gap-2 rounded-none border px-3 py-1.5 text-xs uppercase tracking-[0.14em] ${liveLegality.valid ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300"}`} title={liveLegality.issues.map((i) => i.message).join(" · ")}>
                 <span className={`inline-flex size-2 rounded-full ${liveLegality.valid ? "bg-emerald-400" : "bg-amber-400"}`} />
                 {liveLegality.valid ? "Válido" : `${liveLegality.issues.length} pendência(s)`} · {stats.mainDeckCount}/{DECK_MAIN_SIZE} · {stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 font-heading uppercase tracking-wider text-xs px-4 h-9 shadow-md shadow-primary/20"
+                onClick={handleSaveClick}
+                title="Salvar projeto no Arsenal da OZ"
+              >
+                <Save className="mr-1.5 size-4" />
+                Salvar Deck
+              </Button>
+
               <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveDeck}><Save className="size-4" /></Button>
-              </TooltipTrigger><TooltipContent>Salvar</TooltipContent></Tooltip>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white size-9" onClick={copyShareLink}><Share2 className="size-4" /></Button>
+              </TooltipTrigger><TooltipContent>Compartilhar Link</TooltipContent></Tooltip>
+
               <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={copyShareLink}><Share2 className="size-4" /></Button>
-              </TooltipTrigger><TooltipContent>Compartilhar</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={() => setImportModalOpen(true)}><Download className="size-4" /></Button>
-              </TooltipTrigger><TooltipContent>Importar</TooltipContent></Tooltip>
+                <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white size-9" onClick={() => setImportModalOpen(true)}><Download className="size-4" /></Button>
+              </TooltipTrigger><TooltipContent>Importar Lista (Texto)</TooltipContent></Tooltip>
+
               <DropdownMenu>
                 <Tooltip><TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Upload className="size-4" /></Button>
+                    <Button size="icon" variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white size-9"><Upload className="size-4" /></Button>
                   </DropdownMenuTrigger>
                 </TooltipTrigger><TooltipContent>Exportar</TooltipContent></Tooltip>
-                <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white">
-                  <DropdownMenuItem onClick={copyDecklist} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar decklist (texto)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={copyDecklistMSA} className="cursor-pointer focus:bg-white/10 focus:text-white">Copiar formato MSA/Exburst</DropdownMenuItem>
-                  <DropdownMenuItem onClick={generateDeckImage} disabled={generatingImage} className="cursor-pointer focus:bg-white/10 focus:text-white">{generatingImage ? "Gerando…" : "Baixar imagem (PNG)"}</DropdownMenuItem>
+                <DropdownMenuContent align="end" className="rounded-none border-white/10 bg-slate-950 text-white min-w-[220px]">
+                  <DropdownMenuItem onClick={copyDecklist} className="cursor-pointer focus:bg-white/10 focus:text-white text-xs">
+                    Copiar decklist (texto simples)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyDecklistMSA} className="cursor-pointer focus:bg-white/10 focus:text-white text-xs">
+                    Copiar formato MSA / Exburst
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyDecklistWingTable} className="cursor-pointer focus:bg-white/10 focus:text-white text-xs">
+                    Copiar formato Wing Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={generateDeckImage} disabled={generatingImage} className="cursor-pointer focus:bg-white/10 focus:text-white text-xs font-semibold text-primary">
+                    {generatingImage ? "Gerando imagem..." : "Baixar imagem com Selo OZ (PNG)"}
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1615,6 +1609,50 @@ export default function DeckbuilderPage() {
           </Card>
         </div>
         </div>
+        ) : !isAuthenticated ? (
+          <Card className="panel-cut rounded-none border border-amber-500/40 bg-slate-950/90 text-white p-8 sm:p-14 text-center relative overflow-hidden my-6">
+            <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-20" />
+            <div className="max-w-xl mx-auto space-y-4 relative z-10">
+              <div className="size-16 rounded-full bg-amber-500/10 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/10">
+                <Lock className="size-8" />
+              </div>
+              <Badge variant="outline" className="rounded-none border-amber-500/50 bg-amber-950/40 text-amber-400 uppercase font-mono text-xs px-3 py-1">
+                ACESSO TÁTICO VEDA RESTRITO
+              </Badge>
+              <h2 className="font-heading text-2xl sm:text-3xl uppercase tracking-wider text-white">
+                Telemetria Avançada Bloqueada
+              </h2>
+              <p className="text-sm text-slate-300 leading-relaxed font-sans">
+                A telemetria profunda VEDA — com análise avançada de curva de custos e níveis, distribuição hipergeométrica de probabilidade de mão inicial, índice de docking sinérgico de pilotos e recomendações inteligentes de metagame — está disponível exclusivamente para Pilotos Cadastrados da OZ.
+              </p>
+              <div className="p-3 border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs font-mono">
+                ✓ O rascunho do seu deck atual está salvo localmente e será mantido intacto após entrar.
+              </div>
+              <div className="pt-4 flex flex-col sm:flex-row justify-center gap-3">
+                <Button
+                  size="lg"
+                  onClick={() => {
+                    localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
+                    navigate("/auth");
+                  }}
+                  className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 shadow-lg shadow-primary/20"
+                >
+                  Cadastre-se para Liberar Telemetria
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => {
+                    localStorage.setItem("gundam_deckbuilder_draft", JSON.stringify({ deckName, visibility, entries }));
+                    navigate("/auth");
+                  }}
+                  className="rounded-none border-white/20 font-heading uppercase tracking-wider text-sm px-6"
+                >
+                  Fazer Login
+                </Button>
+              </div>
+            </div>
+          </Card>
         ) : (
         <div className="space-y-6">
           <Card className="panel-cut rounded-none surface-panel">
@@ -1995,21 +2033,181 @@ export default function DeckbuilderPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <Dialog open={Boolean(deckImagePreviewUrl)} onOpenChange={(open) => !open && closeDeckImagePreview()}>
-        <DialogContent aria-describedby={undefined} className="sm:max-w-2xl lg:max-w-3xl border-white/10 bg-slate-950 text-white">
-          <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+      {exportImageModalOpen && (
+        <ExportDeckImageModal
+          open={exportImageModalOpen}
+          onClose={() => setExportImageModalOpen(false)}
+          deckName={deckName || "Novo Deck"}
+          authorName={user?.displayName || user?.username || "Piloto da OZ"}
+          shareId={selectedShareId || "OZ-SPEC"}
+          mainCards={mainDeckRows.map((r) => ({
+            code: r.code,
+            name: r.namePt || r.name,
+            quantity: r.quantity,
+            imageUrl: r.imageUrl,
+            imageMediumUrl: r.imageMediumUrl,
+            color: r.color,
+            cardType: r.type,
+          }))}
+          resourceCards={resourceDeckRows.map((r) => ({
+            code: r.code,
+            name: r.namePt || r.name,
+            quantity: r.quantity,
+            imageUrl: r.imageUrl,
+            imageMediumUrl: r.imageMediumUrl,
+            color: r.color,
+            cardType: "RESOURCE",
+          }))}
+          exCards={[exBaseRow, exResourceRow].filter(Boolean).map((r: any) => ({
+            code: r.code,
+            name: r.namePt || r.name,
+            quantity: r.quantity,
+            imageUrl: r.imageUrl,
+            imageMediumUrl: r.imageMediumUrl,
+            color: r.color,
+            cardType: r.type,
+          }))}
+          colors={Object.keys(stats.colorMap).filter((c) => (stats.colorMap[c] ?? 0) > 0)}
+        />
+      )}
+
+      {/* MODAL DE SALVAR DECK COM SELEÇÃO PÚBLICO / PRIVADO INTUITIVA E TRADUZIDA */}
+      <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
+        <DialogContent className="rounded-none border-primary/40 bg-slate-950 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl uppercase tracking-wider text-primary flex items-center gap-2">
+              <Save className="size-5" /> Salvar no Arsenal da OZ
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Defina o nome e a visibilidade do seu projeto de Mobile Suits.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pré-visualização</p>
-              <DialogTitle className="font-heading text-2xl uppercase heading-portal">Imagem da decklist</DialogTitle>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-mono block mb-1.5">
+                Nome do Projeto / Deck
+              </label>
+              <Input
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                className="field-shell"
+                placeholder="Ex: Tallgeese Heavy Assault"
+              />
             </div>
-          </div>
-          {deckImagePreviewUrl ? <img src={deckImagePreviewUrl} alt="Prévia da decklist" className="max-h-[65vh] w-full overflow-auto border border-white/10 object-contain" /> : null}
-          <div className="flex justify-end gap-2 border-t border-white/10 pt-3">
-            <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white hover:text-white" onClick={closeDeckImagePreview}>Cancelar</Button>
-            <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={confirmDownloadDeckImage}><Save className="mr-2 size-4" />Baixar PNG</Button>
+
+            <div>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-mono block mb-2">
+                Visibilidade da Lista
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setVisibility("PUBLIC")}
+                  className={`p-3 border text-left flex flex-col justify-between transition-all ${
+                    visibility === "PUBLIC"
+                      ? "border-emerald-500 bg-emerald-950/30 text-white shadow-sm ring-1 ring-emerald-500"
+                      : "border-white/10 bg-slate-900/60 text-slate-400 hover:border-white/30 hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-heading text-sm uppercase text-emerald-400 mb-1">
+                    <Globe className="size-4" /> Público
+                  </div>
+                  <p className="text-[0.7rem] text-slate-300 leading-snug">
+                    Visível no Hangar da OZ e aberto para calibração e estudo da comunidade.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setVisibility("PRIVATE")}
+                  className={`p-3 border text-left flex flex-col justify-between transition-all ${
+                    visibility === "PRIVATE"
+                      ? "border-primary bg-primary/20 text-white shadow-sm ring-1 ring-primary"
+                      : "border-white/10 bg-slate-900/60 text-slate-400 hover:border-white/30 hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-heading text-sm uppercase text-sky-400 mb-1">
+                    <Lock className="size-4" /> Privado
+                  </div>
+                  <p className="text-[0.7rem] text-slate-300 leading-snug">
+                    Visível apenas para você na sua área de piloto. Não entra no catálogo público.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                className="rounded-none border-white/20"
+              />
+              <span>Definir como meu deck principal ativo</span>
+            </label>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+              <Button
+                variant="outline"
+                onClick={() => setSaveModalOpen(false)}
+                className="rounded-none border-white/20"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={executeSaveDeck}
+                className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider"
+              >
+                Confirmar e Salvar
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
-    </PortalShell>
+
+      {/* MODAL DE IDENTIFICAÇÃO DE PILOTO PARA VISITANTES */}
+      <Dialog open={authModalOpen} onOpenChange={setAuthModalOpen}>
+        <DialogContent className="rounded-none border-amber-500/50 bg-slate-950 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl uppercase tracking-wider text-amber-400 flex items-center gap-2">
+              <Shield className="size-5" /> Identificação de Piloto Necessária
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 text-xs leading-relaxed">
+              Para salvar, gerar link permanente ou publicar arsenais na rede da OZ, é necessário estar conectado à sua conta de piloto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="p-3 border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs">
+              ✓ Seu rascunho com <strong>{stats.mainDeckCount} cartas</strong> foi preservado localmente no seu navegador e não será perdido.
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Cadastre-se gratuitamente ou faça login para salvar permanentemente, gerar link público e desbloquear a aba completa de estatísticas VEDA.
+            </p>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setAuthModalOpen(false)}
+                className="rounded-none border-white/20"
+              >
+                Continuar Montando
+              </Button>
+              <Button
+                onClick={() => {
+                  setAuthModalOpen(false);
+                  navigate("/auth");
+                }}
+                className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider"
+              >
+                Criar Conta / Login
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </PublicShell>
   );
 }

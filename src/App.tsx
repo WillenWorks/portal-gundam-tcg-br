@@ -107,8 +107,11 @@ function AppRouter() {
         <Route path="/cards" component={CardsPage} />
         <Route path="/rules/:id" component={RulingDetailPage} />
         <Route path="/rules" component={RulesPage} />
-        <Route path="/deckbuilder">{() => <RequireAuth><LazyRoute label="Decks"><DeckListPage /></LazyRoute></RequireAuth>}</Route>
-        <Route path="/deckbuilder/:id">{() => <RequireAuth><LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/my-decks">{() => <RequireAuth><LazyRoute label="Meus Decks"><DeckListPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/deckbuilder/novo">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
+        <Route path="/deckbuilder/new">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
+        <Route path="/deckbuilder/:id">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
+        <Route path="/deckbuilder">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
         {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor

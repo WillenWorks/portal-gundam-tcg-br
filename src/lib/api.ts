@@ -56,6 +56,8 @@ export type PopularLrCard = {
   rarity: string;
   color?: string | null;
   cardType?: string | null;
+  cost?: number | null;
+  level?: number | null;
   deckCount: number;
 };
 
@@ -213,6 +215,7 @@ export type PaginatedResponse<T> = {
   pageSize: number;
   total: number;
   totalPages: number;
+  hasMore?: boolean;
 };
 
 type RequestOptions = {
@@ -558,8 +561,39 @@ export const api = {
     mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "DELETE" }, ["/hosted-events"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
-  listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>
-    request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12), q: filters?.q, sort: filters?.sort })}`, undefined, { ttlMs: 15_000 }),
+  listPublicDecksPage: (
+    pagination: PaginationParams = {},
+    filters?: {
+      q?: string;
+      sort?: string;
+      author?: string;
+      color?: string;
+      unit?: string;
+      mainUnit?: string;
+      exactColor?: boolean;
+      starterDecksOnly?: boolean;
+      dateRange?: string;
+    }
+  ) =>
+    request<PaginatedResponse<ApiDeck>>(
+      `/decks/public${toQuery({
+        page: String(pagination.page ?? 1),
+        pageSize: String(pagination.pageSize ?? 12),
+        q: filters?.q,
+        sort: filters?.sort,
+        author: filters?.author,
+        color: filters?.color,
+        unit: filters?.unit,
+        mainUnit: filters?.mainUnit,
+        exactColor: filters?.exactColor ? "true" : undefined,
+        starterDecksOnly: filters?.starterDecksOnly ? "true" : undefined,
+        dateRange: filters?.dateRange,
+      })}`,
+      undefined,
+      { ttlMs: 15_000 }
+    ),
+  listMainLRUnits: () => request<PopularLrCard[]>("/cards/main-lr-units", undefined, { ttlMs: 60_000 }),
+  listTokens: () => request<any[]>("/tokens", undefined, { ttlMs: 300_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
   getPopularLRCards: () => request<PopularLrCard[]>("/stats/popular-lr-cards", undefined, { ttlMs: 30_000 }),
   getRecentPopularDecks: (days = 15) => request<PopularRecentDeck[]>(`/decks/popular-recent?days=${days}`, undefined, { ttlMs: 15_000 }),

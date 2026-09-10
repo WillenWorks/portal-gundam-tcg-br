@@ -2063,6 +2063,40 @@ app.get("/api/cards/filters", async (_req, res) => {
   });
 });
 
+// Listagem de Unidades LR para o Carrossel de Carta Principal (Exburst style)
+app.get("/api/cards/main-lr-units", async (_req, res) => {
+  setPublicCache(res, 60, 300);
+  try {
+    const cards = await prisma.card.findMany({
+      where: {
+        isActive: true,
+        rarity: { in: ["Legend Rare", "LR", "LR+", "LR++"] },
+        cardType: "UNIT",
+        OR: [{ imageUrl: { not: null } }, { imageMediumUrl: { not: null } }],
+      },
+      distinct: ["nameEn"],
+      orderBy: [{ code: "asc" }, { isPrimaryPrint: "desc" }],
+      select: {
+        id: true,
+        code: true,
+        nameEn: true,
+        namePt: true,
+        cost: true,
+        level: true,
+        color: true,
+        rarity: true,
+        imageUrl: true,
+        imageMediumUrl: true,
+        thumbUrl: true,
+      },
+    });
+    res.json(cards);
+  } catch (error) {
+    console.error("Erro ao listar unidades LR principais:", error);
+    res.status(500).json({ error: "Falha ao listar unidades LR." });
+  }
+});
+
 app.get("/api/cards/:id", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
@@ -3418,6 +3452,40 @@ app.get("/api/stats/popular-lr-cards", async (_req, res) => {
   }
 });
 
+// Listagem de Tokens Oficiais (T-001 até T-020 com arte e atributos)
+app.get("/api/tokens", async (_req, res) => {
+  setPublicCache(res, 300, 1800);
+  try {
+    const tokens = await prisma.card.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { code: { startsWith: "T-" } },
+          { nameEn: { contains: "Token", mode: "insensitive" } },
+        ],
+      },
+      orderBy: { code: "asc" },
+      select: {
+        id: true,
+        code: true,
+        nameEn: true,
+        namePt: true,
+        ap: true,
+        hp: true,
+        color: true,
+        trait: true,
+        imageUrl: true,
+        imageMediumUrl: true,
+        thumbUrl: true,
+      },
+    });
+    res.json(tokens);
+  } catch (error) {
+    console.error("Erro ao listar tokens:", error);
+    res.status(500).json({ error: "Falha ao listar tokens." });
+  }
+});
+
 // Metagame ATMI — Listagem consolidada de arquétipos táticos ativos
 app.get("/api/stats/meta/archetypes", async (_req, res) => {
   setPublicCache(res, 30, 120);
@@ -3724,6 +3792,207 @@ app.get("/api/decks/:id/like-status", authOptional, async (req: RequestWithUser,
     res.json({ liked, likeCount: deck.likeCount });
   } catch (error) {
     res.status(500).json({ error: "Erro ao consultar status de curtida." });
+  }
+});
+
+app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => {
+  setPublicCache(res, 15, 60);
+  try {
+    const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const author = typeof req.query.author === "string" ? req.query.author.trim() : "";
+    const color = typeof req.query.color === "string" ? req.query.color.trim() : "";
+    const unit = typeof req.query.unit === "string" ? req.query.unit.trim() : "";
+    const mainUnit = typeof req.query.mainUnit === "string" ? req.query.mainUnit.trim() : "";
+    const sort = typeof req.query.sort === "string" ? req.query.sort.trim() : "recent";
+    const exactColor = req.query.exactColor === "true" || req.query.exactColor === "1";
+    const starterDecksOnly = req.query.starterDecksOnly === "true" || req.query.starterDecksOnly === "1";
+    const dateRange = typeof req.query.dateRange === "string" ? req.query.dateRange.trim() : "";
+
+    const andConditions: any[] = [{ visibility: "PUBLIC" }];
+
+    if (dateRange === "3months") {
+      andConditions.push({
+        createdAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+      });
+    } else if (dateRange === "6months") {
+      andConditions.push({
+        createdAt: { gte: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000) },
+      });
+    }
+
+    if (starterDecksOnly) {
+      andConditions.push({
+        OR: [
+          { name: { contains: "ST0", mode: "insensitive" } },
+          { name: { contains: "Starter", mode: "insensitive" } },
+          {
+            items: {
+              every: {
+                card: {
+                  code: { startsWith: "ST" },
+                },
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    if (q) {
+      andConditions.push({
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { user: { username: { contains: q, mode: "insensitive" } } },
+          { user: { displayName: { contains: q, mode: "insensitive" } } },
+        ],
+      });
+    }
+
+    if (author) {
+      andConditions.push({
+        user: {
+          OR: [
+            { username: { contains: author, mode: "insensitive" } },
+            { displayName: { contains: author, mode: "insensitive" } },
+          ],
+        },
+      });
+    }
+
+    if (color) {
+      const colors = color.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
+      if (colors.length > 0) {
+        andConditions.push({
+          items: {
+            some: {
+              card: {
+                color: { in: colors },
+              },
+            },
+          },
+        });
+        if (exactColor) {
+          andConditions.push({
+            items: {
+              none: {
+                card: {
+                  color: { notIn: colors, not: null },
+                },
+              },
+            },
+          });
+        }
+      }
+    }
+
+    if (unit) {
+      andConditions.push({
+        items: {
+          some: {
+            card: {
+              cardType: "UNIT",
+              OR: [
+                { namePt: { contains: unit, mode: "insensitive" } },
+                { nameEn: { contains: unit, mode: "insensitive" } },
+                { code: { contains: unit, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
+      });
+    }
+
+    if (mainUnit) {
+      andConditions.push({
+        items: {
+          some: {
+            card: {
+              rarity: { in: ["Legend Rare", "LR", "LR+", "LR++"] },
+              OR: [
+                { namePt: { contains: mainUnit, mode: "insensitive" } },
+                { nameEn: { contains: mainUnit, mode: "insensitive" } },
+                { code: { contains: mainUnit, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
+      });
+    }
+
+    const where = { AND: andConditions };
+
+    let orderBy: any = [{ createdAt: "desc" }];
+    if (sort === "views_desc") {
+      orderBy = [{ viewCount: "desc" }, { createdAt: "desc" }];
+    } else if (sort === "likes_desc") {
+      orderBy = [{ likeCount: "desc" }, { createdAt: "desc" }];
+    } else if (sort === "oldest") {
+      orderBy = [{ createdAt: "asc" }];
+    } else if (sort === "name_asc") {
+      orderBy = [{ name: "asc" }];
+    } else if (sort === "name_desc") {
+      orderBy = [{ name: "desc" }];
+    }
+
+    const legality = await loadDeckLegalityData();
+
+    if (pagination.enabled) {
+      const [rawItems, total] = await Promise.all([
+        prisma.deck.findMany({
+          where,
+          include: {
+            user: true,
+            items: { include: { card: true } },
+            likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
+          },
+          orderBy,
+          skip: pagination.skip,
+          take: pagination.pageSize,
+        }),
+        prisma.deck.count({ where }),
+      ]);
+
+      const enriched = await enrichDecksWithFeaturedCards(rawItems, legality);
+      const items = enriched.map((deck: any, idx: number) => ({
+        ...deck,
+        user: rawItems[idx]?.user ? serializeUser(rawItems[idx].user) : null,
+        hasLiked: Array.isArray(rawItems[idx]?.likes) && rawItems[idx].likes.length > 0,
+      }));
+
+      const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+      return res.json({
+        items,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        total,
+        totalPages,
+        hasMore: pagination.page < totalPages,
+      });
+    }
+
+    const rawItems = await prisma.deck.findMany({
+      where,
+      include: {
+        user: true,
+        items: { include: { card: true } },
+        likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
+      },
+      orderBy,
+      take: 50,
+    });
+
+    const enriched = await enrichDecksWithFeaturedCards(rawItems, legality);
+    const items = enriched.map((deck: any, idx: number) => ({
+      ...deck,
+      user: rawItems[idx]?.user ? serializeUser(rawItems[idx].user) : null,
+      hasLiked: Array.isArray(rawItems[idx]?.likes) && rawItems[idx].likes.length > 0,
+    }));
+
+    res.json(items);
+  } catch (error) {
+    console.error("Erro ao listar decks públicos:", error);
+    res.status(500).json({ error: "Erro interno ao listar decks públicos." });
   }
 });
 
