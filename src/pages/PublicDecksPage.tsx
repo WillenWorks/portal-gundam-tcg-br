@@ -439,7 +439,7 @@ export default function PublicDecksPage() {
             )}
             {starterDecksOnly && (
               <Badge className="rounded-none bg-sky-950/80 border-sky-400/50 text-sky-300 text-[11px] font-mono flex items-center gap-1 py-1">
-                Starter Decks Only
+                Apenas Decks Iniciais
                 <button onClick={() => setStarterDecksOnly(false)} className="hover:text-white ml-0.5">✕</button>
               </Badge>
             )}

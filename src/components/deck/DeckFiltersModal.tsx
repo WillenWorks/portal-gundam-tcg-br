@@ -28,20 +28,20 @@ interface DeckFiltersModalProps {
 }
 
 const FILTER_COLORS = [
-  { id: "PURPLE", label: "Purple / Roxo", hex: "#9333ea" },
-  { id: "RED", label: "Red / Vermelho", hex: GAME_COLOR_HEX.RED || "#dc2626" },
-  { id: "BLUE", label: "Blue / Azul", hex: GAME_COLOR_HEX.BLUE || "#2563eb" },
-  { id: "GREEN", label: "Green / Verde", hex: GAME_COLOR_HEX.GREEN || "#16a34a" },
-  { id: "WHITE", label: "White / Branco", hex: GAME_COLOR_HEX.WHITE || "#e2e8f0" },
-  { id: "YELLOW", label: "Yellow / Amarelo", hex: GAME_COLOR_HEX.YELLOW || "#ca8a04" },
-  { id: "BLACK", label: "Black / Preto", hex: GAME_COLOR_HEX.BLACK || "#475569" },
+  { id: "PURPLE", label: "Roxo", hex: "#9333ea" },
+  { id: "RED", label: "Vermelho", hex: GAME_COLOR_HEX.RED || "#dc2626" },
+  { id: "BLUE", label: "Azul", hex: GAME_COLOR_HEX.BLUE || "#2563eb" },
+  { id: "GREEN", label: "Verde", hex: GAME_COLOR_HEX.GREEN || "#16a34a" },
+  { id: "WHITE", label: "Branco", hex: GAME_COLOR_HEX.WHITE || "#e2e8f0" },
+  { id: "YELLOW", label: "Amarelo", hex: GAME_COLOR_HEX.YELLOW || "#ca8a04" },
+  { id: "BLACK", label: "Preto", hex: GAME_COLOR_HEX.BLACK || "#475569" },
 ];
 
 const SORT_OPTIONS = [
-  { value: "recent", label: "Mais Recente (Most Recent)" },
-  { value: "views_desc", label: "Mais Vistos (Most Popular)" },
-  { value: "likes_desc", label: "Mais Curtidos (Most Likes)" },
-  { value: "oldest", label: "Mais Antigos (Oldest)" },
+  { value: "views_desc", label: "Mais Vistos" },
+  { value: "recent", label: "Mais Recentes" },
+  { value: "likes_desc", label: "Mais Curtidos" },
+  { value: "oldest", label: "Mais Antigos" },
   { value: "name_asc", label: "Nome (A-Z)" },
   { value: "name_desc", label: "Nome (Z-A)" },
 ];
@@ -90,7 +90,7 @@ export function DeckFiltersModal({
 
   const scrollCarousel = (direction: "left" | "right") => {
     if (!carouselRef.current) return;
-    const offset = direction === "left" ? -280 : 280;
+    const offset = direction === "left" ? -320 : 320;
     carouselRef.current.scrollBy({ left: offset, behavior: "smooth" });
   };
 
@@ -137,32 +137,51 @@ export function DeckFiltersModal({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="max-w-4xl border-white/10 bg-[#12161c] text-white p-0 overflow-hidden shadow-2xl rounded-none">
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-5xl lg:max-w-6xl w-[95vw] border-white/10 bg-[#12161c] text-white p-0 overflow-hidden shadow-2xl rounded-none"
+      >
         <DialogHeader className="p-5 border-b border-white/10 flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle className="font-heading text-xl uppercase tracking-wider text-white">
-              Filters
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              Painel de filtragem avançada de decks estilo Exburst
-            </DialogDescription>
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-5 bg-sky-400 inline-block" />
+            <div>
+              <DialogTitle className="font-heading text-xl uppercase tracking-wider text-white">
+                Filtros Avançados
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Painel de filtragem avançada de decks do Hangar da OZ
+              </DialogDescription>
+            </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-1"
+            className="text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-white/5 border border-white/10"
+            title="Fechar filtros"
           >
             <X className="size-5" />
           </button>
         </DialogHeader>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-          {/* SEÇÃO 1: MAIN CARD */}
+          {/* SEÇÃO 1: CARTA PRINCIPAL (LR) */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="w-1 h-4 bg-sky-400 inline-block" />
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                MAIN CARD
-              </h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 bg-sky-400 inline-block" />
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
+                  CARTA PRINCIPAL (LR)
+                </h3>
+              </div>
+              {draftFilters.unit && (
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters((prev) => ({ ...prev, unit: "" }))}
+                  className="text-xs text-rose-400 hover:text-rose-300 font-mono"
+                >
+                  Remover seleção ({draftFilters.unit}) ✕
+                </button>
+              )}
             </div>
 
             {/* Input de busca de cartas */}
@@ -171,7 +190,7 @@ export function DeckFiltersModal({
               <Input
                 value={cardSearchQuery}
                 onChange={(e) => setCardSearchQuery(e.target.value)}
-                placeholder="Search main cards..."
+                placeholder="Buscar carta principal por nome ou código..."
                 className="bg-[#181f28] border-white/10 pl-9 text-sm text-white placeholder:text-slate-500 rounded-none h-10"
               />
               {cardSearchQuery && (
@@ -188,7 +207,7 @@ export function DeckFiltersModal({
             <div className="relative group/carousel">
               <div
                 ref={carouselRef}
-                className="flex items-center gap-2.5 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-sky-500/30 scrollbar-track-transparent select-none"
+                className="flex items-center gap-3 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-sky-500/30 scrollbar-track-transparent select-none"
               >
                 {loadingLr ? (
                   <div className="py-8 text-center w-full text-xs text-slate-400 font-mono">
@@ -204,6 +223,7 @@ export function DeckFiltersModal({
                       draftFilters.unit === card.nameEn || draftFilters.unit === card.code;
                     const cardImg = card.imageMediumUrl || card.imageUrl;
                     const cardColor = card.color?.toUpperCase();
+                    const cardName = card.namePt || card.nameEn;
                     const badgeBg =
                       cardColor === "RED"
                         ? "bg-red-600"
@@ -224,17 +244,17 @@ export function DeckFiltersModal({
                         key={card.id || card.code}
                         type="button"
                         onClick={() => toggleSelectCard(card)}
-                        className={`relative shrink-0 w-24 sm:w-28 aspect-[3/4] rounded-md overflow-hidden border transition-all text-left group cursor-pointer ${
+                        className={`relative shrink-0 w-28 sm:w-32 aspect-[3/4] rounded-md overflow-hidden border transition-all text-left group cursor-pointer ${
                           isSelected
                             ? "border-sky-400 ring-2 ring-sky-400 ring-offset-2 ring-offset-[#12161c] shadow-lg shadow-sky-500/20 scale-[1.03]"
                             : "border-white/15 bg-slate-900/80 hover:border-white/40 hover:scale-[1.02]"
                         }`}
-                        title={`${card.namePt || card.nameEn} (${card.code})`}
+                        title={`${cardName} (${card.code})`}
                       >
                         {cardImg ? (
                           <img
                             src={cardImg}
-                            alt={card.nameEn}
+                            alt={cardName}
                             className="w-full h-full object-cover"
                             loading="lazy"
                           />
@@ -263,7 +283,7 @@ export function DeckFiltersModal({
                         {/* Nome da carta na parte inferior */}
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-1.5 pt-4">
                           <p className="text-[10px] font-medium text-white truncate drop-shadow">
-                            {isSelected ? `✓ ${card.nameEn}` : card.nameEn}
+                            {isSelected ? `✓ ${cardName}` : cardName}
                           </p>
                         </div>
                       </button>
@@ -296,14 +316,14 @@ export function DeckFiltersModal({
             </div>
           </div>
 
-          {/* SEÇÃO 2: GRID DE CONFIGURAÇÕES (COLORS, DECK TYPE, DATE RANGE, SEARCH & SORT) */}
+          {/* SEÇÃO 2: GRID DE CONFIGURAÇÕES (CORES, TIPO DE DECK, PERÍODO, BUSCA E ORDENAÇÃO) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2 border-t border-white/10">
-            {/* COLUNA 1: COLORS */}
+            {/* COLUNA 1: CORES */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-1 h-4 bg-sky-400 inline-block" />
                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                  COLORS
+                  CORES
                 </h3>
               </div>
 
@@ -344,16 +364,16 @@ export function DeckFiltersModal({
                   }
                   className="size-4 rounded border-white/20 bg-slate-900 text-sky-500 focus:ring-sky-500"
                 />
-                <span>Exact color match only</span>
+                <span>Apenas correspondência exata de cor</span>
               </label>
             </div>
 
-            {/* COLUNA 2: DECK TYPE */}
+            {/* COLUNA 2: TIPO DE DECK */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-1 h-4 bg-sky-400 inline-block" />
                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                  DECK TYPE
+                  TIPO DE DECK
                 </h3>
               </div>
 
@@ -379,16 +399,16 @@ export function DeckFiltersModal({
                 >
                   {draftFilters.starterDecksOnly && <Check className="size-3 stroke-[3]" />}
                 </div>
-                <span className="text-xs font-medium">Starter Decks Only</span>
+                <span className="text-xs font-medium">Apenas Decks Iniciais (Starter Decks)</span>
               </div>
             </div>
 
-            {/* COLUNA 3: DATE RANGE */}
+            {/* COLUNA 3: PERÍODO */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-1 h-4 bg-sky-400 inline-block" />
                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                  DATE RANGE
+                  PERÍODO
                 </h3>
               </div>
 
@@ -415,7 +435,7 @@ export function DeckFiltersModal({
                 >
                   {draftFilters.dateRange === "3months" && <Check className="size-3 stroke-[3]" />}
                 </div>
-                <span className="text-xs font-medium">Recent Decks Only (last 3 months)</span>
+                <span className="text-xs font-medium">Apenas Decks Recentes (últimos 3 meses)</span>
               </div>
 
               {/* Dropdown de Intervalo */}
@@ -430,21 +450,21 @@ export function DeckFiltersModal({
                   }
                   className="w-full bg-[#181f28] border border-white/10 rounded-none h-10 px-3 text-xs text-white uppercase tracking-wider cursor-pointer"
                 >
-                  <option value="all">All Time</option>
-                  <option value="3months">Last 3 months</option>
-                  <option value="6months">Last 6 months</option>
+                  <option value="all">Todo o período</option>
+                  <option value="3months">Últimos 3 meses</option>
+                  <option value="6months">Últimos 6 meses</option>
                 </select>
               </div>
             </div>
 
-            {/* COLUNA 4: SEARCH & SORT BY */}
+            {/* COLUNA 4: BUSCA E ORDENAÇÃO */}
             <div className="space-y-4">
-              {/* SEARCH */}
+              {/* BUSCA */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="w-1 h-4 bg-sky-400 inline-block" />
                   <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                    SEARCH
+                    BUSCAR POR NOME OU PILOTO
                   </h3>
                 </div>
                 <Input
@@ -452,17 +472,17 @@ export function DeckFiltersModal({
                   onChange={(e) =>
                     setDraftFilters((prev) => ({ ...prev, q: e.target.value }))
                   }
-                  placeholder="Search decklists..."
+                  placeholder="Buscar decks ou pilotos..."
                   className="bg-[#181f28] border-white/10 text-xs text-white placeholder:text-slate-500 rounded-none h-10"
                 />
               </div>
 
-              {/* SORT BY */}
+              {/* ORDENAÇÃO */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="w-1 h-4 bg-sky-400 inline-block" />
                   <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                    SORT BY
+                    ORDENAÇÃO
                   </h3>
                 </div>
                 <select
@@ -491,7 +511,7 @@ export function DeckFiltersModal({
             onClick={handleReset}
             className="text-xs text-slate-400 hover:text-white rounded-none"
           >
-            <RotateCcw className="mr-1.5 size-3.5" /> Clear Filters
+            <RotateCcw className="mr-1.5 size-3.5" /> Limpar Filtros
           </Button>
 
           <div className="flex items-center gap-2">
@@ -501,14 +521,14 @@ export function DeckFiltersModal({
               onClick={onClose}
               className="rounded-none border-white/15 text-xs text-slate-300 hover:text-white"
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="button"
               onClick={handleApply}
               className="rounded-none bg-sky-600 hover:bg-sky-500 text-white font-heading uppercase tracking-wider text-xs px-6 py-2 shadow-lg shadow-sky-600/30"
             >
-              Apply Filters
+              Aplicar Filtros
             </Button>
           </div>
         </div>
