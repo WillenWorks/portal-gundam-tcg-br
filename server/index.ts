@@ -69,6 +69,11 @@ import {
   computeSimulatorCardStats,
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
+import {
+  getMetaArchetypes,
+  getArchetypeBreakdown,
+  getMetaRecommendations,
+} from "./metaAnalyticsService.ts";
 
 const prisma = new PrismaClient();
 
@@ -1137,13 +1142,19 @@ app.get("/api/image-proxy", async (req, res) => {
 
 app.get("/api/health", async (_req, res) => {
   setPublicCache(res, 15, 60);
-  const [userCount, cardCount, deckCount, binderCount] = await Promise.all([
-    prisma.user.count({ where: { isActive: true } }),
-    prisma.card.count(),
-    prisma.deck.count(),
-    prisma.cardBinder.count(),
-  ]);
-  res.json({ ok: true, runtime: "prisma", userCount, cardCount, deckCount, binderCount });
+  try {
+    const [userCount, cardCount, deckCount, binderCount, setCount] = await Promise.all([
+      prisma.user.count({ where: { isActive: true } }),
+      prisma.card.count(),
+      prisma.deck.count(),
+      prisma.cardBinder.count(),
+      prisma.cardSet.count({ where: { isActive: true } }),
+    ]);
+    res.json({ ok: true, runtime: "prisma", userCount, cardCount, deckCount, binderCount, setCount, productCount: setCount });
+  } catch (error) {
+    console.error("[/api/health] Erro ao obter contadores:", error);
+    res.status(500).json({ error: "Erro ao obter contadores do sistema." });
+  }
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -1922,8 +1933,8 @@ app.get("/api/cards", async (req, res) => {
     level_desc: [{ level: "desc" }, { code: "asc" }],
     updated_desc: [{ updatedAt: "desc" }, { code: "asc" }],
     updated_asc: [{ updatedAt: "asc" }, { code: "asc" }],
-    created_desc: [{ createdAt: "desc" }, { code: "asc" }],
-    created_asc: [{ createdAt: "asc" }, { code: "asc" }],
+    created_desc: [{ createdAt: "desc" }, { code: "desc" }, { id: "desc" }],
+    created_asc: [{ createdAt: "asc" }, { code: "asc" }, { id: "asc" }],
     // rarity_* não existe mais em CardModel (raridade é por impressão) — cai no default.
   };
   const orderBy = orderByMap[sort] || orderByMap.code_asc;
@@ -2607,14 +2618,18 @@ app.delete("/api/rulings/:id", authRequired, roleRequired([UserRole.ADMIN]), asy
 // ou travado num evento do Hoster (HostedEventParticipant), pra que editar/apagar o
 // Deck original depois não afete a lista que já foi exibida como "a decklist usada".
 async function createDeckSnapshot(deckId: string) {
-  const deck = await prisma.deck.findUnique({ where: { id: deckId }, include: { items: true } });
+  const deck = await prisma.deck.findUnique({ where: { id: deckId }, include: { items: { include: { card: true } } } });
   if (!deck) return null;
+  const compactLines = deck.items
+    .filter((item) => item.card?.code && item.quantity > 0)
+    .map((item) => `${item.quantity}x ${item.card.code}`);
   const snapshot = await prisma.deckSnapshot.create({
     data: {
       sourceDeckId: deck.id,
       sourceUserId: deck.userId,
       name: deck.name,
       format: deck.format,
+      compactListJson: { lines: compactLines },
       items: {
         create: deck.items.map((item) => ({ cardId: item.cardId, quantity: item.quantity, section: item.section })),
       },
@@ -3225,58 +3240,490 @@ async function enrichDecksWithFeaturedCards(decks: any[], legality: DeckLegality
         include: { prints: { where: { isActive: true }, orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "asc" }], take: 1 } },
       })
     : [];
-  const byId = new Map(models.map((model: any) => [model.id, { id: model.id, name: model.namePt || model.nameEn, imageUrl: model.prints[0]?.imageMediumUrl || model.prints[0]?.imageUrl || null }]));
+  const byId = new Map(models.map((model: any) => [model.id, {
+    id: model.id,
+    code: model.code,
+    name: model.namePt || model.nameEn,
+    imageUrl: model.prints[0]?.imageMediumUrl || model.prints[0]?.imageUrl || null,
+    color: model.color || model.prints[0]?.color || null,
+  }]));
   return decks.map((deck) => ({
     ...attachDeckLegality(deck, legality),
     featuredCards: (deck.featuredCardIds || []).map((id: string) => byId.get(id)).filter(Boolean),
   }));
 }
 
-app.get("/api/decks/public", async (req, res) => {
-  setPublicCache(res, 15, 60);
-  const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
-  const q = normalizeQueryValue(req.query.q);
-  const sort = normalizeQueryValue(req.query.sort) || "recent";
-  const where: Prisma.DeckWhereInput = {
-    visibility: "PUBLIC" as const,
-    ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { user: { is: { displayName: { contains: q, mode: "insensitive" } } } }] } : {}),
-  };
-  const orderBy: Prisma.DeckOrderByWithRelationInput =
-    sort === "name_asc" ? { name: "asc" } : sort === "name_desc" ? { name: "desc" } : sort === "oldest" ? { createdAt: "asc" } : { updatedAt: "desc" };
-  const legality = await loadDeckLegalityData();
+app.get("/api/stats/popular-lr-cards", async (_req, res) => {
+  setPublicCache(res, 30, 120);
+  try {
+    const publicDeckItems = await prisma.deckItem.findMany({
+      where: {
+        deck: { visibility: "PUBLIC" },
+        card: {
+          rarity: { in: ["Legend Rare", "LR", "LR+", "LR++"] },
+        },
+      },
+      select: {
+        deckId: true,
+        card: {
+          select: {
+            id: true,
+            code: true,
+            nameEn: true,
+            namePt: true,
+            imageUrl: true,
+            imageMediumUrl: true,
+            rarity: true,
+            color: true,
+            cardType: true,
+          },
+        },
+      },
+    });
 
-  if (pagination.enabled) {
-    const [items, total] = await Promise.all([
-      prisma.deck.findMany({
-        where,
-        include: { user: true, items: { include: { card: true } } },
-        orderBy,
-        skip: pagination.skip,
-        take: pagination.take,
-      }),
-      prisma.deck.count({ where }),
-    ]);
-    return res.json({ items: await enrichDecksWithFeaturedCards(items, legality), page: pagination.page, pageSize: pagination.pageSize, total, totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)) });
+    const cardMap = new Map<string, {
+      id: string;
+      code: string;
+      nameEn: string;
+      namePt: string | null;
+      imageUrl: string | null;
+      imageMediumUrl: string | null;
+      rarity: string;
+      color: string | null;
+      cardType: string | null;
+      decks: Set<string>;
+    }>();
+
+    for (const item of publicDeckItems) {
+      const code = item.card.code;
+      if (!cardMap.has(code)) {
+        cardMap.set(code, {
+          id: item.card.id,
+          code: item.card.code,
+          nameEn: item.card.nameEn,
+          namePt: item.card.namePt,
+          imageUrl: item.card.imageUrl,
+          imageMediumUrl: item.card.imageMediumUrl,
+          rarity: item.card.rarity || "Legend Rare",
+          color: item.card.color,
+          cardType: item.card.cardType,
+          decks: new Set(),
+        });
+      }
+      cardMap.get(code)!.decks.add(item.deckId);
+    }
+
+    const results = Array.from(cardMap.values())
+      .map((c) => ({
+        id: c.id,
+        code: c.code,
+        nameEn: c.nameEn,
+        namePt: c.namePt,
+        imageUrl: c.imageUrl,
+        imageMediumUrl: c.imageMediumUrl,
+        rarity: c.rarity,
+        color: c.color,
+        cardType: c.cardType,
+        deckCount: c.decks.size,
+      }))
+      .sort((a, b) => b.deckCount - a.deckCount);
+
+    // Garante que todas as cartas tenham imagem recuperando a impressão primária/com imagem do mesmo código
+    const missingImageCodes = results.filter((r) => !r.imageUrl && !r.imageMediumUrl).map((r) => r.code);
+    if (missingImageCodes.length > 0) {
+      const printsWithImages = await prisma.card.findMany({
+        where: {
+          code: { in: missingImageCodes },
+          OR: [{ imageUrl: { not: null } }, { imageMediumUrl: { not: null } }],
+        },
+        orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "desc" }],
+      });
+      const printByCode = new Map(printsWithImages.map((p) => [p.code, p]));
+      for (const r of results) {
+        if (!r.imageUrl && !r.imageMediumUrl) {
+          const p = printByCode.get(r.code);
+          if (p) {
+            r.imageUrl = p.imageUrl;
+            r.imageMediumUrl = p.imageMediumUrl;
+          }
+        }
+      }
+    }
+
+    if (results.length < 8) {
+      const existingCodes = new Set(results.map((r) => r.code));
+      const catalogLrs = await prisma.card.findMany({
+        where: {
+          isActive: true,
+          rarity: { in: ["Legend Rare", "LR", "LR+", "LR++"] },
+          code: { notIn: Array.from(existingCodes) },
+        },
+        distinct: ["code"],
+        take: 8 - results.length,
+        orderBy: [{ isPrimaryPrint: "desc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          code: true,
+          nameEn: true,
+          namePt: true,
+          imageUrl: true,
+          imageMediumUrl: true,
+          rarity: true,
+          color: true,
+          cardType: true,
+        },
+      });
+
+      for (const card of catalogLrs) {
+        results.push({
+          id: card.id,
+          code: card.code,
+          nameEn: card.nameEn,
+          namePt: card.namePt,
+          imageUrl: card.imageUrl,
+          imageMediumUrl: card.imageMediumUrl,
+          rarity: card.rarity || "Legend Rare",
+          color: card.color,
+          cardType: card.cardType,
+          deckCount: 0,
+        });
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error("Erro ao buscar cartas LR populares:", error);
+    res.status(500).json({ error: "Falha ao calcular cartas populares." });
   }
-
-  const decks = await prisma.deck.findMany({
-    where,
-    include: { user: true, items: { include: { card: true } } },
-    orderBy,
-  });
-  res.json(await enrichDecksWithFeaturedCards(decks, legality));
 });
 
-app.get("/api/decks/share/:shareId", async (req, res) => {
+// Metagame ATMI — Listagem consolidada de arquétipos táticos ativos
+app.get("/api/stats/meta/archetypes", async (_req, res) => {
+  setPublicCache(res, 30, 120);
+  try {
+    const archetypes = await getMetaArchetypes(prisma);
+    res.json(archetypes);
+  } catch (error) {
+    console.error("Erro ao listar arquétipos de metagame:", error);
+    res.status(500).json({ error: "Falha ao analisar arquétipos de metagame." });
+  }
+});
+
+// Metagame ATMI — Análise analítica profunda do arquétipo (Core, Staples, Flex, Techs)
+app.get("/api/stats/meta/archetypes/:key", async (req, res) => {
+  setPublicCache(res, 30, 120);
+  try {
+    const key = decodeURIComponent(String(req.params.key));
+    const breakdown = await getArchetypeBreakdown(prisma, key);
+    if (!breakdown) {
+      return res.status(404).json({ error: "Arquétipo não encontrado." });
+    }
+    res.json(breakdown);
+  } catch (error) {
+    console.error("Erro ao detalhar arquétipo:", error);
+    res.status(500).json({ error: "Falha ao calcular métricas do arquétipo." });
+  }
+});
+
+// Metagame ATMI — Recomendações preditivas para o Deckbuilder por Lift e Sinergia
+app.post("/api/stats/meta/recommendations", async (req, res) => {
+  try {
+    const { cardCodes, colors } = req.body as { cardCodes?: string[]; colors?: string[] };
+    if (!cardCodes || !Array.isArray(cardCodes)) {
+      return res.status(400).json({ error: "`cardCodes` precisa ser um array de códigos de carta." });
+    }
+    const recommendations = await getMetaRecommendations(prisma, cardCodes, colors);
+    res.json(recommendations);
+  } catch (error) {
+    console.error("Erro ao gerar recomendações:", error);
+    res.status(500).json({ error: "Falha ao gerar recomendações táticas." });
+  }
+});
+
+app.post("/api/decks/:id/view", authOptional, async (req: RequestWithUser, res) => {
+  const deckId = String(req.params.id);
+  try {
+    const deck = await prisma.deck.findUnique({
+      where: { id: deckId },
+      select: { id: true, userId: true, viewCount: true },
+    });
+    if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
+
+    const userId = req.user?.userId;
+    if (userId && deck.userId === userId) {
+      return res.json({ recorded: false, viewCount: deck.viewCount });
+    }
+
+    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "";
+    const ua = (req.headers["user-agent"] as string) || "";
+    const viewerHash = crypto.createHash("sha256").update(`${ip}::${ua}`).digest("hex");
+
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const recentView = await prisma.deckView.findFirst({
+      where: {
+        deckId,
+        createdAt: { gte: thirtyMinsAgo },
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          { viewerHash },
+        ],
+      },
+    });
+
+    if (recentView) {
+      return res.json({ recorded: false, viewCount: deck.viewCount });
+    }
+
+    await prisma.deckView.create({
+      data: {
+        deckId,
+        userId: userId || null,
+        viewerHash,
+      },
+    });
+
+    const updated = await prisma.deck.update({
+      where: { id: deckId },
+      data: { viewCount: { increment: 1 } },
+      select: { viewCount: true },
+    });
+
+    res.json({ recorded: true, viewCount: updated.viewCount });
+  } catch (error) {
+    console.error("Erro ao registrar visualização do deck:", error);
+    res.status(500).json({ error: "Erro ao registrar visualização." });
+  }
+});
+
+app.get("/api/decks/popular-recent", authOptional, async (req: RequestWithUser, res) => {
+  setPublicCache(res, 15, 60);
+  try {
+    const rawDays = parseInt(String(req.query.days || "15"), 10);
+    const days = isNaN(rawDays) ? 15 : Math.max(1, Math.min(30, rawDays));
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const viewsGrouped = await prisma.deckView.groupBy({
+      by: ["deckId"],
+      where: {
+        createdAt: { gte: since },
+        deck: { visibility: "PUBLIC" },
+      },
+      _count: { _all: true },
+      orderBy: { _count: { deckId: "desc" } },
+      take: 5,
+    });
+
+    const topDeckIds = viewsGrouped.map((v) => v.deckId);
+    const viewsMap = new Map(viewsGrouped.map((v) => [v.deckId, v._count._all]));
+
+    let complementDecks: Array<{ id: string }> = [];
+    if (topDeckIds.length < 5) {
+      complementDecks = await prisma.deck.findMany({
+        where: {
+          visibility: "PUBLIC",
+          id: { notIn: topDeckIds },
+        },
+        orderBy: [{ viewCount: "desc" }, { updatedAt: "desc" }],
+        take: 5 - topDeckIds.length,
+        select: { id: true },
+      });
+    }
+
+    const allTargetIds = [...topDeckIds, ...complementDecks.map((d) => d.id)];
+    if (!allTargetIds.length) {
+      return res.json([]);
+    }
+
+    const decks = await prisma.deck.findMany({
+      where: { id: { in: allTargetIds } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            createdAt: true,
+          },
+        },
+        items: {
+          where: { section: "main" },
+          include: {
+            card: {
+              select: {
+                id: true,
+                code: true,
+                cardModelId: true,
+                nameEn: true,
+                namePt: true,
+                imageUrl: true,
+                imageMediumUrl: true,
+                color: true,
+                cardType: true,
+                rarity: true,
+                cost: true,
+                level: true,
+              },
+            },
+          },
+        },
+        likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
+      },
+    });
+
+    const deckById = new Map(decks.map((d) => [d.id, d]));
+    const formatted = allTargetIds
+      .map((id) => {
+        const deck = deckById.get(id);
+        if (!deck) return null;
+
+        let featured: Array<{ id: string; code: string; name: string; imageUrl: string | null; color: string | null }> = [];
+        if (deck.featuredCardIds && deck.featuredCardIds.length) {
+          const featuredItems = deck.items.filter((i) => deck.featuredCardIds.includes(i.card.cardModelId || i.card.id));
+          featured = featuredItems.slice(0, 4).map((i) => ({
+            id: i.card.id,
+            code: i.card.code,
+            name: i.card.namePt || i.card.nameEn,
+            imageUrl: i.card.imageMediumUrl || i.card.imageUrl,
+            color: i.card.color,
+          }));
+        }
+        if (featured.length < 4) {
+          const existingCardIds = new Set(featured.map((f) => f.id));
+          const sortedItems = [...deck.items]
+            .filter((i) => !existingCardIds.has(i.card.id))
+            .sort((a, b) => {
+              const rA = (a.card.rarity || "").includes("LR") ? 3 : (a.card.rarity || "").includes("R") ? 2 : 1;
+              const rB = (b.card.rarity || "").includes("LR") ? 3 : (b.card.rarity || "").includes("R") ? 2 : 1;
+              return rB - rA || (b.card.level ?? 0) - (a.card.level ?? 0) || (b.card.cost ?? 0) - (a.card.cost ?? 0);
+            });
+
+          for (const item of sortedItems) {
+            if (featured.length >= 4) break;
+            featured.push({
+              id: item.card.id,
+              code: item.card.code,
+              name: item.card.namePt || item.card.nameEn,
+              imageUrl: item.card.imageMediumUrl || item.card.imageUrl,
+              color: item.card.color,
+            });
+          }
+        }
+
+        const userAgeDays = deck.user?.createdAt ? Math.floor((Date.now() - new Date(deck.user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 1;
+        const pilotLevel = Math.max(1, Math.min(99, Math.floor(userAgeDays / 10) + 1));
+
+        return {
+          id: deck.id,
+          shareId: deck.shareId,
+          name: deck.name,
+          coverImage: deck.coverImage,
+          viewCount: deck.viewCount,
+          recentViews: viewsMap.get(deck.id) ?? deck.viewCount,
+          likeCount: deck.likeCount,
+          hasLiked: Array.isArray(deck.likes) && deck.likes.length > 0,
+          createdAt: deck.createdAt,
+          updatedAt: deck.updatedAt,
+          user: deck.user
+            ? {
+                id: deck.user.id,
+                displayName: deck.user.displayName,
+                username: deck.user.username,
+                avatarUrl: deck.user.avatarUrl,
+                level: pilotLevel,
+              }
+            : null,
+          featuredCards: featured,
+        };
+      })
+      .filter(Boolean);
+
+    res.json(formatted);
+  } catch (error) {
+    console.error("Erro ao buscar decks populares recentes:", error);
+    res.status(500).json({ error: "Falha ao buscar decks populares recentes." });
+  }
+});
+
+app.post("/api/decks/:id/like", authRequired, async (req: RequestWithUser, res) => {
+  const deckId = String(req.params.id);
+  const userId = req.user!.userId;
+  try {
+    const deck = await prisma.deck.findUnique({
+      where: { id: deckId },
+      select: { id: true, likeCount: true },
+    });
+    if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
+
+    const existingLike = await prisma.deckLike.findUnique({
+      where: { deckId_userId: { deckId, userId } },
+    });
+
+    if (existingLike) {
+      await prisma.deckLike.delete({ where: { id: existingLike.id } });
+      const updated = await prisma.deck.update({
+        where: { id: deckId },
+        data: { likeCount: { decrement: 1 } },
+        select: { likeCount: true },
+      });
+      return res.json({ liked: false, likeCount: Math.max(0, updated.likeCount) });
+    } else {
+      await prisma.deckLike.create({
+        data: { deckId, userId },
+      });
+      const updated = await prisma.deck.update({
+        where: { id: deckId },
+        data: { likeCount: { increment: 1 } },
+        select: { likeCount: true },
+      });
+      return res.json({ liked: true, likeCount: updated.likeCount });
+    }
+  } catch (error) {
+    console.error("Erro ao alternar curtida do deck:", error);
+    res.status(500).json({ error: "Erro ao processar curtida." });
+  }
+});
+
+app.get("/api/decks/:id/like-status", authOptional, async (req: RequestWithUser, res) => {
+  const deckId = String(req.params.id);
+  try {
+    const deck = await prisma.deck.findUnique({
+      where: { id: deckId },
+      select: { id: true, likeCount: true },
+    });
+    if (!deck) return res.status(404).json({ error: "Deck não encontrado." });
+
+    let liked = false;
+    if (req.user?.userId) {
+      const existing = await prisma.deckLike.findUnique({
+        where: { deckId_userId: { deckId, userId: req.user.userId } },
+      });
+      liked = Boolean(existing);
+    }
+    res.json({ liked, likeCount: deck.likeCount });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao consultar status de curtida." });
+  }
+});
+
+app.get("/api/decks/share/:shareId", authOptional, async (req: RequestWithUser, res) => {
   setPublicCache(res, 20, 90);
   const shareId = String(req.params.shareId);
   const deck = await prisma.deck.findUnique({
     where: { shareId },
-    include: { user: true, items: { include: { card: true } } },
+    include: {
+      user: true,
+      items: { include: { card: true } },
+      likes: req.user?.userId ? { where: { userId: req.user.userId }, select: { id: true } } : false,
+    },
   });
   if (!deck || deck.visibility === "PRIVATE") return res.status(404).json({ error: "Deck não encontrado." });
   const legality = await loadDeckLegalityData();
-  res.json((await enrichDecksWithFeaturedCards([deck], legality))[0]);
+  const enriched = (await enrichDecksWithFeaturedCards([deck], legality))[0];
+  res.json({
+    ...enriched,
+    hasLiked: Array.isArray(deck.likes) && deck.likes.length > 0,
+  });
 });
 
 app.get("/api/decks/me", authRequired, async (req: RequestWithUser, res) => {

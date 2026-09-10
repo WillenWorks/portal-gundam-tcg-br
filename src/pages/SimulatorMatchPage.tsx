@@ -105,6 +105,7 @@ import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-reac
 import { api, getStoredAuth, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
+import { sfx } from "@/modules/simulator/audio/soundEffects";
 
 import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
@@ -397,10 +398,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** Frente 4 (feedback Willen 4ª rodada) — animação de setup em curso, disparada
    *  por heurística de diff de contagem (ver o efeito abaixo). `null` = nenhuma. */
   const [setupAnim, setSetupAnim] = useState<DeckDealMode | null>(null);
-  /** snapshot da rodada anterior pra detectar "o que aconteceu neste tick". */
-  const setupSnapshotRef = useRef<{ turnNumber: number; handLen: number; shields: number; mulliganPending: boolean } | null>(
-    null,
-  );
+  /** snapshot da rodada anterior pra detectar "o que aconteceu neste tick" e tocar efeitos. */
+  const setupSnapshotRef = useRef<{
+    turnNumber: number;
+    activePlayer: PlayerId;
+    handLen: number;
+    shields: number;
+    oppShields: number;
+    mulliganPending: boolean;
+  } | null>(null);
   /** instanceIds de Unit que JÁ tocaram a animação de deploy — flag transiente
    *  (Frente 4, feedback Willen 4ª rodada): `enteredZoneOnTurn === turnNumber`
    *  fica true o turno todo, mas a animação de pouso só pode rodar 1×. */
@@ -626,10 +632,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (!matchView) return;
     const v = matchView.view;
     const me = v.players[matchView.seat];
+    const oppSeat = otherPlayer(matchView.seat);
+    const opp = v.players[oppSeat];
     const cur = {
       turnNumber: v.turnNumber,
+      activePlayer: v.activePlayer,
       handLen: (me.hand as ViewCardInstance[]).filter((c) => !isHidden(c)).length,
       shields: me.counts.shields,
+      oppShields: opp.counts.shields,
       mulliganPending: v.pendingDecision[matchView.seat]?.kind === "mulligan",
     };
     // marca como "já animadas" as Units recém-postas — no PRÓXIMO render elas
@@ -645,6 +655,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const prev = setupSnapshotRef.current;
     setupSnapshotRef.current = cur;
     if (!prev || v.gameOver) return;
+
+    // Disparos sonoros táticos (Asticassia Sound Engine)
+    if (prev.activePlayer !== cur.activePlayer && cur.activePlayer === matchView.seat) {
+      sfx.playNewtypeFlash();
+    }
+    if (cur.shields < prev.shields || cur.oppShields < prev.oppShields) {
+      sfx.playShieldBurst();
+    }
+
     const reduced =
       typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
     if (reduced) return;
@@ -723,12 +742,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const toggleSelect = (instanceId: string) => {
     if (!pending) return;
+    sfx.playClick();
     setSelected((current) => (current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId]));
   };
 
   /** clique num Recurso ativo pra incluí-lo/tirá-lo do pagamento manual do custo. */
   const toggleResource = (instanceId: string) => {
     if (!pending) return;
+    sfx.playClick();
     setSelectedResources((current) =>
       current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId],
     );
@@ -787,6 +808,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // Etapa 4 (When Paired) + fix do Guntank (Deploy) — gatilhos direcionados são
       // resolvidos depois, no AbilityResolutionModal; aqui não mandamos `targets`
       // (o motor pausa sozinho, via `deferOrDispatchAbilities`, se precisar de interação).
+      sfx.playDeploy();
       runAction({
         kind: "deployCard",
         cardInstanceId: pending.cardInstanceId,
@@ -804,6 +826,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // de um shield (bug do feedback: Rewloola não devolvia shield). Nenhuma
       // 【Activate·Main】 de ST01–04 usa addShieldToHand, mas o alias era latente.
       const targets = selected.length ? { target: selected } : undefined;
+      sfx.playAttackBeam();
       runAction({
         kind: "activateAbility",
         sourceInstanceId: pending.cardInstanceId,
@@ -812,6 +835,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       });
     } else {
       const targets = selected.length ? { target: selected } : undefined;
+      sfx.playDeploy();
       runAction({
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
@@ -824,6 +848,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const declareAttack = (target: AttackTarget) => {
     if (!attackerId) return;
+    sfx.playAttackBeam();
     runAction({ kind: "declareAttack", attackerId, target });
   };
 
@@ -933,7 +958,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? {
               onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
               onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
-              onBlocker: canBlockWith ? (u: CardInstance) => runAction({ kind: "activateBlocker", blockerId: u.instanceId }) : undefined,
+              onBlocker: canBlockWith
+                ? (u: CardInstance) => {
+                    sfx.playImpact();
+                    runAction({ kind: "activateBlocker", blockerId: u.instanceId });
+                  }
+                : undefined,
               onActivate: canActivate && ability ? (u: CardInstance) => startActivateAbility(u, ability) : undefined,
               // Fix 2 — `<Support>` reusa este botão; rótulo dedicado deixa claro.
               activateLabel: ability?.kind === "support" ? "Support" : undefined,

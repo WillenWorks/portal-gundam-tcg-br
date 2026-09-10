@@ -3,7 +3,7 @@ import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from
 import { Link, useLocation } from "wouter";
 import { BookMarked, Bot, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Gamepad2, Globe, Home, Image, LogOut, Megaphone, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
 
-import logoWhite from "@/assets/gundam-logo-white.png";
+import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +24,12 @@ type Crumb = { label: string; href?: string };
 
 const userNav = [
   { href: "/", label: "Página Inicial", icon: Globe },
-  { href: "/portal", label: "Home", icon: Home },
+  { href: "/portal", label: "Painel", icon: Home },
   { href: "/novidades", label: "Novidades", icon: Megaphone },
-  { href: "/deckbuilder", label: "Decks", icon: Swords },
+  { href: "/deckbuilder", label: "Hangar OZ (Decks)", icon: Swords },
   { href: "/binders", label: "Pastas", icon: BookMarked },
-  // Simulador Beta -- aberto a qualquer usuário logado desde 2026-08-30 (era só admin/hoster antes), por isso mora no menu de todo mundo agora.
-  { href: "/simulador", label: "Simulador", icon: Gamepad2 },
-  { href: "/simulador/treino", label: "Treino Solo", icon: Bot },
+  // Central de Partidas (online e modo solo integrados na página)
+  { href: "/simulador", label: "Arena Asticassia", icon: Swords },
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -54,7 +53,7 @@ const adminNav = [
 
 const titles: Record<string, string> = {
   "/portal": "Minha área",
-  "/deckbuilder": "Decks",
+  "/deckbuilder": "Hangar da OZ",
   "/profile": "Configurações",
   "/binders": "Pastas",
   "/admin": "Gestão",
@@ -69,8 +68,8 @@ const titles: Record<string, string> = {
   "/admin/simulador/cobertura": "Cobertura de efeitos (simulador)",
   "/admin/simulador/autoria": "RAG de autoria (simulador)",
   "/organizador": "Meus eventos",
-  "/simulador": "Simulador",
-  "/simulador/treino": "Treino Solo (Bot)",
+  "/simulador": "Arena Asticassia",
+  "/simulador/treino": "Treino Solo Asticassia",
 };
 
 function SidebarLinks({ location, isAdmin, isHoster, onNavigate, collapsed = false }: { location: string; isAdmin: boolean; isHoster: boolean; onNavigate?: () => void; collapsed?: boolean }) {
@@ -143,10 +142,10 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
               <Menu className="size-4" />
               <span className="ml-2">Painel</span>
             </Button>
-            <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white">
-              <img src={logoWhite} alt="Gundam Card Game" className="h-9 w-auto opacity-90" />
-              <div className="hidden min-w-0 border-l border-white/15 pl-3 md:block">
-                <p className="font-heading text-lg uppercase tracking-[0.18em]">Portal BR</p>
+            <Link href={isAdmin ? "/admin" : "/portal"} className="flex min-w-0 items-center gap-3 text-white transition-opacity hover:opacity-95">
+              <img src={anaheimLogo} alt="Anaheim Hub - Gundam Card Game" className="h-11 sm:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]" />
+              <div className="hidden min-w-0 border-l border-white/15 pl-3.5 md:block">
+                <p className="font-heading text-xl uppercase tracking-[0.2em]">Anaheim Hub</p>
               </div>
             </Link>
           </div>

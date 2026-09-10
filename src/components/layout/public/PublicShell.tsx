@@ -74,13 +74,13 @@ export function PublicShell({ children, breadcrumbs, title, description }: { chi
       <footer className="border-t border-white/10 bg-slate-950/88 dark:border-white/10 dark:bg-slate-950/88 light:border-slate-300/80 light:bg-white/82">
         <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-6 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-10 dark:text-slate-400 light:text-slate-600">
           <div>
-            <p className="font-heading text-xl uppercase tracking-[0.16em] text-white dark:text-white light:text-slate-900">Portal Gundam TCG BR</p>
-            <p className="mt-2 max-w-2xl leading-7">Projeto de comunidade voltado ao público brasileiro. Regras, nomes e materiais oficiais devem sempre manter referência clara às fontes originais.</p>
+            <p className="font-heading text-xl uppercase tracking-[0.16em] text-white dark:text-white light:text-slate-900">Anaheim Hub</p>
+            <p className="mt-2 max-w-2xl leading-7">Laboratório Tático & Engenharia de Combate para Gundam Card Game no Brasil. Base de conhecimento aberta, Hangar OZ, Sistema VEDA e Arena Asticassia para a comunidade de pilotos.</p>
           </div>
           <div className="min-w-[280px]">
             <Separator className="mb-4 bg-white/10 lg:hidden dark:bg-white/10 light:bg-slate-300/70" />
-            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Feito pela comunidade</p>
-            <p className="mt-2 text-white dark:text-white light:text-slate-900">Catálogo oficial · Regras em pt-BR · Deckbuilder</p>
+            <p className="text-xs uppercase tracking-[0.26em] text-slate-500">Engenharia da Comunidade</p>
+            <p className="mt-2 text-white dark:text-white light:text-slate-900">Arquivo Central · Regras em pt-BR · Hangar OZ · Arena Asticassia</p>
           </div>
         </div>
       </footer>

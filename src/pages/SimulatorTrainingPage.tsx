@@ -13,9 +13,18 @@ import { Bot, Loader2, Swords, User, ShieldCheck } from "lucide-react";
 
 import { api, type ApiDeck, type SimulatorTrainingLevel } from "@/lib/api";
 import { validatedDeckList } from "@/modules/simulator/content/validatedDecks";
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const LEVELS: { value: SimulatorTrainingLevel; label: string; hint: string }[] = [
   { value: "facil", label: "Fácil", hint: "Joga o básico: deploy simples, ataca só o jogador, sem efeitos nem bloqueio." },
@@ -88,86 +97,105 @@ export default function SimulatorTrainingPage() {
   };
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador", href: "/simulador" }, { label: "Treino" }]}>
+    <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Simulação de Treinamento" }]}>
       <div className="mx-auto max-w-xl">
-        <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
+        <Card className="rounded-xl border-primary/30 hero-surface">
           <CardContent className="space-y-6 p-8">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Treino solo</p>
-              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Contra o bot</h1>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arena Asticassia · Treinamento Tático</p>
+              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulação de Treinamento</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Treine contra a inteligência artificial com qualquer Starter Deck oficial ou contra seus próprios decks customizados.
-                A partida abre diretamente no simulador autoritativo.
+                Treine manobras e estratégias mobile suit contra a inteligência artificial com qualquer Starter Deck oficial ou projetos do seu próprio Hangar.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Deck do Jogador */}
               <div className="space-y-1.5">
-                <label htmlFor="training-player-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 flex items-center gap-1.5">
+                <label htmlFor="training-player-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600 flex items-center gap-1.5">
                   <User className="size-3 text-primary" />
                   Seu Deck
                 </label>
-                <select
-                  id="training-player-deck"
-                  value={playerDeckId}
-                  onChange={(event) => setPlayerDeckId(event.target.value)}
-                  className="panel-cut w-full border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-soft focus:border-primary focus:outline-none"
-                >
-                  <optgroup label="Starter Decks Oficiais">
-                    {starters.map((deck) => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                  {myDecks.length > 0 && (
-                    <optgroup label="Meus Decks Salvos">
-                      {myDecks.map((deck) => (
-                        <option key={deck.id} value={deck.id}>
-                          {deck.name}
-                        </option>
+                <Select value={playerDeckId} onValueChange={setPlayerDeckId}>
+                  <SelectTrigger
+                    id="training-player-deck"
+                    className="w-full h-12 border border-white/15 bg-black/40 px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-[0.12em] text-white dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+                  >
+                    <SelectValue placeholder="Selecione seu deck" />
+                  </SelectTrigger>
+                  <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
+                    <SelectGroup>
+                      <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                        Starter Decks Oficiais
+                      </SelectLabel>
+                      {starters.map((deck) => (
+                        <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                          {deck.label}
+                        </SelectItem>
                       ))}
-                    </optgroup>
-                  )}
-                </select>
+                    </SelectGroup>
+                    {myDecks.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                          Meus Decks Salvos
+                        </SelectLabel>
+                        {myDecks.map((deck) => (
+                          <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                            {deck.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Deck do Bot */}
               <div className="space-y-1.5">
-                <label htmlFor="training-bot-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 flex items-center gap-1.5">
+                <label htmlFor="training-bot-deck" className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600 flex items-center gap-1.5">
                   <Bot className="size-3 text-secondary-portal" />
                   Deck do Bot
                 </label>
-                <select
-                  id="training-bot-deck"
-                  value={botDeckId}
-                  onChange={(event) => setBotDeckId(event.target.value)}
-                  className="panel-cut w-full border border-white/10 bg-black/30 px-4 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-soft focus:border-primary focus:outline-none"
-                >
-                  <option value="SAME">Mesmo deck que o seu (Espelho)</option>
-                  <optgroup label="Starter Decks Oficiais">
-                    {starters.map((deck) => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                  {myDecks.length > 0 && (
-                    <optgroup label="Meus Decks Salvos">
-                      {myDecks.map((deck) => (
-                        <option key={deck.id} value={deck.id}>
-                          {deck.name}
-                        </option>
+                <Select value={botDeckId} onValueChange={setBotDeckId}>
+                  <SelectTrigger
+                    id="training-bot-deck"
+                    className="w-full h-12 border border-white/15 bg-black/40 px-4 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-[0.12em] text-white dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary rounded-md"
+                  >
+                    <SelectValue placeholder="Selecione o deck do bot" />
+                  </SelectTrigger>
+                  <SelectContent className="border border-white/15 bg-slate-950/98 text-white dark:bg-slate-950 dark:text-white light:border-slate-300 light:bg-white light:text-slate-900 shadow-2xl z-50">
+                    <SelectItem value="SAME" className="cursor-pointer py-2 px-3 text-xs font-semibold uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                      Mesmo deck que o seu (Espelho)
+                    </SelectItem>
+                    <SelectGroup>
+                      <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                        Starter Decks Oficiais
+                      </SelectLabel>
+                      {starters.map((deck) => (
+                        <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                          {deck.label}
+                        </SelectItem>
                       ))}
-                    </optgroup>
-                  )}
-                </select>
+                    </SelectGroup>
+                    {myDecks.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+                          Meus Decks Salvos
+                        </SelectLabel>
+                        {myDecks.map((deck) => (
+                          <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                            {deck.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Dificuldade da IA</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600">Dificuldade da IA</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {LEVELS.map((option) => (
                   <button
@@ -175,10 +203,10 @@ export default function SimulatorTrainingPage() {
                     type="button"
                     onClick={() => setLevel(option.value)}
                     aria-pressed={level === option.value}
-                    className={`panel-cut border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
+                    className={`rounded-md border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
                       level === option.value
-                        ? "border-primary bg-primary/20 text-primary"
-                        : "border-white/10 bg-black/20 text-soft hover:border-primary/40"
+                        ? "border-primary bg-primary/20 text-primary shadow-sm"
+                        : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
                     }`}
                   >
                     {option.label}
@@ -194,7 +222,7 @@ export default function SimulatorTrainingPage() {
               onClick={startTraining}
             >
               {starting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-              Começar treino
+              Iniciar Simulação Asticassia
             </Button>
 
             <div className="flex items-center justify-between text-xs text-muted-portal pt-1 border-t border-white/5">
@@ -210,6 +238,6 @@ export default function SimulatorTrainingPage() {
           </CardContent>
         </Card>
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

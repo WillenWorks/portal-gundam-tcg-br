@@ -130,6 +130,8 @@ model User {
   deckSnapshots           DeckSnapshot[]
   hostedEventParticipants HostedEventParticipant[]
   deckChangeLogsMade      TournamentEntryDeckChangeLog[]
+  deckLikes               DeckLike[]
+  deckViews               DeckView[]
 }
 
 // Temporada real de metagame -- agrupa um lançamento de coleção principal com os
@@ -379,14 +381,47 @@ model Deck {
   shareId           String         @unique @default(cuid())
   isPrimary         Boolean        @default(false)
   featuredCardIds   String[]       @default([])
+  viewCount         Int            @default(0)
+  likeCount         Int            @default(0)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   user                    User                      @relation(fields: [userId], references: [id])
   items                   DeckItem[]
+  likes                   DeckLike[]
+  views                   DeckView[]
   tournamentEntries       TournamentEntry[]
   deckSnapshots           DeckSnapshot[]
   hostedEventParticipants HostedEventParticipant[]
+}
+
+model DeckView {
+  id         String   @id @default(cuid())
+  deckId     String
+  userId     String?
+  viewerHash String?
+  createdAt  DateTime @default(now())
+
+  deck Deck  @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deckId, createdAt])
+  @@index([createdAt])
+  @@index([viewerHash, deckId])
+}
+
+model DeckLike {
+  id        String   @id @default(cuid())
+  deckId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deckId, userId])
+  @@index([deckId])
+  @@index([userId])
 }
 
 model DeckItem {
@@ -656,6 +691,7 @@ model DeckSnapshot {
   sourceUserId String?
   name         String
   format       String?
+  compactListJson Json?
   createdAt    DateTime @default(now())
 
   sourceDeck Deck? @relation(fields: [sourceDeckId], references: [id], onDelete: SetNull)

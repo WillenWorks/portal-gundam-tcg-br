@@ -43,9 +43,10 @@
  * Componente apresentacional puro e prop-driven: cada peça é um slot
  * (`ReactNode`) que o `SimulatorMatchPage` preenche. O hover → inspetor lateral
  * não passa por aqui (o pai liga o `onHoverCard` de cada leaf). */
-import { cloneElement, isValidElement, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { cloneElement, isValidElement, useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useArenaScale } from "./useArenaScale";
+import { getSavedPlaymatSkin, PLAYMAT_SKINS, type PlaymatSkinId } from "./playmatSkins";
 
 /** As zonas de um lado da arena (oponente ou jogador). */
 export interface ArenaSide {
@@ -126,6 +127,20 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
   const containerRef = useRef<HTMLDivElement | null>(null);
   const groupRef = useRef<HTMLDivElement | null>(null);
   const [compact, setCompact] = useState(false);
+  const [skinId, setSkinId] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
+
+  useEffect(() => {
+    const handleSkinChange = (e: Event) => {
+      const customEvent = e as CustomEvent<PlaymatSkinId>;
+      if (customEvent.detail && PLAYMAT_SKINS[customEvent.detail]) {
+        setSkinId(customEvent.detail);
+      }
+    };
+    window.addEventListener("asticassia:playmat:change", handleSkinChange);
+    return () => window.removeEventListener("asticassia:playmat:change", handleSkinChange);
+  }, []);
+
+  const skin = PLAYMAT_SKINS[skinId] ?? PLAYMAT_SKINS.hangar;
 
   useArenaScale(containerRef, groupRef, {
     onScale: (px) => setCompact(px <= SHIELD_COMPACT_THRESHOLD_PX),
@@ -135,7 +150,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
     <div
       ref={containerRef}
       className={cn(
-        "relative mx-auto flex flex-col overflow-hidden",
+        "relative mx-auto flex flex-col overflow-hidden transition-colors duration-500",
         // V6.3 (docs/34) — tamanho-padrão único: antes, Battle Row/Mão usavam
         // `--card-w` cheio (1x) enquanto Shield/Deck/Trash/Exílio/Base
         // usavam `--card-w * 0.62` cada um escrevendo a conta na mão (achado
@@ -151,7 +166,8 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         // escondidas (largura sobrando ficava sempre de fora, inalcançável,
         // print "CapturaWide2" do Willen). Modo normal mantém 16:9.
         expanded ? "h-full w-full" : "aspect-[16/9] max-h-full max-w-full",
-        "panel-cut hero-surface border border-primary/20",
+        "panel-cut hero-surface border",
+        skin.containerClasses,
         className,
       )}
       style={PERSPECTIVE_STYLE}
@@ -160,7 +176,13 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
         {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
             pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
-        <div className="flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90" style={OPPONENT_STYLE}>
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90 transition-colors duration-500",
+            skin.oppClasses,
+          )}
+          style={OPPONENT_STYLE}
+        >
           <DeckStation side={opponent} mirrored stationRef={opponent.deckStationRef} />
           <OpponentTheater side={opponent} />
           <ShieldStation side={opponent} mirrored compact={compact} stationRef={opponent.shieldStationRef} />
@@ -178,7 +200,12 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             partir do tamanho REAL renderizado, não de uma fórmula chutada. Só
             precisa medir 1 dos 2 lados (mesmo tamanho — o oponente só tem o
             `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
-        <div className="flex min-h-0 flex-1 items-start justify-center px-2 pt-3">
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 items-start justify-center px-2 pt-3 transition-colors duration-500",
+            skin.selfClasses,
+          )}
+        >
           {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é
               `flex-1` (altura ALOCADA pela metade jogador/oponente, não o
               tamanho natural do conteúdo); o wrapper interno não tem

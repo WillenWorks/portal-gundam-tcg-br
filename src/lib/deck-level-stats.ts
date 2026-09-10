@@ -73,3 +73,61 @@ export function lowLevelUnitStats(rows: UnitLike[], mainDeckCount: number): LowL
   const withMulligan = 1 - (1 - openingHand) * (1 - openingHand);
   return { lowLevelUnitCount, openingHand, withMulligan };
 }
+
+export type CardCostLevelLike = {
+  cost?: number | null;
+  level?: number | null;
+  type?: string | null;
+  cardType?: string | null;
+  quantity?: number | null;
+};
+
+/** Calcula o índice operacional/peso combinado de custo e nível para uma carta (docs/38 & demanda usuário).
+ *  - Se for Unit com cost e level válidos: média ponderada (cost + level) / 2.
+ *  - Se tiver apenas cost (ex.: Pilot, Command, Base): cost.
+ *  - Se tiver apenas level: level.
+ *  - Caso nenhum seja positivo: 0.
+ */
+export function computeCardCostLevel(card: CardCostLevelLike): number {
+  const c = typeof card.cost === "number" && card.cost > 0 ? card.cost : null;
+  const l = typeof card.level === "number" && card.level > 0 ? card.level : null;
+  const t = (card.type || card.cardType || "").toUpperCase();
+
+  if (t === "UNIT" && c !== null && l !== null) {
+    return (c + l) / 2;
+  }
+  if (c !== null) return c;
+  if (l !== null) return l;
+  return 0;
+}
+
+/** Calcula a média ponderada combinada de custo e nível do deck e os buckets da curva (1..7+). */
+export function calculateDeckCostLevelCurve(
+  items: Array<{ card?: CardCostLevelLike | null; cost?: number | null; level?: number | null; type?: string | null; quantity?: number | null }>,
+): {
+  avgCostLevel: string;
+  curve: Record<number, number>;
+  maxCurveVal: number;
+} {
+  const curve: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+  let sumWeighted = 0;
+  let countWeighted = 0;
+
+  for (const item of items) {
+    const cardData = item.card || item;
+    const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
+    const value = computeCardCostLevel(cardData);
+    if (value > 0) {
+      sumWeighted += value * qty;
+      countWeighted += qty;
+      const bucket = Math.min(Math.max(Math.round(value), 1), 7);
+      curve[bucket] = (curve[bucket] || 0) + qty;
+    }
+  }
+
+  const maxCurveVal = Math.max(...Object.values(curve), 1);
+  const avgCostLevel = countWeighted > 0 ? (sumWeighted / countWeighted).toFixed(1) : "-";
+
+  return { avgCostLevel, curve, maxCurveVal };
+}
+

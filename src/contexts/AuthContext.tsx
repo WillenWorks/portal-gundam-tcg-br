@@ -41,25 +41,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isAuthenticated: Boolean(user),
     async login(email, password) {
-      const result = await api.login(email, password);
-      storeAuth(result.token, result.user);
-      setUser(result.user);
-      toast.success(`Login realizado como ${result.user.displayName}.`);
-      navigate("/profile", { replace: true });
+      try {
+        const result = await api.login(email, password);
+        storeAuth(result.token, result.user);
+        setUser(result.user);
+        toast.success(`Login realizado como ${result.user.displayName}.`);
+        navigate("/profile", { replace: true });
+      } catch (err: any) {
+        toast.error(err?.message || "Erro ao realizar login.");
+        throw err;
+      }
     },
     async loginWithGoogle(credential) {
-      const result = await api.loginWithGoogle(credential);
-      storeAuth(result.token, result.user);
-      setUser(result.user);
-      toast.success(`Login realizado como ${result.user.displayName}.`);
-      navigate("/profile", { replace: true });
+      try {
+        const result = await api.loginWithGoogle(credential);
+        storeAuth(result.token, result.user);
+        setUser(result.user);
+        toast.success(`Login realizado como ${result.user.displayName}.`);
+        navigate("/profile", { replace: true });
+      } catch (err: any) {
+        toast.error(err?.message || "Erro ao autenticar com Google.");
+        throw err;
+      }
     },
     async register(payload) {
-      const result = await api.register(payload);
-      storeAuth(result.token, result.user);
-      setUser(result.user);
-      toast.success(`Conta criada para ${result.user.displayName}.`);
-      navigate("/profile", { replace: true });
+      try {
+        const result = await api.register(payload);
+        storeAuth(result.token, result.user);
+        setUser(result.user);
+        toast.success(`Conta criada para ${result.user.displayName}.`);
+        navigate("/profile", { replace: true });
+      } catch (err: any) {
+        toast.error(err?.message || "Erro ao cadastrar conta.");
+        throw err;
+      }
     },
     async refreshMe() {
       await refreshMe();

@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
+import { calculateDeckCostLevelCurve } from "@/lib/deck-level-stats";
 
 type DeckRow = ReturnType<typeof mapApiCard> & { quantity: number };
 
@@ -79,7 +80,15 @@ export default function SharedDeckPage() {
 
   useEffect(() => {
     if (!params?.shareId) return;
-    api.getSharedDeck(params.shareId).then(setDeck).catch((err) => setError(err.message));
+    api
+      .getSharedDeck(params.shareId)
+      .then((loadedDeck) => {
+        setDeck(loadedDeck);
+        if (loadedDeck?.id) {
+          api.recordDeckView(loadedDeck.id).catch(() => {});
+        }
+      })
+      .catch((err) => setError(err.message));
   }, [params?.shareId]);
 
   const allRows = useMemo(() => {
@@ -102,8 +111,8 @@ export default function SharedDeckPage() {
 
   const stats = useMemo(() => {
     const total = mainRows.reduce((sum, item) => sum + item.quantity, 0);
-    const avgCost = total ? mainRows.reduce((sum, item) => sum + item.cost * item.quantity, 0) / total : 0;
-    return { total, avgCost: avgCost.toFixed(2), unique: mainRows.length + resourceRows.length };
+    const { avgCostLevel } = calculateDeckCostLevelCurve(mainRows);
+    return { total, avgCost: avgCostLevel, unique: mainRows.length + resourceRows.length };
   }, [mainRows, resourceRows]);
 
   return (

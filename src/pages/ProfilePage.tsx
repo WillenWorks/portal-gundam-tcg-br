@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import defaultPilotAvatar from "@/assets/home/default_pilot_avatar.jpg";
 
 export default function ProfilePage() {
   const { user, refreshMe, setCurrentUser } = useAuth();
@@ -91,7 +92,7 @@ export default function ProfilePage() {
 
               <div className="flex items-center gap-4">
                 <button type="button" onClick={handleAvatarPick} disabled={uploadingAvatar} className="group relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-white/15 bg-slate-950/60 transition hover:border-primary/60 disabled:opacity-60">
-                  {user?.avatarUrl ? <img src={user.avatarUrl} alt={user.displayName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center font-heading text-2xl text-slate-500">{(user?.displayName || "?").slice(0, 1).toUpperCase()}</div>}
+                  <img src={user?.avatarUrl || defaultPilotAvatar} alt={user?.displayName || "Piloto"} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition group-hover:opacity-100">
                     <Upload className="size-5 text-white" />
                   </div>
@@ -153,15 +154,20 @@ export default function ProfilePage() {
               <div>
                 <label className="text-xs text-slate-500">Idioma do site</label>
                 <select defaultValue="pt-BR" className="field-shell mt-1.5 h-10 w-full px-3 text-sm">
-                  <option value="pt-BR">Português</option>
-                  <option value="en" disabled>Inglês (em breve)</option>
+                  <option value="pt-BR">Português (Brasil)</option>
+                  <option value="en" disabled>English (em breve)</option>
                 </select>
-                <p className="mt-1.5 text-xs text-slate-500">Site completo em inglês ainda não está pronto — essa opção fica aqui pra quando estiver.</p>
+                <p className="mt-1.5 text-xs text-slate-500">Idioma padrão da interface de navegação e menus.</p>
               </div>
               <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveProfile}><Save className="mr-2 size-4" />Salvar preferências</Button>
-              <div className="border-t border-white/10 pt-4">
-                <Button type="button" variant="outline" disabled className="w-full rounded-none border-white/15 bg-white/5 text-white opacity-60 light:border-slate-400/90 light:bg-white light:text-slate-950">Link público do perfil (em breve)</Button>
-              </div>
+              {user?.username ? (
+                <div className="border-t border-white/10 pt-4">
+                  <p className="text-xs text-slate-500">Seu perfil público:</p>
+                  <a href={`/#/u/${user.username}`} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
+                    {window.location.origin}/#/u/{user.username}
+                  </a>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

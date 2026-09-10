@@ -16,7 +16,21 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 - **Ranking no simulador**: Sistema de pontuação competitiva, temporadas e matchmaking pareado — Fase 4 do produto.
 - **Cobertura de efeitos das coleções GD/EB**: Dano a múltiplos alvos e filtros relativos à carta-fonte.
 - **Comunidade & Social**: Perfis públicos, decks favoritos/compartilháveis e vitrine de arquétipos.
-- **Ponte Deckbuilder → Simulador**: Validação estrita de `【Pilot】[X]` como pré-requisito de jogar carta.
+
+---
+
+## [1.2.0] — 2026-09-09
+
+Grande reformulação da identidade temática e experiência do portal: **Anaheim Hub** (Laboratório Tático & Engenharia de Combate · Gundam Card Game BR).
+
+### 🛰️ Anaheim Hub — Identidade Temática & Visual
+- **Novo Posicionamento**: O portal agora adota a identidade temática do **Anaheim Hub**, o centro de excelência em engenharia e tática Mobile Suit.
+- **Hangar da OZ (Deckbuilder)**: Linha de montagem e calibração de decks com telemetria tática, curvas de recursos, análise de sinergias e verificação de conformidade em tempo real.
+- **Arsenal Aberto da OZ (Decks da Comunidade)**: Projetos de combate compartilhados pelos pilotos da comunidade para estudo, benchmarking e calibração de metagame.
+- **Sistema VEDA (Estatísticas & Metagame)**: Terminal quântico de inteligência tática que processa a telemetria das cores, expansões e resultados consolidados de campeonatos oficiais.
+- **Arena Asticassia (Simulador de Combate)**: Centro de duelos com **Duelo Oficial Asticassia** (matchmaking online), **Duelo com Amigo** (convite direto) e **Simulação de Treinamento Asticassia** (solo contra IA com heurística completa e MCTS).
+- **Arquivo Central Anaheim (Catálogo)**: Registro técnico de blueprints, especificações de Mobile Suits, Pilotos, Comandos e Bases com filtros avançados.
+- **Navegação & UI**: Menu superior e lateral modernizados, acesso a Novidades via ícone tático e rodapé institucional padronizado.
 
 ---
 

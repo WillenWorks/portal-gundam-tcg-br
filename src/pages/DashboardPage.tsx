@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DECK_MAIN_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 
 const shortcuts = [
-  { label: "Novo deck", href: "/deckbuilder/new", icon: Swords },
+  { label: "Hangar da OZ", href: "/deckbuilder/new", icon: Swords },
   { label: "Pastas", href: "/binders", icon: BookMarked },
   { label: "Configurações", href: "/profile", icon: Settings },
 ] as const;
@@ -39,9 +39,9 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
           <CardContent className="p-6 lg:p-8 2xl:p-10">
-            <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Área do usuário</Badge>
+            <Badge className="rounded-none border border-primary/40 bg-primary/10 px-3 py-1 text-[0.68rem] uppercase tracking-[0.24em] text-primary">Terminal do Piloto · Anaheim Hub</Badge>
             <h2 className="mt-5 max-w-5xl font-heading text-5xl uppercase leading-[0.9] sm:text-6xl 2xl:text-7xl">Bem-vindo, <span className="text-primary">{user?.displayName}</span>.</h2>
-            <p className="mt-5 max-w-4xl text-sm leading-7 text-slate-300">Seus decks, pastas de cartas e preferências de conta, tudo num só lugar.</p>
+            <p className="mt-5 max-w-4xl text-sm leading-7 text-slate-300">Central de comando operacional: acesse o Hangar da OZ para projetos de combate, gerencie suas pastas de blueprints e calibre suas preferências de conta.</p>
             <div className="mt-7 grid grid-cols-3 gap-3 sm:max-w-md">
               {shortcuts.map((shortcut) => (
                 <Link key={shortcut.href} href={shortcut.href} className="group flex flex-col items-center gap-2 border border-white/15 bg-white/5 px-3 py-4 text-center transition hover:border-primary/50 hover:bg-white/10 light:border-slate-300/80 light:bg-white/70">
@@ -55,10 +55,10 @@ export default function DashboardPage() {
 
         <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
           {[
-            ["Decks salvos", String(decks.length), "Todos os decks que você já começou a montar."],
-            ["Decks públicos", String(publicDecks.length), "Com link compartilhável ativo pra qualquer um ver."],
-            ["Pastas", String(binders.length), "Suas listas organizadas — coleção, trocas, o que quiser."],
-            ["Cartas guardadas", String(binderItemTotal), "Total de cartas registradas em todas as pastas."],
+            ["Projetos de decks", String(decks.length), "Todos os decks salvos na sua linha de montagem."],
+            ["Decks públicos", String(publicDecks.length), "Publicados no Arsenal Aberto da OZ."],
+            ["Pastas de cartas", String(binders.length), "Listas organizadas por coleção, raridade ou trocas."],
+            ["Cartas catalogadas", String(binderItemTotal), "Total de cartas registradas nas suas pastas."],
           ].map(([label, value, caption]) => (
             <Card key={label} className="panel-cut rounded-none surface-panel">
               <CardContent className="p-5 2xl:p-6">
@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="p-6 2xl:p-7">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Meus decks</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Projetos no Hangar da OZ</p>
             <div className="mt-5 space-y-4">
               {decks.length ? decks.map((deck) => (
                 <div key={deck.id} className="panel-cut border surface-strong p-4 dark:bg-slate-950/60 light:border-slate-300/80 light:bg-slate-50">
@@ -84,11 +84,11 @@ export default function DashboardPage() {
                     {deck.visibility !== "PRIVATE" ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">share ativo</Badge> : null}
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
-                    <Link href={`/deckbuilder/${deck.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir deck no editor</Link>
-                    {deck.visibility !== "PRIVATE" ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Ver versão pública</Link> : null}
+                    <Link href={`/deckbuilder/${deck.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir no Hangar da OZ</Link>
+                    {deck.visibility !== "PRIVATE" ? <Link href={`/deck/${deck.shareId}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Ver no Arsenal Aberto</Link> : null}
                   </div>
                 </div>
-              )) : <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Nenhum deck salvo ainda — que tal começar um?</p>}
+              )) : <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Nenhum projeto registrado no Hangar — inicie uma nova montagem!</p>}
             </div>
           </CardContent>
         </Card>

@@ -24,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { MetricTooltip } from "@/components/deck/MetricTooltip";
+import { VedaTelemetryAssistant } from "@/components/deck/VedaTelemetryAssistant";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { LOW_LEVEL_MAX, OPENING_HAND_SIZE, buildLevelCurve, lowLevelUnitStats } from "@/lib/deck-level-stats";
 import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
@@ -986,11 +987,37 @@ export default function DeckbuilderPage() {
     const candidates = new Map<string, CardRecord>();
     for (const card of cards) candidates.set(card.id, card);
     for (const card of recommendationPool) candidates.set(card.id, card);
+
+    const neededPilots = new Set<string>(
+      pilotCoverageGaps.flatMap((g) => g.pilotNames.map((p) => p.toLowerCase().trim())).filter(Boolean),
+    );
+    const ownPilotNames = mainDeckRows
+      .filter((r) => r.type === "PILOT" || r.pilotName)
+      .map((r) => (r.pilotName || r.name).toLowerCase());
+
     return [...candidates.values()]
       .filter((card) => !existingModelIds.has(card.id))
       .map((card) => {
         let score = 0;
         const reasons: string[] = [];
+
+        // Sinergia de Link direto de Piloto necessário
+        const cardPilotTarget = (card.pilotName || card.name || "").toLowerCase();
+        const matchesNeededPilot = [...neededPilots].some((wanted: string) => cardPilotTarget.includes(wanted) || wanted.includes(cardPilotTarget));
+        if (matchesNeededPilot) {
+          score += 15;
+          reasons.push("preenche bônus de Link de Unidade do seu deck");
+        }
+
+        // Sinergia de Unidade cujo Link Condition ativa com Piloto já no deck
+        if (card.type === "UNIT" && card.linkText) {
+          const linkWanted = (card.linkText || "").toLowerCase();
+          if (ownPilotNames.some((pilot) => linkWanted.includes(pilot))) {
+            score += 12;
+            reasons.push("ativa bônus de Link com Piloto já presente");
+          }
+        }
+
         if (dominantColor && card.color === dominantColor) {
           score += 4;
           reasons.push(`combina com a cor-base ${dominantColor}`);
@@ -1015,8 +1042,8 @@ export default function DeckbuilderPage() {
       })
       .filter((card) => card.score > 0)
       .sort((a, b) => b.score - a.score || a.cost - b.cost)
-      .slice(0, 6);
-  }, [cards, recommendationPool, entries, cardCache, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
+      .slice(0, 8);
+  }, [cards, recommendationPool, entries, cardCache, pilotCoverageGaps, mainDeckRows, dominantColor, dominantTrait, dominantSeries, deckRows, stats.lowCostRate]);
 
   const setPoolFilter = (key: keyof PoolFilters, value: string) => {
     setPoolPage(1);
@@ -1350,7 +1377,7 @@ export default function DeckbuilderPage() {
 
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Decks", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo deck" }]}>
+    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Hangar da OZ", href: "/deckbuilder" }, { label: deckId ? deckName || "Editando" : "Novo projeto" }]}>
       {loadingDeck ? (
         <p className="text-sm text-muted-portal">Carregando deck...</p>
       ) : (
@@ -1594,8 +1621,8 @@ export default function DeckbuilderPage() {
             <CardContent className="p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico operacional</p>
-                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Leitura rápida do deck<MetricTooltip metric="leitura-rapida" what="Cinco checagens rápidas da lista: volume de cartas, variedade, cópias no limite (4x), cobertura por keywords e linha principal (trait dominante)." howToRead="Borda azul = ok, borda âmbar = vale revisar. É diagnóstico, não bloqueia o deck de ser legal." /></h3>
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Diagnóstico operacional · Telemetria do Hangar & Sistema VEDA</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Calibração Técnica da Lista<MetricTooltip metric="leitura-rapida" what="Cinco checagens rápidas da lista: volume de cartas, variedade, cópias no limite (4x), cobertura por keywords e linha principal (trait dominante)." howToRead="Borda azul = ok, borda âmbar = vale revisar. É diagnóstico, não bloqueia o deck de ser legal." /></h3>
                 </div>
                 <div className="panel-cut border border-primary/30 bg-primary/10 px-4 py-3">
                   <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Sinergia estimada<MetricTooltip metric="sinergia-estimada" what="Nota de 0 a 100 que estima o quão coeso o deck está: pesa cor dominante, trait dominante, cobertura de keywords e variedade de cartas." howToRead="80+ = sinergia forte; 55–79 = em formação; abaixo = base ainda dispersa. É uma heurística do portal, não uma regra oficial." /></p>
@@ -1616,8 +1643,8 @@ export default function DeckbuilderPage() {
 
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Blocos por arquétipo</p>
-              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade atual da lista<MetricTooltip metric="identidade-lista" what="Os pilares do arquétipo que o sistema detectou na lista: cor-base, trait-base, série-base e tipo-base, com quantas cartas sustentam cada um." howToRead="Quanto mais definidos os quatro, mais focado o deck. Vazio = ainda faltam cartas pro sistema cravar o arquétipo." /></h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Processamento VEDA</p>
+              <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Identidade Tática da Lista<MetricTooltip metric="identidade-lista" what="Os pilares do arquétipo que o sistema detectou na lista: cor-base, trait-base, série-base e tipo-base, com quantas cartas sustentam cada um." howToRead="Quanto mais definidos os quatro, mais focado o deck. Vazio = ainda faltam cartas pro sistema cravar o arquétipo." /></h3>
               <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {archetypeBlocks.length ? archetypeBlocks.map((block) => (
                   <div key={block.label} className="panel-cut border surface-strong p-4">
@@ -1630,11 +1657,19 @@ export default function DeckbuilderPage() {
             </CardContent>
           </Card>
 
+          {/* Assistente de Telemetria e Recomendações Preditivas VEDA */}
+          <VedaTelemetryAssistant
+            entries={entries}
+            cardCache={cardCache}
+            onAddCard={increment}
+            availableCards={cards}
+          />
+
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões de contexto</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sugestões do Hangar</p>
               <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Recomendações por carta</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (trait, cor e série dominantes) — vai ficando mais precisa conforme você adiciona cartas.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Reage ao que já está no deck (pilotos necessários para Link, trait, cor e série dominantes) — calibração do Hangar OZ.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {recommendationCards.length ? recommendationCards.map((card) => (
                   <div key={card.id} className="panel-cut border surface-strong p-3">

@@ -29,7 +29,7 @@ import { Copy, Loader2, Swords, Users, Bot } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
-import { PortalShell } from "@/components/layout/PortalShell";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -192,8 +192,10 @@ export default function SimulatorSandboxPage() {
             key={option}
             type="button"
             onClick={() => setDeckKey(option)}
-            className={`panel-cut border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
-              deckKey === option ? "border-primary bg-primary/20 text-primary" : "border-white/10 bg-black/20 text-soft hover:border-primary/40"
+            className={`rounded-md border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
+              deckKey === option
+                ? "border-primary bg-primary/20 text-primary shadow-sm"
+                : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
             }`}
           >
             {option}
@@ -206,53 +208,52 @@ export default function SimulatorSandboxPage() {
 
   if (screen === "checking") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
+      <PublicShell breadcrumbs={[{ label: "Simulador" }]}>
         <div className="flex items-center gap-2 text-sm text-muted-portal">
           <Loader2 className="size-4 animate-spin" />
-          Verificando sessão do simulador…
+          Conectando à Arena Asticassia…
         </div>
-      </PortalShell>
+      </PublicShell>
     );
   }
 
   if (screen === "queued") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
+      <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Fila Online" }]}>
         <div className="mx-auto max-w-xl">
-          <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
+          <Card className="rounded-xl border-primary/30 hero-surface">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Fila</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Duelo Oficial Asticassia · Fila Online</p>
                 <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando oponente</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Deck escolhido: <strong>{deckKey}</strong>. Assim que outro jogador entrar na fila, a partida começa.
+                  Deck de combate: <strong>{deckKey}</strong>. Assim que outro piloto conectar à Arena, o duelo terá início.
                 </p>
               </div>
               <Button variant="outline" className="rounded-arena" disabled={leavingQueue} onClick={cancelQueue}>
                 {leavingQueue ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                Cancelar
+                Cancelar busca
               </Button>
             </CardContent>
           </Card>
         </div>
-      </PortalShell>
+      </PublicShell>
     );
   }
 
   if (screen === "challenge-host") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
+      <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Convite Direto" }]}>
         <div className="mx-auto max-w-xl">
-          <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
+          <Card className="rounded-xl border-primary/30 hero-surface">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Convite direto</p>
-                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Esperando seu amigo</h1>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Convite Direto</p>
+                <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando desafiante</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Código <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. Mande o link abaixo — quando ele
-                  aceitar, os dois entram na partida juntos. Seu deck: <strong>{deckKey}</strong>.
+                  Código do duelo: <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. Transmita o link abaixo para outro piloto. Seu deck: <strong>{deckKey}</strong>.
                 </p>
               </div>
               <div className="w-full break-all rounded-arena border border-white/10 bg-black/30 p-3 text-xs text-soft">
@@ -270,22 +271,21 @@ export default function SimulatorSandboxPage() {
             </CardContent>
           </Card>
         </div>
-      </PortalShell>
+      </PublicShell>
     );
   }
 
   if (screen === "challenge-guest") {
     return (
-      <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
+      <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Duelo Privado" }]}>
         <div className="mx-auto max-w-xl">
-          <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
+          <Card className="rounded-xl border-primary/30 hero-surface">
             <CardContent className="space-y-6 p-8">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Convite direto</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Duelo Privado</p>
                 <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Você foi desafiado</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Código do convite: <strong className="tracking-[0.2em] text-primary">{challengeCode}</strong>. Escolha seu deck e
-                  aceite para começar a partida.
+                  Código de duelo: <strong className="tracking-[0.2em] text-primary">{challengeCode}</strong>. Selecione sua formação e aceite o combate na Arena.
                 </p>
               </div>
               {deckPicker}
@@ -296,7 +296,7 @@ export default function SimulatorSandboxPage() {
                   onClick={acceptInvite}
                 >
                   {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-                  Aceitar desafio
+                  Aceitar duelo
                 </Button>
                 <Button variant="ghost" className="rounded-arena" onClick={() => navigate("/simulador")} disabled={challengeBusy}>
                   Voltar
@@ -305,20 +305,20 @@ export default function SimulatorSandboxPage() {
             </CardContent>
           </Card>
         </div>
-      </PortalShell>
+      </PublicShell>
     );
   }
 
   return (
-    <PortalShell breadcrumbs={[{ label: "Minha Área", href: "/portal" }, { label: "Simulador" }]}>
+    <PublicShell breadcrumbs={[{ label: "Simulador" }]}>
       <div className="mx-auto max-w-xl">
-        <Card className="panel-cut rounded-arena border-primary/30 hero-surface">
+        <Card className="rounded-xl border-primary/30 hero-surface">
           <CardContent className="space-y-6 p-8">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Partida rápida</p>
-              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Simulador</h1>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arena Asticassia · Centro de Duelos</p>
+              <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Arena Asticassia</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Escolha seu deck e entre na fila. Você é pareado automaticamente com o próximo jogador e a partida abre para os dois.
+                Ambiente de combate tático para Mobile Suits. Dispute duelos oficiais contra outros pilotos online, desafie amigos via link direto ou execute simulações de treinamento contra a inteligência do Bot.
               </p>
             </div>
 
@@ -326,7 +326,7 @@ export default function SimulatorSandboxPage() {
 
             <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
               {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
-              Entrar na fila
+              Duelo Oficial Asticassia (Fila Online)
             </Button>
 
             <Button
@@ -336,13 +336,13 @@ export default function SimulatorSandboxPage() {
               onClick={createInvite}
             >
               {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}
-              Jogar com um amigo
+              Duelo com Amigo (Convite Direto)
             </Button>
 
             <div className="relative my-1 flex items-center py-2">
               <div className="flex-grow border-t border-white/10" />
               <span className="mx-3 flex-shrink text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-portal">
-                Ou jogue sozinho
+                Treinamento de Piloto
               </span>
               <div className="flex-grow border-t border-white/10" />
             </div>
@@ -353,11 +353,11 @@ export default function SimulatorSandboxPage() {
               onClick={() => navigate("/simulador/treino")}
             >
               <Bot className="mr-2 size-4 text-cyan-400" />
-              Modo Solo — Treinar contra o Bot
+              Simulação de Treinamento Asticassia (Contra Bot)
             </Button>
           </CardContent>
         </Card>
       </div>
-    </PortalShell>
+    </PublicShell>
   );
 }

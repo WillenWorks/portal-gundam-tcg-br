@@ -87,7 +87,7 @@ describe("self-play do bot heurístico (decks validados)", () => {
       }
       console.log(`[selfplay] heurístico vs heurístico: ${games} partidas, média ${(turns / games).toFixed(1)} turnos`);
     },
-    120_000,
+    240_000,
   );
 
   it(

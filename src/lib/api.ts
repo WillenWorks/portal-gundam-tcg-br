@@ -35,13 +35,131 @@ export type ApiDeck = {
   coverImage?: string | null;
   featuredCardIds?: string[];
   isPrimary: boolean;
+  viewCount?: number;
+  likeCount?: number;
+  hasLiked?: boolean;
   createdAt?: string;
   updatedAt?: string;
   user?: AuthUser;
   items: Array<{ id: string; cardId: string; quantity: number; section: string; card?: any }>;
   legality?: { valid: boolean; issues: Array<{ type: string; message: string; cardModelId?: string }> };
-  featuredCards?: Array<{ id: string; name: string; imageUrl: string | null }>;
+  featuredCards?: Array<{ id: string; code?: string; name: string; imageUrl: string | null; color?: string | null }>;
 };
+
+export type PopularLrCard = {
+  id: string;
+  code: string;
+  nameEn: string;
+  namePt?: string | null;
+  imageUrl?: string | null;
+  imageMediumUrl?: string | null;
+  rarity: string;
+  color?: string | null;
+  cardType?: string | null;
+  deckCount: number;
+};
+
+export type PopularRecentDeck = {
+  id: string;
+  shareId: string;
+  name: string;
+  coverImage?: string | null;
+  viewCount: number;
+  recentViews: number;
+  likeCount: number;
+  hasLiked?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatarUrl?: string | null;
+    level?: number;
+  };
+  featuredCards: Array<{
+    id: string;
+    code: string;
+    name: string;
+    imageUrl: string | null;
+    color?: string | null;
+  }>;
+};
+
+export type MetaQuadrant = "CORE" | "STAPLE" | "FLEX" | "TECH";
+
+export interface ArchetypeSummary {
+  key: string;
+  name: string;
+  colors: string[];
+  signatureCard: {
+    id: string;
+    code: string;
+    name: string;
+    namePt?: string | null;
+    nameEn?: string | null;
+    imageUrl?: string | null;
+    imageMediumUrl?: string | null;
+    color?: string | null;
+    rarity?: string | null;
+    cost?: number | null;
+    level?: number | null;
+    cardType?: string | null;
+  } | null;
+  deckCount: number;
+  share: number;
+}
+
+export interface ClassifiedMetaCard {
+  id: string;
+  code: string;
+  name: string;
+  nameEn: string;
+  namePt?: string | null;
+  imageUrl?: string | null;
+  imageMediumUrl?: string | null;
+  color?: string | null;
+  cardType?: string | null;
+  rarity?: string | null;
+  cost?: number | null;
+  level?: number | null;
+  traits?: string[];
+  inclusionRate: number;
+  colorInclusionRate: number;
+  affinity: number;
+  meanCopies: number;
+  stdDevCopies: number;
+  modeCopies: number;
+  slotRigidity: number;
+  quadrant: MetaQuadrant;
+}
+
+export interface ArchetypeMetaBreakdown {
+  archetype: ArchetypeSummary;
+  totalDecksSampled: number;
+  quadrants: {
+    core: ClassifiedMetaCard[];
+    staples: ClassifiedMetaCard[];
+    flex: ClassifiedMetaCard[];
+    techs: ClassifiedMetaCard[];
+  };
+  averages: {
+    unitCount: number;
+    pilotCount: number;
+    baseCount: number;
+    commandCount: number;
+    avgCost: number;
+    avgLevel: number;
+    compositeCurveScore: number;
+  };
+}
+
+export interface MetaRecommendationsResponse {
+  synergies: Array<ClassifiedMetaCard & { liftScore: number; sourceMatches: string[] }>;
+  staples: ClassifiedMetaCard[];
+  techs: ClassifiedMetaCard[];
+}
+
 
 export type ApiBinder = {
   id: string;
@@ -320,7 +438,8 @@ export function clearAuth() {
 }
 
 export const api = {
-  health: () => request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number }>("/health", undefined, { ttlMs: 15_000 }),
+  health: () =>
+    request<{ ok: boolean; runtime: string; userCount: number; cardCount: number; deckCount: number; binderCount?: number; setCount?: number; productCount?: number }>("/health", undefined, { ttlMs: 15_000 }),
   register: (payload: { email: string; password: string; displayName: string }) => request<{ token: string; user: AuthUser }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: (email: string, password: string) => request<{ token: string; user: AuthUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   loginWithGoogle: (credential: string) => request<{ token: string; user: AuthUser }>("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
@@ -442,6 +561,18 @@ export const api = {
   listPublicDecksPage: (pagination: PaginationParams = {}, filters?: { q?: string; sort?: string }) =>
     request<PaginatedResponse<ApiDeck>>(`/decks/public${toQuery({ page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12), q: filters?.q, sort: filters?.sort })}`, undefined, { ttlMs: 15_000 }),
   getSharedDeck: (shareId: string) => request<ApiDeck>(`/decks/share/${shareId}`, undefined, { ttlMs: 20_000 }),
+  getPopularLRCards: () => request<PopularLrCard[]>("/stats/popular-lr-cards", undefined, { ttlMs: 30_000 }),
+  getRecentPopularDecks: (days = 15) => request<PopularRecentDeck[]>(`/decks/popular-recent?days=${days}`, undefined, { ttlMs: 15_000 }),
+  getMetaArchetypes: () => request<ArchetypeSummary[]>("/stats/meta/archetypes", undefined, { ttlMs: 60_000 }),
+  getArchetypeBreakdown: (key: string) => request<ArchetypeMetaBreakdown>(`/stats/meta/archetypes/${encodeURIComponent(key)}`, undefined, { ttlMs: 60_000 }),
+  getMetaRecommendations: (payload: { cardCodes: string[]; colors?: string[] }) =>
+    request<MetaRecommendationsResponse>("/stats/meta/recommendations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  recordDeckView: (deckId: string) => mutate<{ recorded: boolean; viewCount: number }>(`/decks/${deckId}/view`, { method: "POST" }, []),
+  toggleDeckLike: (deckId: string) => mutate<{ liked: boolean; likeCount: number }>(`/decks/${deckId}/like`, { method: "POST" }, ["/decks/"]),
+  getDeckLikeStatus: (deckId: string) => request<{ liked: boolean; likeCount: number }>(`/decks/${deckId}/like-status`, undefined, { ttlMs: 5_000 }),
   listMyDecks: (options?: { bypassCache?: boolean }) => request<ApiDeck[]>("/decks/me", undefined, { ttlMs: 10_000, bypassCache: options?.bypassCache }),
   getMyDeck: (id: string) => request<ApiDeck>(`/decks/me/${id}`, undefined, { ttlMs: 5_000 }),
   listMyDecksPage: (pagination: PaginationParams = {}) =>

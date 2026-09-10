@@ -142,15 +142,15 @@ export default function CardsPage() {
   const rarityOptions = useMemo(() => Array.from(rarityGroups.keys()).sort(), [rarityGroups]);
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Catálogo" }]} title="Catálogo de Cartas" description="Catálogo completo de cartas com filtros combinados e link de busca pra compartilhar. Estatísticas avançadas por carta chegam nas próximas atualizações.">
+    <PublicShell breadcrumbs={[{ label: "Arquivo Central" }]} title="Arquivo Central Anaheim" description="Registro técnico de blueprints, dados de Mobile Suits e catálogo completo de cartas com filtros avançados de busca.">
       <div className="space-y-6">
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="space-y-5 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Busca avançada</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase dark:text-white light:text-slate-900">Catálogo filtrado de cartas</h2>
-                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Filtre por cor, tipo, série, trait, keyword ou coleção. Os filtros ficam salvos no link, então dá pra compartilhar uma busca pronta com qualquer pessoa.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arquivo Central Anaheim · Registro de Blueprints</p>
+                <h2 className="mt-2 font-heading text-4xl uppercase dark:text-white light:text-slate-900">Catálogo Técnico de Cartas</h2>
+                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Consulte especificações de Mobile Suits, Pilotos, Comandos e Bases por cor, tipo, série, trait, palavra-chave ou expansão. Filtros salvos no link para compartilhamento de telemetria.</p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{total} resultados</Badge>
