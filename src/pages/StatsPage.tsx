@@ -253,7 +253,7 @@ export default function StatsPage() {
         description: "Mecânica de pareamento G-Witch, aceleração de recursos e efeitos decisivos de duelo.",
       },
       {
-        name: "Branco / Amarelo · After Colony",
+        name: "Branco · After Colony",
         color: "Branco",
         trait: "Colony",
         deckCount: Math.max(1, Math.floor(filteredDecks.length * 0.5)),

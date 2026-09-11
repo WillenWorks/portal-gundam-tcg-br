@@ -23,6 +23,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 
 import { motion } from "framer-motion";
 
 import gundamCardBack from "@/assets/gundam-card-back.png";
+import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
@@ -356,114 +357,7 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
 
 // Expande cada linha do deck principal em N cópias individuais (uma por quantidade)
 // pra sortear uma mão com a probabilidade real de cada carta -- é a mesma população
-// usada no cálculo hipergeométrico do card "Mão inicial" (ver hypergeometricAtLeastOne
-// acima), só que aqui em vez de calcular a chance, a gente sorteia de verdade.
-function buildDeckPopulation(rows: DeckRow[]): DeckRow[] {
-  const population: DeckRow[] = [];
-  rows.forEach((row) => { for (let i = 0; i < row.quantity; i++) population.push(row); });
-  return population;
-}
 
-function shuffleDraw<T>(population: T[], count: number): T[] {
-  const pool = [...population];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, count);
-}
-
-/** Prévia visual da mão inicial -- sorteia 5 cartas de verdade da lista principal
- *  (mesma população do cálculo hipergeométrico) e anima o draw: cartas viram
- *  encostando na área uma por vez, depois flipam de costas pra frente em sequência,
- *  igual abrir a mão numa partida real. Sortear de novo simula tanto "e se eu tivesse
- *  comprado outra mão" quanto o mulligan oficial (mulligan também é só um sorteio novo
- *  e independente da mesma população, ver rulling em data/rulings-batch-01.json). */
-function OpeningHandModal({ open, onClose, mainDeckRows }: { open: boolean; onClose: () => void; mainDeckRows: DeckRow[] }) {
-  const [hand, setHand] = useState<DeckRow[]>([]);
-  const [revealCount, setRevealCount] = useState(0);
-  const [round, setRound] = useState(0);
-  const population = useMemo(() => buildDeckPopulation(mainDeckRows), [mainDeckRows]);
-
-  const draw = () => {
-    setHand(shuffleDraw(population, Math.min(5, population.length)));
-    setRound((r) => r + 1);
-  };
-
-  useEffect(() => {
-    if (open) draw();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só redesenha ao abrir/fechar; editar o deck com o modal aberto não deve interromper a mão em exibição.
-  }, [open]);
-
-  useEffect(() => {
-    if (!hand.length) return;
-    setRevealCount(0);
-    let i = 0;
-    const timer = window.setInterval(() => {
-      i += 1;
-      setRevealCount(i);
-      if (i >= hand.length) window.clearInterval(timer);
-    }, 380);
-    return () => window.clearInterval(timer);
-  }, [round, hand.length]);
-
-  if (!open) return null;
-  const done = revealCount >= hand.length;
-  const lowCostHits = hand.filter((card) => card.cost <= 2).length;
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent aria-describedby={undefined} className="sm:max-w-3xl border-white/10 bg-slate-950 text-white">
-        <div className="border-b border-white/10 pb-3">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Prévia de jogo</p>
-          <DialogTitle className="font-heading text-2xl uppercase heading-portal">Simulação de mão inicial</DialogTitle>
-          <p className="mt-1 text-xs leading-5 text-slate-500">5 cartas sorteadas do deck principal embaralhado -- a mesma população do cálculo hipergeométrico ao lado. Sortear de novo é matematicamente idêntico a um mulligan (sorteio novo e independente).</p>
-        </div>
-        {population.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-portal">Adicione cartas ao deck principal pra simular uma mão.</p>
-        ) : (
-          <>
-            <div className="flex flex-wrap justify-center gap-3 py-6">
-              {hand.map((card, index) => {
-                const revealed = index < revealCount;
-                const image = card.imageMediumUrl || card.imageUrl;
-                return (
-                  <motion.div
-                    key={`${round}-${index}`}
-                    initial={{ opacity: 0, y: 28, scale: 0.85 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: index * 0.1, duration: 0.3, ease: "easeOut" }}
-                    className="h-[196px] w-[140px] shrink-0"
-                    style={{ perspective: 800 }}
-                  >
-                    <motion.div
-                      className="relative h-full w-full"
-                      animate={{ rotateY: revealed ? 180 : 0 }}
-                      transition={{ duration: 0.4, ease: "easeInOut", delay: revealed ? index * 0.1 : 0 }}
-                      style={{ transformStyle: "preserve-3d" }}
-                    >
-                      <div className="absolute inset-0 overflow-hidden border border-primary/30 bg-slate-900" style={{ backfaceVisibility: "hidden" }}>
-                        <img src={gundamCardBack} alt="" className="h-full w-full object-cover" />
-                      </div>
-                      <div className="absolute inset-0 overflow-hidden border border-white/10 bg-slate-950/70" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
-                        {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
-                        {card.cost <= 2 ? <span className="absolute left-1 top-1 rounded-none border border-emerald-400/60 bg-emerald-400/20 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.1em] text-emerald-200">Custo baixo</span> : null}
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
-              <p className="text-sm text-slate-400">{done ? (lowCostHits > 0 ? `${lowCostHits} carta(s) de custo baixo nessa mão.` : "Nenhuma carta de custo baixo nessa mão -- vai acontecer, é probabilidade.") : "Comprando..."}</p>
-              <Button variant="outline" className="rounded-none" onClick={draw}>Comprar mão novamente</Button>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /** Modal de detalhe — abre a partir de qualquer estatística clicável (cor, trait,
  *  série, tipo, keyword) mostrando exatamente quais cartas do deck contribuem pra
@@ -1419,52 +1313,6 @@ export default function DeckbuilderPage() {
           </CardContent>
         </Card>
 
-        {/* Estilo visual — logo abaixo da barra de salvamento (docs/38 §5): é configuração
-            do deck, fica perto de nome/Salvar. Recolhido por padrão pra não competir com a
-            decklist. Capa = as cartas escolhidas, divididas ao meio (ver FeaturedCoverImage). */}
-        <details className="panel-cut border surface-strong open:pb-5">
-          <summary className="cursor-pointer select-none p-5 text-xs uppercase tracking-[0.22em] text-slate-500">Estilo visual do deck (opcional)</summary>
-          <div className="grid gap-4 px-5 lg:grid-cols-[180px_1fr]">
-            <div className="relative min-h-28 overflow-hidden border border-white/15 bg-slate-950/60">
-              <FeaturedCoverImage cards={featuredCardIds.map((id) => featuredCardDetails[id]).filter(Boolean)} />
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de referência · até 2</p>
-                <p className="mt-1 text-sm text-soft">A capa do deck é montada com a arte dessas cartas, uma de cada lado. Busque em todo o catálogo, não só na pool filtrada ao lado.</p>
-              </div>
-              {featuredCardIds.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {featuredCardIds.map((id) => {
-                    const card = featuredCardDetails[id];
-                    if (!card) return null;
-                    return (
-                      <button key={id} type="button" onClick={() => toggleFeaturedCard(card)} className="flex items-center gap-2 border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs text-white transition hover:bg-primary/20">
-                        {card.name} <span className="text-primary">✕</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <Input value={featuredQuery} onChange={(e) => setFeaturedQuery(e.target.value)} placeholder="Buscar carta por nome ou código" className="field-shell" />
-              <div className="grid max-h-52 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                {featuredSearching ? <p className="col-span-full text-xs text-muted-portal">Buscando…</p> : null}
-                {!featuredSearching && featuredQuery.trim() && !featuredResults.length ? <p className="col-span-full text-xs text-muted-portal">Nenhuma carta encontrada.</p> : null}
-                {featuredResults.map((card) => {
-                  const active = featuredCardIds.includes(card.id);
-                  const cardData = { id: card.id, name: card.namePt || card.name, imageUrl: card.imageMediumUrl || card.imageUrl || null };
-                  return (
-                    <button key={card.id} type="button" onClick={() => toggleFeaturedCard(cardData)} disabled={!active && featuredCardIds.length >= 2} className={`flex items-center gap-2 border p-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary/15 text-white" : "border-white/15 bg-white/5 text-soft hover:bg-white/10"}`}>
-                      <span className={`flex size-5 shrink-0 items-center justify-center border text-[10px] ${active ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{active ? "✓" : ""}</span>
-                      <span className="min-w-0"><span className="block truncate font-medium">{card.namePt || card.name}</span><span className="block truncate text-[10px] text-slate-500">{card.code}</span></span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </details>
-
         {/* Abas — Montar é o padrão (pool + decklist), Estatísticas junta diagnóstico/arquétipo/recomendações/gráficos */}
         <div className="flex gap-2 border-b border-white/10">
           {([["montar", "Montar"], ["estatisticas", "Estatísticas"]] as const).map(([key, label]) => (
@@ -2018,7 +1866,7 @@ export default function DeckbuilderPage() {
       <AltArtModal modelId={altArtModelId} onClose={() => setAltArtModelId(null)} entries={entries} getCopyLimit={getCopyLimit} onIncrement={increment} onDecrement={decrement} />
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
       <StatDetailModal title={statDetail} rows={statDetailRows} onClose={() => setStatDetail(null)} onPreviewCard={setPreviewCard} />
-      <OpeningHandModal open={openingHandOpen} onClose={() => setOpeningHandOpen(false)} mainDeckRows={mainDeckRows} />
+      <OpeningHandModal open={openingHandOpen} onClose={() => setOpeningHandOpen(false)} cards={mainDeckRows} />
       <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
         <DialogContent aria-describedby={undefined} className="sm:max-w-lg border-white/10 bg-slate-950 text-white">
           <div className="border-b border-white/10 pb-3">

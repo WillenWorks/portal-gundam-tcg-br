@@ -44,9 +44,8 @@ const AVAILABLE_COLORS = [
   { id: "BLUE", label: "Azul", hex: GAME_COLOR_HEX.BLUE || "#2563eb" },
   { id: "GREEN", label: "Verde", hex: GAME_COLOR_HEX.GREEN || "#16a34a" },
   { id: "RED", label: "Vermelho", hex: GAME_COLOR_HEX.RED || "#dc2626" },
-  { id: "YELLOW", label: "Amarelo", hex: GAME_COLOR_HEX.YELLOW || "#ca8a04" },
-  { id: "BLACK", label: "Preto", hex: GAME_COLOR_HEX.BLACK || "#475569" },
   { id: "WHITE", label: "Branco", hex: GAME_COLOR_HEX.WHITE || "#e2e8f0" },
+  { id: "PURPLE", label: "Roxo", hex: "#9333ea" },
 ];
 
 export default function PublicDecksPage() {
@@ -70,6 +69,8 @@ export default function PublicDecksPage() {
   const [exactColor, setExactColor] = useState(false);
   const [starterDecksOnly, setStarterDecksOnly] = useState(false);
   const [dateRange, setDateRange] = useState<"3months" | "6months" | "all">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [filtersModalOpen, setFiltersModalOpen] = useState(false);
 
   // Modal de Importação Rápida
@@ -107,6 +108,8 @@ export default function PublicDecksPage() {
           exactColor,
           starterDecksOnly,
           dateRange,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         }
       )
       .then((res) => {
@@ -125,7 +128,7 @@ export default function PublicDecksPage() {
     return () => {
       isCancelled = true;
     };
-  }, [query, unit, mainUnitOnly, selectedColors, sort, exactColor, starterDecksOnly, dateRange]);
+  }, [query, unit, mainUnitOnly, selectedColors, sort, exactColor, starterDecksOnly, dateRange, startDate, endDate]);
 
   // Função para carregar mais decks (paginação de 12 em 12)
   const loadMoreDecks = async () => {
@@ -146,6 +149,8 @@ export default function PublicDecksPage() {
           exactColor,
           starterDecksOnly,
           dateRange,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         }
       );
       setDecks((prev) => [...prev, ...(res.items || [])]);
@@ -196,6 +201,8 @@ export default function PublicDecksPage() {
     setExactColor(false);
     setStarterDecksOnly(false);
     setDateRange("all");
+    setStartDate("");
+    setEndDate("");
     setSort("views_desc");
   };
 
@@ -205,7 +212,7 @@ export default function PublicDecksPage() {
     (selectedColors.length > 0 ? 1 : 0) +
     (exactColor ? 1 : 0) +
     (starterDecksOnly ? 1 : 0) +
-    (dateRange !== "all" ? 1 : 0) +
+    (startDate || endDate || dateRange !== "all" ? 1 : 0) +
     (mainUnitOnly ? 1 : 0);
 
   const handleStartImport = () => {
@@ -222,44 +229,44 @@ export default function PublicDecksPage() {
   return (
     <PublicShell breadcrumbs={[{ label: "Decks" }]}>
       {/* BANNER PRINCIPAL: HANGAR DE CRIAÇÃO DE DECKS DA OZ */}
-      <section className="relative mb-8 overflow-hidden border border-primary/30 bg-slate-950 shadow-2xl shadow-primary/10">
+      <section className="relative mb-8 min-h-[300px] overflow-hidden border border-primary/40 bg-slate-950 shadow-2xl shadow-primary/15">
         {/* Background Hangar com Tallgeese na Escala Canônica */}
         <div className="absolute inset-0 z-0">
           <img
             src={ozDeckHangarImg}
             alt="Hangar da OZ com o Tallgeese em montagem"
-            className="h-full w-full object-cover object-center opacity-40 transition-transform duration-700 hover:scale-105"
+            className="h-full w-full object-cover object-center opacity-70 transition-transform duration-700 hover:scale-105"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/50" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
-          <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-slate-950/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-scanlines opacity-15" />
         </div>
 
         {/* Conteúdo do Banner */}
-        <div className="relative z-10 p-6 sm:p-8 md:p-10 lg:p-12">
+        <div className="relative z-10 p-6 sm:p-10 md:p-12 lg:p-14">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="max-w-3xl space-y-3">
               <div className="flex items-center gap-2">
                 <span className="inline-block size-2 rounded-full bg-primary animate-ping" />
                 <Badge
                   variant="outline"
-                  className="rounded-none border-primary/50 bg-primary/10 text-primary font-mono text-[0.7rem] uppercase tracking-widest px-2.5 py-0.5"
+                  className="rounded-none border-primary/50 bg-primary/15 text-primary font-mono text-[0.7rem] uppercase tracking-widest px-2.5 py-0.5"
                 >
                   DIRETRIZ MILITAR OZ · BAIA DE MONTAGEM
                 </Badge>
               </div>
 
-              <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-tight text-white leading-tight">
+              <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl uppercase tracking-tight text-white leading-tight drop-shadow-md">
                 Hangar de Criação de Decks da OZ
               </h1>
 
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl font-sans">
+              <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-2xl font-sans drop-shadow">
                 Projetos de engenharia móvel, formações táticas de combate e arsenais compartilhados
                 pelos pilotos da comunidade para calibração, estudo e análise competitiva de metagame.
               </p>
 
               {/* Informações táticas de status */}
-              <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400">
+              <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-mono text-slate-300">
                 <span className="flex items-center gap-1.5">
                   <Layers className="size-3.5 text-primary" />
                   Total em Operação:{" "}
@@ -283,11 +290,11 @@ export default function PublicDecksPage() {
               <Button
                 asChild
                 size="lg"
-                className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 py-6 shadow-lg shadow-primary/20 hover:bg-primary/90 hover:scale-[1.02] transition-all"
+                className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider text-sm px-6 py-6 shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-[1.02] transition-all"
               >
                 <Link href="/deckbuilder/novo">
                   <Plus className="mr-2 size-5" />
-                  Novo Projeto de Deck
+                  Criar Deck
                 </Link>
               </Button>
 

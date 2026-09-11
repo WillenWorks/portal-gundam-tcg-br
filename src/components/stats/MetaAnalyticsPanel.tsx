@@ -254,26 +254,26 @@ export function MetaAnalyticsPanel() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Custo Médio (μ_cost)</p>
-              <p className="mt-1 font-heading text-2xl text-white">{breakdown.averages.avgCost.toFixed(2)}</p>
+              <p className="mt-1 font-heading text-2xl text-white">{(breakdown.averages?.avgCost ?? 0).toFixed(2)}</p>
               <p className="text-[11px] text-slate-400 mt-1">Recursos por ativação média</p>
             </div>
 
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Nível Médio (μ_lvl)</p>
-              <p className="mt-1 font-heading text-2xl text-cyan-300">{breakdown.averages.avgLevel.toFixed(2)}</p>
+              <p className="mt-1 font-heading text-2xl text-cyan-300">{(breakdown.averages?.avgLevel ?? 0).toFixed(2)}</p>
               <p className="text-[11px] text-slate-400 mt-1">Nível médio dos Mobile Suits</p>
             </div>
 
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Escore de Curva Tática</p>
-              <p className="mt-1 font-heading text-2xl text-accent">{breakdown.averages.compositeCurveScore.toFixed(2)}</p>
+              <p className="mt-1 font-heading text-2xl text-accent">{(breakdown.averages?.compositeCurveScore ?? 0).toFixed(2)}</p>
               <p className="text-[11px] text-slate-400 mt-1">Ponderação Custo × Nível</p>
             </div>
 
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Unidades / Pilotos</p>
               <p className="mt-1 font-heading text-2xl text-emerald-300">
-                {breakdown.averages.unitCount} <span className="text-sm font-sans text-slate-400">/</span> {breakdown.averages.pilotCount}
+                {breakdown.averages?.unitCount ?? 0} <span className="text-sm font-sans text-slate-400">/</span> {breakdown.averages?.pilotCount ?? 0}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">Média por lista no arquétipo</p>
             </div>
@@ -281,7 +281,7 @@ export function MetaAnalyticsPanel() {
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Comandos / Bases</p>
               <p className="mt-1 font-heading text-2xl text-purple-300">
-                {breakdown.averages.commandCount} <span className="text-sm font-sans text-slate-400">/</span> {breakdown.averages.baseCount}
+                {breakdown.averages?.commandCount ?? 0} <span className="text-sm font-sans text-slate-400">/</span> {breakdown.averages?.baseCount ?? 0}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">Suporte tático e infraestrutura</p>
             </div>
@@ -300,15 +300,15 @@ export function MetaAnalyticsPanel() {
                 }`}
               >
                 Todos os Quadrantes ({
-                  breakdown.quadrants.core.length +
-                  breakdown.quadrants.staples.length +
-                  breakdown.quadrants.flex.length +
-                  breakdown.quadrants.techs.length
+                  (breakdown.quadrants?.core?.length ?? 0) +
+                  (breakdown.quadrants?.staples?.length ?? 0) +
+                  (breakdown.quadrants?.flex?.length ?? 0) +
+                  (breakdown.quadrants?.techs?.length ?? 0)
                 })
               </button>
 
               {(["CORE", "STAPLE", "FLEX", "TECH"] as MetaQuadrant[]).map((q) => {
-                const count = breakdown.quadrants[q.toLowerCase() as keyof typeof breakdown.quadrants].length;
+                const count = (breakdown.quadrants?.[q.toLowerCase() as keyof typeof breakdown.quadrants] || []).length;
                 const config = QUADRANT_CONFIG[q];
                 const isCurrent = activeQuadrantTab === q;
                 return (
@@ -330,7 +330,7 @@ export function MetaAnalyticsPanel() {
             </div>
 
             <p className="text-[11px] text-slate-400 font-mono">
-              Amostragem: {breakdown.totalDecksSampled} {breakdown.totalDecksSampled === 1 ? "deck validado" : "decks validados"}
+              Amostragem: {breakdown.totalDecksSampled ?? 0} {breakdown.totalDecksSampled === 1 ? "deck validado" : "decks validados"}
             </p>
           </div>
 
@@ -339,7 +339,7 @@ export function MetaAnalyticsPanel() {
             {(["CORE", "STAPLE", "FLEX", "TECH"] as MetaQuadrant[]).map((quadrantKey) => {
               if (activeQuadrantTab !== "ALL" && activeQuadrantTab !== quadrantKey) return null;
 
-              const cardsInQuadrant = breakdown.quadrants[quadrantKey.toLowerCase() as keyof typeof breakdown.quadrants];
+              const cardsInQuadrant = breakdown.quadrants?.[quadrantKey.toLowerCase() as keyof typeof breakdown.quadrants] || [];
               const config = QUADRANT_CONFIG[quadrantKey];
               const IconComp = config.icon;
 

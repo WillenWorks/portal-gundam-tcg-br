@@ -16,6 +16,8 @@ export interface DeckFiltersState {
   exactColor: boolean;
   starterDecksOnly: boolean;
   dateRange: "3months" | "6months" | "all";
+  startDate?: string;
+  endDate?: string;
   sort: string;
 }
 
@@ -28,13 +30,11 @@ interface DeckFiltersModalProps {
 }
 
 const FILTER_COLORS = [
-  { id: "PURPLE", label: "Roxo", hex: "#9333ea" },
-  { id: "RED", label: "Vermelho", hex: GAME_COLOR_HEX.RED || "#dc2626" },
   { id: "BLUE", label: "Azul", hex: GAME_COLOR_HEX.BLUE || "#2563eb" },
   { id: "GREEN", label: "Verde", hex: GAME_COLOR_HEX.GREEN || "#16a34a" },
+  { id: "RED", label: "Vermelho", hex: GAME_COLOR_HEX.RED || "#dc2626" },
   { id: "WHITE", label: "Branco", hex: GAME_COLOR_HEX.WHITE || "#e2e8f0" },
-  { id: "YELLOW", label: "Amarelo", hex: GAME_COLOR_HEX.YELLOW || "#ca8a04" },
-  { id: "BLACK", label: "Preto", hex: GAME_COLOR_HEX.BLACK || "#475569" },
+  { id: "PURPLE", label: "Roxo", hex: "#9333ea" },
 ];
 
 const SORT_OPTIONS = [
@@ -127,6 +127,8 @@ export function DeckFiltersModal({
       exactColor: false,
       starterDecksOnly: false,
       dateRange: "all",
+      startDate: "",
+      endDate: "",
       sort: "recent",
     };
     setDraftFilters(cleared);
@@ -403,57 +405,65 @@ export function DeckFiltersModal({
               </div>
             </div>
 
-            {/* COLUNA 3: PERÍODO */}
+            {/* COLUNA 3: RECORTE TEMPORAL */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-1 h-4 bg-sky-400 inline-block" />
                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-sky-400">
-                  PERÍODO
+                  RECORTE TEMPORAL
                 </h3>
               </div>
 
-              {/* Botão de Recent Decks Only */}
-              <div
-                onClick={() =>
-                  setDraftFilters((prev) => ({
-                    ...prev,
-                    dateRange: prev.dateRange === "3months" ? "all" : "3months",
-                  }))
-                }
-                className={`p-3 border rounded cursor-pointer transition-all flex items-center gap-2.5 ${
-                  draftFilters.dateRange === "3months"
-                    ? "bg-sky-950/60 border-sky-400 text-white"
-                    : "bg-[#181f28] border-white/10 text-slate-300 hover:border-white/30"
-                }`}
-              >
-                <div
-                  className={`size-4 rounded border flex items-center justify-center ${
-                    draftFilters.dateRange === "3months"
-                      ? "bg-sky-400 border-sky-400 text-slate-950"
-                      : "border-white/30 bg-slate-900"
-                  }`}
-                >
-                  {draftFilters.dateRange === "3months" && <Check className="size-3 stroke-[3]" />}
+              <div className="space-y-2.5">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
+                    Data Início
+                  </label>
+                  <input
+                    type="date"
+                    value={draftFilters.startDate || ""}
+                    onChange={(e) =>
+                      setDraftFilters((prev) => ({
+                        ...prev,
+                        startDate: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#181f28] border border-white/15 rounded-none h-10 px-3 text-xs text-white uppercase tracking-wider focus:border-sky-400 focus:outline-none"
+                  />
                 </div>
-                <span className="text-xs font-medium">Apenas Decks Recentes (últimos 3 meses)</span>
-              </div>
 
-              {/* Dropdown de Intervalo */}
-              <div className="relative">
-                <select
-                  value={draftFilters.dateRange}
-                  onChange={(e) =>
-                    setDraftFilters((prev) => ({
-                      ...prev,
-                      dateRange: e.target.value as any,
-                    }))
-                  }
-                  className="w-full bg-[#181f28] border border-white/10 rounded-none h-10 px-3 text-xs text-white uppercase tracking-wider cursor-pointer"
-                >
-                  <option value="all">Todo o período</option>
-                  <option value="3months">Últimos 3 meses</option>
-                  <option value="6months">Últimos 6 meses</option>
-                </select>
+                <div>
+                  <label className="block text-[10px] font-mono uppercase text-slate-400 mb-1">
+                    Data Fim
+                  </label>
+                  <input
+                    type="date"
+                    value={draftFilters.endDate || ""}
+                    onChange={(e) =>
+                      setDraftFilters((prev) => ({
+                        ...prev,
+                        endDate: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-[#181f28] border border-white/15 rounded-none h-10 px-3 text-xs text-white uppercase tracking-wider focus:border-sky-400 focus:outline-none"
+                  />
+                </div>
+
+                {(draftFilters.startDate || draftFilters.endDate) && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDraftFilters((prev) => ({
+                        ...prev,
+                        startDate: "",
+                        endDate: "",
+                      }))
+                    }
+                    className="text-[11px] font-mono text-sky-400 hover:text-sky-300 underline pt-0.5 block cursor-pointer"
+                  >
+                    Limpar recorte temporal
+                  </button>
+                )}
               </div>
             </div>
 

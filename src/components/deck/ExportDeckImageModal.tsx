@@ -1,15 +1,18 @@
-/* Modal de Exportação de Imagem com Prévia Reativa e Customização (Exburst style)
- * Permite ativar/desativar seções antes de baixar o PNG final. Por padrão, salva apenas o deck principal. */
+/* Modal de Exportação de Imagem com Prévia Reativa e Geração Dedicada de Imagem de Estatísticas
+ * Permite alternar opções (Recursos, Estatísticas, Dados do Piloto, Selo OZ).
+ * Quando "Estatísticas" estiver ativado, gera uma 2ª imagem dedicada (Infográfico Tático VEDA). */
 import { useEffect, useState } from "react";
-import { Check, Download, Eye, Layers, Shield, Sparkles, X } from "lucide-react";
+import { Check, Download, Eye, Layers, Shield, Sparkles, X, BarChart3, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   generateDeckImageBlob,
+  generateDeckStatsImageBlob,
   type ExportCardEntry,
   type ExportDeckOptions,
+  type ExportStatsData,
 } from "@/utils/deckImageExport";
 
 interface ExportDeckImageModalProps {
@@ -22,7 +25,7 @@ interface ExportDeckImageModalProps {
   resourceCards?: ExportCardEntry[];
   exCards?: ExportCardEntry[];
   colors?: string[];
-  statsSummary?: ExportDeckOptions["statsSummary"];
+  statsSummary?: ExportStatsData;
 }
 
 export function ExportDeckImageModal({
@@ -37,26 +40,33 @@ export function ExportDeckImageModal({
   colors = [],
   statsSummary,
 }: ExportDeckImageModalProps) {
-  // Configurações e Toggles (Por padrão, apenas o deck principal!)
+  // Configurações e Toggles (Por padrão: apenas deck principal!)
   const [includeResourcesAndEx, setIncludeResourcesAndEx] = useState(false);
   const [includeStats, setIncludeStats] = useState(false);
   const [includeMetaInfo, setIncludeMetaInfo] = useState(true);
   const [includeOzSeal, setIncludeOzSeal] = useState(true);
 
-  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Aba ativa na prévia quando há estatísticas
+  const [activePreviewTab, setActivePreviewTab] = useState<"deck" | "stats">("deck");
+
+  // Blobs das imagens geradas
+  const [deckBlob, setDeckBlob] = useState<Blob | null>(null);
+  const [deckUrl, setDeckUrl] = useState<string | null>(null);
+
+  const [statsBlob, setStatsBlob] = useState<Blob | null>(null);
+  const [statsUrl, setStatsUrl] = useState<string | null>(null);
+
   const [generating, setGenerating] = useState(false);
 
-  // Gera a imagem sempre que as opções mudarem
+  // Gera as imagens sempre que as opções mudarem
   useEffect(() => {
     if (!open) return;
     let isMounted = true;
     setGenerating(true);
 
-    const themePrimaryColor =
-      getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#3b82f6";
+    const themePrimaryColor = "#38bdf8";
 
-    generateDeckImageBlob({
+    const exportOptions: ExportDeckOptions = {
       deckName,
       authorName,
       shareId,
@@ -70,18 +80,36 @@ export function ExportDeckImageModal({
       includeMetaInfo,
       includeOzSeal,
       statsSummary,
-    })
-      .then((blob) => {
+    };
+
+    const taskDeck = generateDeckImageBlob(exportOptions);
+    const taskStats = includeStats ? generateDeckStatsImageBlob(exportOptions) : Promise.resolve(null);
+
+    Promise.all([taskDeck, taskStats])
+      .then(([blob1, blob2]) => {
         if (!isMounted) return;
-        setPreviewBlob(blob);
-        setPreviewUrl((prev) => {
+
+        setDeckBlob(blob1);
+        setDeckUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(blob);
+          return URL.createObjectURL(blob1);
         });
+
+        if (blob2) {
+          setStatsBlob(blob2);
+          setStatsUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return URL.createObjectURL(blob2);
+          });
+        } else {
+          setStatsBlob(null);
+          setStatsUrl(null);
+          setActivePreviewTab("deck");
+        }
       })
       .catch((err) => {
-        console.error("Erro ao sintetizar prévia da imagem:", err);
-        toast.error("Erro ao sintetizar prévia.");
+        console.error("Erro ao sintetizar imagens:", err);
+        toast.error("Erro ao sintetizar imagem.");
       })
       .finally(() => {
         if (isMounted) setGenerating(false);
@@ -103,46 +131,70 @@ export function ExportDeckImageModal({
     includeStats,
     includeMetaInfo,
     includeOzSeal,
+    statsSummary,
   ]);
 
-  const handleDownload = () => {
-    if (!previewBlob) return;
-    const url = URL.createObjectURL(previewBlob);
+  const sanitizedName = (deckName || "deck")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  const downloadBlob = (blob: Blob, suffix: string) => {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const sanitizedName = (deckName || "deck")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
     a.href = url;
-    a.download = `${sanitizedName}-oz-arsenal.png`;
+    a.download = `${sanitizedName}-${suffix}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast.success("Imagem do deck baixada com sucesso!");
-    onClose();
   };
+
+  const handleDownloadDeck = () => {
+    if (!deckBlob) return;
+    downloadBlob(deckBlob, "decklist");
+    toast.success("Decklist PNG baixada com sucesso!");
+  };
+
+  const handleDownloadStats = () => {
+    if (!statsBlob) return;
+    downloadBlob(statsBlob, "telemetria-stats");
+    toast.success("Infográfico de Estatísticas PNG baixado com sucesso!");
+  };
+
+  const handleDownloadBoth = () => {
+    if (deckBlob) downloadBlob(deckBlob, "decklist");
+    if (statsBlob) {
+      setTimeout(() => downloadBlob(statsBlob, "telemetria-stats"), 600);
+    }
+    toast.success("Ambas as imagens foram baixadas!");
+  };
+
+  const currentPreviewUrl = activePreviewTab === "stats" && statsUrl ? statsUrl : deckUrl;
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto rounded-none border border-primary/40 bg-slate-950 text-white p-6">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto rounded-none border border-sky-500/40 bg-slate-950 text-white p-6 shadow-2xl">
         <DialogHeader className="border-b border-white/10 pb-3">
           <div className="flex items-center justify-between">
             <div>
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-sky-400">
+                Anaheim HUB · Arsenal Operacional OZ
+              </p>
               <DialogTitle className="font-heading text-2xl uppercase tracking-wider text-white flex items-center gap-2">
-                <Eye className="size-5 text-primary" /> Pré-Visualização da Imagem
+                <Eye className="size-5 text-sky-400" /> Exportação de Imagem em Alta Resolução
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-400 mt-1">
-                Ajuste as opções visuais antes de salvar. Por padrão, a imagem renderiza estritamente as 50 cartas do deck principal.
+                Ajuste os parâmetros antes de salvar. Por padrão, a imagem exporta apenas o deck principal com selo oficial.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* BARRA DE TOGGLES / OPÇÕES (Exburst style) */}
+        {/* BARRA DE TOGGLES / OPÇÕES */}
         <div className="py-3 border-b border-white/10">
           <p className="text-[10px] uppercase font-mono tracking-wider text-slate-400 mb-2">
-            Configurações de Exportação:
+            Parâmetros de Renderização:
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {/* Toggle Recursos & EX */}
@@ -151,44 +203,49 @@ export function ExportDeckImageModal({
               onClick={() => setIncludeResourcesAndEx(!includeResourcesAndEx)}
               className={`p-2.5 border text-left flex items-center justify-between transition-all ${
                 includeResourcesAndEx
-                  ? "border-primary bg-primary/20 text-white"
+                  ? "border-sky-500 bg-sky-950/40 text-white"
                   : "border-white/10 bg-slate-900/60 text-slate-400 hover:border-white/30"
               }`}
             >
               <div>
                 <p className="text-xs font-heading uppercase">Recursos & EX</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeResourcesAndEx ? "Incluídos" : "Apenas deck principal"}
+                  {includeResourcesAndEx ? "Incluídos na grade" : "Apenas deck principal"}
                 </p>
               </div>
               <div
                 className={`size-4 border flex items-center justify-center ${
-                  includeResourcesAndEx ? "border-primary bg-primary text-black" : "border-white/20"
+                  includeResourcesAndEx ? "border-sky-500 bg-sky-500 text-slate-950" : "border-white/20"
                 }`}
               >
                 {includeResourcesAndEx && <Check className="size-3" />}
               </div>
             </button>
 
-            {/* Toggle Estatísticas */}
+            {/* Toggle Estatísticas (Gera Imagem 2 Dedicada) */}
             <button
               type="button"
-              onClick={() => setIncludeStats(!includeStats)}
+              onClick={() => {
+                const next = !includeStats;
+                setIncludeStats(next);
+                if (next) setActivePreviewTab("stats");
+                else setActivePreviewTab("deck");
+              }}
               className={`p-2.5 border text-left flex items-center justify-between transition-all ${
                 includeStats
-                  ? "border-sky-500 bg-sky-950/40 text-white"
+                  ? "border-amber-400 bg-amber-950/40 text-white"
                   : "border-white/10 bg-slate-900/60 text-slate-400 hover:border-white/30"
               }`}
             >
               <div>
-                <p className="text-xs font-heading uppercase">Estatísticas</p>
+                <p className="text-xs font-heading uppercase text-amber-300">Exportar Estatísticas</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeStats ? "Barra ativa" : "Sem estatísticas"}
+                  {includeStats ? "Gera 2ª imagem dedicada" : "Desativado"}
                 </p>
               </div>
               <div
                 className={`size-4 border flex items-center justify-center ${
-                  includeStats ? "border-sky-500 bg-sky-500 text-black" : "border-white/20"
+                  includeStats ? "border-amber-400 bg-amber-400 text-slate-950" : "border-white/20"
                 }`}
               >
                 {includeStats && <Check className="size-3" />}
@@ -213,7 +270,7 @@ export function ExportDeckImageModal({
               </div>
               <div
                 className={`size-4 border flex items-center justify-center ${
-                  includeMetaInfo ? "border-emerald-500 bg-emerald-500 text-black" : "border-white/20"
+                  includeMetaInfo ? "border-emerald-500 bg-emerald-500 text-slate-950" : "border-white/20"
                 }`}
               >
                 {includeMetaInfo && <Check className="size-3" />}
@@ -233,12 +290,12 @@ export function ExportDeckImageModal({
               <div>
                 <p className="text-xs font-heading uppercase">Selo Militar OZ</p>
                 <p className="text-[9px] text-slate-400">
-                  {includeOzSeal ? "Carimbo ativo" : "Sem carimbo"}
+                  {includeOzSeal ? "Carimbo oficial ativo" : "Sem carimbo"}
                 </p>
               </div>
               <div
                 className={`size-4 border flex items-center justify-center ${
-                  includeOzSeal ? "border-rose-500 bg-rose-500 text-black" : "border-white/20"
+                  includeOzSeal ? "border-rose-500 bg-rose-500 text-slate-950" : "border-white/20"
                 }`}
               >
                 {includeOzSeal && <Check className="size-3" />}
@@ -247,40 +304,97 @@ export function ExportDeckImageModal({
           </div>
         </div>
 
+        {/* SELEÇÃO DE ABAS DE PRÉ-VISUALIZAÇÃO (SE ESTATÍSTICAS ESTIVER ATIVO) */}
+        {includeStats && (
+          <div className="flex items-center gap-2 pt-2 border-b border-white/10">
+            <button
+              type="button"
+              onClick={() => setActivePreviewTab("deck")}
+              className={`flex items-center gap-1.5 px-4 py-2 border-b-2 text-xs font-mono uppercase tracking-wider transition ${
+                activePreviewTab === "deck"
+                  ? "border-sky-400 text-sky-400 font-bold bg-sky-950/30"
+                  : "border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <ImageIcon className="size-3.5" />
+              <span>Imagem 1: Decklist Tática</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePreviewTab("stats")}
+              className={`flex items-center gap-1.5 px-4 py-2 border-b-2 text-xs font-mono uppercase tracking-wider transition ${
+                activePreviewTab === "stats"
+                  ? "border-amber-400 text-amber-400 font-bold bg-amber-950/30"
+                  : "border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <BarChart3 className="size-3.5" />
+              <span>Imagem 2: Telemetria & Estatísticas</span>
+            </button>
+          </div>
+        )}
+
         {/* ÁREA DE PRÉ-VISUALIZAÇÃO DA IMAGEM */}
-        <div className="relative min-h-[300px] max-h-[55vh] overflow-auto border border-white/10 bg-slate-950/90 flex items-center justify-center p-2">
+        <div className="relative min-h-[360px] max-h-[55vh] overflow-auto border border-white/10 bg-slate-950/90 flex items-center justify-center p-3">
           {generating ? (
-            <div className="flex flex-col items-center gap-2 py-16">
-              <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="text-xs font-mono text-slate-400">Sintetizando imagem do Arsenal...</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <div className="size-10 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+              <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">
+                Sintetizando alta resolução na rede Anaheim HUB...
+              </p>
             </div>
-          ) : previewUrl ? (
+          ) : currentPreviewUrl ? (
             <img
-              src={previewUrl}
-              alt="Pré-visualização do Deck"
-              className="max-w-full h-auto object-contain border border-white/5 shadow-2xl"
+              src={currentPreviewUrl}
+              alt="Pré-visualização"
+              className="max-w-full h-auto object-contain border border-white/10 shadow-2xl"
             />
           ) : (
-            <p className="text-xs text-slate-500">Nenhuma prévia disponível.</p>
+            <p className="text-xs text-slate-500 font-mono">Nenhuma prévia disponível.</p>
           )}
         </div>
 
-        {/* BOTÕES DE AÇÃO */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+        {/* BOTÕES DE AÇÃO E DOWNLOADS */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
           <Button
             variant="outline"
             onClick={onClose}
-            className="rounded-none border-white/20 hover:bg-white/10"
+            className="rounded-none border-white/20 text-xs hover:bg-white/10 text-slate-300"
           >
-            Cancelar
+            Fechar
           </Button>
-          <Button
-            disabled={generating || !previewBlob}
-            onClick={handleDownload}
-            className="rounded-none bg-primary text-primary-foreground font-heading uppercase tracking-wider hover:bg-primary/90 shadow-lg shadow-primary/20"
-          >
-            <Download className="mr-2 size-4" /> Baixar Imagem PNG
-          </Button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              disabled={generating || !deckBlob}
+              onClick={handleDownloadDeck}
+              variant="outline"
+              className="rounded-none border-sky-500/50 bg-sky-950/30 text-sky-300 text-xs uppercase tracking-wider hover:bg-sky-900/40"
+            >
+              <Download className="mr-1.5 size-3.5" /> Baixar Decklist (PNG)
+            </Button>
+
+            {includeStats && statsBlob && (
+              <Button
+                disabled={generating}
+                onClick={handleDownloadStats}
+                variant="outline"
+                className="rounded-none border-amber-500/50 bg-amber-950/30 text-amber-300 text-xs uppercase tracking-wider hover:bg-amber-900/40"
+              >
+                <Download className="mr-1.5 size-3.5" /> Baixar Estatísticas (PNG)
+              </Button>
+            )}
+
+            {includeStats && statsBlob && (
+              <Button
+                disabled={generating || !deckBlob}
+                onClick={handleDownloadBoth}
+                className="rounded-none bg-sky-500 text-slate-950 font-heading uppercase tracking-wider hover:bg-sky-400 shadow-lg shadow-sky-500/20 text-xs"
+              >
+                <Download className="mr-1.5 size-3.5" /> Baixar Ambas as Imagens
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

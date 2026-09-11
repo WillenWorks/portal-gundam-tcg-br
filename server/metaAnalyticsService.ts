@@ -276,11 +276,23 @@ export async function getArchetypeBreakdown(
   prisma: PrismaClient,
   archetypeKey: string,
 ): Promise<{
-  summary: ArchetypeSummary;
-  core: ClassifiedMetaCard[];
-  staples: ClassifiedMetaCard[];
-  flex: ClassifiedMetaCard[];
-  techs: ClassifiedMetaCard[];
+  archetype: ArchetypeSummary;
+  totalDecksSampled: number;
+  quadrants: {
+    core: ClassifiedMetaCard[];
+    staples: ClassifiedMetaCard[];
+    flex: ClassifiedMetaCard[];
+    techs: ClassifiedMetaCard[];
+  };
+  averages: {
+    unitCount: number;
+    pilotCount: number;
+    baseCount: number;
+    commandCount: number;
+    avgCost: number;
+    avgLevel: number;
+    compositeCurveScore: number;
+  };
 } | null> {
   const allDecks = await fetchEligibleDecks(prisma);
   if (!allDecks.length) return null;
@@ -413,7 +425,53 @@ export async function getArchetypeBreakdown(
   const core = classifiedCards.filter((c) => c.quadrant === "CORE").sort((a, b) => b.inclusionRate - a.inclusionRate || b.affinity - a.affinity);
   const staples = classifiedCards.filter((c) => c.quadrant === "STAPLE").sort((a, b) => b.colorInclusionRate - a.colorInclusionRate || b.inclusionRate - a.inclusionRate);
   const flex = classifiedCards.filter((c) => c.quadrant === "FLEX").sort((a, b) => b.inclusionRate - a.inclusionRate);
-  const techs = classifiedCards.filter((c) => c.quadrant === "TECH").sort((a, b) => b.inclusionRate - a.inclusionRate);
+  // Médias do arquétipo
+  let totalUnits = 0;
+  let totalPilots = 0;
+  let totalBases = 0;
+  let totalCommands = 0;
+  let totalCostSum = 0;
+  let totalCardsCount = 0;
+  let totalUnitLevelSum = 0;
+  let totalUnitCountForLevel = 0;
+
+  for (const deck of archetypeDecks) {
+    for (const item of deck.items) {
+      const type = (item.card.cardType || "").toUpperCase();
+      const qty = item.quantity || 1;
+      if (type === "UNIT") {
+        totalUnits += qty;
+        if (typeof item.card.level === "number" && item.card.level > 0) {
+          totalUnitLevelSum += item.card.level * qty;
+          totalUnitCountForLevel += qty;
+        }
+      } else if (type === "PILOT") {
+        totalPilots += qty;
+      } else if (type === "BASE") {
+        totalBases += qty;
+      } else if (type === "COMMAND") {
+        totalCommands += qty;
+      }
+      if (typeof item.card.cost === "number") {
+        totalCostSum += item.card.cost * qty;
+        totalCardsCount += qty;
+      }
+    }
+  }
+
+  const avgCost = totalCardsCount > 0 ? Number((totalCostSum / totalCardsCount).toFixed(2)) : 3.0;
+  const avgLevel = totalUnitCountForLevel > 0 ? Number((totalUnitLevelSum / totalUnitCountForLevel).toFixed(2)) : 3.2;
+  const compositeCurveScore = Number(((avgCost * 0.6) + (avgLevel * 0.4)).toFixed(2));
+
+  const averages = {
+    unitCount: Math.round(totalUnits / totalArchetypeDecks),
+    pilotCount: Math.round(totalPilots / totalArchetypeDecks),
+    baseCount: Math.round(totalBases / totalArchetypeDecks),
+    commandCount: Math.round(totalCommands / totalArchetypeDecks),
+    avgCost,
+    avgLevel,
+    compositeCurveScore,
+  };
 
   const summary: ArchetypeSummary = {
     key: archetypeKey,
@@ -424,7 +482,17 @@ export async function getArchetypeBreakdown(
     share: Number((totalArchetypeDecks / allDecks.length).toFixed(4)),
   };
 
-  return { summary, core, staples, flex, techs };
+  return {
+    archetype: summary,
+    totalDecksSampled: totalArchetypeDecks,
+    quadrants: {
+      core,
+      staples,
+      flex,
+      techs,
+    },
+    averages,
+  };
 }
 
 /**
@@ -436,13 +504,13 @@ export async function getMetaRecommendations(
   cardCodes: string[],
   colors?: string[],
 ): Promise<{
-  synergy: ClassifiedMetaCard[];
+  synergies: Array<ClassifiedMetaCard & { liftScore: number; sourceMatches: string[] }>;
   staples: ClassifiedMetaCard[];
   techs: ClassifiedMetaCard[];
 }> {
   const allDecks = await fetchEligibleDecks(prisma);
   if (!allDecks.length) {
-    return { synergy: [], staples: [], techs: [] };
+    return { synergies: [], staples: [], techs: [] };
   }
 
   const inputCodesSet = new Set(cardCodes);
@@ -530,7 +598,11 @@ export async function getMetaRecommendations(
     .filter((s) => s.liftScore >= 1.2)
     .sort((a, b) => b.liftScore - a.liftScore || b.appearances - a.appearances)
     .slice(0, 8)
-    .map((s) => mapToClassified(s.card, s.appearances / totalCandidates, s.liftScore, "CORE"));
+    .map((s) => ({
+      ...mapToClassified(s.card, s.appearances / totalCandidates, s.liftScore, "CORE"),
+      liftScore: Number(s.liftScore.toFixed(2)),
+      sourceMatches: [],
+    }));
 
   const stapleCards = scoredCards
     .sort((a, b) => b.appearances - a.appearances)
@@ -544,7 +616,7 @@ export async function getMetaRecommendations(
     .map((s) => mapToClassified(s.card, s.appearances / totalCandidates, s.liftScore, "TECH"));
 
   return {
-    synergy: synergyCards,
+    synergies: synergyCards,
     staples: stapleCards,
     techs: techCards,
   };

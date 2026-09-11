@@ -324,7 +324,7 @@ export function VedaTelemetryAssistant({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Sinergias de Lift ({recommendations?.synergies.length ?? 0})
+                Sinergias de Lift ({recommendations?.synergies?.length ?? 0})
               </button>
               <button
                 type="button"
@@ -335,7 +335,7 @@ export function VedaTelemetryAssistant({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Staples ({recommendations?.staples.length ?? 0})
+                Staples ({recommendations?.staples?.length ?? 0})
               </button>
               <button
                 type="button"
@@ -346,7 +346,7 @@ export function VedaTelemetryAssistant({
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Techs ({recommendations?.techs.length ?? 0})
+                Techs ({recommendations?.techs?.length ?? 0})
               </button>
             </div>
           </div>

@@ -573,6 +573,8 @@ export const api = {
       exactColor?: boolean;
       starterDecksOnly?: boolean;
       dateRange?: string;
+      startDate?: string;
+      endDate?: string;
     }
   ) =>
     request<PaginatedResponse<ApiDeck>>(
@@ -588,6 +590,8 @@ export const api = {
         exactColor: filters?.exactColor ? "true" : undefined,
         starterDecksOnly: filters?.starterDecksOnly ? "true" : undefined,
         dateRange: filters?.dateRange,
+        startDate: filters?.startDate,
+        endDate: filters?.endDate,
       })}`,
       undefined,
       { ttlMs: 15_000 }
@@ -604,6 +608,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  getCardUsageStats: (cardCodes: string[]) =>
+    request<Record<string, { deckCount: number; totalDecks: number; presenceRate: number; avgCopies: number }>>("/cards/usage-stats", {
+      method: "POST",
+      body: JSON.stringify({ cardCodes }),
+    }, { ttlMs: 60_000 }),
   recordDeckView: (deckId: string) => mutate<{ recorded: boolean; viewCount: number }>(`/decks/${deckId}/view`, { method: "POST" }, []),
   toggleDeckLike: (deckId: string) => mutate<{ liked: boolean; likeCount: number }>(`/decks/${deckId}/like`, { method: "POST" }, ["/decks/"]),
   getDeckLikeStatus: (deckId: string) => request<{ liked: boolean; likeCount: number }>(`/decks/${deckId}/like-status`, undefined, { ttlMs: 5_000 }),

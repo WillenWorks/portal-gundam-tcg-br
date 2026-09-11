@@ -2064,6 +2064,7 @@ app.get("/api/cards/filters", async (_req, res) => {
 });
 
 // Listagem de Unidades LR para o Carrossel de Carta Principal (Exburst style)
+// Listagem de Unidades LR para o Carrossel de Carta Principal (Deduplicadas por código único)
 app.get("/api/cards/main-lr-units", async (_req, res) => {
   setPublicCache(res, 60, 300);
   try {
@@ -2074,7 +2075,7 @@ app.get("/api/cards/main-lr-units", async (_req, res) => {
         cardType: "UNIT",
         OR: [{ imageUrl: { not: null } }, { imageMediumUrl: { not: null } }],
       },
-      distinct: ["nameEn"],
+      distinct: ["code"],
       orderBy: [{ code: "asc" }, { isPrimaryPrint: "desc" }],
       select: {
         id: true,
@@ -2090,10 +2091,73 @@ app.get("/api/cards/main-lr-units", async (_req, res) => {
         thumbUrl: true,
       },
     });
-    res.json(cards);
+
+    // Limpa sufixos de variantes nos nomes para exibição tática canônica
+    const cleanedCards = cards.map((c) => ({
+      ...c,
+      nameEn: c.nameEn.replace(/\s*\((?:LR\+*|GD\d+|ST\d+)[^)]*\)/gi, "").trim(),
+      namePt: c.namePt
+        ? c.namePt.replace(/\s*\((?:LR\+*|GD\d+|ST\d+)[^)]*\)/gi, "").trim()
+        : c.nameEn.replace(/\s*\((?:LR\+*|GD\d+|ST\d+)[^)]*\)/gi, "").trim(),
+    }));
+
+    res.json(cleanedCards);
   } catch (error) {
     console.error("Erro ao listar unidades LR principais:", error);
     res.status(500).json({ error: "Falha ao listar unidades LR." });
+  }
+});
+
+// Métricas de uso de cartas no metagame para o deck aberto
+app.post("/api/cards/usage-stats", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  try {
+    const cardCodes = Array.isArray(req.body?.cardCodes) ? req.body.cardCodes : [];
+    if (!cardCodes.length) return res.json({});
+
+    const totalPublicDecks = await prisma.deck.count({ where: { visibility: "PUBLIC" } });
+
+    const publicDeckItems = await prisma.deckItem.findMany({
+      where: {
+        card: { code: { in: cardCodes } },
+        deck: { visibility: "PUBLIC" },
+        section: { notIn: NON_STATS_SECTIONS },
+      },
+      select: {
+        quantity: true,
+        deckId: true,
+        card: { select: { code: true } },
+      },
+    });
+
+    const deckSetByCode = new Map<string, Set<string>>();
+    const totalCopiesByCode = new Map<string, number>();
+
+    for (const item of publicDeckItems) {
+      const code = item.card.code;
+      if (!deckSetByCode.has(code)) deckSetByCode.set(code, new Set());
+      deckSetByCode.get(code)!.add(item.deckId);
+      totalCopiesByCode.set(code, (totalCopiesByCode.get(code) || 0) + (item.quantity || 1));
+    }
+
+    const statsMap: Record<string, { deckCount: number; totalDecks: number; presenceRate: number; avgCopies: number }> = {};
+    for (const code of cardCodes) {
+      const decks = deckSetByCode.get(code)?.size || 0;
+      const totalCopies = totalCopiesByCode.get(code) || 0;
+      const presenceRate = totalPublicDecks > 0 ? Number(((decks / totalPublicDecks) * 100).toFixed(1)) : 0;
+      const avgCopies = decks > 0 ? Number((totalCopies / decks).toFixed(1)) : 0;
+      statsMap[code] = {
+        deckCount: decks,
+        totalDecks: totalPublicDecks,
+        presenceRate,
+        avgCopies,
+      };
+    }
+
+    res.json(statsMap);
+  } catch (err) {
+    console.error("Erro ao calcular usage-stats:", err);
+    res.status(500).json({ error: "Falha ao calcular estatísticas de uso." });
   }
 });
 
@@ -3808,10 +3872,25 @@ app.get("/api/decks/public", authOptional, async (req: RequestWithUser, res) => 
     const exactColor = req.query.exactColor === "true" || req.query.exactColor === "1";
     const starterDecksOnly = req.query.starterDecksOnly === "true" || req.query.starterDecksOnly === "1";
     const dateRange = typeof req.query.dateRange === "string" ? req.query.dateRange.trim() : "";
+    const startDate = typeof req.query.startDate === "string" ? req.query.startDate.trim() : "";
+    const endDate = typeof req.query.endDate === "string" ? req.query.endDate.trim() : "";
 
     const andConditions: any[] = [{ visibility: "PUBLIC" }];
 
-    if (dateRange === "3months") {
+    if (startDate || endDate) {
+      const dateFilter: any = {};
+      if (startDate) {
+        const d = new Date(startDate);
+        if (!isNaN(d.getTime())) dateFilter.gte = d;
+      }
+      if (endDate) {
+        const d = new Date(`${endDate}T23:59:59.999Z`);
+        if (!isNaN(d.getTime())) dateFilter.lte = d;
+      }
+      if (Object.keys(dateFilter).length > 0) {
+        andConditions.push({ createdAt: dateFilter });
+      }
+    } else if (dateRange === "3months") {
       andConditions.push({
         createdAt: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
       });

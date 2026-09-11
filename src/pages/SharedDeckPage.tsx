@@ -1,6 +1,9 @@
-/* Deck compartilhado v11.0 — visualização imersiva do Arsenal da OZ com telemetria VEDA estilo Exburst,
- * layout balanceado (~62% cartas / ~38% estatísticas), 6 histogramas numéricos, probabilidade de Turno 1,
- * tokens gerados oficiais (T-001 a T-020), classificação de metagame e modal de exportação de imagem. */
+/* Deck compartilhado v12.0 — Arsenal Tático da OZ & Laboratório Anaheim HUB
+ * Identidade visual própria militar-tecnológica 100% em PT-BR.
+ * Métricas: Cores usadas, cartas por cor, tipos, histogramas de Custo, Nível, AP e HP,
+ * Curva Média, Diagrama e Gauge de Sinergia, Totais/Porcentagens de Metagame (Staples, Engine, Techs, Comum),
+ * Taxa de uso nas cartas (% e total de decks), Probabilidade de Turno 1 e Turno 2,
+ * e Simulador de Draw (Mão Inicial). */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -15,6 +18,7 @@ import {
   ExternalLink,
   Eye,
   Flame,
+  Gauge,
   Heart,
   Layers,
   PieChart,
@@ -26,69 +30,121 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import ozHangarBanner from "@/assets/oz_deck_hangar.jpg";
 import { api, mapApiCard, type ApiDeck } from "@/lib/api";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
 import { calculateDeckCostLevelCurve, buildLevelCurve } from "@/lib/deck-level-stats";
-import { lowCostStats } from "@/lib/deck-cost-stats";
-import { computeDeckPilotCoverage } from "@/lib/deck-pilot-coverage";
-import { type ExportCardEntry } from "@/utils/deckImageExport";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { TelemetryHistogram } from "@/components/deck/TelemetryHistogram";
-import { computeAdvancedDeckStats } from "@/lib/deck-advanced-stats";
+import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
 import { detectDeckTokens, type DetectedToken } from "@/lib/deck-tokens";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 
 type DeckRow = ReturnType<typeof mapApiCard> & { quantity: number; section: string };
 
-function ReadOnlyCardTile({ row, onPreview }: { row: DeckRow; onPreview: () => void }) {
+interface CardUsageInfo {
+  deckCount: number;
+  totalDecks: number;
+  presenceRate: number;
+  avgCopies: number;
+}
+
+/** Combinação hipergeométrica exata: nCr */
+function combinations(n: number, r: number): number {
+  if (r < 0 || r > n) return 0;
+  if (r === 0 || r === n) return 1;
+  let c = 1;
+  for (let i = 1; i <= r; i++) {
+    c = (c * (n - (r - i))) / i;
+  }
+  return c;
+}
+
+/** Probabilidade de comprar ao menos 1 carta válida em uma amostra sem reposição */
+function hypergeometricAtLeastOne(popSize: number, successCount: number, sampleSize: number): number {
+  if (popSize <= 0 || sampleSize <= 0) return 0;
+  if (successCount <= 0) return 0;
+  if (successCount >= popSize) return 1;
+  const failures = popSize - successCount;
+  if (failures < sampleSize) return 1;
+  const pZero = combinations(failures, sampleSize) / combinations(popSize, sampleSize);
+  return Math.max(0, Math.min(1, 1 - pZero));
+}
+
+function ReadOnlyCardTile({
+  row,
+  usage,
+  onPreview,
+}: {
+  row: DeckRow;
+  usage?: CardUsageInfo;
+  onPreview: () => void;
+}) {
   const image = row.imageMediumUrl || row.imageUrl;
   return (
-    <button
-      type="button"
-      onClick={onPreview}
-      title={`Ver ${row.namePt || row.name} em tamanho grande`}
-      className="group relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-slate-900/60 transition hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/20"
-    >
-      {image ? (
-        <img
-          src={image}
-          alt={row.namePt || row.name}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-        />
-      ) : (
-        <div className="flex h-full flex-col items-center justify-center bg-slate-950/90 p-2 text-center">
-          <p className="text-[10px] font-mono uppercase text-slate-500">{row.code}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-300">{row.namePt || row.name}</p>
-        </div>
-      )}
+    <div className="flex flex-col border border-white/10 bg-slate-950/80 transition-all hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/15">
+      <button
+        type="button"
+        onClick={onPreview}
+        title={`Ver ${row.namePt || row.name} em tamanho grande`}
+        className="group relative block aspect-[63/88] w-full overflow-hidden bg-slate-900/60"
+      >
+        {image ? (
+          <img
+            src={image}
+            alt={row.namePt || row.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center bg-slate-950/90 p-2 text-center">
+            <p className="text-[10px] font-mono uppercase text-slate-500">{row.code}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-300">{row.namePt || row.name}</p>
+          </div>
+        )}
 
-      {/* Badge de quantidade no canto superior direito */}
-      <span className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-none bg-sky-500 font-mono text-xs font-black text-slate-950 shadow-md">
-        {row.quantity}x
-      </span>
-
-      {/* Custo no canto superior esquerdo */}
-      {typeof row.cost === "number" && (
-        <span className="absolute left-1.5 top-1.5 flex size-5 items-center justify-center rounded-none bg-slate-950/80 border border-white/20 font-mono text-[10px] font-bold text-amber-300">
-          {row.cost}
+        {/* Quantidade no topo direito */}
+        <span className="absolute right-1 top-1 flex size-6 items-center justify-center bg-sky-500 font-mono text-xs font-black text-slate-950 shadow-md">
+          {row.quantity}x
         </span>
-      )}
 
-      {/* Legenda expansiva no hover */}
-      <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left backdrop-blur-sm transition-all duration-200 group-hover:translate-y-0">
-        <p className="truncate text-xs font-semibold text-white">{row.namePt || row.name}</p>
-        <p className="truncate text-[10px] font-mono text-slate-400">
-          {row.code} · {row.type}
-        </p>
+        {/* Custo no topo esquerdo */}
+        {typeof row.cost === "number" && (
+          <span className="absolute left-1 top-1 flex size-5 items-center justify-center bg-slate-950/90 border border-white/20 font-mono text-[10px] font-bold text-amber-300">
+            {row.cost}
+          </span>
+        )}
+
+        {/* Drawer informativo no hover */}
+        <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left backdrop-blur-sm transition-all duration-200 group-hover:translate-y-0">
+          <p className="truncate text-xs font-semibold text-white">{row.namePt || row.name}</p>
+          <p className="truncate text-[10px] font-mono text-slate-400">
+            {row.code} · {row.type}
+          </p>
+        </div>
+      </button>
+
+      {/* Taxa de Uso da Carta no Metagame (exibida diretamente na carta) */}
+      <div className="border-t border-white/10 bg-slate-950 p-1 text-[9px] font-mono text-slate-400 leading-tight">
+        {usage ? (
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-sky-400 font-bold">
+              {Math.round(usage.presenceRate * 100)}% decks
+            </span>
+            <span className="text-slate-400 truncate">
+              ({usage.deckCount}/{usage.totalDecks}) · {usage.avgCopies}x
+            </span>
+          </div>
+        ) : (
+          <span className="text-slate-400 block truncate">{row.code}</span>
+        )}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -191,6 +247,7 @@ export default function SharedDeckPage() {
   const [loading, setLoading] = useState(true);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [openingHandOpen, setOpeningHandOpen] = useState(false);
 
   // Curtidas
   const [liked, setLiked] = useState(false);
@@ -198,6 +255,9 @@ export default function SharedDeckPage() {
 
   // Tokens Oficiais carregados da API
   const [officialTokens, setOfficialTokens] = useState<any[]>([]);
+
+  // Mapa de taxa de uso de cartas no metagame
+  const [cardUsageMap, setCardUsageMap] = useState<Record<string, CardUsageInfo>>({});
 
   // Filtro interativo nas pílulas de cartas
   const [activeFilterPill, setActiveFilterPill] = useState<{
@@ -216,6 +276,21 @@ export default function SharedDeckPage() {
         setLiked(Boolean(loadedDeck.hasLiked));
         if (loadedDeck?.id) {
           api.recordDeckView(loadedDeck.id).catch(() => {});
+        }
+
+        // Carrega estatísticas de metagame para todas as cartas do deck
+        const codes = Array.from(
+          new Set(
+            loadedDeck.items
+              ?.map((it) => it.card?.code)
+              .filter(Boolean) as string[]
+          )
+        );
+        if (codes.length > 0) {
+          api
+            .getCardUsageStats(codes)
+            .then((statsMap) => setCardUsageMap(statsMap || {}))
+            .catch((err) => console.error("Falha ao carregar taxa de uso das cartas:", err));
         }
       })
       .catch((err) => setError(err.message))
@@ -311,40 +386,107 @@ export default function SharedDeckPage() {
     });
 
     // Tipos
-    const typeCounts: Record<string, number> = {};
+    const typeCounts: Record<string, number> = {
+      UNIT: 0,
+      PILOT: 0,
+      COMMAND: 0,
+      BASE: 0,
+    };
     mainRows.forEach((r) => {
-      const t = r.type || "UNIT";
+      const t = (r.type || "UNIT").toUpperCase();
       typeCounts[t] = (typeCounts[t] || 0) + r.quantity;
     });
 
     // Curva de custo
     const costMap = new Map<number, number>();
-    mainRows.forEach((r) => costMap.set(r.cost, (costMap.get(r.cost) || 0) + r.quantity));
-    const costCurve = Array.from(costMap.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([cost, count]) => ({ cost, count }));
+    mainRows.forEach((r) => costMap.set(r.cost ?? 0, (costMap.get(r.cost ?? 0) || 0) + r.quantity));
+    const costCurve = [0, 1, 2, 3, 4, 5, 6, 7].map((c) => ({
+      cost: c === 7 ? "7+" : `${c}`,
+      count: c === 7
+        ? Array.from(costMap.entries()).filter(([cost]) => cost >= 7).reduce((acc, [, val]) => acc + val, 0)
+        : costMap.get(c) || 0,
+    }));
 
     // Curva de nível
-    const levelCurve = buildLevelCurve(mainRows);
+    const levelMap = new Map<number, number>();
+    mainRows.forEach((r) => {
+      if (typeof r.level === "number") {
+        levelMap.set(r.level, (levelMap.get(r.level) || 0) + r.quantity);
+      }
+    });
+    const levelCurve = [1, 2, 3, 4, 5, 6, 7].map((lvl) => ({
+      level: lvl === 7 ? "7+" : `${lvl}`,
+      count: lvl === 7
+        ? Array.from(levelMap.entries()).filter(([l]) => l >= 7).reduce((acc, [, val]) => acc + val, 0)
+        : levelMap.get(lvl) || 0,
+    }));
 
     // AP / HP das Unidades
-    const units = mainRows.filter((r) => r.type === "UNIT");
-    const apMap = new Map<number, number>();
-    const hpMap = new Map<number, number>();
+    const units = mainRows.filter((r) => (r.type || "").toUpperCase() === "UNIT");
+    const apBins = [
+      { label: "1000-2000", min: 1000, max: 2000, count: 0 },
+      { label: "3000-4000", min: 3000, max: 4000, count: 0 },
+      { label: "5000-6000", min: 5000, max: 6000, count: 0 },
+      { label: "7000+", min: 7000, max: 99999, count: 0 },
+    ];
+    const hpBins = [
+      { label: "1-2", min: 1, max: 2, count: 0 },
+      { label: "3-4", min: 3, max: 4, count: 0 },
+      { label: "5-6", min: 5, max: 6, count: 0 },
+      { label: "7+", min: 7, max: 99, count: 0 },
+    ];
+
     units.forEach((u) => {
-      if (typeof u.ap === "number") apMap.set(u.ap, (apMap.get(u.ap) || 0) + u.quantity);
-      if (typeof u.hp === "number") hpMap.set(u.hp, (hpMap.get(u.hp) || 0) + u.quantity);
+      if (typeof u.ap === "number") {
+        const b = apBins.find((bin) => (u.ap ?? 0) >= bin.min && (u.ap ?? 0) <= bin.max);
+        if (b) b.count += u.quantity;
+      }
+      if (typeof u.hp === "number") {
+        const b = hpBins.find((bin) => (u.hp ?? 0) >= bin.min && (u.hp ?? 0) <= bin.max);
+        if (b) b.count += u.quantity;
+      }
     });
 
-    // Sinergia estimada (0 - 100)
+    // Métrica de Jogada Inicial: Turno 1 e Turno 2 (Cálculo Hipergeométrico com Mulligan)
+    // Turno 1: 5 cartas iniciais + 1 compra = 6 cartas. Cartas elegíveis: Custo 1
+    const cost1Cards = mainRows.filter((r) => (r.cost ?? 99) <= 1).reduce((acc, r) => acc + r.quantity, 0);
+    const pT1Raw = hypergeometricAtLeastOne(mainCount, cost1Cards, 6);
+    const pT1Mulligan = 1 - Math.pow(1 - pT1Raw, 2);
+
+    // Turno 2: 5 cartas iniciais + 2 compras = 7 cartas. Cartas elegíveis: Custo <= 2
+    const cost2Cards = mainRows.filter((r) => (r.cost ?? 99) <= 2).reduce((acc, r) => acc + r.quantity, 0);
+    const pT2Raw = hypergeometricAtLeastOne(mainCount, cost2Cards, 7);
+    const pT2Mulligan = 1 - Math.pow(1 - pT2Raw, 2);
+
+    // Sinergia do Deck e Componentes do Diagrama
     const dominantColorCount = Math.max(...Object.values(colorCounts), 0);
-    const colorCohesion = mainCount > 0 ? (dominantColorCount / mainCount) * 50 : 0;
+    const colorCohesionPct = mainCount > 0 ? Math.round((dominantColorCount / mainCount) * 100) : 0;
     const unitCount = typeCounts["UNIT"] || 0;
     const pilotCount = typeCounts["PILOT"] || 0;
-    const dockingRatio = unitCount > 0 ? Math.min(pilotCount / (unitCount * 0.4), 1) * 30 : 0;
+    const dockingRatioPct = unitCount > 0 ? Math.min(Math.round((pilotCount / (unitCount * 0.4)) * 100), 100) : 0;
     const fourCopiesCount = mainRows.filter((r) => r.quantity === 4).length;
-    const consistencyScore = Math.min((fourCopiesCount / 8) * 20, 20);
-    const synergyScore = Math.round(colorCohesion + dockingRatio + consistencyScore);
+    const consistencyPct = Math.min(Math.round((fourCopiesCount / 8) * 100), 100);
+    const synergyScore = Math.round(colorCohesionPct * 0.4 + dockingRatioPct * 0.35 + consistencyPct * 0.25);
+
+    // Classificação por Base de Metagame
+    let staplesCount = 0;
+    let engineCount = 0;
+    let techsCount = 0;
+    let commonCount = 0;
+
+    mainRows.forEach((r) => {
+      const usage = cardUsageMap[r.code];
+      const rate = usage?.presenceRate ?? 0;
+      if (rate >= 0.55) {
+        staplesCount += r.quantity;
+      } else if (r.trait && /gundam|zaft|orb|zeon|federation|spacy/i.test(r.trait)) {
+        engineCount += r.quantity;
+      } else if (/(?:counter|quick|blocker|burst)/i.test(r.effect || "")) {
+        techsCount += r.quantity;
+      } else {
+        commonCount += r.quantity;
+      }
+    });
 
     return {
       mainCount,
@@ -356,44 +498,45 @@ export default function SharedDeckPage() {
       typeCounts,
       costCurve,
       levelCurve,
-      unitsCount: units.length,
+      apBins,
+      hpBins,
+      unitsCount: unitCount,
       synergyScore,
-      handOdds: lowCostStats(mainRows, mainCount),
+      synergyBreakdown: {
+        colorCohesionPct,
+        dockingRatioPct,
+        consistencyPct,
+      },
+      turn1: {
+        eligibleCount: cost1Cards,
+        raw: pT1Raw,
+        mulligan: pT1Mulligan,
+      },
+      turn2: {
+        eligibleCount: cost2Cards,
+        raw: pT2Raw,
+        mulligan: pT2Mulligan,
+      },
+      metagame: {
+        staplesCount,
+        engineCount,
+        techsCount,
+        commonCount,
+      },
     };
-  }, [mainRows, resourceRows]);
+  }, [mainRows, resourceRows, cardUsageMap]);
 
   // Tokens detectados nas cartas do deck
   const detectedTokens = useMemo(() => {
     return detectDeckTokens(mainRows, officialTokens);
   }, [mainRows, officialTokens]);
 
-  // Telemetria Aprofundada (Exburst style: 6 Histogramas, Probabilidade T1, Metagame)
-  const advancedStats = useMemo(() => {
-    return computeAdvancedDeckStats(
-      mainRows.map((r) => ({
-        code: r.code,
-        name: r.name,
-        namePt: r.namePt,
-        type: r.type,
-        cost: r.cost,
-        level: r.level,
-        ap: r.ap,
-        hp: r.hp,
-        color: r.color,
-        effect: r.effect,
-        quantity: r.quantity,
-        trait: r.trait,
-        triggerKeywords: r.triggerKeywords,
-      })),
-      stats.mainCount
-    );
-  }, [mainRows, stats.mainCount]);
-
-  // Agrupamento de Traits e Links para pílulas interativas (Image 3)
-  const { traitList, linkList, quickCountersCount } = useMemo(() => {
+  // Agrupamento de Traits e Links para pílulas interativas
+  const { traitList, linkList, quickCountersCount, burstCount } = useMemo(() => {
     const traits = new Map<string, number>();
     const links = new Map<string, number>();
     let quick = 0;
+    let burst = 0;
 
     mainRows.forEach((r) => {
       if (r.trait) {
@@ -408,6 +551,9 @@ export default function SharedDeckPage() {
         if (/(?:quick|counter|blocker)/i.test(r.effect)) {
           quick += r.quantity;
         }
+        if (/burst/i.test(r.effect)) {
+          burst += r.quantity;
+        }
       }
     });
 
@@ -415,6 +561,7 @@ export default function SharedDeckPage() {
       traitList: Array.from(traits.entries()).sort((a, b) => b[1] - a[1]),
       linkList: Array.from(links.entries()).sort((a, b) => b[1] - a[1]),
       quickCountersCount: quick,
+      burstCount: burst,
     };
   }, [mainRows]);
 
@@ -464,10 +611,10 @@ export default function SharedDeckPage() {
   if (loading) {
     return (
       <PublicShell breadcrumbs={[{ label: "Decks", href: "/decks" }, { label: "Carregando..." }]}>
-        <div className="py-20 text-center">
+        <div className="py-24 text-center">
           <div className="mx-auto size-12 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
           <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-400 font-mono">
-            Acessando especificações do Mobile Suit na rede OZ...
+            Acessando especificações táticas no terminal Anaheim HUB...
           </p>
         </div>
       </PublicShell>
@@ -498,39 +645,42 @@ export default function SharedDeckPage() {
         { label: deck.name || "Especificação de Deck" },
       ]}
       title={deck.name}
-      description={`Projeto tático compartilhado por ${deck.user?.displayName || "Piloto da OZ"}.`}
+      description={deck.user?.displayName || deck.user?.username || "Piloto da OZ"}
     >
       <div className="space-y-6">
-        {/* HERO CARD COM CAPA E INFORMAÇÕES DE COMANDO */}
+        {/* HERO CARD COM BANNER PADRÃO OZ HANGAR */}
         <Card className="panel-cut rounded-none border-sky-500/30 hero-surface overflow-hidden">
-          <div className="relative h-48 sm:h-56 w-full overflow-hidden border-b border-white/10 bg-slate-950">
-            {deck.coverImage ? (
-              <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover object-center" />
-            ) : (
-              <FeaturedCoverImage cards={deck.featuredCards} />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+          <div className="relative min-h-[220px] sm:min-h-[260px] w-full overflow-hidden border-b border-white/10 bg-slate-950">
+            <img
+              src={deck.coverImage || ozHangarBanner}
+              alt={deck.name}
+              className="h-full w-full object-cover object-center brightness-90"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-transparent" />
 
             <div className="absolute left-6 bottom-4 right-6 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge className="rounded-none border-emerald-500/50 bg-emerald-950/60 text-emerald-300 text-[10px] uppercase font-mono">
-                    {deck.format || "Standard"}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Badge className="rounded-none border-emerald-500/50 bg-emerald-950/80 text-emerald-300 text-[10px] uppercase font-mono">
+                    {deck.format || "Padrão Construído"}
                   </Badge>
-                  <span className="text-[10px] font-mono text-slate-400">#{deck.shareId}</span>
+                  <span className="text-[10px] font-mono text-slate-400">REGISTRO #{deck.shareId}</span>
                 </div>
-                <h1 className="font-heading text-2xl sm:text-4xl uppercase text-white tracking-wide drop-shadow-md">
+
+                <h1 className="font-heading text-2xl sm:text-4xl uppercase text-white tracking-wider drop-shadow-md">
                   {deck.name}
                 </h1>
-                <p className="mt-1 text-xs text-slate-300 flex items-center gap-2">
-                  <span>Piloto / Autor:</span>
-                  <strong className="text-white font-medium">
+
+                {/* Exibição limpa do Piloto (sem a frase redundante) */}
+                <p className="mt-1.5 text-xs text-slate-300 flex items-center gap-2">
+                  <span className="font-mono text-slate-400 uppercase text-[11px]">Piloto / Autor:</span>
+                  <strong className="text-sky-300 font-semibold text-sm">
                     {deck.user?.displayName || deck.user?.username || "Piloto Anônimo"}
                   </strong>
                 </p>
               </div>
 
-              {/* Botões de Like e Métricas */}
+              {/* Botões de Favorito e Visualizações */}
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
@@ -553,27 +703,37 @@ export default function SharedDeckPage() {
             </div>
           </div>
 
-          {/* BARRA DE CONTROLE E AÇÕES TÁTICAS */}
-          <CardContent className="p-4 sm:p-6 bg-slate-950/80">
+          {/* BARRA DE TELEMETRIA RÁPIDA E AÇÕES TÁTICAS */}
+          <CardContent className="p-4 sm:p-5 bg-slate-950/90">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Badges de calibração */}
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-none border-sky-400/40 bg-sky-950/30 text-sky-300 text-xs">
+                <Badge className="rounded-none border-sky-400/40 bg-sky-950/30 text-sky-300 text-xs font-mono">
                   {stats.mainCount}/{DECK_MAIN_SIZE} Deck Principal
                 </Badge>
-                <Badge className="rounded-none border-white/20 bg-white/5 text-slate-300 text-xs">
+                <Badge className="rounded-none border-white/20 bg-white/5 text-slate-300 text-xs font-mono">
                   {stats.resourceCount}/{DECK_RESOURCE_SIZE} Recursos
                 </Badge>
-                <Badge className="rounded-none border-accent/40 bg-accent/10 text-accent text-xs">
+                <Badge className="rounded-none border-amber-400/40 bg-amber-950/30 text-amber-300 text-xs font-mono">
                   Curva Média: {stats.avgCost}
                 </Badge>
-                <Badge className="rounded-none border-emerald-500/40 bg-emerald-950/30 text-emerald-400 text-xs">
+                <Badge className="rounded-none border-emerald-500/40 bg-emerald-950/30 text-emerald-300 text-xs font-mono">
                   Sinergia: {stats.synergyScore}%
                 </Badge>
               </div>
 
-              {/* Ações de Exportação e Clonagem */}
+              {/* Ações Táticas: Simular Draw, Exportar Imagem, Clonar */}
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpeningHandOpen(true)}
+                  className="rounded-none border-emerald-500/50 bg-emerald-950/30 text-xs text-emerald-300 hover:bg-emerald-900/40 font-mono transition-all"
+                  title="Simular compra de mão inicial (5 cartas) e testar mulligan"
+                >
+                  <Eye className="mr-1.5 size-3.5 text-emerald-400" />
+                  Simular Draw
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -585,17 +745,8 @@ export default function SharedDeckPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={exportWingTable}
-                  className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
-                >
-                  <Copy className="mr-1.5 size-3.5" /> Copiar Wing Table
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   onClick={() => setImageModalOpen(true)}
-                  className="rounded-none border-sky-400/50 bg-sky-950/30 text-xs text-sky-300 hover:bg-sky-900/40 transition-all"
-                  title="Exportar imagem do deck com pré-visualização e opções estilo Exburst"
+                  className="rounded-none border-sky-400/50 bg-sky-950/30 text-xs text-sky-300 hover:bg-sky-900/40 font-mono transition-all"
                 >
                   <Download className="mr-1.5 size-3.5 text-sky-400" />
                   Exportar Imagem
@@ -605,14 +756,14 @@ export default function SharedDeckPage() {
                   onClick={cloneToDeckbuilder}
                   className="rounded-none bg-sky-600 hover:bg-sky-500 text-white font-heading uppercase text-xs tracking-wider shadow-lg shadow-sky-600/20"
                 >
-                  <Wrench className="mr-1.5 size-3.5" /> Clonar no Deckbuilder
+                  <Wrench className="mr-1.5 size-3.5" /> Clonar no Hangar
                 </Button>
               </div>
             </div>
 
             {deck.notes && (
-              <div className="mt-4 pt-4 border-t border-white/10 text-xs text-slate-300 leading-relaxed">
-                <span className="font-semibold text-slate-400 uppercase tracking-wider font-mono mr-2">
+              <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-300 leading-relaxed">
+                <span className="font-semibold text-sky-400 uppercase tracking-wider font-mono mr-2">
                   Diretrizes do Piloto:
                 </span>
                 {deck.notes}
@@ -621,11 +772,10 @@ export default function SharedDeckPage() {
           </CardContent>
         </Card>
 
-        {/* LAYOUT BALANCEADO EM 2 COLUNAS (IMAGEM 3 - EXBURST STYLE: ~62% CARTAS / ~38% TELEMETRIA) */}
+        {/* LAYOUT BALANCEADO: ESQUERDA (CARTAS) / DIREITA (TELEMETRIA ANAHEIM HUB) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* COLUNA ESQUERDA: CARTAS DO DECK (~62% / col-span-7) */}
+          {/* COLUNA ESQUERDA: CARTAS DO DECK (col-span-7) */}
           <div className="lg:col-span-7 space-y-6">
-            {/* DECK PRINCIPAL */}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
               <CardContent className="p-5 space-y-6">
                 {/* Header do Deck Principal */}
@@ -633,7 +783,7 @@ export default function SharedDeckPage() {
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-4 bg-sky-400 inline-block" />
                     <h3 className="font-heading text-lg uppercase tracking-wider text-white">
-                      Main Deck ({stats.mainCount} / {DECK_MAIN_SIZE})
+                      Deck Principal ({stats.mainCount} / {DECK_MAIN_SIZE})
                     </h3>
                   </div>
                   {activeFilterPill && (
@@ -648,12 +798,12 @@ export default function SharedDeckPage() {
                   )}
                 </div>
 
-                {/* Seção 1: UNIT */}
+                {/* Seção 1: UNIDADES */}
                 {filteredUnitRows.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-xs font-mono text-slate-400">
                       <span className="font-bold text-sky-400 uppercase tracking-wider">
-                        UNIT ({filteredUnitRows.reduce((acc, r) => acc + r.quantity, 0)})
+                        Unidades ({filteredUnitRows.reduce((acc, r) => acc + r.quantity, 0)})
                       </span>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2.5">
@@ -661,6 +811,7 @@ export default function SharedDeckPage() {
                         <ReadOnlyCardTile
                           key={`${row.id}-main-unit`}
                           row={row}
+                          usage={cardUsageMap[row.code]}
                           onPreview={() => setPreviewIndex(visibleRows.findIndex((r) => r === row))}
                         />
                       ))}
@@ -668,12 +819,12 @@ export default function SharedDeckPage() {
                   </div>
                 )}
 
-                {/* Seção 2: PILOT, COMMAND, BASE */}
+                {/* Seção 2: PILOTOS, COMANDOS E BASES */}
                 {filteredSupportRows.length > 0 && (
                   <div className="space-y-3 pt-2 border-t border-white/10">
                     <div className="flex items-center justify-between text-xs font-mono text-slate-400">
                       <span className="font-bold text-amber-400 uppercase tracking-wider">
-                        PILOT, COMMAND, BASE ({filteredSupportRows.reduce((acc, r) => acc + r.quantity, 0)})
+                        Pilotos, Comandos e Bases ({filteredSupportRows.reduce((acc, r) => acc + r.quantity, 0)})
                       </span>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2.5">
@@ -681,6 +832,7 @@ export default function SharedDeckPage() {
                         <ReadOnlyCardTile
                           key={`${row.id}-main-support`}
                           row={row}
+                          usage={cardUsageMap[row.code]}
                           onPreview={() => setPreviewIndex(visibleRows.findIndex((r) => r === row))}
                         />
                       ))}
@@ -688,36 +840,40 @@ export default function SharedDeckPage() {
                   </div>
                 )}
 
-                {/* PÍLULAS INTERATIVAS DE TIPOS, TRAITS, LINKS E CONTADORES (Image 3) */}
+                {/* PÍLULAS INTERATIVAS (FILTROS ABAIXO DO DECK - 100% PT-BR) */}
                 <div className="pt-4 border-t border-white/10 space-y-3 select-none">
-                  {/* Card Types */}
+                  {/* Tipos de Carta */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                      Card Types ({Object.keys(stats.typeCounts).length} types) ·{" "}
+                      Tipos de Carta ({Object.keys(stats.typeCounts).filter((t) => stats.typeCounts[t] > 0).length} tipos) ·{" "}
                       <span className="text-slate-500 italic">Clique para filtrar</span>
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(stats.typeCounts).map(([t, count]) => {
-                        const active = activeFilterPill?.key === "type" && activeFilterPill.value === t;
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => togglePill("type", t)}
-                            className={`px-2.5 py-1 text-[11px] font-mono rounded-full border transition-all flex items-center gap-1.5 ${
-                              active
-                                ? "bg-sky-500 text-slate-950 font-bold border-sky-400"
-                                : "bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30"
-                            }`}
-                          >
-                            <span className="size-1.5 rounded-full bg-sky-400" />
-                            <span>{t}:</span>
-                            <span className={active ? "text-slate-950" : "text-sky-300 font-bold"}>
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
+                      {Object.entries(stats.typeCounts)
+                        .filter(([, count]) => count > 0)
+                        .map(([t, count]) => {
+                          const active = activeFilterPill?.key === "type" && activeFilterPill.value === t;
+                          const labelPt =
+                            t === "UNIT" ? "Unidade" : t === "PILOT" ? "Piloto" : t === "COMMAND" ? "Comando" : "Base";
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => togglePill("type", t)}
+                              className={`px-2.5 py-1 text-[11px] font-mono rounded-full border transition-all flex items-center gap-1.5 ${
+                                active
+                                  ? "bg-sky-500 text-slate-950 font-bold border-sky-400"
+                                  : "bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30"
+                              }`}
+                            >
+                              <span className="size-1.5 rounded-full bg-sky-400" />
+                              <span>{labelPt}:</span>
+                              <span className={active ? "text-slate-950" : "text-sky-300 font-bold"}>
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
 
                       {/* Cores */}
                       {Object.entries(stats.colorCounts).map(([c, count]) => {
@@ -745,11 +901,11 @@ export default function SharedDeckPage() {
                     </div>
                   </div>
 
-                  {/* Traits */}
+                  {/* Traits da Esquadra */}
                   {traitList.length > 0 && (
                     <div className="space-y-1.5 pt-1">
                       <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                        Traits ({traitList.length} traits)
+                        Características da Esquadra ({traitList.length} traits)
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {traitList.map(([trait, count]) => {
@@ -776,7 +932,7 @@ export default function SharedDeckPage() {
                     </div>
                   )}
 
-                  {/* Links, Counters e Burst */}
+                  {/* Links, Respostas Rápidas e Burst */}
                   <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px] font-mono">
                     {linkList.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
@@ -793,7 +949,7 @@ export default function SharedDeckPage() {
                                   : "bg-slate-900/60 border-purple-500/30 text-purple-300 hover:text-white"
                               }`}
                             >
-                              [{link}] {count}
+                              [Link: {link}] {count}
                             </button>
                           );
                         })}
@@ -810,11 +966,11 @@ export default function SharedDeckPage() {
                             : "bg-slate-900/60 border-rose-500/30 text-rose-300 hover:text-white"
                         }`}
                       >
-                        Quick Counters ({quickCountersCount})
+                        Respostas Rápidas ({quickCountersCount})
                       </button>
                     )}
 
-                    {advancedStats.burstCount > 0 && (
+                    {burstCount > 0 && (
                       <button
                         type="button"
                         onClick={() => togglePill("burst", "burst")}
@@ -824,7 +980,7 @@ export default function SharedDeckPage() {
                             : "bg-slate-900/60 border-amber-500/30 text-amber-300 hover:text-white"
                         }`}
                       >
-                        Burst ({advancedStats.burstCount})
+                        Gatilhos Burst ({burstCount})
                       </button>
                     )}
                   </div>
@@ -846,6 +1002,7 @@ export default function SharedDeckPage() {
                       <ReadOnlyCardTile
                         key={`${row.id}-res`}
                         row={row}
+                        usage={cardUsageMap[row.code]}
                         onPreview={() => setPreviewIndex(visibleRows.findIndex((r) => r === row))}
                       />
                     ))}
@@ -886,82 +1043,155 @@ export default function SharedDeckPage() {
             )}
           </div>
 
-          {/* COLUNA DIREITA: TELEMETRIA & ESTATÍSTICAS (~38% / col-span-5) */}
+          {/* COLUNA DIREITA: TELEMETRIA TÁTICA ANAHEIM HUB (col-span-5) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* CARD 1: DECK STATISTICS (6 HISTOGRAMAS NO ESTILO EXBURST - IMAGEM 3) */}
+            {/* BLOCO 1: CURVAS DE COMBATE & HISTOGRAMAS (CUSTO, NÍVEL, AP, HP) */}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
               <CardContent className="p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <BarChart3 className="size-4 text-sky-400" />
-                  <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                    Deck Statistics
-                  </h3>
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="size-4 text-sky-400" />
+                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
+                      Curvas & Telemetria do Mobile Suit
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">VEDA-OS</span>
                 </div>
 
-                {/* Grid 2x3 de Histogramas com eixos numéricos */}
+                {/* Grid 2x2 de Histogramas em Barras Táticas */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <TelemetryHistogram title="Level Range" bins={advancedStats.levelRange} />
-                  <TelemetryHistogram title="Cost Range" bins={advancedStats.costRange} />
-                  <TelemetryHistogram title="Unit Level Range" bins={advancedStats.unitLevelRange} />
-                  <TelemetryHistogram title="Unit Cost Range" bins={advancedStats.unitCostRange} />
-                  <TelemetryHistogram title="AP Range" bins={advancedStats.apRange} />
-                  <TelemetryHistogram title="HP Range" bins={advancedStats.hpRange} />
+                  <TelemetryHistogram
+                    title="Curva de Custo"
+                    bins={stats.costCurve.map((c, idx) => ({ label: `${c.cost}`, value: idx, count: c.count }))}
+                  />
+                  <TelemetryHistogram
+                    title="Curva de Nível"
+                    bins={stats.levelCurve.map((l, idx) => ({ label: `${l.level}`, value: idx, count: l.count }))}
+                  />
+                  <TelemetryHistogram
+                    title="Distribuição de AP (Poder)"
+                    bins={stats.apBins.map((a, idx) => ({ label: a.label, value: idx, count: a.count }))}
+                  />
+                  <TelemetryHistogram
+                    title="Distribuição de HP (Blindagem)"
+                    bins={stats.hpBins.map((h, idx) => ({ label: h.label, value: idx, count: h.count }))}
+                  />
                 </div>
               </CardContent>
             </Card>
 
-            {/* CARD 2: GAME STATISTICS (PROBABILIDADES, TURNO 1, BURST - IMAGEM 3) */}
+            {/* BLOCO 2: DIAGRAMA E PORCENTAGEM DE SINERGIA */}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
-              <CardContent className="p-5 space-y-5">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <Activity className="size-4 text-sky-400" />
-                  <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                    Game Statistics
-                  </h3>
-                </div>
-
-                {/* Seção Burst */}
-                <div className="space-y-1">
-                  <p className="text-xs font-bold font-mono uppercase text-white">Burst</p>
-                  <p className="text-[11px] text-slate-400">Cartas que possuem ativação de Burst.</p>
-                  <div className="flex items-baseline gap-2 pt-1">
-                    <span className="font-heading text-2xl text-amber-400">
-                      {advancedStats.burstCount}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">cartas no deck principal</span>
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="size-4 text-emerald-400" />
+                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
+                      Diagrama de Sinergia da Esquadra
+                    </h3>
                   </div>
+                  <Badge className="rounded-none border-emerald-500/40 bg-emerald-950/40 text-emerald-300 font-mono text-xs">
+                    {stats.synergyScore}% EFICIÊNCIA
+                  </Badge>
                 </div>
 
-                {/* Seção Turn 1 Playable Card */}
-                <div className="pt-3 border-t border-white/10 space-y-2">
-                  <p className="text-xs font-bold font-mono uppercase text-white">Turn 1 Playable Card</p>
-                  <p className="text-[11px] text-slate-400">
-                    Probabilidade de ter ao menos 1 unidade ou base de custo 1 no Turno 1.
-                  </p>
+                <div className="space-y-3 pt-1">
+                  {/* Barra 1: Coesão de Cores */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-slate-400">Coesão de Cores ({stats.colors.join("/")}):</span>
+                      <strong className="text-white">{stats.synergyBreakdown.colorCohesionPct}%</strong>
+                    </div>
+                    <div className="h-2 w-full bg-slate-900 border border-white/10">
+                      <div
+                        className="h-full bg-sky-400 transition-all duration-500"
+                        style={{ width: `${stats.synergyBreakdown.colorCohesionPct}%` }}
+                      />
+                    </div>
+                  </div>
 
-                  <div className="bg-slate-950/80 p-4 border border-white/10 text-center space-y-2">
-                    <p className="font-heading text-4xl text-sky-400">
-                      {Math.round(advancedStats.turn1Playable.probabilityTurn1WithMulligan * 100)}%
-                    </p>
-                    <p className="text-xs font-semibold text-slate-200">
-                      Chance de jogada garantida no Turno 1
-                    </p>
-                    <div className="text-[10px] font-mono text-slate-400 space-y-1 pt-1 border-t border-white/10">
-                      <p>
-                        {advancedStats.turn1Playable.eligibleCardsCount} cartas de custo 1 e nível ≤ 1 (UNIT / BASE)
-                      </p>
-                      <p>Turno 1 (6 cartas no total: 5 iniciais + 1 comprada)</p>
-                      <p>Nível 1 de jogador, 1 RECURSO disponível</p>
-                      <p className="text-sky-300 font-bold">
-                        ({Math.round(advancedStats.turn1Playable.probabilityWithMulligan * 100)}% na mão de abertura com mulligan)
-                      </p>
+                  {/* Barra 2: Conexão Piloto / MS (Docking) */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-slate-400">Conexão Piloto / MS ({stats.typeCounts.PILOT}P / {stats.typeCounts.UNIT}MS):</span>
+                      <strong className="text-white">{stats.synergyBreakdown.dockingRatioPct}%</strong>
+                    </div>
+                    <div className="h-2 w-full bg-slate-900 border border-white/10">
+                      <div
+                        className="h-full bg-amber-400 transition-all duration-500"
+                        style={{ width: `${stats.synergyBreakdown.dockingRatioPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Barra 3: Consistência de Playsets (4 cópias) */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-slate-400">Consistência de Playsets (4x):</span>
+                      <strong className="text-white">{stats.synergyBreakdown.consistencyPct}%</strong>
+                    </div>
+                    <div className="h-2 w-full bg-slate-900 border border-white/10">
+                      <div
+                        className="h-full bg-emerald-400 transition-all duration-500"
+                        style={{ width: `${stats.synergyBreakdown.consistencyPct}%` }}
+                      />
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* CARD 3: TOKENS GERADOS EM BATALHA (MOSTRADO SOMENTE SE HOUVER CARTAS QUE GEREM TOKENS) */}
+            {/* BLOCO 3: PROBABILIDADE DE CURVA INICIAL (TURNO 1 & TURNO 2) */}
+            <Card className="panel-cut rounded-none surface-panel border-white/10">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="size-4 text-sky-400" />
+                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
+                      Dinâmica & Ritmo de Jogo
+                    </h3>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setOpeningHandOpen(true)}
+                    className="text-xs text-sky-400 hover:text-sky-300 h-7 px-2 font-mono"
+                  >
+                    Testar Draw ➔
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Turno 1 */}
+                  <div className="p-3.5 bg-slate-950/80 border border-white/10 space-y-1.5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                      Chance de Jogada no Turno 1
+                    </span>
+                    <p className="font-heading text-3xl text-sky-400">
+                      {Math.round(stats.turn1.mulligan * 100)}%
+                    </p>
+                    <p className="text-[10px] font-mono text-slate-400">
+                      Custo 1 disponível ({stats.turn1.eligibleCount} cartas) · {Math.round(stats.turn1.raw * 100)}% sem mulligan
+                    </p>
+                  </div>
+
+                  {/* Turno 2 */}
+                  <div className="p-3.5 bg-slate-950/80 border border-white/10 space-y-1.5">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                      Chance de Jogada no Turno 2
+                    </span>
+                    <p className="font-heading text-3xl text-emerald-400">
+                      {Math.round(stats.turn2.mulligan * 100)}%
+                    </p>
+                    <p className="text-[10px] font-mono text-slate-400">
+                      Custo ≤ 2 ({stats.turn2.eligibleCount} cartas) · {Math.round(stats.turn2.raw * 100)}% sem mulligan
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* BLOCO 4: TOKENS GERADOS EM BATALHA (MOSTRADO APENAS SE HOUVER GERADORES) */}
             {detectedTokens.length > 0 && (
               <Card className="panel-cut rounded-none surface-panel border-amber-500/30">
                 <CardContent className="p-5 space-y-4">
@@ -972,16 +1202,15 @@ export default function SharedDeckPage() {
                     </h3>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {detectedTokens.map((token) => {
                       const tokenImg = token.imageMediumUrl || token.imageUrl;
                       return (
                         <div
                           key={token.tokenCode}
-                          className="flex gap-3.5 p-3 border border-white/10 bg-slate-950/80 items-start"
+                          className="flex gap-3 p-3 border border-white/10 bg-slate-950/80 items-start"
                         >
-                          {/* Imagem Real do Token */}
-                          <div className="w-16 shrink-0 aspect-[63/88] border border-white/15 bg-slate-900 overflow-hidden">
+                          <div className="w-14 shrink-0 aspect-[63/88] border border-white/15 bg-slate-900 overflow-hidden">
                             {tokenImg ? (
                               <img
                                 src={tokenImg}
@@ -995,8 +1224,7 @@ export default function SharedDeckPage() {
                             )}
                           </div>
 
-                          {/* Atributos do Token */}
-                          <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center justify-between">
                               <span className="font-heading text-sm text-white truncate">
                                 {token.tokenNamePt || token.tokenName}
@@ -1009,13 +1237,9 @@ export default function SharedDeckPage() {
                             <div className="flex items-center gap-3 text-xs font-mono text-slate-300">
                               <span>AP: <strong className="text-white">{token.ap ?? "—"}</strong></span>
                               <span>HP: <strong className="text-white">{token.hp ?? "—"}</strong></span>
-                              {token.trait && (
-                                <span className="text-slate-400 truncate">[{token.trait}]</span>
-                              )}
                             </div>
 
-                            {/* Cartas Geradoras */}
-                            <p className="text-[10px] font-mono text-slate-400 pt-0.5">
+                            <p className="text-[10px] font-mono text-slate-400 pt-0.5 truncate">
                               Gerado por:{" "}
                               <span className="text-sky-300">
                                 {token.generatedBy.map((g) => `${g.quantity}x ${g.name}`).join(", ")}
@@ -1030,100 +1254,80 @@ export default function SharedDeckPage() {
               </Card>
             )}
 
-            {/* CARD 4: CLASSIFICAÇÃO TÁTICA DE METAGAME (STAPLES, ENGINE, TECHS E CUSTO MÉDIO) */}
+            {/* BLOCO 5: CLASSIFICAÇÃO TÁTICA DE METAGAME (TOTAIS & PORCENTAGENS) */}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-center gap-2 border-b border-white/10 pb-3">
                   <Shield className="size-4 text-emerald-400" />
                   <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                    Classificação Tática de Metagame
+                    Base de Metagame do Arsenal
                   </h3>
                 </div>
 
-                {/* Comparativo de Custo Médio vs. Metagame */}
-                <div className="p-3 bg-slate-950/80 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-400">Custo Médio do Deck:</span>
-                    <strong className="text-sky-400 font-heading text-base">{stats.avgCost}</strong>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Staples */}
+                  <div className="p-3 bg-slate-950/80 border border-white/10">
+                    <span className="text-[10px] font-mono uppercase text-sky-400 font-bold block">
+                      Staples
+                    </span>
+                    <p className="font-heading text-xl text-white mt-1">
+                      {stats.metagame.staplesCount} cartas{" "}
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({Math.round((stats.metagame.staplesCount / stats.mainCount) * 100)}%)
+                      </span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Presença ≥ 55% no meta</p>
                   </div>
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-400">Média do Metagame ({stats.colors.join("/")}):</span>
-                    <span className="text-slate-300">{advancedStats.metaComparison.metaAvgCost}</span>
+
+                  {/* Engine */}
+                  <div className="p-3 bg-slate-950/80 border border-white/10">
+                    <span className="text-[10px] font-mono uppercase text-amber-400 font-bold block">
+                      Engine / Núcleo
+                    </span>
+                    <p className="font-heading text-xl text-white mt-1">
+                      {stats.metagame.engineCount} cartas{" "}
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({Math.round((stats.metagame.engineCount / stats.mainCount) * 100)}%)
+                      </span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Pilares do arquétipo</p>
                   </div>
-                  <div className="pt-1 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-mono text-slate-400">Perfil de Velocidade:</span>
-                    <Badge className="rounded-none bg-emerald-950/60 border-emerald-500/50 text-emerald-300 text-[10px] font-mono">
-                      {advancedStats.metaComparison.speedVerdict}
-                    </Badge>
+
+                  {/* Techs */}
+                  <div className="p-3 bg-slate-950/80 border border-white/10">
+                    <span className="text-[10px] font-mono uppercase text-purple-400 font-bold block">
+                      Techs / Flex
+                    </span>
+                    <p className="font-heading text-xl text-white mt-1">
+                      {stats.metagame.techsCount} cartas{" "}
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({Math.round((stats.metagame.techsCount / stats.mainCount) * 100)}%)
+                      </span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Respostas e counters</p>
+                  </div>
+
+                  {/* Comum */}
+                  <div className="p-3 bg-slate-950/80 border border-white/10">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
+                      Base Comum
+                    </span>
+                    <p className="font-heading text-xl text-white mt-1">
+                      {stats.metagame.commonCount} cartas{" "}
+                      <span className="text-xs text-slate-400 font-mono">
+                        ({Math.round((stats.metagame.commonCount / stats.mainCount) * 100)}%)
+                      </span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Cartas de utilidade</p>
                   </div>
                 </div>
-
-                {/* Staples do Deck */}
-                {advancedStats.staples.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-mono font-bold uppercase text-sky-400">
-                      Staples ({advancedStats.staples.length})
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {advancedStats.staples.map((card) => (
-                        <span
-                          key={card.code}
-                          className="px-2 py-0.5 bg-sky-950/40 border border-sky-500/30 text-sky-300 text-[10px] font-mono rounded"
-                          title={card.reason}
-                        >
-                          {card.quantity}x {card.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Engine do Arquétipo */}
-                {advancedStats.engine.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <p className="text-[11px] font-mono font-bold uppercase text-amber-400">
-                      Engine ({advancedStats.engine.length})
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {advancedStats.engine.map((card) => (
-                        <span
-                          key={card.code}
-                          className="px-2 py-0.5 bg-amber-950/40 border border-amber-500/30 text-amber-300 text-[10px] font-mono rounded"
-                          title={card.reason}
-                        >
-                          {card.quantity}x {card.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tech Cards */}
-                {advancedStats.techs.length > 0 && (
-                  <div className="space-y-1.5 pt-1">
-                    <p className="text-[11px] font-mono font-bold uppercase text-purple-400">
-                      Techs / Flex ({advancedStats.techs.length})
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {advancedStats.techs.map((card) => (
-                        <span
-                          key={card.code}
-                          className="px-2 py-0.5 bg-purple-950/40 border border-purple-500/30 text-purple-300 text-[10px] font-mono rounded"
-                          title={card.reason}
-                        >
-                          {card.quantity}x {card.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
 
-      {/* MODAL DE CARROSSEL DE CARTAS AMPLIADAS */}
+      {/* MODAL CARROSSEL DE CARTAS AMPLIADAS */}
       <CardPreviewModal
         rows={visibleRows}
         index={previewIndex}
@@ -1131,7 +1335,14 @@ export default function SharedDeckPage() {
         onClose={() => setPreviewIndex(null)}
       />
 
-      {/* MODAL DE PRÉVIA E DOWNLOAD DE IMAGEM (EXBURST STYLE) */}
+      {/* SIMULADOR DE MÃO INICIAL (DRAW) */}
+      <OpeningHandModal
+        open={openingHandOpen}
+        onClose={() => setOpeningHandOpen(false)}
+        cards={mainRows}
+      />
+
+      {/* MODAL DE EXPORTAÇÃO DE IMAGEM COM SELO OZ E 2ª IMAGEM DE ESTATÍSTICAS */}
       {imageModalOpen && (
         <ExportDeckImageModal
           open={imageModalOpen}
@@ -1147,6 +1358,7 @@ export default function SharedDeckPage() {
             imageMediumUrl: r.imageMediumUrl,
             color: r.color,
             cardType: r.type,
+            cost: r.cost,
           }))}
           resourceCards={resourceRows.map((r) => ({
             code: r.code,
@@ -1167,6 +1379,23 @@ export default function SharedDeckPage() {
             cardType: r.type,
           }))}
           colors={stats.colors}
+          statsSummary={{
+            avgCost: stats.avgCost,
+            synergyScore: stats.synergyScore,
+            turn1Odds: stats.turn1.mulligan,
+            turn2Odds: stats.turn2.mulligan,
+            units: stats.typeCounts.UNIT,
+            pilots: stats.typeCounts.PILOT,
+            commands: stats.typeCounts.COMMAND,
+            bases: stats.typeCounts.BASE,
+            costCurve: stats.costCurve,
+            levelCurve: stats.levelCurve,
+            colorCounts: stats.colorCounts,
+            staplesCount: stats.metagame.staplesCount,
+            engineCount: stats.metagame.engineCount,
+            techsCount: stats.metagame.techsCount,
+            commonCount: stats.metagame.commonCount,
+          }}
         />
       )}
     </PublicShell>
