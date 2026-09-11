@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import ozHangarBanner from "@/assets/oz_deck_hangar.jpg";
+import ozHangarBanner from "@/assets/home/oz_deck_hangar.jpg";
 import { api, mapApiCard, type ApiDeck } from "@/lib/api";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
