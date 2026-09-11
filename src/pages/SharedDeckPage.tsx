@@ -77,10 +77,11 @@ import {
 } from "@/lib/deck-analytics-engine";
 import { detectDeckTokens } from "@/lib/deck-tokens";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
+import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { mapApiCard } from "@/lib/api";
 import type { CardRecord } from "@/modules/core/types";
 
-import ozHangarBanner from "@/assets/oz-hangar-deck-banner.jpg";
+import ozHangarBanner from "@/assets/oz_deck_hangar.jpg";
 
 const DECK_MAIN_SIZE = 50;
 const DECK_RESOURCE_SIZE = 10;
@@ -1696,22 +1697,18 @@ export default function SharedDeckPage() {
                       onClick={() =>
                         openStatDetail(
                           "Mão inicial",
-                          "Cartas de custo baixo (≤2)",
-                          (row) =>
-                            typeof row.cost === "number" &&
-                            Number.isFinite(row.cost) &&
-                            row.cost >= 0 &&
-                            row.cost <= LOW_COST_MAX
+                          "Unidade/Base jogável cedo (≤T2)",
+                          (row) => isBoardDevelopmentCard(row) && earliestPlayableTurn(row) <= LOW_COST_MAX
                         )
                       }
                       className="group panel-cut border surface-strong p-4 text-left transition hover:opacity-80"
                     >
                       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-                        Cartas de custo baixo (≤2)
+                        Unidade/Base jogável cedo (≤T2)
                         <MetricTooltip
                           metric="custo-baixo-contagem"
-                          what="Quantas cartas do deck principal custam 2 ou menos."
-                          howToRead="São as cartas jogáveis já nos primeiros turnos. Poucas = risco de mão travada no começo. Clique pra ver quais são."
+                          what="Quantas Unidades/Bases do deck principal têm turno mínimo (o maior entre custo e nível) até T2."
+                          howToRead="São as cartas que realmente desenvolvem o campo já nos primeiros turnos — Piloto/Comando de custo baixo não contam, e nível alto também trava o turno mesmo com custo baixo. Clique pra ver quais são."
                         />
                       </p>
                       <p className="mt-2 flex items-center gap-1 text-lg heading-portal font-mono">
@@ -1728,22 +1725,18 @@ export default function SharedDeckPage() {
                       onClick={() =>
                         openStatDetail(
                           "Mão inicial",
-                          "Carta de custo baixo na abertura",
-                          (row) =>
-                            typeof row.cost === "number" &&
-                            Number.isFinite(row.cost) &&
-                            row.cost >= 0 &&
-                            row.cost <= LOW_COST_MAX
+                          "Unidade/Base jogável cedo na abertura",
+                          (row) => isBoardDevelopmentCard(row) && earliestPlayableTurn(row) <= LOW_COST_MAX
                         )
                       }
                       className="group panel-cut border border-primary/30 bg-primary/10 p-4 text-left transition hover:opacity-80"
                     >
                       <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">
-                        Carta de custo baixo na abertura
+                        Unidade/Base jogável cedo na abertura
                         <MetricTooltip
                           metric="custo-baixo-abertura"
-                          what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 carta de custo ≤2."
-                          howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar cartas baratas. Clique pra ver quais contam."
+                          what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 Unidade/Base com turno mínimo (custo E nível) até T2."
+                          howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar Unidades/Bases baratas E de nível baixo — custo baixo sozinho não garante jogo cedo. Clique pra ver quais contam."
                         />
                       </p>
                       <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">
@@ -1751,7 +1744,7 @@ export default function SharedDeckPage() {
                         <ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
                       </p>
                       <p className="mt-2 text-sm text-muted-portal">
-                        De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.
+                        De abrir com pelo menos 1 Unidade/Base jogável cedo, em 5 compradas.
                       </p>
                     </button>
 
@@ -1760,22 +1753,22 @@ export default function SharedDeckPage() {
                       onClick={() =>
                         openStatDetail(
                           "Mão inicial",
-                          "Unit de nível baixo na abertura",
+                          "Unit jogável cedo na abertura",
                           (row) =>
                             row.type === "UNIT" &&
                             typeof row.level === "number" &&
                             row.level >= 1 &&
-                            row.level <= LOW_LEVEL_MAX
+                            earliestPlayableTurn(row) <= LOW_LEVEL_MAX
                         )
                       }
                       className="group panel-cut border border-accent/30 bg-accent/10 p-4 text-left transition hover:opacity-80"
                     >
                       <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">
-                        Unit de nível baixo na abertura
+                        Unit jogável cedo na abertura
                         <MetricTooltip
                           metric="nivel-baixo-abertura"
-                          what="Chance de abrir com pelo menos 1 Unidade de Lv.1 a Lv.3."
-                          howToRead="Units de nível baixo entram cedo e seguram o tabuleiro no início. Clique pra ver quais Units contam."
+                          what="Chance de abrir com pelo menos 1 Unidade cujo turno mínimo (o maior entre custo e nível) seja até T3."
+                          howToRead="Uma Unidade de nível baixo mas custo alto (ou vice-versa) ainda não é jogável cedo — os dois precisam estar baixos. Clique pra ver quais Units contam."
                         />
                       </p>
                       <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">
@@ -1800,7 +1793,7 @@ export default function SharedDeckPage() {
                         {Math.round(telemetry.handOdds.withMulligan * 100)}%
                       </p>
                       <p className="mt-2 text-sm text-muted-portal">
-                        Custo baixo, contando a mão original ou a redistribuída.
+                        Unidade/Base jogável cedo, contando a mão original ou a redistribuída.
                       </p>
                     </div>
                   </div>
@@ -1824,7 +1817,7 @@ export default function SharedDeckPage() {
                         <p>P(pelo menos 1) = 1 − C(N−K, n) / C(N, n)</p>
                         <p className="mt-2 text-slate-500">onde:</p>
                         <p className="mt-1">N = {telemetry.mainDeckCount} <span className="text-slate-500">(cartas no deck principal)</span></p>
-                        <p>K = {telemetry.handOdds.lowCostCount} <span className="text-slate-500">(cartas de custo ≤2, os "sucessos")</span></p>
+                        <p>K = {telemetry.handOdds.lowCostCount} <span className="text-slate-500">(Unidade/Base jogável até o T2, os "sucessos")</span></p>
                         <p>n = 5 <span className="text-slate-500">(tamanho da mão comprada)</span></p>
                         <p className="mt-2 border-t border-white/10 pt-2">
                           P = 1 − C({telemetry.mainDeckCount - telemetry.handOdds.lowCostCount}, 5) / C({telemetry.mainDeckCount}, 5) ={" "}
@@ -2229,7 +2222,7 @@ export default function SharedDeckPage() {
           statsSummary={{
             avgCost: (mainRows.reduce((sum, r) => sum + (r.cost || 0) * r.quantity, 0) / (telemetry.mainDeckCount || 1)).toFixed(2),
             synergyScore: telemetry.synergyScore,
-            turn1Odds: telemetry.handOdds.withMulligan,
+            turn1Odds: telemetry.handOdds.openingHand,
             turn2Odds: telemetry.handOdds.withMulligan,
             units: telemetry.typeBreakdown.find((t) => t.name === "UNIT" || t.name === "Unidade")?.value ?? 0,
             pilots: telemetry.typeBreakdown.find((t) => t.name === "PILOT" || t.name === "Piloto")?.value ?? 0,

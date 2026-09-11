@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import gundamCardBack from "@/assets/gundam-card-back.png";
+import { buildDeckPopulation, shuffleDraw } from "@/lib/deck-sampling";
+import { earliestPlayableTurn, evaluateOpeningHandAgainstDeck, scoreOpeningHand, type HandVerdict } from "@/lib/opening-hand-score";
 
 export interface OpeningHandCard {
   id: string;
@@ -11,28 +13,20 @@ export interface OpeningHandCard {
   imageUrl?: string | null;
   imageMediumUrl?: string | null;
   cost?: number;
+  level?: number | null;
+  type?: string | null;
+  cardType?: string | null;
   quantity: number;
   section?: string;
 }
 
-export function buildDeckPopulation<T extends { quantity: number }>(rows: T[]): T[] {
-  const population: T[] = [];
-  rows.forEach((row) => {
-    for (let i = 0; i < (row.quantity || 1); i++) {
-      population.push(row);
-    }
-  });
-  return population;
-}
+export { buildDeckPopulation, shuffleDraw };
 
-export function shuffleDraw<T>(population: T[], count: number): T[] {
-  const pool = [...population];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, count);
-}
+const VERDICT_STYLE: Record<HandVerdict, { label: string; className: string }> = {
+  MULLIGAN: { label: "Sugestão: Mulligan", className: "text-red-400" },
+  SITUACIONAL: { label: "Sugestão: situacional", className: "text-amber-400/90" },
+  MANTER: { label: "Sugestão: Manter", className: "text-emerald-400" },
+};
 
 interface OpeningHandModalProps {
   open: boolean;
@@ -73,10 +67,14 @@ export function OpeningHandModal({ open, onClose, cards }: OpeningHandModalProps
     return () => window.clearInterval(timer);
   }, [round, hand.length]);
 
-  if (!open) return null;
+  // Nota de Abertura real (custo + nível + tipo) e comparação estatística contra o
+  // próprio deck -- ver src/lib/opening-hand-score.ts pro motivo de não usar mais só
+  // "custo <= 1" pra decidir se a mão é jogável no T1.
+  const handBreakdown = useMemo(() => scoreOpeningHand(hand), [hand]);
   const done = revealCount >= hand.length;
-  const lowCostHits = hand.filter((card) => (card.cost ?? 99) <= 2).length;
-  const turn1Hits = hand.filter((card) => (card.cost ?? 99) <= 1).length;
+  const verdict = useMemo(() => (done && hand.length ? evaluateOpeningHandAgainstDeck(hand, mainRows) : null), [done, hand, mainRows]);
+
+  if (!open) return null;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -97,7 +95,8 @@ export function OpeningHandModal({ open, onClose, cards }: OpeningHandModalProps
               {hand.map((card, index) => {
                 const revealed = index < revealCount;
                 const image = card.imageMediumUrl || card.imageUrl;
-                const isLowCost = (card.cost ?? 99) <= 2;
+                const earliestTurn = earliestPlayableTurn(card);
+                const isEarlyBoardCard = ["UNIT", "BASE"].includes((card.type || card.cardType || "").toUpperCase()) && earliestTurn <= 2;
                 return (
                   <motion.div
                     key={`${round}-${index}`}
@@ -118,11 +117,13 @@ export function OpeningHandModal({ open, onClose, cards }: OpeningHandModalProps
                       </div>
                       <div className="absolute inset-0 overflow-hidden rounded-md border border-white/15 bg-slate-950/80" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
                         {image ? <img src={image} alt={card.namePt || card.name || "Carta"} className="h-full w-full object-cover" /> : null}
-                        {isLowCost ? (
-                          <span className="absolute left-1 top-1 rounded-none border border-emerald-400/60 bg-emerald-950/80 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.08em] text-emerald-300">
-                            Custo {card.cost}
-                          </span>
-                        ) : null}
+                        <span
+                          className={`absolute left-1 top-1 rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.08em] ${
+                            isEarlyBoardCard ? "border-emerald-400/60 bg-emerald-950/80 text-emerald-300" : "border-white/20 bg-slate-950/80 text-slate-400"
+                          }`}
+                        >
+                          T{Math.max(earliestTurn, 1)} · {(card.type || card.cardType || "?").slice(0, 4)}
+                        </span>
                       </div>
                     </motion.div>
                   </motion.div>
@@ -132,16 +133,17 @@ export function OpeningHandModal({ open, onClose, cards }: OpeningHandModalProps
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
               <div className="text-xs text-slate-300">
-                {done ? (
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-white">
-                      Curva inicial: {lowCostHits} carta(s) de custo ≤ 2
+                {done && verdict ? (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-medium text-white">Nota de Abertura: {handBreakdown.score}/100</span>
+                    <span className="text-slate-500">
+                      (média do deck: {verdict.deckMeanScore} · percentil {verdict.percentile})
                     </span>
-                    {turn1Hits > 0 ? (
-                      <span className="text-emerald-400">({turn1Hits} jogável no T1)</span>
-                    ) : (
-                      <span className="text-amber-400/90">(Sem jogo direto de T1)</span>
-                    )}
+                    <span className={`font-semibold ${VERDICT_STYLE[verdict.verdict].className}`}>{VERDICT_STYLE[verdict.verdict].label}</span>
+                    <span className="w-full text-[11px] text-slate-500">
+                      {handBreakdown.earlyUnitCount} Unidade(s) e {handBreakdown.earlyBoardCount - handBreakdown.earlyUnitCount} Base(s) jogável(is) até o T2
+                      {handBreakdown.supportOnlyCount ? ` · ${handBreakdown.supportOnlyCount} Piloto/Comando sem desenvolvimento de campo próprio` : ""}
+                    </span>
                   </div>
                 ) : (
                   <span className="animate-pulse text-cyan-400">Embaralhando e comprando cartas...</span>

@@ -578,15 +578,15 @@ export async function generateDeckStatsImageBlob(options: ExportDeckOptions): Pr
       color: "#10b981",
     },
     {
-      label: "JOGADA TURNO 1",
+      label: "ABERTURA JOGÁVEL",
       value: `${Math.round((statsSummary?.turn1Odds ?? 0) * 100)}%`,
-      sub: "Chance Custo 1 (c/ Mulligan)",
+      sub: "Unid./Base até T2 (1 sorteio)",
       color: "#f59e0b",
     },
     {
-      label: "JOGADA TURNO 2",
+      label: "ABERTURA JOGÁVEL",
       value: `${Math.round((statsSummary?.turn2Odds ?? 0.88) * 100)}%`,
-      sub: "Chance Custo ≤ 2 (c/ Mulligan)",
+      sub: "Unid./Base até T2 (c/ Mulligan)",
       color: "#8b5cf6",
     },
   ];

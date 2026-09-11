@@ -46,6 +46,7 @@ import { VedaTelemetryAssistant } from "@/components/deck/VedaTelemetryAssistant
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { LOW_LEVEL_MAX, OPENING_HAND_SIZE, buildLevelCurve, lowLevelUnitStats } from "@/lib/deck-level-stats";
 import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
+import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { downloadDeckImage, generateDeckImageBlob, type ExportCardEntry } from "@/utils/deckImageExport";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 
@@ -95,7 +96,12 @@ function calculateStats(cardCache: Record<string, CardRecord>, entries: DeckEntr
   const resourceDeckCount = expandedAll.filter((item) => item.section === "resource").reduce((sum, item) => sum + item.quantity, 0);
 
   const mainDeckCount = expanded.reduce((sum, item) => sum + item.quantity, 0);
-  const lowCostCount = expanded.filter((item) => item.cost <= 2).reduce((sum, item) => sum + item.quantity, 0);
+  // Corrigido a partir de erro relatado pelo usuário: "custo baixo" sozinho ignorava
+  // que (1) Piloto/Comando não desenvolvem campo mesmo baratos e (2) o nível também
+  // trava o turno mínimo real (ver opening-hand-score.ts: turno = max(custo, nível)).
+  const lowCostCount = expanded
+    .filter((item) => isBoardDevelopmentCard(item) && earliestPlayableTurn(item) <= LOW_COST_MAX)
+    .reduce((sum, item) => sum + item.quantity, 0);
   const avgCost = mainDeckCount ? expanded.reduce((sum, item) => sum + item.cost * item.quantity, 0) / mainDeckCount : 0;
   const cardsWithKeywords = expanded.filter((item) => item.keywords.length > 0).reduce((sum, item) => sum + item.quantity, 0);
   const cardsAtLimit = expanded.filter((item) => item.quantity >= 4).length;
@@ -951,7 +957,7 @@ export default function DeckbuilderPage() {
           score += 3;
           reasons.push("compartilha keywords já presentes");
         }
-        if (card.cost <= 2 && stats.lowCostRate < 35) {
+        if (isBoardDevelopmentCard(card) && earliestPlayableTurn(card) <= LOW_COST_MAX && stats.lowCostRate < 35) {
           score += 2;
           reasons.push("ajuda a baixar a curva");
         }
@@ -1729,25 +1735,25 @@ export default function DeckbuilderPage() {
               </div>
               {stats.mainDeckCount > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Cartas de custo baixo (≤2)", (row) => typeof row.cost === "number" && Number.isFinite(row.cost) && row.cost >= 0 && row.cost <= LOW_COST_MAX)} className="group panel-cut border surface-strong p-4 text-left transition hover:opacity-80">
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Cartas de custo baixo (≤2)<MetricTooltip metric="custo-baixo-contagem" what="Quantas cartas do deck principal custam 2 ou menos." howToRead="São as cartas jogáveis já nos primeiros turnos. Poucas = risco de mão travada no começo. Clique pra ver quais são." /></p>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Unidade/Base jogável cedo (≤T2)", (row) => isBoardDevelopmentCard(row) && earliestPlayableTurn(row) <= LOW_COST_MAX)} className="group panel-cut border surface-strong p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Unidade/Base jogável cedo (≤T2)<MetricTooltip metric="custo-baixo-contagem" what="Quantas Unidades/Bases do deck principal têm turno mínimo (o maior entre custo e nível) até T2." howToRead="São as cartas que realmente desenvolvem o campo já nos primeiros turnos — Piloto/Comando de custo baixo não contam aqui, e nível alto também trava o turno mesmo com custo baixo. Poucas = risco de mão travada no começo. Clique pra ver quais são." /></p>
                     <p className="mt-2 flex items-center gap-1 text-lg heading-portal">{stats.lowCostCount} de {stats.mainDeckCount}<ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">{stats.lowCostRate}% da lista principal.</p>
                   </button>
-                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Carta de custo baixo na abertura", (row) => typeof row.cost === "number" && Number.isFinite(row.cost) && row.cost >= 0 && row.cost <= LOW_COST_MAX)} className="group panel-cut border border-primary/30 bg-primary/10 p-4 text-left transition hover:opacity-80">
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Carta de custo baixo na abertura<MetricTooltip metric="custo-baixo-abertura" what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 carta de custo ≤2." howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar cartas baratas. Clique pra ver quais contam." /></p>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Unidade/Base jogável cedo na abertura", (row) => isBoardDevelopmentCard(row) && earliestPlayableTurn(row) <= LOW_COST_MAX)} className="group panel-cut border border-primary/30 bg-primary/10 p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unidade/Base jogável cedo na abertura<MetricTooltip metric="custo-baixo-abertura" what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 Unidade/Base com turno mínimo (custo E nível) até T2." howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar Unidades/Bases baratas E de nível baixo — custo baixo sozinho não garante jogo cedo. Clique pra ver quais contam." /></p>
                     <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">{Math.round(handOdds.openingHand * 100)}%<ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.</p>
                   </button>
-                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Unit de nível baixo na abertura", (row) => row.type === "UNIT" && typeof row.level === "number" && row.level >= 1 && row.level <= LOW_LEVEL_MAX)} className="group panel-cut border border-accent/30 bg-accent/10 p-4 text-left transition hover:opacity-80">
-                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit de nível baixo na abertura<MetricTooltip metric="nivel-baixo-abertura" what="Chance de abrir com pelo menos 1 Unidade de Lv.1 a Lv.3." howToRead="Units de nível baixo entram cedo e seguram o tabuleiro no início. Clique pra ver quais Units contam." /></p>
+                  <button type="button" onClick={() => openStatDetail("Mão inicial", "Unit jogável cedo na abertura", (row) => row.type === "UNIT" && typeof row.level === "number" && row.level >= 1 && earliestPlayableTurn(row) <= LOW_LEVEL_MAX)} className="group panel-cut border border-accent/30 bg-accent/10 p-4 text-left transition hover:opacity-80">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">Unit jogável cedo na abertura<MetricTooltip metric="nivel-baixo-abertura" what="Chance de abrir com pelo menos 1 Unidade cujo turno mínimo (o maior entre custo e nível) seja até T3." howToRead="Uma Unidade de nível baixo mas custo alto (ou vice-versa) ainda não é jogável cedo — os dois precisam estar baixos. Clique pra ver quais Units contam." /></p>
                     <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">{Math.round(lowLevelStats.openingHand * 100)}%<ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" /></p>
                     <p className="mt-2 text-sm text-muted-portal">De abrir com pelo menos 1 Unit Lv.1–3 ({lowLevelStats.lowLevelUnitCount} na lista), em 5 compradas.</p>
                   </button>
                   <div className="panel-cut border surface-strong p-4">
                     <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Com 1 mulligan<MetricTooltip metric="custo-baixo-mulligan" what="A mesma chance de custo baixo, mas contando a mão original OU a redistribuída pelo mulligan." howToRead="É sempre ≥ a chance sem mulligan — é o piso realista, já que o mulligan é grátis e independente." /></p>
                     <p className="mt-2 text-lg heading-portal">{Math.round(handOdds.withMulligan * 100)}%</p>
-                    <p className="mt-2 text-sm text-muted-portal">Custo baixo, contando a mão original ou a redistribuída.</p>
+                    <p className="mt-2 text-sm text-muted-portal">Unidade/Base jogável cedo, contando a mão original ou a redistribuída.</p>
                   </div>
                 </div>
               ) : (
@@ -1769,7 +1775,7 @@ export default function DeckbuilderPage() {
                       <p>P(pelo menos 1) = 1 − C(N−K, n) / C(N, n)</p>
                       <p className="mt-2 text-slate-500">onde:</p>
                       <p className="mt-1">N = {stats.mainDeckCount} <span className="text-slate-500">(cartas no deck principal)</span></p>
-                      <p>K = {stats.lowCostCount} <span className="text-slate-500">(cartas de custo ≤2, os "sucessos")</span></p>
+                      <p>K = {stats.lowCostCount} <span className="text-slate-500">(Unidade/Base jogável até o T2, os "sucessos")</span></p>
                       <p>n = {OPENING_HAND_SIZE} <span className="text-slate-500">(tamanho da mão comprada)</span></p>
                       <p className="mt-2 border-t border-white/10 pt-2">P = 1 − C({stats.mainDeckCount - stats.lowCostCount}, {OPENING_HAND_SIZE}) / C({stats.mainDeckCount}, {OPENING_HAND_SIZE}) = <span className="text-primary">{(handOdds.openingHand * 100).toFixed(2)}%</span></p>
                     </div>

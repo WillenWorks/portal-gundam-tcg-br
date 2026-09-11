@@ -61,11 +61,21 @@ export type LowLevelUnitStats = {
   withMulligan: number;
 };
 
-/** Quantas Units Lv.1..3 há no principal e a chance de abrir com pelo menos uma. */
-export function lowLevelUnitStats(rows: UnitLike[], mainDeckCount: number): LowLevelUnitStats {
+type UnitCostLike = UnitLike & { cost?: number | null };
+
+/** Quantas Units realmente jogáveis até LOW_LEVEL_MAX há no principal (custo E
+ *  nível, não só nível) e a chance de abrir com pelo menos uma.
+ *
+ *  Corrigido a partir de um erro relatado pelo usuário: olhar só `level` deixava
+ *  passar Units de nível baixo mas custo alto (ex.: Lv.1/custo 8), que também não
+ *  são jogáveis cedo. O turno mínimo real é max(custo, nível) -- mesmo raciocínio
+ *  de `lowCostStats` (deck-cost-stats.ts) e opening-hand-score.ts. */
+export function lowLevelUnitStats(rows: UnitCostLike[], mainDeckCount: number): LowLevelUnitStats {
   const lowLevelUnitCount = rows.reduce((sum, row) => {
     if (!isUnit(row.type)) return sum;
-    if (typeof row.level !== "number" || row.level < 1 || row.level > LOW_LEVEL_MAX) return sum;
+    if (typeof row.level !== "number" || row.level < 1) return sum;
+    const cost = typeof row.cost === "number" && row.cost > 0 ? row.cost : 0;
+    if (Math.max(cost, row.level) > LOW_LEVEL_MAX) return sum;
     return sum + (typeof row.quantity === "number" ? row.quantity : 0);
   }, 0);
 

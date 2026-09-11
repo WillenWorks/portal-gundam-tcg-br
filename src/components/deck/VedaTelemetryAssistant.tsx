@@ -16,6 +16,7 @@ import {
 import { api, type ClassifiedMetaCard, type MetaRecommendationsResponse } from "@/lib/api";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { calculateHypergeometric } from "@/lib/meta-analytics";
+import { earliestPlayableTurn } from "@/lib/opening-hand-score";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,10 +73,13 @@ export function VedaTelemetryAssistant({
     return Array.from(new Set(mainCards.map((c) => c.code)));
   }, [mainCards]);
 
-  // 1. Telemetria: Low Level Units (Lv. 1 a 3)
+  // 1. Telemetria: Units realmente jogáveis cedo (Lv./custo até T3). Corrigido a
+  // partir de erro relatado pelo usuário: olhar só o nível deixava passar Units de
+  // nível baixo mas custo alto (ex.: Lv.1/custo 8), que também não abrem cedo -- o
+  // turno mínimo real é max(custo, nível) (ver opening-hand-score.ts).
   const lowLevelUnitsCount = useMemo(() => {
     return mainCards
-      .filter((c) => c.type === "UNIT" && typeof c.level === "number" && c.level >= 1 && c.level <= 3)
+      .filter((c) => c.type === "UNIT" && typeof c.level === "number" && c.level >= 1 && earliestPlayableTurn(c) <= 3)
       .reduce((acc, c) => acc + c.quantity, 0);
   }, [mainCards]);
 

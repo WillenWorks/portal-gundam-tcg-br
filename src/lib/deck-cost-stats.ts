@@ -1,18 +1,25 @@
-/** Estatística de CUSTO baixo na mão inicial do Deckbuilder (docs/38 §5).
+/** Estatística de "consigo desenvolver campo cedo?" na mão inicial do Deckbuilder
+ *  (docs/38 §5).
  *
- *  Espelha `lowLevelUnitStats` (deck-level-stats.ts), mas o "sucesso" aqui é a
- *  carta ter custo baixo — não nível baixo. É a leitura de "consigo agir cedo?":
- *  cartas de custo ≤2 são as jogáveis nos primeiros turnos, quando ainda há
- *  poucos recursos disponíveis.
+ *  Corrigido a partir de um erro relatado pelo usuário: a versão antiga contava
+ *  QUALQUER carta com custo numérico ≤2 (Unit, Base, Command, Pilot) como um
+ *  "sucesso", ignorando que (1) o NÍVEL da carta também trava o turno em que ela
+ *  pode ser jogada (ver opening-hand-score.ts: turno mínimo real = max(custo,
+ *  nível), replicando a regra oficial do motor de simulação) e que (2) o jogo
+ *  depende de Unidades/Bases em campo pra atacar/bloquear — um Piloto ou Comando
+ *  de custo 1 não desenvolve o campo sozinho. Por isso "sucesso" aqui agora é:
+ *  Unidade OU Base cujo turno mínimo (max(custo, nível)) seja ≤ LOW_COST_MAX.
  */
 
 import { OPENING_HAND_SIZE, hypergeometricAtLeastOne } from "./deck-level-stats.ts";
+import { earliestPlayableTurn, isBoardDevelopmentCard, type HandScoreCard } from "./opening-hand-score.ts";
 
-/** Maior custo ainda considerado "baixo". Cartas de custo 0..2 entram em jogo
- *  já nos turnos iniciais; a partir de 3 normalmente é preciso montar recurso antes. */
+/** Maior turno mínimo ainda considerado "abertura cedo". Unidades/Bases com
+ *  max(custo, nível) 0..2 entram em jogo já nos turnos iniciais; a partir de 3
+ *  normalmente é preciso desenvolver mais recurso antes. */
 export const LOW_COST_MAX = 2;
 
-type CostRow = { cost?: number | null; quantity?: number | null };
+type CostRow = HandScoreCard & { quantity?: number | null };
 
 export type LowCostStats = {
   lowCostCount: number;
@@ -20,15 +27,15 @@ export type LowCostStats = {
   withMulligan: number;
 };
 
-/** Quantas cartas de custo ≤ LOW_COST_MAX há no principal e a chance de abrir com
- *  pelo menos uma. Conta qualquer carta com custo numérico (Unit, Base, Command,
- *  Pilot) — Resource não tem custo e já fica fora da lista principal. Cartas sem
- *  custo numérico são ignoradas. Mesmo formato de `lowLevelUnitStats`. */
+/** Quantas Unidades/Bases realmente jogáveis até LOW_COST_MAX (custo E nível) há no
+ *  principal e a chance de abrir com pelo menos uma. Piloto/Comando nunca contam
+ *  aqui — não desenvolvem campo sozinhos, mesmo com custo baixo. Mesmo formato de
+ *  `lowLevelUnitStats`. */
 export function lowCostStats(rows: CostRow[], mainDeckCount: number): LowCostStats {
   const lowCostCount = rows.reduce((sum, row) => {
-    if (typeof row.cost !== "number" || !Number.isFinite(row.cost) || row.cost < 0 || row.cost > LOW_COST_MAX) {
-      return sum;
-    }
+    if (typeof row.cost !== "number" || !Number.isFinite(row.cost)) return sum;
+    if (!isBoardDevelopmentCard(row)) return sum;
+    if (earliestPlayableTurn(row) > LOW_COST_MAX) return sum;
     return sum + (typeof row.quantity === "number" ? row.quantity : 0);
   }, 0);
 

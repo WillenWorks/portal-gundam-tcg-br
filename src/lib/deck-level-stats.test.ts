@@ -6,7 +6,7 @@ import {
   LEVEL_CURVE_TOP_BUCKET,
 } from "./deck-level-stats.ts";
 
-type Row = { type?: string | null; level?: number | null; quantity?: number | null };
+type Row = { type?: string | null; level?: number | null; cost?: number | null; quantity?: number | null };
 
 describe("buildLevelCurve", () => {
   it("sempre devolve as 6 faixas (1..5 e 6+), mesmo sem cartas", () => {
@@ -67,15 +67,24 @@ describe("hypergeometricAtLeastOne", () => {
 describe("lowLevelUnitStats", () => {
   it("conta Units Lv.1..3 e calcula a chance de abertura", () => {
     const rows: Row[] = [
-      { type: "UNIT", level: 1, quantity: 4 },
-      { type: "UNIT", level: 3, quantity: 6 },
-      { type: "UNIT", level: 4, quantity: 4 }, // fora da faixa de abertura
-      { type: "PILOT", level: 2, quantity: 4 }, // não é Unit
+      { type: "UNIT", level: 1, cost: 1, quantity: 4 },
+      { type: "UNIT", level: 3, cost: 3, quantity: 6 },
+      { type: "UNIT", level: 4, cost: 4, quantity: 4 }, // fora da faixa de abertura
+      { type: "PILOT", level: 2, cost: 2, quantity: 4 }, // não é Unit
     ];
     const stats = lowLevelUnitStats(rows, 50);
     expect(stats.lowLevelUnitCount).toBe(10);
     expect(stats.openingHand).toBeCloseTo(0.6894, 3);
     expect(stats.withMulligan).toBeGreaterThan(stats.openingHand);
+  });
+
+  it("NÃO conta Unit de nível baixo mas custo alto -- turno mínimo real é max(custo, nível) (bug relatado)", () => {
+    const rows: Row[] = [
+      { type: "UNIT", level: 1, cost: 8, quantity: 10 }, // só jogável perto do T8, apesar do nível 1
+      { type: "UNIT", level: 1, cost: 1, quantity: 4 },
+    ];
+    const stats = lowLevelUnitStats(rows, 50);
+    expect(stats.lowLevelUnitCount).toBe(4);
   });
 
   it("devolve zero sem estourar quando o deck está vazio", () => {
