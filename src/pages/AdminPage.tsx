@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ApiDeck } from "@/lib/api";
 import { extractLinkSuggestions, getKeywordIcon, getKeywordStyleClass, parseCardEffects } from "@/lib/gundam-card-effects";
-import { AP_HP_OPTIONS, ART_RARITY_OPTIONS, CARD_TYPE_OPTIONS, COLOR_OPTIONS, COST_LEVEL_OPTIONS, LINK_SUGGESTION_TRAITS, PRODUCT_TYPE_OPTIONS, RARITY_OPTIONS, SOURCE_TITLE_OPTIONS, TRAIT_OPTIONS } from "@/lib/gundam-catalog";
+import { AP_HP_OPTIONS, ART_RARITY_OPTIONS, CARD_TYPE_OPTIONS, COLOR_OPTIONS, COST_LEVEL_OPTIONS, LINK_SUGGESTION_TRAITS, PRODUCT_TYPE_OPTIONS, RARITY_OPTIONS, SOURCE_TITLE_OPTIONS, TRAIT_OPTIONS, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
  
 /* ── Tipos ─────────────────────────────────────────────────────────────── */
  
@@ -102,7 +102,7 @@ const emptySetForm = { id: "", code: "", nameEn: "", namePt: "", officialUrl: ""
 const emptySeasonForm = { id: "", code: "", name: "", startDate: "", endDate: "", notes: "" };
 const emptyTaxonomyForm = { id: "", kind: "TRAIT" as "TRAIT" | "SOURCE_TITLE", name: "", description: "", coverImage: "", galleryImages: [] as string[], officialUrl: "" };
 const emptyRuleForm = { title: "", sourceType: "OFFICIAL_RULES", questionPt: "", answerPt: "", questionEn: "", answerEn: "", relatedKeyword: "", originalUrl: "", cardId: "" };
-const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", seasonId: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "" };
+const emptyTournamentForm = { id: "", name: "", organizer: "", country: "", city: "", format: "constructed", season: "", seasonId: "", sourceUrl: "", participantCount: "", roundCount: "", topCutSize: "", dateStart: "", dateEnd: "", tier: "SMALL_OFFICIAL", vodUrls: "" };
 const emptyEntryForm = { playerName: "", placement: "", wins: "", losses: "", draws: "", archetype: "", deckId: "", userId: "" };
 const defaultArtState = normalizeArtState([createArtVariant({ label: "Arte 1", rarity: "C", isPrimary: true })], undefined, "C");
 const emptyCardForm: CardForm = { id: "", setId: "", code: "", rarity: "C", cost: "0", level: "0", cardType: "UNIT", nameEn: "", namePt: "", burstEnabled: false, burstEffect: "", ap: "-", hp: "-", effectText: "", pilotName: "", color: "Blue", traits: "", linkText: "", sourceTitle: "", officialUrl: "", arts: defaultArtState.arts, activeArtId: defaultArtState.activeArtId, legalityStatus: "legal", restrictedCopies: "", banGroupId: "" };
@@ -750,6 +750,8 @@ export default function AdminPage() {
       topCutSize: tournament.topCutSize != null ? String(tournament.topCutSize) : "",
       dateStart: tournament.dateStart ? new Date(tournament.dateStart).toISOString().slice(0, 10) : "",
       dateEnd: tournament.dateEnd ? new Date(tournament.dateEnd).toISOString().slice(0, 10) : "",
+      tier: tournament.tier || "SMALL_OFFICIAL",
+      vodUrls: (tournament.vodUrls || []).join("\n"),
     } : emptyTournamentForm);
   };
   const saveTournament = async () => {
@@ -762,6 +764,8 @@ export default function AdminPage() {
       topCutSize: tournamentForm.topCutSize ? Number(tournamentForm.topCutSize) : null,
       dateStart: tournamentForm.dateStart ? new Date(tournamentForm.dateStart).toISOString() : null,
       dateEnd: tournamentForm.dateEnd ? new Date(tournamentForm.dateEnd).toISOString() : null,
+      tier: tournamentForm.tier,
+      vodUrls: tournamentForm.vodUrls.split("\n").map((line) => line.trim()).filter(Boolean),
     };
     try {
       if (tournamentForm.id) await api.updateTournament(tournamentForm.id, payload); else await api.createTournament(payload);
@@ -1039,7 +1043,11 @@ export default function AdminPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <FieldBlock label="Participantes"><Input type="number" min={0} value={tournamentForm.participantCount} onChange={(e) => setTournamentForm((s) => ({ ...s, participantCount: e.target.value }))} className="rounded-none" /></FieldBlock>
               <FieldBlock label="Rodadas"><Input type="number" min={0} value={tournamentForm.roundCount} onChange={(e) => setTournamentForm((s) => ({ ...s, roundCount: e.target.value }))} className="rounded-none" /></FieldBlock>
-              <FieldBlock label="Tamanho do top cut"><Input type="number" min={0} value={tournamentForm.topCutSize} onChange={(e) => setTournamentForm((s) => ({ ...s, topCutSize: e.target.value }))} className="rounded-none" /></FieldBlock>
+              <FieldBlock label="Tamanho do top cut" hint="Usado na conversão de top cut da visão detalhada pública (Fase 1)."><Input type="number" min={0} value={tournamentForm.topCutSize} onChange={(e) => setTournamentForm((s) => ({ ...s, topCutSize: e.target.value }))} className="rounded-none" /></FieldBlock>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FieldBlock label="Classificação tática (Central de Eventos)" hint="Alimenta as abas Grandes Oficiais/Oficiais de Loja/Comunitários/Classificatório/Equipe."><select value={tournamentForm.tier} onChange={(e) => setTournamentForm((s) => ({ ...s, tier: e.target.value }))} className="field-shell h-10 px-3 text-sm">{TOURNAMENT_TIER_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></FieldBlock>
+              <FieldBlock label="Links de VOD (YouTube, um por linha)" hint="Cada linha vira uma parte da cobertura na visão detalhada pública do evento."><Textarea value={tournamentForm.vodUrls} onChange={(e) => setTournamentForm((s) => ({ ...s, vodUrls: e.target.value }))} placeholder={"https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=... (parte 2)"} className="min-h-16 rounded-none" /></FieldBlock>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveTournament}>{tournamentForm.id ? "Salvar alterações" : "Criar evento"}</Button>

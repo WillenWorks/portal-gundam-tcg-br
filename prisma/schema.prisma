@@ -80,6 +80,18 @@ enum SetKind {
   OTHER
 }
 
+// Classificação tática de evento -- alimenta as abas da Central de Eventos
+// (TournamentsPage) inspiradas no ecossistema Egman Events / Mobile Suit Arena,
+// adaptado pra terminologia PT-BR (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §3).
+// Aplica tanto a Tournament (report retroativo) quanto a HostedEvent (ao vivo).
+enum TournamentTier {
+  LARGE_OFFICIAL
+  SMALL_OFFICIAL
+  UNOFFICIAL
+  RANKED
+  TEAM
+}
+
 enum CardType {
   UNIT
   PILOT
@@ -509,6 +521,14 @@ model Tournament {
   participantCount Int?
   roundCount       Int?
   topCutSize       Int?
+  // Classificação tática pra Central de Eventos (?tab=large_official/small_official/
+  // unofficial/ranked/team). Default SMALL_OFFICIAL pra torneios já cadastrados --
+  // reclassificação real fica a cargo do admin (ver TournamentTier acima).
+  tier             TournamentTier    @default(SMALL_OFFICIAL)
+  // Partes do VOD do evento (YouTube), na ordem de exibição -- suporta cobertura
+  // dividida em "Part 1", "Part 2" etc. Vazio = sem cobertura de vídeo (layout se
+  // adapta, ver critério de aceitação de resiliência a dados parciais).
+  vodUrls          String[]          @default([])
   dateStart        DateTime?
   dateEnd          DateTime?
   isActive         Boolean           @default(true)
@@ -590,6 +610,11 @@ model HostedEvent {
   venueName   String?
   city        String?
   country     String?
+  // Mesma classificação tática do Tournament (ver TournamentTier acima) -- default
+  // UNOFFICIAL porque evento ao vivo criado por um Hoster tende a ser liga/local
+  // comunitário até o admin reclassificar como oficial sancionado.
+  tier        TournamentTier    @default(UNOFFICIAL)
+  vodUrls     String[]          @default([])
   dateStart   DateTime
   dateEnd     DateTime?
   maxPlayers  Int?
@@ -622,6 +647,11 @@ model HostedEventParticipant {
   deckId         String?
   deckSnapshotId String?
   deckLockedAt   DateTime?
+  // Fase 3 (scaffold): arquétipo declarado do participante no evento -- base pra
+  // Matriz de Confrontos (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.4). Nullable
+  // porque hoje não existe fluxo de captura desse dado (próximo passo); enquanto
+  // ficar null, o participante simplesmente não entra na matriz de matchups.
+  archetype      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -667,6 +697,12 @@ model HostedEventMatch {
   participantAId String
   participantBId String?
   result         HostedEventMatchResult @default(PENDING)
+  // Fase 3 (scaffold): telemetria de iniciativa pra WR 1st/2nd e Dice WR (ver
+  // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.4). Sem relação declarada de propósito
+  // (são só ids de referência informativos, não afetam integridade de participantA/B
+  // acima) -- sem UI de lançamento ainda, ficam null até existir esse fluxo.
+  firstPlayerParticipantId String?
+  diceWinnerParticipantId  String?
   reportedAt     DateTime?
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt

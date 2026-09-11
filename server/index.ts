@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -75,6 +75,7 @@ import {
   getMetaRecommendations,
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
+import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
 
 const prisma = new PrismaClient();
 
@@ -2432,6 +2433,48 @@ app.get("/api/stats/metagame", async (req, res) => {
   res.json({ season, setId: setId ?? null, totalDecks, topCards, colorDistribution, colorCombos });
 });
 
+// Resolve o parâmetro seasonId da mesma forma que /api/stats/metagame ("current" ->
+// Season.isCurrent, "all" -> null/sem filtro, ou o id de uma season específica) --
+// centralizado aqui pra Power Rankings e Matriz de Confrontos usarem o mesmo critério.
+async function resolveSeasonFilter(seasonParam: string): Promise<{ seasonId: string | null; season: { id: string; code: string; name: string } | null } | null> {
+  if (seasonParam === "all") return { seasonId: null, season: null };
+  if (seasonParam === "current") {
+    const current = await prisma.season.findFirst({ where: { isCurrent: true } });
+    return { seasonId: current?.id ?? null, season: current ? { id: current.id, code: current.code, name: current.name } : null };
+  }
+  const found = await prisma.season.findUnique({ where: { id: seasonParam } });
+  if (!found) return null;
+  return { seasonId: found.id, season: { id: found.id, code: found.code, name: found.name } };
+}
+
+// Fase 2 (Power Rankings semanal, ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3 e §5) --
+// fonte é sempre TournamentEntry.archetype (declarado em resultado real de torneio
+// reportado), nunca deck público.
+app.get("/api/stats/power-rankings", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const rankings = await getPowerRankings(prisma, { seasonId: resolved.seasonId, setId });
+  res.json({ season: resolved.season, setId: setId ?? null, rankings });
+});
+
+// Fase 3 (Matriz de Confrontos, SCAFFOLD -- ver §2.4). Sem UI de lançamento de
+// arquétipo/iniciativa por partida ainda, então normalmente devolve hasData=false.
+app.get("/api/stats/matchup-matrix", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const windowParam = typeof req.query.window === "string" ? req.query.window : "all";
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  let sinceDate: Date | null = null;
+  if (windowParam === "30d") sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  else if (windowParam === "90d") sinceDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const matrix = await getMatchupMatrix(prisma, { seasonId: resolved.seasonId, sinceDate });
+  res.json({ season: resolved.season, window: windowParam, ...matrix });
+});
+
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const payload = req.body as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
@@ -3004,7 +3047,7 @@ app.get("/api/hosted-events/public", async (_req, res) => {
     where: { isActive: true, status: HostedEventStatus.COMPLETED },
     select: {
       id: true, name: true, description: true, format: true, venueName: true, city: true, country: true,
-      dateStart: true, dateEnd: true, status: true, seasonId: true,
+      dateStart: true, dateEnd: true, status: true, seasonId: true, tier: true, vodUrls: true,
       hoster: { select: { id: true, username: true, displayName: true } },
       seasonRef: true,
     },
@@ -3027,6 +3070,7 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
     maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
+    tier?: TournamentTier; vodUrls?: string[];
   };
   if (!body.name?.trim()) return res.status(400).json({ error: "Nome do evento é obrigatório." });
   if (!body.dateStart) return res.status(400).json({ error: "Data/hora de início é obrigatória." });
@@ -3044,6 +3088,8 @@ app.post("/api/hosted-events", authRequired, hosterRequired, async (req: Request
       maxPlayers: body.maxPlayers ?? null,
       status: body.status ?? HostedEventStatus.DRAFT,
       seasonId: body.seasonId || null,
+      tier: body.tier ?? TournamentTier.UNOFFICIAL,
+      vodUrls: Array.isArray(body.vodUrls) ? body.vodUrls.filter(Boolean) : [],
     },
     include: hostedEventOwnerInclude,
   });
@@ -3057,6 +3103,7 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
     name?: string; description?: string | null; format?: string; venueName?: string | null;
     city?: string | null; country?: string | null; dateStart?: string; dateEnd?: string | null;
     maxPlayers?: number | null; status?: HostedEventStatus; seasonId?: string | null;
+    tier?: TournamentTier; vodUrls?: string[];
   };
   const event = await prisma.hostedEvent.update({
     where: { id: existing.id },
@@ -3072,6 +3119,8 @@ app.put("/api/hosted-events/:id", authRequired, hosterRequired, async (req: Requ
       maxPlayers: body.maxPlayers === undefined ? existing.maxPlayers : body.maxPlayers,
       status: body.status ?? existing.status,
       seasonId: body.seasonId === undefined ? existing.seasonId : (body.seasonId || null),
+      tier: body.tier ?? existing.tier,
+      vodUrls: Array.isArray(body.vodUrls) ? body.vodUrls.filter(Boolean) : existing.vodUrls,
     },
     include: hostedEventOwnerInclude,
   });
@@ -3172,12 +3221,29 @@ const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
 async function computeHostedEventStandings(eventId: string) {
   const participants = await prisma.hostedEventParticipant.findMany({
     where: { eventId },
-    select: { id: true, deckSnapshotId: true, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
+    select: {
+      id: true,
+      deckSnapshotId: true,
+      archetype: true,
+      user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+      // Decklist travada completa -- alimenta o filtro de chips coloridos e o botão
+      // "Carregar no Deckbuilder" da visão detalhada de evento (TournamentsPage).
+      deckSnapshot: { select: { id: true, name: true, items: { select: { quantity: true, section: true, card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } } } } } },
+    },
   });
-  type Row = { participantId: string; user: (typeof participants)[number]["user"]; hasDeck: boolean; points: number; wins: number; draws: number; losses: number; byes: number; played: number };
+  type Row = {
+    participantId: string;
+    user: (typeof participants)[number]["user"];
+    hasDeck: boolean;
+    archetype: string | null;
+    colors: string[];
+    deckSnapshot: (typeof participants)[number]["deckSnapshot"];
+    points: number; wins: number; draws: number; losses: number; byes: number; played: number;
+  };
   const stats = new Map<string, Row>();
   for (const p of participants) {
-    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
+    const colors = Array.from(new Set((p.deckSnapshot?.items || []).map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
+    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), archetype: p.archetype, colors, deckSnapshot: p.deckSnapshot, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
   }
   const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
   for (const m of matches) {

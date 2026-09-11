@@ -189,6 +189,45 @@ export interface MetaRecommendationsResponse {
   techs: ClassifiedMetaCard[];
 }
 
+// Fase 2 -- Power Rankings semanal (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
+export interface PowerRankingEntry {
+  archetype: string;
+  colors: string[];
+  signatureCard: { id: string; code: string; name: string; imageUrl: string | null; imageMediumUrl: string | null; color: string | null } | null;
+  deckCount: number;
+  metaShare: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  recordedMatches: number;
+  winRate: number | null;
+  powerRankingScore: number;
+  bestPlacement: number | null;
+  sampleTournaments: Array<{ id: string; name: string }>;
+}
+
+// Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4).
+export interface MatchupCell {
+  archetypeA: string;
+  archetypeB: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number | null;
+}
+
+export interface MatchupMatrixResponse {
+  season: { id: string; code: string; name: string } | null;
+  window: string;
+  archetypes: string[];
+  cells: MatchupCell[];
+  wr1st: Record<string, number | null>;
+  wr2nd: Record<string, number | null>;
+  diceWinRate: Record<string, number | null>;
+  sampleSize: number;
+  hasData: boolean;
+}
+
 
 export type ApiBinder = {
   id: string;
@@ -518,6 +557,14 @@ export const api = {
   // públicos. seasonId: "current" (default), "all", ou o id de uma season específica.
   getMetagameStats: (params: { seasonId?: string; setId?: string } = {}) =>
     request<{ season: { id: string; code: string; name: string } | null; setId: string | null; totalDecks: number; topCards: Array<{ cardModelId: string; name: string; color: string | null; appearances: number; presenceRate: number | null }>; colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>; colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }> }>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Fase 2 -- Power Rankings semanal (só resultado real de torneio reportado, ver
+  // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
+  getPowerRankings: (params: { seasonId?: string; setId?: string } = {}) =>
+    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; rankings: PowerRankingEntry[] }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4). hasData normalmente vem false
+  // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
+  getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>
+    request<MatchupMatrixResponse>(`/stats/matchup-matrix${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),
   deleteCardRelation: (id: string, relationId: string) => mutate<void>(`/cards/${id}/relations/${relationId}`, { method: "DELETE" }, ["/cards"]),
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),

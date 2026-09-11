@@ -31,6 +31,37 @@ export const GAME_COLOR_HEX: Record<string, string> = {
   White: "#e2e8f0",
 };
 
+// Rótulo PT-BR de cada cor de jogo -- usado nos chips de filtro da Central de Eventos
+// e em qualquer outro lugar que precise exibir a cor pro público em vez do valor cru
+// gravado no banco (ver dicionário terminológico, PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §3).
+export const GAME_COLOR_LABEL_PT: Record<string, string> = {
+  Blue: "Azul",
+  Green: "Verde",
+  Red: "Vermelho",
+  Purple: "Roxo",
+  White: "Branco",
+};
+
+// Classificação tática de evento -- abas da Central de Eventos (TournamentsPage) e
+// campo de cadastro no admin. Espelha o enum TournamentTier do schema.
+export const TOURNAMENT_TIER_OPTIONS = [
+  { value: "LARGE_OFFICIAL", label: "Grande Oficial (Major/Regional)" },
+  { value: "SMALL_OFFICIAL", label: "Oficial de Loja (Local)" },
+  { value: "UNOFFICIAL", label: "Comunitário / Não-Oficial" },
+  { value: "RANKED", label: "Classificatório / Power Ranking" },
+  { value: "TEAM", label: "Equipe (Trios 3v3)" },
+] as const;
+
+export const TOURNAMENT_TAB_OPTIONS = [
+  { value: "all", label: "Todas as Listas" },
+  { value: "tournaments", label: "Eventos & Torneios" },
+  { value: "large_official", label: "Grandes Oficiais", tier: "LARGE_OFFICIAL" },
+  { value: "small_official", label: "Oficiais de Loja", tier: "SMALL_OFFICIAL" },
+  { value: "unofficial", label: "Comunitários", tier: "UNOFFICIAL" },
+  { value: "ranked", label: "Classificatório", tier: "RANKED" },
+  { value: "team", label: "Equipe (Trios)", tier: "TEAM" },
+] as const;
+
 /** Agrupa uma lista de carta por tipo, na ordem que faz sentido pra montagem de deck
  *  (unidade primeiro, recurso por último) — usado onde a listagem de carta pode
  *  alternar entre "tudo junto" e "separado por tipo" (deckbuilder, binder). */

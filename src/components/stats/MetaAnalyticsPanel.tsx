@@ -67,7 +67,7 @@ const QUADRANT_CONFIG: Record<MetaQuadrant, {
   },
 };
 
-export function MetaAnalyticsPanel() {
+export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; token: number } | null } = {}) {
   const [archetypes, setArchetypes] = useState<ArchetypeSummary[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [breakdown, setBreakdown] = useState<ArchetypeMetaBreakdown | null>(null);
@@ -97,12 +97,20 @@ export function MetaAnalyticsPanel() {
       .finally(() => setLoadingBreakdown(false));
   }, [selectedKey]);
 
+  // Deep-link vindo do Power Rankings ("Explorar Núcleos") -- token muda a cada clique
+  // pra forçar o foco mesmo se o usuário clicar duas vezes seguidas no mesmo arquétipo.
+  useEffect(() => {
+    if (!focusKey) return;
+    setSelectedKey(focusKey.key);
+    document.getElementById("atmi-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusKey]);
+
   const activeArchetype = useMemo(() => {
     return archetypes.find((a) => a.key === selectedKey) || null;
   }, [archetypes, selectedKey]);
 
   return (
-    <div className="space-y-6">
+    <div id="atmi-panel" className="space-y-6 scroll-mt-24">
       {/* Header com estilo tático militar Anaheim HUB */}
       <Card className="panel-cut rounded-none border-primary/40 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950">
         <CardContent className="p-6">

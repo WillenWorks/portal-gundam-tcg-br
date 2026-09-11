@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 
 type HostedEventParticipant = {
   id: string;
@@ -73,6 +74,8 @@ type HostedEvent = {
   status: "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   seasonId?: string | null;
   seasonRef?: { id: string; code: string; name: string } | null;
+  tier?: string;
+  vodUrls?: string[];
   participants?: HostedEventParticipant[];
   rounds?: HostedEventRound[];
 };
@@ -101,7 +104,7 @@ const MATCH_RESULT_LABEL: Record<HostedEventMatchResult, string> = {
   BYE: "Bye (folga)",
 };
 
-const emptyForm = { id: "", name: "", description: "", format: "constructed", venueName: "", city: "", country: "", dateStart: "", maxPlayers: "", status: "DRAFT" as HostedEvent["status"], seasonId: "" };
+const emptyForm = { id: "", name: "", description: "", format: "constructed", venueName: "", city: "", country: "", dateStart: "", maxPlayers: "", status: "DRAFT" as HostedEvent["status"], seasonId: "", tier: "UNOFFICIAL", vodUrls: "" };
 
 function FieldBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -181,6 +184,8 @@ export default function OrganizerPage() {
       maxPlayers: event.maxPlayers != null ? String(event.maxPlayers) : "",
       status: event.status,
       seasonId: event.seasonId || "",
+      tier: event.tier || "UNOFFICIAL",
+      vodUrls: (event.vodUrls || []).join("\n"),
     } : emptyForm);
     setModalOpen(true);
   };
@@ -199,6 +204,8 @@ export default function OrganizerPage() {
       maxPlayers: form.maxPlayers ? Number(form.maxPlayers) : null,
       status: form.status,
       seasonId: form.seasonId || null,
+      tier: form.tier,
+      vodUrls: form.vodUrls.split("\n").map((line) => line.trim()).filter(Boolean),
     };
     try {
       if (form.id) await api.updateHostedEvent(form.id, payload);
@@ -517,7 +524,16 @@ export default function OrganizerPage() {
                 {seasons.map((season) => <option key={season.id} value={season.id}>{season.code} — {season.name}{season.isCurrent ? " (atual)" : ""}</option>)}
               </select>
             </FieldBlock>
+            <FieldBlock label="Classificação tática (Central de Eventos)">
+              <select value={form.tier} onChange={(e) => setForm((s) => ({ ...s, tier: e.target.value }))} className="field-shell h-10 px-3 text-sm">
+                {TOURNAMENT_TIER_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </FieldBlock>
           </div>
+          <FieldBlock label="Links de VOD (YouTube, um por linha)">
+            <Textarea value={form.vodUrls} onChange={(e) => setForm((s) => ({ ...s, vodUrls: e.target.value }))} placeholder={"https://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=... (parte 2)"} className="min-h-16 rounded-none" />
+            <p className="mt-1 text-xs text-slate-500">Cada linha vira uma parte da cobertura na visão detalhada pública do evento.</p>
+          </FieldBlock>
           <div className="flex gap-2 pt-2">
             <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={saveEvent}>{form.id ? "Salvar alterações" : "Criar evento"}</Button>
             <Button variant="outline" className="rounded-none" onClick={() => setModalOpen(false)}>Fechar</Button>

@@ -15,6 +15,8 @@ import { api } from "@/lib/api";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
+import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
+import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
 
 const chartConfig = {
   value: { label: "Valor", color: "var(--primary)" },
@@ -43,6 +45,11 @@ export default function StatsPage() {
   const [seasons, setSeasons] = useState<any[]>([]);
   const [metagame, setMetagame] = useState<{ season: { id: string; code: string; name: string } | null; setId: string | null; totalDecks: number; topCards: any[]; colorDistribution: any[]; colorCombos: any[] } | null>(null);
   const [metagameLoading, setMetagameLoading] = useState(true);
+  // Fase 2 -- deep-link do Power Rankings ("Explorar Núcleos") pro painel ATMI/VEDA
+  // abaixo. token incrementa a cada clique pra forçar o foco mesmo em cliques repetidos
+  // no mesmo arquétipo (ver useEffect de focusKey em MetaAnalyticsPanel).
+  const [atmiFocusKey, setAtmiFocusKey] = useState<{ key: string; token: number } | null>(null);
+  const handleExploreArchetype = (key: string) => setAtmiFocusKey((prev) => ({ key, token: (prev?.token ?? 0) + 1 }));
 
   useEffect(() => {
     Promise.all([api.health(), api.listSets(), api.listCards(), api.listPublicDecks(), api.listTournaments(), api.listSeasons()])
@@ -461,6 +468,9 @@ export default function StatsPage() {
           </CardContent>
         </Card>
 
+        {/* Fase 2 -- Power Rankings semanal (só torneio reportado, ver §2.3/§5). */}
+        <PowerRankingsPanel seasonId={selectedSeasonId} setId={selectedSetId === ALL_VALUE ? undefined : selectedSetId} onExploreArchetype={handleExploreArchetype} />
+
         <div className="grid gap-6 xl:grid-cols-2">
           <Card className="panel-cut rounded-none surface-panel">
             <CardContent className="p-6">
@@ -528,7 +538,10 @@ export default function StatsPage() {
         </div>
         
         {/* Inteligência Algorítmica de Metagame ATMI */}
-        <MetaAnalyticsPanel />
+        <MetaAnalyticsPanel focusKey={atmiFocusKey} />
+
+        {/* Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4/§5). */}
+        <MatchupMatrixPanel seasonId={selectedSeasonId} />
 
         {/* Arquétipos Populares & Sinergia de Metagame */}
         <Card className="panel-cut rounded-none border-primary/30 hero-surface">
