@@ -136,9 +136,36 @@ export interface ClassifiedMetaCard {
   quadrant: MetaQuadrant;
 }
 
+export interface SourceDeckEntry {
+  id: string;
+  name: string;
+  shareId?: string;
+  author: string;
+  tournament?: string;
+  placement: string;
+  date?: string;
+}
+
+export interface CoreBuildSummary {
+  coreCards: Array<ClassifiedMetaCard & { recommendedCopies: number }>;
+  coreCardCount: number;
+  suggestedCards: Array<ClassifiedMetaCard & { recommendedCopies: number }>;
+}
+
+export interface CardUsageInfo {
+  deckCount: number;
+  totalDecks: number;
+  presenceRate: number;
+  avgCopies: number;
+  tier?: "STAPLE" | "KEY" | "COMMON" | "TECH";
+  copyCounts?: Record<1 | 2 | 3 | 4, number>;
+}
+
 export interface ArchetypeMetaBreakdown {
   archetype: ArchetypeSummary;
   totalDecksSampled: number;
+  sourceDecks?: SourceDeckEntry[];
+  coreBuild?: CoreBuildSummary;
   quadrants: {
     core: ClassifiedMetaCard[];
     staples: ClassifiedMetaCard[];
@@ -609,7 +636,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getCardUsageStats: (cardCodes: string[]) =>
-    request<Record<string, { deckCount: number; totalDecks: number; presenceRate: number; avgCopies: number }>>("/cards/usage-stats", {
+    request<Record<string, CardUsageInfo>>("/cards/usage-stats", {
       method: "POST",
       body: JSON.stringify({ cardCodes }),
     }, { ttlMs: 60_000 }),

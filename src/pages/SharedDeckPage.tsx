@@ -1,19 +1,14 @@
-/* Deck compartilhado v12.0 — Arsenal Tático da OZ & Laboratório Anaheim HUB
- * Identidade visual própria militar-tecnológica 100% em PT-BR.
- * Métricas: Cores usadas, cartas por cor, tipos, histogramas de Custo, Nível, AP e HP,
- * Curva Média, Diagrama e Gauge de Sinergia, Totais/Porcentagens de Metagame (Staples, Engine, Techs, Comum),
- * Taxa de uso nas cartas (% e total de decks), Probabilidade de Turno 1 e Turno 2,
- * e Simulador de Draw (Mão Inicial). */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useRoute } from "wouter";
+import { toast } from "sonner";
 import {
   Activity,
-  ArrowLeft,
   BarChart3,
-  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Database,
   Download,
   ExternalLink,
   Eye,
@@ -21,61 +16,84 @@ import {
   Gauge,
   Heart,
   Layers,
-  PieChart,
   Shield,
+  ShieldCheck,
   Sparkles,
-  Swords,
   Wrench,
   Zap,
 } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-import ozHangarBanner from "@/assets/home/oz_deck_hangar.jpg";
-import { api, mapApiCard, type ApiDeck } from "@/lib/api";
+import {
+  api,
+  type ApiDeck,
+  type ArchetypeMetaBreakdown,
+  type CardUsageInfo,
+  type SourceDeckEntry,
+} from "@/lib/api";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS } from "@/lib/deck-legality";
-import { calculateDeckCostLevelCurve, buildLevelCurve } from "@/lib/deck-level-stats";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
-import { TelemetryHistogram } from "@/components/deck/TelemetryHistogram";
+import { MetricTooltip } from "@/components/deck/MetricTooltip";
 import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
-import { detectDeckTokens, type DetectedToken } from "@/lib/deck-tokens";
+import { StatDetailModal, type StatDetailRow } from "@/components/deck/StatDetailModal";
+import { BuildCoreDeckModal, type CoreCardItem } from "@/components/deck/BuildCoreDeckModal";
+import { SourceDecksModal } from "@/components/deck/SourceDecksModal";
+import { VedaTelemetryAssistant } from "@/components/deck/VedaTelemetryAssistant";
+
+import {
+  computeUnifiedDeckTelemetry,
+  getCardMetagameTier,
+  LOW_COST_MAX,
+  LOW_LEVEL_MAX,
+  METAGAME_TIERS,
+  type DeckCardModel,
+} from "@/lib/deck-analytics-engine";
+import { detectDeckTokens } from "@/lib/deck-tokens";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
+import { mapApiCard } from "@/lib/api";
+import type { CardRecord } from "@/modules/core/types";
 
-type DeckRow = ReturnType<typeof mapApiCard> & { quantity: number; section: string };
+import ozHangarBanner from "@/assets/oz-hangar-deck-banner.jpg";
 
-interface CardUsageInfo {
-  deckCount: number;
-  totalDecks: number;
-  presenceRate: number;
-  avgCopies: number;
-}
+const DECK_MAIN_SIZE = 50;
+const DECK_RESOURCE_SIZE = 10;
+const NON_COUNTED_SECTIONS = new Set(["resource", "ex_base", "ex_resource"]);
 
-/** Combinação hipergeométrica exata: nCr */
-function combinations(n: number, r: number): number {
-  if (r < 0 || r > n) return 0;
-  if (r === 0 || r === n) return 1;
-  let c = 1;
-  for (let i = 1; i <= r; i++) {
-    c = (c * (n - (r - i))) / i;
-  }
-  return c;
-}
+const chartConfig = {
+  quantity: { label: "Quantidade", color: "var(--primary)" },
+  value: { label: "Quantidade", color: "var(--primary)" },
+} satisfies ChartConfig;
 
-/** Probabilidade de comprar ao menos 1 carta válida em uma amostra sem reposição */
-function hypergeometricAtLeastOne(popSize: number, successCount: number, sampleSize: number): number {
-  if (popSize <= 0 || sampleSize <= 0) return 0;
-  if (successCount <= 0) return 0;
-  if (successCount >= popSize) return 1;
-  const failures = popSize - successCount;
-  if (failures < sampleSize) return 1;
-  const pZero = combinations(failures, sampleSize) / combinations(popSize, sampleSize);
-  return Math.max(0, Math.min(1, 1 - pZero));
-}
+type DeckRow = CardRecord & { quantity: number; section: string };
 
+/** Tile de Carta no Deck Compartilhado com Indicadores de Metagame da Comunidade */
 function ReadOnlyCardTile({
   row,
   usage,
@@ -86,8 +104,18 @@ function ReadOnlyCardTile({
   onPreview: () => void;
 }) {
   const image = row.imageMediumUrl || row.imageUrl;
+  // presenceRate no backend varia de 0 a 100
+  const presence = usage
+    ? usage.presenceRate <= 1 && usage.presenceRate > 0
+      ? usage.presenceRate * 100
+      : usage.presenceRate
+    : 0;
+  const tierStyle = getCardMetagameTier(presence);
+
   return (
-    <div className="flex flex-col border border-white/10 bg-slate-950/80 transition-all hover:border-sky-400 hover:shadow-lg hover:shadow-sky-500/15">
+    <div
+      className={`flex flex-col border ${tierStyle.borderClass} bg-slate-950/90 transition-all hover:scale-[1.02] hover:shadow-xl relative group`}
+    >
       <button
         type="button"
         onClick={onPreview}
@@ -108,12 +136,12 @@ function ReadOnlyCardTile({
           </div>
         )}
 
-        {/* Quantidade no topo direito */}
-        <span className="absolute right-1 top-1 flex size-6 items-center justify-center bg-sky-500 font-mono text-xs font-black text-slate-950 shadow-md">
+        {/* Quantidade no deck (canto superior direito) */}
+        <span className="absolute right-1 top-1 flex size-6 items-center justify-center bg-primary font-mono text-xs font-black text-primary-foreground shadow-md">
           {row.quantity}x
         </span>
 
-        {/* Custo no topo esquerdo */}
+        {/* Custo (canto superior esquerdo) */}
         {typeof row.cost === "number" && (
           <span className="absolute left-1 top-1 flex size-5 items-center justify-center bg-slate-950/90 border border-white/20 font-mono text-[10px] font-bold text-amber-300">
             {row.cost}
@@ -129,20 +157,48 @@ function ReadOnlyCardTile({
         </div>
       </button>
 
-      {/* Taxa de Uso da Carta no Metagame (exibida diretamente na carta) */}
-      <div className="border-t border-white/10 bg-slate-950 p-1 text-[9px] font-mono text-slate-400 leading-tight">
+      {/* Painel Tático Inferior: Tier, Taxa de Uso e Seletor de Cópias */}
+      <div className="border-t border-white/10 bg-slate-950 p-1.5 text-[10px] font-mono text-slate-300 space-y-1">
         {usage ? (
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-sky-400 font-bold">
-              {Math.round(usage.presenceRate * 100)}% decks
-            </span>
-            <span className="text-slate-400 truncate">
-              ({usage.deckCount}/{usage.totalDecks}) · {usage.avgCopies}x
-            </span>
-          </div>
+          <>
+            <div className="flex items-center justify-between gap-1">
+              <span className={`px-1 py-0.2 border text-[9px] font-semibold uppercase ${tierStyle.badgeClass}`}>
+                {tierStyle.label.split(" / ")[0]}
+              </span>
+              <span className="font-bold text-white font-mono">
+                {presence.toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[9px] text-slate-400">
+              <span>{usage.deckCount}/{usage.totalDecks} decks</span>
+              <span>Méd: {usage.avgCopies ? usage.avgCopies.toFixed(1) : "0.0"}x</span>
+            </div>
+          </>
         ) : (
-          <span className="text-slate-400 block truncate">{row.code}</span>
+          <div className="text-[9px] text-slate-500 text-center py-0.5">
+            Sem dados de meta
+          </div>
         )}
+
+        {/* Pílulas de Quantidade de Cópias (1 2 3 4) - destaque na cópia ativa deste deck */}
+        <div className="grid grid-cols-4 gap-0.5 pt-0.5">
+          {[1, 2, 3, 4].map((copyNum) => {
+            const isActive = row.quantity === copyNum;
+            return (
+              <div
+                key={copyNum}
+                className={`flex items-center justify-center py-0.5 text-[9px] font-bold transition-all ${
+                  isActive
+                    ? `${tierStyle.badgeClass} font-mono shadow-sm border`
+                    : "bg-white/5 text-slate-600 border border-white/5"
+                }`}
+                title={`${copyNum} cópia(s)${isActive ? " (em uso neste deck)" : ""}`}
+              >
+                {copyNum}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -177,7 +233,7 @@ function CardPreviewModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
+      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white panel-cut">
         <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
         <div className="relative mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
           {image ? (
@@ -191,7 +247,7 @@ function CardPreviewModal({
                 type="button"
                 onClick={() => onNavigate((index - 1 + rows.length) % rows.length)}
                 title="Carta anterior"
-                className="absolute left-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/80 text-white transition hover:bg-sky-500 hover:text-slate-950"
+                className="absolute left-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/80 text-white transition hover:bg-primary hover:text-primary-foreground"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -199,7 +255,7 @@ function CardPreviewModal({
                 type="button"
                 onClick={() => onNavigate((index + 1) % rows.length)}
                 title="Próxima carta"
-                className="absolute right-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/80 text-white transition hover:bg-sky-500 hover:text-slate-950"
+                className="absolute right-2 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/80 text-white transition hover:bg-primary hover:text-primary-foreground"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -242,24 +298,39 @@ function CardPreviewModal({
 export default function SharedDeckPage() {
   const [, params] = useRoute<{ shareId: string }>("/deck/:shareId");
   const [, navigate] = useLocation();
+
   const [deck, setDeck] = useState<ApiDeck | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Alternância de Abas: Cartas / Estatísticas & Telemetria
+  const [activeTab, setActiveTab] = useState<"cartas" | "estatisticas">("cartas");
+
+  // Modais
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [previewCard, setPreviewCard] = useState<DeckRow | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [openingHandOpen, setOpeningHandOpen] = useState(false);
+  const [buildCoreModalOpen, setBuildCoreModalOpen] = useState(false);
+  const [sourceDecksModalOpen, setSourceDecksModalOpen] = useState(false);
+
+  // Modal de Detalhes Estatísticos (mesmo do Deckbuilder)
+  const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
+  const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
+
+  // Detalhamento do cálculo hipergeométrico expansível
+  const [handOddsBreakdownOpen, setHandOddsBreakdownOpen] = useState(false);
 
   // Curtidas
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
-  // Tokens Oficiais carregados da API
-  const [officialTokens, setOfficialTokens] = useState<any[]>([]);
-
-  // Mapa de taxa de uso de cartas no metagame
+  // Dados Auxiliares
   const [cardUsageMap, setCardUsageMap] = useState<Record<string, CardUsageInfo>>({});
+  const [officialTokens, setOfficialTokens] = useState<any[]>([]);
+  const [archetypeMeta, setArchetypeMeta] = useState<ArchetypeMetaBreakdown | null>(null);
 
-  // Filtro interativo nas pílulas de cartas
+  // Pílula de filtro ativa na visualização de cartas
   const [activeFilterPill, setActiveFilterPill] = useState<{
     key: "type" | "color" | "trait" | "link" | "quick" | "burst";
     value: string;
@@ -268,6 +339,7 @@ export default function SharedDeckPage() {
   useEffect(() => {
     if (!params?.shareId) return;
     setLoading(true);
+
     api
       .getSharedDeck(params.shareId)
       .then((loadedDeck) => {
@@ -278,7 +350,7 @@ export default function SharedDeckPage() {
           api.recordDeckView(loadedDeck.id).catch(() => {});
         }
 
-        // Carrega estatísticas de metagame para todas as cartas do deck
+        // Carrega estatísticas reais de metagame para todas as cartas do deck
         const codes = Array.from(
           new Set(
             loadedDeck.items
@@ -292,6 +364,24 @@ export default function SharedDeckPage() {
             .then((statsMap) => setCardUsageMap(statsMap || {}))
             .catch((err) => console.error("Falha ao carregar taxa de uso das cartas:", err));
         }
+
+        // Tenta buscar arquétipo para recuperar sourceDecks e coreBuild oficiais
+        api
+          .getMetaArchetypes()
+          .then((archetypes) => {
+            if (archetypes && archetypes.length > 0) {
+              const matched =
+                archetypes.find((a) => a.key === (loadedDeck as any).archetypeId) ||
+                archetypes[0];
+              if (matched) {
+                api
+                  .getArchetypeBreakdown(matched.key)
+                  .then((bd) => setArchetypeMeta(bd))
+                  .catch(() => {});
+              }
+            }
+          })
+          .catch(() => {});
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -314,7 +404,7 @@ export default function SharedDeckPage() {
     }
   };
 
-  const allRows = useMemo(() => {
+  const allRows: DeckRow[] = useMemo(() => {
     if (!deck) return [];
     return deck.items
       .map((item) => {
@@ -334,7 +424,13 @@ export default function SharedDeckPage() {
 
   const visibleRows = useMemo(() => [...mainRows, ...resourceRows], [mainRows, resourceRows]);
 
-  // Separação entre Unidades e Piloto/Comando/Base
+  // Telemetria Unificada (100% idêntica ao Deckbuilder)
+  const telemetry = useMemo(
+    () => computeUnifiedDeckTelemetry(mainRows as unknown as DeckCardModel[]),
+    [mainRows]
+  );
+
+  // Unidades e Suportes
   const unitRows = useMemo(
     () => mainRows.filter((r) => (r.type || "").toUpperCase() === "UNIT"),
     [mainRows]
@@ -371,167 +467,164 @@ export default function SharedDeckPage() {
     });
   }, [supportRows, activeFilterPill]);
 
-  // Estatísticas e Curvas
-  const stats = useMemo(() => {
-    const mainCount = mainRows.reduce((sum, item) => sum + item.quantity, 0);
-    const resourceCount = resourceRows.reduce((sum, item) => sum + item.quantity, 0);
-    const { avgCostLevel } = calculateDeckCostLevelCurve(mainRows);
-
-    // Cores
-    const colorCounts: Record<string, number> = {};
-    mainRows.forEach((r) => {
-      if (r.color) {
-        colorCounts[r.color] = (colorCounts[r.color] || 0) + r.quantity;
-      }
-    });
-
-    // Tipos
-    const typeCounts: Record<string, number> = {
-      UNIT: 0,
-      PILOT: 0,
-      COMMAND: 0,
-      BASE: 0,
-    };
-    mainRows.forEach((r) => {
-      const t = (r.type || "UNIT").toUpperCase();
-      typeCounts[t] = (typeCounts[t] || 0) + r.quantity;
-    });
-
-    // Curva de custo
-    const costMap = new Map<number, number>();
-    mainRows.forEach((r) => costMap.set(r.cost ?? 0, (costMap.get(r.cost ?? 0) || 0) + r.quantity));
-    const costCurve = [0, 1, 2, 3, 4, 5, 6, 7].map((c) => ({
-      cost: c === 7 ? "7+" : `${c}`,
-      count: c === 7
-        ? Array.from(costMap.entries()).filter(([cost]) => cost >= 7).reduce((acc, [, val]) => acc + val, 0)
-        : costMap.get(c) || 0,
-    }));
-
-    // Curva de nível
-    const levelMap = new Map<number, number>();
-    mainRows.forEach((r) => {
-      if (typeof r.level === "number") {
-        levelMap.set(r.level, (levelMap.get(r.level) || 0) + r.quantity);
-      }
-    });
-    const levelCurve = [1, 2, 3, 4, 5, 6, 7].map((lvl) => ({
-      level: lvl === 7 ? "7+" : `${lvl}`,
-      count: lvl === 7
-        ? Array.from(levelMap.entries()).filter(([l]) => l >= 7).reduce((acc, [, val]) => acc + val, 0)
-        : levelMap.get(lvl) || 0,
-    }));
-
-    // AP / HP das Unidades
-    const units = mainRows.filter((r) => (r.type || "").toUpperCase() === "UNIT");
-    const apBins = [
-      { label: "1000-2000", min: 1000, max: 2000, count: 0 },
-      { label: "3000-4000", min: 3000, max: 4000, count: 0 },
-      { label: "5000-6000", min: 5000, max: 6000, count: 0 },
-      { label: "7000+", min: 7000, max: 99999, count: 0 },
-    ];
-    const hpBins = [
-      { label: "1-2", min: 1, max: 2, count: 0 },
-      { label: "3-4", min: 3, max: 4, count: 0 },
-      { label: "5-6", min: 5, max: 6, count: 0 },
-      { label: "7+", min: 7, max: 99, count: 0 },
-    ];
-
-    units.forEach((u) => {
-      if (typeof u.ap === "number") {
-        const b = apBins.find((bin) => (u.ap ?? 0) >= bin.min && (u.ap ?? 0) <= bin.max);
-        if (b) b.count += u.quantity;
-      }
-      if (typeof u.hp === "number") {
-        const b = hpBins.find((bin) => (u.hp ?? 0) >= bin.min && (u.hp ?? 0) <= bin.max);
-        if (b) b.count += u.quantity;
-      }
-    });
-
-    // Métrica de Jogada Inicial: Turno 1 e Turno 2 (Cálculo Hipergeométrico com Mulligan)
-    // Turno 1: 5 cartas iniciais + 1 compra = 6 cartas. Cartas elegíveis: Custo 1
-    const cost1Cards = mainRows.filter((r) => (r.cost ?? 99) <= 1).reduce((acc, r) => acc + r.quantity, 0);
-    const pT1Raw = hypergeometricAtLeastOne(mainCount, cost1Cards, 6);
-    const pT1Mulligan = 1 - Math.pow(1 - pT1Raw, 2);
-
-    // Turno 2: 5 cartas iniciais + 2 compras = 7 cartas. Cartas elegíveis: Custo <= 2
-    const cost2Cards = mainRows.filter((r) => (r.cost ?? 99) <= 2).reduce((acc, r) => acc + r.quantity, 0);
-    const pT2Raw = hypergeometricAtLeastOne(mainCount, cost2Cards, 7);
-    const pT2Mulligan = 1 - Math.pow(1 - pT2Raw, 2);
-
-    // Sinergia do Deck e Componentes do Diagrama
-    const dominantColorCount = Math.max(...Object.values(colorCounts), 0);
-    const colorCohesionPct = mainCount > 0 ? Math.round((dominantColorCount / mainCount) * 100) : 0;
-    const unitCount = typeCounts["UNIT"] || 0;
-    const pilotCount = typeCounts["PILOT"] || 0;
-    const dockingRatioPct = unitCount > 0 ? Math.min(Math.round((pilotCount / (unitCount * 0.4)) * 100), 100) : 0;
-    const fourCopiesCount = mainRows.filter((r) => r.quantity === 4).length;
-    const consistencyPct = Math.min(Math.round((fourCopiesCount / 8) * 100), 100);
-    const synergyScore = Math.round(colorCohesionPct * 0.4 + dockingRatioPct * 0.35 + consistencyPct * 0.25);
-
-    // Classificação por Base de Metagame
-    let staplesCount = 0;
-    let engineCount = 0;
-    let techsCount = 0;
-    let commonCount = 0;
-
-    mainRows.forEach((r) => {
-      const usage = cardUsageMap[r.code];
-      const rate = usage?.presenceRate ?? 0;
-      if (rate >= 0.55) {
-        staplesCount += r.quantity;
-      } else if (r.trait && /gundam|zaft|orb|zeon|federation|spacy/i.test(r.trait)) {
-        engineCount += r.quantity;
-      } else if (/(?:counter|quick|blocker|burst)/i.test(r.effect || "")) {
-        techsCount += r.quantity;
-      } else {
-        commonCount += r.quantity;
-      }
-    });
-
-    return {
-      mainCount,
-      resourceCount,
-      unique: mainRows.length + resourceRows.length,
-      avgCost: avgCostLevel,
-      colors: Object.keys(colorCounts),
-      colorCounts,
-      typeCounts,
-      costCurve,
-      levelCurve,
-      apBins,
-      hpBins,
-      unitsCount: unitCount,
-      synergyScore,
-      synergyBreakdown: {
-        colorCohesionPct,
-        dockingRatioPct,
-        consistencyPct,
-      },
-      turn1: {
-        eligibleCount: cost1Cards,
-        raw: pT1Raw,
-        mulligan: pT1Mulligan,
-      },
-      turn2: {
-        eligibleCount: cost2Cards,
-        raw: pT2Raw,
-        mulligan: pT2Mulligan,
-      },
-      metagame: {
-        staplesCount,
-        engineCount,
-        techsCount,
-        commonCount,
-      },
-    };
-  }, [mainRows, resourceRows, cardUsageMap]);
-
-  // Tokens detectados nas cartas do deck
+  // Tokens detectados
   const detectedTokens = useMemo(() => {
     return detectDeckTokens(mainRows, officialTokens);
   }, [mainRows, officialTokens]);
 
-  // Agrupamento de Traits e Links para pílulas interativas
+  // Contagem de Metagame com as novas regras da comunidade
+  const metagameCounts = useMemo(() => {
+    let staplesCount = 0;
+    let engineCount = 0;
+    let commonCount = 0;
+    let techsCount = 0;
+
+    mainRows.forEach((r) => {
+      const usage = cardUsageMap[r.code];
+      const presence = usage
+        ? usage.presenceRate <= 1 && usage.presenceRate > 0
+          ? usage.presenceRate * 100
+          : usage.presenceRate
+        : 0;
+
+      if (presence >= 75) staplesCount += r.quantity;
+      else if (presence >= 50) engineCount += r.quantity;
+      else if (presence >= 25) commonCount += r.quantity;
+      else techsCount += r.quantity;
+    });
+
+    return { staplesCount, engineCount, commonCount, techsCount };
+  }, [mainRows, cardUsageMap]);
+
+  // Montagem das cartas do Núcleo do Arquétipo (Core Build)
+  const coreBuildCards: CoreCardItem[] = useMemo(() => {
+    if (archetypeMeta?.coreBuild?.coreCards && archetypeMeta.coreBuild.coreCards.length > 0) {
+      return archetypeMeta.coreBuild.coreCards.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        namePt: c.namePt,
+        imageUrl: c.imageUrl,
+        imageMediumUrl: c.imageMediumUrl,
+        color: c.color,
+        cost: c.cost,
+        level: c.level,
+        type: c.cardType,
+        presenceRate: c.inclusionRate <= 1 ? c.inclusionRate * 100 : c.inclusionRate,
+        recommendedCopies: c.recommendedCopies || 4,
+      }));
+    }
+
+    // Fallback inteligente: filtra cartas do deck atual com taxa >= 50%
+    return mainRows
+      .filter((r) => {
+        const usage = cardUsageMap[r.code];
+        const rate = usage
+          ? usage.presenceRate <= 1 && usage.presenceRate > 0
+            ? usage.presenceRate * 100
+            : usage.presenceRate
+          : 0;
+        return rate >= 50 || r.quantity >= 3;
+      })
+      .map((r) => {
+        const usage = cardUsageMap[r.code];
+        const presence = usage
+          ? usage.presenceRate <= 1 && usage.presenceRate > 0
+            ? usage.presenceRate * 100
+            : usage.presenceRate
+          : 100;
+        return {
+          id: r.id,
+          code: r.code,
+          name: r.name,
+          namePt: r.namePt,
+          imageUrl: r.imageUrl,
+          imageMediumUrl: r.imageMediumUrl,
+          color: r.color,
+          cost: r.cost,
+          level: r.level,
+          type: r.type,
+          presenceRate: presence,
+          recommendedCopies: usage?.avgCopies ? Math.round(usage.avgCopies) : r.quantity,
+        };
+      });
+  }, [archetypeMeta, mainRows, cardUsageMap]);
+
+  // Sugestões complementares para o Core Build Modal (25% a 49%)
+  const suggestedCoreCards: CoreCardItem[] = useMemo(() => {
+    if (archetypeMeta?.coreBuild?.suggestedCards && archetypeMeta.coreBuild.suggestedCards.length > 0) {
+      return archetypeMeta.coreBuild.suggestedCards.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        namePt: c.namePt,
+        imageUrl: c.imageUrl,
+        imageMediumUrl: c.imageMediumUrl,
+        color: c.color,
+        cost: c.cost,
+        level: c.level,
+        type: c.cardType,
+        presenceRate: c.inclusionRate <= 1 ? c.inclusionRate * 100 : c.inclusionRate,
+        recommendedCopies: c.recommendedCopies || 2,
+      }));
+    }
+
+    return mainRows
+      .filter((r) => {
+        const usage = cardUsageMap[r.code];
+        const rate = usage
+          ? usage.presenceRate <= 1 && usage.presenceRate > 0
+            ? usage.presenceRate * 100
+            : usage.presenceRate
+          : 0;
+        return rate >= 25 && rate < 50;
+      })
+      .map((r) => {
+        const usage = cardUsageMap[r.code];
+        const presence = usage
+          ? usage.presenceRate <= 1 && usage.presenceRate > 0
+            ? usage.presenceRate * 100
+            : usage.presenceRate
+          : 30;
+        return {
+          id: r.id,
+          code: r.code,
+          name: r.name,
+          namePt: r.namePt,
+          imageUrl: r.imageUrl,
+          imageMediumUrl: r.imageMediumUrl,
+          color: r.color,
+          cost: r.cost,
+          level: r.level,
+          type: r.type,
+          presenceRate: presence,
+          recommendedCopies: usage?.avgCopies ? Math.round(usage.avgCopies) : r.quantity,
+        };
+      });
+  }, [archetypeMeta, mainRows, cardUsageMap]);
+
+  // Lista de Source Decks da Amostra
+  const sourceDecks: SourceDeckEntry[] = useMemo(() => {
+    if (archetypeMeta?.sourceDecks && archetypeMeta.sourceDecks.length > 0) {
+      return archetypeMeta.sourceDecks;
+    }
+    if (deck) {
+      return [
+        {
+          id: deck.id,
+          name: deck.name,
+          shareId: deck.shareId,
+          author: deck.user?.displayName || deck.user?.username || "Piloto Registrado",
+          tournament: "Arsenal Competitivo Gundam TCG",
+          placement: "#1",
+          date: deck.updatedAt || deck.createdAt,
+        },
+      ];
+    }
+    return [];
+  }, [archetypeMeta, deck]);
+
+  // Pílulas interativas de Traits e Links
   const { traitList, linkList, quickCountersCount, burstCount } = useMemo(() => {
     const traits = new Map<string, number>();
     const links = new Map<string, number>();
@@ -539,21 +632,15 @@ export default function SharedDeckPage() {
     let burst = 0;
 
     mainRows.forEach((r) => {
-      if (r.trait) {
-        traits.set(r.trait, (traits.get(r.trait) || 0) + r.quantity);
-      }
+      if (r.trait) traits.set(r.trait, (traits.get(r.trait) || 0) + r.quantity);
       if (r.effect) {
         const linkMatch = r.effect.match(/\[(?:Link|Pair)\s*:\s*([^\]]+)\]/i);
         if (linkMatch && linkMatch[1]) {
           const lName = linkMatch[1].trim();
           links.set(lName, (links.get(lName) || 0) + r.quantity);
         }
-        if (/(?:quick|counter|blocker)/i.test(r.effect)) {
-          quick += r.quantity;
-        }
-        if (/burst/i.test(r.effect)) {
-          burst += r.quantity;
-        }
+        if (/(?:quick|counter|blocker)/i.test(r.effect)) quick += r.quantity;
+        if (/burst/i.test(r.effect)) burst += r.quantity;
       }
     });
 
@@ -564,6 +651,12 @@ export default function SharedDeckPage() {
       burstCount: burst,
     };
   }, [mainRows]);
+
+  // Abre modal de detalhe filtrando o deck principal (mesmo do Deckbuilder)
+  const openStatDetail = (label: string, value: string, matcher: (row: DeckRow) => boolean) => {
+    setStatDetail({ label, value });
+    setStatDetailRows(mainRows.filter(matcher));
+  };
 
   // Exportação para MSA / Wing Table
   const exportMSA = async () => {
@@ -600,7 +693,7 @@ export default function SharedDeckPage() {
         entries,
       })
     );
-    toast.success("Deck clonado! Abrindo no Hangar de Criação...");
+    toast.success("Deck clonado! Abrindo no Hangar OZ...");
     navigate("/deckbuilder/novo");
   };
 
@@ -608,11 +701,29 @@ export default function SharedDeckPage() {
     setActiveFilterPill((prev) => (prev?.key === key && prev?.value === value ? null : { key, value }));
   };
 
+  // Conversão para cache de cartas para o VedaTelemetryAssistant
+  const cardCacheMap = useMemo(() => {
+    const cache: Record<string, CardRecord> = {};
+    allRows.forEach((r) => {
+      cache[r.id] = r;
+      if (r.printId) cache[r.printId] = r;
+    });
+    return cache;
+  }, [allRows]);
+
+  const deckEntries = useMemo(() => {
+    return allRows.map((r) => ({
+      cardId: r.id,
+      quantity: r.quantity,
+      section: r.section as "main" | "resource" | "ex_base" | "ex_resource",
+    }));
+  }, [allRows]);
+
   if (loading) {
     return (
       <PublicShell breadcrumbs={[{ label: "Decks", href: "/decks" }, { label: "Carregando..." }]}>
         <div className="py-24 text-center">
-          <div className="mx-auto size-12 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+          <div className="mx-auto size-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-400 font-mono">
             Acessando especificações táticas no terminal Anaheim HUB...
           </p>
@@ -648,8 +759,8 @@ export default function SharedDeckPage() {
       description={deck.user?.displayName || deck.user?.username || "Piloto da OZ"}
     >
       <div className="space-y-6">
-        {/* HERO CARD COM BANNER PADRÃO OZ HANGAR */}
-        <Card className="panel-cut rounded-none border-sky-500/30 hero-surface overflow-hidden">
+        {/* BANNER DO HANGAR OZ COM METADADOS DO DECK */}
+        <Card className="panel-cut rounded-none border-primary/30 hero-surface overflow-hidden">
           <div className="relative min-h-[220px] sm:min-h-[260px] w-full overflow-hidden border-b border-white/10 bg-slate-950">
             <img
               src={deck.coverImage || ozHangarBanner}
@@ -671,10 +782,9 @@ export default function SharedDeckPage() {
                   {deck.name}
                 </h1>
 
-                {/* Exibição limpa do Piloto (sem a frase redundante) */}
                 <p className="mt-1.5 text-xs text-slate-300 flex items-center gap-2">
                   <span className="font-mono text-slate-400 uppercase text-[11px]">Piloto / Autor:</span>
-                  <strong className="text-sky-300 font-semibold text-sm">
+                  <strong className="text-primary font-semibold text-sm">
                     {deck.user?.displayName || deck.user?.username || "Piloto Anônimo"}
                   </strong>
                 </p>
@@ -709,17 +819,19 @@ export default function SharedDeckPage() {
               {/* Badges de calibração */}
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="rounded-none border-sky-400/40 bg-sky-950/30 text-sky-300 text-xs font-mono">
-                  {stats.mainCount}/{DECK_MAIN_SIZE} Deck Principal
+                  {telemetry.mainDeckCount}/{DECK_MAIN_SIZE} Deck Principal
                 </Badge>
                 <Badge className="rounded-none border-white/20 bg-white/5 text-slate-300 text-xs font-mono">
-                  {stats.resourceCount}/{DECK_RESOURCE_SIZE} Recursos
-                </Badge>
-                <Badge className="rounded-none border-amber-400/40 bg-amber-950/30 text-amber-300 text-xs font-mono">
-                  Curva Média: {stats.avgCost}
+                  {resourceRows.reduce((acc, r) => acc + r.quantity, 0)}/{DECK_RESOURCE_SIZE} Recursos
                 </Badge>
                 <Badge className="rounded-none border-emerald-500/40 bg-emerald-950/30 text-emerald-300 text-xs font-mono">
-                  Sinergia: {stats.synergyScore}%
+                  Sinergia: {telemetry.synergyScore}/100 ({telemetry.synergyLabel})
                 </Badge>
+                {telemetry.dominantColor && (
+                  <Badge className="rounded-none border-primary/40 bg-primary/10 text-primary text-xs font-mono">
+                    Cor: {telemetry.dominantColor}
+                  </Badge>
+                )}
               </div>
 
               {/* Ações Táticas: Simular Draw, Exportar Imagem, Clonar */}
@@ -738,7 +850,7 @@ export default function SharedDeckPage() {
                   variant="outline"
                   size="sm"
                   onClick={exportMSA}
-                  className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
+                  className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10 font-mono"
                 >
                   <Copy className="mr-1.5 size-3.5" /> Copiar MSA
                 </Button>
@@ -754,16 +866,16 @@ export default function SharedDeckPage() {
                 <Button
                   size="sm"
                   onClick={cloneToDeckbuilder}
-                  className="rounded-none bg-sky-600 hover:bg-sky-500 text-white font-heading uppercase text-xs tracking-wider shadow-lg shadow-sky-600/20"
+                  className="rounded-none bg-primary hover:bg-primary/90 text-primary-foreground font-heading uppercase text-xs tracking-wider shadow-lg shadow-primary/20"
                 >
-                  <Wrench className="mr-1.5 size-3.5" /> Clonar no Hangar
+                  <Wrench className="mr-1.5 size-3.5" /> Clonar no Hangar OZ
                 </Button>
               </div>
             </div>
 
             {deck.notes && (
               <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-300 leading-relaxed">
-                <span className="font-semibold text-sky-400 uppercase tracking-wider font-mono mr-2">
+                <span className="font-semibold text-primary uppercase tracking-wider font-mono mr-2">
                   Diretrizes do Piloto:
                 </span>
                 {deck.notes}
@@ -772,18 +884,95 @@ export default function SharedDeckPage() {
           </CardContent>
         </Card>
 
-        {/* LAYOUT BALANCEADO: ESQUERDA (CARTAS) / DIREITA (TELEMETRIA ANAHEIM HUB) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* COLUNA ESQUERDA: CARTAS DO DECK (col-span-7) */}
-          <div className="lg:col-span-7 space-y-6">
+        {/* NAVEGAÇÃO DE ABAS: CARTAS vs. ESTATÍSTICAS & TELEMETRIA */}
+        <div className="flex border-b border-white/10 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("cartas")}
+            className={`px-6 py-3 font-heading uppercase tracking-wider text-sm border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === "cartas"
+                ? "border-primary text-primary bg-primary/10 font-bold"
+                : "border-transparent text-slate-400 hover:text-white"
+            }`}
+          >
+            <Layers className="size-4" />
+            <span>Decklist & Estrutura</span>
+            <span className="text-xs font-mono ml-1 text-slate-400">({telemetry.mainDeckCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("estatisticas")}
+            className={`px-6 py-3 font-heading uppercase tracking-wider text-sm border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === "estatisticas"
+                ? "border-primary text-primary bg-primary/10 font-bold"
+                : "border-transparent text-slate-400 hover:text-white"
+            }`}
+          >
+            <BarChart3 className="size-4" />
+            <span>Estatísticas & Telemetria</span>
+            <Badge className="rounded-none border-primary/50 bg-primary/20 text-primary font-mono text-[10px] ml-1">
+              VEDA
+            </Badge>
+          </button>
+        </div>
+
+        {/* ======================================================== */}
+        {/* ABA 1: DECKLIST & ESTRUTURA                              */}
+        {/* ======================================================== */}
+        {activeTab === "cartas" ? (
+          <div className="space-y-6">
+            {/* BARRA SUPERIOR DE LEGENDA TÁTICA E NÚCLEO DO ARQUÉTIPO */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 border border-white/10 bg-slate-900/60 panel-cut">
+              <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                <span className="text-slate-400 uppercase tracking-wider text-[11px] font-bold">Classificação:</span>
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  <span>Staple (≥75%)</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-amber-400">
+                  <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                  <span>Peça-Chave / Engine (≥50%)</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-sky-400">
+                  <span className="size-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                  <span>Comum / Suporte (≥25%)</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-slate-400">
+                  <span className="size-2 rounded-full bg-slate-500" />
+                  <span>Opção Tática / Tech (&lt;25%)</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSourceDecksModalOpen(true)}
+                  className="rounded-none border-white/20 bg-white/5 text-xs text-slate-200 hover:text-white font-mono"
+                >
+                  <Database className="size-3.5 mr-1.5 text-primary" />
+                  Amostra ({sourceDecks.length})
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setBuildCoreModalOpen(true)}
+                  className="rounded-none bg-primary text-primary-foreground font-heading uppercase text-xs tracking-wider hover:bg-primary/90 shadow-md shadow-primary/20"
+                >
+                  <Sparkles className="size-3.5 mr-1.5" />
+                  Estrutura do Núcleo ({coreBuildCards.reduce((acc, c) => acc + (c.recommendedCopies || 1), 0)}/50)
+                </Button>
+              </div>
+            </div>
+
+            {/* GRADE DO DECK PRINCIPAL */}
             <Card className="panel-cut rounded-none surface-panel border-white/10">
               <CardContent className="p-5 space-y-6">
-                {/* Header do Deck Principal */}
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-sky-400 inline-block" />
+                    <span className="w-1.5 h-4 bg-primary inline-block" />
                     <h3 className="font-heading text-lg uppercase tracking-wider text-white">
-                      Deck Principal ({stats.mainCount} / {DECK_MAIN_SIZE})
+                      Deck Principal ({telemetry.mainDeckCount} / {DECK_MAIN_SIZE})
                     </h3>
                   </div>
                   {activeFilterPill && (
@@ -791,7 +980,7 @@ export default function SharedDeckPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveFilterPill(null)}
-                      className="text-xs text-rose-400 hover:text-rose-300 h-7 px-2"
+                      className="text-xs text-rose-400 hover:text-rose-300 h-7 px-2 font-mono"
                     >
                       Remover filtro ({activeFilterPill.value}) ✕
                     </Button>
@@ -806,7 +995,7 @@ export default function SharedDeckPage() {
                         Unidades ({filteredUnitRows.reduce((acc, r) => acc + r.quantity, 0)})
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3">
                       {filteredUnitRows.map((row) => (
                         <ReadOnlyCardTile
                           key={`${row.id}-main-unit`}
@@ -821,13 +1010,13 @@ export default function SharedDeckPage() {
 
                 {/* Seção 2: PILOTOS, COMANDOS E BASES */}
                 {filteredSupportRows.length > 0 && (
-                  <div className="space-y-3 pt-2 border-t border-white/10">
+                  <div className="space-y-3 pt-4 border-t border-white/10">
                     <div className="flex items-center justify-between text-xs font-mono text-slate-400">
                       <span className="font-bold text-amber-400 uppercase tracking-wider">
                         Pilotos, Comandos e Bases ({filteredSupportRows.reduce((acc, r) => acc + r.quantity, 0)})
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3">
                       {filteredSupportRows.map((row) => (
                         <ReadOnlyCardTile
                           key={`${row.id}-main-support`}
@@ -845,55 +1034,50 @@ export default function SharedDeckPage() {
                   {/* Tipos de Carta */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                      Tipos de Carta ({Object.keys(stats.typeCounts).filter((t) => stats.typeCounts[t] > 0).length} tipos) ·{" "}
-                      <span className="text-slate-500 italic">Clique para filtrar</span>
+                      Tipos de Carta · <span className="text-slate-500 italic">Clique para filtrar</span>
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(stats.typeCounts)
-                        .filter(([, count]) => count > 0)
-                        .map(([t, count]) => {
-                          const active = activeFilterPill?.key === "type" && activeFilterPill.value === t;
-                          const labelPt =
-                            t === "UNIT" ? "Unidade" : t === "PILOT" ? "Piloto" : t === "COMMAND" ? "Comando" : "Base";
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => togglePill("type", t)}
-                              className={`px-2.5 py-1 text-[11px] font-mono rounded-full border transition-all flex items-center gap-1.5 ${
-                                active
-                                  ? "bg-sky-500 text-slate-950 font-bold border-sky-400"
-                                  : "bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30"
-                              }`}
-                            >
-                              <span className="size-1.5 rounded-full bg-sky-400" />
-                              <span>{labelPt}:</span>
-                              <span className={active ? "text-slate-950" : "text-sky-300 font-bold"}>
-                                {count}
-                              </span>
-                            </button>
-                          );
-                        })}
-
-                      {/* Cores */}
-                      {Object.entries(stats.colorCounts).map(([c, count]) => {
-                        const active = activeFilterPill?.key === "color" && activeFilterPill.value === c;
-                        const hex = (GAME_COLOR_HEX as any)[c] || "#64748b";
+                      {telemetry.typeBreakdown.map((item) => {
+                        const active = activeFilterPill?.key === "type" && activeFilterPill.value === item.name;
                         return (
                           <button
-                            key={c}
+                            key={item.name}
                             type="button"
-                            onClick={() => togglePill("color", c)}
+                            onClick={() => togglePill("type", item.name)}
                             className={`px-2.5 py-1 text-[11px] font-mono rounded-full border transition-all flex items-center gap-1.5 ${
                               active
-                                ? "bg-sky-500 text-slate-950 font-bold border-sky-400"
+                                ? "bg-primary text-primary-foreground font-bold border-primary"
+                                : "bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30"
+                            }`}
+                          >
+                            <span className="size-1.5 rounded-full bg-primary" />
+                            <span>{item.name}:</span>
+                            <span className={active ? "text-primary-foreground" : "text-primary font-bold"}>
+                              {item.value}
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Cores */}
+                      {telemetry.colorBreakdown.map((item) => {
+                        const active = activeFilterPill?.key === "color" && activeFilterPill.value === item.name;
+                        const hex = (GAME_COLOR_HEX as any)[item.name] || "#64748b";
+                        return (
+                          <button
+                            key={item.name}
+                            type="button"
+                            onClick={() => togglePill("color", item.name)}
+                            className={`px-2.5 py-1 text-[11px] font-mono rounded-full border transition-all flex items-center gap-1.5 ${
+                              active
+                                ? "bg-primary text-primary-foreground font-bold border-primary"
                                 : "bg-slate-900/80 border-white/10 text-slate-300 hover:border-white/30"
                             }`}
                           >
                             <span className="size-2 rounded-full" style={{ backgroundColor: hex }} />
-                            <span>{c}:</span>
-                            <span className={active ? "text-slate-950" : "text-white font-bold"}>
-                              {count}
+                            <span>{item.name}:</span>
+                            <span className={active ? "text-primary-foreground" : "text-white font-bold"}>
+                              {item.value}
                             </span>
                           </button>
                         );
@@ -994,10 +1178,10 @@ export default function SharedDeckPage() {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
                     <h3 className="font-heading text-base uppercase text-white">
-                      Deck de Recursos ({stats.resourceCount} / {DECK_RESOURCE_SIZE})
+                      Deck de Recursos ({resourceRows.reduce((acc, r) => acc + r.quantity, 0)} / {DECK_RESOURCE_SIZE})
                     </h3>
                   </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-3">
                     {resourceRows.map((row) => (
                       <ReadOnlyCardTile
                         key={`${row.id}-res`}
@@ -1020,7 +1204,7 @@ export default function SharedDeckPage() {
                   </h3>
                   <div className="flex flex-wrap gap-4">
                     {exBaseRow && (
-                      <div className="w-28">
+                      <div className="w-32">
                         <p className="text-[10px] uppercase font-mono text-amber-400 mb-1">Base EX</p>
                         <ReadOnlyCardTile
                           row={exBaseRow}
@@ -1029,7 +1213,7 @@ export default function SharedDeckPage() {
                       </div>
                     )}
                     {exResourceRow && (
-                      <div className="w-28">
+                      <div className="w-32">
                         <p className="text-[10px] uppercase font-mono text-amber-400 mb-1">Recurso EX</p>
                         <ReadOnlyCardTile
                           row={exResourceRow}
@@ -1042,175 +1226,873 @@ export default function SharedDeckPage() {
               </Card>
             )}
           </div>
-
-          {/* COLUNA DIREITA: TELEMETRIA TÁTICA ANAHEIM HUB (col-span-5) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* BLOCO 1: CURVAS DE COMBATE & HISTOGRAMAS (CUSTO, NÍVEL, AP, HP) */}
-            <Card className="panel-cut rounded-none surface-panel border-white/10">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="size-4 text-sky-400" />
-                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                      Curvas & Telemetria do Mobile Suit
+        ) : (
+          /* ======================================================== */
+          /* ABA 2: ESTATÍSTICAS & TELEMETRIA (100% PARIDADE DECKBUILDER) */
+          /* ======================================================== */
+          <div className="space-y-6">
+            {/* CALIBRAÇÃO TÉCNICA DA LISTA & SINERGIA 0-100 */}
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">
+                      Diagnóstico operacional · Telemetria do Hangar & Sistema VEDA
+                    </p>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                      Calibração Técnica da Lista
+                      <MetricTooltip
+                        metric="leitura-rapida"
+                        what="Cinco checagens rápidas da lista: volume de cartas, variedade, cópias no limite (4x), cobertura por keywords e linha principal (trait dominante)."
+                        howToRead="Borda azul = ok, borda âmbar = vale revisar. É diagnóstico, não bloqueia o deck de ser legal."
+                      />
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400">VEDA-OS</span>
+                  <div className="panel-cut border border-primary/30 bg-primary/10 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">
+                      Sinergia estimada
+                      <MetricTooltip
+                        metric="sinergia-estimada"
+                        what="Nota de 0 a 100 que estima o quão coeso o deck está: pesa cor dominante, trait dominante, cobertura de keywords e variedade de cartas."
+                        howToRead="80+ = sinergia forte; 55–79 = em formação; abaixo = base ainda dispersa. É uma heurística do portal, não uma regra oficial."
+                      />
+                    </p>
+                    <p className="mt-2 font-heading text-4xl heading-portal">{telemetry.synergyScore}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-primary">{telemetry.synergyLabel}</p>
+                  </div>
                 </div>
 
-                {/* Grid 2x2 de Histogramas em Barras Táticas */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <TelemetryHistogram
-                    title="Curva de Custo"
-                    bins={stats.costCurve.map((c, idx) => ({ label: `${c.cost}`, value: idx, count: c.count }))}
-                  />
-                  <TelemetryHistogram
-                    title="Curva de Nível"
-                    bins={stats.levelCurve.map((l, idx) => ({ label: `${l.level}`, value: idx, count: l.count }))}
-                  />
-                  <TelemetryHistogram
-                    title="Distribuição de AP (Poder)"
-                    bins={stats.apBins.map((a, idx) => ({ label: a.label, value: idx, count: a.count }))}
-                  />
-                  <TelemetryHistogram
-                    title="Distribuição de HP (Blindagem)"
-                    bins={stats.hpBins.map((h, idx) => ({ label: h.label, value: idx, count: h.count }))}
-                  />
+                <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {telemetry.diagnostics.map((item) => (
+                    <div
+                      key={item.label}
+                      className={`panel-cut border p-4 ${
+                        item.kind === "ok" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-500/10"
+                      }`}
+                    >
+                      <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">{item.label}</p>
+                      <p className="mt-2 text-sm leading-7 heading-portal">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* BLOCO 2: DIAGRAMA E PORCENTAGEM DE SINERGIA */}
-            <Card className="panel-cut rounded-none surface-panel border-white/10">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Gauge className="size-4 text-emerald-400" />
-                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                      Diagrama de Sinergia da Esquadra
-                    </h3>
-                  </div>
-                  <Badge className="rounded-none border-emerald-500/40 bg-emerald-950/40 text-emerald-300 font-mono text-xs">
-                    {stats.synergyScore}% EFICIÊNCIA
-                  </Badge>
-                </div>
-
-                <div className="space-y-3 pt-1">
-                  {/* Barra 1: Coesão de Cores */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-slate-400">Coesão de Cores ({stats.colors.join("/")}):</span>
-                      <strong className="text-white">{stats.synergyBreakdown.colorCohesionPct}%</strong>
-                    </div>
-                    <div className="h-2 w-full bg-slate-900 border border-white/10">
-                      <div
-                        className="h-full bg-sky-400 transition-all duration-500"
-                        style={{ width: `${stats.synergyBreakdown.colorCohesionPct}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Barra 2: Conexão Piloto / MS (Docking) */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-slate-400">Conexão Piloto / MS ({stats.typeCounts.PILOT}P / {stats.typeCounts.UNIT}MS):</span>
-                      <strong className="text-white">{stats.synergyBreakdown.dockingRatioPct}%</strong>
-                    </div>
-                    <div className="h-2 w-full bg-slate-900 border border-white/10">
-                      <div
-                        className="h-full bg-amber-400 transition-all duration-500"
-                        style={{ width: `${stats.synergyBreakdown.dockingRatioPct}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Barra 3: Consistência de Playsets (4 cópias) */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-slate-400">Consistência de Playsets (4x):</span>
-                      <strong className="text-white">{stats.synergyBreakdown.consistencyPct}%</strong>
-                    </div>
-                    <div className="h-2 w-full bg-slate-900 border border-white/10">
-                      <div
-                        className="h-full bg-emerald-400 transition-all duration-500"
-                        style={{ width: `${stats.synergyBreakdown.consistencyPct}%` }}
-                      />
-                    </div>
-                  </div>
+            {/* IDENTIDADE TÁTICA DA LISTA */}
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Processamento VEDA</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                  Identidade Tática da Lista
+                  <MetricTooltip
+                    metric="identidade-lista"
+                    what="Os pilares do arquétipo que o sistema detectou na lista: cor-base, trait-base, série-base e tipo-base, com quantas cartas sustentam cada um."
+                    howToRead="Quanto mais definidos os quatro, mais focado o deck. Vazio = ainda faltam cartas pro sistema cravar o arquétipo."
+                  />
+                </h3>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {telemetry.archetypeBlocks.length ? (
+                    telemetry.archetypeBlocks.map((block) => (
+                      <div key={block.label} className="panel-cut border surface-strong p-4">
+                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{block.label}</p>
+                        <p className="mt-2 text-lg heading-portal">{block.value}</p>
+                        <p className="mt-2 text-sm text-muted-portal">{block.hint}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-portal">Adicione mais cartas para o sistema identificar melhor o arquétipo.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* BLOCO 3: PROBABILIDADE DE CURVA INICIAL (TURNO 1 & TURNO 2) */}
-            <Card className="panel-cut rounded-none surface-panel border-white/10">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Activity className="size-4 text-sky-400" />
-                    <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                      Dinâmica & Ritmo de Jogo
+            {/* ASSISTENTE DE TELEMETRIA VEDA */}
+            <VedaTelemetryAssistant
+              entries={deckEntries}
+              cardCache={cardCacheMap}
+              onAddCard={(card) => {
+                toast.info(`Para adicionar ${card.namePt || card.name}, use o botão "Clonar no Hangar OZ".`);
+              }}
+              availableCards={allRows}
+            />
+
+            {/* TOP CORES & TOP TRAITS */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de cor</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Top cores do deck
+                    <MetricTooltip
+                      metric="top-cores"
+                      what="Quantas cartas de cada cor há no deck principal, da mais usada pra menos."
+                      howToRead="Um deck usa no máximo 2 cores. Se a 2ª cor aparece com poucas cartas, decida se compensa mantê-la. Clique numa cor pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Um deck só pode ter até 2 cores — se a 2ª cor aparecer com pouca presença, pode ser corte de teste ou fixação demais.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.colorBreakdown.length ? (
+                      telemetry.colorBreakdown.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Cor", item.name, (row) => row.color === item.name)}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="heading-portal">{item.name}</span>
+                            <span className="flex items-center gap-1 text-muted-portal">
+                              {item.value} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div
+                              className="h-full"
+                              style={{ width: `${item.pct}%`, backgroundColor: GAME_COLOR_HEX[item.name] || "#94a3b8" }}
+                            />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de trait</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Top traits do deck
+                    <MetricTooltip
+                      metric="top-traits"
+                      what="As traits (marcadores temáticos, tipo 'Zeon' ou 'White Base Team') que mais se repetem entre as cartas."
+                      howToRead="Trait repetido costuma indicar sinergia real — efeitos que reagem a uma trait específica. Clique pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Traits repetidos indicam sinergia real (habilidade que reage a trait específica) — não só tema visual.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.traitBreakdown.length ? (
+                      telemetry.traitBreakdown.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Trait", item.name, (row) => (row.trait || "Sem trait") === item.name)}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="heading-portal">{item.name}</span>
+                            <span className="flex items-center gap-1 text-muted-portal">
+                              {item.value} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div className="h-full bg-amber-400" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* SÉRIES NO DECK & COMPOSIÇÃO POR TIPO */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Sinergia de série</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Séries no deck
+                    <MetricTooltip
+                      metric="series-no-deck"
+                      what="De quais obras (séries de anime/filme) vêm as cartas do deck."
+                      howToRead="Muitas cartas da mesma série tendem a combinar tematicamente, às vezes mecanicamente. Clique numa série pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Vários cards da mesma série costumam ter sinergia temática (nem sempre mecânica) entre si.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.seriesBreakdown.length ? (
+                      telemetry.seriesBreakdown.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Série", item.name, (row) => (row.series || "Sem série definida") === item.name)}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span className="min-w-0 truncate heading-portal">{item.name}</span>
+                            <span className="flex shrink-0 items-center gap-1 text-muted-portal">
+                              {item.value} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div className="h-full bg-accent" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Composição por tipo</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Tipos no deck
+                    <MetricTooltip
+                      metric="tipos-no-deck"
+                      what="Proporção de Unidade / Piloto / Comando / Base na lista principal."
+                      howToRead="Mostra se o deck tem recurso pra jogo longo ou é só pressão inicial. Clique num tipo pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Unidade/Piloto/Comando/Base em proporção — mostra se o deck tem gás pra jogo tardio ou é só pressão inicial.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.typeBreakdown.length ? (
+                      telemetry.typeBreakdown.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Tipo", item.name, (row) => (row.type || "UNIT").toUpperCase() === item.name.toUpperCase())}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="heading-portal">{item.name}</span>
+                            <span className="flex items-center gap-1 text-muted-portal">
+                              {item.value} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div className="h-full bg-emerald-400" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Adicione cartas ao deck principal para ver a distribuição.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* KEYWORDS DE EFEITO & GATILHO */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Keywords de efeito
+                    <MetricTooltip
+                      metric="keywords-efeito"
+                      what="Quantas cartas têm cada keyword de efeito (Repair, Breach, Blocker, Support...) — o que a carta FAZ."
+                      howToRead="Mais cartas com a mesma keyword = plano mecânico mais consistente. O % é sobre o deck principal. Clique pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    O que a carta FAZ mecanicamente (Repair, Breach, Blocker...) — construção matemática de sinergia, não só tema.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.effectKeywords.length ? (
+                      telemetry.effectKeywords.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Keyword de efeito", item.name, (row) => Boolean(row.keywords?.includes(item.name)))}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="heading-portal">{item.name}</span>
+                            <span className="flex items-center gap-1 text-muted-portal">
+                              {item.count} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div className="h-full bg-primary" style={{ width: `${item.pct}%` }} />
+                          </div>
+                          {item.valueBreakdown ? (
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              {item.valueBreakdown.map(([val, qty]) => `${qty}x ${item.name} ${val}`).join(", ")}
+                            </p>
+                          ) : null}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Nenhuma keyword de efeito detectada ainda neste deck.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Cobertura de keywords</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Keywords de gatilho
+                    <MetricTooltip
+                      metric="keywords-gatilho"
+                      what="Quantas cartas ativam em cada momento do jogo (Deploy, Burst, Once per Turn, Attack...) — QUANDO a carta reage."
+                      howToRead="Ajuda a ver se o deck depende de um único momento do turno. Clique pra ver as cartas."
+                    />
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    QUANDO a carta ativa (Deploy, Burst, Once per Turn...) — ajuda a ver se o deck depende de um momento específico do turno.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    {telemetry.triggerKeywords.length ? (
+                      telemetry.triggerKeywords.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => openStatDetail("Keyword de gatilho", item.name, (row) => Boolean(row.triggerKeywords?.includes(item.name)))}
+                          className="group block w-full text-left transition hover:opacity-80"
+                        >
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="heading-portal">{item.name}</span>
+                            <span className="flex items-center gap-1 text-muted-portal">
+                              {item.count} · {item.pct}%
+                              <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-none bg-white/5">
+                            <div className="h-full bg-accent" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-portal">Nenhuma keyword de gatilho detectada ainda neste deck.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* GRÁFICO 01 (CURVA DE CUSTO) & GRÁFICO 02 (DISTRIBUIÇÃO POR COR) */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 01</p>
+                      <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                        Curva de custo
+                        <MetricTooltip
+                          metric="curva-custo"
+                          what="Quantas cartas do deck principal existem em cada valor de custo."
+                          howToRead="Curva concentrada em custo baixo joga cedo; muita carta cara exige sobreviver até montar recurso. Clique numa barra pra ver as cartas."
+                        />
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="mt-6 h-[260px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <BarChart data={telemetry.curveData}>
+                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="cost" tickLine={false} axisLine={false} />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar
+                          dataKey="quantity"
+                          radius={0}
+                          fill="var(--color-quantity)"
+                          onClick={(entry: any) =>
+                            openStatDetail("Custo", `${entry.cost}`, (row) => String(row.cost) === entry.cost)
+                          }
+                          className="cursor-pointer"
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="panel-cut rounded-none surface-panel">
+                <CardContent className="p-6">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 02</p>
+                  <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                    Distribuição por cor
+                    <MetricTooltip
+                      metric="distribuicao-cor"
+                      what="A mesma contagem de cores do deck, agora em gráfico de pizza."
+                      howToRead="A maior fatia é a cor-base do deck. Clique numa fatia pra ver as cartas."
+                    />
+                  </h3>
+                  <div className="mt-6 h-[260px]">
+                    <ChartContainer config={chartConfig} className="h-full w-full">
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                        <Pie
+                          data={telemetry.colorPieData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={52}
+                          outerRadius={90}
+                          strokeWidth={2}
+                          onClick={(entry: any) =>
+                            openStatDetail("Cor", entry.name, (row) => row.color === entry.name)
+                          }
+                          className="cursor-pointer"
+                        >
+                          {telemetry.colorPieData.map((entry) => (
+                            <Cell key={entry.name} fill={GAME_COLOR_HEX[entry.name] || "#94a3b8"} />
+                          ))}
+                        </Pie>
+                        <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                      </PieChart>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* CONSISTÊNCIA: MÃO INICIAL (PROBABILIDADE HIPERGEOMÉTRICA) */}
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
+                    <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                      Mão inicial
+                      <MetricTooltip
+                        metric="mao-inicial"
+                        what="Probabilidade de a sua mão de abertura (5 cartas compradas do deck principal embaralhado) conter certos tipos de carta. Cálculo hipergeométrico."
+                        howToRead="Quanto maior a %, mais confiável é abrir bem. 'Com 1 mulligan' conta a mão original OU a redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente, não uma troca parcial."
+                      />
                     </h3>
                   </div>
                   <Button
-                    size="sm"
-                    variant="ghost"
+                    variant="outline"
+                    className="rounded-none font-mono text-xs"
+                    disabled={telemetry.mainDeckCount === 0}
                     onClick={() => setOpeningHandOpen(true)}
-                    className="text-xs text-sky-400 hover:text-sky-300 h-7 px-2 font-mono"
                   >
-                    Testar Draw ➔
+                    <Eye className="mr-2 size-4 text-primary" />
+                    Simular abertura de mão
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Turno 1 */}
-                  <div className="p-3.5 bg-slate-950/80 border border-white/10 space-y-1.5">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                      Chance de Jogada no Turno 1
-                    </span>
-                    <p className="font-heading text-3xl text-sky-400">
-                      {Math.round(stats.turn1.mulligan * 100)}%
+                {telemetry.mainDeckCount > 0 ? (
+                  <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openStatDetail(
+                          "Mão inicial",
+                          "Cartas de custo baixo (≤2)",
+                          (row) =>
+                            typeof row.cost === "number" &&
+                            Number.isFinite(row.cost) &&
+                            row.cost >= 0 &&
+                            row.cost <= LOW_COST_MAX
+                        )
+                      }
+                      className="group panel-cut border surface-strong p-4 text-left transition hover:opacity-80"
+                    >
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                        Cartas de custo baixo (≤2)
+                        <MetricTooltip
+                          metric="custo-baixo-contagem"
+                          what="Quantas cartas do deck principal custam 2 ou menos."
+                          howToRead="São as cartas jogáveis já nos primeiros turnos. Poucas = risco de mão travada no começo. Clique pra ver quais são."
+                        />
+                      </p>
+                      <p className="mt-2 flex items-center gap-1 text-lg heading-portal font-mono">
+                        {telemetry.handOdds.lowCostCount} de {telemetry.mainDeckCount}
+                        <ChevronRight className="size-3.5 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                      </p>
+                      <p className="mt-2 text-sm text-muted-portal">
+                        {Math.round((telemetry.handOdds.lowCostCount / telemetry.mainDeckCount) * 100)}% da lista principal.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openStatDetail(
+                          "Mão inicial",
+                          "Carta de custo baixo na abertura",
+                          (row) =>
+                            typeof row.cost === "number" &&
+                            Number.isFinite(row.cost) &&
+                            row.cost >= 0 &&
+                            row.cost <= LOW_COST_MAX
+                        )
+                      }
+                      className="group panel-cut border border-primary/30 bg-primary/10 p-4 text-left transition hover:opacity-80"
+                    >
+                      <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">
+                        Carta de custo baixo na abertura
+                        <MetricTooltip
+                          metric="custo-baixo-abertura"
+                          what="Chance de a mão de abertura (5 cartas) ter pelo menos 1 carta de custo ≤2."
+                          howToRead="Acima de ~70% costuma ser confortável. Abaixo disso, considere adicionar cartas baratas. Clique pra ver quais contam."
+                        />
+                      </p>
+                      <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">
+                        {Math.round(telemetry.handOdds.openingHand * 100)}%
+                        <ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                      </p>
+                      <p className="mt-2 text-sm text-muted-portal">
+                        De abrir com pelo menos 1 carta de custo baixo, em 5 compradas.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openStatDetail(
+                          "Mão inicial",
+                          "Unit de nível baixo na abertura",
+                          (row) =>
+                            row.type === "UNIT" &&
+                            typeof row.level === "number" &&
+                            row.level >= 1 &&
+                            row.level <= LOW_LEVEL_MAX
+                        )
+                      }
+                      className="group panel-cut border border-accent/30 bg-accent/10 p-4 text-left transition hover:opacity-80"
+                    >
+                      <p className="text-xs uppercase tracking-[0.22em] text-muted-portal">
+                        Unit de nível baixo na abertura
+                        <MetricTooltip
+                          metric="nivel-baixo-abertura"
+                          what="Chance de abrir com pelo menos 1 Unidade de Lv.1 a Lv.3."
+                          howToRead="Units de nível baixo entram cedo e seguram o tabuleiro no início. Clique pra ver quais Units contam."
+                        />
+                      </p>
+                      <p className="mt-2 flex items-center gap-1 font-heading text-4xl heading-portal">
+                        {Math.round(telemetry.lowLevelStats.openingHand * 100)}%
+                        <ChevronRight className="size-4 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                      </p>
+                      <p className="mt-2 text-sm text-muted-portal">
+                        De abrir com pelo menos 1 Unit Lv.1–3 ({telemetry.lowLevelStats.lowLevelUnitCount} na lista), em 5 compradas.
+                      </p>
+                    </button>
+
+                    <div className="panel-cut border surface-strong p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                        Com 1 mulligan
+                        <MetricTooltip
+                          metric="custo-baixo-mulligan"
+                          what="A mesma chance de custo baixo, mas contando a mão original OU a redistribuída pelo mulligan."
+                          howToRead="É sempre ≥ a chance sem mulligan — é o piso realista, já que o mulligan é grátis e independente."
+                        />
+                      </p>
+                      <p className="mt-2 text-lg heading-portal font-mono">
+                        {Math.round(telemetry.handOdds.withMulligan * 100)}%
+                      </p>
+                      <p className="mt-2 text-sm text-muted-portal">
+                        Custo baixo, contando a mão original ou a redistribuída.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-6 text-sm text-muted-portal">Adicione cartas ao deck principal para calcular a chance de abertura.</p>
+                )}
+
+                {telemetry.mainDeckCount > 0 ? (
+                  <Collapsible open={handOddsBreakdownOpen} onOpenChange={setHandOddsBreakdownOpen} className="mt-5 border-t border-white/10 pt-4">
+                    <CollapsibleTrigger asChild>
+                      <button type="button" className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary transition hover:opacity-80">
+                        <ChevronDown className={`size-3.5 transition-transform ${handOddsBreakdownOpen ? "rotate-180" : ""}`} />
+                        Ver detalhamento do cálculo
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4 space-y-3">
+                      <p className="text-sm text-muted-portal">
+                        Cálculo hipergeométrico — probabilidade de comprar pelo menos 1 sucesso numa amostra sem reposição:
+                      </p>
+                      <div className="panel-cut border surface-strong p-4 font-mono text-xs text-soft">
+                        <p>P(pelo menos 1) = 1 − C(N−K, n) / C(N, n)</p>
+                        <p className="mt-2 text-slate-500">onde:</p>
+                        <p className="mt-1">N = {telemetry.mainDeckCount} <span className="text-slate-500">(cartas no deck principal)</span></p>
+                        <p>K = {telemetry.handOdds.lowCostCount} <span className="text-slate-500">(cartas de custo ≤2, os "sucessos")</span></p>
+                        <p>n = 5 <span className="text-slate-500">(tamanho da mão comprada)</span></p>
+                        <p className="mt-2 border-t border-white/10 pt-2">
+                          P = 1 − C({telemetry.mainDeckCount - telemetry.handOdds.lowCostCount}, 5) / C({telemetry.mainDeckCount}, 5) ={" "}
+                          <span className="text-primary">{(telemetry.handOdds.openingHand * 100).toFixed(2)}%</span>
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-portal">
+                        "Com 1 mulligan" trata cada tentativa como um sorteio independente da mesma população de {telemetry.mainDeckCount} cartas
+                        (mulligan oficial: devolve a mão, embaralha e compra 5 de novo — não é uma troca parcial). A chance de acertar em pelo
+                        menos uma das duas tentativas é 1 − (1 − P)² = <span className="text-primary">{(telemetry.handOdds.withMulligan * 100).toFixed(2)}%</span>.
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            {/* GRÁFICO 03: COMPOSIÇÃO POR TIPO */}
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-6">
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 03</p>
+                <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">
+                  Composição por tipo
+                  <MetricTooltip
+                    metric="composicao-tipo"
+                    what="Quantidade de cartas por tipo (Unidade, Piloto, Comando, Base), em barras horizontais."
+                    howToRead="É o mesmo dado de 'Tipos no deck', em gráfico. Clique numa barra pra ver as cartas."
+                  />
+                </h3>
+                <div className="mt-6 h-[250px]">
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart layout="vertical" data={telemetry.typeBarData} margin={{ left: 12, right: 12 }}>
+                      <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.08)" />
+                      <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={90} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="quantity"
+                        radius={0}
+                        fill="var(--color-quantity)"
+                        onClick={(entry: any) =>
+                          openStatDetail("Tipo", entry.name, (row) => (row.type || "UNIT").toUpperCase() === entry.name.toUpperCase())
+                        }
+                        className="cursor-pointer"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* GRÁFICOS 04, 05, 06: NÍVEL, AP, HP DAS UNIDADES */}
+            {unitRows.length > 0 ? (
+              <div className="grid gap-6 lg:grid-cols-3">
+                <Card className="panel-cut rounded-none surface-panel">
+                  <CardContent className="p-6">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 04</p>
+                    <h3 className="mt-2 font-heading text-2xl uppercase heading-portal">
+                      Curva de nível
+                      <MetricTooltip
+                        metric="curva-nivel"
+                        what="Distribuição das Unidades do deck principal por Lv. (Lv.6 e acima somam na faixa 6+)."
+                        howToRead="Nível alto exige mais recurso pra jogar. Concentração em nível baixo abre mais cedo. Clique numa barra pra ver as cartas."
+                      />
+                    </h3>
+                    <div className="mt-6 h-[220px]">
+                      <ChartContainer config={chartConfig} className="h-full w-full">
+                        <BarChart data={telemetry.levelData}>
+                          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                          <XAxis dataKey="level" tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey="quantity"
+                            radius={0}
+                            fill="var(--color-quantity)"
+                            onClick={(entry: any) =>
+                              openStatDetail(
+                                "Nível",
+                                entry.level,
+                                (row) =>
+                                  row.type === "UNIT" &&
+                                  (entry.level === "6+" ? Number(row.level) >= 6 : String(row.level) === entry.level)
+                              )
+                            }
+                            className="cursor-pointer"
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="panel-cut rounded-none surface-panel">
+                  <CardContent className="p-6">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 05</p>
+                    <h3 className="mt-2 font-heading text-2xl uppercase heading-portal">
+                      Distribuição de AP
+                      <MetricTooltip
+                        metric="distribuicao-ap"
+                        what="AP (poder de ataque) das Unidades do deck principal."
+                        howToRead="AP alto pressiona mais e vence trocas; AP baixo depende de keyword ou pareamento. Clique numa barra pra ver as cartas."
+                      />
+                    </h3>
+                    <div className="mt-6 h-[220px]">
+                      <ChartContainer config={chartConfig} className="h-full w-full">
+                        <BarChart data={telemetry.apData}>
+                          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                          <XAxis dataKey="ap" tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey="quantity"
+                            radius={0}
+                            fill="var(--color-quantity)"
+                            onClick={(entry: any) =>
+                              openStatDetail("AP", entry.ap, (row) => row.type === "UNIT" && String(row.ap) === entry.ap)
+                            }
+                            className="cursor-pointer"
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="panel-cut rounded-none surface-panel">
+                  <CardContent className="p-6">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Gráfico 06</p>
+                    <h3 className="mt-2 font-heading text-2xl uppercase heading-portal">
+                      Distribuição de HP
+                      <MetricTooltip
+                        metric="distribuicao-hp"
+                        what="HP (pontos de vida) das Unidades do deck principal."
+                        howToRead="HP alto sobrevive a mais dano e a remoções por dano; HP baixo cai fácil de Blocker e efeitos. Clique numa barra pra ver as cartas."
+                      />
+                    </h3>
+                    <div className="mt-6 h-[220px]">
+                      <ChartContainer config={chartConfig} className="h-full w-full">
+                        <BarChart data={telemetry.hpData}>
+                          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.08)" />
+                          <XAxis dataKey="hp" tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey="quantity"
+                            radius={0}
+                            fill="var(--color-quantity)"
+                            onClick={(entry: any) =>
+                              openStatDetail("HP", entry.hp, (row) => row.type === "UNIT" && String(row.hp) === entry.hp)
+                            }
+                            className="cursor-pointer"
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+
+            {/* BASE DE METAGAME DO ARSENAL (REGRAS DA COMUNIDADE EM PT-BR) */}
+            <Card className="panel-cut rounded-none surface-panel border-white/10">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="size-5 text-primary" />
+                    <h3 className="font-heading text-xl uppercase tracking-wider text-white">
+                      Base de Metagame do Arsenal
+                    </h3>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400">
+                    Calculado sobre {sourceDecks.length} deck(s) cadastrados
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Staples */}
+                  <div className="p-4 bg-slate-950/80 border border-emerald-500/40 panel-cut">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                      <span className="text-xs font-mono uppercase text-emerald-400 font-bold">
+                        Staples (≥75%)
+                      </span>
+                    </div>
+                    <p className="font-heading text-2xl text-white mt-2">
+                      {metagameCounts.staplesCount} cartas
+                      <span className="text-xs text-slate-400 font-mono ml-2">
+                        ({Math.round((metagameCounts.staplesCount / (telemetry.mainDeckCount || 1)) * 100)}%)
+                      </span>
                     </p>
-                    <p className="text-[10px] font-mono text-slate-400">
-                      Custo 1 disponível ({stats.turn1.eligibleCount} cartas) · {Math.round(stats.turn1.raw * 100)}% sem mulligan
-                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">Cartas indispensáveis da lista</p>
                   </div>
 
-                  {/* Turno 2 */}
-                  <div className="p-3.5 bg-slate-950/80 border border-white/10 space-y-1.5">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                      Chance de Jogada no Turno 2
-                    </span>
-                    <p className="font-heading text-3xl text-emerald-400">
-                      {Math.round(stats.turn2.mulligan * 100)}%
+                  {/* Engine / Peça-Chave */}
+                  <div className="p-4 bg-slate-950/80 border border-amber-500/40 panel-cut">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+                      <span className="text-xs font-mono uppercase text-amber-400 font-bold">
+                        Peça-Chave / Engine (≥50%)
+                      </span>
+                    </div>
+                    <p className="font-heading text-2xl text-white mt-2">
+                      {metagameCounts.engineCount} cartas
+                      <span className="text-xs text-slate-400 font-mono ml-2">
+                        ({Math.round((metagameCounts.engineCount / (telemetry.mainDeckCount || 1)) * 100)}%)
+                      </span>
                     </p>
-                    <p className="text-[10px] font-mono text-slate-400">
-                      Custo ≤ 2 ({stats.turn2.eligibleCount} cartas) · {Math.round(stats.turn2.raw * 100)}% sem mulligan
+                    <p className="text-[11px] text-slate-400 mt-1">Núcleo mecânico do arquétipo</p>
+                  </div>
+
+                  {/* Comum / Suporte */}
+                  <div className="p-4 bg-slate-950/80 border border-sky-500/40 panel-cut">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(14,165,233,0.8)]" />
+                      <span className="text-xs font-mono uppercase text-sky-400 font-bold">
+                        Comum / Suporte (≥25%)
+                      </span>
+                    </div>
+                    <p className="font-heading text-2xl text-white mt-2">
+                      {metagameCounts.commonCount} cartas
+                      <span className="text-xs text-slate-400 font-mono ml-2">
+                        ({Math.round((metagameCounts.commonCount / (telemetry.mainDeckCount || 1)) * 100)}%)
+                      </span>
                     </p>
+                    <p className="text-[11px] text-slate-400 mt-1">Opções regulares ou flexíveis</p>
+                  </div>
+
+                  {/* Opção Tática / Tech */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-700 panel-cut">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-slate-500" />
+                      <span className="text-xs font-mono uppercase text-slate-300 font-bold">
+                        Opção Tática / Tech (&lt;25%)
+                      </span>
+                    </div>
+                    <p className="font-heading text-2xl text-white mt-2">
+                      {metagameCounts.techsCount} cartas
+                      <span className="text-xs text-slate-400 font-mono ml-2">
+                        ({Math.round((metagameCounts.techsCount / (telemetry.mainDeckCount || 1)) * 100)}%)
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">Respostas para matchups específicos</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* BLOCO 4: TOKENS GERADOS EM BATALHA (MOSTRADO APENAS SE HOUVER GERADORES) */}
+            {/* TOKENS GERADOS EM BATALHA */}
             {detectedTokens.length > 0 && (
               <Card className="panel-cut rounded-none surface-panel border-amber-500/30">
-                <CardContent className="p-5 space-y-4">
+                <CardContent className="p-6 space-y-4">
                   <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                    <Zap className="size-4 text-amber-400" />
-                    <h3 className="font-heading text-base uppercase tracking-wider text-amber-400">
+                    <Zap className="size-5 text-amber-400" />
+                    <h3 className="font-heading text-xl uppercase tracking-wider text-amber-400">
                       Tokens Gerados em Batalha ({detectedTokens.length})
                     </h3>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {detectedTokens.map((token) => {
                       const tokenImg = token.imageMediumUrl || token.imageUrl;
                       return (
                         <div
                           key={token.tokenCode}
-                          className="flex gap-3 p-3 border border-white/10 bg-slate-950/80 items-start"
+                          className="flex gap-3 p-3 border border-white/10 bg-slate-950/80 items-start panel-cut"
                         >
-                          <div className="w-14 shrink-0 aspect-[63/88] border border-white/15 bg-slate-900 overflow-hidden">
+                          <div className="w-16 shrink-0 aspect-[63/88] border border-white/15 bg-slate-900 overflow-hidden">
                             {tokenImg ? (
                               <img
                                 src={tokenImg}
@@ -1226,10 +2108,13 @@ export default function SharedDeckPage() {
 
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="font-heading text-sm text-white truncate">
+                              <span className="font-heading text-base text-white truncate">
                                 {token.tokenNamePt || token.tokenName}
                               </span>
-                              <Badge variant="outline" className="rounded-none border-amber-500/50 text-amber-300 text-[10px] font-mono px-1.5 py-0">
+                              <Badge
+                                variant="outline"
+                                className="rounded-none border-amber-500/50 text-amber-300 text-[10px] font-mono px-1.5 py-0"
+                              >
                                 {token.tokenCode}
                               </Badge>
                             </div>
@@ -1239,9 +2124,9 @@ export default function SharedDeckPage() {
                               <span>HP: <strong className="text-white">{token.hp ?? "—"}</strong></span>
                             </div>
 
-                            <p className="text-[10px] font-mono text-slate-400 pt-0.5 truncate">
+                            <p className="text-[11px] font-mono text-slate-400 pt-1">
                               Gerado por:{" "}
-                              <span className="text-sky-300">
+                              <span className="text-primary font-semibold">
                                 {token.generatedBy.map((g) => `${g.quantity}x ${g.name}`).join(", ")}
                               </span>
                             </p>
@@ -1253,81 +2138,11 @@ export default function SharedDeckPage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* BLOCO 5: CLASSIFICAÇÃO TÁTICA DE METAGAME (TOTAIS & PORCENTAGENS) */}
-            <Card className="panel-cut rounded-none surface-panel border-white/10">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                  <Shield className="size-4 text-emerald-400" />
-                  <h3 className="font-heading text-base uppercase tracking-wider text-white">
-                    Base de Metagame do Arsenal
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  {/* Staples */}
-                  <div className="p-3 bg-slate-950/80 border border-white/10">
-                    <span className="text-[10px] font-mono uppercase text-sky-400 font-bold block">
-                      Staples
-                    </span>
-                    <p className="font-heading text-xl text-white mt-1">
-                      {stats.metagame.staplesCount} cartas{" "}
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({Math.round((stats.metagame.staplesCount / stats.mainCount) * 100)}%)
-                      </span>
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Presença ≥ 55% no meta</p>
-                  </div>
-
-                  {/* Engine */}
-                  <div className="p-3 bg-slate-950/80 border border-white/10">
-                    <span className="text-[10px] font-mono uppercase text-amber-400 font-bold block">
-                      Engine / Núcleo
-                    </span>
-                    <p className="font-heading text-xl text-white mt-1">
-                      {stats.metagame.engineCount} cartas{" "}
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({Math.round((stats.metagame.engineCount / stats.mainCount) * 100)}%)
-                      </span>
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Pilares do arquétipo</p>
-                  </div>
-
-                  {/* Techs */}
-                  <div className="p-3 bg-slate-950/80 border border-white/10">
-                    <span className="text-[10px] font-mono uppercase text-purple-400 font-bold block">
-                      Techs / Flex
-                    </span>
-                    <p className="font-heading text-xl text-white mt-1">
-                      {stats.metagame.techsCount} cartas{" "}
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({Math.round((stats.metagame.techsCount / stats.mainCount) * 100)}%)
-                      </span>
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Respostas e counters</p>
-                  </div>
-
-                  {/* Comum */}
-                  <div className="p-3 bg-slate-950/80 border border-white/10">
-                    <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                      Base Comum
-                    </span>
-                    <p className="font-heading text-xl text-white mt-1">
-                      {stats.metagame.commonCount} cartas{" "}
-                      <span className="text-xs text-slate-400 font-mono">
-                        ({Math.round((stats.metagame.commonCount / stats.mainCount) * 100)}%)
-                      </span>
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">Cartas de utilidade</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* MODAL CARROSSEL DE CARTAS AMPLIADAS */}
+      {/* MODAIS GLOBAIS */}
       <CardPreviewModal
         rows={visibleRows}
         index={previewIndex}
@@ -1335,14 +2150,46 @@ export default function SharedDeckPage() {
         onClose={() => setPreviewIndex(null)}
       />
 
-      {/* SIMULADOR DE MÃO INICIAL (DRAW) */}
+      {previewCard && (
+        <CardPreviewModal
+          rows={[previewCard]}
+          index={0}
+          onNavigate={() => {}}
+          onClose={() => setPreviewCard(null)}
+        />
+      )}
+
       <OpeningHandModal
         open={openingHandOpen}
         onClose={() => setOpeningHandOpen(false)}
         cards={mainRows}
       />
 
-      {/* MODAL DE EXPORTAÇÃO DE IMAGEM COM SELO OZ E 2ª IMAGEM DE ESTATÍSTICAS */}
+      <StatDetailModal
+        title={statDetail}
+        rows={statDetailRows}
+        onClose={() => setStatDetail(null)}
+        onPreviewCard={(card) => {
+          const matched = allRows.find((r) => r.id === card.id || r.code === card.code);
+          if (matched) setPreviewCard(matched);
+        }}
+      />
+
+      <BuildCoreDeckModal
+        open={buildCoreModalOpen}
+        onClose={() => setBuildCoreModalOpen(false)}
+        archetypeName={deck.name}
+        coreCards={coreBuildCards}
+        suggestedCards={suggestedCoreCards}
+      />
+
+      <SourceDecksModal
+        open={sourceDecksModalOpen}
+        onClose={() => setSourceDecksModalOpen(false)}
+        archetypeName={deck.name}
+        sourceDecks={sourceDecks}
+      />
+
       {imageModalOpen && (
         <ExportDeckImageModal
           open={imageModalOpen}
@@ -1378,23 +2225,23 @@ export default function SharedDeckPage() {
             color: r.color,
             cardType: r.type,
           }))}
-          colors={stats.colors}
+          colors={telemetry.colorBreakdown.map((c) => c.name)}
           statsSummary={{
-            avgCost: stats.avgCost,
-            synergyScore: stats.synergyScore,
-            turn1Odds: stats.turn1.mulligan,
-            turn2Odds: stats.turn2.mulligan,
-            units: stats.typeCounts.UNIT,
-            pilots: stats.typeCounts.PILOT,
-            commands: stats.typeCounts.COMMAND,
-            bases: stats.typeCounts.BASE,
-            costCurve: stats.costCurve,
-            levelCurve: stats.levelCurve,
-            colorCounts: stats.colorCounts,
-            staplesCount: stats.metagame.staplesCount,
-            engineCount: stats.metagame.engineCount,
-            techsCount: stats.metagame.techsCount,
-            commonCount: stats.metagame.commonCount,
+            avgCost: (mainRows.reduce((sum, r) => sum + (r.cost || 0) * r.quantity, 0) / (telemetry.mainDeckCount || 1)).toFixed(2),
+            synergyScore: telemetry.synergyScore,
+            turn1Odds: telemetry.handOdds.withMulligan,
+            turn2Odds: telemetry.handOdds.withMulligan,
+            units: telemetry.typeBreakdown.find((t) => t.name === "UNIT" || t.name === "Unidade")?.value ?? 0,
+            pilots: telemetry.typeBreakdown.find((t) => t.name === "PILOT" || t.name === "Piloto")?.value ?? 0,
+            commands: telemetry.typeBreakdown.find((t) => t.name === "COMMAND" || t.name === "Comando")?.value ?? 0,
+            bases: telemetry.typeBreakdown.find((t) => t.name === "BASE" || t.name === "Base")?.value ?? 0,
+            costCurve: telemetry.curveData.map((c) => ({ cost: c.cost, count: c.quantity })),
+            levelCurve: telemetry.levelData.map((l) => ({ level: l.level, count: l.quantity })),
+            colorCounts: Object.fromEntries(telemetry.colorBreakdown.map((c) => [c.name, c.value])),
+            staplesCount: metagameCounts.staplesCount,
+            engineCount: metagameCounts.engineCount,
+            techsCount: metagameCounts.techsCount,
+            commonCount: metagameCounts.commonCount,
           }}
         />
       )}

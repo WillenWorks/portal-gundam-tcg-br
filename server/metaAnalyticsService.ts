@@ -51,9 +51,13 @@ export interface ClassifiedMetaCard {
   quadrant: "CORE" | "STAPLE" | "FLEX" | "TECH";
 }
 
-interface RawDeckData {
+export interface RawDeckData {
   id: string;
   name: string;
+  shareId?: string;
+  author?: string;
+  date?: string;
+  tournamentName?: string;
   items: Array<{
     quantity: number;
     card: {
@@ -73,15 +77,32 @@ interface RawDeckData {
   }>;
 }
 
+export interface SourceDeckEntry {
+  id: string;
+  name: string;
+  shareId?: string;
+  author: string;
+  tournament?: string;
+  placement: string;
+  date?: string;
+}
+
+export interface CoreBuildSummary {
+  coreCards: Array<ClassifiedMetaCard & { recommendedCopies: number }>;
+  coreCardCount: number;
+  suggestedCards: Array<ClassifiedMetaCard & { recommendedCopies: number }>;
+}
+
 /**
  * Carrega todos os decks elegíveis para análise de metagame.
  * Combina decks públicos do banco com os decks oficiais validados (ST01-ST04)
  * para garantir amostragem estatística mesmo em ambientes locais com poucos dados.
  */
-async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> {
+export async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> {
   const publicDecks = await prisma.deck.findMany({
-    where: { visibility: "PUBLIC" },
+    where: { visibility: { in: ["PUBLIC", "UNLISTED"] } },
     include: {
+      user: { select: { displayName: true, username: true } },
       items: {
         where: { section: "main" },
         include: {
@@ -109,6 +130,9 @@ async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> 
   const eligible: RawDeckData[] = publicDecks.map((d) => ({
     id: d.id,
     name: d.name,
+    shareId: d.shareId,
+    author: d.user?.displayName || d.user?.username || "Piloto OZ",
+    date: d.createdAt ? new Date(d.createdAt).toLocaleDateString("pt-BR") : undefined,
     items: d.items
       .filter((i) => !NON_STATS_SECTIONS.includes(i.section as any) && !NON_STATS_CARD_TYPES.includes(i.card.cardType as any))
       .map((i) => ({ quantity: i.quantity, card: i.card })),
@@ -160,6 +184,8 @@ async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckData[]> 
           eligible.push({
             id: `validated-${starter.id}`,
             name: starter.label,
+            author: "Bandai Oficial",
+            tournamentName: "Starter Deck Oficial",
             items,
           });
         }
@@ -278,6 +304,8 @@ export async function getArchetypeBreakdown(
 ): Promise<{
   archetype: ArchetypeSummary;
   totalDecksSampled: number;
+  sourceDecks: SourceDeckEntry[];
+  coreBuild: CoreBuildSummary;
   quadrants: {
     core: ClassifiedMetaCard[];
     staples: ClassifiedMetaCard[];
@@ -425,6 +453,51 @@ export async function getArchetypeBreakdown(
   const core = classifiedCards.filter((c) => c.quadrant === "CORE").sort((a, b) => b.inclusionRate - a.inclusionRate || b.affinity - a.affinity);
   const staples = classifiedCards.filter((c) => c.quadrant === "STAPLE").sort((a, b) => b.colorInclusionRate - a.colorInclusionRate || b.inclusionRate - a.inclusionRate);
   const flex = classifiedCards.filter((c) => c.quadrant === "FLEX").sort((a, b) => b.inclusionRate - a.inclusionRate);
+  const techs = classifiedCards.filter((c) => c.quadrant === "TECH").sort((a, b) => b.inclusionRate - a.inclusionRate);
+
+  // Decks de Origem da Amostra
+  const sourceDecks: SourceDeckEntry[] = archetypeDecks.map((d, index) => ({
+    id: d.id,
+    name: d.name,
+    shareId: d.shareId,
+    author: d.author || "Piloto OZ",
+    tournament: d.tournamentName || "Metagame Regional / Liga Oficial",
+    placement: `#${index + 1}`,
+    date: d.date || "2026",
+  }));
+
+  // Montagem do Núcleo da Build (Core Deck)
+  const coreCandidates = classifiedCards
+    .filter((c) => c.inclusionRate >= 0.5 || c.quadrant === "CORE" || c.quadrant === "STAPLE")
+    .sort((a, b) => b.inclusionRate - a.inclusionRate);
+
+  let accumulatedCoreCount = 0;
+  const coreCards: Array<ClassifiedMetaCard & { recommendedCopies: number }> = [];
+
+  for (const card of coreCandidates) {
+    const recommended = card.modeCopies || Math.round(card.meanCopies) || 4;
+    const copies = Math.min(recommended, Math.max(1, 50 - accumulatedCoreCount));
+    if (copies > 0 && accumulatedCoreCount < 50) {
+      coreCards.push({ ...card, recommendedCopies: copies });
+      accumulatedCoreCount += copies;
+    }
+  }
+
+  const coreCardCodes = new Set(coreCards.map((c) => c.code));
+  const suggestedCards = classifiedCards
+    .filter((c) => !coreCardCodes.has(c.code) && c.inclusionRate >= 0.25)
+    .sort((a, b) => b.inclusionRate - a.inclusionRate)
+    .map((c) => ({
+      ...c,
+      recommendedCopies: c.modeCopies || Math.round(c.meanCopies) || 2,
+    }));
+
+  const coreBuild: CoreBuildSummary = {
+    coreCards,
+    coreCardCount: accumulatedCoreCount,
+    suggestedCards,
+  };
+
   // Médias do arquétipo
   let totalUnits = 0;
   let totalPilots = 0;
@@ -485,6 +558,8 @@ export async function getArchetypeBreakdown(
   return {
     archetype: summary,
     totalDecksSampled: totalArchetypeDecks,
+    sourceDecks,
+    coreBuild,
     quadrants: {
       core,
       staples,

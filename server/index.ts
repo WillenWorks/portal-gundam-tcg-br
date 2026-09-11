@@ -73,6 +73,7 @@ import {
   getMetaArchetypes,
   getArchetypeBreakdown,
   getMetaRecommendations,
+  fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
 
 const prisma = new PrismaClient();
@@ -2115,42 +2116,58 @@ app.post("/api/cards/usage-stats", async (req, res) => {
     const cardCodes = Array.isArray(req.body?.cardCodes) ? req.body.cardCodes : [];
     if (!cardCodes.length) return res.json({});
 
-    const totalPublicDecks = await prisma.deck.count({ where: { visibility: "PUBLIC" } });
-
-    const publicDeckItems = await prisma.deckItem.findMany({
-      where: {
-        card: { code: { in: cardCodes } },
-        deck: { visibility: "PUBLIC" },
-        section: { notIn: NON_STATS_SECTIONS },
-      },
-      select: {
-        quantity: true,
-        deckId: true,
-        card: { select: { code: true } },
-      },
-    });
+    const eligibleDecks = await fetchEligibleDecks(prisma);
+    const totalDecks = Math.max(1, eligibleDecks.length);
 
     const deckSetByCode = new Map<string, Set<string>>();
     const totalCopiesByCode = new Map<string, number>();
+    const copyCountsByCode = new Map<string, Record<1 | 2 | 3 | 4, number>>();
 
-    for (const item of publicDeckItems) {
-      const code = item.card.code;
-      if (!deckSetByCode.has(code)) deckSetByCode.set(code, new Set());
-      deckSetByCode.get(code)!.add(item.deckId);
-      totalCopiesByCode.set(code, (totalCopiesByCode.get(code) || 0) + (item.quantity || 1));
+    for (const deck of eligibleDecks) {
+      for (const item of deck.items) {
+        const code = item.card.code;
+        if (!deckSetByCode.has(code)) deckSetByCode.set(code, new Set());
+        deckSetByCode.get(code)!.add(deck.id);
+        totalCopiesByCode.set(code, (totalCopiesByCode.get(code) || 0) + (item.quantity || 1));
+
+        if (!copyCountsByCode.has(code)) {
+          copyCountsByCode.set(code, { 1: 0, 2: 0, 3: 0, 4: 0 });
+        }
+        const qty = Math.min(4, Math.max(1, item.quantity || 1)) as 1 | 2 | 3 | 4;
+        copyCountsByCode.get(code)![qty] += 1;
+      }
     }
 
-    const statsMap: Record<string, { deckCount: number; totalDecks: number; presenceRate: number; avgCopies: number }> = {};
+    const statsMap: Record<
+      string,
+      {
+        deckCount: number;
+        totalDecks: number;
+        presenceRate: number; // 0..100
+        avgCopies: number;
+        tier: "STAPLE" | "KEY" | "COMMON" | "TECH";
+        copyCounts: Record<1 | 2 | 3 | 4, number>;
+      }
+    > = {};
+
     for (const code of cardCodes) {
       const decks = deckSetByCode.get(code)?.size || 0;
       const totalCopies = totalCopiesByCode.get(code) || 0;
-      const presenceRate = totalPublicDecks > 0 ? Number(((decks / totalPublicDecks) * 100).toFixed(1)) : 0;
+      const presenceRate = Number(((decks / totalDecks) * 100).toFixed(1));
       const avgCopies = decks > 0 ? Number((totalCopies / decks).toFixed(1)) : 0;
+
+      let tier: "STAPLE" | "KEY" | "COMMON" | "TECH" = "TECH";
+      if (presenceRate >= 75) tier = "STAPLE";
+      else if (presenceRate >= 50) tier = "KEY";
+      else if (presenceRate >= 25) tier = "COMMON";
+
       statsMap[code] = {
         deckCount: decks,
-        totalDecks: totalPublicDecks,
+        totalDecks,
         presenceRate,
         avgCopies,
+        tier,
+        copyCounts: copyCountsByCode.get(code) || { 1: 0, 2: 0, 3: 0, 4: 0 },
       };
     }
 
