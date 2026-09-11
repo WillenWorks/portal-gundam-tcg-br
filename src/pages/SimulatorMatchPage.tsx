@@ -97,7 +97,7 @@
  * variant="stack"`), com o deck do oponente escondendo a contagem
  * (`hideCount`). Layout 3D + espelhamento do oponente moram no `ArenaPlaymat`.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
@@ -107,12 +107,15 @@ import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
-import { otherPlayer, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import { playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
+import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
+import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
+import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
 import {
   ActionDock,
   type ActionDockState,
@@ -740,8 +743,89 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const opponentIdleSeconds = opponentIdleMs !== null ? Math.floor(opponentIdleMs / 1000) : null;
   const canClaimAbandon = !view.gameOver && opponentIdleMs !== null && opponentIdleMs >= ABANDON_THRESHOLD_MS;
 
+  // carta em `pending` — na mão (deploy/command) ou em campo (activateAbility) — + custo.
+  const pendingCard: CardInstance | undefined = pending
+    ? ((pending.kind === "activateAbility"
+        ? findPublicCard(view, pending.cardInstanceId)
+        : view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId)) as
+        | CardInstance
+        | undefined)
+    : undefined;
+  const pendingCost =
+    pending?.kind === "activateAbility" ? pending.abilityCost : (pendingCard?.def.cost ?? 0);
+  const resourcesReady = selectedResources.length === pendingCost;
+
+  /** Alvos legais reais da ação em andamento (`pending`) — evita iluminar todas as
+   *  cartas em verde quando a ação não precisa de alvos ou quando só certas cartas são válidas. */
+  const legalTargetInstanceIds = useMemo<Set<string>>(() => {
+    if (!pending || !pendingCard) return new Set();
+
+    if (pending.kind === "deploy") {
+      const isPilot = pendingCard.def.cardType === "PILOT" || Boolean(pendingCard.def.pilotMode);
+      if (isPilot) {
+        // Piloto pareia com Unit amiga livre (sem piloto acoplado)
+        const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
+        return new Set(
+          myUnits
+            .filter((u) => u.def.cardType === "UNIT" && !u.pairedPilotId)
+            .map((u) => u.instanceId),
+        );
+      }
+      return new Set();
+    }
+
+    if (pending.kind === "activateAbility") {
+      if (!pending.abilityNeedsTarget) return new Set();
+
+      if (hasKeyword(pendingCard, "Support")) {
+        // Support mira em outra Unit amiga
+        const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
+        return new Set(
+          myUnits
+            .filter((u) => u.def.cardType === "UNIT" && u.instanceId !== pendingCard.instanceId)
+            .map((u) => u.instanceId),
+        );
+      }
+
+      const inAction = view.combat?.step === "action";
+      const trigger = inAction ? "Activate·Action" : "Activate·Main";
+      const specs = findTriggerSpecs(ALL_EFFECT_SPECS, pendingCard.def.code, trigger);
+      const needing = specs.filter((s) => specNeedsNamedTarget(s));
+      if (needing.length === 0) return new Set();
+
+      const ids = new Set<string>();
+      for (const spec of needing) {
+        try {
+          for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
+            ids.add(id);
+          }
+        } catch {}
+      }
+      return ids;
+    }
+
+    if (pending.kind === "command") {
+      const trigger = pending.trigger ?? "Main";
+      const specs = findTriggerSpecs(ALL_EFFECT_SPECS, pendingCard.def.code, trigger);
+      const needing = specs.filter((s) => specNeedsNamedTarget(s));
+      if (needing.length === 0) return new Set();
+
+      const ids = new Set<string>();
+      for (const spec of needing) {
+        try {
+          for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
+            ids.add(id);
+          }
+        } catch {}
+      }
+      return ids;
+    }
+
+    return new Set();
+  }, [pending, pendingCard, view.players, seat, boardForStats, view.combat?.step]);
+
   const toggleSelect = (instanceId: string) => {
-    if (!pending) return;
+    if (!pending || !legalTargetInstanceIds.has(instanceId)) return;
     sfx.playClick();
     setSelected((current) => (current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId]));
   };
@@ -755,18 +839,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   };
 
-  // carta em `pending` — na mão (deploy/command) ou em campo (activateAbility) — + custo.
-  const pendingCard: CardInstance | undefined = pending
-    ? ((pending.kind === "activateAbility"
-        ? findPublicCard(view, pending.cardInstanceId)
-        : view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === pending.cardInstanceId)) as
-        | CardInstance
-        | undefined)
-    : undefined;
-  const pendingCost =
-    pending?.kind === "activateAbility" ? pending.abilityCost : (pendingCard?.def.cost ?? 0);
-  const resourcesReady = selectedResources.length === pendingCost;
-
   const startDeploy = (card: CardInstance) => {
     setPending({ kind: "deploy", cardInstanceId: card.instanceId });
   };
@@ -776,6 +848,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
   /** 【Activate·Main】 de carta em campo (Etapa 3) — abre o fluxo de custo/alvo (mesmo do deploy). */
   const startActivateAbility = (card: CardInstance, ability: FieldAbility) => {
+    // Habilidade global/sem custo de recursos nem alvo (ex.: ST01-016 Asticassia "Rest this Base"):
+    // sem recursos a pagar e sem alvo no tabuleiro, ativa imediatamente.
+    if (ability.cost === 0 && !ability.needsTarget) {
+      sfx.playAttackBeam();
+      runAction({
+        kind: "activateAbility",
+        sourceInstanceId: card.instanceId,
+      });
+      return;
+    }
     setPending({
       kind: "activateAbility",
       cardInstanceId: card.instanceId,
@@ -975,7 +1057,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           unit={unit}
           pilot={unit ? pairedPilotOf(player, unit) : null}
           art={art}
-          legalTarget={Boolean(unit && selecting)}
+          legalTarget={Boolean(unit && legalTargetInstanceIds.has(unit.instanceId))}
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
@@ -1081,7 +1163,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           orientation="vertical"
           count={player.counts.shields}
           underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
-          selectable={selecting}
+          selectable={false}
           selectedIndexes={selectedShieldIndexes(player)}
           onSelectIndex={(i) => {
             const s = player.shields[i];
@@ -1093,7 +1175,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <BaseCardGauge
           base={base}
           art={art}
-          legalTarget={selecting && Boolean(base)}
+          legalTarget={Boolean(base && legalTargetInstanceIds.has(base.instanceId))}
           selected={Boolean(base && selected.includes(base.instanceId))}
           onSelect={(b) => toggleSelect(b.instanceId)}
           onInspect={setInspect}
@@ -1249,8 +1331,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const hint =
         pending.kind === "activateAbility"
           ? pending.abilityNeedsTarget
-            ? "Escolha o alvo da habilidade e os recursos pra pagar o custo."
-            : "Escolha os recursos pra pagar o custo e confirme."
+            ? (pendingCost > 0 ? "Escolha o alvo da habilidade e os recursos pra pagar o custo." : "Escolha o alvo da habilidade e confirme.")
+            : (pendingCost > 0 ? "Escolha os recursos pra pagar o custo e confirme." : "Confirme para ativar a habilidade.")
           : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
       return {
         kind: "pending",

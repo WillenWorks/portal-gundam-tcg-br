@@ -45,7 +45,7 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
   const remaining = Math.max(0, maxHp - base.damage);
   const pct = maxHp > 0 ? Math.round((remaining / maxHp) * 100) : 0;
   const isEx = base.def.isToken ?? false;
-  const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
+  const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
 
   // Frente 4 (docs/38 §3.1) — o botão de "olho" foi eliminado. Inspeção agora
   // é por clique na área neutra da carta (ver `bodyInspects` abaixo). O cluster
@@ -83,9 +83,11 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
           ? "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
           : selected
             ? "border-primary"
-            : isEx
-              ? "border-accent/60"
-              : "border-amber-500/25",
+            : base.rested
+              ? "border-slate-600/40 opacity-75"
+              : isEx
+                ? "border-accent/60"
+                : "border-amber-500/25",
       )}
     >
       <div
@@ -124,8 +126,17 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
           art={art}
           size="sm"
           className="h-full w-full"
+          dimmed={base.rested}
           backFallback={isGenericArtCard(base.def.cardType, base.def.isToken)}
-        />
+        >
+          {base.rested ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+              <span className="rotate-[-12deg] border border-slate-300/60 bg-black/70 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-slate-200">
+                Rested
+              </span>
+            </div>
+          ) : null}
+        </CardFace>
         {base.damage > 0 ? (
           // Frente 4 (docs/38 §3.2) — dano acumulado no canto INFERIOR direito
           // (não mais topo, onde o "olho" o cobria). Badge preto translúcido,

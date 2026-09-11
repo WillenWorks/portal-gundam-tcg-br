@@ -74,4 +74,28 @@ describe("abilityIntent", () => {
       expect.objectContaining({ kind: "activateMain" }),
     );
   });
+
+  it("fieldAbilityFor: Asticassia (ST01-016) ativa → { kind: 'activateMain', cost: 0, needsTarget: false }", () => {
+    const asticassia = inst({ code: "ST01-016", cardType: "BASE" });
+    expect(fieldAbilityFor(asticassia)).toEqual({
+      kind: "activateMain",
+      cost: 0,
+      needsTarget: false,
+    });
+  });
+
+  it("fieldAbilityFor: Asticassia (ST01-016) já rested → null (o custo é 'rest this Base')", () => {
+    const restedAsticassia = inst({ code: "ST01-016", cardType: "BASE" }, { rested: true });
+    expect(fieldAbilityFor(restedAsticassia)).toBeNull();
+  });
+
+  it("fieldAbilityFor: Vesalius (ST04-016) → { kind: 'activateMain', cost: 0, needsTarget: true } (mira em Unit amiga)", () => {
+    const vesalius = inst({ code: "ST04-016", cardType: "BASE" });
+    expect(fieldAbilityFor(vesalius)).toEqual({
+      kind: "activateMain",
+      cost: 0,
+      needsTarget: true,
+    });
+  });
 });
+

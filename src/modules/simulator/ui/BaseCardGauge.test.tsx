@@ -102,4 +102,15 @@ describe("BaseCardGauge", () => {
     expect(onSelect).toHaveBeenCalledWith(b);
     expect(onInspect).not.toHaveBeenCalled();
   });
+
+  it("base rested: exibe badge Rested, title atualizado e contorno esmaecido", () => {
+    const b = base({ rested: true });
+    const { container } = render(<BaseCardGauge base={b} art={{}} />);
+    expect(screen.getByText("Rested")).toBeInTheDocument();
+    expect(screen.getByTitle(/· Rested/)).toBeInTheDocument();
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.className).toMatch(/border-slate-600\/40/);
+    expect(wrapper.className).toMatch(/opacity-75/);
+  });
 });
+
