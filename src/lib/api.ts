@@ -189,6 +189,40 @@ export interface MetaRecommendationsResponse {
   techs: ClassifiedMetaCard[];
 }
 
+export interface MetagameTopCard {
+  cardModelId: string;
+  name: string;
+  color: string | null;
+  appearances: number;
+  presenceRate: number | null;
+  avgCopies: number | null;
+  winRate: number | null;
+  recordedMatches: number;
+}
+
+export interface MetagameTrendCard {
+  cardModelId: string;
+  name: string;
+  color: string | null;
+  priorPresenceRate: number;
+  recentPresenceRate: number;
+  trendDelta: number;
+}
+
+export interface MetagameStatsResponse {
+  season: { id: string; code: string; name: string } | null;
+  setId: string | null;
+  totalDecks: number;
+  topCards: MetagameTopCard[];
+  colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>;
+  colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }>;
+  traitDistribution: Array<{ trait: string; decks: number; presenceRate: number | null }>;
+  seriesDistribution: Array<{ series: string; decks: number; presenceRate: number | null }>;
+  trend: { windowStart: string; windowMid: string; windowEnd: string; priorCount: number; recentCount: number } | null;
+  risingCards: MetagameTrendCard[];
+  decliningCards: MetagameTrendCard[];
+}
+
 // Fase 2 -- Power Rankings semanal (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
 export interface PowerRankingEntry {
   archetype: string;
@@ -555,8 +589,10 @@ export const api = {
     request<{ cardModelId: string; hasEnoughData: boolean; deckAppearances: number; totalDecks: number; usageRate: number | null; wins: number; losses: number; draws: number; totalMatches: number; winRate: number | null }>(`/cards/${id}/stats`, undefined, { ttlMs: 60_000 }),
   // Metagame sourced só de decks travados em evento (DeckSnapshot) -- nunca de decks
   // públicos. seasonId: "current" (default), "all", ou o id de uma season específica.
-  getMetagameStats: (params: { seasonId?: string; setId?: string } = {}) =>
-    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; totalDecks: number; topCards: Array<{ cardModelId: string; name: string; color: string | null; appearances: number; presenceRate: number | null }>; colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>; colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }> }>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // color/trait/series: deck elegível = tem >=1 carta batendo o filtro (mesmo critério
+  // de setId). startDate/endDate (ISO): recorta pela data real do evento.
+  getMetagameStats: (params: { seasonId?: string; setId?: string; color?: string; trait?: string; series?: string; startDate?: string; endDate?: string } = {}) =>
+    request<MetagameStatsResponse>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 2 -- Power Rankings semanal (só resultado real de torneio reportado, ver
   // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
   getPowerRankings: (params: { seasonId?: string; setId?: string } = {}) =>

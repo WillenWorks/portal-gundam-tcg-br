@@ -76,6 +76,7 @@ import {
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
 import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
+import { getMetagameStats } from "./metagameTrendsService.ts";
 
 const prisma = new PrismaClient();
 
@@ -2326,6 +2327,11 @@ app.get("/api/stats/metagame", async (req, res) => {
   setPublicCache(res, 60, 300);
   const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
   const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const color = typeof req.query.color === "string" && req.query.color ? req.query.color : undefined;
+  const trait = typeof req.query.trait === "string" && req.query.trait ? req.query.trait : undefined;
+  const series = typeof req.query.series === "string" && req.query.series ? req.query.series : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? new Date(req.query.startDate) : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? new Date(req.query.endDate) : undefined;
 
   let seasonId: string | null = null;
   let season: { id: string; code: string; name: string } | null = null;
@@ -2342,95 +2348,8 @@ app.get("/api/stats/metagame", async (req, res) => {
     season = { id: found.id, code: found.code, name: found.name };
   }
 
-  const [reportSnapshots, hostedSnapshots] = await Promise.all([
-    prisma.tournamentEntry.findMany({
-      where: { deckSnapshotId: { not: null }, tournament: { isActive: true, ...(seasonId ? { seasonId } : {}) } },
-      select: { deckSnapshotId: true },
-    }),
-    prisma.hostedEventParticipant.findMany({
-      where: { deckSnapshotId: { not: null }, event: { status: HostedEventStatus.COMPLETED, isActive: true, ...(seasonId ? { seasonId } : {}) } },
-      select: { deckSnapshotId: true },
-    }),
-  ]);
-  const snapshotIds = Array.from(
-    new Set([...reportSnapshots, ...hostedSnapshots].map((row) => row.deckSnapshotId).filter((v): v is string => Boolean(v))),
-  );
-
-  const empty = { season, setId: setId ?? null, totalDecks: 0, topCards: [] as unknown[], colorDistribution: [] as unknown[], colorCombos: [] as unknown[] };
-  if (!snapshotIds.length) return res.json(empty);
-
-  const items = await prisma.deckSnapshotItem.findMany({
-    where: { deckSnapshotId: { in: snapshotIds }, section: { notIn: NON_STATS_SECTIONS } },
-    select: {
-      deckSnapshotId: true,
-      card: { select: { id: true, cardModelId: true, nameEn: true, namePt: true, color: true, setId: true, cardType: true } },
-    },
-  });
-
-  // Agrupa por snapshot pra poder aplicar o filtro de coleção (>=1 carta daquela
-  // coleção conta o deck inteiro pro recorte) antes de calcular presença "por deck"
-  // (não por cópia) em cada leitura.
-  const bySnapshot = new Map<string, typeof items>();
-  for (const item of items) {
-    const list = bySnapshot.get(item.deckSnapshotId) || [];
-    list.push(item);
-    bySnapshot.set(item.deckSnapshotId, list);
-  }
-
-  const eligibleSnapshotIds = setId
-    ? Array.from(bySnapshot.entries()).filter(([, list]) => list.some((entry) => entry.card?.setId === setId)).map(([id]) => id)
-    : Array.from(bySnapshot.keys());
-
-  const totalDecks = eligibleSnapshotIds.length;
-
-  const cardCount = new Map<string, { key: string; name: string; color: string | null; decks: number }>();
-  const colorCount = new Map<string, number>();
-  const comboCount = new Map<string, number>();
-
-  for (const snapshotId of eligibleSnapshotIds) {
-    const list = bySnapshot.get(snapshotId) || [];
-    const seenScopedCardKeys = new Set<string>();
-    const deckColorsScoped = new Set<string>();
-    const deckColorsFull = new Set<string>();
-    for (const item of list) {
-      const card = item.card;
-      if (!card) continue;
-      if (NON_STATS_CARD_TYPES.includes(card.cardType)) continue;
-      if (card.color) deckColorsFull.add(card.color);
-      if (setId && card.setId !== setId) continue;
-      if (card.color) deckColorsScoped.add(card.color);
-      const key = card.cardModelId || card.id;
-      if (seenScopedCardKeys.has(key)) continue;
-      seenScopedCardKeys.add(key);
-      const entry = cardCount.get(key) || { key, name: card.namePt || card.nameEn, color: card.color || null, decks: 0 };
-      entry.decks += 1;
-      cardCount.set(key, entry);
-    }
-    const colorsForDistribution = setId ? deckColorsScoped : deckColorsFull;
-    colorsForDistribution.forEach((color) => colorCount.set(color, (colorCount.get(color) ?? 0) + 1));
-    if (deckColorsFull.size) {
-      const combo = Array.from(deckColorsFull).sort().join(" + ");
-      comboCount.set(combo, (comboCount.get(combo) ?? 0) + 1);
-    }
-  }
-
-  const presenceRate = (decks: number) => (totalDecks > 0 ? Number(((decks / totalDecks) * 100).toFixed(1)) : null);
-
-  const topCards = Array.from(cardCount.values())
-    .sort((a, b) => b.decks - a.decks)
-    .slice(0, 10)
-    .map((entry) => ({ cardModelId: entry.key, name: entry.name, color: entry.color, appearances: entry.decks, presenceRate: presenceRate(entry.decks) }));
-
-  const colorDistribution = Array.from(colorCount.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([color, decks]) => ({ color, decks, presenceRate: presenceRate(decks) }));
-
-  const colorCombos = Array.from(comboCount.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([combo, decks]) => ({ combo, decks, presenceRate: presenceRate(decks) }));
-
-  res.json({ season, setId: setId ?? null, totalDecks, topCards, colorDistribution, colorCombos });
+  const stats = await getMetagameStats(prisma, { seasonId, setId, color, trait, series, startDate, endDate });
+  res.json({ season, ...stats });
 });
 
 // Resolve o parâmetro seasonId da mesma forma que /api/stats/metagame ("current" ->

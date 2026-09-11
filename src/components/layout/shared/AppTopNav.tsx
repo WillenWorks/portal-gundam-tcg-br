@@ -28,6 +28,7 @@ export const publicTopNav: readonly NavItem[] = [
       { href: "/sets", label: "Produtos" },
     ],
   },
+  { href: "/stats", label: "Estatísticas" },
   { href: "/simulador", label: "Simulador", authRequired: true },
   { href: "/rules", label: "Regras" },
 ] as const;
