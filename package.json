@@ -176,5 +176,21 @@
     "typescript-eslint": "^8.70.0",
     "vite": "^7.3.6",
     "vitest": "^4.1.11"
-  }
+  },
+  "description": "Portal brasileiro completo focado no **Gundam Card Game**, integrando catálogo oficial, base de regras e rulings em pt-BR, deckbuilder avançado e um **Simulador de Partidas em Tempo Real com Modo Solo (Treino contra Bot)**.",
+  "main": "eslint.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WillenWorks/portal-gundam-tcg-br.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/WillenWorks/portal-gundam-tcg-br/issues"
+  },
+  "homepage": "https://github.com/WillenWorks/portal-gundam-tcg-br#readme"
 }

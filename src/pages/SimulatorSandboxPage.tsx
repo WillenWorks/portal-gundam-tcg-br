@@ -206,6 +206,30 @@ export default function SimulatorSandboxPage() {
     </div>
   );
 
+function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
+      {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
+      <div className="pointer-events-none absolute inset-0">
+        <img
+          src="/images/shining_vs_destiny_space_arena.jpg"
+          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
+          className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
+        />
+        {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/50 via-transparent to-[#0b0f19]/75" />
+        <div className="absolute inset-0 bg-grid-tech opacity-10" />
+      </div>
+
+      {/* Conteúdo centralizado com o card otimizado para não esconder os mechas */}
+      <div className="relative z-10 flex min-h-[740px] lg:min-h-[820px] xl:min-h-[900px] 2xl:min-h-[940px] items-center justify-center p-4 sm:p-6 lg:p-10">
+        <div className="w-full max-w-md">{children}</div>
+      </div>
+    </div>
+  );
+}
+
   if (screen === "checking") {
     return (
       <PublicShell breadcrumbs={[{ label: "Simulador" }]}>
@@ -220,8 +244,8 @@ export default function SimulatorSandboxPage() {
   if (screen === "queued") {
     return (
       <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Fila Online" }]}>
-        <div className="mx-auto max-w-xl">
-          <Card className="rounded-xl border-primary/30 hero-surface">
+        <ArenaBackgroundWrapper>
+          <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
@@ -237,7 +261,7 @@ export default function SimulatorSandboxPage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </ArenaBackgroundWrapper>
       </PublicShell>
     );
   }
@@ -245,8 +269,8 @@ export default function SimulatorSandboxPage() {
   if (screen === "challenge-host") {
     return (
       <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Convite Direto" }]}>
-        <div className="mx-auto max-w-xl">
-          <Card className="rounded-xl border-primary/30 hero-surface">
+        <ArenaBackgroundWrapper>
+          <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
             <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
               <Loader2 className="size-8 animate-spin text-primary" />
               <div>
@@ -270,7 +294,7 @@ export default function SimulatorSandboxPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </ArenaBackgroundWrapper>
       </PublicShell>
     );
   }
@@ -278,8 +302,8 @@ export default function SimulatorSandboxPage() {
   if (screen === "challenge-guest") {
     return (
       <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Duelo Privado" }]}>
-        <div className="mx-auto max-w-xl">
-          <Card className="rounded-xl border-primary/30 hero-surface">
+        <ArenaBackgroundWrapper>
+          <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
             <CardContent className="space-y-6 p-8">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Duelo Privado</p>
@@ -304,21 +328,21 @@ export default function SimulatorSandboxPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </ArenaBackgroundWrapper>
       </PublicShell>
     );
   }
 
   return (
     <PublicShell breadcrumbs={[{ label: "Simulador" }]}>
-      <div className="mx-auto max-w-xl">
-        <Card className="rounded-xl border-primary/30 hero-surface">
+      <ArenaBackgroundWrapper>
+        <Card className="rounded-xl border-primary/40 bg-slate-950/85 backdrop-blur-md shadow-2xl">
           <CardContent className="space-y-6 p-8">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arena Asticassia · Centro de Duelos</p>
               <h1 className="mt-2 font-heading text-4xl uppercase heading-portal">Arena Asticassia</h1>
               <p className="mt-3 text-sm leading-7 text-soft">
-                Ambiente de combate tático para Mobile Suits. Dispute duelos oficiais contra outros pilotos online, desafie amigos via link direto ou execute simulações de treinamento contra a inteligência do Bot.
+                Ambiente de jogo contra outro piloto. Dispute contra um oponente na fila de espera ou convide um amigo para entrar numa partida.
               </p>
             </div>
 
@@ -339,12 +363,26 @@ export default function SimulatorSandboxPage() {
               Duelo com Amigo (Convite Direto)
             </Button>
 
-            <div className="relative my-1 flex items-center py-2">
-              <div className="flex-grow border-t border-white/10" />
-              <span className="mx-3 flex-shrink text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-portal">
-                Treinamento de Piloto
-              </span>
-              <div className="flex-grow border-t border-white/10" />
+            <Button
+              variant="outline"
+              className="w-full rounded-arena border-violet-500/40 bg-violet-950/20 text-violet-300 hover:bg-violet-900/30 hover:border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+              onClick={() => navigate("/simulador/multiplayer")}
+            >
+              <Users className="mr-2 size-4 text-violet-400" />
+              Arena Multiplayer
+            </Button>
+
+            <div className="my-1 py-2">
+              <div className="relative flex items-center">
+                <div className="flex-grow border-t border-white/10" />
+                <span className="mx-3 flex-shrink text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-portal">
+                  Treinamento de Piloto
+                </span>
+                <div className="flex-grow border-t border-white/10" />
+              </div>
+              <p className="mt-1 text-center text-xs text-muted-portal">
+                Teste seus decks montados ou selados contra um robô autômato
+              </p>
             </div>
 
             <Button
@@ -357,7 +395,7 @@ export default function SimulatorSandboxPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </ArenaBackgroundWrapper>
     </PublicShell>
   );
 }

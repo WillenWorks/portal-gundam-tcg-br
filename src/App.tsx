@@ -37,6 +37,7 @@ const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
 const SimulatorMatchPage = lazy(() => import("@/pages/SimulatorMatchPage"));
 const SimulatorTrainingPage = lazy(() => import("@/pages/SimulatorTrainingPage"));
+const SimulatorMultiplayerPage = lazy(() => import("@/pages/SimulatorMultiplayerPage"));
 // Preview de layout cru do simulador (docs/38, Frente 4) — SEM auth. A rota
 // existe sempre (inclusive em produção), mas a página só renderiza pra quem
 // tem a permissão de runtime (DEV, `VITE_LAYOUT_PREVIEW=1`, ou já abriu a rota
@@ -119,6 +120,8 @@ function AppRouter() {
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
         {/* Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). */}
         <Route path="/simulador/treino">{() => <RequireAuth><LazyRoute label="Treino"><SimulatorTrainingPage /></LazyRoute></RequireAuth>}</Route>
+        {/* Modo multiplayer 4P (2x2 / Battle Royale) — Fase de Arquitetura */}
+        <Route path="/simulador/multiplayer">{() => <RequireAuth><LazyRoute label="Arena Multiplayer"><SimulatorMultiplayerPage /></LazyRoute></RequireAuth>}</Route>
         {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
             no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
         <Route path="/simulador/partida/:matchId">

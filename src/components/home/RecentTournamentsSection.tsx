@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Calendar, Clock, MapPin, Trophy, Swords, Medal, ExternalLink, ArrowRight } from "lucide-react";
+import { Calendar, Clock, MapPin, Trophy, Swords, Medal, ExternalLink, ArrowRight, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -206,8 +206,9 @@ export function RecentTournamentsSection() {
   };
 
   return (
-    <section id="ultimos-eventos" className="border-t border-white/10 bg-slate-950/70 py-12 sm:py-16">
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-6">
+    <section id="ultimos-eventos" className="relative border-t border-red-950/50 bg-slate-950/80 py-12 sm:py-16 overflow-hidden">
+      {/* Camada 1: Conteúdo Original dos Torneios (visível sob o filtro, mas desabilitado) */}
+      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-6 select-none pointer-events-none opacity-30 grayscale-[50%] blur-[0.6px]">
         {/* Cabeçalho da Seção */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-5">
           <div>
@@ -321,6 +322,80 @@ export function RecentTournamentsSection() {
               </div>
             </Card>
           ))}
+        </div>
+      </div>
+
+      {/* Camada 2: Barreira de Contenção & Shading Holográfico */}
+      <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+        {/* Shading escuro profundo e vinheta avermelhada */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/85 via-slate-950/65 to-slate-950/90" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(239,68,68,0.1)_0%,rgba(15,23,42,0.7)_65%,rgba(11,15,25,0.95)_100%)]" />
+
+        {/* Listras diagonais de isolamento tático / campo de força */}
+        <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,rgba(239,68,68,0.06)_0px,rgba(239,68,68,0.06)_16px,transparent_16px,transparent_32px)]" />
+
+        {/* Scanlines & Grid cibernético de contenção */}
+        <div className="absolute inset-0 bg-scanlines opacity-30" />
+        <div className="absolute inset-0 bg-grid-tech opacity-20" />
+
+        {/* Feixes de laser de contenção no topo e base */}
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent shadow-[0_0_15px_rgba(239,68,68,0.9)]" />
+        <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/80 to-transparent shadow-[0_0_15px_rgba(239,68,68,0.9)]" />
+      </div>
+
+      {/* Camada 3: Painel Central de Alerta Vermelho "Bloqueado" */}
+      <div className="absolute inset-0 z-30 flex items-center justify-center p-4 sm:p-6 pointer-events-auto">
+        <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border-2 border-red-500/80 bg-slate-950/95 p-6 sm:p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.45),inset_0_0_30px_rgba(239,68,68,0.15)] backdrop-blur-2xl">
+          {/* Feixe de luz de emergência vermelha no topo */}
+          <div className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 size-44 rounded-full bg-red-600/30 blur-3xl" />
+
+          {/* Marcadores táticos nos quatro cantos */}
+          <div className="pointer-events-none absolute top-2.5 left-2.5 size-2.5 border-t-2 border-l-2 border-red-500/80" />
+          <div className="pointer-events-none absolute top-2.5 right-2.5 size-2.5 border-t-2 border-r-2 border-red-500/80" />
+          <div className="pointer-events-none absolute bottom-2.5 left-2.5 size-2.5 border-b-2 border-l-2 border-red-500/80" />
+          <div className="pointer-events-none absolute bottom-2.5 right-2.5 size-2.5 border-b-2 border-r-2 border-red-500/80" />
+
+          <div className="relative z-10 flex flex-col items-center">
+            {/* Badge com indicador pulsante de restrição */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/60 bg-red-500/15 px-3.5 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-red-400 shadow-[0_0_16px_rgba(239,68,68,0.25)]">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+              </span>
+              <ShieldAlert className="size-3.5 text-red-400" />
+              Acesso Restrito · Anaheim Hub
+            </div>
+
+            {/* Título "BLOQUEADO" em destaque vermelho vibrante */}
+            <h3 className="mt-3 font-heading text-4xl sm:text-5xl uppercase tracking-wider text-red-500 drop-shadow-[0_0_24px_rgba(239,68,68,0.7)]">
+              Bloqueado
+            </h3>
+
+            {/* Linha divisória tática */}
+            <div className="my-3 flex w-36 items-center gap-1.5">
+              <div className="h-[1px] flex-1 bg-red-500/40" />
+              <div className="size-1.5 rotate-45 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+              <div className="h-[1px] flex-1 bg-red-500/40" />
+            </div>
+
+            {/* Texto explicativo */}
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-300 max-w-md">
+              Área de torneios e súmulas em calibração operacional. O registro e ranking oficial de eventos presenciais e nacionais do Gundam TCG será liberado em breve.
+            </p>
+
+            {/* Tags técnicas de status */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 pt-3 border-t border-red-500/20 text-[10px] font-mono uppercase tracking-wider text-red-400/90">
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+                Status: Indisponível
+              </span>
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+                Temporada 2026
+              </span>
+              <span className="px-2.5 py-1 rounded-xs border border-red-500/30 bg-red-950/50">
+                Homologação Pendente
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

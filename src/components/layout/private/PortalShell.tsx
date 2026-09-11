@@ -1,7 +1,7 @@
 /* Layout privado v8.1 — painel em tela cheia, topo privado sem links públicos e sidebar responsiva. */
 import { type ComponentType, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { BookMarked, Bot, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Gamepad2, Globe, Home, Image, LogOut, Megaphone, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Swords, Tags, Trophy, Users } from "lucide-react";
+import { BookMarked, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Globe, Home, Image, LogOut, Menu, Moon, PanelsTopLeft, ScrollText, Settings, ShieldCheck, Sun, Tags, Trophy, Users } from "lucide-react";
 
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,11 +25,7 @@ type Crumb = { label: string; href?: string };
 const userNav = [
   { href: "/", label: "Página Inicial", icon: Globe },
   { href: "/portal", label: "Painel", icon: Home },
-  { href: "/novidades", label: "Novidades", icon: Megaphone },
-  { href: "/deckbuilder", label: "Hangar OZ (Decks)", icon: Swords },
   { href: "/binders", label: "Pastas", icon: BookMarked },
-  // Central de Partidas (online e modo solo integrados na página)
-  { href: "/simulador", label: "Arena Asticassia", icon: Swords },
   { href: "/profile", label: "Configurações", icon: Settings },
 ] as const;
 

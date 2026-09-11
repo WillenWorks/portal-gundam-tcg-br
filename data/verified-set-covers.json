@@ -1,0 +1,154 @@
+[
+  {
+    "code": "GD01",
+    "name": "Newtype Rising",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/gd01.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/07/01/d1FLD8rsnJGWHAc3/pc.jpg",
+    "localImageUrl": "/images/sets/gd01.jpg",
+    "sizeBytes": 414606
+  },
+  {
+    "code": "GD02",
+    "name": "Dual Impact",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/gd02.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/08/01/VT4gky9ihdsujnlt/GD02mv_pc.webp",
+    "localImageUrl": "/images/sets/gd02.webp",
+    "sizeBytes": 204472
+  },
+  {
+    "code": "GD03",
+    "name": "Steel Requiem",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/gd03.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/11/18/eSn0DZbd2Uwg77Rz/GD03mv_pc.webp",
+    "localImageUrl": "/images/sets/gd03.webp",
+    "sizeBytes": 111978
+  },
+  {
+    "code": "GD04",
+    "name": "Phantom Aria",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/gd04.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/01/28/bbObFS7HEiYHB4El/GD04mv_pc.webp",
+    "localImageUrl": "/images/sets/gd04.webp",
+    "sizeBytes": 110516
+  },
+  {
+    "code": "GD05",
+    "name": "Freedom Ascension",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/gd05.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/04/30/QcwcltxVi947Rc69/GD05mv_pc.webp",
+    "localImageUrl": "/images/sets/gd05.webp",
+    "sizeBytes": 136008
+  },
+  {
+    "code": "GD01_b",
+    "name": "Edition Beta",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/limitedbox-beta.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/jp/news/2025/04/23/45gwPVjYTdDMRBPt/mv.webp",
+    "localImageUrl": "/images/sets/gd01_b.webp",
+    "sizeBytes": 40858
+  },
+  {
+    "code": "EB01",
+    "name": "Eternal Nexus",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/eb01.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/03/17/eMbjHAw2sCnhhxkZ/EB01mv_pc.webp",
+    "localImageUrl": "/images/sets/eb01.webp",
+    "sizeBytes": 128690
+  },
+  {
+    "code": "DBB-FA",
+    "name": "Deck Build Box Freedom Ascension",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/deck-build-box.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/06/24/LNbvzisAfITCaXl4/thumbnail_storageBOX-en.webp",
+    "localImageUrl": "/images/sets/dbb-fa.webp",
+    "sizeBytes": 35514
+  },
+  {
+    "code": "ST01",
+    "name": "Starter Deck 01: Heroic Beginnings",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st01.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/jp/news/2025/03/10/Vs8Yj018hmDj1Ozm/mv.webp",
+    "localImageUrl": "/images/sets/st01.webp",
+    "sizeBytes": 176624
+  },
+  {
+    "code": "ST02",
+    "name": "Starter Deck 02: Wings of Advance",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st02.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/jp/news/2025/03/11/KdLZEutRRmqgSdrV/ST02mv_pc.webp",
+    "localImageUrl": "/images/sets/st02.webp",
+    "sizeBytes": 129796
+  },
+  {
+    "code": "ST03",
+    "name": "Starter Deck 03: Zeon's Rush",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st03.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/jp/news/2025/03/11/FIkGIDXKOdAeM7me/ST03mv_pc.webp",
+    "localImageUrl": "/images/sets/st03.webp",
+    "sizeBytes": 142572
+  },
+  {
+    "code": "ST04",
+    "name": "Starter Deck 04: SEED Strike",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st04.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/jp/news/2025/03/11/9RS9hFjVITInkoOf/ST04mv_pc.webp",
+    "localImageUrl": "/images/sets/st04.webp",
+    "sizeBytes": 163870
+  },
+  {
+    "code": "ST05",
+    "name": "Starter Deck 05: Iron Bloom",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st05.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/08/01/96DfUslgDPhq4S5N/ST05mv_pc.webp",
+    "localImageUrl": "/images/sets/st05.webp",
+    "sizeBytes": 289976
+  },
+  {
+    "code": "ST06",
+    "name": "Starter Deck 06: Clan Unity",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st06.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/08/01/dzdR7jh66oHhn32G/ST06mv_pc.webp",
+    "localImageUrl": "/images/sets/st06.webp",
+    "sizeBytes": 290608
+  },
+  {
+    "code": "ST07",
+    "name": "Starter Deck 07: Celestial Drive",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st07.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/11/18/LKwRXcQmWC9L86P2/ST07mv_pc.webp",
+    "localImageUrl": "/images/sets/st07.webp",
+    "sizeBytes": 177152
+  },
+  {
+    "code": "ST08",
+    "name": "Starter Deck 08: Flash of Radiance",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st08.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/11/18/uIRPYZP5E9OxaFgp/ST08mv_pc.webp",
+    "localImageUrl": "/images/sets/st08.webp",
+    "sizeBytes": 146362
+  },
+  {
+    "code": "ST09",
+    "name": "Starter Deck 09: Destiny Ignition",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st09.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/01/28/gyIJbctrZlbtMxiB/ST09mv_pc.webp",
+    "localImageUrl": "/images/sets/st09.webp",
+    "sizeBytes": 195528
+  },
+  {
+    "code": "ST10",
+    "name": "Starter Deck 10: Generation Pulse",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/st10.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2026/03/17/xK1Zcfec0uTJEgxC/ST10mv_pc.webp",
+    "localImageUrl": "/images/sets/st10.webp",
+    "sizeBytes": 157388
+  },
+  {
+    "code": "GCG-PR",
+    "name": "Gundam Promotional Cards",
+    "officialUrl": "https://www.gundam-gcg.com/en/products/evx05.html",
+    "remoteImageUrl": "https://www.gundam-gcg.com/gcg/bccard/en/news/2025/10/07/9ChcsQAu3OrTTAmi/thumbnail_en_01.webp",
+    "localImageUrl": "/images/sets/gcg-pr.webp",
+    "sizeBytes": 56742
+  }
+]

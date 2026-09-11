@@ -1,67 +1,119 @@
-/* Hero banner cinematográfico com leve parallax no scroll -- usado nos topos de
- * /cards e /sets no lugar do painel de título padrão do PublicShell (ver prop
- * `heroBanner`). A imagem já vem com fade inferior embutido (bottom alpha fade);
- * o gradiente CSS por cima garante mesclagem 100% invisível com o fundo da página
- * mesmo que o PNG não tenha o alfa perfeito, e cobre a versão .jpg (sem alfa). */
-import { useEffect, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+/* Banner Hero com efeito Parallax suave e transição gradiente para o background da página. */
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface ParallaxHeroBannerProps {
-  image: string;
-  eyebrow?: string;
+  imageSrc?: string;
+  image?: string;
+  imageAlt?: string;
   title: string;
+  badgeText?: string;
+  eyebrow?: string;
   badge?: string;
-  className?: string;
+  telemetryCount?: number | string;
+  telemetryLabel?: string;
+  children?: ReactNode;
+  heightClass?: string;
 }
 
-const PARALLAX_FACTOR = 0.28;
-
-export function ParallaxHeroBanner({ image, eyebrow, title, badge, className }: ParallaxHeroBannerProps) {
+export function ParallaxHeroBanner({
+  imageSrc,
+  image,
+  imageAlt = "Banner de fundo",
+  title,
+  badgeText,
+  eyebrow,
+  badge,
+  telemetryCount,
+  telemetryLabel = "indexadas",
+  children,
+  heightClass = "min-h-[220px] md:min-h-[280px] lg:min-h-[320px]",
+}: ParallaxHeroBannerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [offsetY, setOffsetY] = useState(0);
-  const reducedMotionRef = useRef(false);
+
+  const finalImage = imageSrc || image || "/images/unicorn_blueprint_banner.png";
+  const finalBadge = badgeText || eyebrow;
+  const finalCount = telemetryCount !== undefined ? telemetryCount : badge;
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    reducedMotionRef.current = media.matches;
-    const handleMotionChange = (event: MediaQueryListEvent) => {
-      reducedMotionRef.current = event.matches;
-      if (event.matches) setOffsetY(0);
-    };
-    media.addEventListener("change", handleMotionChange);
+    let animationFrameId: number;
 
-    if (reducedMotionRef.current) return () => media.removeEventListener("change", handleMotionChange);
-
-    let ticking = false;
     const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        setOffsetY(window.scrollY);
-        ticking = false;
+      animationFrameId = window.requestAnimationFrame(() => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.bottom >= 0 && rect.top <= window.innerHeight) {
+          const scrollDistance = -rect.top;
+          setOffsetY(scrollDistance * 0.22);
+        }
       });
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      media.removeEventListener("change", handleMotionChange);
+      window.cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
   return (
-    <div className={`panel-cut relative isolate h-[280px] overflow-hidden border border-white/10 sm:h-[340px] lg:h-[400px] ${className ?? ""}`}>
+    <div
+      ref={containerRef}
+      className={`relative w-full overflow-hidden border border-white/10 bg-slate-950 ${heightClass} flex flex-col justify-end p-6 md:p-8 lg:p-10 shadow-2xl`}
+    >
+      {/* Imagem de Fundo com Parallax e escala suave */}
       <div
-        className="absolute inset-0 -top-16 bg-cover bg-center will-change-transform"
-        style={{ backgroundImage: `url(${image})`, transform: `translateY(${offsetY * PARALLAX_FACTOR}px)` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/20 to-[#0b0f19]" />
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-950/10 to-transparent" />
+        className="pointer-events-none absolute -inset-x-0 -top-16 -bottom-16 w-full h-[calc(100%+128px)] transition-transform duration-75 ease-out will-change-transform"
+        style={{
+          transform: `translate3d(0, ${offsetY}px, 0) scale(1.05)`,
+        }}
+      >
+        <img
+          src={finalImage}
+          alt={imageAlt}
+          className="h-full w-full object-cover object-center opacity-90 brightness-[0.95] contrast-[1.05]"
+        />
+      </div>
 
-      <div className="relative z-10 flex h-full flex-col justify-end gap-3 p-6 sm:p-8 lg:p-10">
-        {eyebrow ? <p className="text-xs uppercase tracking-[0.28em] text-primary font-semibold">{eyebrow}</p> : null}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="font-heading text-4xl uppercase leading-none text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl">{title}</h1>
-          {badge ? <Badge className="rounded-none border border-primary/40 bg-slate-950/70 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.24em] text-primary backdrop-blur-sm">{badge}</Badge> : null}
+      {/* Gradientes de mesclagem para fundir com o fundo (#0b0f19 / slate-950) */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-[#0b0f19]/60 to-transparent opacity-95" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0b0f19]/90 via-[#0b0f19]/40 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-grid-tech opacity-15" />
+
+      {/* Linha técnica decorativa superior */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+      {/* Conteúdo do Banner */}
+      <div className="relative z-10 max-w-5xl">
+        <div className="flex flex-wrap items-center gap-3">
+          {finalBadge ? (
+            <span className="inline-flex items-center gap-1.5 border border-primary/50 bg-primary/15 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-primary backdrop-blur-md">
+              <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+              {finalBadge}
+            </span>
+          ) : null}
+
+          {finalCount !== undefined ? (
+            <span className="font-mono text-xs uppercase tracking-[0.2em] text-slate-400 bg-black/40 px-2.5 py-1 border border-white/10 backdrop-blur-sm">
+              <strong className="text-white font-bold">{finalCount}</strong> {typeof finalCount === "number" ? telemetryLabel : ""}
+            </span>
+          ) : null}
         </div>
+
+        <h1 className="mt-3 font-heading text-4xl sm:text-5xl lg:text-6xl uppercase tracking-wider text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+          {title}
+        </h1>
+
+        {children ? <div className="mt-4">{children}</div> : null}
+      </div>
+
+      {/* Indicador de Telemetria no canto inferior direito */}
+      <div className="pointer-events-none absolute bottom-3 right-4 hidden md:flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.24em] text-slate-500/80">
+        <span>SYSTEM // ARCHIVE HUD</span>
+        <span className="h-2 w-px bg-white/20" />
+        <span className="text-emerald-400/90">ONLINE</span>
       </div>
     </div>
   );
