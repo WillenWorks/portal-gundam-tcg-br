@@ -9,13 +9,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
 import { api, type CardFilters } from "@/lib/api";
-import { CARD_TYPE_OPTIONS } from "@/lib/gundam-catalog";
-import { formatCardText } from "@/lib/utils";
+import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "@/lib/rarityLabels";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
+
+// Cores distintas por categoria de raridade -- leitura instantânea de valor da carta
+// sem precisar ler o texto do badge (Scryfall/Limitless style).
+const RARITY_BADGE_STYLE: Record<string, string> = {
+  Common: "border-slate-400/40 bg-slate-400/10 text-slate-300",
+  Uncommon: "border-emerald-400/40 bg-emerald-400/10 text-emerald-300",
+  Rare: "border-sky-400/40 bg-sky-400/10 text-sky-300",
+  "Super Rare": "border-violet-400/40 bg-violet-400/10 text-violet-300",
+  "Legend Rare": "border-amber-400/40 bg-amber-400/10 text-amber-300",
+  Secret: "border-rose-400/40 bg-rose-400/10 text-rose-300",
+  Promo: "border-cyan-400/40 bg-cyan-400/10 text-cyan-300",
+};
+const DEFAULT_RARITY_STYLE = "border-white/20 bg-white/5 text-slate-300";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 9999] as const;
 const DEFAULT_PAGE_SIZE = 20;
@@ -127,13 +140,6 @@ export default function CardsPage() {
     setFilters(defaultFilters);
     setPage(1);
   };
-  const readPrimaryEffect = (card: any) => {
-    const sections = Array.isArray(card.textSectionsJson) ? card.textSectionsJson : [];
-    const section = sections.find((item: any) => item?.textPt || item?.textEn);
-    return section?.textPt || section?.textEn || card.effectPt || card.effectEn || "Sem texto cadastrado.";
-  };
-  const formatEffect = (card: any) => formatCardText(readPrimaryEffect(card));
-  const readFlags = (card: any) => [card.hasBurst && "Burst", card.hasMain && "Main", card.hasAction && "Action", card.oncePerTurn && "Once per turn"].filter(Boolean) as string[];
 
   const copySearchLink = async () => {
     await navigator.clipboard.writeText(buildShareUrl(basePath, filters, page, pageSize));
@@ -142,41 +148,53 @@ export default function CardsPage() {
   const rarityOptions = useMemo(() => Array.from(rarityGroups.keys()).sort(), [rarityGroups]);
 
   return (
-    <PublicShell breadcrumbs={[{ label: "Arquivo Central" }]} title="Arquivo Central Anaheim" description="Registro técnico de blueprints, dados de Mobile Suits e catálogo completo de cartas com filtros avançados de busca.">
+    <PublicShell
+      breadcrumbs={[{ label: "Database de Cards" }]}
+      heroBanner={
+        <ParallaxHeroBanner
+          image="/images/unicorn_blueprint_banner.png"
+          eyebrow="Anaheim Electronics · UC 0096 / Project UC"
+          title="Database de Cards"
+          badge={`${total} cartas indexadas`}
+        />
+      }
+    >
       <div className="space-y-6">
         <Card className="panel-cut rounded-none surface-panel">
-          <CardContent className="space-y-5 p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-primary font-semibold">Arquivo Central Anaheim · Registro de Blueprints</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase dark:text-white light:text-slate-900">Catálogo Técnico de Cartas</h2>
-                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">Consulte especificações de Mobile Suits, Pilotos, Comandos e Bases por cor, tipo, série, trait, palavra-chave ou expansão. Filtros salvos no link para compartilhamento de telemetria.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{total} resultados</Badge>
-                <button type="button" onClick={copySearchLink} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Copiar busca</button>
+          <CardContent className="space-y-4 p-5">
+            {/* Linha de Comando Principal — busca rápida & ações */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <Input
+                value={filters.q ?? ""}
+                onChange={(event) => setFilter("q", event.target.value)}
+                placeholder="Nome, código, trait, efeito ou série"
+                className="field-shell h-11 flex-1 text-sm light:border-slate-300/80 light:bg-white light:text-slate-900"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={copySearchLink} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Copiar busca</button>
+                <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Limpar filtros</button>
+                <Badge variant="outline" className="h-11 rounded-none border-white/20 px-3 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
+                <Badge className="h-11 rounded-none border border-accent/40 bg-accent/10 px-3 text-accent">{total} resultados</Badge>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
-              <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Nome, código, trait, efeito ou série" className="field-shell sm:col-span-2 lg:col-span-6 light:border-slate-300/80 light:bg-white light:text-slate-900" />
-              <div className="lg:col-span-3"><MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} /></div>
-              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
-              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <div className="lg:col-span-3"><MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} /></div>
-              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os sets</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
-              <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white lg:col-span-3 light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="created_desc">Últimas cadastradas</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
+            {/* Barra de Parâmetros Principais */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} />
+              <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
+              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as coleções</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+              <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
-              <button type="button" onClick={resetFilters} className="rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Limpar filtros</button>
-              <Link href="/sets" className="rounded-none border border-primary/30 bg-primary/10 px-4 py-2 text-xs uppercase tracking-[0.18em] text-primary transition hover:bg-primary/15">Ver coleções</Link>
-              <div className="ml-auto flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
-                <span>Por página</span>
-                <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="h-9 rounded-none border border-white/15 bg-slate-950/70 px-2 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900">
+            {/* Barra de Parâmetros de Lore & Ordenação */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} />
+              <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="created_desc">Últimas cadastradas</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+                <span className="shrink-0">Por página</span>
+                <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="h-10 w-full rounded-none border border-white/15 bg-slate-950/70 px-2 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900">
                   {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size === 9999 ? "Todas" : size}</option>)}
                 </select>
               </div>
@@ -186,83 +204,42 @@ export default function CardsPage() {
 
         {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo...</p> : null}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {cards.map((card) => {
-            const keywords = [...(card.triggerKeywords || []), ...(card.effectKeywords || []), ...readFlags(card)];
-            const hasAp = card.ap !== null && card.ap !== undefined;
-            const hasHp = card.hp !== null && card.hp !== undefined;
             const traitText = (card.traits || []).join(", ") || card.trait || "";
             const seriesText = card.series || card.sourceTitle || "";
+            const rarityLabel = card.rarity ? normalizeRarityLabel(card.rarity) : "";
             return (
-              <Card key={card.id} className="panel-cut rounded-none surface-panel">
-                <CardContent className="space-y-4 p-5">
-                  <div className="flex items-start gap-4">
-                    <Link href={`/cards/${card.id}`} className="block aspect-[63/88] w-16 shrink-0 overflow-hidden border border-white/15">
-                      {card.imageMediumUrl || card.imageUrl ? <img src={card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/60 text-[8px] uppercase text-slate-600">sem arte</div>}
-                    </Link>
-                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                        <h3 className="mt-2 line-clamp-2 min-h-[4.5rem] font-heading text-3xl uppercase leading-none dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</h3>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        {card.color ? (
-                          <button type="button" onClick={() => setFilter("color", card.color)} title={`Filtrar por ${card.color}`}>
-                            <Badge className="cursor-pointer rounded-none border border-primary/40 bg-primary/10 text-primary transition hover:bg-primary/20">{card.color}</Badge>
-                          </button>
-                        ) : <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">—</Badge>}
-                        {card.rarity ? (
-                          <button type="button" onClick={() => setFilter("rarity", normalizeRarityLabel(card.rarity))} title={`Filtrar por ${normalizeRarityLabel(card.rarity)}`}>
-                            <Badge variant="outline" className="cursor-pointer rounded-none border-amber-400/40 bg-amber-400/10 text-amber-300 transition hover:border-amber-400 hover:bg-amber-400/20">{normalizeRarityLabel(card.rarity)}</Badge>
-                          </button>
-                        ) : null}
-                        {card.printCount > 1 ? <Badge variant="outline" className="rounded-none border-accent/40 text-accent">{card.printCount} artes</Badge> : null}
-                      </div>
-                    </div>
+              <div key={card.id} className="group">
+                <Link href={`/cards/${card.id}`} className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-slate-950/60 transition-all duration-200 group-hover:scale-[1.03] group-hover:border-primary/60">
+                  {card.imageMediumUrl || card.imageUrl ? (
+                    <img src={card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">Sem arte</div>
+                  )}
+                  {card.color ? (
+                    <span className="absolute left-1 top-1 rounded-none border border-white/20 bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-white" style={{ borderColor: `${GAME_COLOR_HEX[card.color] ?? "#94a3b8"}80` }}>{card.color}</span>
+                  ) : null}
+                  <div className="absolute right-1 top-1 flex flex-col items-end gap-1">
+                    {rarityLabel ? <span className={`rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] ${RARITY_BADGE_STYLE[rarityLabel] ?? DEFAULT_RARITY_STYLE}`}>{rarityLabel}</span> : null}
+                    {card.printCount > 1 ? <span className="rounded-none border border-accent/40 bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-accent">{card.printCount} artes</span> : null}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-300 dark:text-slate-300 light:text-slate-700">
-                    <button type="button" onClick={() => setFilter("cardType", card.cardType === "COMMAND_PILOT" ? "COMMAND" : card.cardType)} className="panel-cut border surface-strong p-3 text-left transition hover:border-primary/50 hover:text-primary light:border-slate-300/80 light:bg-slate-50" title={`Filtrar por ${cardTypeLabel(card.cardType)}`}>Tipo: {cardTypeLabel(card.cardType)}</button>
-                    <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">Custo: {card.cost ?? "—"}</div>
-                    {hasAp ? <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">AP: {card.ap}</div> : null}
-                    {hasHp ? <div className="panel-cut border surface-strong p-3 light:border-slate-300/80 light:bg-slate-50">HP: {card.hp}</div> : null}
-                  </div>
-
+                </Link>
+                <div className="mt-1.5 space-y-0.5 px-0.5">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">{card.code}</p>
+                  <p className="line-clamp-2 min-h-[2.2em] text-[13px] font-semibold leading-tight text-white dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</p>
                   {traitText || seriesText ? (
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Trait / Série</p>
-                      <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
-                        {traitText ? <button type="button" onClick={() => setFilter("trait", (card.traits && card.traits[0]) || card.trait)} className="hover:text-primary hover:underline" title={`Filtrar por ${traitText}`}>{traitText}</button> : null}
-                        {traitText && seriesText ? " · " : null}
-                        {seriesText ? <button type="button" onClick={() => setFilter("series", seriesText)} className="hover:text-primary hover:underline" title={`Filtrar por ${seriesText}`}>{seriesText}</button> : null}
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFilter(traitText ? "trait" : "series", traitText ? (card.traits?.[0] || card.trait) : seriesText)}
+                      title={`Filtrar por ${traitText || seriesText}`}
+                      className="block truncate text-left text-[11px] text-slate-500 transition hover:text-primary hover:underline"
+                    >
+                      {traitText || seriesText}
+                    </button>
                   ) : null}
-
-                  {keywords.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {keywords.map((keyword: string) => (
-                        <Link key={keyword} href={`/rules?relatedKeyword=${encodeURIComponent(keyword)}`}>
-                          <Badge variant="outline" className="cursor-pointer rounded-none border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{keyword}</Badge>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <p className="whitespace-pre-line text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{formatEffect(card)}</p>
-                  <div>
-                    <div className="flex flex-wrap gap-2 pb-1">
-                      {card.set?.code ? (
-                        <button type="button" onClick={() => setFilter("setCode", card.set.code)} title={`Filtrar pela coleção ${card.set.code}`}>
-                          <Badge variant="outline" className="cursor-pointer rounded-none border-white/20 text-slate-300 transition hover:border-primary/60 hover:text-primary dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{card.set.code}</Badge>
-                        </button>
-                      ) : null}
-                      {(card.cardSubtypes || []).slice(0,2).map((item: string) => <Badge key={item} variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{item}</Badge>)}
-                    </div>
-                    <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>

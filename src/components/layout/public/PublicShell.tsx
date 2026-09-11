@@ -16,7 +16,7 @@ import {
 
 type Crumb = { label: string; href?: string };
 
-export function PublicShell({ children, breadcrumbs, title, description }: { children: ReactNode; breadcrumbs?: Crumb[]; title?: string; description?: string }) {
+export function PublicShell({ children, breadcrumbs, title, description, heroBanner }: { children: ReactNode; breadcrumbs?: Crumb[]; title?: string; description?: string; heroBanner?: ReactNode }) {
   const trail = breadcrumbs?.length ? breadcrumbs : [{ label: title || "Página pública" }];
 
   return (
@@ -54,7 +54,9 @@ export function PublicShell({ children, breadcrumbs, title, description }: { chi
             </BreadcrumbList>
           </Breadcrumb>
 
-          {(title || description) ? (
+          {heroBanner ? heroBanner : null}
+
+          {!heroBanner && (title || description) ? (
             <div className="panel-cut border border-white/10 bg-slate-950/70 px-5 py-5 dark:border-white/10 dark:bg-slate-950/70 light:border-slate-300/80 light:bg-white/86 light:shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>

@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
 import { api } from "@/lib/api";
 
 type SetRow = {
@@ -29,9 +30,15 @@ export default function CollectionsPage() {
 
   return (
     <PublicShell
-      breadcrumbs={[{ label: "Coleções" }]}
-      title="Coleções"
-      description="Boosters, starters e futuras expansões com capa própria, data de lançamento e atalho direto para o catálogo filtrado."
+      breadcrumbs={[{ label: "Coleções & Produtos" }]}
+      heroBanner={
+        <ParallaxHeroBanner
+          image="/images/gundam_hangar_deploy_banner.png"
+          eyebrow="Hangar de Produção & Deploy"
+          title="Coleções & Produtos"
+          badge={`${sets.length} coleções catalogadas`}
+        />
+      }
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {sets.map((set) => {
