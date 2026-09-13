@@ -119,6 +119,18 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
   return out;
 }
 
+/**
+ * `true` se `spec.cost` inclui "Rest this Unit/Base:" (`{op:"rest", target:{kind:"self"}}`)
+ * — achado no fuzzing da wave GD01 (`GD01-130`, heurístico vs heurístico travava
+ * reativando a mesma habilidade pra sempre): resting uma carta JÁ rested é um
+ * no-op silencioso (`REST_CARD` só seta `rested = true`, que já era true), então
+ * "pagar" esse custo nunca fica impossível por si só. O mesmo padrão existe em
+ * ST01-016/ST04-016 (só nunca travou lá) — por isso o gate abaixo vale pros 2.
+ */
+function costRestsSelf(spec: EffectSpec): boolean {
+  return (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "self");
+}
+
 function activateAbilityCandidates(
   state: GameState,
   seat: PlayerId,
@@ -129,10 +141,25 @@ function activateAbilityCandidates(
   const out: LegalAction[] = [];
   for (const zone of ["battleArea", "baseSection"] as const) {
     for (const card of state.players[seat][zone]) {
+      // 【Once per Turn】 sem custo nenhum (ex. GD01-097/GD01-098) fica "sempre
+      // legal" pra sempre se a enumeração não checar isso — achado no fuzzing
+      // da wave GD01 (heurístico vs heurístico travava indefinidamente no
+      // Action Step reativando a mesma habilidade grátis, sem nunca terminar o
+      // turno). Cartas com custo real (resto/recurso) já ficavam ilegais na
+      // 2ª tentativa por outro motivo; isto cobre o caso sem custo também.
+      // Mesmo guard de `playerHasActionStepPlay` (actions.ts).
+      if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes(trigger)) continue;
       const abilitySpecs = findTriggerSpecs(specs, card.def.code, trigger);
-      const hasSupport = trigger === "Activate·Main" && hasKeyword(card, "Support") && card.def.cardType === "UNIT" && !card.rested;
-      if (abilitySpecs.length === 0 && !hasSupport) continue;
-      if (abilitySpecs.length > 0) {
+      // "Rest this Unit/Base:" já rested não é pagável de novo — ver `costRestsSelf`.
+      const payableAbilitySpecs = abilitySpecs.filter((s) => !(costRestsSelf(s) && card.rested));
+      const hasSupport =
+        trigger === "Activate·Main" &&
+        hasKeyword(card, "Support") &&
+        card.def.cardType === "UNIT" &&
+        !card.rested &&
+        !(card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Support"));
+      if (payableAbilitySpecs.length === 0 && !hasSupport) continue;
+      if (payableAbilitySpecs.length > 0) {
         const { ids, someSpecNeeds } = neededTargetIds(state, seat, card.def.code, trigger, specs, opts.targetFilterResolver);
         if (someSpecNeeds && ids.length > 0) {
           for (const id of ids) out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: [id] } });

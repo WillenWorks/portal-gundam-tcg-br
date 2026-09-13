@@ -625,7 +625,8 @@ export interface PlayerState {
 }
 
 export interface GameOverInfo {
-  winner: PlayerId;
+  /** `null` só pro empate determinístico do guard anti-loop (`reason: "trigger_loop_guard"`) — todo outro motivo sempre tem um vencedor. */
+  winner: PlayerId | null;
   /**
    * "abandonment" e "resignation" nunca são produzidas pelo motor puro — só
    * existem porque o servidor (matchStore.ts, passo 4 do docs/18) precisa
@@ -635,8 +636,13 @@ export interface GameOverInfo {
    * parte no servidor, porque `GameOverInfo` já é o único formato de "fim de
    * jogo" que `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
    * duplicaria a renderização de fim de jogo no cliente sem necessidade.
+   *
+   * "trigger_loop_guard" — guarda anti-loop-infinito de despacho de gatilhos
+   * (MAX_CASCADE_DEPTH/MAX_QUEUE_BREADTH, ver abilityDispatch.ts) estourou em
+   * partida real: empate forçado, mesma resolução que TCGs físicos usam pra
+   * loop determinístico sem progresso.
    */
-  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation";
+  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation" | "trigger_loop_guard";
 }
 
 export interface GameState {
@@ -724,4 +730,4 @@ export type GameEvent =
   /** docs/19 Sessão 2 — grava/limpa a decisão interativa pendente de um jogador (ver `PendingDecision`). */
   | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
   | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
-  | { type: "GAME_OVER"; winner: PlayerId; reason: GameOverInfo["reason"] };
+  | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] };

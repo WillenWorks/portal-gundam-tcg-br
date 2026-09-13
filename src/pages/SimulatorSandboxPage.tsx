@@ -33,7 +33,25 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const DECK_OPTIONS = ["ST01", "ST02", "ST03", "ST04"];
+/**
+ * docs/debates 2026-09-13 (Fase 1) — os 4 decks de teste GD01
+ * (`fixtures/gd01TestDecks.ts`) entram aqui com `beta: true`: são feitos SÓ
+ * com o subconjunto de cartas com cobertura real no motor (62 prontas + 28
+ * vanilla), nunca com as 40 ainda deferidas. Aparecem sempre (Treino Solo e
+ * Convite Direto liberam GD01 incondicionalmente); a Fila Online real segue
+ * protegida pelo kill-switch `ENABLE_GD01_ONLINE` no servidor — se o deck for
+ * rejeitado lá, o erro aparece no toast normal desta tela.
+ */
+const DECK_OPTIONS: { key: string; beta?: boolean }[] = [
+  { key: "ST01" },
+  { key: "ST02" },
+  { key: "ST03" },
+  { key: "ST04" },
+  { key: "GD01-FED", beta: true },
+  { key: "GD01-ZEON", beta: true },
+  { key: "GD01-NEWTYPE", beta: true },
+  { key: "GD01-SLEEVES", beta: true },
+];
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -53,6 +71,30 @@ function buildInviteLink(code: string): string {
 }
 
 type Screen = "checking" | "lobby" | "queued" | "challenge-host" | "challenge-guest";
+
+function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
+      {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
+      <div className="pointer-events-none absolute inset-0">
+        <img
+          src="/images/shining_vs_destiny_space_arena.jpg"
+          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
+          className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
+        />
+        {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/50 via-transparent to-[#0b0f19]/75" />
+        <div className="absolute inset-0 bg-grid-tech opacity-10" />
+      </div>
+
+      {/* Conteúdo centralizado com o card otimizado para não esconder os mechas */}
+      <div className="relative z-10 flex min-h-[740px] lg:min-h-[820px] xl:min-h-[900px] 2xl:min-h-[940px] items-center justify-center p-4 sm:p-6 lg:p-10">
+        <div className="w-full max-w-md">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function SimulatorSandboxPage() {
   const [, navigate] = useLocation();
@@ -189,46 +231,27 @@ export default function SimulatorSandboxPage() {
       <div className="grid grid-cols-2 gap-2">
         {DECK_OPTIONS.map((option) => (
           <button
-            key={option}
+            key={option.key}
             type="button"
-            onClick={() => setDeckKey(option)}
-            className={`rounded-md border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
-              deckKey === option
+            onClick={() => setDeckKey(option.key)}
+            className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
+              deckKey === option.key
                 ? "border-primary bg-primary/20 text-primary shadow-sm"
                 : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
             }`}
           >
-            {option}
+            <span>{option.key}</span>
+            {option.beta ? (
+              <span className="rounded-xs border border-amber-400/40 bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold tracking-wider text-amber-300">
+                BETA · PARCIAL
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
       <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
     </div>
   );
-
-function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
-      {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
-      <div className="pointer-events-none absolute inset-0">
-        <img
-          src="/images/shining_vs_destiny_space_arena.jpg"
-          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
-          className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
-        />
-        {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/50 via-transparent to-[#0b0f19]/75" />
-        <div className="absolute inset-0 bg-grid-tech opacity-10" />
-      </div>
-
-      {/* Conteúdo centralizado com o card otimizado para não esconder os mechas */}
-      <div className="relative z-10 flex min-h-[740px] lg:min-h-[820px] xl:min-h-[900px] 2xl:min-h-[940px] items-center justify-center p-4 sm:p-6 lg:p-10">
-        <div className="w-full max-w-md">{children}</div>
-      </div>
-    </div>
-  );
-}
 
   if (screen === "checking") {
     return (

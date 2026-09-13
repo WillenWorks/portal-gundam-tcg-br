@@ -97,7 +97,7 @@
  * variant="stack"`), com o deck do oponente escondendo a contagem
  * (`hideCount`). Layout 3D + espelhamento do oponente moram no `ArenaPlaymat`.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
@@ -757,7 +757,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   /** Alvos legais reais da ação em andamento (`pending`) — evita iluminar todas as
    *  cartas em verde quando a ação não precisa de alvos ou quando só certas cartas são válidas. */
-  const legalTargetInstanceIds = useMemo<Set<string>>(() => {
+  const legalTargetInstanceIds: Set<string> = (() => {
     if (!pending || !pendingCard) return new Set();
 
     if (pending.kind === "deploy") {
@@ -799,7 +799,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
             ids.add(id);
           }
-        } catch {}
+        } catch {
+          // alvo inválido descartado
+        }
       }
       return ids;
     }
@@ -816,13 +818,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
             ids.add(id);
           }
-        } catch {}
+        } catch {
+          // alvo inválido descartado
+        }
       }
       return ids;
     }
 
     return new Set();
-  }, [pending, pendingCard, view.players, seat, boardForStats, view.combat?.step]);
+  })();
 
   const toggleSelect = (instanceId: string) => {
     if (!pending || !legalTargetInstanceIds.has(instanceId)) return;

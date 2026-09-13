@@ -3,11 +3,15 @@
  * função utilitária com componente (react-refresh). */
 import type { GameOverInfo } from "@/modules/simulator/engine/types";
 
+const EMPATE_LOOP_GUARD = "Partida encerrada em empate — cadeia de efeitos excedeu o limite de segurança do motor";
+
 const REASON: Record<GameOverInfo["reason"], { won: string; lost: string }> = {
   noShieldsBattleDamage: { won: "Oponente sofreu dano sem shields", lost: "Você sofreu dano sem shields" },
   deckOut: { won: "Oponente ficou sem cartas no deck", lost: "Você ficou sem cartas no deck" },
   resignation: { won: "Oponente se rendeu", lost: "Você se rendeu" },
   abandonment: { won: "Oponente abandonou a partida", lost: "Você abandonou a partida" },
+  // sem vencedor (winner: null) — mesmo texto nos 2 lados, não é vitória nem derrota.
+  trigger_loop_guard: { won: EMPATE_LOOP_GUARD, lost: EMPATE_LOOP_GUARD },
 };
 
 export function gameOverReasonLabel(reason: GameOverInfo["reason"], won: boolean): string {

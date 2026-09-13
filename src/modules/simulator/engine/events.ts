@@ -58,6 +58,37 @@ function zoneArray(player: PlayerState, zone: Zone): CardInstance[] {
   return player[zone];
 }
 
+/**
+ * Quando uma carta pareada é BOUNÇADA de volta pra mão (`MOVE_CARD` toZone
+ * "hand"), o OUTRO lado do pareamento fica com uma referência solta
+ * (`pairedPilotId`/`pairedUnitId` apontando pra uma carta que não está mais em
+ * campo) se não for limpo também — achado ao autorar o bounce de GD01
+ * (nenhuma carta ST01-04 bounça uma Unit/Pilot pareado, então o gap nunca foi
+ * exercido).
+ *
+ * Chamado SÓ quando `toZone === "hand"` — cheguei a chamar pra QUALQUER saída
+ * de campo (inclusive "trash"), mas isso muda o golden master de ST02
+ * (`pnpm gundam:golden`, ST02_vs_ST02_seed5 diverge): a regra de "mais de 6
+ * Units na Battle Area" (rules management, docs/27) manda o excesso pro trash
+ * via `MOVE_CARD` — DE PROPÓSITO, pra não contar como "destroyed" — e isso
+ * acontece no jogo normal (sem GD01 envolvido). Limpar o pareamento ali também
+ * seria mais correto, mas é uma mudança de comportamento de ST01-04 que exige
+ * revisão e `--update` do golden master à parte, fora do escopo desta wave —
+ * ver docs/47 §11 (Classe D, "Pilot segue Unit" já é um gap conhecido e
+ * deliberadamente não fechado). Restrito a "hand" cobre exatamente as cartas
+ * de bounce da GD01 (todas usam `toZone: "hand"`) sem reabrir aquele gap.
+ */
+function unpairCounterpart(player: PlayerState, card: CardInstance): void {
+  if (card.pairedPilotId) {
+    const pilot = player.battleArea.find((c) => c.instanceId === card.pairedPilotId);
+    if (pilot) pilot.pairedUnitId = undefined;
+  }
+  if (card.pairedUnitId) {
+    const unit = player.battleArea.find((c) => c.instanceId === card.pairedUnitId);
+    if (unit) unit.pairedPilotId = undefined;
+  }
+}
+
 function removeFromZone(player: PlayerState, instanceId: string): CardInstance | null {
   const zones: Zone[] = [
     "deck",
@@ -162,6 +193,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.zone = event.toZone;
       card.enteredZoneOnTurn = state.turnNumber;
       if (event.toZone !== "battleArea" && event.toZone !== "baseSection") {
+        if (event.toZone === "hand") unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
         card.statModifiers = [];
         card.keywordGrants = [];

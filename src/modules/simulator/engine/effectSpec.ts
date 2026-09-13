@@ -50,7 +50,11 @@ export type TargetRef =
  * reescrita do desenho — mesma filosofia dos outros campos estruturados do
  * DSL (`link`, `staticAbilities`).
  */
-export type TargetGroup = { kind: "allFriendlyLinkUnits" } | { kind: "allEnemyUnits"; maxLevel?: number };
+export type TargetGroup =
+  | { kind: "allFriendlyLinkUnits" }
+  | { kind: "allEnemyUnits"; maxLevel?: number }
+  /** GD01-102 The Path to Victory or Defeat — "All friendly Units that are Lv.4 or lower recover 2 HP." */
+  | { kind: "allFriendlyUnits"; maxLevel?: number };
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
@@ -62,6 +66,12 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   if (group.kind === "allFriendlyLinkUnits") {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.filter((u) => u.def.cardType === "UNIT" && isLinkUnit(ctx.state, u)).map((u) => u.instanceId);
+  }
+  if (group.kind === "allFriendlyUnits") {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea
+      .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+      .map((u) => u.instanceId);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   return opponent.battleArea

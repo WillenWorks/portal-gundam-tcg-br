@@ -26,8 +26,22 @@ import {
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
-import type { DestroyedInBattle, GameState, PendingDecision, PlayerId } from "./types";
+import type { DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId } from "./types";
 import { otherPlayer } from "./types";
+
+/**
+ * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
+ * despacho de UMA ação de jogador) de quantos gatilhos já foram processados
+ * — guarda de LARGURA (`MAX_QUEUE_BREADTH`), independente de recursão.
+ * Objeto mutável de propósito: threadear um contador por valor por cima de
+ * um motor de estado imutável obrigaria toda função de despacho (e seus
+ * chamadores em deploy.ts/actions.ts/combat.ts) a devolver uma tupla
+ * `{state, count}` em vez de só `GameState` — mudança bem maior que o guard
+ * em si. O objeto é descartado no fim de cada ação; nunca sobrevive a ela.
+ */
+export interface TriggerQueueBudget {
+  count: number;
+}
 
 type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
 
@@ -117,8 +131,19 @@ export function deferOrDispatchAbilities(
   trigger: string,
   sources: AbilitySource[],
   specs: EffectSpec[],
-  opts: { targets?: Record<string, string[]>; predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+  opts: {
+    targets?: Record<string, string[]>;
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
 ): GameState {
+  const cascadeDepth = opts.cascadeDepth ?? 0;
+  const queueBudget = opts.queueBudget ?? { count: 0 };
+  const guarded = checkTriggerLoopGuard(state, cascadeDepth, queueBudget);
+  if (guarded) return guarded;
+
   const entries = sources.flatMap((s) =>
     findTriggerSpecs(specs, s.code, trigger).map((spec) => ({ spec, sourceInstanceId: s.instanceId })),
   );
@@ -129,6 +154,8 @@ export function deferOrDispatchAbilities(
     predicateResolver: opts.predicateResolver,
     targetFilterResolver: opts.targetFilterResolver,
     allSpecs: specs,
+    cascadeDepth,
+    queueBudget,
   };
 
   // Avalia as chamadas ativas de cada spec no contexto atual
@@ -161,8 +188,11 @@ export function deferOrDispatchAbilities(
   if (interactive.length === 0 || opts.targets) {
     let next = state;
     for (const { spec, sourceInstanceId } of activeEntries) {
+      queueBudget.count += 1;
+      const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
+      if (guardedIter) return guardedIter;
       next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
-      if (next.pendingDecision.A || next.pendingDecision.B) return next; // 【Destroyed】 fora de combate pausou
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // 【Destroyed】 fora de combate pausou (ou guard estourou)
     }
     return next;
   }
@@ -170,8 +200,11 @@ export function deferOrDispatchAbilities(
   // automáticos primeiro; interativos vão pra fila da decisão.
   let next = state;
   for (const { spec, sourceInstanceId } of activeEntries.filter((e) => !interactive.includes(e))) {
+    queueBudget.count += 1;
+    const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
+    if (guardedIter) return guardedIter;
     next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
-    if (next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
   }
   return applyEvents(next, [
     {
@@ -217,12 +250,67 @@ export function collectDestroyed(before: GameState, after: GameState): Destroyed
 export const collectDestroyedInBattle = collectDestroyed;
 
 /**
- * docs/45 — Profundidade máxima da cascata 【Destroyed】→【Destroyed】 (um
- * 【Destroyed】 que mata outra Unit com 【Destroyed】). Guarda anti-loop: além
- * disso, os 【Destroyed】 mais fundos não disparam mais (raríssimo; nenhuma
- * carta ST01–ST04 encadeia).
+ * docs/debates/2026-09-12 e 2026-09-13 — incidente real de travamento de ~4h
+ * num playtest manual: a guarda `MAX_TRIGGER_CHUNKS` tinha sido consensuada
+ * (95%) e nunca chegou a virar código; o único guard existente
+ * (`MAX_DESTROYED_CHAIN`, removido nesta mudança) só cobria a cascata
+ * 【Destroyed】→【Destroyed】, deixando sem teto o encadeamento 【Burst】→【Deploy】
+ * e qualquer par de efeitos que se retrigassem mutuamente. `MAX_CASCADE_DEPTH`
+ * e `MAX_QUEUE_BREADTH` generalizam pra QUALQUER cadeia de gatilho, com 2
+ * eixos independentes (2º debate, achado do Gemini): um Board Wipe late-game
+ * legítimo pode gerar dezenas de gatilhos em LARGURA (sem loop nenhum) — só a
+ * PROFUNDIDADE de recursão é sintoma real de loop infinito.
  */
-export const MAX_DESTROYED_CHAIN = 8;
+export const MAX_CASCADE_DEPTH = 12;
+/** Teto de LARGURA — total de gatilhos processados numa única ação, mesmo sem recursão (ex.: Board Wipe destruindo várias Units pareadas de uma vez). */
+export const MAX_QUEUE_BREADTH = 150;
+
+/** Lançada quando o guard anti-loop estoura em `process.env.NODE_ENV === "test"` — falha alta e legível em vez de travar o worker/CI. Carrega os últimos eventos do `eventLog` pra facilitar o repro. */
+export class TriggerLoopException extends Error {
+  constructor(
+    message: string,
+    public readonly recentEvents: GameEvent[],
+  ) {
+    super(message);
+    this.name = "TriggerLoopException";
+  }
+}
+
+/**
+ * Guarda anti-loop-infinito de despacho de gatilhos. Chamado no topo de todo
+ * método de despacho recursivo (`dispatchTrigger`, `dispatchDestroyedTriggers`,
+ * `deferOrDispatchAbilities`) antes de processar mais um gatilho.
+ *
+ * - Em teste (`NODE_ENV === "test"`): lança `TriggerLoopException` — o teste
+ *   falha com mensagem clara em vez de travar o worker inteiro.
+ * - Em partida real: devolve o estado com `GAME_OVER`/`winner: null`/
+ *   `reason: "trigger_loop_guard"` — empate determinístico, a mesma resolução
+ *   que TCGs físicos usam pra loop sem progresso (nunca crash pro jogador).
+ *
+ * Devolve `null` quando os dois tetos ainda não estouraram (segue normal).
+ */
+export function checkTriggerLoopGuard(
+  state: GameState,
+  cascadeDepth: number,
+  queueBudget: TriggerQueueBudget,
+): GameState | null {
+  if (cascadeDepth <= MAX_CASCADE_DEPTH && queueBudget.count <= MAX_QUEUE_BREADTH) return null;
+
+  const cause =
+    cascadeDepth > MAX_CASCADE_DEPTH
+      ? `profundidade de cascata (${cascadeDepth}) excedeu MAX_CASCADE_DEPTH (${MAX_CASCADE_DEPTH})`
+      : `largura da fila de gatilhos (${queueBudget.count}) excedeu MAX_QUEUE_BREADTH (${MAX_QUEUE_BREADTH})`;
+  const recentEvents = state.eventLog.slice(-20);
+
+  if (process.env.NODE_ENV === "test") {
+    throw new TriggerLoopException(
+      `Loop de gatilhos detectado: ${cause}. Últimos ${recentEvents.length} eventos anexados em .recentEvents.`,
+      recentEvents,
+    );
+  }
+
+  return applyEvents(state, [{ type: "GAME_OVER", winner: null, reason: "trigger_loop_guard" }]);
+}
 
 /**
  * docs/45 — 【Destroyed】 disparado FORA do Damage Step: `dispatchTrigger`
@@ -239,7 +327,12 @@ export function dispatchDestroyedFromEffect(
   before: GameState,
   after: GameState,
   specs: EffectSpec[],
-  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver; destroyedChainDepth?: number } = {},
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
 ): GameState {
   const destroyed = collectDestroyed(before, after).filter((d) => {
     const card = findCard(after, d.instanceId);
@@ -273,15 +366,26 @@ export function dispatchDestroyedTriggers(
   state: GameState,
   destroyed: DestroyedInBattle[],
   specs: EffectSpec[],
-  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver; destroyedChainDepth?: number } = {},
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
 ): GameState {
+  const cascadeDepth = opts.cascadeDepth ?? 0;
+  const queueBudget = opts.queueBudget ?? { count: 0 };
+  const guarded = checkTriggerLoopGuard(state, cascadeDepth, queueBudget);
+  if (guarded) return guarded;
+
   const active = state.activePlayer;
   const ordered = [...destroyed].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
   const dispatchOpts = {
     predicateResolver: opts.predicateResolver,
     targetFilterResolver: opts.targetFilterResolver,
     allSpecs: specs,
-    destroyedChainDepth: opts.destroyedChainDepth,
+    cascadeDepth,
+    queueBudget,
   };
 
   let next = state;
@@ -298,15 +402,22 @@ export function dispatchDestroyedTriggers(
       (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
     );
     for (const spec of triggerSpecs.filter((s) => !interactive.includes(s))) {
+      queueBudget.count += 1;
+      const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
+      if (guardedIter) return guardedIter;
       next = dispatchTrigger(next, d.instanceId, "Destroyed", [spec], dispatchOpts);
-      if (next.pendingDecision.A || next.pendingDecision.B) return next; // encadeamento pausou
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // encadeamento pausou (ou guard estourou)
     }
     if (interactive.length > 0) interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId });
   }
 
   const opp = otherPlayer(active);
   if (interactiveByOwner[active].length > 0) {
-    next = deferOrDispatchAbilities(next, active, "Destroyed", interactiveByOwner[active], specs, opts);
+    next = deferOrDispatchAbilities(next, active, "Destroyed", interactiveByOwner[active], specs, {
+      ...opts,
+      cascadeDepth,
+      queueBudget,
+    });
   }
   if (interactiveByOwner[opp].length > 0) {
     const activePending = next.pendingDecision[active];
@@ -320,7 +431,11 @@ export function dispatchDestroyedTriggers(
         },
       ]);
     } else if (!next.pendingDecision.A && !next.pendingDecision.B) {
-      next = deferOrDispatchAbilities(next, opp, "Destroyed", interactiveByOwner[opp], specs, opts);
+      next = deferOrDispatchAbilities(next, opp, "Destroyed", interactiveByOwner[opp], specs, {
+        ...opts,
+        cascadeDepth,
+        queueBudget,
+      });
     }
   }
   return next;

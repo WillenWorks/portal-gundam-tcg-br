@@ -37,6 +37,7 @@ const { buildSt01DeckList } = await import(sim("fixtures/st01Deck.ts"));
 const { buildSt02DeckList } = await import(sim("fixtures/st02Deck.ts"));
 const { buildSt03DeckList } = await import(sim("fixtures/st03Deck.ts"));
 const { buildSt04DeckList } = await import(sim("fixtures/st04Deck.ts"));
+const { buildGd01DeckList } = await import(sim("fixtures/gd01Deck.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
@@ -64,6 +65,7 @@ const DECKS = {
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  GD01: buildGd01DeckList,
 };
 
 function parseArgs(argv) {

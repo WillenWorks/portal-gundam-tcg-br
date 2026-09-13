@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
+import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt02DeckList, ST02_CARD_DEFS } from "../fixtures/st02Deck";
-import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "../engine/types";
+import type { GameState, PlayerId } from "../engine/types";
 import { keywordValue } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
@@ -32,27 +33,6 @@ import { peekAndReorderDeck } from "../engine/effectSpec";
  * `resolveEffectSpec` direto, sem dispatcher automático.
  */
 
-let seq = 0;
-function place(state: GameState, player: PlayerId, def: CardDef, zone: Zone, opts: Partial<CardInstance> = {}): string {
-  const instanceId = `${player}-st02fx-${seq++}`;
-  const card: CardInstance = {
-    instanceId,
-    def,
-    owner: player,
-    zone,
-    rested: false,
-    damage: 0,
-    statModifiers: [],
-    keywordGrants: [],
-    usedKeywordsThisTurn: [],
-    // -1: unit já estabelecida em campo por padrão (ver engine/combat.test.ts).
-    enteredZoneOnTurn: state.turnNumber - 1,
-    ...opts,
-  };
-  state.players[player][zone].push(card);
-  return instanceId;
-}
-
 function freshGame(): GameState {
   return createGame(buildSt02DeckList(), buildSt02DeckList(), { seed: 11, firstPlayer: "A" });
 }
@@ -70,8 +50,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-006 Tallgeese — Activate·Main ④: paga 4 Recursos active e seta a própria Unit como active", () => {
     const state = freshGame();
-    const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
-    const resourceIds = [0, 1, 2, 3].map(() => place(state, "A", ST02_CARD_DEFS.RESOURCE, "resourceArea"));
+    const tallgeeseId = placeCard(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
+    const resourceIds = [0, 1, 2, 3].map(() => placeCard(state, "A", ST02_CARD_DEFS.RESOURCE, "resourceArea"));
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: tallgeeseId, turnNumber: state.turnNumber, targets: {} };
 
     const events = resolveEffectSpec(TALLGEESE_ACTIVATE_MAIN, ctx);
@@ -83,8 +63,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-006 Tallgeese — Activate·Main ④: sem 4 Recursos active, lança", () => {
     const state = freshGame();
-    const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
-    [0, 1, 2].forEach(() => place(state, "A", ST02_CARD_DEFS.RESOURCE, "resourceArea"));
+    const tallgeeseId = placeCard(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
+    [0, 1, 2].forEach(() => placeCard(state, "A", ST02_CARD_DEFS.RESOURCE, "resourceArea"));
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: tallgeeseId, turnNumber: state.turnNumber, targets: {} };
 
     expect(() => resolveEffectSpec(TALLGEESE_ACTIVATE_MAIN, ctx)).toThrow(/Recursos active insuficientes/);
@@ -92,7 +72,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-002 Wing Gundam (Bird Mode) — Deploy: coloca 1 EX Resource active na Resource Area (docs/18 lacuna #3)", () => {
     const state = freshGame();
-    const wingId = place(state, "A", ST02_CARD_DEFS.WING_GUNDAM_BIRD_MODE, "battleArea");
+    const wingId = placeCard(state, "A", ST02_CARD_DEFS.WING_GUNDAM_BIRD_MODE, "battleArea");
     const before = state.players.A.resourceArea.length;
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: wingId, turnNumber: state.turnNumber, targets: {} };
 
@@ -106,8 +86,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-013 Peaceful Timbre — Action: shields do defensor não recebem dano de Unit inimiga Lv.4 ou menos nesta batalha (docs/18 lacuna #7)", () => {
     let state = stripBase(freshGame(), "B");
-    const attackerId = place(state, "A", ST02_CARD_DEFS.LEO, "battleArea"); // Lv.2, AP2
-    const sourceId = place(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea"); // só pra ter fonte do ctx
+    const attackerId = placeCard(state, "A", ST02_CARD_DEFS.LEO, "battleArea"); // Lv.2, AP2
+    const sourceId = placeCard(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea"); // só pra ter fonte do ctx
     const shieldsBefore = state.players.B.shields.length;
 
     state = { ...state, phase: "main" };
@@ -129,7 +109,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-010 Heero Yuy — Burst: a própria carta (revelada como shield) vai pra mão", () => {
     const state = freshGame();
-    const heeroId = place(state, "A", ST02_CARD_DEFS.HEERO_YUY, "shields");
+    const heeroId = placeCard(state, "A", ST02_CARD_DEFS.HEERO_YUY, "shields");
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: heeroId, turnNumber: state.turnNumber, targets: {} };
 
     const events = resolveEffectSpec(HEERO_YUY_BURST, ctx);
@@ -140,7 +120,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-011 Zechs Merquise — Burst: a própria carta (revelada como shield) vai pra mão", () => {
     const state = freshGame();
-    const zechsId = place(state, "A", ST02_CARD_DEFS.ZECHS_MERQUISE, "shields");
+    const zechsId = placeCard(state, "A", ST02_CARD_DEFS.ZECHS_MERQUISE, "shields");
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: zechsId, turnNumber: state.turnNumber, targets: {} };
 
     const events = resolveEffectSpec(ZECHS_MERQUISE_BURST, ctx);
@@ -152,8 +132,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
   describe("ST02-012 Simultaneous Fire — Main: concede <Breach 3> ao alvo neste turno", () => {
     it("compila pra um GRANT_KEYWORD e o alvo passa a ter keywordValue('Breach') === 3", () => {
       const state = freshGame();
-      const sourceId = place(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
-      const targetId = place(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea");
+      const sourceId = placeCard(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
+      const targetId = placeCard(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea");
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: sourceId, turnNumber: state.turnNumber, targets: { target: [targetId] } };
 
       const events = resolveEffectSpec(SIMULTANEOUS_FIRE_MAIN, ctx);
@@ -167,9 +147,9 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("regressão: o Breach concedido dinamicamente é lido de verdade pelo combate (bug encontrado nesta wave, corrigido em types.ts)", () => {
       let state = stripBase(freshGame(), "B");
-      const casterId = place(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
-      const attackerId = place(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea"); // AP4/HP3, sem Breach nativo
-      const defenderId = place(state, "B", ST02_CARD_DEFS.TRAGOS, "battleArea", { rested: true }); // AP1/HP1
+      const casterId = placeCard(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
+      const attackerId = placeCard(state, "A", ST02_CARD_DEFS.GUNDAM_SANDROCK, "battleArea"); // AP4/HP3, sem Breach nativo
+      const defenderId = placeCard(state, "B", ST02_CARD_DEFS.TRAGOS, "battleArea", { rested: true }); // AP1/HP1
       const shieldsBefore = state.players.B.shields.length;
 
       // antes da correção, keywordValue nunca via keywordGrants — o Breach concedido aqui seria ignorado no Damage Step
@@ -194,8 +174,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
   it("ST02-014 Siege Ploy — Burst/Main/Action compilam pro mesmo evento (resta o alvo)", () => {
     const state = freshGame();
-    const sourceId = place(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
-    const targetId = place(state, "B", ST02_CARD_DEFS.TRAGOS, "battleArea");
+    const sourceId = placeCard(state, "A", ST02_CARD_DEFS.LEO, "battleArea");
+    const targetId = placeCard(state, "B", ST02_CARD_DEFS.TRAGOS, "battleArea");
     const ctx: EffectContext = { state, controller: "A", sourceInstanceId: sourceId, turnNumber: state.turnNumber, targets: { target: [targetId] } };
 
     const burstEvents = resolveEffectSpec(SIEGE_PLOY_BURST, ctx);
@@ -210,7 +190,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
   describe("ST02-015 Saint Gabriel Institute / ST02-016 Corsica Base — Burst + Deploy", () => {
     it("Burst: a própria carta (revelada como shield) se deploya na Base Section", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "shields");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "shields");
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
 
       const events = resolveEffectSpec(SAINT_GABRIEL_INSTITUTE_BURST, ctx);
@@ -221,7 +201,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("Deploy: 1 Shield escolhido vai pra mão + reordena o topo do deck (2ª carta pro topo, 1ª pro fundo) — docs/18 lacuna #8", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "baseSection");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "baseSection");
       const shieldId = state.players.A.shields[0].instanceId;
       const [top1, top2] = peekAndReorderDeck(state, "A", 2);
       const deckSizeBefore = state.players.A.deck.length;
@@ -244,7 +224,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("Deploy: sem decisão de reordenação (toTop/toBottom ausentes), o deck fica como está — no-op, não erro", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "baseSection");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE, "baseSection");
       const shieldId = state.players.A.shields[0].instanceId;
       const deckOrderBefore = state.players.A.deck.map((c) => c.instanceId);
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: { shield: [shieldId] } };
@@ -257,7 +237,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("Corsica Base segue o mesmo padrão de Burst (self -> baseSection)", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "shields");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "shields");
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: {} };
 
       const events = resolveEffectSpec(CORSICA_BASE_BURST, ctx);
@@ -268,7 +248,7 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("Corsica Base — Deploy: 1 Shield pra mão + deploya 1 token [Tallgeese] (sem 'Corsica Base' no trash) — docs/18 lacuna #3", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "baseSection");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "baseSection");
       const shieldId = state.players.A.shields[0].instanceId;
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: { shield: [shieldId] } };
 
@@ -281,8 +261,8 @@ describe("EffectSpecs reais do ST02 (docs/18 passo 3)", () => {
 
     it("Corsica Base — Deploy: com uma carta 'Corsica Base' no trash, deploya 2 tokens [Leo] em vez do Tallgeese", () => {
       const state = freshGame();
-      const baseId = place(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "baseSection");
-      place(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "trash");
+      const baseId = placeCard(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "baseSection");
+      placeCard(state, "A", ST02_CARD_DEFS.CORSICA_BASE, "trash");
       const shieldId = state.players.A.shields[0].instanceId;
       const ctx: EffectContext = { state, controller: "A", sourceInstanceId: baseId, turnNumber: state.turnNumber, targets: { shield: [shieldId] } };
 

@@ -1,6 +1,14 @@
 import type { EffectContext, PredicateResolver, TargetFilterResolver } from "../engine/effectSpec";
 import { findCard } from "../engine/events";
-import { effectiveAp, effectiveHp, effectivePilotDef, satisfiesLinkCondition, type CardInstance, type GameState } from "../engine/types";
+import {
+  effectiveAp,
+  effectiveHp,
+  effectivePilotDef,
+  otherPlayer,
+  satisfiesLinkCondition,
+  type CardInstance,
+  type GameState,
+} from "../engine/types";
 
 /**
  * `PredicateResolver` canônico pros predicados de `condition` já usados nos
@@ -16,6 +24,22 @@ import { effectiveAp, effectiveHp, effectivePilotDef, satisfiesLinkCondition, ty
  * não em mais um resolver local duplicado.
  */
 export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: EffectContext) => {
+  // Composição E lógico entre 2+ predicados simples (ex.: GD01-050 Anksha —
+  // "If this Unit has 5 or more AP and it is attacking an enemy Unit, ..." ->
+  // "selfApAtLeast:5;attackingEnemyUnit"). Mesma convenção do target filter
+  // composto em `defaultTargetFilterResolver`.
+  if (predicate.includes(";")) {
+    return predicate.split(";").every((clause) => defaultPredicateResolver(clause, ctx));
+  }
+  // GD01-050 LaGOWE — 【Attack】"... it is attacking an enemy Unit, ...".
+  if (predicate === "attackingEnemyUnit") {
+    const target = ctx.state.combat?.originalTarget;
+    return typeof target === "object" && target !== null;
+  }
+  // GD01-059 Zee Zulu — 【Attack】"If you are attacking the enemy player, ...".
+  if (predicate === "attackingPlayer") {
+    return ctx.state.combat?.originalTarget === "player";
+  }
   const pairedPilotHasTrait = predicate.match(/^pairedPilotHasTrait:(.+)$/);
   if (pairedPilotHasTrait) {
     const source = findCard(ctx.state, ctx.sourceInstanceId);
@@ -39,6 +63,46 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.some((u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && isPairedLinkUnit(ctx.state, u));
   }
+  // GD01-007 Noin's Aries — 【Destroyed】"If you have another (OZ) Unit in play, draw 1."
+  const controllerOtherUnitWithTrait = predicate.match(/^controllerOtherUnitWithTrait:(.+)$/);
+  if (controllerOtherUnitWithTrait) {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea.some(
+      (u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerOtherUnitWithTrait[1]),
+    );
+  }
+  // GD01-047 Shamblo — 【Attack】"If 2 or more other rested friendly Units are in play, ...".
+  const controllerOtherRestedUnitCountAtLeast = predicate.match(/^controllerOtherRestedUnitCountAtLeast:(\d+)$/);
+  if (controllerOtherRestedUnitCountAtLeast) {
+    const owner = ctx.state.players[ctx.controller];
+    const count = owner.battleArea.filter(
+      (u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && u.rested,
+    ).length;
+    return count >= Number(controllerOtherRestedUnitCountAtLeast[1]);
+  }
+  // GD01-097 Guel Jeturk — 【Activate･Main】"If your opponent has 8 or more cards in their hand, ...".
+  const opponentHandCountAtLeast = predicate.match(/^opponentHandCountAtLeast:(\d+)$/);
+  if (opponentHandCountAtLeast) {
+    return ctx.state.players[otherPlayer(ctx.controller)].hand.length >= Number(opponentHandCountAtLeast[1]);
+  }
+  // GD01-098 Elan Ceres — 【Activate･Action】"If an enemy Unit with 1 or less AP is in play, ...".
+  const enemyUnitExistsWithApAtMost = predicate.match(/^enemyUnitExistsWithApAtMost:(\d+)$/);
+  if (enemyUnitExistsWithApAtMost) {
+    const opponent = ctx.state.players[otherPlayer(ctx.controller)];
+    return opponent.battleArea.some(
+      (u) => u.def.cardType === "UNIT" && effectiveAp(u, ctx.state) <= Number(enemyUnitExistsWithApAtMost[1]),
+    );
+  }
+  // GD01-125 Zanzibar — 【Deploy】"Then, if it is your turn, you may deploy ...".
+  if (predicate === "isControllersTurn") {
+    return ctx.state.activePlayer === ctx.controller;
+  }
+  // GD01-130 13th Tactical Testing Sector — 【Activate･Main】"If a friendly (Academy) Unit is in play, ...".
+  const controllerUnitWithTraitInPlay = predicate.match(/^controllerUnitWithTraitInPlay:(.+)$/);
+  if (controllerUnitWithTraitInPlay) {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerUnitWithTraitInPlay[1]));
+  }
   // ST03-011 Char Aznable — 【Attack】"if it is a Link Unit" — a fonte é o Pilot,
   // "this Unit" é a Unit pareada com ele.
   if (predicate === "sourcePairedUnitIsLinkUnit") {
@@ -60,6 +124,32 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     if (!source.pairedPilotId) return false;
     const pilot = findCard(ctx.state, source.pairedPilotId);
     return (effectivePilotDef(pilot).level ?? 0) >= Number(pairedPilotLevelAtLeast[1]);
+  }
+  // GD01-038 Adzam — 【Deploy】"If 5 or more enemy Units are in play, ...".
+  const enemyUnitCountAtLeast = predicate.match(/^enemyUnitCountAtLeast:(\d+)$/);
+  if (enemyUnitCountAtLeast) {
+    const opponent = ctx.state.players[otherPlayer(ctx.controller)];
+    return opponent.battleArea.filter((c) => c.def.cardType === "UNIT").length >= Number(enemyUnitCountAtLeast[1]);
+  }
+  // GD01-001 Gundam — 【When Paired】"If you have 2 or more other Units in play, draw 1."
+  // ("other" = qualquer Unit amiga na Battle Area que não seja a própria fonte).
+  const controllerOtherUnitCountAtLeast = predicate.match(/^controllerOtherUnitCountAtLeast:(\d+)$/);
+  if (controllerOtherUnitCountAtLeast) {
+    const owner = ctx.state.players[ctx.controller];
+    const count = owner.battleArea.filter((c) => c.instanceId !== ctx.sourceInstanceId && c.def.cardType === "UNIT").length;
+    return count >= Number(controllerOtherUnitCountAtLeast[1]);
+  }
+  // GD01-073 Sword Strike Gundam — 【During Link】【Attack】"...". A fonte É a Unit
+  // (diferente de `sourcePairedUnitIsLinkUnit`, que é pro caso do Pilot ter o campo).
+  if (predicate === "selfIsLinkUnit") {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    return isPairedLinkUnit(ctx.state, source);
+  }
+  // GD01-082 Gundam Aerial (Mirasoul Flight Unit) — 【During Pair】【Activate･Action】"...".
+  // Mais simples que `selfIsLinkUnit`: só checa se a Unit fonte tem Pilot pareado agora.
+  if (predicate === "selfIsPaired") {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    return !!source.pairedPilotId;
   }
   return false;
 };
@@ -85,6 +175,14 @@ function remainingHp(card: CardInstance, state: GameState): number {
  * (carta futura) entra aqui, nunca como um hack local na UI.
  */
 export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candidate, ctx) => {
+  // Composição E lógico entre 2+ filtros simples (ex.: GD01-049 Blitz Gundam —
+  // "1 of your (ZAFT) Units with 5 or more AP" -> "trait:ZAFT;ap>=5"). Cada
+  // cláusula usa as MESMAS regras abaixo — nenhum operador novo, só "todas
+  // as cláusulas precisam passar".
+  if (filter.includes(";")) {
+    return filter.split(";").every((clause) => defaultTargetFilterResolver(clause, candidate, ctx));
+  }
+
   const hpAtMost = filter.match(/^hp<=(\d+)$/);
   if (hpAtMost) return remainingHp(candidate, ctx.state) <= Number(hpAtMost[1]);
 
@@ -103,7 +201,22 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   const hasKw = filter.match(/^hasKeyword:(.+)$/);
   if (hasKw) return (candidate.def.effectKeywords ?? []).includes(hasKw[1]) || candidate.keywordGrants.some((g) => g.keyword === hasKw[1]);
 
+  // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
+  const traitMatch = filter.match(/^trait:(.+)$/);
+  if (traitMatch) return (candidate.def.traits ?? []).includes(traitMatch[1]);
+
+  // GD01-049 Blitz Gundam — companion do filtro de trait acima.
+  const apAtLeast = filter.match(/^ap>=(\d+)$/);
+  if (apAtLeast) return effectiveAp(candidate, ctx.state) >= Number(apAtLeast[1]);
+
   if (filter === "rested") return candidate.rested;
+
+  // GD01-101 Deep Devotion — "1 friendly Link Unit".
+  if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
+
+  // GD01-069 Strike Rouge — "1 of your rested white Units with <Blocker>" (cor impressa da carta, não trait).
+  const colorMatch = filter.match(/^color:(.+)$/);
+  if (colorMatch) return candidate.def.color === colorMatch[1];
 
   return false;
 };

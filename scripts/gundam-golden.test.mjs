@@ -13,9 +13,9 @@ function run(args) {
 }
 
 describe("gundam-golden", () => {
-  it("check passa no estado atual (10 pares conferem com hashes.json)", () => {
+  it("check passa no estado atual (15 pares conferem com hashes.json)", () => {
     const { code, out } = run([]);
-    expect(out, out).toContain("10 pares conferem com hashes.json");
+    expect(out, out).toContain("15 pares conferem com hashes.json");
     expect(out).not.toContain("DIVERGÊNCIA");
     expect(code).toBe(0);
   }, 60000);
