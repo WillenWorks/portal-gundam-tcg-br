@@ -448,7 +448,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       return state;
     }
     case "GRANT_ATTACK_TARGET_RELAX": {
-      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, turn: event.turn };
+      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, maxAp: event.maxAp, turn: event.turn };
       return state;
     }
     case "SET_CANNOT_ATTACK": {

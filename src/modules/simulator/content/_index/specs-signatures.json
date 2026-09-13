@@ -84,6 +84,18 @@
     "sourceText": "【When Paired】Choose 1 enemy Unit with 3 or less HP. Rest it."
   },
   {
+    "id": "GD01-014-ActivateAction",
+    "cardCode": "GD01-014",
+    "trigger": "Activate·Action",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": null,
+    "predicate": "selfIsLinkUnit",
+    "sourceText": "【During Link】【Activate･Action】【Once per Turn】Choose 1 Unit. It recovers 1 HP."
+  },
+  {
     "id": "GD01-015-Attack",
     "cardCode": "GD01-015",
     "trigger": "Attack",
@@ -106,6 +118,18 @@
     "targetFilter": "rested",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD01-024-Deploy",
+    "cardCode": "GD01-024",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Deal 3 damage to all Units that are Lv.5 or lower."
   },
   {
     "id": "GD01-025-WhenPaired",
@@ -131,6 +155,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【During Pair】【Destroyed】Deploy 1 rested [Char's Zaku Ⅱ]((Zeon)･AP3･HP1) Unit token."
+  },
+  {
+    "id": "GD01-027-Deploy",
+    "cardCode": "GD01-027",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashUnitCountWithAnyTraitAtLeast:Zeon,Neo Zeon:10",
+    "sourceText": "【Deploy】If there are 10 or more (Zeon)/(Neo Zeon) Unit cards in your trash, deal 4 damage to all Units with <Blocker>."
   },
   {
     "id": "GD01-028-Deploy",
@@ -251,6 +287,19 @@
     "targetFilter": "ap<=5",
     "predicate": null,
     "sourceText": "【Destroyed】Choose 1 enemy Unit with 5 or less AP. Deal 1 damage to it."
+  },
+  {
+    "id": "GD01-058-ActivateAction",
+    "cardCode": "GD01-058",
+    "trigger": "Activate·Action",
+    "ops": [
+      "payResourceCost",
+      "modifyStat"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "level>=4",
+    "predicate": null,
+    "sourceText": "【Activate･Action】【Once per Turn】①：Choose 1 Unit that is Lv.4 or higher. It gets AP+1 during this battle."
   },
   {
     "id": "GD01-059-Attack",
@@ -554,6 +603,42 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】Place 1 rested Resource."
+  },
+  {
+    "id": "GD01-108-Main",
+    "cardCode": "GD01-108",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Deal 2 damage to all Units with <Blocker>."
+  },
+  {
+    "id": "GD01-110-Action",
+    "cardCode": "GD01-110",
+    "trigger": "Action",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "level>=4",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target."
+  },
+  {
+    "id": "GD01-110-Main",
+    "cardCode": "GD01-110",
+    "trigger": "Main",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "level>=4",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target."
   },
   {
     "id": "GD01-111-Burst",

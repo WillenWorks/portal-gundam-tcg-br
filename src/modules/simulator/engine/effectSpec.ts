@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 
@@ -54,7 +54,15 @@ export type TargetGroup =
   | { kind: "allFriendlyLinkUnits" }
   | { kind: "allEnemyUnits"; maxLevel?: number }
   /** GD01-102 The Path to Victory or Defeat — "All friendly Units that are Lv.4 or lower recover 2 HP." */
-  | { kind: "allFriendlyUnits"; maxLevel?: number };
+  | { kind: "allFriendlyUnits"; maxLevel?: number }
+  /**
+   * GD01-024 Wing Gundam Zero ("Deal 3 damage to all Units that are Lv.5 or
+   * lower"), GD01-027 Big Zam / GD01-108 Strategic Arms ("all Units with
+   * <Blocker>") — texto oficial "all Units" (sem "enemy"/"friendly") atinge
+   * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
+   * concedida (mesma checagem de `defaultTargetFilterResolver`).
+   */
+  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string };
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
@@ -71,6 +79,14 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea
       .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+      .map((u) => u.instanceId);
+  }
+  if (group.kind === "allUnits") {
+    const bothSides = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return bothSides
+      .filter((u) => u.def.cardType === "UNIT")
+      .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
+      .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword))
       .map((u) => u.instanceId);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
@@ -165,9 +181,11 @@ export type PrimitiveCall =
    * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
    * `CardInstance.attackTargetRelaxUntilTurn` na Unit alvo (normalmente
    * `{ kind: "pairedUnit" }` — "this Unit" no texto do Pilot), válido só no
-   * turno atual.
+   * turno atual. GD01-043/GD01-110 usam o mesmo relaxamento mas por AP, não
+   * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
+   * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel: number }
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number }
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Marca `CardInstance.cannotAttackUntilTurn = turno atual` na Unit alvo;
@@ -359,7 +377,13 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "grantAttackTargetRelax": {
       return resolveTargetIds(call.target, ctx).map(
-        (instanceId): GameEvent => ({ type: "GRANT_ATTACK_TARGET_RELAX", instanceId, maxLevel: call.maxLevel, turn: ctx.turnNumber }),
+        (instanceId): GameEvent => ({
+          type: "GRANT_ATTACK_TARGET_RELAX",
+          instanceId,
+          maxLevel: call.maxLevel,
+          maxAp: call.maxAp,
+          turn: ctx.turnNumber,
+        }),
       );
     }
     case "preventAttackThisTurn": {
@@ -487,8 +511,10 @@ export interface EffectSpec {
   /**
    * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
    * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
+   * `"anyUnit"` — GD01-014/GD01-058/GD01-110, texto oficial "Choose 1 Unit"
+   * (sem "enemy"/"friendly") — pool são as Units dos DOIS lados do tabuleiro.
    */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit";
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -536,7 +562,9 @@ export function computeLegalTargets(
       ? state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT")
       : scope === "friendlyUnit"
         ? state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT")
-        : state.players[controller].resourceArea;
+        : scope === "anyUnit"
+          ? [...state.players.A.battleArea, ...state.players.B.battleArea].filter((c) => c.def.cardType === "UNIT")
+          : state.players[controller].resourceArea;
 
   if (!spec.targetFilter) return pool.map((c) => c.instanceId);
   if (!resolveFilter) {

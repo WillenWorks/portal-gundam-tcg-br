@@ -42,12 +42,14 @@
   "targetGroupKinds": {
     "allFriendlyLinkUnits": { "description": "Toda Unit amiga com Link ativo agora.", "since": "ST01-016 Asticassia" },
     "allEnemyUnits": { "description": "Toda Unit inimiga (opcionalmente com maxLevel).", "since": "ST02-003 Gundam Heavyarms" },
-    "allFriendlyUnits": { "description": "Toda Unit amiga (opcionalmente com maxLevel).", "since": "GD01-102 The Path to Victory or Defeat" }
+    "allFriendlyUnits": { "description": "Toda Unit amiga (opcionalmente com maxLevel).", "since": "GD01-102 The Path to Victory or Defeat" },
+    "allUnits": { "description": "Toda Unit dos DOIS lados do tabuleiro (opcionalmente com maxLevel e/ou hasKeyword) — texto oficial \"all Units\" sem \"enemy\"/\"friendly\".", "since": "GD01-024 Wing Gundam Zero / GD01-027 Big Zam / GD01-108 Strategic Arms" }
   },
   "targetScopes": {
     "enemyUnit": { "description": "Pool padrão de alvo legal — Units inimigas na Battle Area.", "since": "ST01" },
     "ownResource": { "description": "Pool de alvo legal — cartas do próprio Resource Area.", "since": "ST01" },
-    "friendlyUnit": { "description": "Pool de alvo legal — Units amigas na Battle Area.", "since": "ST01" }
+    "friendlyUnit": { "description": "Pool de alvo legal — Units amigas na Battle Area.", "since": "ST01" },
+    "anyUnit": { "description": "Pool de alvo legal — Units dos DOIS lados do tabuleiro — texto oficial \"Choose 1 Unit\" sem \"enemy\"/\"friendly\".", "since": "GD01-014 G-Sky Easy / GD01-058 Galluss-K / GD01-110 Rasid's Orders" }
   },
   "predicates": {
     "attackingEnemyUnit": { "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).", "since": "GD01-050 LaGOWE" },
@@ -68,7 +70,8 @@
     "enemyUnitCountAtLeast:<n>": { "description": "O oponente tem N+ Units em campo.", "since": "GD01-038 Adzam" },
     "controllerOtherUnitCountAtLeast:<n>": { "description": "O controller tem N+ outras Units em campo (além da fonte).", "since": "GD01-001 Gundam" },
     "selfIsLinkUnit": { "description": "A própria fonte (Unit) é Link Unit agora.", "since": "GD01-073 Sword Strike Gundam" },
-    "selfIsPaired": { "description": "A própria fonte (Unit) tem Pilot pareado agora (sem checar Link).", "since": "GD01-082 Gundam Aerial (Mirasoul Flight Unit)" }
+    "selfIsPaired": { "description": "A própria fonte (Unit) tem Pilot pareado agora (sem checar Link).", "since": "GD01-082 Gundam Aerial (Mirasoul Flight Unit)" },
+    "controllerTrashUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas Unit com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles).", "since": "GD01-027 Big Zam" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },

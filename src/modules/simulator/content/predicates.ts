@@ -151,6 +151,19 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const source = findCard(ctx.state, ctx.sourceInstanceId);
     return !!source.pairedPilotId;
   }
+  // GD01-027 Big Zam — 【Deploy】"If there are 10 or more (Zeon)/(Neo Zeon) Unit
+  // cards in your trash, ...". Traits em lista separada por vírgula (OR entre
+  // eles, não AND — "(Zeon)/(Neo Zeon)" no texto oficial é uma cor com 2 nomes
+  // de trait possíveis, nunca as 2 ao mesmo tempo na mesma carta).
+  const controllerTrashUnitCountWithAnyTraitAtLeast = predicate.match(/^controllerTrashUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerTrashUnitCountWithAnyTraitAtLeast) {
+    const traits = controllerTrashUnitCountWithAnyTraitAtLeast[1].split(",");
+    const min = Number(controllerTrashUnitCountWithAnyTraitAtLeast[2]);
+    const count = ctx.state.players[ctx.controller].trash.filter(
+      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
+    ).length;
+    return count >= min;
+  }
   return false;
 };
 

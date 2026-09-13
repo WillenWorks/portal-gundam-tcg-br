@@ -214,7 +214,7 @@ export interface CardInstance {
    * (estático, ST02-001 Wing Gundam). `turn` = só vale enquanto
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
-  attackTargetRelaxUntilTurn?: { maxLevel: number; turn: number };
+  attackTargetRelaxUntilTurn?: { maxLevel?: number; maxAp?: number; turn: number };
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Guarda o `turnNumber` em que a proibição foi imposta; `declareAttack` barra
@@ -716,7 +716,7 @@ export type GameEvent =
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp: number }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
-  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel: number; turn: number }
+  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }

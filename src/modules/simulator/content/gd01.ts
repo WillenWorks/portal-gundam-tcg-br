@@ -685,6 +685,92 @@ export const CITIZENS_TAKE_A_STAND_MAIN: EffectSpec = {
   sourceText: "【Main】All your Units get AP+2 during this turn.",
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// Lote 1 de gaps de motor fechado (docs/debates 2026-09-13) — TargetScope
+// "anyUnit" e TargetGroup "allUnits" (texto oficial "Choose 1 Unit"/"all
+// Units" sem "enemy"/"friendly" — os 2 lados do tabuleiro).
+// ─────────────────────────────────────────────────────────────────────────
+
+// GD01-014 G-Sky Easy — 【During Link】【Activate･Action】【Once per Turn】Choose 1 Unit. It recovers 1 HP.
+export const G_SKY_EASY_ACTIVATE_ACTION: EffectSpec = {
+  id: "GD01-014-ActivateAction",
+  cardCode: "GD01-014",
+  trigger: "Activate·Action",
+  condition: {
+    predicate: "selfIsLinkUnit",
+    then: [{ op: "heal", target: { kind: "named", name: "target" }, amount: 1 }],
+  },
+  actions: [],
+  targetScope: "anyUnit",
+  sourceText: "【During Link】【Activate･Action】【Once per Turn】Choose 1 Unit. It recovers 1 HP.",
+};
+
+// GD01-024 Wing Gundam Zero — 【Deploy】Deal 3 damage to all Units that are Lv.5 or lower.
+export const WING_GUNDAM_ZERO_DEPLOY: EffectSpec = {
+  id: "GD01-024-Deploy",
+  cardCode: "GD01-024",
+  trigger: "Deploy",
+  actions: [{ op: "damageUnit", target: { kind: "group", group: { kind: "allUnits", maxLevel: 5 } }, amount: 3 }],
+  sourceText: "【Deploy】Deal 3 damage to all Units that are Lv.5 or lower.",
+};
+
+// GD01-027 Big Zam — 【Deploy】If there are 10 or more (Zeon)/(Neo Zeon) Unit cards in your trash, deal 4 damage to all Units with <Blocker>.
+export const BIG_ZAM_DEPLOY: EffectSpec = {
+  id: "GD01-027-Deploy",
+  cardCode: "GD01-027",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerTrashUnitCountWithAnyTraitAtLeast:Zeon,Neo Zeon:10",
+    then: [{ op: "damageUnit", target: { kind: "group", group: { kind: "allUnits", hasKeyword: "Blocker" } }, amount: 4 }],
+  },
+  actions: [],
+  sourceText: "【Deploy】If there are 10 or more (Zeon)/(Neo Zeon) Unit cards in your trash, deal 4 damage to all Units with <Blocker>.",
+};
+
+// GD01-058 Galluss-K — 【Activate･Action】【Once per Turn】①：Choose 1 Unit that is Lv.4 or higher. It gets AP+1 during this battle.
+export const GALLUSS_K_ACTIVATE_ACTION: EffectSpec = {
+  id: "GD01-058-ActivateAction",
+  cardCode: "GD01-058",
+  trigger: "Activate·Action",
+  cost: [{ op: "payResourceCost", player: "controller", n: 1 }],
+  actions: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: 1, duration: "thisBattle" }],
+  targetScope: "anyUnit",
+  targetFilter: "level>=4",
+  sourceText: "【Activate･Action】【Once per Turn】①：Choose 1 Unit that is Lv.4 or higher. It gets AP+1 during this battle.",
+};
+
+// GD01-108 Strategic Arms — 【Main】Deal 2 damage to all Units with <Blocker>.
+export const STRATEGIC_ARMS_MAIN: EffectSpec = {
+  id: "GD01-108-Main",
+  cardCode: "GD01-108",
+  trigger: "Main",
+  actions: [{ op: "damageUnit", target: { kind: "group", group: { kind: "allUnits", hasKeyword: "Blocker" } }, amount: 2 }],
+  sourceText: "【Main】Deal 2 damage to all Units with <Blocker>.",
+};
+
+// GD01-110 Rasid's Orders — 【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target.
+const RASIDS_ORDERS_ACTIONS: PrimitiveCall[] = [
+  { op: "grantAttackTargetRelax", target: { kind: "named", name: "target" }, maxAp: 6 },
+];
+export const RASIDS_ORDERS_MAIN: EffectSpec = {
+  id: "GD01-110-Main",
+  cardCode: "GD01-110",
+  trigger: "Main",
+  actions: RASIDS_ORDERS_ACTIONS,
+  targetScope: "anyUnit",
+  targetFilter: "level>=4",
+  sourceText: "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target.",
+};
+export const RASIDS_ORDERS_ACTION: EffectSpec = {
+  id: "GD01-110-Action",
+  cardCode: "GD01-110",
+  trigger: "Action",
+  actions: RASIDS_ORDERS_ACTIONS,
+  targetScope: "anyUnit",
+  targetFilter: "level>=4",
+  sourceText: "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target.",
+};
+
 // GD01-101 Deep Devotion — 【Main】/【Action】Choose 1 friendly Link Unit. It recovers 3 HP.
 export const DEEP_DEVOTION_MAIN: EffectSpec = {
   id: "GD01-101-Main",
@@ -908,6 +994,13 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
   CITIZENS_TAKE_A_STAND_MAIN,
+  G_SKY_EASY_ACTIVATE_ACTION,
+  WING_GUNDAM_ZERO_DEPLOY,
+  BIG_ZAM_DEPLOY,
+  GALLUSS_K_ACTIVATE_ACTION,
+  STRATEGIC_ARMS_MAIN,
+  RASIDS_ORDERS_MAIN,
+  RASIDS_ORDERS_ACTION,
 ];
 
 // =============================================================================
@@ -1104,6 +1197,7 @@ export const GD01_CARD_DEFS: Record<string, CardDef> = {
     traits: ["Earth Federation","White Base Team"],
     triggerKeywords: ["During Link","Activate·Action"],
     link: {"kind":"pilotName","values":["White Base Team"]},
+    oncePerTurn: true,
   },
   "GD01-015": {
     code: "GD01-015",
@@ -1672,6 +1766,7 @@ export const GD01_CARD_DEFS: Record<string, CardDef> = {
     hp: 2,
     traits: ["Zeon"],
     triggerKeywords: ["Activate·Action"],
+    oncePerTurn: true,
   },
   "GD01-059": {
     code: "GD01-059",
@@ -2296,9 +2391,11 @@ export const GD01_CARD_DEFS: Record<string, CardDef> = {
     color: "green",
     level: 6,
     cost: 6,
-    effectKeywords: ["Blocker"],
+    // "Blocker" no texto oficial é o FILTRO do alvo ("all Units with <Blocker>"),
+    // não uma keyword da própria carta — Fase 1 (Gemini) tinha marcado errado
+    // como effectKeywords/keywordTags do Command. Corrigido ao autorar o
+    // EffectSpec (STRATEGIC_ARMS_MAIN).
     triggerKeywords: ["Main"],
-    keywordTags: ["Blocker"],
   },
   "GD01-109": {
     code: "GD01-109",

@@ -404,6 +404,27 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
     expect(() => declareAttack(state, aegisId, { unitId: bigEnemyId })).toThrow(/rested/);
   });
 
+  it("grantAttackTargetRelax por AP (GD01-043/GD01-110, Lote 1 docs/debates 2026-09-13) — deixa mirar Unit inimiga ativa com AP<=6", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxAp: 6, turn: state.turnNumber },
+    });
+    const activeEnemyId = place(state, "B", { ...ST04_CARD_DEFS.STRIKE_GUNDAM, ap: 6 }); // AP6, active
+
+    const next = declareAttack(state, aegisId, { unitId: activeEnemyId });
+    expect(next.combat?.currentTarget).toEqual({ unitId: activeEnemyId });
+  });
+
+  it("grantAttackTargetRelax por AP — a concessão não vale pra Unit ativa com AP 7+", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxAp: 6, turn: state.turnNumber },
+    });
+    const bigApEnemyId = place(state, "B", { ...ST04_CARD_DEFS.STRIKE_GUNDAM, ap: 7 }); // AP7, active
+
+    expect(() => declareAttack(state, aegisId, { unitId: bigApEnemyId })).toThrow(/rested/);
+  });
+
   it("ST04-015 Archangel — cannotAttackUntilTurn barra a declaração de ataque no mesmo turno", () => {
     const state = { ...freshGame() };
     const unitId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, { cannotAttackUntilTurn: state.turnNumber });

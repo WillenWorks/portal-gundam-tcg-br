@@ -107,13 +107,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:during-link-e-alvo-implicito-pos-destroy",
   },
   {
-    cardCode: "GD01-014",
-    clause: "【During Link】【Activate･Action】【Once per Turn】Choose 1 Unit. It recovers 1 HP.",
-    reason:
-      "\"Choose 1 Unit\" (sem \"enemy\"/\"friendly\") precisa de um `targetScope` que enxergue os 2 lados — só existe \"enemyUnit\"/\"friendlyUnit\"/\"ownResource\" hoje. Mesmo gap de GD01-058.",
-    blockedBy: "engine:target-scope-qualquer-lado",
-  },
-  {
     cardCode: "GD01-016",
     clause: "While you have 2 or more (Earth Federation) Units in play, this card in your hand gets cost -1.",
     reason: "Cálculo de modificador dinâmico de custo de cartas na mão antes do deploy (Layer 3).",
@@ -132,20 +125,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason:
       "3 mecanismos ausentes ao mesmo tempo: custo de descarte de carta ESPECÍFICA por trait (não é `discardNamed` genérico), busca/escolha de carta na LIXEIRA (não mão nem topo do deck), e parear um Pilot escolhido com a própria fonte fora do fluxo normal de `deployCard`.",
     blockedBy: "engine:busca-lixeira-e-pareamento-por-efeito",
-  },
-  {
-    cardCode: "GD01-024",
-    clause: "【Deploy】Deal 3 damage to all Units that are Lv.5 or lower.",
-    reason:
-      "\"all Units\" no texto oficial é AMBAS as bordas (não só inimigas) — `TargetGroup` só tem `allEnemyUnits`, falta uma variante que atinja os dois lados (com maxLevel).",
-    blockedBy: "engine:target-group-todas-as-units-dos-2-lados",
-  },
-  {
-    cardCode: "GD01-027",
-    clause: "【Deploy】If there are 10 or more (Zeon)/(Neo Zeon) Unit cards in your trash, deal 4 damage to all Units with <Blocker>.",
-    reason:
-      "\"all Units with <Blocker>\" é AMBAS as bordas (mesmo gap de GD01-024) — falta `TargetGroup` que filtre por keyword nos dois lados, além do predicate de contagem de trash por trait (esse é trivial, mesmo padrão de `enemyUnitCountAtLeast`).",
-    blockedBy: "engine:target-group-todas-as-units-dos-2-lados",
   },
   {
     cardCode: "GD01-034",
@@ -200,12 +179,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     clause: "While this Unit has 5 or more AP, it gains <Breach 3>.",
     reason: "Mesmo gap de GD01-019/034 (concessão de keyword) SOMADO a uma condição de STAT PRÓPRIO (AP>=5), não coberta por `StaticAbility.condition` (só duringPair/duringLink).",
     blockedBy: "engine:static-ability-keyword-condicao-generica",
-  },
-  {
-    cardCode: "GD01-058",
-    clause: "【Activate･Action】【Once per Turn】①：Choose 1 Unit that is Lv.4 or higher. It gets AP+1 during this battle.",
-    reason: "\"Choose 1 Unit\" (ambos os lados) — mesmo gap de GD01-014 (`targetScope` não tem opção \"qualquer lado\").",
-    blockedBy: "engine:target-scope-qualquer-lado",
   },
   {
     cardCode: "GD01-063",
@@ -314,22 +287,10 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:multiplos-escopos-de-alvo-no-mesmo-spec",
   },
   {
-    cardCode: "GD01-108",
-    clause: "【Main】Deal 2 damage to all Units with <Blocker>.",
-    reason: "\"all Units with <Blocker>\" é AMBAS as bordas — mesmo gap de GD01-024/027 (`TargetGroup` só filtra 1 lado por vez).",
-    blockedBy: "engine:target-group-todas-as-units-dos-2-lados",
-  },
-  {
     cardCode: "GD01-109",
     clause: "【Main】Look at the top 5 cards of your deck. You may reveal 1 (Operation Meteor)/(G Team) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
     reason: "Busca no topo do deck com filtro de trait múltiplo.",
     blockedBy: "engine:busca-topo-deck-filtro-especifico",
-  },
-  {
-    cardCode: "GD01-110",
-    clause: "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target.",
-    reason: "\"Choose 1 Unit\" (ambos os lados) + `grantAttackTargetRelax` por AP, não nível — mesmos 2 gaps de GD01-014/043 empilhados na mesma carta.",
-    blockedBy: "engine:target-scope-qualquer-lado",
   },
   {
     cardCode: "GD01-112",

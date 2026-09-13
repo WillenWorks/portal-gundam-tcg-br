@@ -33,6 +33,13 @@ import {
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
   IRON_FISTED_DISCIPLINE_MAIN,
+  G_SKY_EASY_ACTIVATE_ACTION,
+  WING_GUNDAM_ZERO_DEPLOY,
+  BIG_ZAM_DEPLOY,
+  GALLUSS_K_ACTIVATE_ACTION,
+  STRATEGIC_ARMS_MAIN,
+  RASIDS_ORDERS_MAIN,
+  RASIDS_ORDERS_ACTION,
 } from "./gd01";
 
 /**
@@ -368,5 +375,120 @@ describe("Invariante C (Fase 3B) — expiração de Duration", () => {
 
   it("'thisBattle' (GD01-127/GD01-071/GD01-059) usa o mesmo mecanismo genérico de combat.ts (já coberto pelos testes de combate ST01-04) — só confere que a duration gravada é a certa", () => {
     expect(GAMOW_ACTIVATE_ACTION.actions[0]).toMatchObject({ duration: "thisBattle" });
+  });
+});
+
+describe("Lote 1 (docs/debates 2026-09-13) — TargetScope 'anyUnit' e TargetGroup 'allUnits' (ambos os lados)", () => {
+  it("GD01-014 G-Sky Easy (During Link + Activate·Action, Once per Turn): cura 1 HP em Unit de QUALQUER lado, só quando é Link Unit", () => {
+    const state = freshGame();
+    // link sobrescrito só pra este teste (o CardDef real de GD01-014 referencia
+    // "White Base Team" como se fosse nome de Piloto — dado herdado da Fase 1,
+    // fora do escopo deste lote; aqui só precisamos de uma Link Unit de verdade).
+    const gSkyDef = { ...GD01_CARD_DEFS["GD01-014"], link: { kind: "pilotName" as const, values: ["Banagher Links"] } };
+    const gSkyId = placeCard(state, "A", gSkyDef, "battleArea");
+    const enemyTargetId = placeCard(state, "B", GD01_CARD_DEFS["GD01-035"], "battleArea", { damage: 1 });
+
+    const ctxNotLinked = ctxFor(state, gSkyId, "A", { target: [enemyTargetId] });
+    expect(specActiveCalls(G_SKY_EASY_ACTIVATE_ACTION, ctxNotLinked, defaultPredicateResolver)).toEqual([]);
+
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea"); // Banagher Links
+    findCard(state, gSkyId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = gSkyId;
+
+    const ctxLinked = ctxFor(state, gSkyId, "A", { target: [enemyTargetId] });
+    const calls = specActiveCalls(G_SKY_EASY_ACTIVATE_ACTION, ctxLinked, defaultPredicateResolver);
+    expect(calls).toEqual([{ op: "heal", target: { kind: "named", name: "target" }, amount: 1 }]);
+
+    const events = resolveEffectSpec(G_SKY_EASY_ACTIVATE_ACTION, ctxLinked, defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, enemyTargetId).damage).toBe(0); // curou o alvo do lado INIMIGO — prova do targetScope "anyUnit"
+  });
+
+  it("GD01-024 Wing Gundam Zero (Deploy): 3 de dano em TODAS as Units (dos 2 lados) de Lv.5 ou menor", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-024"], "battleArea"); // Lv.8 — fora do próprio filtro
+    const friendlyLow = placeCard(state, "A", GD01_CARD_DEFS["GD01-068"], "battleArea"); // Perfect Strike Gundam Lv.5/HP4
+    const enemyLow = placeCard(state, "B", GD01_CARD_DEFS["GD01-071"], "battleArea"); // Gundam Pharact Lv.4/HP4
+    const enemyHigh = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea"); // Shamblo Lv.8
+
+    const events = resolveEffectSpec(WING_GUNDAM_ZERO_DEPLOY, ctxFor(state, sourceId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, friendlyLow).damage).toBe(3);
+    expect(findCard(next, enemyLow).damage).toBe(3);
+    expect(findCard(next, enemyHigh).damage).toBe(0);
+    expect(findCard(next, sourceId).damage).toBe(0);
+  });
+
+  it("GD01-027 Big Zam (Deploy): só dispara com 10+ Units (Zeon)/(Neo Zeon) na lixeira; dano 4 em TODAS as Units com <Blocker>", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-027"], "battleArea"); // já tem <Blocker> própria, HP6
+    const enemyBlocker = placeCard(state, "B", { ...GD01_CARD_DEFS["GD01-035"], hp: 10, effectKeywords: ["Blocker"] }, "battleArea");
+    const enemyNoBlocker = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+
+    expect(specActiveCalls(BIG_ZAM_DEPLOY, ctxFor(state, sourceId), defaultPredicateResolver)).toEqual([]); // lixeira vazia
+
+    for (let i = 0; i < 10; i++) placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "trash"); // 10 Units (Zeon) na lixeira
+
+    const events = resolveEffectSpec(BIG_ZAM_DEPLOY, ctxFor(state, sourceId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, sourceId).damage).toBe(4); // a própria Big Zam tem Blocker — dano em área a atinge também
+    expect(findCard(next, enemyBlocker).damage).toBe(4);
+    expect(findCard(next, enemyNoBlocker).damage).toBe(0);
+  });
+
+  it("GD01-058 Galluss-K (Activate·Action, custo ①): paga 1 Recurso e dá AP+1 nesta batalha numa Unit Lv.4+ de QUALQUER lado", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-058"], "battleArea");
+    const resourceId = placeCard(
+      state,
+      "A",
+      { code: "GD01-RESOURCE", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" },
+      "resourceArea",
+    );
+    const targetId = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea"); // Shamblo, Lv.8
+
+    const ctx: EffectContext = {
+      state,
+      controller: "A",
+      sourceInstanceId: sourceId,
+      turnNumber: state.turnNumber,
+      targets: { target: [targetId] },
+      costResourceIds: [resourceId],
+    };
+    const events = resolveEffectSpec(GALLUSS_K_ACTIVATE_ACTION, ctx, defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, resourceId).rested).toBe(true);
+    expect(findCard(next, targetId).statModifiers).toContainEqual(
+      expect.objectContaining({ stat: "ap", amount: 1, duration: "thisBattle" }),
+    );
+  });
+
+  it("GD01-108 Strategic Arms (Main): 2 de dano em TODAS as Units com <Blocker>, dos 2 lados", () => {
+    const state = freshGame();
+    const friendlyBlocker = placeCard(state, "A", { ...GD01_CARD_DEFS["GD01-035"], hp: 10, effectKeywords: ["Blocker"] }, "battleArea");
+    const enemyBlocker = placeCard(state, "B", { ...GD01_CARD_DEFS["GD01-035"], hp: 10, effectKeywords: ["Blocker"] }, "battleArea");
+    const enemyNoBlocker = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+
+    const events = resolveEffectSpec(STRATEGIC_ARMS_MAIN, ctxFor(state, "cmd-source"), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, friendlyBlocker).damage).toBe(2);
+    expect(findCard(next, enemyBlocker).damage).toBe(2);
+    expect(findCard(next, enemyNoBlocker).damage).toBe(0);
+  });
+
+  it("GD01-110 Rasid's Orders (Main/Action): concede relaxamento de alvo de ataque por AP<=6 numa Unit Lv.4+ de QUALQUER lado", () => {
+    const state = freshGame();
+    const targetId = placeCard(state, "A", GD01_CARD_DEFS["GD01-047"], "battleArea"); // Shamblo, Lv.8
+
+    const mainEvents = resolveEffectSpec(RASIDS_ORDERS_MAIN, ctxFor(state, "cmd-source", "A", { target: [targetId] }), defaultPredicateResolver);
+    const afterMain = applyEvents(state, mainEvents);
+    expect(findCard(afterMain, targetId).attackTargetRelaxUntilTurn).toEqual({ maxLevel: undefined, maxAp: 6, turn: state.turnNumber });
+
+    // mesma primitiva, timing 【Action】 — RASIDS_ORDERS_ACTION reaproveita RASIDS_ORDERS_ACTIONS
+    expect(RASIDS_ORDERS_ACTION.actions).toBe(RASIDS_ORDERS_MAIN.actions);
   });
 });

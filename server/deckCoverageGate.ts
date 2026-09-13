@@ -36,6 +36,8 @@ const OFFICIAL_CARDS: OfficialCard[] = JSON.parse(
 
 const EFFECT_TEXT_BY_CODE = new Map(OFFICIAL_CARDS.map((c) => [c.code, c.effect ?? ""]));
 const CODES_WITH_SPEC = new Set(ALL_EFFECT_SPECS.map((s) => s.cardCode));
+/** Códigos reais do catálogo (`data/gcg-official-cards.json`) — inclui Units/Pilots/Commands/Bases E tokens (T-XXX), mas NUNCA os placeholders sintéticos de recurso (`<SET>-RESOURCE`), que não são cartas catalogadas de propósito. */
+const KNOWN_CODES = new Set(OFFICIAL_CARDS.map((c) => c.code));
 
 /** Mesma heurística de `scripts/gundam-coverage.mjs` — `true` se o texto tem regra além de keyword automática / 【Pilot】[X] / vazio. */
 function hasBespokeText(effect: string): boolean {
@@ -58,8 +60,18 @@ function hasBespokeText(effect: string): boolean {
  * keywords.ts), OU tem EffectSpec cadastrado (implementada/implementada*),
  * OU tem campo estruturado (staticAbilities/combatTriggers/attackTargetRules).
  * `false` = "deferida"/"faltando" — bloqueia a carta.
+ *
+ * Códigos que não existem no catálogo oficial são bloqueados EXPLICITAMENTE
+ * (nunca tratados como "vanilla por padrão" — achado da auditoria: sem essa
+ * checagem, um `cardCode` forjado/inexistente no payload passaria como
+ * jogável só por não ter texto de efeito pra classificar). Exceção: as
+ * cartas de recurso genéricas (`cardType: "RESOURCE"`, ex. `GD01-RESOURCE`)
+ * não são catalogadas de propósito (são um placeholder do motor, não uma
+ * carta real) — sempre jogáveis.
  */
-export function isCardPlayable(def: Pick<CardDef, "code" | "staticAbilities" | "combatTriggers" | "attackTargetRules">): boolean {
+export function isCardPlayable(def: Pick<CardDef, "code" | "cardType" | "staticAbilities" | "combatTriggers" | "attackTargetRules">): boolean {
+  if (def.cardType === "RESOURCE") return true;
+  if (!KNOWN_CODES.has(def.code)) return false;
   const effect = EFFECT_TEXT_BY_CODE.get(def.code) ?? "";
   if (!hasBespokeText(effect)) return true;
   if (CODES_WITH_SPEC.has(def.code)) return true;

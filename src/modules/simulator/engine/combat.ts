@@ -63,12 +63,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       // ST04-011 Athrun Zala 【When Linked】 (`attackTargetRelaxUntilTurn`, só no
       // turno em que foi concedida).
       const staticRelaxLevel = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-      const grantedRelaxLevel =
-        attacker.attackTargetRelaxUntilTurn?.turn === state.turnNumber
-          ? attacker.attackTargetRelaxUntilTurn.maxLevel
-          : -1;
+      // GD01-043/GD01-110 — a concessão temporária também pode vir por AP em
+      // vez de nível ("... com 4 ou menos AP" em vez de "Lv.X ou menor");
+      // `grantAttackTargetRelax` guarda qual dos dois critérios foi concedido.
+      const granted =
+        attacker.attackTargetRelaxUntilTurn?.turn === state.turnNumber ? attacker.attackTargetRelaxUntilTurn : undefined;
+      const grantedRelaxLevel = granted?.maxLevel ?? -1;
       const relaxMaxLevel = Math.max(staticRelaxLevel, grantedRelaxLevel);
-      const allowed = relaxMaxLevel >= 0 && (targetUnit.def.level ?? 0) <= relaxMaxLevel;
+      const allowedByLevel = relaxMaxLevel >= 0 && (targetUnit.def.level ?? 0) <= relaxMaxLevel;
+      const allowedByAp = granted?.maxAp !== undefined && effectiveAp(targetUnit, state) <= granted.maxAp;
+      const allowed = allowedByLevel || allowedByAp;
       if (!allowed) {
         throw new Error("Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)");
       }
