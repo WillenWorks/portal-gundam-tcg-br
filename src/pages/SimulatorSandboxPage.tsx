@@ -54,6 +54,30 @@ function buildInviteLink(code: string): string {
 
 type Screen = "checking" | "lobby" | "queued" | "challenge-host" | "challenge-guest";
 
+function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
+      {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
+      <div className="pointer-events-none absolute inset-0">
+        <img
+          src="/images/shining_vs_destiny_space_arena.jpg"
+          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
+          className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
+        />
+        {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/50 via-transparent to-[#0b0f19]/75" />
+        <div className="absolute inset-0 bg-grid-tech opacity-10" />
+      </div>
+
+      {/* Conteúdo centralizado com o card otimizado para não esconder os mechas */}
+      <div className="relative z-10 flex min-h-[740px] lg:min-h-[820px] xl:min-h-[900px] 2xl:min-h-[940px] items-center justify-center p-4 sm:p-6 lg:p-10">
+        <div className="w-full max-w-md">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function SimulatorSandboxPage() {
   const [, navigate] = useLocation();
   const [screen, setScreen] = useState<Screen>("checking");
@@ -205,30 +229,6 @@ export default function SimulatorSandboxPage() {
       <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
     </div>
   );
-
-function ArenaBackgroundWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
-      {/* Imagem de Fundo Shining vs Destiny Arena em tamanho total e alta visibilidade */}
-      <div className="pointer-events-none absolute inset-0">
-        <img
-          src="/images/shining_vs_destiny_space_arena.jpg"
-          alt="Shining Gundam vs Destiny Gundam Arena de Combate Espacial"
-          className="h-full w-full object-cover object-center opacity-95 brightness-105 contrast-105 transition-opacity duration-500"
-        />
-        {/* Gradientes sutis apenas no topo e base para harmonização perfeita com a página */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f19] via-transparent to-[#0b0f19]/70" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0b0f19]/50 via-transparent to-[#0b0f19]/75" />
-        <div className="absolute inset-0 bg-grid-tech opacity-10" />
-      </div>
-
-      {/* Conteúdo centralizado com o card otimizado para não esconder os mechas */}
-      <div className="relative z-10 flex min-h-[740px] lg:min-h-[820px] xl:min-h-[900px] 2xl:min-h-[940px] items-center justify-center p-4 sm:p-6 lg:p-10">
-        <div className="w-full max-w-md">{children}</div>
-      </div>
-    </div>
-  );
-}
 
   if (screen === "checking") {
     return (
