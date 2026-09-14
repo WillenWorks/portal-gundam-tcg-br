@@ -50,8 +50,18 @@ import {
   KSHATRIYA_WHEN_PAIRED,
   ASSAULT_ON_TORRINGTON_BASE_ACTION,
   GD01_EFFECT_SPECS,
+  BANAGHER_LINKS_BURST,
+  MARIDA_CRUZ_BURST,
   MARIDA_CRUZ_ATTACK,
+  DEARKA_ELTHMAN_BURST,
   DEARKA_ELTHMAN_WHEN_LINKED,
+  GUEL_JETURK_BURST,
+  ELAN_CERES_BURST,
+  CITIZENS_TAKE_A_STAND_BURST,
+  MIDAIR_MODIFICATIONS_MAIN,
+  MIDAIR_MODIFICATIONS_BURST,
+  KUSANAGI_BURST,
+  KUSANAGI_DEPLOY,
   THE_STUBBORN_COG_MAIN,
   EXTREME_HATRED_MAIN,
   DOPP_DEPLOY,
@@ -63,7 +73,7 @@ import {
   CHARS_GELGOOG_ACTIVATE_MAIN,
   FREEDOM_GUNDAM_ANY_PAIRING,
 } from "./gd01";
-import { dispatchTrigger } from "../engine/dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger } from "../engine/dispatcher";
 
 /**
  * Fase 2 (Claude) da wave GD01 — testa os EffectSpecs autorados sobre as
@@ -1305,5 +1315,85 @@ describe("Lote 5 (docs/debates 2026-09-13) — GD01-065 Freedom Gundam: reage a 
     if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (AnyPairing) pendente pra A");
     expect(d.trigger).toBe("AnyPairing");
     expect(d.queue.some((q) => q.specId === "GD01-065-AnyPairing")).toBe(true);
+  });
+});
+
+/**
+ * docs/debates 2026-09-15 (pedido do Willen — "verificar se Banagher está
+ * ativando corretamente o burst"): 8 cartas GD01 tinham `hasBurst: true` no
+ * CardDef mas NENHUM EffectSpec de `trigger: "Burst"` cadastrado.
+ * `burstEligibleShieldIds` (dispatcher.ts) só oferece a decisão de 【Burst】
+ * pra uma shield quando `findTriggerSpecs(specs, code, "Burst").length > 0`
+ * — sem a spec, a carta nunca virava burst-eligible: quebrava como shield e
+ * ficava presa no trash pra sempre, mesmo tendo texto de Burst real. Corrigido
+ * cadastrando a spec que faltava pra cada uma (mesmo padrão de ST01-010/011
+ * pro caso simples "Add this card to your hand").
+ */
+describe("Burst — 8 cartas GD01 com hasBurst:true sem EffectSpec de Burst (achado 2026-09-15)", () => {
+  const ADD_TO_HAND_CASES: Array<{ code: string; label: string }> = [
+    { code: "GD01-088", label: "Banagher Links" },
+    { code: "GD01-093", label: "Marida Cruz" },
+    { code: "GD01-095", label: "Dearka Elthman" },
+    { code: "GD01-097", label: "Guel Jeturk" },
+    { code: "GD01-098", label: "Elan Ceres" },
+    { code: "GD01-105", label: "Citizens, Take a Stand!" },
+  ];
+
+  it.each(ADD_TO_HAND_CASES)("$label ($code): shield quebrada agora é burstEligible e o Burst manda a carta pra mão", ({ code }) => {
+    const state = freshGame();
+    const shieldId = placeCard(state, "A", GD01_CARD_DEFS[code], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: shieldId, toZone: "trash" }]);
+
+    // Antes do fix, esta lista vinha vazia — a carta nunca oferecia a decisão de 【Burst】.
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([shieldId]);
+
+    const next = dispatchTrigger(trashed, shieldId, "Burst", GD01_EFFECT_SPECS, {
+      targets: {},
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      allSpecs: GD01_EFFECT_SPECS,
+    });
+    expect(findCard(next, shieldId).zone).toBe("hand");
+  });
+
+  it("GD01-121 Midair Modifications: 【Burst】Activate this card's 【Main】 reaproveita as MESMAS actions do 【Main】", () => {
+    expect(MIDAIR_MODIFICATIONS_BURST.actions).toBe(MIDAIR_MODIFICATIONS_MAIN.actions);
+    expect(MIDAIR_MODIFICATIONS_BURST.targetScope).toBe(MIDAIR_MODIFICATIONS_MAIN.targetScope);
+
+    const state = freshGame();
+    const midairId = placeCard(state, "A", GD01_CARD_DEFS["GD01-121"], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: midairId, toZone: "trash" }]);
+    const restedAllyId = placeCard(trashed, "A", GD01_CARD_DEFS["GD01-035"], "battleArea", { rested: true });
+
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([midairId]);
+
+    const ctx = ctxFor(trashed, midairId, "A", { target: [restedAllyId] });
+    const events = resolveEffectSpec(MIDAIR_MODIFICATIONS_BURST, ctx, defaultPredicateResolver);
+    const next = applyEvents(trashed, events);
+    expect(findCard(next, restedAllyId).rested).toBe(false);
+    expect(findCard(next, restedAllyId).cannotAttackUntilTurn).toBe(next.turnNumber);
+  });
+
+  it("GD01-129 Kusanagi: 【Burst】Deploy this card encadeia o 【Deploy】 (Add 1 Shield + bounce)", () => {
+    const state = freshGame();
+    const kusanagiId = placeCard(state, "A", GD01_CARD_DEFS["GD01-129"], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: kusanagiId, toZone: "trash" }]);
+    const enemyId = placeCard(trashed, "B", GD01_CARD_DEFS["GD01-035"], "battleArea"); // Zaku Ⅱ, HP2 <= 3
+
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([kusanagiId]);
+    const handBefore = trashed.players.A.hand.length;
+    const shieldsBefore = trashed.players.A.shields.length;
+
+    const next = dispatchTrigger(trashed, kusanagiId, "Burst", GD01_EFFECT_SPECS, {
+      targets: {},
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      allSpecs: GD01_EFFECT_SPECS,
+    });
+
+    expect(findCard(next, kusanagiId).zone).toBe("baseSection"); // deployThisCard (Base)
+    expect(next.players.A.hand.length).toBe(handBefore + 1); // 【Deploy】 Add 1 Shield to hand
+    expect(next.players.A.shields.length).toBe(shieldsBefore - 1);
+    expect(findCard(next, enemyId).zone).toBe("hand"); // 【Deploy】 bounce (alvo auto-mirado, único legal)
   });
 });
