@@ -77,4 +77,21 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "`compilePrimitive` (`damageUnit`/`destroy`) emite só o `DESTROY_CARD` da Unit; só `combat.ts` emite `pairedPilotFollowEvents`. CR 3-3-6: o Pilot deveria ir junto pro trash. Nenhuma carta ST01–ST04 produz esse caso hoje (Close Combat/Rewloola miram Units, não Link Units específicas), mas GD/EB produzem.",
     blockedBy: "engine:pilot-follow-so-em-combate",
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Classe E — Wave GD01: Mecânicas avançadas, bounce, auras e custos dinâmicos (Fase 2 Claude).
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    cardCode: "GD01-001",
+    clause: "All your (White Base Team) Units gain <Repair 1>",
+    reason: "Aura contínua que concede keyword em grupo depende do pipeline de Layers/Auras da Fase 2.",
+    blockedBy: "engine:aura-concessao-keyword-grupo",
+  },
+  {
+    cardCode: "GD01-066",
+    clause: "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed.",
+    reason:
+      "A 1ª cláusula (【Deploy】Deploy 1 [Fatum-00] token) já foi resolvida (`JUSTICE_GUNDAM_DEPLOY`, `TOKEN_FATUM_00`). Esta 2ª cláusula concede exceção de \"pode atacar no turno em que foi deployada\" a um token ESCOLHIDO, fora da regra nativa de Link Unit (`enteredZoneOnTurn`/combat.ts) — não existe primitiva pra isso.",
+    blockedBy: "engine:atacar-no-turno-do-deploy-fora-de-link",
+  },
 ] as const;

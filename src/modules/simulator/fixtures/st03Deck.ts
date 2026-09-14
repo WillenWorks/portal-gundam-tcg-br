@@ -2,7 +2,7 @@ import type { CardDef } from "../engine/types";
 import type { DeckList } from "../engine/setup";
 
 /**
- * Wave ST03 "Zeon's Fangs" (docs/41) — Sinanju / Unicorn / Full Frontal.
+ * Wave ST03 "Zeon's Rush" (docs/41) — Sinanju / Unicorn / Full Frontal.
  *
  * Fonte dos dados:
  * - Stats (level/cost/AP/HP/color/trait): `data/apitcg-gundam.json`

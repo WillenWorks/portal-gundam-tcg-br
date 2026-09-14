@@ -34,9 +34,9 @@ export interface ValidatedDeck {
 
 export const VALIDATED_DECKS: Record<string, ValidatedDeck> = {
   ST01: { id: "ST01", label: 'ST01 "Heroic Beginnings"', build: buildSt01DeckList },
-  ST02: { id: "ST02", label: 'ST02 "Ruination Ablaze"', build: buildSt02DeckList },
-  ST03: { id: "ST03", label: 'ST03 "Zeon\'s Fangs"', build: buildSt03DeckList },
-  ST04: { id: "ST04", label: 'ST04 "Aile of Justice"', build: buildSt04DeckList },
+  ST02: { id: "ST02", label: 'ST02 "Wings of Advance"', build: buildSt02DeckList },
+  ST03: { id: "ST03", label: 'ST03 "Zeon\'s Rush"', build: buildSt03DeckList },
+  ST04: { id: "ST04", label: 'ST04 "SEED Strike"', build: buildSt04DeckList },
 };
 
 /** `true` se `id` é um deck liberado para o bot (chave de `VALIDATED_DECKS`). */

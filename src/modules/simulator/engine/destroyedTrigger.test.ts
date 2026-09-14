@@ -9,6 +9,7 @@ import { buildSt04DeckList, ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { VANILLA_CARD_DEFS } from "../fixtures/vanillaDeck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
+import { GD01_CARD_DEFS, UNICORN_GUNDAM_UNICORN_MODE_DESTROYED } from "../content/gd01";
 
 /**
  * docs/44 — wiring do gatilho 【Destroyed】 no motor de combate. `actions.ts`
@@ -271,5 +272,66 @@ describe("ST03-006 Char's Zaku Ⅱ — 【Destroyed】 no motor de combate (paus
     const paused = runCombat(state, zakuId, defenderId);
 
     expect(() => apply(paused, "B", { kind: "finishTurn" })).toThrow(/Aguardando o oponente/);
+  });
+});
+
+describe("GD01-005 Unicorn Gundam (Unicorn Mode) — 【During Link】【Destroyed】 no motor de combate (Lote 5, docs/debates 2026-09-13)", () => {
+  it("spec: duringLink = true (gate por wasLinkUnit, mais estrito que duringPair/wasPaired)", () => {
+    expect(UNICORN_GUNDAM_UNICORN_MODE_DESTROYED.duringLink).toBe(true);
+  });
+
+  it("During Link satisfeito (pareada com Banagher Links) -> morre em batalha -> pausa em abilityResolution; resolver devolve o ex-Pilot à mão e descarta 1 (o próprio, entre os candidatos)", () => {
+    const state = freshMatch();
+    const unicornId = place(state, "A", GD01_CARD_DEFS["GD01-005"], "battleArea"); // AP4/HP3, link [Banagher Links]
+    const banagherId = place(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea"); // AP2/HP2
+    pair(state, unicornId, banagherId);
+    // AP5, rested — mata o Unicorn (AP4+2 passthrough = HP efetivo 3+2=5 <= 5)
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.HEAVY_01, "battleArea", { rested: true });
+
+    const next = runCombat(state, unicornId, defenderId);
+
+    expect(next.players.A.trash.some((c) => c.instanceId === unicornId)).toBe(true);
+    // CR 3-3-6 (pairedPilotFollowEvents): Banagher já foi pro trash JUNTO com a Unit destruída,
+    // ANTES do 【Destroyed】 de GD01-005 disparar — mesmo assim `formerPairedPilotId` (capturado
+    // do snapshot de ANTES) acha ele por instanceId em qualquer zona.
+    expect(next.players.A.trash.some((c) => c.instanceId === banagherId)).toBe(true);
+
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution pendente pra A");
+    expect(d.trigger).toBe("Destroyed");
+    const q = d.queue.find((x) => x.specId === "GD01-005-Destroyed");
+    expect(q?.implicitTargets).toEqual({ formerPairedPilot: [banagherId] });
+    // legalHandIds inclui o Pilot que a própria ação vai devolver à mão (mesmo padrão de
+    // ST04-002 "Draw 1. Then, discard 1." pro `draw`, mas aqui pro `moveZone` implícito).
+    expect(q?.handDiscard?.n).toBe(1);
+    expect(q?.handDiscard?.legalHandIds).toContain(banagherId);
+    expect(next.combat?.step).toBe("damage"); // combate ainda parado até resolver
+
+    const resolved = apply(next, "A", {
+      kind: "resolveAbility",
+      resolutions: [{ specId: "GD01-005-Destroyed", activate: true, targetIds: [banagherId] }],
+    });
+
+    expect(resolved.pendingDecision.A).toBeNull();
+    // devolvido à mão e descartado de novo na mesma resolução -> volta pro trash.
+    expect(resolved.players.A.hand.some((c) => c.instanceId === banagherId)).toBe(false);
+    expect(resolved.players.A.trash.some((c) => c.instanceId === banagherId)).toBe(true);
+    expect(resolved.combat).toBeNull(); // Battle End rodou
+  });
+
+  it("pareada mas SEM satisfazer Link (Pilot errado) -> 【Destroyed】 não dispara (gate duringLink)", () => {
+    const state = freshMatch();
+    const unicornId = place(state, "A", GD01_CARD_DEFS["GD01-005"], "battleArea");
+    const wrongPilotId = place(state, "A", GD01_CARD_DEFS["GD01-089"], "battleArea"); // Riddhe Marcenas, não linka com GD01-005
+    pair(state, unicornId, wrongPilotId);
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.HEAVY_01, "battleArea", { rested: true });
+
+    const next = runCombat(state, unicornId, defenderId);
+
+    expect(next.players.A.trash.some((c) => c.instanceId === unicornId)).toBe(true);
+    // Riddhe segue a Unit pro trash normalmente (CR 3-3-6, independe do gate de GD01-005).
+    expect(next.players.A.trash.some((c) => c.instanceId === wrongPilotId)).toBe(true);
+    expect(next.pendingDecision.A).toBeNull();
+    expect(next.combat).toBeNull();
   });
 });

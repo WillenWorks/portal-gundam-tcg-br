@@ -2,7 +2,7 @@ import type { CardDef } from "../engine/types";
 import type { DeckList } from "../engine/setup";
 
 /**
- * Wave ST04 "Aile of Justice" (docs/41) — Strike Gundam / SEED / Kira & Athrun.
+ * Wave ST04 "SEED Strike" (docs/41) — Aile Strike Gundam / SEED / Kira Yamato.
  *
  * Fonte dos dados: mesma de `st03Deck.ts` — stats de `data/apitcg-gundam.json`
  * (`attributes` de cada `ST04-0xx`), texto de efeito de

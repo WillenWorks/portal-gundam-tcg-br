@@ -8,6 +8,7 @@ import type {
   Zone,
 } from "./types";
 import { effectiveHp } from "./types";
+import { createRng, shuffleInPlace } from "./rng";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
   const instance: CardInstance = {
@@ -56,6 +57,37 @@ function findCardIn(player: PlayerState, instanceId: string): CardInstance | und
 
 function zoneArray(player: PlayerState, zone: Zone): CardInstance[] {
   return player[zone];
+}
+
+/**
+ * Quando uma carta pareada é BOUNÇADA de volta pra mão (`MOVE_CARD` toZone
+ * "hand"), o OUTRO lado do pareamento fica com uma referência solta
+ * (`pairedPilotId`/`pairedUnitId` apontando pra uma carta que não está mais em
+ * campo) se não for limpo também — achado ao autorar o bounce de GD01
+ * (nenhuma carta ST01-04 bounça uma Unit/Pilot pareado, então o gap nunca foi
+ * exercido).
+ *
+ * Chamado SÓ quando `toZone === "hand"` — cheguei a chamar pra QUALQUER saída
+ * de campo (inclusive "trash"), mas isso muda o golden master de ST02
+ * (`pnpm gundam:golden`, ST02_vs_ST02_seed5 diverge): a regra de "mais de 6
+ * Units na Battle Area" (rules management, docs/27) manda o excesso pro trash
+ * via `MOVE_CARD` — DE PROPÓSITO, pra não contar como "destroyed" — e isso
+ * acontece no jogo normal (sem GD01 envolvido). Limpar o pareamento ali também
+ * seria mais correto, mas é uma mudança de comportamento de ST01-04 que exige
+ * revisão e `--update` do golden master à parte, fora do escopo desta wave —
+ * ver docs/47 §11 (Classe D, "Pilot segue Unit" já é um gap conhecido e
+ * deliberadamente não fechado). Restrito a "hand" cobre exatamente as cartas
+ * de bounce da GD01 (todas usam `toZone: "hand"`) sem reabrir aquele gap.
+ */
+function unpairCounterpart(player: PlayerState, card: CardInstance): void {
+  if (card.pairedPilotId) {
+    const pilot = player.battleArea.find((c) => c.instanceId === card.pairedPilotId);
+    if (pilot) pilot.pairedUnitId = undefined;
+  }
+  if (card.pairedUnitId) {
+    const unit = player.battleArea.find((c) => c.instanceId === card.pairedUnitId);
+    if (unit) unit.pairedPilotId = undefined;
+  }
 }
 
 function removeFromZone(player: PlayerState, instanceId: string): CardInstance | null {
@@ -162,6 +194,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.zone = event.toZone;
       card.enteredZoneOnTurn = state.turnNumber;
       if (event.toZone !== "battleArea" && event.toZone !== "baseSection") {
+        if (event.toZone === "hand") unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
         card.statModifiers = [];
         card.keywordGrants = [];
@@ -403,6 +436,18 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       else deck.push(card);
       return state;
     }
+    case "RETURN_TRASH_TO_DECK_SHUFFLE": {
+      const player = state.players[event.player];
+      for (const id of event.instanceIds) {
+        const idx = player.trash.findIndex((c) => c.instanceId === id);
+        if (idx === -1) continue;
+        const [card] = player.trash.splice(idx, 1);
+        card.zone = "deck";
+        player.deck.push(card);
+      }
+      shuffleInPlace(player.deck, createRng(state.seed ^ state.eventLog.length));
+      return state;
+    }
     case "SET_SHIELD_PROTECTION": {
       if (state.combat) {
         state.combat.shieldProtection = { maxAttackerLevel: event.maxAttackerLevel };
@@ -416,7 +461,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       return state;
     }
     case "GRANT_ATTACK_TARGET_RELAX": {
-      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, turn: event.turn };
+      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, maxAp: event.maxAp, turn: event.turn };
       return state;
     }
     case "SET_CANNOT_ATTACK": {

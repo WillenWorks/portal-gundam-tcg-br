@@ -17,6 +17,8 @@ import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
 import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
+import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
+import { validateDeckPayload } from "./deckCoverageGate.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
@@ -4267,11 +4269,25 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
  * (ver `matchViewFor`, `src/modules/simulator/server/matchStore.ts`).
  * ------------------------------------------------------------------------- */
 
+/**
+ * Kill-switch (docs/debates 2026-09-13, Fase 1) — liga GD01 na Fila Online e
+ * no Convite Direto (os dois passam por `resolveDeckKey`/`SIMULATOR_DECKS`)
+ * sem precisar de rebuild: é uma env var lida no boot do processo, então
+ * basta reiniciar o servidor com `ENABLE_GD01_ONLINE=true` pra ativar (ou
+ * remover pra desativar de novo). Default `false` — GD01 só disponível no
+ * caminho incondicional (Treino Solo, ver `resolveDeckForTraining` abaixo)
+ * até o rollout canário confirmar 72h sem exceção real.
+ */
+const ENABLE_GD01_ONLINE = process.env.ENABLE_GD01_ONLINE === "true";
+
 const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  ...(ENABLE_GD01_ONLINE
+    ? Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build]))
+    : {}),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
@@ -4305,7 +4321,14 @@ app.post("/api/simulator/queue/join", authRequired, (req: RequestWithUser, res) 
   const body = req.body as { deck?: string };
   const resolved = resolveDeckKey(body.deck);
   if (!resolved) return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
-  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList: resolved.build() });
+  const deckList = resolved.build();
+  const validation = validateDeckPayload(deckList);
+  if (!validation.valid) {
+    return res.status(400).json({
+      error: `Deck "${resolved.key}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.`,
+    });
+  }
+  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList });
   res.json(status);
 });
 
@@ -4341,6 +4364,12 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (isValidatedDeck(upper)) {
         return { key: upper, list: VALIDATED_DECKS[upper].build() };
       }
+      // GD01 Fase 1 (docs/debates 2026-09-13) — liberado incondicionalmente no
+      // Treino Solo/Amistoso (não passa pelo kill-switch ENABLE_GD01_ONLINE,
+      // que só protege a Fila Online/Convite Direto em SIMULATOR_DECKS).
+      if (GD01_TEST_DECKS[upper]) {
+        return { key: upper, list: GD01_TEST_DECKS[upper].build() };
+      }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
         where: { id, userId: req.user!.userId },
@@ -4348,7 +4377,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${Object.keys(VALIDATED_DECKS).sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);
@@ -4357,6 +4386,19 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
 
     const resolvedA = await resolveDeckForTraining(rawPlayerId);
     const resolvedB = rawBotId === rawPlayerId ? resolvedA : await resolveDeckForTraining(rawBotId);
+
+    // Gate de segurança (docs/debates 2026-09-13 — achado do Claude): cobre
+    // TANTO os decks fixos quanto um deck do PRÓPRIO jogador vindo do banco
+    // (`buildDeckListFromUserDeck`) — o caminho real de ataque, já que o
+    // deckbuilder não sabe nada de cobertura de motor.
+    for (const resolved of new Set([resolvedA, resolvedB])) {
+      const validation = validateDeckPayload(resolved.list);
+      if (!validation.valid) {
+        throw new TrainingMatchError(
+          `Deck "${resolved.key}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.`,
+        );
+      }
+    }
 
     const { matchId } = createTrainingMatch({
       playerDeckId: resolvedA.key,
@@ -4600,9 +4642,17 @@ app.post("/api/simulator/matches", authRequired, hosterRequired, (req: RequestWi
   if (!deckA || !deckB) {
     return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
   }
+  const deckAList = deckA.build();
+  const deckBList = deckB.build();
+  for (const [key, list] of [[deckA.key, deckAList], [deckB.key, deckBList]] as const) {
+    const validation = validateDeckPayload(list);
+    if (!validation.valid) {
+      return res.status(400).json({ error: `Deck "${key}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.` });
+    }
+  }
   const match = createMatch({
-    deckA: deckA.build(),
-    deckB: deckB.build(),
+    deckA: deckAList,
+    deckB: deckBList,
     firstPlayer: body.firstPlayer === "B" ? "B" : "A",
     seed: typeof body.seed === "number" ? body.seed : undefined,
   });

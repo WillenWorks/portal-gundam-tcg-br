@@ -1,10 +1,10 @@
 /**
- * Golden-master do motor (docs/44, Fase 2 — §4.3). Roda uma partida
- * `randomLegal` vs `randomLegal` até o fim, para cada par de decks ST01–ST04
- * (incluindo espelhos), com um seed FIXO por par, e reduz o `GameState` final
- * a um hash SHA-256 estável. Um PR que muda qualquer resultado de regra do
- * motor muda o hash — e falha no CI se não for acompanhado de `--update` com
- * justificativa.
+ * Golden-master do motor (docs/44, Fase 2 — §4.3; wave GD01, Fase 3B). Roda
+ * uma partida `randomLegal` vs `randomLegal` até o fim, para cada par de
+ * decks em `GOLDEN_PAIRS` (10 pares ST01–ST04 + 5 pares GD01, incluindo
+ * espelhos), com um seed FIXO por par, e reduz o `GameState` final a um hash
+ * SHA-256 estável. Um PR que muda qualquer resultado de regra do motor muda o
+ * hash — e falha no CI se não for acompanhado de `--update` com justificativa.
  *
  * O motor é 100% determinístico dado o seed (ver `engine/rng.ts` — mulberry32,
  * sem `Date`/`Math.random`), então o hash de uma partida é reprodutível.
@@ -21,14 +21,16 @@ import { buildSt01DeckList } from "../../fixtures/st01Deck";
 import { buildSt02DeckList } from "../../fixtures/st02Deck";
 import { buildSt03DeckList } from "../../fixtures/st03Deck";
 import { buildSt04DeckList } from "../../fixtures/st04Deck";
+import { buildGd01DeckList } from "../../fixtures/gd01Deck";
 
-export type DeckKey = "ST01" | "ST02" | "ST03" | "ST04";
+export type DeckKey = "ST01" | "ST02" | "ST03" | "ST04" | "GD01";
 
 const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  GD01: buildGd01DeckList,
 };
 
 /** limite de turnos da partida golden — fixado aqui pra não depender do default de `runSelfPlay`. */
@@ -45,8 +47,13 @@ export interface GoldenPair {
  * Os 10 pares ST01–ST04 (i <= j, espelhos incluídos), cada um com um seed
  * fixo (1..10). Mudar um seed aqui = regravar o golden (`--update`) com
  * justificativa: o hash antigo deixa de valer.
+ *
+ * NUNCA insira uma wave nova DENTRO deste loop (isso desloca os seeds 1..10
+ * dos pares ST01-04 já gravados, mudando o replay e o hash de todos eles —
+ * achado ao ligar a wave GD01, docs/47 §4.1B). Toda wave nova entra como um
+ * bloco SEPARADO, abaixo, com seeds que continuam a partir do maior já usado.
  */
-export const GOLDEN_PAIRS: GoldenPair[] = (() => {
+const ST01_04_PAIRS: GoldenPair[] = (() => {
   const keys: DeckKey[] = ["ST01", "ST02", "ST03", "ST04"];
   const pairs: GoldenPair[] = [];
   let seed = 1;
@@ -60,6 +67,26 @@ export const GOLDEN_PAIRS: GoldenPair[] = (() => {
   }
   return pairs;
 })();
+
+/**
+ * Wave GD01 (Fase 3B) — 5 pares novos (GD01 contra cada starter + espelho),
+ * seeds 11..15 (continuação de ST01-04, nunca reaproveitados). Deck de teste:
+ * `fixtures/gd01Deck.ts` (mono-color, só cartas `implementada`/`vanilla` —
+ * nenhuma `deferida`, ver docs/44 §6.3 / `content/validatedDecks.ts`).
+ */
+const GD01_PAIRS: GoldenPair[] = (() => {
+  const others: DeckKey[] = ["ST01", "ST02", "ST03", "ST04"];
+  const pairs: GoldenPair[] = [];
+  let seed = ST01_04_PAIRS.length + 1;
+  for (const other of others) {
+    pairs.push({ key: `${other}_vs_GD01_seed${seed}`, a: other, b: "GD01", seed });
+    seed++;
+  }
+  pairs.push({ key: `GD01_vs_GD01_seed${seed}`, a: "GD01", b: "GD01", seed });
+  return pairs;
+})();
+
+export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS];
 
 /**
  * Campos do `GameState` que NÃO fazem parte da lógica de regras e precisam
@@ -159,4 +186,9 @@ export async function computeAllGoldenOutcomes(): Promise<GoldenOutcome[]> {
 }
 
 /** Pares cujo estado final normalizado é salvo por inteiro em `canonical/` pra debug de diff. */
-export const CANONICAL_PAIR_KEYS: string[] = ["ST01_vs_ST01_seed1", "ST02_vs_ST03_seed6", "ST03_vs_ST04_seed9"];
+export const CANONICAL_PAIR_KEYS: string[] = [
+  "ST01_vs_ST01_seed1",
+  "ST02_vs_ST03_seed6",
+  "ST03_vs_ST04_seed9",
+  "GD01_vs_GD01_seed15",
+];

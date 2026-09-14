@@ -3,7 +3,8 @@ import { otherPlayer } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { computeLegalTargets, resolveEffectSpec, specNeedsNamedTarget } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { MAX_DESTROYED_CHAIN, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
+import { checkTriggerLoopGuard, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
+import type { TriggerQueueBudget } from "./abilityDispatch";
 
 /**
  * Dispatcher automático de trigger (docs/18, "Motor de jogo real + gaps
@@ -43,8 +44,10 @@ export interface DispatchOptions {
    * `specs` (só cobre 【Destroyed】 da própria carta fonte).
    */
   allSpecs?: EffectSpec[];
-  /** docs/45 — profundidade da cascata 【Destroyed】→【Destroyed】 (guarda anti-loop). */
-  destroyedChainDepth?: number;
+  /** docs/debates 2026-09-12/13 — profundidade da cascata de gatilhos (guarda anti-loop, ver `MAX_CASCADE_DEPTH` em abilityDispatch.ts). */
+  cascadeDepth?: number;
+  /** orçamento COMPARTILHADO de largura da fila de gatilhos numa única ação (ver `MAX_QUEUE_BREADTH`). */
+  queueBudget?: TriggerQueueBudget;
 }
 
 /** Acha os EffectSpec de uma carta pra um trigger específico (ex.: "Deploy", "Burst", "Attack"). */
@@ -72,10 +75,18 @@ export function dispatchTrigger(
   const source = findCard(state, sourceInstanceId);
   const matching = findTriggerSpecs(specs, source.def.code, trigger);
   const allSpecs = opts.allSpecs ?? specs;
-  const chainDepth = opts.destroyedChainDepth ?? 0;
+  const cascadeDepth = opts.cascadeDepth ?? 0;
+  const queueBudget = opts.queueBudget ?? { count: 0 };
   let next = state;
 
+  const guardedEntry = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
+  if (guardedEntry) return guardedEntry;
+
   for (const spec of matching) {
+    queueBudget.count += 1;
+    const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
+    if (guardedIter) return guardedIter;
+
     const current = findCard(next, sourceInstanceId);
     if (current.def.oncePerTurn && current.usedKeywordsThisTurn.includes(trigger)) continue;
 
@@ -94,14 +105,27 @@ export function dispatchTrigger(
     // docs/45 — 【Destroyed】 FORA do Damage Step: Units que este efeito acabou
     // de matar por dano/destroy direto (Close Combat 【Main】, Rewloola 【Deploy】,
     // GD01-044 Kshatriya 【When Paired】…) disparam seu 【Destroyed】 agora. O
-    // Damage Step tem caminho próprio (actions.ts) e não passa por aqui.
-    if (chainDepth < MAX_DESTROYED_CHAIN) {
-      next = dispatchDestroyedFromEffect(before, next, allSpecs, {
-        predicateResolver: opts.predicateResolver,
-        targetFilterResolver: opts.targetFilterResolver,
-        destroyedChainDepth: chainDepth + 1,
-      });
-    }
+    // Damage Step tem caminho próprio (actions.ts) e não passa por aqui. Sem
+    // gate de profundidade aqui: `dispatchDestroyedTriggers` já checa o guard
+    // no próprio topo (docs/debates 2026-09-13 — um só ponto de verdade).
+    next = dispatchDestroyedFromEffect(before, next, allSpecs, {
+      predicateResolver: opts.predicateResolver,
+      targetFilterResolver: opts.targetFilterResolver,
+      cascadeDepth: cascadeDepth + 1,
+      queueBudget,
+    });
+    if (next.gameOver) break; // guard estourou dentro da cascata de Destroyed
+
+    // Lote 5 (docs/debates 2026-09-13) — GD01-065: qualquer primitiva que pareou
+    // (ex. `pairFromTrashSearch`, GD01-023) dispara "AnyPairing" pra Units reativas
+    // do controller (mesmo mecanismo do 【Destroyed】 acima, mas escutando PAIR_CARDS).
+    next = dispatchAnyPairingFromEffect(before, next, allSpecs, {
+      predicateResolver: opts.predicateResolver,
+      targetFilterResolver: opts.targetFilterResolver,
+      cascadeDepth: cascadeDepth + 1,
+      queueBudget,
+    });
+    if (next.gameOver || next.pendingDecision[current.owner]) break;
 
     // docs/47 Classe B — 【Burst】Deploy this card: a `deployThisCard` acabou de
     // pôr a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token
@@ -114,7 +138,7 @@ export function dispatchTrigger(
         const autoTargets: Record<string, string[]> = {};
         for (const ds of deployTriggerSpecs) {
           if (!specNeedsNamedTarget(ds)) continue;
-          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver);
+          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver, current.instanceId);
           if (legal.length > 0) autoTargets.target = [legal[0]];
         }
         const dispatchable = filterDispatchableSpecs(
@@ -126,12 +150,16 @@ export function dispatchTrigger(
           autoTargets.target,
           opts.targetFilterResolver,
         );
+        // Encadeamento Burst→Deploy: profundidade de cascata incrementa aqui
+        // também (antes ficava parada em `chainDepth`, um dos 2 gaps que
+        // deixavam o guard anterior incompleto — docs/debates 2026-09-13 §1.1).
         next = dispatchTrigger(next, sourceInstanceId, "Deploy", dispatchable, {
           targets: autoTargets,
           predicateResolver: opts.predicateResolver,
           targetFilterResolver: opts.targetFilterResolver,
           allSpecs,
-          destroyedChainDepth: chainDepth,
+          cascadeDepth: cascadeDepth + 1,
+          queueBudget,
         });
       }
     }
@@ -142,7 +170,8 @@ export function dispatchTrigger(
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
     // loop de specs desta carta — a decisão pendente resolve antes de seguir.
-    if (next.pendingDecision[current.owner] || next.pendingDecision[otherPlayer(current.owner)]) break;
+    // `gameOver` cobre o guard anti-loop estourando em qualquer ponto acima.
+    if (next.gameOver || next.pendingDecision[current.owner] || next.pendingDecision[otherPlayer(current.owner)]) break;
   }
 
   return next;

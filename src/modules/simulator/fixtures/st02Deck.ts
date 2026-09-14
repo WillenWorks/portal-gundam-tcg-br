@@ -4,7 +4,7 @@ import type { DeckList } from "../engine/setup";
 /**
  * Passo 3 do plano incremental (docs/18), segundo deck real na ordem
  * histórica de lançamento (ST01 → **ST02** → ST03 → ST04 → GD01 → ...).
- * ST02 "Ruination Ablaze" (Wing Gundam / Gundam Wing).
+ * ST02 "Wings of Advance" (Wing Gundam / Gundam Wing).
  *
  * Mesma fonte e mesma ressalva de quantidade que `st01Deck.ts`: stats
  * conferidos página a página em `gundam-gcg.com/en/cards/detail.php?

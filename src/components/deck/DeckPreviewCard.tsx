@@ -200,7 +200,7 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
                 </div>
 
                 {/* Badges de Cores */}
-                <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                <div className="flex flex-col gap-1 items-center shrink-0 pt-0.5" title={`Cores: ${stats.colors.join(", ")}`}>
                   {stats.colors.map((color) => {
                     const hex = GAME_COLOR_HEX[color] || "#64748b";
                     return (
@@ -236,8 +236,8 @@ export function DeckPreviewCard({ deck, isOwner }: DeckPreviewCardProps) {
               {/* Mini Curva de Custo & Custo Médio */}
               <div className="mt-3 border-t border-white/10 pt-2.5">
                 <div className="flex items-center justify-between text-[0.68rem] text-slate-400 mb-1">
-                  <span>Curva Custo / Nível (1-7+)</span>
-                  <span className="font-mono text-primary font-semibold">Méd: {stats.avgCost}</span>
+                  <span className="truncate pr-1">Curva (1-7+)</span>
+                  <span className="font-mono text-primary font-semibold shrink-0">Méd: {stats.avgCost}</span>
                 </div>
                 <div className="flex items-end gap-1 h-7 pt-1">
                   {[1, 2, 3, 4, 5, 6, 7].map((cost) => {

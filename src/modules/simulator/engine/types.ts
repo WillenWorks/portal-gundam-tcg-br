@@ -48,6 +48,15 @@ export interface CardDef {
   level?: number;
   cost?: number;
   /**
+   * Lote 5 (docs/debates 2026-09-13) — "While <condição de board>, this card in
+   * your hand gets cost -N" (ex. GD01-016, GD01-070). Reavaliado a cada consulta
+   * de `effectiveCost`, igual ao espírito de `staticAbilities`/`effectiveAp` —
+   * some sozinho quando a condição deixa de valer, sem evento de "remover buff".
+   * Reusa `StaticBoardCondition` (Lote 3): a "fonte" aqui é a própria carta na
+   * MÃO, nunca contada nela mesma (nem excluída à parte — não está em campo/trash).
+   */
+  dynamicCost?: { condition: StaticBoardCondition; amount: number };
+  /**
    * Pilot nativo (`cardType: "PILOT"`): modificador impresso de AP que a Unit
    * pareada ganha enquanto pareada (Comprehensive Rules 3-3-5, sem depender de
    * Link). Unit: AP base. Command: não usado.
@@ -126,18 +135,128 @@ export interface CardDef {
     /** ex. ST02-001 Wing Gundam: pode escolher Unit inimiga ACTIVE (não só rested) até este level */
     mayTargetActiveEnemyUnit?: { maxLevel: number };
   };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
+   * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
+   * AP." Proteção CONTÍNUA e INATA (sempre reavaliada, ao contrário de
+   * `CombatState.unitDamageProtection` — que é uma proteção TEMPORÁRIA instalada
+   * por um efeito pontual tipo ST03-014 The Blue Giant, dura só "esta batalha").
+   */
+  innateDamageProtection?: {
+    maxAttackerAp: number;
+    /** ex. "Breach" — a Unit só está protegida enquanto tiver esta keyword agora (própria ou concedida). */
+    requiresOwnKeyword?: string;
+    /** "During your turn" — só vale enquanto for o turno do CONTROLLER da Unit (não do atacante). */
+    duringYourTurnOnly?: boolean;
+  };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-090 "【During Link】This Unit's AP can't be
+   * reduced by enemy effects." Autorado num PILOT (Duo Maxwell) — "this Unit" é a Unit
+   * PAREADA (mesma convenção de GD01-087/089/092/096/091), por isso `effectiveAp`/`effectiveHp`
+   * procuram este campo tanto na própria Unit quanto no Pilot pareado com ela.
+   */
+  innateStatReductionImmunity?: {
+    stat: StatKey;
+    /** "During Link" — só vale enquanto a Unit satisfizer a link condition com o Pilot pareado (não só "During Pair"). */
+    duringLinkOnly?: boolean;
+  };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-046 "【During Pair･(Coordinator) Pilot】【Once per
+   * Turn】When you use this Unit's <Support> to increase a (ZAFT) Unit's AP, set this Unit as
+   * active." Reage ao ATO de ativar a PRÓPRIA `<Support>` (não é um trigger de carta comum tipo
+   * Deploy/Attack/Destroyed) — checado direto em `activateSupport` (keywords.ts).
+   */
+  onSupportUsed?: {
+    /** ex. "Coordinator" — o Pilot pareado precisa ter este trait. */
+    requiresPairedPilotTrait?: string;
+    /** ex. "ZAFT" — o ALVO do Support (quem ganha o AP) precisa ter este trait. */
+    requiresTargetTrait?: string;
+    oncePerTurn?: boolean;
+  };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-002 "When playing this card from your hand,
+   * you may destroy 1 of your Link Units with 'Unicorn Mode' in its card name that is
+   * Lv.5. If you do, play this card as if it has 0 Lv. and cost." Deploy ALTERNATIVO,
+   * validado em `deployCard` (deploy.ts) via `DeployOptions.sacrificeInstanceId` — a
+   * Unit sacrificada precisa satisfazer Link (pareada + `satisfiesLinkCondition`) E
+   * bater com `nameContains`/`level`. Ausente = carta não tem esse modo (deploy normal
+   * sempre paga custo/nível de verdade).
+   */
+  alternateDeploySacrifice?: {
+    /** substring literal do `nameEn` da Unit sacrificada (ex. "Unicorn Mode"). */
+    nameContains: string;
+    /** nível EXATO exigido da Unit sacrificada. */
+    level: number;
+  };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-065 "【During Pair】【Once per Turn】When
+   * you pair a Pilot with this Unit or one of your white Units, choose 1 enemy Unit.
+   * It gets AP-2 during this turn." "this Unit or one of your white Units" colapsa
+   * pra "a Unit recém-pareada é branca" (a própria fonte JÁ é branca) — por isso só
+   * precisa de `requiresPairedUnitColor`, não 2 fontes separadas. Reage a QUALQUER
+   * `PAIR_CARDS` do CONTROLLER (não só quando a própria fonte é pareada) — ver
+   * `collectNewPairings`/`dispatchAnyPairingFromEffect` (abilityDispatch.ts),
+   * despachados como `EffectSpec.trigger: "AnyPairing"`. `CardDef.oncePerTurn`
+   * (campo já existente) cobre o "Once per Turn" — mesmo mecanismo genérico de
+   * `dispatchTrigger` usado por qualquer outro trigger.
+   */
+  onAnyPairing?: {
+    /** ausente = reage a QUALQUER cor pareada; presente = só reage se a Unit recém-pareada tiver esta cor. */
+    requiresPairedUnitColor?: string;
+  };
 }
 
-export type StaticEffectCondition = "duringPair" | "duringLink";
+export type StaticEffectCondition = "duringPair" | "duringLink" | "always";
 export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
+
+/**
+ * Gate adicional de condição de BOARD (não de pareamento) pra `StaticAbility`
+ * — Lote 3 (docs/debates 2026-09-13). Reavaliado a cada consulta, junto de
+ * `condition`; `"always"` + isto é o caso comum (GD01-019/076/081).
+ */
+export type StaticBoardCondition =
+  /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
+  | { kind: "enemyUnitCountAtLeast"; n: number }
+  /** GD01-076 Zaku II Kai — "While there are 4 or more Command cards in your trash, ...". */
+  | { kind: "trashCardTypeCountAtLeast"; cardType: CardType; n: number }
+  /** GD01-081 Gundam Aerial — "While you have another (Triple Ship Alliance) Unit in play, ..." ("outra" = exclui a própria fonte). */
+  | { kind: "friendlyOtherUnitTraitCountAtLeast"; trait: string; n: number }
+  /**
+   * GD01-063 Duel Gundam — "while this Unit is battling an enemy Unit that is
+   * Lv.2 or lower, ...". Precisa de `excludeInstanceId` = a PRÓPRIA fonte (não
+   * "excluir da contagem" como nos outros kinds — aqui é "quem eu sou", pra
+   * achar o lado oposto do combate atual). Sem `state.combat`, ou se a fonte
+   * não é nenhum dos 2 lados do combate atual, é `false`.
+   */
+  | { kind: "battlingEnemyLevelAtMost"; maxLevel: number };
+
+/**
+ * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
+ * `scope`, não a fonte) — Lote 3. Cobre tanto auto-condição (GD01-054, scope
+ * "self") quanto aura de Pilot condicionada à própria Unit pareada (GD01-087/
+ * 089/092/096, scope "pairedUnit" — "this Unit" no texto do Pilot é a Unit
+ * pareada, não o Pilot).
+ */
+export type StaticTargetCondition =
+  | { kind: "apAtLeast"; n: number }
+  | { kind: "colorIs"; color: string }
+  | { kind: "traitIs"; trait: string }
+  | { kind: "hasKeyword"; keyword: string };
 
 export interface StaticAbility {
   condition: StaticEffectCondition;
   scope: StaticEffectScope;
-  stat: StatKey;
-  amount: number;
+  /** Concede bônus de STAT. Mutuamente exclusivo com `keyword` (uma StaticAbility concede um OU outro; carta com os 2 usa 2 entradas). */
+  stat?: StatKey;
+  amount?: number;
+  /** Concede KEYWORD (ex. `<Blocker>`, `<Breach 3>`) em vez de bônus de stat — Lote 3. Nome BASE só (ex. "Breach"), mesma convenção de `CardDef.effectKeywords`; valor numérico (se houver) vai em `keywordValue`. */
+  keyword?: string;
+  /** Valor numérico da keyword concedida por `keyword`, ex. 3 pra "<Breach 3>". Omitido = keyword sem valor (ex. "<Blocker>"). */
+  keywordValue?: number;
   /** ex. ST01-001 Gundam: "During Pair, DURING YOUR TURN, all your Units get AP+1" — só vale enquanto for o turno do controller da fonte. Omitido/false = vale sempre (ex. ST02-010 Heero Yuy, sem essa qualificação no texto). */
   duringYourTurnOnly?: boolean;
+  boardCondition?: StaticBoardCondition;
+  targetCondition?: StaticTargetCondition;
 }
 
 /**
@@ -157,6 +276,10 @@ export interface CombatTrigger {
    * ataque direto ao jogador que consome shield (não Breach).
    */
   on: "destroyEnemyInBattle" | "destroyEnemyShieldInBattle";
+  /** Lote 5 (docs/debates 2026-09-13) — filtra `destroyEnemyInBattle` pra só disparar se a Unit inimiga destruída ERA Link Unit no momento da destruição (checado ANTES do DESTROY_CARD limpar o pareamento). Ex.: GD01-094 Yzak Jule. */
+  requiresLinkUnitEnemy?: boolean;
+  /** Lote 5 — "【Once per Turn】" na cláusula de combate (não existe em nenhum CombatTrigger anterior). Marcado via CardInstance.usedKeywordsThisTurn com uma chave sintética (`combatTrigger:<on>`), mesmo mecanismo de <Support>/<Repair> "Once per Turn". */
+  oncePerTurn?: boolean;
   action:
     | { kind: "draw"; amount: number }
     | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number }
@@ -178,6 +301,14 @@ export interface StatModifier {
   duration: Duration;
   /** turno em que foi aplicado, usado pra limpar "endOfTurn" na End Phase certa */
   appliedOnTurn: number;
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — quem CAUSOU este modificador (o controller do
+   * efeito/keyword que o aplicou), não o dono da carta modificada. Opcional: ausente =
+   * origem desconhecida (nunca filtrado por `innateStatReductionImmunity`, mesmo
+   * comportamento de antes desta extensão). Só usado hoje pra GD01-090 distinguir
+   * "reduzido por efeito INIMIGO" de "reduzido por efeito PRÓPRIO".
+   */
+  appliedBy?: PlayerId;
 }
 
 export interface KeywordGrant {
@@ -214,7 +345,7 @@ export interface CardInstance {
    * (estático, ST02-001 Wing Gundam). `turn` = só vale enquanto
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
-  attackTargetRelaxUntilTurn?: { maxLevel: number; turn: number };
+  attackTargetRelaxUntilTurn?: { maxLevel?: number; maxAp?: number; turn: number };
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Guarda o `turnNumber` em que a proibição foi imposta; `declareAttack` barra
@@ -284,6 +415,7 @@ function findInBattleArea(state: GameState, owner: PlayerId, instanceId: string)
 }
 
 function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
+  if (condition === "always") return true;
   if (condition === "duringPair") {
     if (source.def.cardType === "UNIT") return !!source.pairedPilotId;
     if (isActingAsPilot(source)) return !!source.pairedUnitId;
@@ -301,20 +433,72 @@ function isStaticAbilityActive(state: GameState, source: CardInstance, condition
   return false;
 }
 
+/**
+ * Gate de `StaticAbility.boardCondition` (Lote 3) — condição sobre o estado do
+ * board, não sobre pareamento. `excludeInstanceId` (opcional) exclui a própria
+ * fonte da contagem de "outra Unit amiga com trait X" (Lote 3, ex. GD01-081);
+ * omitido = não exclui ninguém (Lote 5 `CardDef.dynamicCost`, cuja "fonte" é
+ * uma carta na MÃO — nunca aparece na Battle Area/trash contados, então excluir
+ * seria um no-op de qualquer forma).
+ */
+export function isBoardConditionMet(
+  state: GameState,
+  owner: PlayerId,
+  cond: StaticBoardCondition,
+  excludeInstanceId?: string,
+): boolean {
+  if (cond.kind === "enemyUnitCountAtLeast") {
+    const opponent = state.players[otherPlayer(owner)];
+    return opponent.battleArea.filter((c) => c.def.cardType === "UNIT").length >= cond.n;
+  }
+  if (cond.kind === "trashCardTypeCountAtLeast") {
+    const ownerState = state.players[owner];
+    return ownerState.trash.filter((c) => c.def.cardType === cond.cardType).length >= cond.n;
+  }
+  if (cond.kind === "battlingEnemyLevelAtMost") {
+    const combat = state.combat;
+    if (!combat || !excludeInstanceId) return false;
+    let enemyId: string | undefined;
+    if (combat.attackerId === excludeInstanceId && combat.currentTarget !== "player") enemyId = combat.currentTarget.unitId;
+    else if (combat.currentTarget !== "player" && combat.currentTarget.unitId === excludeInstanceId) enemyId = combat.attackerId;
+    if (!enemyId) return false;
+    const enemy = state.players[otherPlayer(owner)].battleArea.find((c) => c.instanceId === enemyId);
+    return !!enemy && (enemy.def.level ?? 0) <= cond.maxLevel;
+  }
+  // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
+  const ownerState = state.players[owner];
+  return (
+    ownerState.battleArea.filter(
+      (c) => c.instanceId !== excludeInstanceId && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait),
+    ).length >= cond.n
+  );
+}
+
+/** Gate de `StaticAbility.targetCondition` (Lote 3) — condição sobre a carta RECEPTORA do bônus (o alvo de `scope`, não a fonte). */
+function isTargetConditionMet(target: CardInstance, state: GameState, cond: StaticTargetCondition): boolean {
+  if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
+  if (cond.kind === "colorIs") return target.def.color === cond.color;
+  if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
+  return hasKeyword(target, cond.keyword, state);
+}
+
+function matchesStaticScope(source: CardInstance, target: CardInstance, scope: StaticEffectScope): boolean {
+  if (scope === "allFriendlyUnits") return target.def.cardType === "UNIT";
+  if (scope === "pairedUnit") return source.pairedUnitId === target.instanceId;
+  return source.instanceId === target.instanceId; // "self"
+}
+
 function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
   let bonus = 0;
   const owner = state.players[target.owner];
   for (const source of owner.battleArea) {
     for (const ability of source.def.staticAbilities ?? []) {
-      if (ability.stat !== stat) continue;
+      if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
-      const includesTarget =
-        ability.scope === "allFriendlyUnits"
-          ? target.def.cardType === "UNIT"
-          : ability.scope === "pairedUnit"
-            ? source.pairedUnitId === target.instanceId
-            : source.instanceId === target.instanceId; // "self"
+      if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
+      const includesTarget = matchesStaticScope(source, target, ability.scope);
+      if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
       if (includesTarget) bonus += ability.amount;
     }
   }
@@ -347,11 +531,37 @@ function resolvePilotStatBonus(
  * 【During Pair】/【During Link】) e o modificador do Pilot pareado não são
  * computados, e o resultado fica incompleto.
  */
+/**
+ * GD01-090 Duo Maxwell (Lote 5) — "This Unit's AP can't be reduced by enemy effects.",
+ * gate "During Link". Procura `innateStatReductionImmunity` tanto na própria carta
+ * quanto no Pilot pareado (mesma convenção de `findInnateDamageProtection`, combat.ts).
+ */
+function hasStatReductionImmunity(card: CardInstance, stat: StatKey, state: GameState): boolean {
+  const pilot = card.pairedPilotId ? findInBattleArea(state, card.owner, card.pairedPilotId) : undefined;
+  const isLink = !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), card.def);
+
+  const ownImmunity = card.def.innateStatReductionImmunity;
+  if (ownImmunity && ownImmunity.stat === stat && (!ownImmunity.duringLinkOnly || isLink)) return true;
+
+  const pilotImmunity = pilot?.def.innateStatReductionImmunity;
+  if (pilotImmunity && pilotImmunity.stat === stat && (!pilotImmunity.duringLinkOnly || isLink)) return true;
+
+  return false;
+}
+
+/** Filtra `statModifiers` pro cálculo de `effectiveAp`/`effectiveHp`: some reduções (amount < 0) de origem INIMIGA quando a Unit tem imunidade ativa pra esse stat. */
+function applicableStatModifiers(card: CardInstance, stat: StatKey, state?: GameState): StatModifier[] {
+  const immune = state ? hasStatReductionImmunity(card, stat, state) : false;
+  return card.statModifiers.filter((m) => {
+    if (m.stat !== stat) return false;
+    if (immune && m.amount < 0 && m.appliedBy && m.appliedBy !== card.owner) return false;
+    return true;
+  });
+}
+
 export function effectiveAp(card: CardInstance, state?: GameState, pairedPilot?: CardInstance | null): number {
   const base = card.def.ap ?? 0;
-  const bonus = card.statModifiers
-    .filter((m) => m.stat === "ap")
-    .reduce((sum, m) => sum + m.amount, 0);
+  const bonus = applicableStatModifiers(card, "ap", state).reduce((sum, m) => sum + m.amount, 0);
   const staticBonus = state ? computeStaticStatBonus(card, state, "ap") : 0;
   const pilotBonus = resolvePilotStatBonus(card, "ap", state, pairedPilot);
   return Math.max(0, base + bonus + staticBonus + pilotBonus);
@@ -359,18 +569,53 @@ export function effectiveAp(card: CardInstance, state?: GameState, pairedPilot?:
 
 export function effectiveHp(card: CardInstance, state?: GameState, pairedPilot?: CardInstance | null): number {
   const base = card.def.hp ?? 0;
-  const bonus = card.statModifiers
-    .filter((m) => m.stat === "hp")
-    .reduce((sum, m) => sum + m.amount, 0);
+  const bonus = applicableStatModifiers(card, "hp", state).reduce((sum, m) => sum + m.amount, 0);
   const staticBonus = state ? computeStaticStatBonus(card, state, "hp") : 0;
   const pilotBonus = resolvePilotStatBonus(card, "hp", state, pairedPilot);
   return Math.max(0, base + bonus + staticBonus + pilotBonus);
 }
 
-export function hasKeyword(card: CardInstance, keyword: string): boolean {
+/**
+ * Custo efetivo de deploy/jogada de `def` (Lote 5) — aplica `def.dynamicCost`
+ * se a condição de board estiver satisfeita agora. `state` opcional, mesmo
+ * espírito de `effectiveAp`/`effectiveHp`: sem ele, o desconto não é visto
+ * (fallback pro custo impresso).
+ */
+export function effectiveCost(def: CardDef, state?: GameState, controller?: PlayerId): number {
+  const base = def.cost ?? 0;
+  if (!def.dynamicCost || !state || !controller) return base;
+  const met = isBoardConditionMet(state, controller, def.dynamicCost.condition);
+  return Math.max(0, base + (met ? def.dynamicCost.amount : 0));
+}
+
+/** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */
+function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, state: GameState): StaticAbility | undefined {
+  const owner = state.players[card.owner];
+  for (const source of owner.battleArea) {
+    for (const ability of source.def.staticAbilities ?? []) {
+      if (ability.keyword !== keyword) continue;
+      if (!isStaticAbilityActive(state, source, ability.condition)) continue;
+      if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
+      if (!matchesStaticScope(source, card, ability.scope)) continue;
+      if (ability.targetCondition && !isTargetConditionMet(card, state, ability.targetCondition)) continue;
+      return ability;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * `state` é opcional só pra não quebrar callers que ainda não têm acesso a
+ * ele — sem `state`, keywords concedidas por `StaticAbility` (Lote 3, ex.
+ * 【During Pair】/condição de board/aura de Pilot) não são vistas, mesmo
+ * limite documentado em `effectiveAp` acima.
+ */
+export function hasKeyword(card: CardInstance, keyword: string, state?: GameState): boolean {
   const fromDef = card.def.effectKeywords?.includes(keyword) ?? false;
   const fromGrant = card.keywordGrants.some((g) => g.keyword === keyword);
-  return fromDef || fromGrant;
+  const fromStatic = state ? findActiveStaticKeywordAbility(card, keyword, state) !== undefined : false;
+  return fromDef || fromGrant || fromStatic;
 }
 
 /**
@@ -383,16 +628,20 @@ export function hasKeyword(card: CardInstance, keyword: string): boolean {
  * por não olhar `keywordGrants" — bug encontrado ao autorar ST02-012
  * "Simultaneous Fire", que concede `<Breach 3>` via Main).
  */
-export function keywordValue(card: CardInstance, keyword: string): number | null {
+export function keywordValue(card: CardInstance, keyword: string, state?: GameState): number | null {
   const grant = card.keywordGrants.find((g) => g.keyword.toLowerCase().startsWith(keyword.toLowerCase()));
   if (grant) {
     const match = grant.keyword.match(/(-?\d+)/);
     return match ? Number(match[1]) : 0;
   }
   const tag = card.def.keywordTags?.find((t) => t.toLowerCase().startsWith(keyword.toLowerCase()));
-  if (!tag) return hasKeyword(card, keyword) ? 0 : null;
-  const match = tag.match(/(-?\d+)/);
-  return match ? Number(match[1]) : 0;
+  if (tag) {
+    const match = tag.match(/(-?\d+)/);
+    return match ? Number(match[1]) : 0;
+  }
+  const staticAbility = state ? findActiveStaticKeywordAbility(card, keyword, state) : undefined;
+  if (staticAbility) return staticAbility.keywordValue ?? 0;
+  return hasKeyword(card, keyword, state) ? 0 : null;
 }
 
 export type Phase = "start" | "draw" | "resource" | "main" | "end";
@@ -416,14 +665,22 @@ export type AttackTarget = "player" | { unitId: string };
  */
 /**
  * Uma Unit que saiu da Battle Area pro trash durante um Damage Step (morte de
- * batalha, Breach letal, combatTrigger letal). `wasPaired` é capturado ANTES do
- * `DESTROY_CARD` (a Unit perde `pairedPilotId` ao ir pro trash) — habilita o
- * gate 【During Pair】【Destroyed】 (ST04-009 Miguel's Ginn).
+ * batalha, Breach letal, combatTrigger letal). `wasPaired`/`wasLinkUnit`/
+ * `formerPairedPilotId` são capturados ANTES do `DESTROY_CARD` (a Unit perde
+ * `pairedPilotId` ao ir pro trash) — habilita o gate 【During Pair】【Destroyed】
+ * (ST04-009 Miguel's Ginn) e, respectivamente, 【During Link】【Destroyed】 +
+ * "Return this Unit's paired Pilot..." (GD01-005 Unicorn Gundam) — Lote 5
+ * (docs/debates 2026-09-13). `formerPairedPilotId` é o instanceId do Pilot que
+ * estava pareado no momento da destruição (pode já ter ido pro trash também,
+ * via `pairedPilotFollowEvents`/CR 3-3-6 — o efeito ainda encontra a carta por
+ * instanceId em qualquer zona).
  */
 export interface DestroyedInBattle {
   instanceId: string;
   owner: PlayerId;
   wasPaired: boolean;
+  wasLinkUnit: boolean;
+  formerPairedPilotId?: string;
 }
 
 export type PendingDecision =
@@ -477,6 +734,8 @@ export type PendingDecision =
         targetScope: "enemyUnit" | "ownResource" | "friendlyUnit";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
+        /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */
+        targetCount?: { min: number; max: number };
         /**
          * ST03-010 Full Frontal 【When Paired】 — "You may deploy 1 (Neo Zeon)/(Zeon)
          * Unit card Lv.4 or lower from your hand." O jogador escolhe 1 carta da
@@ -522,6 +781,23 @@ export type PendingDecision =
          * `effectSpec`.
          */
         enumChoice?: { key: string; options: Array<{ value: string; label: string }>; label: string };
+        /**
+         * Lote 5 (docs/debates 2026-09-13) — GD01-067 "Choose 1 Command card that
+         * is Lv.5 or lower from your trash. Add it to your hand." Busca na
+         * LIXEIRA (zona sempre visível, sem "topo N" — diferente de `deckTopReveal`).
+         * `legalTrashIds` já filtrado por `CardDefFilter`; `resolveAbility` valida
+         * contra ele. A escolha viaja em `resolution.targetIds` (0 ou 1 id) e vira
+         * `ctx.targets.trashSearch` (ou o `name` custom do `searchTrashToHand`).
+         */
+        trashSearch?: { legalTrashIds: string[]; label: string };
+        /**
+         * Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) IMPLÍCITO(S), calculados
+         * pelo motor (não escolhidos pelo jogador), ex. `{ formerPairedPilot: [instanceId] }`
+         * — o Pilot que estava pareado com a Unit destruída ANTES do `DESTROY_CARD`
+         * (ver `DestroyedInBattle.formerPairedPilotId`). Mesclado em `ctx.targets` na
+         * hora de resolver (`resolveAbility`), junto com a escolha real do jogador.
+         */
+        implicitTargets?: Record<string, string[]>;
       }>;
       /**
        * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO
@@ -625,7 +901,8 @@ export interface PlayerState {
 }
 
 export interface GameOverInfo {
-  winner: PlayerId;
+  /** `null` só pro empate determinístico do guard anti-loop (`reason: "trigger_loop_guard"`) — todo outro motivo sempre tem um vencedor. */
+  winner: PlayerId | null;
   /**
    * "abandonment" e "resignation" nunca são produzidas pelo motor puro — só
    * existem porque o servidor (matchStore.ts, passo 4 do docs/18) precisa
@@ -635,8 +912,13 @@ export interface GameOverInfo {
    * parte no servidor, porque `GameOverInfo` já é o único formato de "fim de
    * jogo" que `ViewGameState`/a UI conhecem — criar um 2º formato só pra isso
    * duplicaria a renderização de fim de jogo no cliente sem necessidade.
+   *
+   * "trigger_loop_guard" — guarda anti-loop-infinito de despacho de gatilhos
+   * (MAX_CASCADE_DEPTH/MAX_QUEUE_BREADTH, ver abilityDispatch.ts) estourou em
+   * partida real: empate forçado, mesma resolução que TCGs físicos usam pra
+   * loop determinístico sem progresso.
    */
-  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation";
+  reason: "deckOut" | "noShieldsBattleDamage" | "abandonment" | "resignation" | "trigger_loop_guard";
 }
 
 export interface GameState {
@@ -705,12 +987,20 @@ export type GameEvent =
   | { type: "SPAWN_TOKEN"; player: PlayerId; def: CardDef; zone: Zone; rested?: boolean }
   /** Reordena 1 carta dentro do próprio deck do jogador (ex.: "look at the top N, return 1 to the top and 1 to the bottom") sem trocar de zona. */
   | { type: "MOVE_WITHIN_DECK"; instanceId: string; position: "top" | "bottom" }
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-003 "Choose 12 cards from your trash. Return
+   * them to their owner's deck and shuffle it." Move os `instanceIds` dados (já na lixeira
+   * do PRÓPRIO `player`) pro deck e re-embaralha com `createRng(seed ^ eventLog.length)`
+   * (mesmo espírito do nonce de `redrawMulliganHand`/`mulliganNonce`, mas variando por
+   * EVENTO em vez de por jogador — esta carta pode ser usada mais de 1 vez no jogo).
+   */
+  | { type: "RETURN_TRASH_TO_DECK_SHUFFLE"; player: PlayerId; instanceIds: string[] }
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
   | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp: number }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
-  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel: number; turn: number }
+  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
@@ -724,4 +1014,4 @@ export type GameEvent =
   /** docs/19 Sessão 2 — grava/limpa a decisão interativa pendente de um jogador (ver `PendingDecision`). */
   | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
   | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
-  | { type: "GAME_OVER"; winner: PlayerId; reason: GameOverInfo["reason"] };
+  | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] };

@@ -33,7 +33,25 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const DECK_OPTIONS = ["ST01", "ST02", "ST03", "ST04"];
+/**
+ * docs/debates 2026-09-13 (Fase 1) — os 4 decks de teste GD01
+ * (`fixtures/gd01TestDecks.ts`) entram aqui com `beta: true`: são feitos SÓ
+ * com o subconjunto de cartas com cobertura real no motor (62 prontas + 28
+ * vanilla), nunca com as 40 ainda deferidas. Aparecem sempre (Treino Solo e
+ * Convite Direto liberam GD01 incondicionalmente); a Fila Online real segue
+ * protegida pelo kill-switch `ENABLE_GD01_ONLINE` no servidor — se o deck for
+ * rejeitado lá, o erro aparece no toast normal desta tela.
+ */
+const DECK_OPTIONS: { key: string; beta?: boolean }[] = [
+  { key: "ST01" },
+  { key: "ST02" },
+  { key: "ST03" },
+  { key: "ST04" },
+  { key: "GD01-FED", beta: true },
+  { key: "GD01-ZEON", beta: true },
+  { key: "GD01-NEWTYPE", beta: true },
+  { key: "GD01-SLEEVES", beta: true },
+];
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -213,16 +231,21 @@ export default function SimulatorSandboxPage() {
       <div className="grid grid-cols-2 gap-2">
         {DECK_OPTIONS.map((option) => (
           <button
-            key={option}
+            key={option.key}
             type="button"
-            onClick={() => setDeckKey(option)}
-            className={`rounded-md border px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] transition-colors ${
-              deckKey === option
+            onClick={() => setDeckKey(option.key)}
+            className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
+              deckKey === option.key
                 ? "border-primary bg-primary/20 text-primary shadow-sm"
                 : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
             }`}
           >
-            {option}
+            <span>{option.key}</span>
+            {option.beta ? (
+              <span className="rounded-xs border border-amber-400/40 bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold tracking-wider text-amber-300">
+                BETA · PARCIAL
+              </span>
+            ) : null}
           </button>
         ))}
       </div>

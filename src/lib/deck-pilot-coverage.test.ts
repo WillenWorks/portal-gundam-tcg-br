@@ -59,6 +59,12 @@ describe("computeDeckPilotCoverage", () => {
     expect(computeDeckPilotCoverage([guntank, cmd])).toHaveLength(0);
   });
 
+  it("Command/Pilot com [Pilot] [X] (colchetes ASCII, ex: Cyclone Punch) -> conta como fonte", () => {
+    const boltGundam: PilotCoverageCard = { code: "GD05-045", name: "Bolt Gundam", cardType: "UNIT", linkText: "[Chibodee Crocket]" };
+    const cyclonePunch: PilotCoverageCard = { code: "GD05-121", name: "Cyclone Punch", cardType: "COMMAND", effect: "[Main] Target unit gets +2000.\n[Pilot] [Chibodee Crocket]" };
+    expect(computeDeckPilotCoverage([boltGundam, cyclonePunch])).toHaveLength(0);
+  });
+
   it("Unit com link por trait nunca gera aviso (é trait, não nome)", () => {
     const leo: PilotCoverageCard = { code: "ST02-007", name: "Leo", cardType: "UNIT", linkText: "(OZ) Trait" };
     expect(computeDeckPilotCoverage([leo])).toHaveLength(0);

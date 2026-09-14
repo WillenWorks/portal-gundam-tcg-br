@@ -128,7 +128,7 @@ export function BattleSlot({
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
-  const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && hasKeyword(unit, "Blocker");
+  const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && hasKeyword(unit, "Blocker", state);
   const showActivate = Boolean(actions?.onActivate);
 
   // Frente 4 (docs/38 §3.1) — sem botão de "olho": o cluster de canto guarda só

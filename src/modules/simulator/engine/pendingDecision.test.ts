@@ -225,7 +225,7 @@ describe("activateAbility (docs/19, Sessão 2)", () => {
 
     expect(findCard(next, supId).rested).toBe(true);
     expect(findCard(next, allyId).statModifiers).toEqual([
-      { stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: next.turnNumber },
+      { stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: next.turnNumber, appliedBy: "A" },
     ]);
   });
 });

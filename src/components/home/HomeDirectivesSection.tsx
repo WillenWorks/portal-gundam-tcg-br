@@ -59,37 +59,37 @@ const SUBSEQUENT_ARTICLES = [
   },
 ];
 
-// Links Oficiais (Inspirado na referência oficial)
+// Links Oficiais (Referência Bandai e Compêndio)
 const OFFICIAL_LINKS = [
   {
-    tag: "RULES",
+    tag: "REGRAS",
     tagColor: "border-cyan-500/40 bg-cyan-500/10 text-cyan-400",
-    title: "Official Rules & Rulings",
-    description: "Core rules, turn structure, combat phases, and official Bandai rulings.",
+    title: "Regras & Rulings Oficiais",
+    description: "Manual oficial, estrutura de fases, combate e decisões oficiais de arbitragem.",
     link: "/rules",
     isExternal: false,
   },
   {
-    tag: "DECKBUILDING",
+    tag: "CONSTRUÇÃO",
     tagColor: "border-amber-500/40 bg-amber-500/10 text-amber-400",
-    title: "Deckbuilding Regulations",
-    description: "Official deck construction rules, color restrictions, and 50-card regulations.",
+    title: "Regulamento de Decks & Torneios",
+    description: "Formatos válidos, restrições de cores, regras de 50 cartas e cartas banidas.",
     link: "/deckbuilder",
     isExternal: false,
   },
   {
-    tag: "LEARN",
+    tag: "APRENDA",
     tagColor: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
-    title: "How to Play Guide",
-    description: "Beginner-friendly learn, unit classification, pilot link, and quickstart guides.",
+    title: "Guia Como Jogar",
+    description: "Passo a passo para novos pilotos, fluxo de turno, Unit Link e conceitos básicos.",
     link: "/rules",
     isExternal: false,
   },
   {
-    tag: "BANDAI TCG",
+    tag: "OFICIAL",
     tagColor: "border-red-500/40 bg-red-500/10 text-red-400",
-    title: "Bandai Official Global Portal",
-    description: "Official Gundam Card Game site, erratas, worldwide tournament circuit, and news.",
+    title: "Portal Global Bandai",
+    description: "Site mundial oficial do Gundam Card Game com novidades, erratas e torneios.",
     link: "https://www.gundam-gcg.com/",
     isExternal: true,
   },
@@ -318,7 +318,7 @@ export function HomeDirectivesSection() {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-400">Referência Oficial</p>
-                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Official Links</h3>
+                    <h3 className="font-heading text-xl uppercase tracking-wider text-white heading-portal">Links Oficiais</h3>
                   </div>
                 </div>
                 <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 font-mono">

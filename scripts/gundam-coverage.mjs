@@ -51,9 +51,10 @@ const { ST01_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st01D
 const { ST02_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st02Deck.ts");
 const { ST03_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st03Deck.ts");
 const { ST04_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st04Deck.ts");
+const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/index.ts");
 
 const DEF_BY_CODE = new Map();
-for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS]) {
+for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, GD01_CARD_DEFS]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
 const SPECS_BY_CODE = new Map();
@@ -66,6 +67,107 @@ for (const d of DEFERRED_CLAUSES) {
   if (!DEFERRALS_BY_CODE.has(d.cardCode)) DEFERRALS_BY_CODE.set(d.cardCode, []);
   DEFERRALS_BY_CODE.get(d.cardCode).push(d);
 }
+
+// ── Governança de vocabulário do motor (docs/debates 2026-09-12/13) ──────────
+// `content/primitives-claims.json` é o registro append-only de toda
+// PrimitiveCall.op / TargetRef.kind / TargetGroup.kind / EffectSpec.targetScope
+// / predicate de condition / targetFilter que o motor já conhece. Extraído
+// aqui via parsing leve do PRÓPRIO texto-fonte (não runtime: são tipos TS e
+// strings resolvidas por regex — nenhum array/enum sobrevive à compilação
+// pra introspecção). Objetivo: nenhuma primitiva nova entra numa PR sem ser
+// registrada — o RAG lexical (`scripts/mcp-gundam/similar-specs.mjs`) depende
+// disso pra não deixar um agente inventar uma variante duplicada em GD02+.
+const ENGINE_DIR = path.join(REPO_ROOT, "src/modules/simulator/engine");
+const CONTENT_DIR = path.join(REPO_ROOT, "src/modules/simulator/content");
+
+/** Fatia `text` entre a 1ª ocorrência de `startMarker` e a 1ª ocorrência de `endMarker` depois dele. Lança se algum marcador sumir (sinal de refactor que precisa atualizar este script também). */
+function sliceBetween(text, startMarker, endMarker) {
+  const start = text.indexOf(startMarker);
+  if (start === -1) throw new Error(`[coverage] governança: marcador não encontrado em effectSpec.ts: "${startMarker}"`);
+  const end = text.indexOf(endMarker, start + startMarker.length);
+  if (end === -1) {
+    throw new Error(`[coverage] governança: marcador de fim não encontrado: "${endMarker}" (após "${startMarker}")`);
+  }
+  return text.slice(start + startMarker.length, end);
+}
+
+/** Casa `regex` (com 1 grupo de captura) contra `text` e devolve os valores únicos, na ordem da 1ª aparição. */
+function uniqueMatches(text, regex) {
+  const out = [];
+  const seen = new Set();
+  for (const m of text.matchAll(regex)) {
+    if (!seen.has(m[1])) {
+      seen.add(m[1]);
+      out.push(m[1]);
+    }
+  }
+  return out;
+}
+
+/** Normaliza o corpo textual de um `.match(/^padrão$/)` (texto literal do fonte, não interpretado como regex) pra um id legível: `(\d+)` -> `<n>`, `(.+)` -> `<value>`. */
+function normalizePatternBody(body) {
+  return body.replace(/\(\\d\+\)/g, "<n>").replace(/\(\.\+\)/g, "<value>");
+}
+
+/** Extrai o vocabulário ATUAL do motor direto do código-fonte (effectSpec.ts + content/predicates.ts). */
+function extractEngineVocabulary() {
+  const effectSpecSrc = readFileSync(path.join(ENGINE_DIR, "effectSpec.ts"), "utf8");
+  const predicatesSrc = readFileSync(path.join(CONTENT_DIR, "predicates.ts"), "utf8");
+
+  const primitiveCallBlock = sliceBetween(effectSpecSrc, "export type PrimitiveCall =", "\nexport interface CardDefFilter");
+  const primitiveOps = uniqueMatches(primitiveCallBlock, /op:\s*"([a-zA-Z0-9_]+)"/g);
+
+  const targetRefBlock = sliceBetween(effectSpecSrc, "export type TargetRef =", "\nexport type TargetGroup =");
+  const targetRefKinds = uniqueMatches(targetRefBlock, /kind:\s*"([a-zA-Z0-9_]+)"/g);
+
+  const targetGroupBlock = sliceBetween(effectSpecSrc, "export type TargetGroup =", "\nfunction isLinkUnit");
+  const targetGroupKinds = uniqueMatches(targetGroupBlock, /kind:\s*"([a-zA-Z0-9_]+)"/g);
+
+  const targetScopeBlock = sliceBetween(effectSpecSrc, "targetScope?:", ";");
+  const targetScopes = uniqueMatches(targetScopeBlock, /"([a-zA-Z0-9_]+)"/g);
+
+  const literalPredicates = uniqueMatches(predicatesSrc, /if \(predicate === "([a-zA-Z0-9_]+)"\)/g);
+  const templatedPredicates = [...predicatesSrc.matchAll(/predicate\.match\(\/\^([^$]+)\$\/\)/g)].map((m) =>
+    normalizePatternBody(m[1]),
+  );
+  const predicates = [...new Set([...literalPredicates, ...templatedPredicates])];
+
+  const literalFilters = uniqueMatches(predicatesSrc, /if \(filter === "([a-zA-Z0-9_]+)"\)/g);
+  const templatedFilters = [...predicatesSrc.matchAll(/filter\.match\(\/\^([^$]+)\$\/\)/g)].map((m) =>
+    normalizePatternBody(m[1]),
+  );
+  const targetFilters = [...new Set([...literalFilters, ...templatedFilters])];
+
+  return { primitiveOps, targetRefKinds, targetGroupKinds, targetScopes, predicates, targetFilters };
+}
+
+/** Devolve a lista de `"<categoria>.<id>"` presentes no motor mas ausentes de `primitives-claims.json`. */
+function findUnclaimedVocabulary() {
+  const claimsPath = path.join(CONTENT_DIR, "primitives-claims.json");
+  const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
+  const vocabulary = extractEngineVocabulary();
+
+  const unclaimed = [];
+  for (const category of Object.keys(vocabulary)) {
+    const claimedIds = new Set(Object.keys(claims[category] ?? {}));
+    for (const id of vocabulary[category]) {
+      if (!claimedIds.has(id)) unclaimed.push(`${category}.${id}`);
+    }
+  }
+  return unclaimed;
+}
+
+const unclaimedVocabulary = findUnclaimedVocabulary();
+if (unclaimedVocabulary.length > 0) {
+  console.error(
+    `[coverage] GOVERNANÇA DE PRIMITIVAS: ${unclaimedVocabulary.length} item(ns) em effectSpec.ts/predicates.ts sem entrada em content/primitives-claims.json:\n  ${unclaimedVocabulary.join("\n  ")}`,
+  );
+  console.error(
+    "[coverage] Registre cada item novo em src/modules/simulator/content/primitives-claims.json (categoria.id, com \"description\" e \"since\") antes de mergear.",
+  );
+  process.exit(1);
+}
+console.log(`[coverage] governança de primitivas: OK (vocabulário do motor 100% registrado em primitives-claims.json).`);
 
 const official = JSON.parse(readFileSync(path.join(REPO_ROOT, "data/gcg-official-cards.json"), "utf8")).cards;
 

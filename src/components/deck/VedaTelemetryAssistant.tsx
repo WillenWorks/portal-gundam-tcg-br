@@ -17,6 +17,7 @@ import { api, type ClassifiedMetaCard, type MetaRecommendationsResponse } from "
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { calculateHypergeometric } from "@/lib/meta-analytics";
 import { earliestPlayableTurn } from "@/lib/opening-hand-score";
+import { NON_COUNTED_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,13 +45,15 @@ export function VedaTelemetryAssistant({
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [activeTab, setActiveTab] = useState<"SYNERGIES" | "STAPLES" | "TECHS">("SYNERGIES");
 
-  // Cartas expandidas do deck principal
+  // Cartas expandidas do deck principal (exclui recursos e componentes fixos EX)
   const mainCards = useMemo(() => {
     return entries
-      .filter((e) => e.section !== "resource")
+      .filter((e) => e.section !== "resource" && !NON_COUNTED_SECTIONS.has(e.section))
       .map((e) => {
         const c = cardCache[e.cardId];
-        return c ? { ...c, quantity: e.quantity } : null;
+        if (!c) return null;
+        if (NON_STATS_CARD_TYPES.includes(c.type?.toUpperCase())) return null;
+        return { ...c, quantity: e.quantity };
       })
       .filter(Boolean) as (CardRecord & { quantity: number })[];
   }, [entries, cardCache]);
