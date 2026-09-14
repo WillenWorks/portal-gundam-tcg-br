@@ -6,13 +6,15 @@
  * (`/simulador/partida/:matchId`, SimulatorMatchPage). O bot joga sozinho — o
  * worker `services/sim-bot/` processa cada turno dele fora do web server.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Bot, Loader2, Swords, User, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Bot, Loader2, Swords, User, ShieldCheck, ArrowLeft, CircleCheck, CircleX } from "lucide-react";
 
-import { api, type ApiDeck, type SimulatorTrainingLevel } from "@/lib/api";
-import { validatedDeckList } from "@/modules/simulator/content/validatedDecks";
+import { api, type SimulatorTrainingLevel } from "@/lib/api";
+import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
+import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,30 +40,17 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export default function SimulatorTrainingPage() {
   const [, navigate] = useLocation();
-  const starters = useMemo(() => validatedDeckList(), []);
-  const [myDecks, setMyDecks] = useState<ApiDeck[]>([]);
-  const [playerDeckId, setPlayerDeckId] = useState<string>(starters[0]?.id ?? "ST01");
+  const starters = SIMULATOR_DECK_PRESETS;
+  const { decks: myDecks } = useMySimulatorDecks();
+  const [playerDeckId, setPlayerDeckId] = useState<string>(starters[0]?.key ?? "ST01");
   const [botDeckId, setBotDeckId] = useState<string>("SAME");
   const [level, setLevel] = useState<SimulatorTrainingLevel>("normal");
   const [starting, setStarting] = useState(false);
 
-  // Carrega decks salvos do usuário para permitir treino com decks do perfil
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .listMyDecks()
-      .then((list) => {
-        if (!cancelled && Array.isArray(list)) {
-          setMyDecks(list);
-        }
-      })
-      .catch(() => {
-        /* segue só com os starters */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const playerOwnDeck = myDecks.find((d) => d.id === playerDeckId);
+  const actualBotDeckId = botDeckId === "SAME" ? playerDeckId : botDeckId;
+  const botOwnDeck = myDecks.find((d) => d.id === actualBotDeckId);
+  const blockedDeck = playerOwnDeck && !playerOwnDeck.simulatorValid ? playerOwnDeck : botOwnDeck && !botOwnDeck.simulatorValid ? botOwnDeck : null;
 
   // Reconexão: se o jogador já está numa partida ativa (treino ou não), a
   // própria tela de partida resolve — aqui a gente só oferece começar uma nova.
@@ -81,9 +70,12 @@ export default function SimulatorTrainingPage() {
   }, [navigate]);
 
   const startTraining = async () => {
+    if (blockedDeck) {
+      toast.error(`"${blockedDeck.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      return;
+    }
     setStarting(true);
     try {
-      const actualBotDeckId = botDeckId === "SAME" ? playerDeckId : botDeckId;
       const { matchId } = await api.startSimulatorTraining({
         playerDeckId,
         botDeckId: actualBotDeckId,
@@ -157,7 +149,7 @@ export default function SimulatorTrainingPage() {
                             Starter Decks Oficiais
                           </SelectLabel>
                           {starters.map((deck) => (
-                            <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
                               {deck.label}
                             </SelectItem>
                           ))}
@@ -169,7 +161,14 @@ export default function SimulatorTrainingPage() {
                             </SelectLabel>
                             {myDecks.map((deck) => (
                               <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
-                                {deck.name}
+                                <span className="flex items-center gap-1.5">
+                                  {deck.simulatorValid ? (
+                                    <CircleCheck className="size-3 shrink-0 text-emerald-400" />
+                                  ) : (
+                                    <CircleX className="size-3 shrink-0 text-red-400" />
+                                  )}
+                                  {deck.name}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectGroup>
@@ -200,7 +199,7 @@ export default function SimulatorTrainingPage() {
                             Starter Decks Oficiais
                           </SelectLabel>
                           {starters.map((deck) => (
-                            <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
+                            <SelectItem key={deck.key} value={deck.key} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
                               {deck.label}
                             </SelectItem>
                           ))}
@@ -212,7 +211,14 @@ export default function SimulatorTrainingPage() {
                             </SelectLabel>
                             {myDecks.map((deck) => (
                               <SelectItem key={deck.id} value={deck.id} className="cursor-pointer py-2 px-3 text-xs uppercase tracking-wide focus:bg-primary/20 focus:text-primary">
-                                {deck.name}
+                                <span className="flex items-center gap-1.5">
+                                  {deck.simulatorValid ? (
+                                    <CircleCheck className="size-3 shrink-0 text-emerald-400" />
+                                  ) : (
+                                    <CircleX className="size-3 shrink-0 text-red-400" />
+                                  )}
+                                  {deck.name}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectGroup>
@@ -221,6 +227,8 @@ export default function SimulatorTrainingPage() {
                     </Select>
                   </div>
                 </div>
+
+                {blockedDeck ? <SimulatorDeckCoverageNotice deck={blockedDeck} /> : null}
 
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-400 light:text-slate-600">Dificuldade da IA</p>
@@ -256,7 +264,7 @@ export default function SimulatorTrainingPage() {
                   </Button>
                   <Button
                     className="flex-1 rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
-                    disabled={starting}
+                    disabled={starting || Boolean(blockedDeck)}
                     onClick={startTraining}
                   >
                     {starting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
@@ -271,7 +279,7 @@ export default function SimulatorTrainingPage() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="size-3.5 text-emerald-400" />
-                    Suporte ST01..ST04 + Decks do Perfil
+                    Suporte ST01 + GD01 + Decks do Perfil
                   </span>
                 </div>
               </CardContent>

@@ -514,6 +514,22 @@ export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?
 /** Dificuldade do bot no modo treino solo (docs/44 Fase 2 §4.2). */
 export type SimulatorTrainingLevel = "facil" | "normal" | "dificil";
 
+/**
+ * Deck salvo do usuário já com o veredito de cobertura do simulador
+ * (docs/debates 2026-09-14) — `simulatorValid: false` = tem carta sem
+ * cobertura no motor (`unplayableCards` lista os códigos), a UI pinta a
+ * linha de vermelho e bloqueia com `reason`/`unplayableCards` se o usuário
+ * insistir em usar esse deck.
+ */
+export type SimulatorDeckOption = {
+  id: string;
+  name: string;
+  format: string;
+  simulatorValid: boolean;
+  unplayableCards: string[];
+  reason: string | null;
+};
+
 /** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
 export function buildSimulatorStreamUrl(matchId: string): string | null {
   const token = getStoredAuth().token;
@@ -744,6 +760,8 @@ export const api = {
   joinSimulatorQueue: (deck: string) => request<SimulatorQueueStatus>("/simulator/queue/join", { method: "POST", body: JSON.stringify({ deck }) }),
   leaveSimulatorQueue: () => request<{ ok: true }>("/simulator/queue/leave", { method: "POST" }),
   getSimulatorQueueStatus: () => request<SimulatorQueueStatus>("/simulator/queue/status", undefined, { bypassCache: true }),
+  /** Decks salvos do usuário + veredito de cobertura do simulador (verde/vermelho na UI de escolha de deck). */
+  listMySimulatorDecks: () => request<SimulatorDeckOption[]>("/simulator/my-decks", undefined, { bypassCache: true }),
   getSimulatorMatch: (id: string) => request<SimulatorMatchState>(`/simulator/matches/${id}`, undefined, { bypassCache: true }),
   sendSimulatorAction: (id: string, action: PlayerAction) =>
     request<SimulatorMatchView>(`/simulator/matches/${id}/actions`, { method: "POST", body: JSON.stringify(action) }),

@@ -25,33 +25,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Copy, Loader2, Swords, Users, Bot } from "lucide-react";
+import { Copy, Loader2, Swords, Users, Bot, CircleCheck, CircleX } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
+import { useMySimulatorDecks } from "@/modules/simulator/ui/useMySimulatorDecks";
+import { SimulatorDeckCoverageNotice } from "@/modules/simulator/ui/SimulatorDeckCoverageNotice";
 
 /**
- * docs/debates 2026-09-13 (Fase 1) — os 4 decks de teste GD01
- * (`fixtures/gd01TestDecks.ts`) entram aqui com `beta: true`: são feitos SÓ
- * com o subconjunto de cartas com cobertura real no motor (62 prontas + 28
- * vanilla), nunca com as 40 ainda deferidas. Aparecem sempre (Treino Solo e
- * Convite Direto liberam GD01 incondicionalmente); a Fila Online real segue
- * protegida pelo kill-switch `ENABLE_GD01_ONLINE` no servidor — se o deck for
- * rejeitado lá, o erro aparece no toast normal desta tela.
+ * docs/debates 2026-09-13/14 — os 4 decks de teste GD01
+ * (`fixtures/gd01TestDecks.ts`) são feitos SÓ com o subconjunto de cartas com
+ * cobertura real no motor (62 prontas + 28 vanilla), nunca com as ainda
+ * deferidas. Liberados incondicionalmente em toda modalidade (sem
+ * kill-switch, ver `server/index.ts`) junto com ST01 e qualquer deck salvo
+ * do próprio jogador — este último sempre passa pelo mesmo gate de
+ * cobertura no servidor, então mesmo que o cliente deixe escolher, o motor
+ * nunca aceita carta sem regra implementada.
  */
-const DECK_OPTIONS: { key: string; beta?: boolean }[] = [
-  { key: "ST01" },
-  { key: "ST02" },
-  { key: "ST03" },
-  { key: "ST04" },
-  { key: "GD01-FED", beta: true },
-  { key: "GD01-ZEON", beta: true },
-  { key: "GD01-NEWTYPE", beta: true },
-  { key: "GD01-SLEEVES", beta: true },
-];
+const DECK_OPTIONS = SIMULATOR_DECK_PRESETS;
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -100,6 +95,10 @@ export default function SimulatorSandboxPage() {
   const [, navigate] = useLocation();
   const [screen, setScreen] = useState<Screen>("checking");
   const [deckKey, setDeckKey] = useState<string>("ST01");
+  const { decks: myDecks, loading: myDecksLoading } = useMySimulatorDecks();
+  const selectedOwnDeck = myDecks.find((d) => d.id === deckKey);
+  const deckBlocked = Boolean(selectedOwnDeck && !selectedOwnDeck.simulatorValid);
+  const deckLabel = selectedOwnDeck?.name ?? DECK_OPTIONS.find((o) => o.key === deckKey)?.label ?? deckKey;
   const [joining, setJoining] = useState(false);
   const [leavingQueue, setLeavingQueue] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -163,6 +162,10 @@ export default function SimulatorSandboxPage() {
   }, [screen, enterMatch]);
 
   const enterQueue = async () => {
+    if (deckBlocked) {
+      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      return;
+    }
     setJoining(true);
     try {
       const status = await api.joinSimulatorQueue(deckKey);
@@ -190,6 +193,10 @@ export default function SimulatorSandboxPage() {
   };
 
   const createInvite = async () => {
+    if (deckBlocked) {
+      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      return;
+    }
     setChallengeBusy(true);
     try {
       const code = await simulatorSocket.createChallenge(deckKey);
@@ -204,6 +211,10 @@ export default function SimulatorSandboxPage() {
 
   const acceptInvite = async () => {
     if (!challengeCode) return;
+    if (deckBlocked) {
+      toast.error(`"${selectedOwnDeck!.name}" tem carta sem cobertura no simulador — veja o aviso abaixo e troque de deck.`);
+      return;
+    }
     setChallengeBusy(true);
     try {
       const matchId = await simulatorSocket.acceptChallenge(challengeCode, deckKey);
@@ -226,30 +237,60 @@ export default function SimulatorSandboxPage() {
   };
 
   const deckPicker = (
-    <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Seu deck</p>
-      <div className="grid grid-cols-2 gap-2">
-        {DECK_OPTIONS.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => setDeckKey(option.key)}
-            className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
-              deckKey === option.key
-                ? "border-primary bg-primary/20 text-primary shadow-sm"
-                : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
-            }`}
-          >
-            <span>{option.key}</span>
-            {option.beta ? (
-              <span className="rounded-xs border border-amber-400/40 bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold tracking-wider text-amber-300">
-                BETA · PARCIAL
-              </span>
-            ) : null}
-          </button>
-        ))}
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Seu deck</p>
+        <div className="grid grid-cols-2 gap-2">
+          {DECK_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setDeckKey(option.key)}
+              className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.1em] transition-colors ${
+                deckKey === option.key
+                  ? "border-primary bg-primary/20 text-primary shadow-sm"
+                  : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
+              }`}
+            >
+              <span>{option.key}</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
       </div>
-      <p className="text-xs text-muted-portal">Qualquer combinação é válida — inclusive os dois lados com o mesmo deck.</p>
+
+      {myDecksLoading || myDecks.length > 0 ? (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Ou um deck do seu Hangar</p>
+          {myDecksLoading ? (
+            <p className="text-xs text-muted-portal">Carregando seus decks…</p>
+          ) : (
+            <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+              {myDecks.map((deck) => (
+                <button
+                  key={deck.id}
+                  type="button"
+                  onClick={() => setDeckKey(deck.id)}
+                  className={`flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                    deckKey === deck.id
+                      ? "border-primary bg-primary/20 text-primary shadow-sm"
+                      : "border-white/10 bg-black/20 text-soft hover:border-primary/40 light:border-slate-300 light:bg-slate-100"
+                  }`}
+                >
+                  {deck.simulatorValid ? (
+                    <CircleCheck className="size-3.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <CircleX className="size-3.5 shrink-0 text-red-400" />
+                  )}
+                  <span className="truncate">{deck.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {selectedOwnDeck && !selectedOwnDeck.simulatorValid ? <SimulatorDeckCoverageNotice deck={selectedOwnDeck} /> : null}
     </div>
   );
 
@@ -275,7 +316,7 @@ export default function SimulatorSandboxPage() {
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Duelo Oficial Asticassia · Fila Online</p>
                 <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando oponente</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Deck de combate: <strong>{deckKey}</strong>. Assim que outro piloto conectar à Arena, o duelo terá início.
+                  Deck de combate: <strong>{deckLabel}</strong>. Assim que outro piloto conectar à Arena, o duelo terá início.
                 </p>
               </div>
               <Button variant="outline" className="rounded-arena" disabled={leavingQueue} onClick={cancelQueue}>
@@ -300,7 +341,7 @@ export default function SimulatorSandboxPage() {
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Arena Asticassia · Convite Direto</p>
                 <h1 className="mt-2 font-heading text-3xl uppercase heading-portal">Aguardando desafiante</h1>
                 <p className="mt-3 text-sm leading-7 text-soft">
-                  Código do duelo: <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. Transmita o link abaixo para outro piloto. Seu deck: <strong>{deckKey}</strong>.
+                  Código do duelo: <strong className="tracking-[0.2em] text-primary">{inviteCode}</strong>. Transmita o link abaixo para outro piloto. Seu deck: <strong>{deckLabel}</strong>.
                 </p>
               </div>
               <div className="w-full break-all rounded-arena border border-white/10 bg-black/30 p-3 text-xs text-soft">
@@ -339,7 +380,7 @@ export default function SimulatorSandboxPage() {
               <div className="flex gap-2">
                 <Button
                   className="flex-1 rounded-arena bg-primary text-primary-foreground hover:bg-primary/90"
-                  disabled={challengeBusy}
+                  disabled={challengeBusy || deckBlocked}
                   onClick={acceptInvite}
                 >
                   {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
@@ -371,7 +412,7 @@ export default function SimulatorSandboxPage() {
 
             {deckPicker}
 
-            <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining} onClick={enterQueue}>
+            <Button className="w-full rounded-arena bg-primary text-primary-foreground hover:bg-primary/90" disabled={joining || deckBlocked} onClick={enterQueue}>
               {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Swords className="mr-2 size-4" />}
               Duelo Oficial Asticassia (Fila Online)
             </Button>
@@ -379,7 +420,7 @@ export default function SimulatorSandboxPage() {
             <Button
               variant="outline"
               className="w-full rounded-arena"
-              disabled={challengeBusy}
+              disabled={challengeBusy || deckBlocked}
               onClick={createInvite}
             >
               {challengeBusy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Users className="mr-2 size-4" />}

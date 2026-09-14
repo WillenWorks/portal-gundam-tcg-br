@@ -13,13 +13,10 @@ import {
 
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Button } from "@/components/ui/button";
+import { SIMULATOR_DECK_PRESETS } from "@/modules/simulator/content/simulatorDeckPresets";
 
-const STARTER_DECKS = [
-  { id: "ST01", name: "ST01 · Federation White" },
-  { id: "ST02", name: "ST02 · Zeon Red" },
-  { id: "ST03", name: "ST03 · SEED Blue" },
-  { id: "ST04", name: "ST04 · Witch Green" },
-];
+/** docs/debates 2026-09-14 — mesma lista curada das outras modalidades (ver `simulatorDeckPresets.ts`); este painel segue bloqueado (ver overlay "Bloqueado" abaixo), então é só cosmético até a rede 4P entrar no ar. */
+const STARTER_DECKS = SIMULATOR_DECK_PRESETS.map((preset) => ({ id: preset.key, name: preset.label }));
 
 type Modality = "2x2" | "battle-royale";
 
