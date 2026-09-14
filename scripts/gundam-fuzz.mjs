@@ -8,7 +8,7 @@
  *   - partida que não termina em `maxTurns`.
  *
  * Uso:
- *   node scripts/gundam-fuzz.mjs                  # 200 partidas por par, todos os pares ST01-04
+ *   node scripts/gundam-fuzz.mjs                  # 200 partidas por par, todos os pares ST01-05
  *   node scripts/gundam-fuzz.mjs --games=100
  *   node scripts/gundam-fuzz.mjs --decks=ST01,ST03   # só esse par
  *   node scripts/gundam-fuzz.mjs --seed=123          # seed base (default 1)
@@ -37,6 +37,7 @@ const { buildSt01DeckList } = await import(sim("fixtures/st01Deck.ts"));
 const { buildSt02DeckList } = await import(sim("fixtures/st02Deck.ts"));
 const { buildSt03DeckList } = await import(sim("fixtures/st03Deck.ts"));
 const { buildSt04DeckList } = await import(sim("fixtures/st04Deck.ts"));
+const { buildSt05DeckList } = await import(sim("fixtures/st05Deck.ts"));
 const { buildGd01DeckList } = await import(sim("fixtures/gd01Deck.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
@@ -65,6 +66,7 @@ const DECKS = {
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  ST05: buildSt05DeckList,
   GD01: buildGd01DeckList,
 };
 

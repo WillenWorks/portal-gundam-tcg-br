@@ -8,8 +8,8 @@ import {
 } from "./validatedDecks";
 
 describe("VALIDATED_DECKS", () => {
-  it("registra exatamente ST01..ST04", () => {
-    expect(Object.keys(VALIDATED_DECKS).sort()).toEqual(["ST01", "ST02", "ST03", "ST04"]);
+  it("registra exatamente ST01..ST05", () => {
+    expect(Object.keys(VALIDATED_DECKS).sort()).toEqual(["ST01", "ST02", "ST03", "ST04", "ST05"]);
   });
 
   it("isValidatedDeck reconhece os ids registrados e recusa os demais", () => {

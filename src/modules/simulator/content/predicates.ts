@@ -179,6 +179,23 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     ).length;
     return count >= min;
   }
+  // ST05-012 McGillis Fareed — 【When Paired】"If you have 2 or more other
+  // (Gjallarhorn)/(Tekkadan) Units in play, ...". Mesma convenção de OR entre
+  // traits de `controllerTrashUnitCountWithAnyTraitAtLeast`, só que na Battle
+  // Area (não no trash) e excluindo a própria fonte ("other").
+  const controllerOtherUnitCountWithAnyTraitAtLeast = predicate.match(/^controllerOtherUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerOtherUnitCountWithAnyTraitAtLeast) {
+    const traits = controllerOtherUnitCountWithAnyTraitAtLeast[1].split(",");
+    const min = Number(controllerOtherUnitCountWithAnyTraitAtLeast[2]);
+    const owner = ctx.state.players[ctx.controller];
+    const count = owner.battleArea.filter(
+      (c) =>
+        c.instanceId !== ctx.sourceInstanceId &&
+        c.def.cardType === "UNIT" &&
+        (c.def.traits ?? []).some((t) => traits.includes(t)),
+    ).length;
+    return count >= min;
+  }
   // GD01-095 Dearka Elthman — "Discard 1. If you do, draw 1." Lote 5 (docs/debates
   // 2026-09-13): "if you do" = a escolha nomeada `<key>` (já resolvida ANTES de
   // `resolveEffectSpec` rodar, pela camada de decisão) não veio vazia — não é
@@ -273,6 +290,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-103/112 — "1/2 active friendly/enemy Unit(s)" (o oposto de "rested").
   if (filter === "active") return !candidate.rested;
+
+  // ST05-001 Gundam Barbatos 4th Form — 【Deploy】"Choose 1 of your OTHER Units."
+  // Exclui a própria fonte do pool de `friendlyUnit` (que por padrão a inclui).
+  if (filter === "notSelf") return ctx.sourceInstanceId ? candidate.instanceId !== ctx.sourceInstanceId : true;
+
+  // ST05-015 Isaribi — 【Activate･Main】"Choose 1 of your damaged Units."
+  if (filter === "damaged") return candidate.damage > 0;
 
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);

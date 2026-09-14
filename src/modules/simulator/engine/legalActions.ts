@@ -129,9 +129,10 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
       } else {
         for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: [id] } });
       }
-    } else {
+    } else if (!someSpecNeeds) {
       out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action" });
     }
+    // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
   }
   return out;
 }
@@ -192,9 +193,10 @@ function activateAbilityCandidates(
           } else {
             for (const id of ids) out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: [id] } });
           }
-        } else {
+        } else if (!someSpecNeeds) {
           out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
         }
+        // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
       } else {
         // <Support N> — alvo é outra Unit amiga
         for (const other of friendlyUnits(state, seat)) {
@@ -265,9 +267,15 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
           } else {
             for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: [id] } });
           }
-        } else {
+        } else if (!someSpecNeeds) {
           out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" });
         }
+        // `someSpecNeeds && ids.length === 0` — alvo obrigatório sem pool legal (ex.
+        // ST05-013 "Choose 1 of your Units" sem nenhuma Unit própria em campo): NÃO
+        // oferece a jogada. Achado no fuzzing da wave ST05 — antes disto, a Command
+        // entrava sem `targets`, e a resolução travava em `pendingDecision` com 0
+        // opções (mesma classe de bug do docs/48, versão "pool vazio" em vez de
+        // "condição falsa").
       }
     }
   }

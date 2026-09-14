@@ -1,0 +1,192 @@
+[
+  {
+    "code": "ST05-001",
+    "name": "Gundam Barbatos 4th Form",
+    "set": "ST05",
+    "effectEn": "【Deploy】Choose 1 of your other Units. Deal 1 damage to it. It gets AP+1 during this turn.\nWhile this is damaged, it gains <Suppression>.\n\n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)",
+    "effectPt": "【Deploy】Escolha 1 das suas outras Unidades. Cause 1 de dano a ela. Ela recebe AP+1 durante este turno.\nEnquanto esta Unidade estiver danificada, ela ganha <Suppression>.\n\n(O dano causado a Escudos por um ataque é causado às 2 primeiras cartas simultaneamente.)",
+    "status": "OK",
+    "tokens": [
+      "【Deploy】",
+      "<Suppression>",
+      "AP+1"
+    ]
+  },
+  {
+    "code": "ST05-002",
+    "name": "Gundam Barbatos 2nd Form",
+    "set": "ST05",
+    "effectEn": "While this Unit is damaged, it gets AP+2.",
+    "effectPt": "Enquanto esta Unidade estiver danificada, ela recebe AP+2.",
+    "status": "OK",
+    "tokens": [
+      "AP+2"
+    ]
+  },
+  {
+    "code": "ST05-003",
+    "name": "CGS Mobile Worker",
+    "set": "ST05",
+    "effectEn": "【Activate･Main】Rest this Unit：Choose 1 of your Units. Deal 1 damage to it. It gets AP+1 during this turn.",
+    "effectPt": "【Activate･Main】Coloque esta Unidade em Rest：Escolha 1 das suas Unidades. Cause 1 de dano a ela. Ela recebe AP+1 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Activate･Main】",
+      "AP+1",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST05-004",
+    "name": "Graze Custom",
+    "set": "ST05",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST05-005",
+    "name": "Gundam Gusion Rebake",
+    "set": "ST05",
+    "effectEn": "【Destroyed】Choose 1 enemy Unit with 4 or less AP. Rest it.",
+    "effectPt": "【Destroyed】Escolha 1 Unidade inimiga com 4 ou menos AP. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Destroyed】",
+      "AP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST05-006",
+    "name": "Hyakuren",
+    "set": "ST05",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST05-007",
+    "name": "McGillis' Schwalbe Graze",
+    "set": "ST05",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)\n【When Paired】Choose 1 enemy Unit that is Lv.3 or lower. It gets AP-2 during this turn.",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\n【When Paired】Escolha 1 Unidade inimiga que seja Lv.3 ou menor. Ela recebe AP-2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【When Paired】",
+      "<Blocker>",
+      "AP-2",
+      "Lv.3",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST05-008",
+    "name": "Graze Commander Type",
+    "set": "ST05",
+    "effectEn": "<Blocker> (Rest this Unit to change the attack target to it.)",
+    "effectPt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "status": "OK",
+    "tokens": [
+      "<Blocker>",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST05-009",
+    "name": "Graze",
+    "set": "ST05",
+    "effectEn": "-",
+    "effectPt": null,
+    "status": "OK",
+    "motivo": "carta sem texto de efeito (nada a traduzir)",
+    "tokens": []
+  },
+  {
+    "code": "ST05-010",
+    "name": "Mikazuki Augus",
+    "set": "ST05",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 das suas Unidades e 1 Unidade inimiga. Cause 1 de dano a elas.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】"
+    ]
+  },
+  {
+    "code": "ST05-011",
+    "name": "Akihiro Altland",
+    "set": "ST05",
+    "effectEn": "【Burst】Add this card to your hand.\n【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【During Link】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, escolha 1 carta de Unidade (Tekkadan) que seja Lv.2 ou menor do seu lixo. Adicione-a à sua mão.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【During Link】",
+      "(Tekkadan)",
+      "Lv.2"
+    ]
+  },
+  {
+    "code": "ST05-012",
+    "name": "McGillis Fareed",
+    "set": "ST05",
+    "effectEn": "【Burst】Add this card to your hand.\n【When Paired】If you have 2 or more other (Gjallarhorn)/(Tekkadan) Units in play, choose 1 enemy Unit with 3 or less HP. Rest it.",
+    "effectPt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Se você tiver 2 ou mais outras Unidades (Gjallarhorn)/(Tekkadan) em jogo, escolha 1 Unidade inimiga com 3 ou menos de HP. Coloque-a em Rest.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【When Paired】",
+      "(Gjallarhorn)",
+      "(Tekkadan)",
+      "HP",
+      "Rest"
+    ]
+  },
+  {
+    "code": "ST05-013",
+    "name": "With Iron and Blood",
+    "set": "ST05",
+    "effectEn": "【Main】/【Action】Choose 1 of your Units. Deal 1 damage to it. It gets AP+3 during this turn.",
+    "effectPt": "【Main】/【Action】Escolha 1 das suas Unidades. Cause 1 de dano a ela. Ela recebe AP+3 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Main】",
+      "【Action】",
+      "AP+3"
+    ]
+  },
+  {
+    "code": "ST05-014",
+    "name": "Fatal Strike",
+    "set": "ST05",
+    "effectEn": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.\n【Main】Choose 1 enemy Unit that is Lv.3 or lower. Destroy it.",
+    "effectPt": "【Burst】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.\n【Main】Escolha 1 Unidade inimiga que seja Lv.3 ou menor. Destrua-a.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Main】",
+      "Lv.3"
+    ]
+  },
+  {
+    "code": "ST05-015",
+    "name": "Isaribi",
+    "set": "ST05",
+    "effectEn": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：Choose 1 of your damaged Units. It gets AP+2 during this turn.",
+    "effectPt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Escolha 1 das suas Unidades danificadas. Ela recebe AP+2 durante este turno.",
+    "status": "OK",
+    "tokens": [
+      "【Burst】",
+      "【Deploy】",
+      "【Activate･Main】",
+      "AP+2",
+      "Rest"
+    ]
+  }
+]

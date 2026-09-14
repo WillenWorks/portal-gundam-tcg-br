@@ -94,4 +94,23 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "A 1ª cláusula (【Deploy】Deploy 1 [Fatum-00] token) já foi resolvida (`JUSTICE_GUNDAM_DEPLOY`, `TOKEN_FATUM_00`). Esta 2ª cláusula concede exceção de \"pode atacar no turno em que foi deployada\" a um token ESCOLHIDO, fora da regra nativa de Link Unit (`enteredZoneOnTurn`/combat.ts) — não existe primitiva pra isso.",
     blockedBy: "engine:atacar-no-turno-do-deploy-fora-de-link",
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Classe F — Wave ST05: retrieve de trash via combate.
+  // ─────────────────────────────────────────────────────────────────────────
+  {
+    cardCode: "ST05-011",
+    clause:
+      "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
+    reason:
+      "`CombatTrigger.action` só cobre `draw` / `damageAllEnemyUnits` / `damageChosenEnemyUnit` — não há kind pra buscar carta do trash com filtro (trait + level) e devolver pra mão. A 1ª cláusula da carta (【Burst】Add this card to your hand) está implementada (`AKIHIRO_ALTLAND_BURST`, content/st05.ts).",
+    blockedBy: "engine:combat-trigger-sem-retrieve-trash",
+  },
+  {
+    cardCode: "ST05-010",
+    clause: "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+    reason:
+      "`EffectSpec.secondaryTarget` (2º alvo nomeado) só é resolvido no caminho especial de Command 【Main】 jogada da mão (`legalActions.ts` `mainPhaseCandidates`, precedente GD01-103/112). O dispatcher genérico de gatilho automático (`abilityDispatch.ts` → `pendingDecision.abilityResolution`) não carrega um 2º alvo nomeado na fila da decisão — achado no fuzzing da wave ST05 (partida travava em `pendingDecision` esperando um alvo que a UI/enumeração nunca oferecia). A 1ª cláusula da carta (【Burst】Add this card to your hand) está implementada (`MIKAZUKI_AUGUS_BURST`, content/st05.ts).",
+    blockedBy: "engine:secondaryTarget-fora-de-command-main-da-mao",
+  },
 ] as const;
