@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { CardDef } from "../src/modules/simulator/engine/types.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import { ALL_EFFECT_SPECS } from "../src/modules/simulator/content/index.ts";
+import { buildDeckListFromUserDeck, UserDeckSimulatorError, type UserDeckInput } from "../src/modules/simulator/content/userDeckBuilder.ts";
 
 /**
  * Gate de segurança server-side (docs/debates 2026-09-13 — achado da auditoria
@@ -92,4 +93,37 @@ export function validateDeckPayload(deck: DeckList): DeckPayloadValidation {
     if (!isCardPlayable(card)) unplayable.add(card.code);
   }
   return { valid: unplayable.size === 0, unplayableCards: [...unplayable].sort() };
+}
+
+export interface UserDeckCoverage {
+  valid: boolean;
+  /** códigos sem cobertura no motor — tanto os que `buildDeckListFromUserDeck` nem reconhece quanto os que `validateDeckPayload` rejeita por cláusula ainda não implementada. */
+  unplayableCards: string[];
+  /** motivo legível quando `buildDeckListFromUserDeck` falha por um jeito que não é "carta sem cobertura" (ex.: contagem de cartas errada). */
+  reason?: string;
+  /** `DeckList` já montada, presente sempre que `buildDeckListFromUserDeck` não lançou (mesmo quando `valid` é `false` por cobertura). */
+  list?: DeckList;
+}
+
+/**
+ * Mesmo gate de `validateDeckPayload`, só que a partir de um deck CRU do
+ * banco (Prisma `Deck` + `DeckItem[]`/`Card`) — usado pra sinalizar
+ * verde/vermelho os decks do próprio jogador nas telas do simulador
+ * (Fila Online, Convite Direto, Treino Solo) e pra bloquear no servidor caso
+ * o cliente insista em mandar um deck vermelho mesmo assim (docs/debates
+ * 2026-09-14, pedido do Willen — "permita que o usuário use o seu próprio
+ * deck... impeça decks com cartas não mapeadas").
+ */
+export function checkUserDeckSimulatorCoverage(deck: UserDeckInput): UserDeckCoverage {
+  let list: DeckList;
+  try {
+    list = buildDeckListFromUserDeck(deck);
+  } catch (err) {
+    if (err instanceof UserDeckSimulatorError) {
+      return { valid: false, unplayableCards: err.unsupportedCodes ?? [], reason: err.message };
+    }
+    throw err;
+  }
+  const validation = validateDeckPayload(list);
+  return { valid: validation.valid, unplayableCards: validation.unplayableCards, list };
 }

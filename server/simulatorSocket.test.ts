@@ -28,9 +28,9 @@ const DECKS: Record<string, () => ReturnType<typeof buildSt01DeckList>> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
 };
-function resolveDeck(raw: unknown) {
+async function resolveDeck(raw: unknown) {
   const key = typeof raw === "string" ? raw.toUpperCase() : "";
-  return DECKS[key] ? { key, build: DECKS[key] } : null;
+  return DECKS[key] ? ({ ok: true, key, build: DECKS[key] } as const) : ({ ok: false, message: "Deck inválido para o simulador." } as const);
 }
 
 let httpServer: HttpServer;
