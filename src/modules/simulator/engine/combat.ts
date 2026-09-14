@@ -1,4 +1,4 @@
-import type { AttackTarget, CardInstance, CombatTrigger, GameEvent, GameState, PlayerId } from "./types";
+import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PlayerId } from "./types";
 import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 
@@ -63,12 +63,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       // ST04-011 Athrun Zala 【When Linked】 (`attackTargetRelaxUntilTurn`, só no
       // turno em que foi concedida).
       const staticRelaxLevel = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-      const grantedRelaxLevel =
-        attacker.attackTargetRelaxUntilTurn?.turn === state.turnNumber
-          ? attacker.attackTargetRelaxUntilTurn.maxLevel
-          : -1;
+      // GD01-043/GD01-110 — a concessão temporária também pode vir por AP em
+      // vez de nível ("... com 4 ou menos AP" em vez de "Lv.X ou menor");
+      // `grantAttackTargetRelax` guarda qual dos dois critérios foi concedido.
+      const granted =
+        attacker.attackTargetRelaxUntilTurn?.turn === state.turnNumber ? attacker.attackTargetRelaxUntilTurn : undefined;
+      const grantedRelaxLevel = granted?.maxLevel ?? -1;
       const relaxMaxLevel = Math.max(staticRelaxLevel, grantedRelaxLevel);
-      const allowed = relaxMaxLevel >= 0 && (targetUnit.def.level ?? 0) <= relaxMaxLevel;
+      const allowedByLevel = relaxMaxLevel >= 0 && (targetUnit.def.level ?? 0) <= relaxMaxLevel;
+      const allowedByAp = granted?.maxAp !== undefined && effectiveAp(targetUnit, state) <= granted.maxAp;
+      const allowed = allowedByLevel || allowedByAp;
       if (!allowed) {
         throw new Error("Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)");
       }
@@ -107,7 +111,7 @@ export function proceedToBlockStep(state: GameState): GameState {
 export function canActivateBlocker(state: GameState): boolean {
   const combat = requireCombat(state);
   const attacker = findCard(state, combat.attackerId);
-  return !hasKeyword(attacker, "High-Maneuver");
+  return !hasKeyword(attacker, "High-Maneuver", state);
 }
 
 export function activateBlocker(state: GameState, blockerId: string): GameState {
@@ -122,7 +126,7 @@ export function activateBlocker(state: GameState, blockerId: string): GameState 
   if (blocker.owner !== combat.defendingPlayer) throw new Error("Blocker precisa pertencer a quem está defendendo");
   if (blocker.zone !== "battleArea") throw new Error("Blocker precisa estar na Battle Area");
   if (blocker.rested) throw new Error("Blocker precisa estar active pra ser ativado");
-  if (!hasKeyword(blocker, "Blocker")) throw new Error("Essa Unit não tem <Blocker>");
+  if (!hasKeyword(blocker, "Blocker", state)) throw new Error("Essa Unit não tem <Blocker>");
 
   const events: GameEvent[] = [
     { type: "REST_CARD", instanceId: blockerId },
@@ -175,7 +179,7 @@ function shieldDamageEvents(defendingPlayer: PlayerId, count: number, state: Gam
 }
 
 function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: GameState): GameEvent[] {
-  const breachValue = keywordValue(attacker, "Breach");
+  const breachValue = keywordValue(attacker, "Breach", state);
   if (breachValue === null || breachValue <= 0) return [];
   // Comprehensive Rules: <Breach N> causa N de dano no 1º shield — mas um
   // Shield que recebe 1+ de dano é destruído inteiro (Shield tem "1 HP"),
@@ -184,6 +188,18 @@ function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: 
   // caírem de uma vez só (bug corrigido aqui) exigiria a carta dizer
   // explicitamente algo como "descarte N shields" — não é o caso de Breach.
   return shieldDamageEvents(defendingPlayer, 1, state);
+}
+
+/**
+ * GD01-091 Chang Wufei (Pilot) — autorado num PILOT, mas "this Unit" no texto
+ * é a Unit PAREADA (mesma convenção de GD01-087/089/092/096, Lote 3) — por
+ * isso `CardDef.innateDamageProtection` é procurado tanto na própria Unit
+ * quanto no Pilot pareado com ela, nunca só num dos dois.
+ */
+function findInnateDamageProtection(unit: CardInstance, state: GameState): CardDef["innateDamageProtection"] {
+  if (unit.def.innateDamageProtection) return unit.def.innateDamageProtection;
+  if (unit.pairedPilotId) return findCard(state, unit.pairedPilotId).def.innateDamageProtection;
+  return undefined;
 }
 
 /**
@@ -196,7 +212,7 @@ function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: 
  * tanto na própria Unit (`attacker.def`) quanto no Pilot pareado com ela
  * (`CombatTrigger` pode viver nos dois lados — ver `CardDef.combatTriggers`).
  */
-function combatTriggerEvents(attacker: CardInstance, state: GameState, on: CombatTrigger["on"]): GameEvent[] {
+function combatTriggerEvents(attacker: CardInstance, state: GameState, on: CombatTrigger["on"], destroyedEnemy?: CardInstance): GameEvent[] {
   if (attacker.owner !== state.activePlayer) return []; // "during your turn" — nunca satisfeito pelo defensor
   const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
   const sources = [attacker.def, ...(pilot ? [pilot.def] : [])];
@@ -212,6 +228,19 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
             ? !!pilot
             : !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def);
       if (!conditionMet) continue;
+      // GD01-094 Yzak Jule — "When an enemy Link Unit is destroyed ...". Checa ANTES
+      // do DESTROY_CARD limpar o pareamento (destroyedEnemy ainda tem pairedPilotId).
+      if (trigger.requiresLinkUnitEnemy) {
+        const enemyPilot = destroyedEnemy?.pairedPilotId ? findCard(state, destroyedEnemy.pairedPilotId) : undefined;
+        const enemyIsLinkUnit = !!destroyedEnemy && !!enemyPilot && satisfiesLinkCondition(effectivePilotDef(enemyPilot), destroyedEnemy.def);
+        if (!enemyIsLinkUnit) continue;
+      }
+      // "【Once per Turn】" — mesmo mecanismo de <Support>/<Repair>, chave sintética por `on`.
+      const usageMarker = `combatTrigger:${trigger.on}`;
+      if (trigger.oncePerTurn) {
+        if (attacker.usedKeywordsThisTurn.includes(usageMarker)) continue;
+        events.push({ type: "MARK_KEYWORD_USED", instanceId: attacker.instanceId, keyword: usageMarker });
+      }
 
       const action = trigger.action;
       switch (action.kind) {
@@ -258,7 +287,7 @@ export function resolveDamageStep(state: GameState): GameState {
   if (combat.step !== "damage") throw new Error("Não é o Damage Step");
 
   const attacker = findCard(state, combat.attackerId);
-  const attackerHasFirstStrike = hasKeyword(attacker, "First Strike");
+  const attackerHasFirstStrike = hasKeyword(attacker, "First Strike", state);
   const events: GameEvent[] = [];
 
   if (combat.currentTarget === "player") {
@@ -271,7 +300,7 @@ export function resolveDamageStep(state: GameState): GameState {
         events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
       }
     } else {
-      const suppression = hasKeyword(attacker, "Suppression");
+      const suppression = hasKeyword(attacker, "Suppression", state);
       // ST02-013 Peaceful Timbre — "During this battle, your shield area cards can't
       // receive damage from enemy Units that are Lv.4 or lower" (docs/18, lacuna #7).
       const protection = combat.shieldProtection;
@@ -289,7 +318,7 @@ export function resolveDamageStep(state: GameState): GameState {
     }
   } else {
     const defender = findCard(state, combat.currentTarget.unitId);
-    const defenderHasFirstStrike = hasKeyword(defender, "First Strike");
+    const defenderHasFirstStrike = hasKeyword(defender, "First Strike", state);
     const onlyAttackerFirstStrike = attackerHasFirstStrike && !defenderHasFirstStrike;
     const onlyDefenderFirstStrike = defenderHasFirstStrike && !attackerHasFirstStrike;
 
@@ -298,10 +327,28 @@ export function resolveDamageStep(state: GameState): GameState {
     // ST03-014 The Blue Giant — a Unit protegida não recebe dano de batalha de
     // atacante com AP efetivo <= maxAttackerAp (o atacante ainda recebe o dele).
     const unitProt = combat.unitDamageProtection;
-    const defenderDamagePrevented =
-      !!unitProt && unitProt.instanceId === defender.instanceId && attackerAp <= unitProt.maxAttackerAp;
+    const grantedProtects = !!unitProt && unitProt.instanceId === defender.instanceId && attackerAp <= unitProt.maxAttackerAp;
+    // GD01-091 Chang Wufei (Lote 5) — proteção INATA e contínua (não instalada por
+    // efeito pontual), reavaliada aqui mesmo: "During your turn, while this Unit has
+    // <Breach>, it can't receive battle damage from enemy Units with 3 or less AP."
+    const innate = findInnateDamageProtection(defender, state);
+    const innateProtects =
+      !!innate &&
+      (!innate.duringYourTurnOnly || defender.owner === state.activePlayer) &&
+      (!innate.requiresOwnKeyword || hasKeyword(defender, innate.requiresOwnKeyword, state)) &&
+      attackerAp <= innate.maxAttackerAp;
+    const defenderDamagePrevented = grantedProtects || innateProtects;
+    // GD01-091 também protege O PRÓPRIO ATACANTE do contra-dano do defensor — "during your
+    // turn" só é satisfeito enquanto ESTA Unit ataca (defensor nunca age no seu próprio
+    // turno), então a aplicação real da carta é sempre este lado, não o do defensor.
+    const attackerInnate = findInnateDamageProtection(attacker, state);
+    const attackerDamagePrevented =
+      !!attackerInnate &&
+      (!attackerInnate.duringYourTurnOnly || attacker.owner === state.activePlayer) &&
+      (!attackerInnate.requiresOwnKeyword || hasKeyword(attacker, attackerInnate.requiresOwnKeyword, state)) &&
+      defenderAp <= attackerInnate.maxAttackerAp;
     const defenderWillDie = !defenderDamagePrevented && defender.damage + attackerAp >= effectiveHp(defender, state);
-    const attackerWillDie = attacker.damage + defenderAp >= effectiveHp(attacker, state);
+    const attackerWillDie = !attackerDamagePrevented && attacker.damage + defenderAp >= effectiveHp(attacker, state);
 
     if (onlyAttackerFirstStrike) {
       if (!defenderDamagePrevented) {
@@ -311,17 +358,21 @@ export function resolveDamageStep(state: GameState): GameState {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
         events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
+        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
       } else {
-        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+        if (!attackerDamagePrevented) {
+          events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+        }
         if (attackerWillDie) {
           events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
           events.push(...pairedPilotFollowEvents(attacker));
         }
       }
     } else if (onlyDefenderFirstStrike) {
-      events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (!attackerDamagePrevented) {
+        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      }
       if (attackerWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
         events.push(...pairedPilotFollowEvents(attacker));
@@ -333,7 +384,7 @@ export function resolveDamageStep(state: GameState): GameState {
           events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
           events.push(...pairedPilotFollowEvents(defender));
           events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-          events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
+          events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         }
       }
     } else {
@@ -341,12 +392,14 @@ export function resolveDamageStep(state: GameState): GameState {
       if (!defenderDamagePrevented) {
         events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
       }
-      events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (!attackerDamagePrevented) {
+        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      }
       if (defenderWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
         events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
+        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
       }
       if (attackerWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });

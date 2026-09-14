@@ -18,12 +18,14 @@
 
 /** n-gramas de mecânica conhecidos — texto já minúsculo e com números -> `*`. */
 export const MECHANIC_NGRAMS = [
-  // deck / mão
+  // deck / mão / lixeira
   "look at the top",
   "cards of your deck",
   "bottom of your deck",
   "top of your deck",
   "your deck",
+  "in your trash",
+  "cards from your trash",
   "add this card to your hand",
   "return it to its owner's hand",
   "return it to",
@@ -50,6 +52,10 @@ export const MECHANIC_NGRAMS = [
   "choose * of your units",
   "choose * of your resources",
   "choose * rested enemy unit",
+  "choose * damaged enemy unit",
+  "damaged enemy unit",
+  "choose * to * enemy units",
+  "all friendly units",
   "enemy unit",
   "friendly unit",
   "this unit",
@@ -70,19 +76,24 @@ export const MECHANIC_NGRAMS = [
   "blocker",
   "breach",
   "support",
+  "repair",
+  "suppression",
   // recursos / tokens
   "set it as active",
   "set this unit as active",
   "as active",
   "rest it",
+  "rest this base",
   "rest this",
   "deploy this card",
   "deploy * rested",
   "unit token",
   "rested",
   "place * ex resource",
+  "place * rested resource",
   "ex resource",
   "activate this card's",
+  "if it is your turn",
   // draw / discard
   "draw",
   "discard",

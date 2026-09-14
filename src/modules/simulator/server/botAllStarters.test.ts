@@ -12,12 +12,12 @@ describe("Bot no Modo Normal com Todos os Starters (ST01, ST02, ST03, ST04)", ()
   const HUMAN = { userId: "user-1", displayName: "Jogador Humano" };
 
   const STARTER_CONFIGS = [
-    { name: "ST02 vs ST02 (Ruination Ablaze)", playerDeck: "ST02", botDeck: "ST02", resourceCode: "ST02-RESOURCE" },
-    { name: "ST03 vs ST03 (Zeon's Fangs)", playerDeck: "ST03", botDeck: "ST03", resourceCode: "ST03-RESOURCE" },
-    { name: "ST04 vs ST04 (Aile of Justice)", playerDeck: "ST04", botDeck: "ST04", resourceCode: "ST04-RESOURCE" },
-    { name: "ST01 vs ST02 (Cruzado: Heroic x Ruination)", playerDeck: "ST01", botDeck: "ST02", resourceCode: "ST02-RESOURCE" },
-    { name: "ST03 vs ST04 (Cruzado: Zeon x Justice)", playerDeck: "ST03", botDeck: "ST04", resourceCode: "ST04-RESOURCE" },
-    { name: "ST04 vs ST01 (Cruzado: Justice x Heroic)", playerDeck: "ST04", botDeck: "ST01", resourceCode: "ST01-RESOURCE" },
+    { name: "ST02 vs ST02 (Wings of Advance)", playerDeck: "ST02", botDeck: "ST02", resourceCode: "ST02-RESOURCE" },
+    { name: "ST03 vs ST03 (Zeon's Rush)", playerDeck: "ST03", botDeck: "ST03", resourceCode: "ST03-RESOURCE" },
+    { name: "ST04 vs ST04 (SEED Strike)", playerDeck: "ST04", botDeck: "ST04", resourceCode: "ST04-RESOURCE" },
+    { name: "ST01 vs ST02 (Cruzado: Heroic x Wings)", playerDeck: "ST01", botDeck: "ST02", resourceCode: "ST02-RESOURCE" },
+    { name: "ST03 vs ST04 (Cruzado: Zeon x SEED)", playerDeck: "ST03", botDeck: "ST04", resourceCode: "ST04-RESOURCE" },
+    { name: "ST04 vs ST01 (Cruzado: SEED x Heroic)", playerDeck: "ST04", botDeck: "ST01", resourceCode: "ST01-RESOURCE" },
   ];
 
   for (const cfg of STARTER_CONFIGS) {

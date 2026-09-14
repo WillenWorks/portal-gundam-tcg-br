@@ -217,12 +217,12 @@ export default function CardsPage() {
                   ) : (
                     <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">Sem arte</div>
                   )}
-                  {card.color ? (
-                    <span className="absolute left-1 top-1 rounded-none border border-white/20 bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-white" style={{ borderColor: `${GAME_COLOR_HEX[card.color] ?? "#94a3b8"}80` }}>{card.color}</span>
-                  ) : null}
                   <div className="absolute right-1 top-1 flex flex-col items-end gap-1">
-                    {rarityLabel ? <span className={`rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] ${RARITY_BADGE_STYLE[rarityLabel] ?? DEFAULT_RARITY_STYLE}`}>{rarityLabel}</span> : null}
-                    {card.printCount > 1 ? <span className="rounded-none border border-accent/40 bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-accent">{card.printCount} artes</span> : null}
+                    {rarityLabel ? <span className={`rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] backdrop-blur-sm ${RARITY_BADGE_STYLE[rarityLabel] ?? DEFAULT_RARITY_STYLE}`}>{rarityLabel}</span> : null}
+                    {card.color ? (
+                      <span className="rounded-none border bg-slate-950/85 backdrop-blur-sm px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-white" style={{ borderColor: `${GAME_COLOR_HEX[card.color] ?? "#94a3b8"}80` }}>{card.color}</span>
+                    ) : null}
+                    {card.printCount > 1 ? <span className="rounded-none border border-accent/40 bg-slate-950/85 backdrop-blur-sm px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] text-accent">{card.printCount} artes</span> : null}
                   </div>
                 </Link>
                 <div className="mt-1.5 space-y-0.5 px-0.5">

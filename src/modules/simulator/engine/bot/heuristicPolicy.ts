@@ -126,12 +126,12 @@ function playerAttackWouldDoomBase(ctx: Ctx, attacker: CardInstance): boolean {
   if (ctx.view.turnNumber >= LATE_GAME_TURN) return false;
   if (!ctx.myBase) return false;
   if (ctx.myShieldCount < 3) return false; // já perdendo a corrida — atacar é a saída
-  if (!hasKeyword(attacker, "Blocker")) return false;
+  if (!hasKeyword(attacker, "Blocker", ctx.state)) return false;
 
   const baseHpRem = remHp(ctx.myBase, ctx.state);
   const oppApTotal = ctx.oppUnits.reduce((sum, u) => sum + effectiveAp(u, ctx.state), 0);
   const otherBlockerHp = ctx.myUnits
-    .filter((u) => u.instanceId !== attacker.instanceId && !u.rested && hasKeyword(u, "Blocker"))
+    .filter((u) => u.instanceId !== attacker.instanceId && !u.rested && hasKeyword(u, "Blocker", ctx.state))
     .reduce((sum, u) => sum + remHp(u, ctx.state), 0);
 
   const survivesIfHeld = oppApTotal < baseHpRem + otherBlockerHp + remHp(attacker, ctx.state);

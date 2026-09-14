@@ -5,6 +5,7 @@ import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
+import { GD01_CARD_DEFS } from "../content/gd01";
 import type { CardDef, CardInstance, GameState, PlayerId } from "./types";
 import {
   activateBlocker,
@@ -257,7 +258,7 @@ describe("<Support N> — ação de Main Phase (docs/18)", () => {
 
     expect(findCard(state, sourceId).rested).toBe(true);
     const target = findCard(state, targetId);
-    expect(target.statModifiers).toEqual([{ stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: 1 }]);
+    expect(target.statModifiers).toEqual([{ stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: 1, appliedBy: "A" }]);
   });
 
   it("【Once per Turn】 impede ativar a mesma instância duas vezes no turno", () => {
@@ -272,6 +273,41 @@ describe("<Support N> — ação de Main Phase (docs/18)", () => {
     state = { ...state, players: { ...state.players, A: { ...state.players.A, battleArea: state.players.A.battleArea.map((c) => (c.instanceId === sourceId ? { ...c, rested: false } : c)) } } };
 
     expect(() => activateSupport(state, sourceId, targetB)).toThrow(/Once per Turn/);
+  });
+
+  it("GD01-046 Buster Gundam (During Pair Coordinator, Once per Turn): usar o próprio <Support> num alvo (ZAFT) reativa a fonte na hora, cancelando o rest (Lote 5, docs/debates 2026-09-13)", () => {
+    let state = freshGame();
+    const dearkaId = place(state, "A", GD01_CARD_DEFS["GD01-095"]); // Dearka Elthman, (Coordinator)
+    const busterId = place(state, "A", GD01_CARD_DEFS["GD01-046"], { pairedPilotId: dearkaId });
+    findCard(state, dearkaId).pairedUnitId = busterId;
+    const zaftTargetId = place(state, "A", GD01_CARD_DEFS["GD01-064"]); // DINN, (ZAFT)
+
+    state = activateSupport(state, busterId, zaftTargetId);
+
+    expect(findCard(state, busterId).rested).toBe(false); // reativada na hora
+    expect(findCard(state, zaftTargetId).statModifiers).toContainEqual(expect.objectContaining({ stat: "ap" }));
+  });
+
+  it("GD01-046: sem Pilot (Coordinator) pareado, o rest normal de <Support> continua valendo", () => {
+    let state = freshGame();
+    const busterId = place(state, "A", GD01_CARD_DEFS["GD01-046"]); // sem Pilot pareado
+    const zaftTargetId = place(state, "A", GD01_CARD_DEFS["GD01-064"]);
+
+    state = activateSupport(state, busterId, zaftTargetId);
+
+    expect(findCard(state, busterId).rested).toBe(true);
+  });
+
+  it("GD01-046: mirando alvo que NÃO é (ZAFT), o rest normal continua valendo", () => {
+    let state = freshGame();
+    const dearkaId = place(state, "A", GD01_CARD_DEFS["GD01-095"]);
+    const busterId = place(state, "A", GD01_CARD_DEFS["GD01-046"], { pairedPilotId: dearkaId });
+    findCard(state, dearkaId).pairedUnitId = busterId;
+    const nonZaftTargetId = place(state, "A", GD01_CARD_DEFS["GD01-035"]); // Zaku Ⅱ, (Zeon)
+
+    state = activateSupport(state, busterId, nonZaftTargetId);
+
+    expect(findCard(state, busterId).rested).toBe(true);
   });
 });
 
@@ -404,6 +440,27 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
     expect(() => declareAttack(state, aegisId, { unitId: bigEnemyId })).toThrow(/rested/);
   });
 
+  it("grantAttackTargetRelax por AP (GD01-043/GD01-110, Lote 1 docs/debates 2026-09-13) — deixa mirar Unit inimiga ativa com AP<=6", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxAp: 6, turn: state.turnNumber },
+    });
+    const activeEnemyId = place(state, "B", { ...ST04_CARD_DEFS.STRIKE_GUNDAM, ap: 6 }); // AP6, active
+
+    const next = declareAttack(state, aegisId, { unitId: activeEnemyId });
+    expect(next.combat?.currentTarget).toEqual({ unitId: activeEnemyId });
+  });
+
+  it("grantAttackTargetRelax por AP — a concessão não vale pra Unit ativa com AP 7+", () => {
+    const state = { ...freshGame() };
+    const aegisId = place(state, "A", ST04_CARD_DEFS.AEGIS_GUNDAM, {
+      attackTargetRelaxUntilTurn: { maxAp: 6, turn: state.turnNumber },
+    });
+    const bigApEnemyId = place(state, "B", { ...ST04_CARD_DEFS.STRIKE_GUNDAM, ap: 7 }); // AP7, active
+
+    expect(() => declareAttack(state, aegisId, { unitId: bigApEnemyId })).toThrow(/rested/);
+  });
+
   it("ST04-015 Archangel — cannotAttackUntilTurn barra a declaração de ataque no mesmo turno", () => {
     const state = { ...freshGame() };
     const unitId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, { cannotAttackUntilTurn: state.turnNumber });
@@ -415,5 +472,90 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
     const unitId = place(state, "A", ST04_CARD_DEFS.MOEBIUS, { cannotAttackUntilTurn: 3 });
     const next = declareAttack(state, unitId, "player");
     expect(next.combat?.attackerId).toBe(unitId);
+  });
+
+  it("GD01-094 Yzak Jule (During Pair, Once per Turn): destruir um Link Unit inimigo em batalha compra 1 carta (Lote 5, docs/debates 2026-09-13)", () => {
+    let state = stripBase(freshGame(), "B");
+    const yzakId = place(state, "A", GD01_CARD_DEFS["GD01-094"]);
+    const attackerId = place(state, "A", GD01_CARD_DEFS["GD01-045"], { pairedPilotId: yzakId }); // Duel Gundam (Assault Shroud), AP4/HP4, link "Yzak Jule"
+    findCard(state, yzakId).pairedUnitId = attackerId;
+
+    const maridaId = place(state, "B", GD01_CARD_DEFS["GD01-093"]);
+    const enemyId = place(state, "B", GD01_CARD_DEFS["GD01-044"], { rested: true, pairedPilotId: maridaId }); // Kshatriya, AP5/HP4, link "Marida Cruz"
+    findCard(state, maridaId).pairedUnitId = enemyId;
+    const handBefore = state.players.A.hand.length;
+
+    state = runToDamageStep(state, attackerId, { unitId: enemyId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === enemyId)).toBe(true); // inimigo (Link Unit) destruído
+    expect(state.players.A.hand).toHaveLength(handBefore + 1); // comprou 1
+  });
+
+  it("GD01-094: NÃO dispara se o inimigo destruído não é Link Unit (sem Pilot pareado)", () => {
+    let state = stripBase(freshGame(), "B");
+    const yzakId = place(state, "A", GD01_CARD_DEFS["GD01-094"]);
+    const attackerId = place(state, "A", GD01_CARD_DEFS["GD01-045"], { pairedPilotId: yzakId });
+    findCard(state, yzakId).pairedUnitId = attackerId;
+
+    const enemyId = place(state, "B", GD01_CARD_DEFS["GD01-064"], { rested: true }); // DINN, sem Pilot pareado
+    const handBefore = state.players.A.hand.length;
+
+    state = runToDamageStep(state, attackerId, { unitId: enemyId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === enemyId)).toBe(true);
+    expect(state.players.A.hand).toHaveLength(handBefore); // não comprou
+  });
+
+  // "During your turn" só é satisfeito enquanto a Unit pareada com Wufei ESTÁ ATACANDO
+  // (o defensor nunca age no próprio turno) — protege do CONTRA-dano do defensor, não
+  // do dano que a própria Unit causa.
+  it("GD01-091 Chang Wufei (Pilot, innateDamageProtection): a Unit pareada (atacando, com <Breach>) não recebe contra-dano de defensor com AP<=3 (Lote 5)", () => {
+    let state = stripBase(freshGame(), "A");
+    const wufeiId = place(state, "A", GD01_CARD_DEFS["GD01-091"]);
+    const attackerId = place(state, "A", GD01_CARD_DEFS["GD01-064"], {
+      // DINN, AP3/HP2 — sem Breach própria; concede via keywordGrants pra isolar o teste.
+      pairedPilotId: wufeiId,
+      keywordGrants: [{ keyword: "Breach", duration: "permanent", appliedOnTurn: 0 }],
+    });
+    findCard(state, wufeiId).pairedUnitId = attackerId;
+    const defenderId = place(state, "B", { ...GD01_CARD_DEFS["GD01-064"], ap: 3 }, { rested: true }); // AP3 <= 3
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(findCard(state, attackerId).damage).toBe(0); // contra-dano prevenido
+    expect(state.players.A.battleArea.some((c) => c.instanceId === attackerId)).toBe(true); // sobreviveu
+  });
+
+  it("GD01-091: NÃO protege contra defensor com AP > 3", () => {
+    let state = stripBase(freshGame(), "A");
+    const wufeiId = place(state, "A", GD01_CARD_DEFS["GD01-091"]);
+    const attackerId = place(state, "A", { ...GD01_CARD_DEFS["GD01-064"], hp: 10 }, {
+      // HP alto pra sobreviver e isolar a asserção de dano (sem confundir com morte/reset de dano).
+      pairedPilotId: wufeiId,
+      keywordGrants: [{ keyword: "Breach", duration: "permanent", appliedOnTurn: 0 }],
+    });
+    findCard(state, wufeiId).pairedUnitId = attackerId;
+    const defenderId = place(state, "B", { ...GD01_CARD_DEFS["GD01-064"], ap: 4 }, { rested: true }); // AP4 > 3
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(findCard(state, attackerId).damage).toBe(4); // contra-dano normal, sem proteção
+  });
+
+  it("GD01-091: NÃO protege se a Unit pareada (atacante) não tem <Breach>", () => {
+    let state = stripBase(freshGame(), "A");
+    const wufeiId = place(state, "A", GD01_CARD_DEFS["GD01-091"]);
+    const attackerId = place(state, "A", { ...GD01_CARD_DEFS["GD01-064"], hp: 10 }, { pairedPilotId: wufeiId }); // sem Breach
+    findCard(state, wufeiId).pairedUnitId = attackerId;
+    const defenderId = place(state, "B", { ...GD01_CARD_DEFS["GD01-064"], ap: 3 }, { rested: true });
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(findCard(state, attackerId).damage).toBe(3); // sem <Breach>, sem proteção
   });
 });

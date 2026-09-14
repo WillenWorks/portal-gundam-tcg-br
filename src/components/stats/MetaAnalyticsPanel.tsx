@@ -421,7 +421,7 @@ function MetaCardItem({
                 Moda: {card.modeCopies}x
               </Badge>
             </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 border-white/20 text-xs">
+            <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-100">
               Número de cópias mais frequentemente adotado nas listas competitivas.
             </TooltipContent>
           </Tooltip>
@@ -470,7 +470,7 @@ function MetaCardItem({
               <p className="text-xs text-white font-medium">{card.meanCopies.toFixed(1)} ± {card.stdDevCopies.toFixed(1)}</p>
             </div>
           </TooltipTrigger>
-          <TooltipContent className="bg-slate-900 border-white/20 text-xs">
+          <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-100">
             Média amostral de cópias (μ) e desvio padrão (σ).
           </TooltipContent>
         </Tooltip>
@@ -482,7 +482,7 @@ function MetaCardItem({
               <p className="text-xs text-cyan-300 font-medium">{(card.slotRigidity * 100).toFixed(0)}%</p>
             </div>
           </TooltipTrigger>
-          <TooltipContent className="bg-slate-900 border-white/20 text-xs">
+          <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-100">
             Rigidez do Slot: proximidade de consenso no número de cópias (1 - σ/μ).
           </TooltipContent>
         </Tooltip>
@@ -494,7 +494,7 @@ function MetaCardItem({
               <p className="text-xs text-amber-300 font-medium">{card.affinity.toFixed(1)}x</p>
             </div>
           </TooltipTrigger>
-          <TooltipContent className="bg-slate-900 border-white/20 text-xs">
+          <TooltipContent className="bg-slate-900 border-white/20 text-xs text-slate-100">
             Fator de Especialização: quantas vezes mais frequente nesta lista do que no total da cor.
           </TooltipContent>
         </Tooltip>

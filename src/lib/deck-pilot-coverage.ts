@@ -63,7 +63,7 @@ export function parsePilotLinkNames(linkText: string | null | undefined): string
  */
 function commandPilotName(card: PilotCoverageCard): string | null {
   if (card.pilotName && card.pilotName.trim()) return card.pilotName.trim();
-  const match = (card.effect ?? "").match(/【Pilot】\s*\[([^\]]+)\]/);
+  const match = (card.effect ?? "").match(/(?:【Pilot】|\[Pilot\])\s*\[([^\]]+)\]/i);
   return match ? match[1].trim() : null;
 }
 

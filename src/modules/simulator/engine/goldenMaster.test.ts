@@ -8,9 +8,10 @@ import {
 } from "./__golden__/harness";
 
 /**
- * Golden-master do motor dentro do `pnpm test` (docs/44, Fase 2 — §4.3). Mesma
- * checagem do `scripts/gundam-golden.mjs`: roda os 10 pares ST01–ST04 com seed
- * fixo e confere o hash SHA-256 do `GameState` final normalizado contra
+ * Golden-master do motor dentro do `pnpm test` (docs/44, Fase 2 — §4.3, +
+ * wave GD01 Fase 3B). Mesma checagem do `scripts/gundam-golden.mjs`: roda
+ * todos os pares de `GOLDEN_PAIRS` (10 ST01–ST04 + 5 GD01, cada um com seed
+ * fixo) e confere o hash SHA-256 do `GameState` final normalizado contra
  * `__golden__/hashes.json`. Um PR que muda um resultado de regra sem
  * `pnpm gundam:golden:update` falha aqui.
  */
@@ -22,12 +23,12 @@ const globbed = import.meta.glob("./__golden__/hashes.json", { eager: true }) as
 const storedHashes = Object.values(globbed)[0].default;
 
 describe("golden-master do motor", () => {
-  it("hashes.json cobre exatamente os 10 pares ST01–ST04", () => {
+  it("hashes.json cobre exatamente os pares de GOLDEN_PAIRS", () => {
     expect(Object.keys(storedHashes).sort()).toEqual(GOLDEN_PAIRS.map((p) => p.key).sort());
   });
 
   it(
-    "todos os 10 pares conferem com o hash gravado",
+    "todos os pares conferem com o hash gravado",
     async () => {
       const outcomes = await computeAllGoldenOutcomes();
       const diffs = outcomes

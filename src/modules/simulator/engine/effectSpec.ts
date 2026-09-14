@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 
@@ -40,6 +40,14 @@ export type TargetRef =
   | { kind: "instance"; instanceId: string }
   /** grupo de alvo nomeado, resolvido antes pelo seletor de UI/IA e colocado em EffectContext.targets — sempre usa só group[0], mesmo que o array tenha mais de 1 entrada (ver docs/18, escopo do seletor de UI). */
   | { kind: "named"; name: string }
+  /**
+   * Lote 4 (docs/debates 2026-09-13) — "Choose 1 to 2 ..."/"Choose 2 ..." (GD01-044/112/114):
+   * mesma escolha externa de "named" (o jogador/IA escolhe QUAIS candidatos do pool
+   * de `targetScope`/`targetFilter`), mas consome o array INTEIRO de
+   * `ctx.targets[name]` (0..`EffectSpec.targetCount.max`), não só `group[0]`.
+   * Ver `EffectSpec.targetCount` pra cardinalidade.
+   */
+  | { kind: "namedGroup"; name: string }
   /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
   | { kind: "group"; group: TargetGroup };
 
@@ -50,7 +58,19 @@ export type TargetRef =
  * reescrita do desenho — mesma filosofia dos outros campos estruturados do
  * DSL (`link`, `staticAbilities`).
  */
-export type TargetGroup = { kind: "allFriendlyLinkUnits" } | { kind: "allEnemyUnits"; maxLevel?: number };
+export type TargetGroup =
+  | { kind: "allFriendlyLinkUnits" }
+  | { kind: "allEnemyUnits"; maxLevel?: number }
+  /** GD01-102 The Path to Victory or Defeat — "All friendly Units that are Lv.4 or lower recover 2 HP." */
+  | { kind: "allFriendlyUnits"; maxLevel?: number }
+  /**
+   * GD01-024 Wing Gundam Zero ("Deal 3 damage to all Units that are Lv.5 or
+   * lower"), GD01-027 Big Zam / GD01-108 Strategic Arms ("all Units with
+   * <Blocker>") — texto oficial "all Units" (sem "enemy"/"friendly") atinge
+   * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
+   * concedida (mesma checagem de `defaultTargetFilterResolver`).
+   */
+  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string };
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
@@ -63,6 +83,20 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.filter((u) => u.def.cardType === "UNIT" && isLinkUnit(ctx.state, u)).map((u) => u.instanceId);
   }
+  if (group.kind === "allFriendlyUnits") {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea
+      .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+      .map((u) => u.instanceId);
+  }
+  if (group.kind === "allUnits") {
+    const bothSides = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return bothSides
+      .filter((u) => u.def.cardType === "UNIT")
+      .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
+      .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
+      .map((u) => u.instanceId);
+  }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   return opponent.battleArea
     .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
@@ -70,7 +104,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
 }
 
 /** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "pairedUnit", "instance", "named"). */
-function resolveTarget(ref: Exclude<TargetRef, { kind: "group" }>, ctx: EffectContext): string {
+function resolveTarget(ref: Exclude<TargetRef, { kind: "group" } | { kind: "namedGroup" }>, ctx: EffectContext): string {
   switch (ref.kind) {
     case "self":
       return ctx.sourceInstanceId;
@@ -95,6 +129,9 @@ function resolveTarget(ref: Exclude<TargetRef, { kind: "group" }>, ctx: EffectCo
 /** Resolve pra 0+ instanceIds — usado por toda primitiva que consome `TargetRef` (única fonte de verdade pra aplicar a mesma ação a um GRUPO inteiro de alvos, não só a 1). */
 function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   if (ref.kind === "group") return resolveTargetGroup(ref.group, ctx);
+  // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
+  // 0 escolhidos é uma escolha legal ("Choose 1 to 2 ..." com o jogador optando por menos).
+  if (ref.kind === "namedGroup") return ctx.targets[ref.name] ?? [];
   return [resolveTarget(ref, ctx)];
 }
 
@@ -103,8 +140,12 @@ export type PrimitiveCall =
   | { op: "discard"; player: PlayerRef; instanceIds: string[] }
   /** "discard N" onde a(s) carta(s) são escolha do jogador — lê `ctx.targets[name]`
    *  (mesmo padrão de alvo nomeado). Ex.: ST04-002 Strike Gundam "Draw 1. Then,
-   *  discard 1." No-op se nada foi escolhido (o dispatcher pausa pra escolha). */
-  | { op: "discardNamed"; player: PlayerRef; name: string; n: number }
+   *  discard 1." No-op se nada foi escolhido (o dispatcher pausa pra escolha).
+   *  Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon)
+   *  Unit card" (CUSTO, não ação): `filter?` restringe a escolha por CardDefFilter
+   *  (ausente = qualquer carta da mão, comportamento de antes). Validado de novo
+   *  em `compilePrimitive` (defesa em profundidade, mesmo padrão de `searchTrashToHand`). */
+  | { op: "discardNamed"; player: PlayerRef; name: string; n: number; filter?: CardDefFilter }
   | { op: "damageShield"; player: PlayerRef; count: number }
   | { op: "destroy"; target: TargetRef }
   | { op: "moveZone"; target: TargetRef; toZone: Zone }
@@ -123,6 +164,15 @@ export type PrimitiveCall =
   | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
   /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. Com `target.kind: "named"` é interativo (camada de decisão, `deckReorder`). */
   | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" }
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-003 "Choose 12 cards from your trash. Return
+   * them to their owner's deck and shuffle it." Sem escolha real de QUAIS cartas quando a
+   * lixeira tem mais de `count` (simplificação documentada, mesmo espírito do auto-alvo de
+   * `CombatTrigger`): pega sempre as `count` primeiras da lixeira, determinístico. No-op se
+   * a lixeira estiver vazia. O "if you do" da carta usa o predicate
+   * `controllerTrashCountAtLeast:1` no `condition` (avaliado ANTES desta ação rodar).
+   */
+  | { op: "returnTrashToDeckAndShuffle"; player: PlayerRef; count: number }
   /**
    * "deploy 1 [A] or 1 [B] Unit token" — o jogador escolhe QUAL token invocar
    * (ex. ST04-012 Striker Pack 【Main】: Sword Strike ou Launcher Strike). A
@@ -155,9 +205,11 @@ export type PrimitiveCall =
    * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
    * `CardInstance.attackTargetRelaxUntilTurn` na Unit alvo (normalmente
    * `{ kind: "pairedUnit" }` — "this Unit" no texto do Pilot), válido só no
-   * turno atual.
+   * turno atual. GD01-043/GD01-110 usam o mesmo relaxamento mas por AP, não
+   * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
+   * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel: number }
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number }
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Marca `CardInstance.cannotAttackUntilTurn = turno atual` na Unit alvo;
@@ -184,6 +236,42 @@ export type PrimitiveCall =
    * depois por rules management). Sem escolha → no-op. */
   | { op: "deployFromHandTriggered"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
   /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-045 "Look at the top 3 cards of your
+   * deck. You may deploy 1 <filtro> Unit card among them. Return the remaining
+   * cards randomly to the bottom of your deck." Mesmo padrão de `lookAtTopFilterReveal`
+   * (topo N, filtro, escolha em `ctx.targets[deployName]`, resto pro fundo em ordem
+   * fixa — mesma aproximação de "aleatório" já documentada ali), só que o destino
+   * da carta escolhida é `battleArea` direto (deploy), não a mão.
+   */
+  | { op: "deployFromTopFilterReveal"; player: PlayerRef; count: number; filter: CardDefFilter; deployName?: string }
+  /**
+   * Lote 5 — GD01-067 "Choose 1 <filtro> card from your trash. Add it to your
+   * hand." Busca na LIXEIRA (zona sempre visível, sem "topo N" — todo o trash é
+   * elegível) — diferente de `lookAtTopFilterReveal` (deck, só topo N) e de
+   * `deployFromHandTriggered` (mão, destino é campo). Escolha em `ctx.targets[name]`
+   * (0 ou 1 instanceId); sem escolha = no-op (nada sai da lixeira).
+   */
+  | { op: "searchTrashToHand"; player: PlayerRef; filter: CardDefFilter; name?: string }
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-023 "choose 1 (Newtype) Pilot card that
+   * is Lv.3 or lower from your trash. Pair it with this Unit." Mesmo padrão de
+   * `searchTrashToHand` (busca em ZONA INTEIRA, filtro, escolha em `ctx.targets[name]`,
+   * padrão `"trashSearch"`), mas o destino é PAREAR com a fonte do efeito
+   * (`ctx.sourceInstanceId`), não a mão — a carta escolhida precisa ser um Pilot
+   * (`filter` garante isso, ex. `{cardType:"PILOT", ...}`).
+   */
+  | { op: "pairFromTrashSearch"; player: PlayerRef; filter: CardDefFilter; name?: string }
+  /**
+   * Lote 5 — GD01-039 "Look at the top card of your deck. Return it to the top
+   * or bottom of your deck." Ao contrário de `moveWithinDeck` (posição FIXA,
+   * decidida por quem autora), aqui a POSIÇÃO em si é a escolha do jogador —
+   * reaproveita o mesmo mecanismo de `spawnTokenChoice` (escolha enum, `enumChoice`
+   * na camada de decisão), só que as opções são sempre "top"/"bottom" fixas (não
+   * precisa de `CardDef` por opção). Sempre atua sobre o TOPO do deck agora (só
+   * 1 carta — sem ambiguidade de qual).
+   */
+  | { op: "moveTopCardToChosenPosition"; player: PlayerRef; optionsKey: string }
+  /**
    * "【Burst】Deploy this card." — coloca a PRÓPRIA carta (BASE → baseSection,
    * UNIT → battleArea) em campo, aplicando a regra de 1 Base (a Base atual vai
    * pro trash, ou pro exílio se for token). Depois disso o `dispatcher.ts`
@@ -201,6 +289,8 @@ export type PrimitiveCall =
  */
 export interface CardDefFilter {
   cardType?: CardDef["cardType"];
+  /** Lote 2 (docs/debates 2026-09-13) — GD01-109 "Unit card/Pilot card" (2 tipos possíveis, OR). Mutuamente exclusivo com `cardType` na prática (cartas reais só usam 1 dos 2), mas ambos coexistem sem conflito se algum dia precisar. */
+  anyCardType?: CardDef["cardType"][];
   anyTrait?: string[];
   maxLevel?: number;
   minLevel?: number;
@@ -208,6 +298,7 @@ export interface CardDefFilter {
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
   if (filter.cardType && def.cardType !== filter.cardType) return false;
+  if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
   if (filter.anyTrait && filter.anyTrait.length > 0) {
     const traits = def.traits ?? [];
     if (!filter.anyTrait.some((t) => traits.includes(t))) return false;
@@ -258,6 +349,14 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const player = resolvePlayerRef(call.player, ctx.controller);
       const chosen = (ctx.targets[call.name] ?? []).slice(0, call.n);
       if (chosen.length === 0) return [];
+      if (call.filter) {
+        for (const id of chosen) {
+          const card = findCard(ctx.state, id);
+          if (!matchesCardDefFilter(card.def, call.filter)) {
+            throw new Error(`discardNamed: "${card.def.code}" não casa o filtro do custo`);
+          }
+        }
+      }
       return [{ type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: chosen }];
     }
     case "damageShield": {
@@ -275,7 +374,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         (instanceId): GameEvent => ({
           type: "MODIFY_STAT",
           instanceId,
-          modifier: { stat: call.stat, amount: call.amount, duration: call.duration, appliedOnTurn: ctx.turnNumber },
+          modifier: { stat: call.stat, amount: call.amount, duration: call.duration, appliedOnTurn: ctx.turnNumber, appliedBy: ctx.controller },
         }),
       );
     }
@@ -349,7 +448,13 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "grantAttackTargetRelax": {
       return resolveTargetIds(call.target, ctx).map(
-        (instanceId): GameEvent => ({ type: "GRANT_ATTACK_TARGET_RELAX", instanceId, maxLevel: call.maxLevel, turn: ctx.turnNumber }),
+        (instanceId): GameEvent => ({
+          type: "GRANT_ATTACK_TARGET_RELAX",
+          instanceId,
+          maxLevel: call.maxLevel,
+          maxAp: call.maxAp,
+          turn: ctx.turnNumber,
+        }),
       );
     }
     case "preventAttackThisTurn": {
@@ -416,6 +521,67 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       return [{ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
+    case "deployFromTopFilterReveal": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const top = ctx.state.players[player].deck.slice(0, call.count);
+      // "reveal" (não "deploy") — mesma chave que `resolveAbility` já escreve pra
+      // QUALQUER escolha baseada em `q.deckTopReveal` (compartilhada com `lookAtTopFilterReveal`).
+      const chosen = ctx.targets[call.deployName ?? "reveal"]?.[0];
+      const events: GameEvent[] = [];
+      if (chosen) {
+        const card = top.find((c) => c.instanceId === chosen);
+        if (!card) throw new Error(`deployFromTopFilterReveal: carta "${chosen}" não está no topo ${call.count} do deck`);
+        if (card.def.cardType !== "UNIT") throw new Error(`deployFromTopFilterReveal: "${card.def.code}" não é Unit`);
+        if (!matchesCardDefFilter(card.def, call.filter)) {
+          throw new Error(`deployFromTopFilterReveal: "${card.def.code}" não casa o filtro do efeito`);
+        }
+        events.push({ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" });
+      }
+      for (const card of top) {
+        if (card.instanceId === chosen) continue;
+        events.push({ type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" });
+      }
+      return events;
+    }
+    case "searchTrashToHand": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = ctx.targets[call.name ?? "trashSearch"]?.[0];
+      if (!chosen) return [];
+      const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
+      if (!card) throw new Error(`searchTrashToHand: carta "${chosen}" não está na lixeira de ${player}`);
+      if (!matchesCardDefFilter(card.def, call.filter)) {
+        throw new Error(`searchTrashToHand: "${card.def.code}" não casa o filtro do efeito`);
+      }
+      return [{ type: "MOVE_CARD", instanceId: chosen, toZone: "hand" }];
+    }
+    case "pairFromTrashSearch": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = ctx.targets[call.name ?? "trashSearch"]?.[0];
+      if (!chosen) return [];
+      const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
+      if (!card) throw new Error(`pairFromTrashSearch: carta "${chosen}" não está na lixeira de ${player}`);
+      if (!matchesCardDefFilter(card.def, call.filter)) {
+        throw new Error(`pairFromTrashSearch: "${card.def.code}" não casa o filtro do efeito`);
+      }
+      return [
+        { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" },
+        { type: "PAIR_CARDS", pilotId: chosen, unitId: ctx.sourceInstanceId, asPilotMode: false },
+      ];
+    }
+    case "moveTopCardToChosenPosition": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const top = ctx.state.players[player].deck[0];
+      if (!top) return [];
+      const chosen = ctx.targets[call.optionsKey]?.[0];
+      const position = chosen === "top" ? "top" : "bottom";
+      return [{ type: "MOVE_WITHIN_DECK", instanceId: top.instanceId, position }];
+    }
+    case "returnTrashToDeckAndShuffle": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = ctx.state.players[player].trash.slice(0, call.count);
+      if (chosen.length === 0) return [];
+      return [{ type: "RETURN_TRASH_TO_DECK_SHUFFLE", player, instanceIds: chosen.map((c) => c.instanceId) }];
+    }
   }
 }
 
@@ -475,10 +641,21 @@ export interface EffectSpec {
    */
   duringPair?: boolean;
   /**
+   * Lote 5 (docs/debates 2026-09-13) — `true` quando o texto oficial prefixa o
+   * gatilho com 【During Link】 (ex. GD01-005 Unicorn Gundam 【During Link】【Destroyed】)
+   * — mais estrito que `duringPair`: exige que a Unit fonte satisfizesse a condição
+   * de Link (Pilot pareado bate com `link` da Unit), não só estar pareada com
+   * QUALQUER Pilot. Só consultado por `dispatchDestroyedTriggers`/`dispatchDestroyedFromEffect`
+   * (via `DestroyedInBattle.wasLinkUnit`).
+   */
+  duringLink?: boolean;
+  /**
    * O que `ctx.targets.target` deve ser — a UI usa pra montar a lista de alvos
    * possíveis quando o efeito pausa pra escolha. Default `"enemyUnit"`.
+   * `"anyUnit"` — GD01-014/GD01-058/GD01-110, texto oficial "Choose 1 Unit"
+   * (sem "enemy"/"friendly") — pool são as Units dos DOIS lados do tabuleiro.
    */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit";
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -489,6 +666,30 @@ export interface EffectSpec {
    * legal (comportamento de antes do V0, docs/24).
    */
   targetFilter?: string;
+  /**
+   * Lote 4 (docs/debates 2026-09-13) — cardinalidade da escolha de `ctx.targets.target`
+   * quando as `actions`/`condition` usam `{ kind: "namedGroup", name: "target" }` em vez
+   * de `"named"`. Ausente = escolha singular de sempre (1 alvo, `"named"`).
+   * `min`/`max` ex.: GD01-044 "Choose 1 to 2" -> `{min:1,max:2}`; GD01-112/114
+   * "Choose 2" -> `{min:2,max:2}` (mas o pool pode ter menos de `min` candidatos —
+   * `resolveAbility`/bots então escolhem o que houver, nunca mais que `max`).
+   * A UI de resolução hoje só oferece seleção SINGULAR (`AbilityResolutionModal.tsx`)
+   * — um jogador humano escolhe no máximo 1 destes até a UI ganhar seletor múltiplo;
+   * bots/testes escolhem o pool inteiro até `max` (`legalActions.ts`).
+   */
+  targetCount?: { min: number; max: number };
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — 2º pool de alvo, com ESCOPO PRÓPRIO
+   * (diferente do pool principal de `targetScope`/`targetFilter`/`ctx.targets.target`),
+   * pra specs "Choose 1 X e 1 Y" onde X e Y são de lados/filtros diferentes
+   * (ex. GD01-103 "1 friendly Unit e 1 enemy Unit", GD01-112 "2 friendly Units
+   * ... choose 1 enemy Unit"). Consome `ctx.targets[name]` via `{kind:"named", name}`
+   * nas `actions`/`condition` — só COMMAND (Main/Action) usa isto hoje: a carta
+   * resolve com `action.targets` já pronto (não passa pela fila de PendingDecision),
+   * então não precisou de mudança no formato de `PlayerAction`/`resolveAbility`,
+   * só em `legalActions.ts` (enumeração gulosa: 1º alvo legal de cada pool).
+   */
+  secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; targetFilter?: string };
 }
 
 /**
@@ -498,7 +699,17 @@ export interface EffectSpec {
  * em `content/predicates.ts` (`defaultTargetFilterResolver`) — mesmo motivo
  * do `defaultPredicateResolver`: única fonte, reusada por testes e servidor.
  */
-export type TargetFilterResolver = (filter: string, candidate: CardInstance, ctx: { state: GameState }) => boolean;
+/**
+ * `sourceInstanceId` (Lote 5, docs/debates 2026-09-13) é opcional — só filtros
+ * AUTO-REFERENTES à fonte (ex. "level<=self", GD01-093) precisam dele. Ausente
+ * = filtro auto-referente não resolve (mesma postura de falhar alto/ignorar
+ * já usada pros outros filtros ausentes de contexto).
+ */
+export type TargetFilterResolver = (
+  filter: string,
+  candidate: CardInstance,
+  ctx: { state: GameState; sourceInstanceId?: string },
+) => boolean;
 
 /**
  * Enumera os alvos LEGAIS de `spec.targetScope` (+ `spec.targetFilter`, se
@@ -519,6 +730,7 @@ export function computeLegalTargets(
   spec: Pick<EffectSpec, "targetScope" | "targetFilter">,
   controller: PlayerId,
   resolveFilter?: TargetFilterResolver,
+  sourceInstanceId?: string,
 ): string[] {
   const scope = spec.targetScope ?? "enemyUnit";
   const pool: CardInstance[] =
@@ -526,13 +738,15 @@ export function computeLegalTargets(
       ? state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT")
       : scope === "friendlyUnit"
         ? state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT")
-        : state.players[controller].resourceArea;
+        : scope === "anyUnit"
+          ? [...state.players.A.battleArea, ...state.players.B.battleArea].filter((c) => c.def.cardType === "UNIT")
+          : state.players[controller].resourceArea;
 
   if (!spec.targetFilter) return pool.map((c) => c.instanceId);
   if (!resolveFilter) {
     throw new Error(`EffectSpec com targetFilter "${spec.targetFilter}" mas nenhum TargetFilterResolver foi passado`);
   }
-  return pool.filter((c) => resolveFilter(spec.targetFilter!, c, { state })).map((c) => c.instanceId);
+  return pool.filter((c) => resolveFilter(spec.targetFilter!, c, { state, sourceInstanceId })).map((c) => c.instanceId);
 }
 
 /**
@@ -541,7 +755,7 @@ export function computeLegalTargets(
 export function callsNeedNamedTarget(calls: PrimitiveCall[] | undefined): boolean {
   return (calls ?? []).some((call) => {
     const target = (call as { target?: { kind?: string; name?: string } }).target;
-    return target?.kind === "named" && target.name === "target";
+    return (target?.kind === "named" || target?.kind === "namedGroup") && target.name === "target";
   });
 }
 
@@ -573,7 +787,11 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>
   | Extract<PrimitiveCall, { op: "discardNamed" }>
   | Extract<PrimitiveCall, { op: "spawnTokenChoice" }>
-  | Extract<PrimitiveCall, { op: "moveWithinDeck" }>;
+  | Extract<PrimitiveCall, { op: "moveWithinDeck" }>
+  | Extract<PrimitiveCall, { op: "deployFromTopFilterReveal" }>
+  | Extract<PrimitiveCall, { op: "searchTrashToHand" }>
+  | Extract<PrimitiveCall, { op: "pairFromTrashSearch" }>
+  | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>;
 
 export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive {
   switch (call.op) {
@@ -581,6 +799,10 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "lookAtTopFilterReveal":
     case "discardNamed":
     case "spawnTokenChoice":
+    case "deployFromTopFilterReveal":
+    case "searchTrashToHand":
+    case "pairFromTrashSearch":
+    case "moveTopCardToChosenPosition":
       return true;
     case "moveWithinDeck":
       return call.target.kind === "named";
@@ -645,18 +867,31 @@ export function specActiveCalls(
  * IDs de carta elegíveis pra o `discardNamed` de um spec: a mão atual de
  * `player` MAIS as cartas que serão compradas por `draw` ANTES do
  * `discardNamed` (ST04-002 "Draw 1. Then, discard 1." — dá pra descartar a
- * recém-comprada). A ordem do `draw` é determinística (topo do deck) e o
- * estado não muda entre montar a fila e resolver.
+ * recém-comprada) MAIS as que um `moveZone` (toZone "hand") com alvo nomeado
+ * IMPLÍCITO devolve à mão antes do `discardNamed` (GD01-005 "Return this
+ * Unit's paired Pilot to its owner's hand. Then, discard 1." — `implicitTargets`
+ * vem de `AbilityQueueEntry.implicitTargets`, ver `DestroyedInBattle.formerPairedPilotId`).
+ * A ordem de ambos é determinística e o estado não muda entre montar a fila e
+ * resolver.
  */
-export function discardCandidateHandIds(spec: EffectSpec, state: GameState, player: PlayerId): string[] {
+export function discardCandidateHandIds(
+  spec: EffectSpec,
+  state: GameState,
+  player: PlayerId,
+  implicitTargets?: Record<string, string[]>,
+): string[] {
   const hand = state.players[player].hand.map((c) => c.instanceId);
   let drawn = 0;
+  const movedToHand: string[] = [];
   for (const call of spec.actions) {
     if (call.op === "draw") drawn += call.n;
+    if (call.op === "moveZone" && call.toZone === "hand" && call.target.kind === "named" && implicitTargets?.[call.target.name]) {
+      movedToHand.push(...implicitTargets[call.target.name]);
+    }
     if (call.op === "discardNamed") break;
   }
   const deckIds = state.players[player].deck.slice(0, Math.min(drawn, state.players[player].deck.length)).map((c) => c.instanceId);
-  return [...hand, ...deckIds];
+  return [...hand, ...deckIds, ...movedToHand];
 }
 
 export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolvePredicate?: PredicateResolver): GameEvent[] {

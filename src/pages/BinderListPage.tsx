@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
@@ -65,13 +65,27 @@ export default function BinderListPage() {
     }
   };
 
+  const copyShareLink = async (shareId: string) => {
+    const url = `${window.location.origin}/#/binder/${shareId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link público da pasta copiado!");
+    } catch {
+      toast.error("Não foi possível copiar o link.");
+    }
+  };
+
   return (
     <PortalShell breadcrumbs={[{ label: "Binders" }]}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Binders</p>
           <h2 className="mt-2 font-heading text-4xl uppercase heading-portal">Meus binders</h2>
-          <p className="mt-2 max-w-2xl text-sm text-soft">Organize cartas em quantos binders quiser — lista de desejos, coleção completa, o que tem pra trocar. Compartilhe pelo link se a pasta for pública; se for privada, só você acessa.</p>
+          <p className="mt-2 max-w-2xl text-sm text-soft">
+            Organize cartas em quantos binders quiser — lista de desejos, coleção pessoal ou cartas para troca.
+            Pastas públicas podem ser compartilhadas com qualquer pessoa através do link de acesso direto (sem login).
+            Pastas privadas ficam restritas à sua conta.
+          </p>
         </div>
         <Button className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={openCreateModal}><Plus className="mr-2 size-4" />Nova pasta</Button>
       </div>
@@ -93,6 +107,18 @@ export default function BinderListPage() {
                 {binder.description ? <p className="line-clamp-2 text-sm text-muted-portal">{binder.description}</p> : null}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate(`/binders/${binder.id}`)}>Abrir</Button>
+                  {binder.isPublic && binder.shareId ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-none border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
+                      onClick={() => copyShareLink(binder.shareId)}
+                      title="Copiar link público desta pasta"
+                    >
+                      <Copy className="mr-1.5 size-3.5" />
+                      Copiar Link
+                    </Button>
+                  ) : null}
                   <Button size="sm" variant="ghost" className="rounded-none text-red-300 hover:bg-red-500/10 hover:text-red-200" onClick={() => removeBinder(binder.id, binder.name)}><Trash2 className="size-3.5" /></Button>
                 </div>
               </CardContent>

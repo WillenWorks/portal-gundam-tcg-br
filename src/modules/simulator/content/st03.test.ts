@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
+import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt03DeckList, ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
-import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "../engine/types";
+import type { GameState, PlayerId } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
@@ -21,25 +22,6 @@ import {
   ZAKU_II_ATTACK,
 } from "./st03";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
-
-let seq = 0;
-function place(state: GameState, player: PlayerId, def: CardDef, zone: Zone, opts: Partial<CardInstance> = {}): string {
-  const instanceId = `${player}-st03fx-${seq++}`;
-  state.players[player][zone].push({
-    instanceId,
-    def,
-    owner: player,
-    zone,
-    rested: false,
-    damage: 0,
-    statModifiers: [],
-    keywordGrants: [],
-    usedKeywordsThisTurn: [],
-    enteredZoneOnTurn: state.turnNumber - 1,
-    ...opts,
-  });
-  return instanceId;
-}
 
 function freshGame(): GameState {
   return createGame(buildSt03DeckList(), buildSt03DeckList(), { seed: 21, firstPlayer: "A" });
@@ -67,9 +49,9 @@ describe("ST03 — fixtures e cobertura", () => {
 describe("ST03 — EffectSpecs bespoke", () => {
   it("ST03-006 Char's Zaku Ⅱ — 【Destroyed】revela Unit Zeon do topo pra mão", () => {
     const state = freshGame();
-    const sourceId = place(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "trash");
+    const sourceId = placeCard(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "trash");
     // força o topo do deck: 1 Zaku I (Zeon Unit) + 2 outras
-    const zaku = place(state, "A", ST03_CARD_DEFS.ZAKU_I, "deck");
+    const zaku = placeCard(state, "A", ST03_CARD_DEFS.ZAKU_I, "deck");
     state.players.A.deck.unshift(state.players.A.deck.pop()!); // move o recém-adicionado pro topo
     const topZakuId = state.players.A.deck[0].instanceId;
     const handBefore = state.players.A.hand.length;
@@ -84,7 +66,7 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-008 Zaku Ⅱ — 【Attack】dá AP+2 até o fim do turno na própria Unit", () => {
     const state = freshGame();
-    const zakuId = place(state, "A", ST03_CARD_DEFS.ZAKU_II, "battleArea");
+    const zakuId = placeCard(state, "A", ST03_CARD_DEFS.ZAKU_II, "battleArea");
     const events = resolveEffectSpec(ZAKU_II_ATTACK, ctxFor(state, zakuId));
     const next = applyEvents(state, events);
     expect(findCard(next, zakuId).statModifiers).toContainEqual(expect.objectContaining({ stat: "ap", amount: 2, duration: "endOfTurn" }));
@@ -92,7 +74,7 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-009 Gouf — 【Deploy】invoca 1 token Zaku Ⅱ rested", () => {
     const state = freshGame();
-    const goufId = place(state, "A", ST03_CARD_DEFS.GOUF, "battleArea");
+    const goufId = placeCard(state, "A", ST03_CARD_DEFS.GOUF, "battleArea");
     const before = state.players.A.battleArea.length;
     const next = applyEvents(state, resolveEffectSpec(GOUF_DEPLOY, ctxFor(state, goufId)));
     expect(next.players.A.battleArea).toHaveLength(before + 1);
@@ -103,8 +85,8 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-010 Full Frontal — 【When Paired】deploya Unit Neo Zeon Lv≤4 da mão sem custo", () => {
     const state = freshGame();
-    const ffId = place(state, "A", ST03_CARD_DEFS.FULL_FRONTAL, "battleArea");
-    const gearaId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "hand"); // L3 Neo Zeon
+    const ffId = placeCard(state, "A", ST03_CARD_DEFS.FULL_FRONTAL, "battleArea");
+    const gearaId = placeCard(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "hand"); // L3 Neo Zeon
     const before = state.players.A.battleArea.length;
     const next = applyEvents(state, resolveEffectSpec(FULL_FRONTAL_WHEN_PAIRED, ctxFor(state, ffId, { deploy: [gearaId] })));
     expect(next.players.A.battleArea).toHaveLength(before + 1);
@@ -114,8 +96,8 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-011 Char Aznable — 【Attack】AP+1 na Unit pareada; <High-Maneuver> só se for Link Unit", () => {
     const state = freshGame();
-    const zakuId = place(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "battleArea"); // link [Char Aznable]
-    const charId = place(state, "A", ST03_CARD_DEFS.CHAR_AZNABLE, "battleArea", { pairedUnitId: zakuId, asPilot: undefined });
+    const zakuId = placeCard(state, "A", ST03_CARD_DEFS.CHARS_ZAKU_II, "battleArea"); // link [Char Aznable]
+    const charId = placeCard(state, "A", ST03_CARD_DEFS.CHAR_AZNABLE, "battleArea", { pairedUnitId: zakuId, asPilot: undefined });
     findCard(state, zakuId).pairedPilotId = charId;
 
     const next = applyEvents(state, resolveEffectSpec(CHAR_AZNABLE_ATTACK, ctxFor(state, charId), defaultPredicateResolver));
@@ -125,24 +107,24 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-012 Indignation — 【Main】escolhe Unit amiga e dá AP+2", () => {
     const state = freshGame();
-    const cmdId = place(state, "A", ST03_CARD_DEFS.INDIGNATION, "trash");
-    const allyId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "battleArea");
+    const cmdId = placeCard(state, "A", ST03_CARD_DEFS.INDIGNATION, "trash");
+    const allyId = placeCard(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "battleArea");
     const next = applyEvents(state, resolveEffectSpec(INDIGNATION_MAIN, ctxFor(state, cmdId, { target: [allyId] })));
     expect(findCard(next, allyId).statModifiers).toContainEqual(expect.objectContaining({ stat: "ap", amount: 2 }));
   });
 
   it("ST03-013 Close Combat — 【Main】2 de dano numa Unit inimiga", () => {
     const state = freshGame();
-    const cmdId = place(state, "A", ST03_CARD_DEFS.CLOSE_COMBAT, "trash");
-    const enemyId = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, "battleArea"); // HP3 -> sobrevive a 2 de dano
+    const cmdId = placeCard(state, "A", ST03_CARD_DEFS.CLOSE_COMBAT, "trash");
+    const enemyId = placeCard(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, "battleArea"); // HP3 -> sobrevive a 2 de dano
     const next = applyEvents(state, resolveEffectSpec(CLOSE_COMBAT_MAIN, ctxFor(state, cmdId, { target: [enemyId] })));
     expect(findCard(next, enemyId).damage).toBe(2);
   });
 
   it("ST03-015 Rewloola — 【Deploy】pega 1 shield (spec incondicional) e dá 1 de dano em Unit inimiga AP≤5 (spec com alvo)", () => {
     const state = freshGame();
-    const baseId = place(state, "A", ST03_CARD_DEFS.REWLOOLA, "baseSection");
-    const enemyId = place(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea"); // AP1
+    const baseId = placeCard(state, "A", ST03_CARD_DEFS.REWLOOLA, "baseSection");
+    const enemyId = placeCard(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea"); // AP1
     const shieldsBefore = state.players.A.shields.length;
     let next = applyEvents(state, resolveEffectSpec(REWLOOLA_DEPLOY_SHIELD, ctxFor(state, baseId)));
     next = applyEvents(next, resolveEffectSpec(REWLOOLA_DEPLOY_DAMAGE, ctxFor(next, baseId, { target: [enemyId] })));
@@ -152,7 +134,7 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("ST03-016 Falmel — 【Deploy】pega 1 shield e invoca token Char's Zaku Ⅱ rested", () => {
     const state = freshGame();
-    const baseId = place(state, "A", ST03_CARD_DEFS.FALMEL, "baseSection");
+    const baseId = placeCard(state, "A", ST03_CARD_DEFS.FALMEL, "baseSection");
     const before = state.players.A.battleArea.length;
     const next = applyEvents(state, resolveEffectSpec(FALMEL_DEPLOY, ctxFor(state, baseId)));
     expect(next.players.A.battleArea).toHaveLength(before + 1);
@@ -162,7 +144,7 @@ describe("ST03 — EffectSpecs bespoke", () => {
   it("ST03-014 The Blue Giant — 【Action】instala unitDamageProtection na Unit amiga escolhida", () => {
     const state = freshGame();
     // combate em andamento é pré-requisito de SET_UNIT_DAMAGE_PROTECTION; monta um mínimo
-    const allyId = place(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "battleArea");
+    const allyId = placeCard(state, "A", ST03_CARD_DEFS.GEARA_ZULU, "battleArea");
     state.combat = {
       step: "action",
       attackerId: "x",
@@ -173,7 +155,7 @@ describe("ST03 — EffectSpecs bespoke", () => {
       actionPasses: { A: false, B: false },
       actionPriority: "A",
     };
-    const cmdId = place(state, "A", ST03_CARD_DEFS.THE_BLUE_GIANT, "trash");
+    const cmdId = placeCard(state, "A", ST03_CARD_DEFS.THE_BLUE_GIANT, "trash");
     const events = resolveEffectSpec(THE_BLUE_GIANT_ACTION, ctxFor(state, cmdId, { target: [allyId] }));
     expect(events).toContainEqual({ type: "SET_UNIT_DAMAGE_PROTECTION", instanceId: allyId, maxAttackerAp: 2 });
     const next = applyEvents(state, events);
@@ -190,8 +172,8 @@ describe("ST03 — EffectSpecs bespoke", () => {
 
   it("defaultTargetFilterResolver — ap<=5 aceita Unit fraca e rejeita Unit forte", () => {
     const state = freshGame();
-    const weakId = place(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea");
-    const strongId = place(state, "B", ST03_CARD_DEFS.SINANJU, "battleArea");
+    const weakId = placeCard(state, "B", ST03_CARD_DEFS.DRA_C, "battleArea");
+    const strongId = placeCard(state, "B", ST03_CARD_DEFS.SINANJU, "battleArea");
     expect(defaultTargetFilterResolver("ap<=5", findCard(state, weakId), { state })).toBe(true);
     expect(defaultTargetFilterResolver("ap<=5", findCard(state, strongId), { state })).toBe(true); // Sinanju AP5
     expect(defaultTargetFilterResolver("ap<=4", findCard(state, strongId), { state })).toBe(false);
