@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
-import { runEndPhase } from "../engine/phases";
+import { runEndPhase, advanceToMainPhase } from "../engine/phases";
+import { deployCard } from "../engine/deploy";
+import { declareAttack } from "../engine/combat";
+import { applyPlayerAction } from "../engine/actions";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt01DeckList } from "../fixtures/st01Deck";
 import type { GameState, PlayerId } from "../engine/types";
-import type { EffectContext } from "../engine/effectSpec";
-import { resolveEffectSpec, specActiveCalls } from "../engine/effectSpec";
+import { effectiveAp, effectiveCost, hasKeyword, keywordValue } from "../engine/types";
+import type { EffectContext, EffectSpec } from "../engine/effectSpec";
+import { computeLegalTargets, resolveEffectSpec, specActiveCalls } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 import {
@@ -40,7 +44,26 @@ import {
   STRATEGIC_ARMS_MAIN,
   RASIDS_ORDERS_MAIN,
   RASIDS_ORDERS_ACTION,
+  RASIDS_MAGANAC_DEPLOY,
+  ZAKU_I_SNIPER_TYPE_DEPLOY,
+  THE_PATH_TO_VICTORY_OR_DEFEAT_MAIN,
+  KSHATRIYA_WHEN_PAIRED,
+  ASSAULT_ON_TORRINGTON_BASE_ACTION,
+  GD01_EFFECT_SPECS,
+  MARIDA_CRUZ_ATTACK,
+  DEARKA_ELTHMAN_WHEN_LINKED,
+  THE_STUBBORN_COG_MAIN,
+  EXTREME_HATRED_MAIN,
+  DOPP_DEPLOY,
+  DUEL_GUNDAM_ASSAULT_SHROUD_WHEN_PAIRED,
+  GUNDAM_AERIAL_REBUILD_WHEN_PAIRED,
+  COVERT_OPERATIVE_MAIN,
+  BANSHEE_DESTROY_MODE_ATTACK,
+  UNICORN_GUNDAM_DESTROY_MODE_ATTACK,
+  CHARS_GELGOOG_ACTIVATE_MAIN,
+  FREEDOM_GUNDAM_ANY_PAIRING,
 } from "./gd01";
+import { dispatchTrigger } from "../engine/dispatcher";
 
 /**
  * Fase 2 (Claude) da wave GD01 — testa os EffectSpecs autorados sobre as
@@ -308,7 +331,9 @@ describe("Primitivas existentes reaproveitadas (deployThisCard/spawnToken/addShi
     const ctxWithAcademy = ctxFor(state, sectorId, "A", { target: [enemyId] });
     const events = resolveEffectSpec(TACTICAL_TESTING_SECTOR_ACTIVATE_MAIN, ctxWithAcademy, defaultPredicateResolver);
     const next = applyEvents(state, events);
-    expect(findCard(next, enemyId).statModifiers).toEqual([{ stat: "ap", amount: -1, duration: "endOfTurn", appliedOnTurn: state.turnNumber }]);
+    expect(findCard(next, enemyId).statModifiers).toEqual([
+      { stat: "ap", amount: -1, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" },
+    ]);
   });
 
   it("GD01-066 Justice Gundam (Deploy): spawna o token Fatum-00 (AP2/HP2/Blocker)", () => {
@@ -490,5 +515,796 @@ describe("Lote 1 (docs/debates 2026-09-13) — TargetScope 'anyUnit' e TargetGro
 
     // mesma primitiva, timing 【Action】 — RASIDS_ORDERS_ACTION reaproveita RASIDS_ORDERS_ACTIONS
     expect(RASIDS_ORDERS_ACTION.actions).toBe(RASIDS_ORDERS_MAIN.actions);
+  });
+
+  it("GD01-043 Rasid's Maganac (Deploy): concede relaxamento de alvo de ataque por AP<=4 numa Unit VERDE própria (reaproveita maxAp sem extensão nova de motor)", () => {
+    const state = freshGame();
+    const targetId = placeCard(state, "A", GD01_CARD_DEFS["GD01-043"], "battleArea"); // ela mesma é verde
+
+    const events = resolveEffectSpec(RASIDS_MAGANAC_DEPLOY, ctxFor(state, "cmd-source", "A", { target: [targetId] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, targetId).attackTargetRelaxUntilTurn).toEqual({ maxLevel: undefined, maxAp: 4, turn: state.turnNumber });
+  });
+});
+
+describe("Lote 3 (docs/debates 2026-09-13) — StaticAbility com condição genérica de board/self e aura de Pilot condicional", () => {
+  it("GD01-019 Byarlant Custom: só ganha <Blocker> com 4+ Units inimigas em campo (era effectKeywords fixo na Fase 1 — bug de mesma classe do GD01-108)", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-019"], "battleArea");
+    for (let i = 0; i < 3; i++) placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    expect(hasKeyword(findCard(state, sourceId), "Blocker", state)).toBe(false);
+
+    placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea"); // 4ª Unit inimiga
+    expect(hasKeyword(findCard(state, sourceId), "Blocker", state)).toBe(true);
+  });
+
+  it("GD01-034 Gundam Heavyarms: só ganha <Breach 3> 【During Pair】", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-034"], "battleArea");
+    expect(hasKeyword(findCard(state, sourceId), "Breach", state)).toBe(false);
+    expect(keywordValue(findCard(state, sourceId), "Breach", state)).toBeNull();
+
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea");
+    findCard(state, sourceId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = sourceId;
+    expect(hasKeyword(findCard(state, sourceId), "Breach", state)).toBe(true);
+    expect(keywordValue(findCard(state, sourceId), "Breach", state)).toBe(3);
+  });
+
+  it("GD01-054 Duel Gundam: só ganha <Breach 3> com AP efetivo próprio >= 5", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-054"], "battleArea"); // AP base 3
+    expect(hasKeyword(findCard(state, sourceId), "Breach", state)).toBe(false);
+
+    findCard(state, sourceId).statModifiers.push({ stat: "ap", amount: 2, duration: "permanent", appliedOnTurn: state.turnNumber });
+    expect(effectiveAp(findCard(state, sourceId), state)).toBe(5);
+    expect(hasKeyword(findCard(state, sourceId), "Breach", state)).toBe(true);
+    expect(keywordValue(findCard(state, sourceId), "Breach", state)).toBe(3);
+  });
+
+  it("GD01-076 Michaelis: só ganha AP+1/HP+1 com 4+ Command cards na lixeira do controller", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-076"], "battleArea"); // AP 3 / HP 3 base
+    for (let i = 0; i < 3; i++) placeCard(state, "A", GD01_CARD_DEFS["GD01-099"], "trash"); // Intercept Orders (Command)
+    expect(effectiveAp(findCard(state, sourceId), state)).toBe(3);
+    expect(findCard(state, sourceId).def.hp).toBe(3);
+
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-099"], "trash"); // 4º Command na lixeira
+    expect(effectiveAp(findCard(state, sourceId), state)).toBe(4);
+  });
+
+  it("GD01-081 M1 Astray: só ganha AP+1 e <Blocker> com OUTRA Unit (Triple Ship Alliance) em campo (exclui a própria fonte)", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-081"], "battleArea"); // já é (Triple Ship Alliance), sozinha não conta
+    expect(effectiveAp(findCard(state, sourceId), state)).toBe(2);
+    expect(hasKeyword(findCard(state, sourceId), "Blocker", state)).toBe(false);
+
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea"); // Freedom Gundam, também (Triple Ship Alliance)
+    expect(effectiveAp(findCard(state, sourceId), state)).toBe(3);
+    expect(hasKeyword(findCard(state, sourceId), "Blocker", state)).toBe(true);
+  });
+
+  it("GD01-087 Sayla Mass (Pilot): concede <Repair 1> à Unit pareada só enquanto ela for AZUL ('this Unit' = a Unit pareada, não o Piloto)", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "battleArea");
+    const blueUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam, blue
+    findCard(state, pilotId).pairedUnitId = blueUnitId;
+    findCard(state, blueUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, blueUnitId), "Repair", state)).toBe(true);
+    expect(keywordValue(findCard(state, blueUnitId), "Repair", state)).toBe(1);
+    expect(hasKeyword(findCard(state, pilotId), "Repair", state)).toBe(false); // a própria Piloto NÃO ganha a keyword
+
+    const redUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, red
+    findCard(state, pilotId).pairedUnitId = redUnitId;
+    findCard(state, redUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, redUnitId), "Repair", state)).toBe(false);
+  });
+
+  it("GD01-089 Riddhe Marcenas (Pilot): concede AP+1 à Unit pareada só enquanto ela mesma tiver <Repair>", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-089"], "battleArea");
+    const repairUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam, tem <Repair 1> própria
+    findCard(state, pilotId).pairedUnitId = repairUnitId;
+    findCard(state, repairUnitId).pairedPilotId = pilotId;
+    // base 3 + AP impresso do Piloto pareado (Comprehensive Rules 3-3-5, incondicional, ap:1) + 1 da StaticAbility condicional (tem <Repair>)
+    expect(effectiveAp(findCard(state, repairUnitId), state)).toBe(5);
+
+    const noRepairUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, sem Repair
+    findCard(state, pilotId).pairedUnitId = noRepairUnitId;
+    findCard(state, noRepairUnitId).pairedPilotId = pilotId;
+    expect(effectiveAp(findCard(state, noRepairUnitId), state)).toBe(4); // base 3 + AP impresso do Piloto, SEM o bônus condicional
+  });
+
+  it("GD01-092 M'Quve (Pilot): concede <Breach 1> à Unit pareada só enquanto ela for (Zeon)", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-092"], "battleArea");
+    const zeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea"); // Char's Gelgoog, (Zeon)
+    findCard(state, pilotId).pairedUnitId = zeonUnitId;
+    findCard(state, zeonUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, zeonUnitId), "Breach", state)).toBe(true);
+    expect(keywordValue(findCard(state, zeonUnitId), "Breach", state)).toBe(1);
+
+    const nonZeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, (ZAFT)
+    findCard(state, pilotId).pairedUnitId = nonZeonUnitId;
+    findCard(state, nonZeonUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, nonZeonUnitId), "Breach", state)).toBe(false);
+  });
+
+  it("GD01-096 Cagalli Yula Athha (Pilot): concede <Blocker> à Unit pareada só enquanto ela for BRANCA", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-096"], "battleArea");
+    const whiteUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea"); // Freedom Gundam, white (já tem Blocker próprio — usamos outra branca sem Blocker pra isolar)
+    findCard(state, pilotId).pairedUnitId = whiteUnitId;
+    findCard(state, whiteUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, whiteUnitId), "Blocker", state)).toBe(true);
+
+    const nonWhiteUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, red
+    findCard(state, pilotId).pairedUnitId = nonWhiteUnitId;
+    findCard(state, nonWhiteUnitId).pairedPilotId = pilotId;
+    expect(hasKeyword(findCard(state, nonWhiteUnitId), "Blocker", state)).toBe(false);
+  });
+});
+
+describe("Lote 2 (docs/debates 2026-09-13) — busca no topo do deck com filtro composto", () => {
+  it("GD01-048 Zaku I Sniper Type (Deploy): revela e adiciona à mão 1 Unit (Zeon)/(Neo Zeon) do topo (mesmo shape de ST03-006, sem extensão nova de motor)", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-048"], "battleArea");
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "deck"); // Char's Gelgoog, (Zeon) Unit
+    state.players.A.deck.unshift(state.players.A.deck.pop()!);
+    const topId = state.players.A.deck[0].instanceId;
+    const handBefore = state.players.A.hand.length;
+
+    const events = resolveEffectSpec(ZAKU_I_SNIPER_TYPE_DEPLOY, ctxFor(state, sourceId, "A", { reveal: [topId] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(next.players.A.hand.some((c) => c.instanceId === topId)).toBe(true);
+    expect(next.players.A.hand).toHaveLength(handBefore + 1);
+  });
+
+  it("GD01-109 The Path to Victory or Defeat (Main): revela e adiciona à mão 1 Unit/Pilot (Operation Meteor)/(G Team) entre as 5 do topo (usa CardDefFilter.anyCardType — extensão nova)", () => {
+    const state = freshGame();
+    const sourceId = "cmd-source";
+    // 5 cartas no topo, a 3ª (índice 2) é o Piloto (Operation Meteor) que casa o filtro — prova o lado "Pilot card" do anyCardType.
+    for (let i = 0; i < 5; i++) {
+      const def = i === 2 ? GD01_CARD_DEFS["GD01-090"] : GD01_CARD_DEFS["GD01-064"]; // Duo Maxwell (Operation Meteor, PILOT) vs DINN (filler)
+      placeCard(state, "A", def, "deck");
+    }
+    // as 5 cartas recém-empilhadas ficam no fundo (push) — inverte pra virarem o topo, na mesma ordem relativa.
+    const justAdded = state.players.A.deck.splice(-5, 5);
+    state.players.A.deck.unshift(...justAdded);
+    const matchId = state.players.A.deck[2].instanceId;
+    const handBefore = state.players.A.hand.length;
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(
+      THE_PATH_TO_VICTORY_OR_DEFEAT_MAIN,
+      ctxFor(state, sourceId, "A", { reveal: [matchId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.A.hand.some((c) => c.instanceId === matchId)).toBe(true);
+    expect(next.players.A.hand).toHaveLength(handBefore + 1);
+    expect(next.players.A.deck).toHaveLength(deckBefore - 1); // 5 saíram do topo, 4 voltaram pro fundo, 1 foi pra mão
+  });
+});
+
+describe("Lote 4 (docs/debates 2026-09-13) — escolha de até N alvos (TargetRef.namedGroup + EffectSpec.targetCount)", () => {
+  it("GD01-044 Kshatriya (When Paired): só dispara com Piloto (Cyber-Newtype)/(Newtype); escolhendo 2 alvos, dano bate nos 2 (não só no 1º)", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-044"], "battleArea");
+    const enemy1 = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    const enemy2 = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+
+    // sem Piloto pareado: condição falha, sem dano
+    const noPilotEvents = resolveEffectSpec(
+      KSHATRIYA_WHEN_PAIRED,
+      ctxFor(state, sourceId, "A", { target: [enemy1, enemy2] }),
+      defaultPredicateResolver,
+    );
+    expect(applyEvents(state, noPilotEvents).players.B.battleArea.every((c) => c.damage === 0)).toBe(true);
+
+    const nonNewtypePilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-097"], "battleArea"); // Guel Jeturk, (Academy) — não casa
+    findCard(state, sourceId).pairedPilotId = nonNewtypePilotId;
+    findCard(state, nonNewtypePilotId).pairedUnitId = sourceId;
+    const wrongTraitEvents = resolveEffectSpec(
+      KSHATRIYA_WHEN_PAIRED,
+      ctxFor(state, sourceId, "A", { target: [enemy1, enemy2] }),
+      defaultPredicateResolver,
+    );
+    expect(applyEvents(state, wrongTraitEvents).players.B.battleArea.every((c) => c.damage === 0)).toBe(true);
+
+    const newtypePilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea"); // Banagher Links, (Newtype)
+    findCard(state, sourceId).pairedPilotId = newtypePilotId;
+    findCard(state, newtypePilotId).pairedUnitId = sourceId;
+    const events = resolveEffectSpec(KSHATRIYA_WHEN_PAIRED, ctxFor(state, sourceId, "A", { target: [enemy1, enemy2] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, enemy1).damage).toBe(1);
+    expect(findCard(next, enemy2).damage).toBe(1); // prova que "namedGroup" aplica a AMBOS, não só ao 1º (group[0])
+  });
+
+  it("GD01-044: escolhendo só 1 dos 2 alvos possíveis ('Choose 1 to 2'), só ele recebe dano", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-044"], "battleArea");
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea");
+    findCard(state, sourceId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = sourceId;
+    const enemy1 = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    const enemy2 = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+
+    const events = resolveEffectSpec(KSHATRIYA_WHEN_PAIRED, ctxFor(state, sourceId, "A", { target: [enemy1] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, enemy1).damage).toBe(1);
+    expect(findCard(next, enemy2).damage).toBe(0);
+  });
+
+  it("GD01-114 Assault on Torrington Base (Action): AP+1 até o fim do turno nos 2 alvos escolhidos", () => {
+    const state = freshGame();
+    const unit1 = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    const unit2 = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+
+    const events = resolveEffectSpec(
+      ASSAULT_ON_TORRINGTON_BASE_ACTION,
+      ctxFor(state, "cmd-source", "A", { target: [unit1, unit2] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(findCard(next, unit1).statModifiers).toContainEqual(expect.objectContaining({ stat: "ap", amount: 1, duration: "endOfTurn" }));
+    expect(findCard(next, unit2).statModifiers).toContainEqual(expect.objectContaining({ stat: "ap", amount: 1, duration: "endOfTurn" }));
+  });
+
+  it("GD01-044 via camada de decisão real (deployCard pareando o Piloto -> PendingDecision.abilityResolution com targetCount -> resolveAbility): rejeita mais do que max, aceita até max", () => {
+    const state = advanceToMainPhase(freshGame());
+    const kshatriyaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-044"], "battleArea");
+    const banagherId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "hand"); // Banagher Links, (Newtype), Lv.5/custo1
+    for (let i = 0; i < 5; i++) placeCard(state, "A", { code: "R", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    const enemy1 = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    const enemy2 = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+    const enemy3 = placeCard(state, "B", GD01_CARD_DEFS["GD01-023"], "battleArea");
+
+    const paused = deployCard(state, "A", banagherId, {
+      pairWithUnitId: kshatriyaId,
+      specs: GD01_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+    const decision = paused.pendingDecision.A;
+    expect(decision?.kind).toBe("abilityResolution");
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.targetCount).toEqual({ min: 1, max: 2 });
+    expect(q?.legalTargets).toEqual(expect.arrayContaining([enemy1, enemy2, enemy3]));
+
+    const apply = (targetIds: string[]) =>
+      applyPlayerAction(
+        paused,
+        "A",
+        { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds }] },
+        GD01_EFFECT_SPECS,
+        defaultPredicateResolver,
+        defaultTargetFilterResolver,
+      );
+
+    expect(() => apply([enemy1, enemy2, enemy3])).toThrow(/no máximo 2/);
+
+    const next = apply([enemy1, enemy2]);
+    expect(findCard(next, enemy1).damage).toBe(1);
+    expect(findCard(next, enemy2).damage).toBe(1);
+    expect(findCard(next, enemy3).damage).toBe(0);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — custo dinâmico de carta na mão (CardDef.dynamicCost)", () => {
+  it("GD01-016 Jegan: custo -1 só com 2+ Units (Earth Federation) em campo", () => {
+    const state = freshGame();
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-016"], state, "A")).toBe(3); // base, sem desconto
+
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam (Earth Federation)
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-016"], state, "A")).toBe(3); // só 1 ainda
+
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-019"], "battleArea"); // Byarlant Custom (Earth Federation)
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-016"], state, "A")).toBe(2); // 2+ agora -> desconto
+
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-016"], state, "B")).toBe(3); // lado B não tem as Units -> sem desconto
+  });
+
+  it("GD01-070 Gundam Aerial: custo -2 só com 4+ Command cards na lixeira", () => {
+    const state = freshGame();
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-070"], state, "A")).toBe(3);
+
+    for (let i = 0; i < 3; i++) placeCard(state, "A", GD01_CARD_DEFS["GD01-099"], "trash"); // Intercept Orders (Command)
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-070"], state, "A")).toBe(3); // só 3 ainda
+
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-099"], "trash"); // 4º Command
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-070"], state, "A")).toBe(1); // 4+ agora -> desconto de 2
+  });
+
+  it("effectiveCost sem state/controller cai pro custo impresso (mesmo fallback de effectiveAp/effectiveHp)", () => {
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-016"])).toBe(3);
+    expect(effectiveCost(GD01_CARD_DEFS["GD01-070"])).toBe(3);
+  });
+
+  it("deployCard cobra o custo COM desconto de verdade (não só effectiveCost isolado)", () => {
+    const state = advanceToMainPhase(freshGame());
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-019"], "battleArea"); // 2 Earth Federation -> desconto ativo
+    const jeganId = placeCard(state, "A", GD01_CARD_DEFS["GD01-016"], "hand");
+    for (let i = 0; i < 2; i++) placeCard(state, "A", { code: "R", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    const resourcesBefore = state.players.A.resourceArea.filter((r) => !r.rested).length;
+
+    const next = deployCard(state, "A", jeganId, {});
+    const restedResources = next.players.A.resourceArea.filter((r) => r.rested).length;
+    expect(restedResources).toBe(2); // custo efetivo 2 (3-1), não 3
+    void resourcesBefore;
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — targetFilter relativo à própria carta (level<=self)", () => {
+  it("GD01-093 Marida Cruz (Pilot, During Link/Attack): só dispara com a Unit pareada satisfazendo Link; alvo legal é limitado ao nível da Unit pareada, não da Piloto", () => {
+    const state = freshGame();
+    const kshatriyaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-044"], "battleArea"); // Kshatriya, Lv.5, link "Marida Cruz"
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-093"], "battleArea"); // Marida Cruz, Lv.4 impresso
+    const lowLevelEnemy = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, Lv.2
+    const highLevelEnemy = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea"); // Shamblo, Lv.8
+
+    // ainda não pareada: condição falha.
+    const noPairEvents = resolveEffectSpec(
+      MARIDA_CRUZ_ATTACK,
+      ctxFor(state, pilotId, "A", { target: [lowLevelEnemy] }),
+      defaultPredicateResolver,
+    );
+    expect(applyEvents(state, noPairEvents).players.B.battleArea.every((c) => c.damage === 0)).toBe(true);
+
+    findCard(state, kshatriyaId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = kshatriyaId;
+
+    // "self" = a UNIT pareada (Lv.5), não o valor impresso da Piloto (Lv.4) — sourceInstanceId aqui é o da PILOTO.
+    const legal = computeLegalTargets(state, MARIDA_CRUZ_ATTACK, "A", defaultTargetFilterResolver, pilotId);
+    expect(legal).toContain(lowLevelEnemy); // Lv.2 <= Lv.5 da Unit pareada
+    expect(legal).not.toContain(highLevelEnemy); // Lv.8 > Lv.5
+
+    const events = resolveEffectSpec(MARIDA_CRUZ_ATTACK, ctxFor(state, pilotId, "A", { target: [lowLevelEnemy] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, lowLevelEnemy).damage).toBe(1);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — 'if you do' via predicate chosenNonEmpty (GD01-095)", () => {
+  it("GD01-095 Dearka Elthman (When Linked): descarta 1 e compra 1 quando a escolha de descarte não é vazia", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-095"], "battleArea");
+    const cardToDiscardId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "hand");
+    const handBefore = state.players.A.hand.length;
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(
+      DEARKA_ELTHMAN_WHEN_LINKED,
+      ctxFor(state, pilotId, "A", { discard: [cardToDiscardId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.A.hand.some((c) => c.instanceId === cardToDiscardId)).toBe(false); // descartada
+    expect(next.players.A.hand).toHaveLength(handBefore - 1 + 1); // -1 descarte +1 compra = net 0
+    expect(next.players.A.deck).toHaveLength(deckBefore - 1); // 1 carta comprada
+  });
+
+  it("GD01-095: sem escolha de descarte (mão vazia, handDiscard.legalHandIds seria []), NÃO compra ('if you do' falha)", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-095"], "battleArea");
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(DEARKA_ELTHMAN_WHEN_LINKED, ctxFor(state, pilotId, "A", { discard: [] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(next.players.A.deck).toHaveLength(deckBefore); // nenhuma carta comprada
+  });
+
+  it("GD01-095 via camada de decisão real (deployCard formando Link Unit -> PendingDecision.abilityResolution com handDiscard -> resolveAbility)", () => {
+    const state = advanceToMainPhase(freshGame());
+    const busterId = placeCard(state, "A", GD01_CARD_DEFS["GD01-046"], "battleArea"); // Buster Gundam, link "Dearka Elthman"
+    const dearkaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-095"], "hand");
+    for (let i = 0; i < 4; i++) placeCard(state, "A", { code: "R", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    const discardCandidateId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "hand");
+
+    const paused = deployCard(state, "A", dearkaId, {
+      pairWithUnitId: busterId,
+      specs: GD01_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+    const decision = paused.pendingDecision.A;
+    expect(decision?.kind).toBe("abilityResolution");
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.handDiscard?.legalHandIds).toContain(discardCandidateId);
+    const deckBefore = paused.players.A.deck.length;
+
+    const next = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [discardCandidateId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(next.players.A.hand.some((c) => c.instanceId === discardCandidateId)).toBe(false);
+    expect(next.players.A.deck).toHaveLength(deckBefore - 1); // "if you do" -> comprou 1
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — EffectSpec.secondaryTarget (2 pools de alvo com escopo diferente no mesmo spec)", () => {
+  it("GD01-103 The Stubborn Cog (Main): resta a Unit amiga (Earth Federation) escolhida E a Unit inimiga escolhida — 2 pools independentes", () => {
+    const state = freshGame();
+    const friendlyId = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam, Earth Federation
+    const friendlyOther = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea"); // Char's Gelgoog, (Zeon) — não casa o trait
+    const enemyId = placeCard(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+
+    const events = resolveEffectSpec(
+      THE_STUBBORN_COG_MAIN,
+      ctxFor(state, "cmd-source", "A", { target: [friendlyId], enemyTarget: [enemyId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(findCard(next, friendlyId).rested).toBe(true);
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(findCard(next, friendlyOther).rested).toBe(false);
+  });
+
+  it("GD01-112 Extreme Hatred (Main): resta as 2 Units ativas escolhidas; 'if you do' dispara o dano de 3 na Unit inimiga do 2º pool", () => {
+    const state = freshGame();
+    const unit1 = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    const unit2 = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    const enemyId = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+
+    const events = resolveEffectSpec(
+      EXTREME_HATRED_MAIN,
+      ctxFor(state, "cmd-source", "A", { target: [unit1, unit2], enemyTarget: [enemyId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(findCard(next, unit1).rested).toBe(true);
+    expect(findCard(next, unit2).rested).toBe(true);
+    expect(findCard(next, enemyId).damage).toBe(3);
+  });
+
+  it("GD01-112: se NENHUMA Unit foi restada (escolha vazia), 'if you do' falha — sem dano mesmo com alvo inimigo disponível", () => {
+    const state = freshGame();
+    const enemyId = placeCard(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+
+    const events = resolveEffectSpec(
+      EXTREME_HATRED_MAIN,
+      ctxFor(state, "cmd-source", "A", { target: [], enemyTarget: [enemyId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(findCard(next, enemyId).damage).toBe(0);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — primitivas novas (moveTopCardToChosenPosition, deployFromTopFilterReveal, searchTrashToHand)", () => {
+  it("GD01-039 Dopp (Deploy): a POSIÇÃO em si é a escolha do jogador (top/bottom), não fixa por quem autora", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-039"], "battleArea");
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "deck");
+    state.players.A.deck.unshift(state.players.A.deck.pop()!);
+    const topId = state.players.A.deck[0].instanceId;
+
+    const keepOnTop = applyEvents(state, resolveEffectSpec(DOPP_DEPLOY, ctxFor(state, sourceId, "A", { position: ["top"] }), defaultPredicateResolver));
+    expect(keepOnTop.players.A.deck[0].instanceId).toBe(topId);
+
+    const toBottom = applyEvents(
+      state,
+      resolveEffectSpec(DOPP_DEPLOY, ctxFor(state, sourceId, "A", { position: ["bottom"] }), defaultPredicateResolver),
+    );
+    expect(toBottom.players.A.deck[toBottom.players.A.deck.length - 1].instanceId).toBe(topId);
+  });
+
+  it("GD01-045 Duel Gundam (Assault Shroud) (When Paired): deploya direto do topo do deck a Unit (ZAFT) Lv.4- escolhida; o resto vai pro fundo", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-045"], "battleArea");
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-046"], "deck"); // Buster Gundam, (ZAFT) Lv.4 — casa o filtro
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "deck"); // DINN, (ZAFT) mas isso não importa aqui
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "deck"); // Zaku Ⅱ, (Zeon) — não casa
+    const justAdded = state.players.A.deck.splice(-3, 3);
+    state.players.A.deck.unshift(...justAdded);
+    const matchId = state.players.A.deck[0].instanceId;
+    const battleAreaBefore = state.players.A.battleArea.length;
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(
+      DUEL_GUNDAM_ASSAULT_SHROUD_WHEN_PAIRED,
+      ctxFor(state, sourceId, "A", { reveal: [matchId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.A.battleArea.some((c) => c.instanceId === matchId)).toBe(true); // deployada direto, não passou pela mão
+    expect(next.players.A.hand.some((c) => c.instanceId === matchId)).toBe(false);
+    expect(next.players.A.battleArea).toHaveLength(battleAreaBefore + 1);
+    expect(next.players.A.deck).toHaveLength(deckBefore - 1); // 3 saíram do topo, 2 voltaram pro fundo, 1 foi deployada
+  });
+
+  it("GD01-067 Gundam Aerial Rebuild (When Paired): busca 1 Command Lv.5- na lixeira e adiciona à mão", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-067"], "battleArea");
+    const commandId = placeCard(state, "A", GD01_CARD_DEFS["GD01-099"], "trash"); // Intercept Orders, Command
+    const handBefore = state.players.A.hand.length;
+
+    const noneChosenEvents = resolveEffectSpec(
+      GUNDAM_AERIAL_REBUILD_WHEN_PAIRED,
+      ctxFor(state, sourceId, "A", { trashSearch: [] }),
+      defaultPredicateResolver,
+    );
+    expect(applyEvents(state, noneChosenEvents).players.A.hand).toHaveLength(handBefore);
+
+    const events = resolveEffectSpec(
+      GUNDAM_AERIAL_REBUILD_WHEN_PAIRED,
+      ctxFor(state, sourceId, "A", { trashSearch: [commandId] }),
+      defaultPredicateResolver,
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.A.hand.some((c) => c.instanceId === commandId)).toBe(true);
+    expect(next.players.A.trash.some((c) => c.instanceId === commandId)).toBe(false);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — StaticAbility.boardCondition 'battlingEnemyLevelAtMost' (keyword condicional a combate específico)", () => {
+  it("GD01-063 ZnO: só ganha <First Strike> batalhando (de verdade, via declareAttack) contra Unit inimiga Lv.2 ou menor", () => {
+    const lowLevelState = advanceToMainPhase(freshGame());
+    const attackerId = placeCard(lowLevelState, "A", GD01_CARD_DEFS["GD01-063"], "battleArea");
+    const lowEnemyId = placeCard(lowLevelState, "B", GD01_CARD_DEFS["GD01-039"], "battleArea", { rested: true }); // Dopp, Lv.1
+    const afterAttackLow = declareAttack(lowLevelState, attackerId, { unitId: lowEnemyId });
+    expect(hasKeyword(findCard(afterAttackLow, attackerId), "First Strike", afterAttackLow)).toBe(true);
+
+    const highLevelState = advanceToMainPhase(freshGame());
+    const attackerId2 = placeCard(highLevelState, "A", GD01_CARD_DEFS["GD01-063"], "battleArea");
+    const highEnemyId = placeCard(highLevelState, "B", GD01_CARD_DEFS["GD01-047"], "battleArea", { rested: true }); // Shamblo, Lv.8
+    const afterAttackHigh = declareAttack(highLevelState, attackerId2, { unitId: highEnemyId });
+    expect(hasKeyword(findCard(afterAttackHigh, attackerId2), "First Strike", afterAttackHigh)).toBe(false);
+
+    // fora de combate, não tem <First Strike> nenhuma (nem contra o alvo baixo)
+    expect(hasKeyword(findCard(lowLevelState, attackerId), "First Strike", lowLevelState)).toBe(false);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — targetFilter condicional a estado de board ('hp<=conditionalLinkUnit')", () => {
+  it("GD01-122 Covert Operative (Main): sem Link Unit em campo, só alvo com HP<=2 é legal", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-122"], "hand");
+    const lowHpEnemy = placeCard(state, "B", { ...GD01_CARD_DEFS["GD01-064"], hp: 2 }, "battleArea");
+    const highHpEnemy = placeCard(state, "B", { ...GD01_CARD_DEFS["GD01-064"], hp: 4 }, "battleArea");
+
+    const legal = computeLegalTargets(state, COVERT_OPERATIVE_MAIN, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(lowHpEnemy);
+    expect(legal).not.toContain(highHpEnemy);
+  });
+
+  it("GD01-122: com Link Unit em campo (do controller), o limite sobe pra HP<=4", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-122"], "hand");
+    const kshatriyaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-044"], "battleArea"); // link "Marida Cruz"
+    const maridaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-093"], "battleArea");
+    findCard(state, kshatriyaId).pairedPilotId = maridaId;
+    findCard(state, maridaId).pairedUnitId = kshatriyaId;
+    const highHpEnemy = placeCard(state, "B", { ...GD01_CARD_DEFS["GD01-064"], hp: 4 }, "battleArea");
+
+    const legal = computeLegalTargets(state, COVERT_OPERATIVE_MAIN, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(highHpEnemy);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — reciclagem de lixeira pro deck + shuffle (returnTrashToDeckAndShuffle)", () => {
+  it("GD01-003 Banshee (Destroy Mode) (During Link, Attack): devolve a lixeira pro deck, embaralha, fica active e ganha <First Strike> — só sendo Link Unit e com lixeira não-vazia", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-003"], "battleArea", { rested: true }); // rested = "acabou de atacar"
+    for (let i = 0; i < 3; i++) placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "trash");
+    const deckBefore = state.players.A.deck.length;
+
+    // ainda não pareada: condição falha, nada acontece.
+    const noPairEvents = resolveEffectSpec(BANSHEE_DESTROY_MODE_ATTACK, ctxFor(state, sourceId), defaultPredicateResolver);
+    const afterNoPair = applyEvents(state, noPairEvents);
+    expect(afterNoPair.players.A.trash).toHaveLength(3);
+    expect(findCard(afterNoPair, sourceId).rested).toBe(true);
+
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-093"], "battleArea"); // Marida Cruz
+    findCard(state, sourceId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = sourceId;
+
+    const events = resolveEffectSpec(BANSHEE_DESTROY_MODE_ATTACK, ctxFor(state, sourceId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(next.players.A.trash).toHaveLength(0); // as 3 saíram da lixeira
+    expect(next.players.A.deck).toHaveLength(deckBefore + 3); // foram pro deck
+    expect(findCard(next, sourceId).rested).toBe(false); // active de novo
+    expect(hasKeyword(findCard(next, sourceId), "First Strike")).toBe(true); // concessão temporária (keywordGrants)
+  });
+
+  it("GD01-003: sem cartas na lixeira, 'if you do' falha — não fica active nem ganha <First Strike>", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-003"], "battleArea", { rested: true });
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-093"], "battleArea");
+    findCard(state, sourceId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = sourceId;
+
+    const events = resolveEffectSpec(BANSHEE_DESTROY_MODE_ATTACK, ctxFor(state, sourceId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+    expect(findCard(next, sourceId).rested).toBe(true); // continua rested
+    expect(hasKeyword(findCard(next, sourceId), "First Strike")).toBe(false);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — imunidade a redução de stat (CardDef.innateStatReductionImmunity)", () => {
+  it("GD01-090 Duo Maxwell (Pilot, During Link): a Unit pareada (Link Unit) ignora redução de AP de efeito INIMIGO, mas não a própria", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-090"], "battleArea"); // Duo Maxwell
+    const unitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-025"], "battleArea"); // Gundam Deathscythe, link "Duo Maxwell", AP5
+    findCard(state, unitId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = unitId;
+
+    findCard(state, unitId).statModifiers.push(
+      { stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "B" }, // inimigo
+      { stat: "ap", amount: -1, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" }, // próprio lado
+    );
+
+    // AP efetivo = 5 (base) + 1 (AP impresso do Piloto pareado, incondicional, CR 3-3-5) - 1 (só a
+    // redução PRÓPRIA conta; a do inimigo -3 é ignorada) = 5.
+    expect(effectiveAp(findCard(state, unitId), state)).toBe(5);
+  });
+
+  it("GD01-090: SEM satisfazer Link (só pareada), a redução do inimigo conta normalmente", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-090"], "battleArea");
+    const unitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, NÃO linka com Duo Maxwell, AP3
+    findCard(state, unitId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = unitId;
+
+    findCard(state, unitId).statModifiers.push({ stat: "ap", amount: -2, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "B" });
+
+    // AP efetivo = 3 (base) + 1 (AP impresso do Piloto pareado) - 2 (sem imunidade, não é Link Unit) = 2.
+    expect(effectiveAp(findCard(state, unitId), state)).toBe(2);
+  });
+
+  it("GD01-090: modificador sem appliedBy (origem desconhecida) nunca é filtrado, mesmo com Link ativo", () => {
+    const state = freshGame();
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-090"], "battleArea");
+    const unitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-025"], "battleArea");
+    findCard(state, unitId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = unitId;
+
+    findCard(state, unitId).statModifiers.push({ stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber });
+
+    // AP efetivo = 5 (base) + 1 (AP impresso do Piloto pareado) - 3 (sem appliedBy, nunca é filtrado) = 3.
+    expect(effectiveAp(findCard(state, unitId), state)).toBe(3);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — GD01-002 Unicorn Gundam (Destroy Mode): 【Attack】Choose 1 enemy Unit. Rest it.", () => {
+  it("reusa a primitiva 'rest' com alvo nomeado — sem filtro (qualquer Unit inimiga)", () => {
+    const state = freshGame();
+    const destroyModeId = placeCard(state, "A", GD01_CARD_DEFS["GD01-002"], "battleArea");
+    const enemyId = placeCard(state, "B", GD01_CARD_DEFS["GD01-035"], "battleArea");
+
+    const ctx = ctxFor(state, destroyModeId, "A", { target: [enemyId] });
+    const events = resolveEffectSpec(UNICORN_GUNDAM_DESTROY_MODE_ATTACK, ctx, defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(UNICORN_GUNDAM_DESTROY_MODE_ATTACK.targetScope).toBe("enemyUnit");
+    expect(UNICORN_GUNDAM_DESTROY_MODE_ATTACK.targetFilter).toBeUndefined();
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — GD01-023 Char's Gelgoog: custo com filtro (discardNamed.filter) + condição + busca-e-pareamento na lixeira (pairFromTrashSearch)", () => {
+  it("sem Pilot pareado: descarta o custo (Zeon/Neo Zeon Unit) e pareia o Pilot (Newtype, Lv<=3) escolhido da lixeira", () => {
+    const state = freshGame();
+    const gelgoogId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea");
+    const zeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "hand"); // Zaku II, trait Zeon
+    const saylaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "trash"); // Sayla Mass, Lv3, trait Newtype
+
+    const ctx = ctxFor(state, gelgoogId, "A", { discard: [zeonUnitId], trashSearch: [saylaId] });
+    const events = resolveEffectSpec(CHARS_GELGOOG_ACTIVATE_MAIN, ctx, defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(next.players.A.trash.some((c) => c.instanceId === zeonUnitId)).toBe(true); // custo pago
+    expect(findCard(next, saylaId).zone).toBe("battleArea");
+    expect(findCard(next, gelgoogId).pairedPilotId).toBe(saylaId);
+    expect(findCard(next, saylaId).pairedUnitId).toBe(gelgoogId);
+  });
+
+  it("já com Pilot pareado: custo é pago (descarta) mas NÃO pareia de novo (condição selfNotPaired falha)", () => {
+    const state = freshGame();
+    const gelgoogId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea");
+    const existingPilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-092"], "battleArea"); // M'Quve
+    findCard(state, gelgoogId).pairedPilotId = existingPilotId;
+    findCard(state, existingPilotId).pairedUnitId = gelgoogId;
+    const zeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "hand");
+    const saylaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "trash");
+
+    const ctx = ctxFor(state, gelgoogId, "A", { discard: [zeonUnitId], trashSearch: [saylaId] });
+    const events = resolveEffectSpec(CHARS_GELGOOG_ACTIVATE_MAIN, ctx, defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(next.players.A.trash.some((c) => c.instanceId === zeonUnitId)).toBe(true); // custo pago mesmo assim
+    expect(findCard(next, saylaId).zone).toBe("trash"); // NÃO saiu da lixeira
+    expect(findCard(next, gelgoogId).pairedPilotId).toBe(existingPilotId); // pareamento anterior intacto
+  });
+
+  it("custo com carta que NÃO bate o filtro (não é Zeon/Neo Zeon) -> lança", () => {
+    const state = freshGame();
+    const gelgoogId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea");
+    const wrongUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "hand"); // Gundam, Earth Federation/White Base Team
+    const saylaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "trash");
+
+    const ctx = ctxFor(state, gelgoogId, "A", { discard: [wrongUnitId], trashSearch: [saylaId] });
+    expect(() => resolveEffectSpec(CHARS_GELGOOG_ACTIVATE_MAIN, ctx, defaultPredicateResolver)).toThrow(/não casa o filtro do custo/);
+  });
+
+  it("busca na lixeira com carta que NÃO bate o filtro (Newtype mas Lv.5, acima de Lv.3) -> lança", () => {
+    const state = freshGame();
+    const gelgoogId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea");
+    const zeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "hand");
+    const banagherId = placeCard(state, "A", GD01_CARD_DEFS["GD01-088"], "trash"); // Newtype, mas Lv.5
+
+    const ctx = ctxFor(state, gelgoogId, "A", { discard: [zeonUnitId], trashSearch: [banagherId] });
+    expect(() => resolveEffectSpec(CHARS_GELGOOG_ACTIVATE_MAIN, ctx, defaultPredicateResolver)).toThrow(/não casa o filtro do efeito/);
+  });
+
+  it("spec: cost/condition/actions batem a estrutura esperada", () => {
+    expect(CHARS_GELGOOG_ACTIVATE_MAIN.cost).toEqual([
+      { op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT", anyTrait: ["Zeon", "Neo Zeon"] } },
+    ]);
+    expect(CHARS_GELGOOG_ACTIVATE_MAIN.condition?.predicate).toBe("selfNotPaired");
+  });
+
+  it("caminho real via applyPlayerAction({kind:'activateAbility'}) — V0, sem pausa (mesmo padrão de RASIDS_ORDERS_MAIN/GAMOW_ACTIVATE_ACTION)", () => {
+    const state = freshGame();
+    state.phase = "main";
+    const gelgoogId = placeCard(state, "A", GD01_CARD_DEFS["GD01-023"], "battleArea");
+    const zeonUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-035"], "hand");
+    const saylaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "trash");
+
+    const next = applyPlayerAction(
+      state,
+      "A",
+      { kind: "activateAbility", sourceInstanceId: gelgoogId, targets: { discard: [zeonUnitId], trashSearch: [saylaId] } },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+
+    expect(next.players.A.trash.some((c) => c.instanceId === zeonUnitId)).toBe(true);
+    expect(findCard(next, gelgoogId).pairedPilotId).toBe(saylaId);
+  });
+});
+
+describe("Lote 5 (docs/debates 2026-09-13) — GD01-065 Freedom Gundam: reage a QUALQUER pareamento de Unit branca (EffectSpec.trigger 'AnyPairing')", () => {
+  it("spec: trigger/targetScope batem o esperado", () => {
+    expect(FREEDOM_GUNDAM_ANY_PAIRING.trigger).toBe("AnyPairing");
+    expect(FREEDOM_GUNDAM_ANY_PAIRING.targetScope).toBe("enemyUnit");
+  });
+
+  it("dispatcher.ts: QUALQUER EffectSpec com pairFromTrashSearch (não só o deploy de Pilot em deploy.ts) também dispara AnyPairing — mesmo hook genérico (dispatchAnyPairingFromEffect)", () => {
+    const state = freshGame();
+    const freedomId = placeCard(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea");
+    const saylaId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "trash");
+    placeCard(state, "B", GD01_CARD_DEFS["GD01-035"], "battleArea");
+
+    // Spec SINTÉTICO só pra este teste (não é o texto real de GD01-065) — prova que
+    // QUALQUER primitiva que pareie (não só deploy.ts) atravessa o MESMO hook de
+    // dispatcher.ts, reagindo em Units reativas do controller mesmo quando a fonte
+    // do PAIR_CARDS é outra carta/mecanismo (aqui, um pairFromTrashSearch qualquer).
+    const syntheticPairSpec: EffectSpec = {
+      id: "GD01-065-TestPair",
+      cardCode: "GD01-065",
+      trigger: "Main",
+      actions: [{ op: "pairFromTrashSearch", player: "controller", filter: { cardType: "PILOT" } }],
+      sourceText: "(spec sintético de teste)",
+    };
+
+    const next = dispatchTrigger(state, freedomId, "Main", [syntheticPairSpec], {
+      targets: { trashSearch: [saylaId] },
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      allSpecs: GD01_EFFECT_SPECS,
+    });
+
+    expect(findCard(next, freedomId).pairedPilotId).toBe(saylaId);
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (AnyPairing) pendente pra A");
+    expect(d.trigger).toBe("AnyPairing");
+    expect(d.queue.some((q) => q.specId === "GD01-065-AnyPairing")).toBe(true);
   });
 });

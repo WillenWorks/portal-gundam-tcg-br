@@ -27,7 +27,7 @@ import {
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
 import type { DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId } from "./types";
-import { otherPlayer } from "./types";
+import { effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -58,6 +58,7 @@ function buildQueueEntry(
   sourceInstanceId: string,
   targetFilterResolver?: TargetFilterResolver,
   activeCalls?: PrimitiveCall[],
+  implicitTargets?: Record<string, string[]>,
 ): AbilityQueueEntry {
   const needsTarget = activeCalls ? callsNeedNamedTarget(activeCalls) : specNeedsNamedTarget(spec);
   const entry: AbilityQueueEntry = {
@@ -67,7 +68,9 @@ function buildQueueEntry(
     optional: spec.optional ?? false,
     needsTarget,
     targetScope: spec.targetScope ?? "enemyUnit",
-    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver) : [],
+    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver, sourceInstanceId) : [],
+    targetCount: spec.targetCount,
+    implicitTargets,
   };
 
   const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
@@ -89,9 +92,17 @@ function buildQueueEntry(
   }
 
   if (choice.op === "discardNamed") {
+    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets);
+    // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
+    // (custo com filtro): restringe os candidatos, se o spec pedir.
+    const legalHandIds = choice.filter ? rawCandidates.filter((id) => matchesCardDefFilter(findCard(state, id).def, choice.filter!)) : rawCandidates;
     return {
       ...entry,
-      handDiscard: { n: choice.n, legalHandIds: discardCandidateHandIds(spec, state, player), label: spec.sourceText },
+      handDiscard: {
+        n: choice.n,
+        legalHandIds,
+        label: spec.sourceText,
+      },
     };
   }
 
@@ -101,6 +112,41 @@ function buildQueueEntry(
       enumChoice: {
         key: choice.key,
         options: choice.options.map((o) => ({ value: o.value, label: o.label })),
+        label: spec.sourceText,
+      },
+    };
+  }
+
+  // Lote 5 (docs/debates 2026-09-13) — GD01-045: mesmo shape de lookAtTopFilterReveal,
+  // só que o destino da carta escolhida é battleArea (deploy), não a mão.
+  if (choice.op === "deployFromTopFilterReveal") {
+    const chooser = resolvePlayerRef(choice.player, player);
+    const topCards = peekAndReorderDeck(state, chooser, choice.count);
+    const revealableIds = topCards
+      .filter((c) => c.def.cardType === "UNIT" && matchesCardDefFilter(c.def, choice.filter))
+      .map((c) => c.instanceId);
+    return { ...entry, deckTopReveal: { topCards, revealableIds, count: choice.count, label: spec.sourceText } };
+  }
+
+  // GD01-067 — busca na lixeira (zona inteira, sempre visível, sem "topo N").
+  // GD01-023 (pairFromTrashSearch) reusa o MESMO shape — só muda o destino (parear
+  // com a fonte, não ir pra mão), a candidatura/validação de escolha é idêntica.
+  if (choice.op === "searchTrashToHand" || choice.op === "pairFromTrashSearch") {
+    const chooser = resolvePlayerRef(choice.player, player);
+    const legalTrashIds = state.players[chooser].trash.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+    return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
+  }
+
+  // GD01-039 — a posição em si (top/bottom) é a escolha; reusa enumChoice com opções fixas.
+  if (choice.op === "moveTopCardToChosenPosition") {
+    return {
+      ...entry,
+      enumChoice: {
+        key: choice.optionsKey,
+        options: [
+          { value: "top", label: "Topo do deck" },
+          { value: "bottom", label: "Fundo do deck" },
+        ],
         label: spec.sourceText,
       },
     };
@@ -123,6 +169,14 @@ function buildQueueEntry(
 export interface AbilitySource {
   code: string;
   instanceId: string;
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) que o motor já resolveu
+   * (não o jogador) ANTES de despachar este gatilho — ex. `{ formerPairedPilot: [id] }`,
+   * o Pilot que estava pareado com a Unit destruída (ver `DestroyedInBattle.formerPairedPilotId`).
+   * Mesclado em `ctx.targets`/`AbilityQueueEntry.implicitTargets` tanto no caminho
+   * imediato quanto no caminho de fila (`deferOrDispatchAbilities`).
+   */
+  implicitTargets?: Record<string, string[]>;
 }
 
 export function deferOrDispatchAbilities(
@@ -145,7 +199,7 @@ export function deferOrDispatchAbilities(
   if (guarded) return guarded;
 
   const entries = sources.flatMap((s) =>
-    findTriggerSpecs(specs, s.code, trigger).map((spec) => ({ spec, sourceInstanceId: s.instanceId })),
+    findTriggerSpecs(specs, s.code, trigger).map((spec) => ({ spec, sourceInstanceId: s.instanceId, implicitTargets: s.implicitTargets })),
   );
   if (entries.length === 0) return state;
 
@@ -159,16 +213,16 @@ export function deferOrDispatchAbilities(
   };
 
   // Avalia as chamadas ativas de cada spec no contexto atual
-  const entriesWithCalls = entries.map(({ spec, sourceInstanceId }) => {
+  const entriesWithCalls = entries.map(({ spec, sourceInstanceId, implicitTargets }) => {
     const ctx: EffectContext = {
       state,
       controller: player,
       sourceInstanceId,
       turnNumber: state.turnNumber,
-      targets: opts.targets ?? {},
+      targets: { ...(opts.targets ?? {}), ...(implicitTargets ?? {}) },
     };
     const activeCalls = specActiveCalls(spec, ctx, opts.predicateResolver);
-    return { spec, sourceInstanceId, activeCalls };
+    return { spec, sourceInstanceId, activeCalls, implicitTargets };
   });
 
   // Descarta specs cujo efeito é incondicionalmente vazio no estado atual
@@ -187,11 +241,14 @@ export function deferOrDispatchAbilities(
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
   if (interactive.length === 0 || opts.targets) {
     let next = state;
-    for (const { spec, sourceInstanceId } of activeEntries) {
+    for (const { spec, sourceInstanceId, implicitTargets } of activeEntries) {
       queueBudget.count += 1;
       const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
       if (guardedIter) return guardedIter;
-      next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
+      next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], {
+        ...dispatchOpts,
+        targets: { ...(dispatchOpts.targets ?? {}), ...(implicitTargets ?? {}) },
+      });
       if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // 【Destroyed】 fora de combate pausou (ou guard estourou)
     }
     return next;
@@ -199,11 +256,14 @@ export function deferOrDispatchAbilities(
 
   // automáticos primeiro; interativos vão pra fila da decisão.
   let next = state;
-  for (const { spec, sourceInstanceId } of activeEntries.filter((e) => !interactive.includes(e))) {
+  for (const { spec, sourceInstanceId, implicitTargets } of activeEntries.filter((e) => !interactive.includes(e))) {
     queueBudget.count += 1;
     const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
     if (guardedIter) return guardedIter;
-    next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], dispatchOpts);
+    next = dispatchTrigger(next, sourceInstanceId, trigger, [spec], {
+      ...dispatchOpts,
+      targets: { ...(dispatchOpts.targets ?? {}), ...(implicitTargets ?? {}) },
+    });
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
   }
   return applyEvents(next, [
@@ -216,8 +276,8 @@ export function deferOrDispatchAbilities(
         // V0 (docs/25): candidatos legais (alvo em campo, carta da mão, topo do
         // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
         // `resolveAbility` valida contra isto (nunca confia no cliente).
-        queue: interactive.map(({ spec, sourceInstanceId, activeCalls }) =>
-          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls),
+        queue: interactive.map(({ spec, sourceInstanceId, activeCalls, implicitTargets }) =>
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets),
         ),
       },
     },
@@ -228,9 +288,9 @@ export function deferOrDispatchAbilities(
  * Compara o estado imediatamente ANTES de aplicar os eventos do Damage Step
  * com o de DEPOIS e devolve as Units que saíram da Battle Area pro trash neste
  * passo (mortes de batalha, `pairedPilotFollowEvents`, Breach letal,
- * combatTrigger letal). `wasPaired` vem do snapshot de antes — depois do
- * `DESTROY_CARD` a Unit já perdeu `pairedPilotId`. Units devolvidas pra
- * mão/deck (não pro trash) NÃO contam como destruídas.
+ * combatTrigger letal). `wasPaired`/`wasLinkUnit`/`formerPairedPilotId` vêm do
+ * snapshot de antes — depois do `DESTROY_CARD` a Unit já perdeu `pairedPilotId`.
+ * Units devolvidas pra mão/deck (não pro trash) NÃO contam como destruídas.
  */
 export function collectDestroyed(before: GameState, after: GameState): DestroyedInBattle[] {
   const out: DestroyedInBattle[] = [];
@@ -240,7 +300,15 @@ export function collectDestroyed(before: GameState, after: GameState): Destroyed
     for (const card of before.players[pid].battleArea) {
       if (stillInPlay.has(card.instanceId)) continue;
       if (!inTrashNow.has(card.instanceId)) continue;
-      out.push({ instanceId: card.instanceId, owner: pid, wasPaired: !!card.pairedPilotId });
+      const pilot = card.pairedPilotId ? findCard(before, card.pairedPilotId) : undefined;
+      const wasLinkUnit = !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), card.def);
+      out.push({
+        instanceId: card.instanceId,
+        owner: pid,
+        wasPaired: !!card.pairedPilotId,
+        wasLinkUnit,
+        formerPairedPilotId: card.pairedPilotId,
+      });
     }
   }
   return out;
@@ -248,6 +316,80 @@ export function collectDestroyed(before: GameState, after: GameState): Destroyed
 
 /** Nome legado (só combate). Alias de `collectDestroyed` — a comparação é a mesma. */
 export const collectDestroyedInBattle = collectDestroyed;
+
+/**
+ * Compara `before`/`after` e devolve as Units (de QUALQUER lado) que ganharam um
+ * `pairedPilotId` novo neste passo (evento `PAIR_CARDS`) — não interessa QUEM
+ * pareou, só QUAL Unit passou a estar pareada. Usado por
+ * `dispatchAnyPairingFromEffect` (GD01-065 "When you pair a Pilot with this Unit
+ * or one of your white Units, ...", Lote 5, docs/debates 2026-09-13).
+ */
+export function collectNewPairings(before: GameState, after: GameState): { owner: PlayerId; unitInstanceId: string }[] {
+  const out: { owner: PlayerId; unitInstanceId: string }[] = [];
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const beforePairs = new Map(before.players[pid].battleArea.map((c) => [c.instanceId, c.pairedPilotId]));
+    for (const card of after.players[pid].battleArea) {
+      if (card.def.cardType !== "UNIT") continue;
+      if (card.pairedPilotId && card.pairedPilotId !== beforePairs.get(card.instanceId)) {
+        out.push({ owner: pid, unitInstanceId: card.instanceId });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Despacha `EffectSpec.trigger: "AnyPairing"` pra toda Unit do CONTROLLER com
+ * `CardDef.onAnyPairing` — reage a QUALQUER `PAIR_CARDS` do próprio controller
+ * (não só quando a própria fonte é a Unit pareada), gateado por
+ * `requiresPairedUnitColor` (cor da Unit RECÉM-pareada; "this Unit or one of your
+ * white Units" colapsa pra isso, já que a própria fonte também tem essa cor).
+ * `CardDef.oncePerTurn` (mecanismo já existente, `dispatchTrigger`) cobre o "Once
+ * per Turn" — GD01-065. Chamado depois de QUALQUER `PAIR_CARDS` real: `deploy.ts`
+ * (Pilot jogado da mão) e `dispatcher.ts` (qualquer EffectSpec cujas primitivas
+ * pareiem, ex. `pairFromTrashSearch` de GD01-023).
+ */
+export function dispatchAnyPairingFromEffect(
+  before: GameState,
+  after: GameState,
+  specs: EffectSpec[],
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  const newPairings = collectNewPairings(before, after);
+  if (newPairings.length === 0) return after;
+
+  let next = after;
+  for (const np of newPairings) {
+    const pairedUnit = findCard(next, np.unitInstanceId);
+    const reactive = next.players[np.owner].battleArea.filter(
+      (c) =>
+        c.def.cardType === "UNIT" &&
+        c.def.onAnyPairing &&
+        // `deferOrDispatchAbilities` (ao contrário de `dispatchTrigger`) não checa
+        // `oncePerTurn` sozinho — sem isso, uma 2ª ativação no mesmo turno pausaria
+        // pra escolha de novo mesmo já tendo sido usada (a marcação só acontece
+        // DEPOIS, quando `resolveAbility` finalmente chama `dispatchTrigger`).
+        !(c.def.oncePerTurn && c.usedKeywordsThisTurn.includes("AnyPairing")) &&
+        (!c.def.onAnyPairing.requiresPairedUnitColor || c.def.onAnyPairing.requiresPairedUnitColor === pairedUnit.def.color),
+    );
+    if (reactive.length === 0) continue;
+    next = deferOrDispatchAbilities(
+      next,
+      np.owner,
+      "AnyPairing",
+      reactive.map((c) => ({ code: c.def.code, instanceId: c.instanceId })),
+      specs,
+      opts,
+    );
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+  }
+  return next;
+}
 
 /**
  * docs/debates/2026-09-12 e 2026-09-13 — incidente real de travamento de ~4h
@@ -320,8 +462,9 @@ export function checkTriggerLoopGuard(
  * direto) e NUNCA passa por aqui — `resolveDamageStep`/Breach/`combatTriggerEvents`
  * não usam `dispatchTrigger`.
  *
- * `wasPaired` vem do snapshot `before` (a Unit perde `pairedPilotId` ao ir pro
- * trash) — habilita o gate 【During Pair】【Destroyed】 (ST04-009 Miguel's Ginn).
+ * `wasPaired`/`wasLinkUnit` vêm do snapshot `before` (a Unit perde `pairedPilotId`
+ * ao ir pro trash) — habilitam o gate 【During Pair】【Destroyed】 (ST04-009 Miguel's
+ * Ginn) e 【During Link】【Destroyed】 (GD01-005 Unicorn Gundam), respectivamente.
  */
 export function dispatchDestroyedFromEffect(
   before: GameState,
@@ -336,7 +479,9 @@ export function dispatchDestroyedFromEffect(
 ): GameState {
   const destroyed = collectDestroyed(before, after).filter((d) => {
     const card = findCard(after, d.instanceId);
-    return findTriggerSpecs(specs, card.def.code, "Destroyed").some((s) => !((s.duringPair ?? false) && !d.wasPaired));
+    return findTriggerSpecs(specs, card.def.code, "Destroyed").some(
+      (s) => !((s.duringPair ?? false) && !d.wasPaired) && !((s.duringLink ?? false) && !d.wasLinkUnit),
+    );
   });
   if (destroyed.length === 0) return after;
   return dispatchDestroyedTriggers(after, destroyed, specs, opts);
@@ -350,6 +495,8 @@ export function dispatchDestroyedFromEffect(
  * (decisão documentada, evita interleave de duas pausas).
  *
  * - 【During Pair】【Destroyed】 (`spec.duringPair`): só dispara se `wasPaired`.
+ * - 【During Link】【Destroyed】 (`spec.duringLink`): só dispara se `wasLinkUnit`
+ *   (GD01-005 — mais estrito, exige o Pilot LINKADO, não qualquer Pilot).
  * - Sem pausa (ST04-009 Miguel's Ginn — `condition` + `draw`): resolve inline
  *   via `dispatchTrigger`.
  * - Com pausa (ST03-006 Char's Zaku Ⅱ — `lookAtTopFilterReveal`, `optional`):
@@ -394,9 +541,16 @@ export function dispatchDestroyedTriggers(
   for (const d of ordered) {
     const card = findCard(next, d.instanceId);
     const triggerSpecs = findTriggerSpecs(specs, card.def.code, "Destroyed").filter(
-      (s) => !((s.duringPair ?? false) && !d.wasPaired),
+      (s) => !((s.duringPair ?? false) && !d.wasPaired) && !((s.duringLink ?? false) && !d.wasLinkUnit),
     );
     if (triggerSpecs.length === 0) continue;
+
+    // Lote 5 (docs/debates 2026-09-13) — GD01-005: o Pilot que estava pareado
+    // ANTES da destruição vira alvo implícito "formerPairedPilot", disponível
+    // pra `moveZone`/`discardNamed` do spec sem escolha do jogador.
+    const implicitTargets: Record<string, string[]> | undefined = d.formerPairedPilotId
+      ? { formerPairedPilot: [d.formerPairedPilotId] }
+      : undefined;
 
     const interactive = triggerSpecs.filter(
       (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
@@ -405,10 +559,15 @@ export function dispatchDestroyedTriggers(
       queueBudget.count += 1;
       const guardedIter = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
       if (guardedIter) return guardedIter;
-      next = dispatchTrigger(next, d.instanceId, "Destroyed", [spec], dispatchOpts);
+      next = dispatchTrigger(next, d.instanceId, "Destroyed", [spec], {
+        ...dispatchOpts,
+        targets: implicitTargets ?? {},
+      });
       if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // encadeamento pausou (ou guard estourou)
     }
-    if (interactive.length > 0) interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId });
+    if (interactive.length > 0) {
+      interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId, implicitTargets });
+    }
   }
 
   const opp = otherPlayer(active);
@@ -477,7 +636,7 @@ export function filterDispatchableSpecs(
     const activeCalls = specActiveCalls(spec, ctx, predicateResolver);
     if (spec.condition && activeCalls.length === 0) return false;
     if (!callsNeedNamedTarget(activeCalls)) return true;
-    const legal = computeLegalTargets(state, spec, controller, targetFilterResolver);
+    const legal = computeLegalTargets(state, spec, controller, targetFilterResolver, sourceInstanceId);
     if (legal.length === 0) return false;
     const chosen = suppliedTargetIds?.[0];
     if (!chosen || !legal.includes(chosen)) {

@@ -493,7 +493,7 @@ export default function DeckbuilderPage() {
   /** Deck de recursos: só cartas Resource entram nele, sem limite de cópia
    *  (regra oficial — "Resource deck: no restriction on same-card copies").
    *  Todo o resto vai pro deck principal. */
-  const getSectionForCardType = (cardType: string): "main" | "resource" => (cardType === "RESOURCE" ? "resource" : "main");
+  const getSectionForCardType = (cardType?: string): "main" | "resource" => (cardType?.toUpperCase() === "RESOURCE" ? "resource" : "main");
 
   /** Máximo de cópias permitido pro modelo (code) — banida=0, restrita=limite
    *  customizado, senão o padrão oficial (4). Cartas Resource não têm limite
@@ -1197,7 +1197,12 @@ export default function DeckbuilderPage() {
       const newEntries: DeckEntry[] = found.map((r) => {
         const card = r.card!;
         cacheCards([card]);
-        return { cardId: card.printId || card.id, quantity: r.quantity, section: card.type === "RESOURCE" ? "resource" : "main" };
+        const isResource =
+          card.type?.toUpperCase() === "RESOURCE" ||
+          (card as any).cardType?.toUpperCase() === "RESOURCE" ||
+          card.code?.toUpperCase().startsWith("RESOURCE-") ||
+          card.code?.toUpperCase().startsWith("RES-");
+        return { cardId: card.printId || card.id, quantity: r.quantity, section: isResource ? "resource" : "main" };
       });
 
       setEntries((current) => [...current.filter((e) => e.section === "ex_base" || e.section === "ex_resource"), ...newEntries]);

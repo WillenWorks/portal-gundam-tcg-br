@@ -1,5 +1,5 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
-import { hasKeyword } from "./types";
+import { effectiveCost, hasKeyword } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { computeLegalTargets, specNeedsNamedTarget } from "./effectSpec";
 import { findTriggerSpecs } from "./dispatcher";
@@ -87,19 +87,23 @@ function neededTargetIds(
   trigger: string,
   specs: EffectSpec[],
   targetFilterResolver?: TargetFilterResolver,
-): { ids: string[]; someSpecNeeds: boolean } {
+  sourceInstanceId?: string,
+): { ids: string[]; someSpecNeeds: boolean; targetCount: { min: number; max: number } } {
   const triggerSpecs = findTriggerSpecs(specs, cardCode, trigger);
   const needing = triggerSpecs.filter((s) => specNeedsNamedTarget(s));
-  if (needing.length === 0) return { ids: [], someSpecNeeds: false };
+  if (needing.length === 0) return { ids: [], someSpecNeeds: false, targetCount: { min: 1, max: 1 } };
   const ids = new Set<string>();
   for (const spec of needing) {
     try {
-      for (const id of computeLegalTargets(state, spec, seat, targetFilterResolver)) ids.add(id);
+      for (const id of computeLegalTargets(state, spec, seat, targetFilterResolver, sourceInstanceId)) ids.add(id);
     } catch {
       // spec com targetFilter sem resolver — ignora, o trial-apply filtra
     }
   }
-  return { ids: [...ids], someSpecNeeds: true };
+  // Lote 4 — na prática 1 só spec por (cardCode, trigger) precisa de alvo; usa o
+  // targetCount dela (ou o default singular {1,1} se não declarar).
+  const targetCount = needing[0]?.targetCount ?? { min: 1, max: 1 };
+  return { ids: [...ids], someSpecNeeds: true, targetCount };
 }
 
 function commandActionCandidates(state: GameState, seat: PlayerId, specs: EffectSpec[], opts: EnumerateOptions): LegalAction[] {
@@ -108,10 +112,23 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
     if (card.def.cardType !== "COMMAND") continue;
     if (!card.def.triggerKeywords?.includes("Action")) continue;
     if (state.players[seat].resourceArea.length < (card.def.level ?? 0)) continue;
-    if (!canAfford(state, seat, card.def.cost ?? 0)) continue;
-    const { ids, someSpecNeeds } = neededTargetIds(state, seat, card.def.code, "Action", specs, opts.targetFilterResolver);
+    if (!canAfford(state, seat, effectiveCost(card.def, state, seat))) continue;
+    const { ids, someSpecNeeds, targetCount } = neededTargetIds(
+      state,
+      seat,
+      card.def.code,
+      "Action",
+      specs,
+      opts.targetFilterResolver,
+      card.instanceId,
+    );
     if (someSpecNeeds && ids.length > 0) {
-      for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: [id] } });
+      if (targetCount.max > 1) {
+        // Lote 4 — bot/enumeração não explora combinações: escolhe gulosamente até `max` do pool legal.
+        out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: ids.slice(0, targetCount.max) } });
+      } else {
+        for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: [id] } });
+      }
     } else {
       out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action" });
     }
@@ -154,15 +171,27 @@ function activateAbilityCandidates(
       const payableAbilitySpecs = abilitySpecs.filter((s) => !(costRestsSelf(s) && card.rested));
       const hasSupport =
         trigger === "Activate·Main" &&
-        hasKeyword(card, "Support") &&
+        hasKeyword(card, "Support", state) &&
         card.def.cardType === "UNIT" &&
         !card.rested &&
         !(card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Support"));
       if (payableAbilitySpecs.length === 0 && !hasSupport) continue;
       if (payableAbilitySpecs.length > 0) {
-        const { ids, someSpecNeeds } = neededTargetIds(state, seat, card.def.code, trigger, specs, opts.targetFilterResolver);
+        const { ids, someSpecNeeds, targetCount } = neededTargetIds(
+          state,
+          seat,
+          card.def.code,
+          trigger,
+          specs,
+          opts.targetFilterResolver,
+          card.instanceId,
+        );
         if (someSpecNeeds && ids.length > 0) {
-          for (const id of ids) out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: [id] } });
+          if (targetCount.max > 1) {
+            out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: ids.slice(0, targetCount.max) } });
+          } else {
+            for (const id of ids) out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: [id] } });
+          }
         } else {
           out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
         }
@@ -185,7 +214,7 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
   for (const card of state.players[seat].hand) {
     const def = card.def;
     if (def.cardType === "RESOURCE") continue;
-    const affordable = canPayLevel(state, seat, def) && canAfford(state, seat, def.cost ?? 0);
+    const affordable = canPayLevel(state, seat, def) && canAfford(state, seat, effectiveCost(def, state, seat));
     if (!affordable) continue;
 
     if (def.cardType === "UNIT" || def.cardType === "BASE") {
@@ -200,11 +229,45 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
       }
     }
     if (def.cardType === "COMMAND" && def.triggerKeywords?.includes("Main")) {
-      const { ids, someSpecNeeds } = neededTargetIds(state, seat, def.code, "Main", specs, opts.targetFilterResolver);
-      if (someSpecNeeds && ids.length > 0) {
-        for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: [id] } });
+      // Lote 5 (docs/debates 2026-09-13) — GD01-103/112: 2º pool de alvo com escopo
+      // PRÓPRIO (`secondaryTarget`, ex. "1 friendly Unit e 1 enemy Unit"). A Command
+      // resolve com `action.targets` já pronto (não pausa pra decisão), então a
+      // enumeração aqui já entrega os 2 pools escolhidos de uma vez (guloso: só o
+      // 1º legal de cada, sem explorar combinações — mesmo espírito do Lote 4).
+      const specWithSecondary = findTriggerSpecs(specs, def.code, "Main").find((s) => s.secondaryTarget);
+      if (specWithSecondary?.secondaryTarget) {
+        const primaryIds = computeLegalTargets(state, specWithSecondary, seat, opts.targetFilterResolver, card.instanceId);
+        const secondaryIds = computeLegalTargets(
+          state,
+          { targetScope: specWithSecondary.secondaryTarget.targetScope, targetFilter: specWithSecondary.secondaryTarget.targetFilter },
+          seat,
+          opts.targetFilterResolver,
+          card.instanceId,
+        );
+        const primaryMax = specWithSecondary.targetCount?.max ?? 1;
+        const targets: Record<string, string[]> = {};
+        if (primaryIds.length > 0) targets.target = primaryIds.slice(0, primaryMax);
+        if (secondaryIds.length > 0) targets[specWithSecondary.secondaryTarget.name] = secondaryIds.slice(0, 1);
+        out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets });
       } else {
-        out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" });
+        const { ids, someSpecNeeds, targetCount } = neededTargetIds(
+          state,
+          seat,
+          def.code,
+          "Main",
+          specs,
+          opts.targetFilterResolver,
+          card.instanceId,
+        );
+        if (someSpecNeeds && ids.length > 0) {
+          if (targetCount.max > 1) {
+            out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: ids.slice(0, targetCount.max) } });
+          } else {
+            for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: [id] } });
+          }
+        } else {
+          out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" });
+        }
       }
     }
   }
@@ -241,7 +304,15 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
 
     case "burst": {
       const out: LegalAction[] = [{ kind: "resolveBurstDecision", activate: false }];
-      const { ids, someSpecNeeds } = neededTargetIds(state, seat, decision.cardDef.code, "Burst", specs, opts.targetFilterResolver);
+      const { ids, someSpecNeeds } = neededTargetIds(
+        state,
+        seat,
+        decision.cardDef.code,
+        "Burst",
+        specs,
+        opts.targetFilterResolver,
+        decision.cardInstanceId,
+      );
       if (someSpecNeeds && ids.length > 0) {
         for (const id of ids) out.push({ kind: "resolveBurstDecision", activate: true, targets: { target: [id] } });
       } else {
@@ -312,7 +383,7 @@ function combatCandidates(state: GameState, seat: PlayerId, specs: EffectSpec[],
     if (canActivateBlocker(state)) {
       for (const unit of friendlyUnits(state, seat)) {
         if (unit.rested) continue;
-        if (!hasKeyword(unit, "Blocker")) continue;
+        if (!hasKeyword(unit, "Blocker", state)) continue;
         out.push({ kind: "activateBlocker", blockerId: unit.instanceId });
       }
     }

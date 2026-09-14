@@ -9,9 +9,10 @@ import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { applyPlayerAction } from "./actions";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { AMURO_RAY_WHEN_PAIRED, GUNDAM_MA_FORM_WHEN_PAIRED, ST01_EFFECT_SPECS } from "../content/st01";
-import { defaultTargetFilterResolver } from "../content";
+import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
+import { GD01_CARD_DEFS, GD01_EFFECT_SPECS } from "../content/gd01";
 
 /**
  * "Jogar carta da mão" (docs/18, wave "motor de jogo real + gaps
@@ -659,5 +660,188 @@ describe("Pilot — modificador impresso de AP/HP + card Command/Pilot (verifica
     giveResources(state, "A", 6);
     const cardId = place(state, "A", ST01_CARD_DEFS.KAIS_RESOLVE, "hand");
     expect(() => deployCard(state, "A", cardId, {})).toThrow(/Unit amiga/);
+  });
+});
+
+describe("deployCard — GD01-002 Unicorn Gundam (Destroy Mode): deploy alternativo por sacrifício de Link Unit (Lote 5, docs/debates 2026-09-13)", () => {
+  function deployGd01(state: GameState, cardInstanceId: string, extra: Parameters<typeof deployCard>[3] = {}) {
+    return deployCard(state, "A", cardInstanceId, {
+      specs: GD01_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      ...extra,
+    });
+  }
+
+  it("sacrifício válido (Link Unit certa) -> destrói a sacrificada (dispara seu próprio 【Destroyed】, que pausa) e joga GD01-002 SEM pagar custo/nível", () => {
+    const state = freshMainPhase(); // resourceArea zerada -> GD01-002 (Lv7/custo6) seria impagável no modo normal
+    const unicornModeId = place(state, "A", GD01_CARD_DEFS["GD01-005"], "battleArea"); // Lv5, link [Banagher Links]
+    const banagherId = place(state, "A", GD01_CARD_DEFS["GD01-088"], "battleArea");
+    findCard(state, unicornModeId).pairedPilotId = banagherId;
+    findCard(state, banagherId).pairedUnitId = unicornModeId;
+    const destroyModeId = place(state, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+
+    const next = deployGd01(state, destroyModeId, { sacrificeInstanceId: unicornModeId });
+
+    // a carta nova já está em campo (evento de MOVE_CARD aplicado ANTES do 【Destroyed】
+    // da sacrificada ser despachado) — só o 【Destroyed】 dela ficou pendente.
+    expect(findCard(next, destroyModeId).zone).toBe("battleArea");
+    expect(next.players.A.trash.some((c) => c.instanceId === unicornModeId)).toBe(true);
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (【Destroyed】 da sacrificada) pendente pra A");
+    expect(d.trigger).toBe("Destroyed");
+    expect(d.queue.find((q) => q.specId === "GD01-005-Destroyed")?.implicitTargets).toEqual({ formerPairedPilot: [banagherId] });
+
+    const resolved = applyPlayerAction(
+      next,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: "GD01-005-Destroyed", activate: true, targetIds: [banagherId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.pendingDecision.A).toBeNull();
+    expect(resolved.players.A.trash.some((c) => c.instanceId === banagherId)).toBe(true); // devolvido à mão e descartado de novo
+    // custo/nível nunca foram cobrados: a Resource Area segue vazia.
+    expect(resolved.players.A.resourceArea.length).toBe(0);
+  });
+
+  it("sacrifício de uma Unit que NÃO satisfaz Link -> recusa (mesmo sendo 'Unicorn Mode' Lv.5 mas sem o Pilot certo pareado)", () => {
+    const state = freshMainPhase();
+    const unicornModeId = place(state, "A", GD01_CARD_DEFS["GD01-005"], "battleArea");
+    const wrongPilotId = place(state, "A", GD01_CARD_DEFS["GD01-089"], "battleArea"); // Riddhe Marcenas, não linka com GD01-005
+    findCard(state, unicornModeId).pairedPilotId = wrongPilotId;
+    findCard(state, wrongPilotId).pairedUnitId = unicornModeId;
+    const destroyModeId = place(state, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+
+    expect(() => deployGd01(state, destroyModeId, { sacrificeInstanceId: unicornModeId })).toThrow(/Link Unit/);
+  });
+
+  it("sacrifício de uma Unit que não bate o filtro (nome/nível) -> recusa", () => {
+    const state = freshMainPhase();
+    const wrongUnitId = place(state, "A", GD01_CARD_DEFS["GD01-025"], "battleArea"); // Gundam Deathscythe, Lv5 mas não é "Unicorn Mode"
+    const duoId = place(state, "A", GD01_CARD_DEFS["GD01-090"], "battleArea");
+    findCard(state, wrongUnitId).pairedPilotId = duoId;
+    findCard(state, duoId).pairedUnitId = wrongUnitId;
+    const destroyModeId = place(state, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+
+    expect(() => deployGd01(state, destroyModeId, { sacrificeInstanceId: wrongUnitId })).toThrow(/Link Unit/);
+  });
+
+  it("sem sacrifício (deploy normal) e sem recurso/nível suficiente -> recusa como qualquer outra carta cara", () => {
+    const state = freshMainPhase();
+    const destroyModeId = place(state, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+    expect(() => deployGd01(state, destroyModeId)).toThrow(/Nível insuficiente/);
+  });
+
+  it("com recurso/nível suficiente, deploy normal (sem sacrifício) funciona igual a qualquer Unit", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 7);
+    const destroyModeId = place(state, "A", GD01_CARD_DEFS["GD01-002"], "hand");
+
+    const next = deployGd01(state, destroyModeId);
+
+    expect(findCard(next, destroyModeId).zone).toBe("battleArea");
+    expect(next.players.A.resourceArea.filter((r) => r.rested).length).toBe(6); // pagou o custo de 6 de verdade
+  });
+
+});
+
+describe("deployCard — GD01-065 Freedom Gundam: 【During Pair】【Once per Turn】 reage a QUALQUER pareamento de Unit branca (Lote 5, docs/debates 2026-09-13)", () => {
+  function deployGd01(state: GameState, cardInstanceId: string, extra: Parameters<typeof deployCard>[3] = {}) {
+    return deployCard(state, "A", cardInstanceId, {
+      specs: GD01_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      ...extra,
+    });
+  }
+
+  it("pareia um Pilot com a PRÓPRIA Freedom Gundam -> pausa (AnyPairing) -> resolve -> AP-2 no inimigo escolhido", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 6); // Banagher Links (GD01-088) é Lv.5 — precisa de 5+ recursos em campo
+    const freedomId = place(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea");
+    const pilotId = place(state, "A", GD01_CARD_DEFS["GD01-088"], "hand"); // Banagher Links, cost 1/Lv.5
+    const enemyId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, "battleArea");
+
+    const next = deployGd01(state, pilotId, { pairWithUnitId: freedomId });
+
+    expect(findCard(next, freedomId).pairedPilotId).toBe(pilotId);
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (AnyPairing) pendente pra A");
+    expect(d.trigger).toBe("AnyPairing");
+    const q = d.queue.find((x) => x.specId === "GD01-065-AnyPairing");
+    expect(q?.needsTarget).toBe(true);
+    expect(q?.legalTargets).toContain(enemyId);
+
+    const resolved = applyPlayerAction(
+      next,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: "GD01-065-AnyPairing", activate: true, targetIds: [enemyId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.pendingDecision.A).toBeNull();
+    expect(findCard(resolved, enemyId).statModifiers).toEqual([
+      { stat: "ap", amount: -2, duration: "endOfTurn", appliedOnTurn: next.turnNumber, appliedBy: "A" },
+    ]);
+  });
+
+  it("pareia um Pilot com OUTRA Unit branca (não a própria Freedom Gundam) -> também reage", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 6);
+    place(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea"); // Freedom Gundam, sem parear
+    const perfectStrikeId = place(state, "A", GD01_CARD_DEFS["GD01-068"], "battleArea"); // outra Unit branca
+    const pilotId = place(state, "A", GD01_CARD_DEFS["GD01-088"], "hand");
+    place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, "battleArea");
+
+    const next = deployGd01(state, pilotId, { pairWithUnitId: perfectStrikeId });
+
+    const d = next.pendingDecision.A;
+    if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (AnyPairing) pendente pra A");
+    expect(d.queue.some((x) => x.specId === "GD01-065-AnyPairing")).toBe(true);
+  });
+
+  it("pareia um Pilot com uma Unit NÃO branca -> não reage (sem pendingDecision)", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 6);
+    place(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea"); // Freedom Gundam, sem parear
+    const gundamId = place(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam, blue
+    const pilotId = place(state, "A", GD01_CARD_DEFS["GD01-088"], "hand");
+
+    const next = deployGd01(state, pilotId, { pairWithUnitId: gundamId });
+
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("Once per Turn: 2ª ativação no mesmo turno não pausa de novo", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 6); // cobre o Lv.5 de Banagher Links + o Lv.3 de Riddhe Marcenas
+    const freedomId = place(state, "A", GD01_CARD_DEFS["GD01-065"], "battleArea");
+    const perfectStrikeId = place(state, "A", GD01_CARD_DEFS["GD01-068"], "battleArea");
+    const pilot1Id = place(state, "A", GD01_CARD_DEFS["GD01-088"], "hand"); // Banagher Links, Lv.5
+    const pilot2Id = place(state, "A", GD01_CARD_DEFS["GD01-089"], "hand"); // Riddhe Marcenas, Lv.3
+    const enemyId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, "battleArea");
+
+    let next = deployGd01(state, pilot1Id, { pairWithUnitId: freedomId });
+    next = applyPlayerAction(
+      next,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: "GD01-065-AnyPairing", activate: true, targetIds: [enemyId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(findCard(next, freedomId).usedKeywordsThisTurn).toContain("AnyPairing");
+
+    next = deployCard(next, "A", pilot2Id, {
+      pairWithUnitId: perfectStrikeId,
+      specs: GD01_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+
+    expect(next.pendingDecision.A).toBeNull(); // 2ª vez: já usada este turno, não pausa de novo
   });
 });

@@ -30,9 +30,9 @@ describe("rankSimilarSpecs", () => {
     expect(codesOf(r)).toContain("GD01-111"); // Battle of Aces
   });
 
-  it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo", () => {
+  it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045, mesmo texto de abertura — Lote 5)", () => {
     const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 3);
-    expect(r.results[0].cardCode).toBe("ST03-006");
+    expect(codesOf(r)).toContain("ST03-006");
   });
 
   it("devolve no máximo `limit` resultados, ordenados por score desc", () => {

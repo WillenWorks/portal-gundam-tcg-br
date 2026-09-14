@@ -47,6 +47,16 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const pilot = findCard(ctx.state, source.pairedPilotId);
     return pilot.def.traits?.includes(pairedPilotHasTrait[1]) ?? false;
   }
+  // GD01-044 Kshatriya — 【When Paired･(Cyber-Newtype)/(Newtype) Pilot】 — OR entre traits
+  // (mesma convenção de vírgula de `controllerTrashUnitCountWithAnyTraitAtLeast`).
+  const pairedPilotHasAnyTrait = predicate.match(/^pairedPilotHasAnyTrait:(.+)$/);
+  if (pairedPilotHasAnyTrait) {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    if (!source.pairedPilotId) return false;
+    const pilot = findCard(ctx.state, source.pairedPilotId);
+    const traits = pairedPilotHasAnyTrait[1].split(",");
+    return (pilot.def.traits ?? []).some((t) => traits.includes(t));
+  }
   // ST02-016 Corsica Base — "if ... a card with 'Corsica Base' in its card name is in your trash".
   const cardInTrashNamed = predicate.match(/^cardInTrashNamed:(.+)$/);
   if (cardInTrashNamed) {
@@ -151,6 +161,11 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const source = findCard(ctx.state, ctx.sourceInstanceId);
     return !!source.pairedPilotId;
   }
+  // GD01-023 Char's Gelgoog — 【Activate･Main】"If a Pilot is not paired with this Unit, ...".
+  if (predicate === "selfNotPaired") {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    return !source.pairedPilotId;
+  }
   // GD01-027 Big Zam — 【Deploy】"If there are 10 or more (Zeon)/(Neo Zeon) Unit
   // cards in your trash, ...". Traits em lista separada por vírgula (OR entre
   // eles, não AND — "(Zeon)/(Neo Zeon)" no texto oficial é uma cor com 2 nomes
@@ -163,6 +178,23 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
       (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
     ).length;
     return count >= min;
+  }
+  // GD01-095 Dearka Elthman — "Discard 1. If you do, draw 1." Lote 5 (docs/debates
+  // 2026-09-13): "if you do" = a escolha nomeada `<key>` (já resolvida ANTES de
+  // `resolveEffectSpec` rodar, pela camada de decisão) não veio vazia — não é
+  // "resultado de uma primitiva anterior" de verdade, é a MESMA escolha que a
+  // primitiva vai consumir (ex.: `discardNamed` com `name:"discard"` — se a mão
+  // tava vazia, `handDiscard.legalHandIds` já teria sido `[]`, então a escolha
+  // também é `[]`; "if you do" == "se a escolha não é vazia").
+  const chosenNonEmpty = predicate.match(/^chosenNonEmpty:(.+)$/);
+  if (chosenNonEmpty) return (ctx.targets[chosenNonEmpty[1]] ?? []).length > 0;
+  // GD01-003 — "Choose 12 cards from your trash... If you do, ...". Diferente de
+  // `chosenNonEmpty` (checa uma ESCOLHA já feita): aqui não há escolha de jogador, só
+  // estado de board ANTES da própria primitiva `returnTrashToDeckAndShuffle` rodar
+  // (avaliado antes por causa da ordem cost->condition->actions de resolveEffectSpec).
+  const controllerTrashCountAtLeast = predicate.match(/^controllerTrashCountAtLeast:(\d+)$/);
+  if (controllerTrashCountAtLeast) {
+    return ctx.state.players[ctx.controller].trash.length >= Number(controllerTrashCountAtLeast[1]);
   }
   return false;
 };
@@ -199,6 +231,21 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   const hpAtMost = filter.match(/^hp<=(\d+)$/);
   if (hpAtMost) return remainingHp(candidate, ctx.state) <= Number(hpAtMost[1]);
 
+  // GD01-122 Covert Operative — "Choose 1 enemy Unit with 2 or less HP... If you have a
+  // Link Unit in play, choose 1 enemy Unit with 4 or less HP instead." Lote 5 (docs/debates
+  // 2026-09-13): o LIMITE do filtro muda por condição de board — precisa de sourceInstanceId
+  // (dono do efeito) pra checar se O CONTROLLER tem Link Unit em campo agora.
+  const hpAtMostConditionalLink = filter.match(/^hp<=conditionalLinkUnit:(\d+):(\d+)$/);
+  if (hpAtMostConditionalLink) {
+    if (!ctx.sourceInstanceId) return false;
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    const controllerHasLinkUnit = ctx.state.players[source.owner].battleArea.some(
+      (u) => u.def.cardType === "UNIT" && isPairedLinkUnit(ctx.state, u),
+    );
+    const threshold = Number(hpAtMostConditionalLink[controllerHasLinkUnit ? 2 : 1]);
+    return remainingHp(candidate, ctx.state) <= threshold;
+  }
+
   const levelAtMost = filter.match(/^level<=(\d+)$/);
   if (levelAtMost) return (candidate.def.level ?? 0) <= Number(levelAtMost[1]);
 
@@ -224,8 +271,23 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   if (filter === "rested") return candidate.rested;
 
+  // GD01-103/112 — "1/2 active friendly/enemy Unit(s)" (o oposto de "rested").
+  if (filter === "active") return !candidate.rested;
+
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
+
+  // GD01-093 Marida Cruz — "enemy Unit whose Lv. is equal to or lower than THIS Unit"
+  // (relativo à própria fonte, não um número literal — precisa de `ctx.sourceInstanceId`).
+  // A ability é autorada no PILOT ("During Link"), mas "this Unit" no texto é a Unit
+  // PAREADA (quem ataca de verdade) — se a fonte já é Unit, usa ela mesma.
+  if (filter === "level<=self") {
+    if (!ctx.sourceInstanceId) return false;
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    const selfUnit = source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(ctx.state, source.pairedUnitId) : undefined;
+    if (!selfUnit) return false;
+    return (candidate.def.level ?? 0) <= (selfUnit.def.level ?? 0);
+  }
 
   // GD01-069 Strike Rouge — "1 of your rested white Units with <Blocker>" (cor impressa da carta, não trait).
   const colorMatch = filter.match(/^color:(.+)$/);

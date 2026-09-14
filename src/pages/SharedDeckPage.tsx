@@ -137,18 +137,6 @@ function ReadOnlyCardTile({
           </div>
         )}
 
-        {/* Quantidade no deck (canto superior direito) */}
-        <span className="absolute right-1 top-1 flex size-6 items-center justify-center bg-primary font-mono text-xs font-black text-primary-foreground shadow-md">
-          {row.quantity}x
-        </span>
-
-        {/* Custo (canto superior esquerdo) */}
-        {typeof row.cost === "number" && (
-          <span className="absolute left-1 top-1 flex size-5 items-center justify-center bg-slate-950/90 border border-white/20 font-mono text-[10px] font-bold text-amber-300">
-            {row.cost}
-          </span>
-        )}
-
         {/* Drawer informativo no hover */}
         <div className="absolute inset-x-0 bottom-0 translate-y-full bg-slate-950/95 p-2 text-left backdrop-blur-sm transition-all duration-200 group-hover:translate-y-0">
           <p className="truncate text-xs font-semibold text-white">{row.namePt || row.name}</p>

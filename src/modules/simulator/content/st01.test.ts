@@ -103,7 +103,9 @@ describe("EffectSpecs reais do ST01 (docs/18 passo 3)", () => {
     const events = resolveEffectSpec(AERIAL_SCORE_SIX_WHEN_PAIRED, ctx);
     const next = applyEvents(state, events);
 
-    expect(findCard(next, targetId).statModifiers).toEqual([{ stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber }]);
+    expect(findCard(next, targetId).statModifiers).toEqual([
+      { stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" },
+    ]);
   });
 
   describe("ST01-010 Amuro Ray", () => {
@@ -208,7 +210,11 @@ describe("EffectSpecs reais do ST01 (docs/18 passo 3)", () => {
     expect(burstEvents).toEqual(mainEvents);
     expect(mainEvents).toEqual(actionEvents);
     expect(mainEvents).toEqual([
-      { type: "MODIFY_STAT", instanceId: targetId, modifier: { stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber } },
+      {
+        type: "MODIFY_STAT",
+        instanceId: targetId,
+        modifier: { stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" },
+      },
     ]);
   });
 
@@ -340,7 +346,7 @@ describe("EffectSpecs reais do ST01 (docs/18 passo 3)", () => {
 
     expect(findCard(next, baseId).rested).toBe(true);
     expect(findCard(next, linkedId).statModifiers).toEqual([
-      { stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: state.turnNumber },
+      { stat: "ap", amount: 1, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" },
     ]);
     expect(findCard(next, unlinkedId).statModifiers).toEqual([]);
   });

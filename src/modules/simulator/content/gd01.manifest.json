@@ -5,11 +5,11 @@
   "total_cards": 130,
   "metrics": {
     "vanilla_cards": 28,
-    "implemented_cards": 66,
+    "implemented_cards": 100,
     "implemented_with_deferred_clause": 2,
-    "deferred_pure_cards": 34,
-    "deferred_clauses": 36,
-    "playable_cards_total": 96
+    "deferred_pure_cards": 0,
+    "deferred_clauses": 2,
+    "playable_cards_total": 130
   },
   "pipeline_progress": {
     "phase1_gemini_draft": {
@@ -81,58 +81,193 @@
         "PrimitiveCall.grantAttackTargetRelax ganhou maxAp? (além de maxLevel?) — combat.ts/declareAttack aceita os 2 critérios (GD01-110)"
       ],
       "data_fix": "GD01-108 Strategic Arms tinha effectKeywords/keywordTags:['Blocker'] incorretos na própria CardDef (Blocker ali é o FILTRO do alvo do efeito, não uma keyword da carta) — corrigido ao autorar.",
-      "bonus_unlock_available": "A extensão de grantAttackTargetRelax pra maxAp também resolve o gap de GD01-043 (mesmo texto 'choose enemy Unit with N or less AP as attack target') — só falta autorar o EffectSpec dessa carta e tirá-la de deferred.ts; não incluída neste lote de propósito (fora do escopo pedido).",
       "verification": "62 testes (gd01.test.ts + combat.test.ts) + suíte completa + tsc --noEmit, todos verdes."
+    },
+    "phase5_engine_gaps_etapa1_bonus": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "GD01-043 (bonus unlock via primitiva maxAp da Fase 5 Lote 1)",
+      "cards_unlocked": ["GD01-043"],
+      "notes": "RASIDS_MAGANAC_DEPLOY reaproveita grantAttackTargetRelax{maxAp:4} sem nenhuma extensão de motor nova; removida de deferred.ts.",
+      "verification": "suíte completa + tsc --noEmit + gundam-index.mjs regenerado, todos verdes."
+    },
+    "phase7_engine_gaps_etapa2": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 2 (busca no topo do deck com filtro composto) + Lote 3 (StaticAbility genérica + aura de Pilot condicional)",
+      "cards_unlocked": ["GD01-048", "GD01-109", "GD01-019", "GD01-034", "GD01-054", "GD01-076", "GD01-081", "GD01-087", "GD01-089", "GD01-092", "GD01-096"],
+      "engine_additions": [
+        "CardDefFilter.anyCardType (effectSpec.ts) — 'Unit card/Pilot card' (2 tipos possíveis, OR); GD01-048 não precisou de NADA novo (CardDefFilter.anyTrait já cobria, mesmo shape de ST03-006 — era autoria pendente, não gap real)",
+        "StaticEffectCondition ganhou 'always' (types.ts) — habilita condição fora de duringPair/duringLink",
+        "StaticAbility ganhou 'keyword'/'keywordValue' (concessão de KEYWORD, não só stat; stat/amount viraram opcionais)",
+        "StaticAbility ganhou 'boardCondition' (enemyUnitCountAtLeast / trashCardTypeCountAtLeast / friendlyOtherUnitTraitCountAtLeast) — gate de estado de board reavaliado a cada consulta",
+        "StaticAbility ganhou 'targetCondition' (apAtLeast / colorIs / traitIs / hasKeyword) — gate sobre a carta RECEPTORA do bônus (self ou pairedUnit), não a fonte",
+        "hasKeyword()/keywordValue() ganharam 'state?' opcional pra enxergar concessões de StaticAbility — chamadas reais (combat.ts Breach/Blocker/First Strike/Suppression, keywords.ts Support/Repair, legalActions.ts, actions.ts, bot/heuristicPolicy.ts, bot/features.ts, effectSpec.ts allUnits.hasKeyword, ui/BattleSlot.tsx) atualizadas pra passar 'state' — sem isso a keyword concedida ficaria só 'cosmética' (nunca detectada em combate/legalidade real)"
+      ],
+      "data_fix": "GD01-019/081 (Units) e GD01-087/089/092/096 (Pilots) tinham effectKeywords/keywordTags FIXOS na própria CardDef (mesmo achado de classe do GD01-108 no Lote 1) quando o texto real é condicional — corrigido ao autorar a StaticAbility certa. Nos Pilots, 'this Unit' no texto do Pilot é a UNIT PAREADA, não o próprio Pilot (aura, scope 'pairedUnit') — a keyword nunca deveria estar na CardDef do Piloto.",
+      "verification": "11 testes novos (gd01.test.ts, Lote 2 + Lote 3) + suíte completa (106 arquivos / 1000 testes) + tsc --noEmit + gundam-index.mjs (157 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase8_engine_gaps_etapa3_lote4": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 4 (escolha de até N alvos) — GD01-044 e GD01-114 fechadas; GD01-112 identificada como precisando de 2 OUTROS gaps além deste",
+      "cards_unlocked": ["GD01-044", "GD01-114"],
+      "engine_additions": [
+        "TargetRef.namedGroup (effectSpec.ts) — como 'named', mas resolve o array INTEIRO de ctx.targets[name] (0..max), não só group[0]",
+        "EffectSpec.targetCount?: {min,max} — cardinalidade da escolha; ausente = comportamento antigo (1 alvo)",
+        "PendingDecision.abilityResolution.queue[].targetCount — propagado por buildQueueEntry (abilityDispatch.ts)",
+        "resolveAbility (actions.ts) valida targetIds.length <= max e sem repetição — cap de segurança novo (antes um spec não-multi já aceitava qualquer tamanho de array sem validar, ver nota abaixo)",
+        "legalActions.ts (commandActionCandidates/activateAbilityCandidates/mainPhaseCandidates): quando targetCount.max>1, gera 1 candidato guloso com até max alvos do pool legal, em vez de 1 candidato por alvo — bots/fuzzer não exploram combinações (simplificação documentada, mesmo espírito do auto-alvo de CombatTrigger)",
+        "predicate pairedPilotHasAnyTrait:<traits> (OR entre traits do Pilot pareado, GD01-044)"
+      ],
+      "known_limitation": "AbilityResolutionModal.tsx (UI) só tem seletor SINGULAR — um jogador humano escolhe no máximo 1 destes até a UI ganhar um seletor múltiplo real; degrada graciosamente (resolveAbility aceita 0..max, não força um piso mínimo).",
+      "gd01_112_finding": "GD01-112 ('Choose 2 of your active Units. Rest them. If you do, choose 1 enemy Unit. Deal 3 damage to it.') tem MAIS 2 gaps que a entrada antiga de deferred.ts não distinguia: dois pools de alvo com escopo DIFERENTE no mesmo EffectSpec (mesmo gap de GD01-103, engine:multiplos-escopos-de-alvo-no-mesmo-spec) + o 2º efeito condicionado a 'if you do' (mesmo gap de GD01-095, engine:condicional-a-resultado-de-primitiva-anterior). blockedBy de GD01-112 corrigido pra refletir isso; desbloqueio adiado pro Lote 5 (junto com GD01-095/103).",
+      "verification": "5 testes novos (gd01.test.ts: 4, incluindo 1 integração completa via deployCard->PendingDecision->resolveAbility provando o cap de segurança rejeita escolha > max; legalActions.test.ts: 1, provando enumeração gulosa via trial-apply real). Suíte completa (106/1005) + tsc --noEmit + gundam-index.mjs (159 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase9_engine_gaps_etapa3_lote5_batch1": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — primeiro lote de 6 gaps bespoke fechados (custo dinâmico, filtro auto-referente, 'if you do', múltiplos escopos)",
+      "cards_unlocked": ["GD01-016", "GD01-070", "GD01-093", "GD01-095", "GD01-103", "GD01-112"],
+      "engine_additions": [
+        "CardDef.dynamicCost?: {condition: StaticBoardCondition, amount} + effectiveCost() (types.ts) — reusa StaticBoardCondition do Lote 3; isBoardConditionMet() virou exportada e trocou 'source: CardInstance' por 'owner: PlayerId, excludeInstanceId?' (refactor sem mudança de comportamento). deploy.ts/legalActions.ts atualizados a usar effectiveCost em vez de def.cost cru (GD01-016, GD01-070)",
+        "TargetFilterResolver ganhou ctx.sourceInstanceId opcional; computeLegalTargets ganhou parâmetro sourceInstanceId (propagado por abilityDispatch.ts/dispatcher.ts/legalActions.ts) — habilita targetFilter 'level<=self' (relativo à própria fonte, resolve pra Unit pareada se a fonte é Pilot) (GD01-093)",
+        "predicate chosenNonEmpty:<key> — 'if you do' é só checar se a escolha nomeada já feita (pela camada de decisão) não veio vazia; NÃO precisou de nenhum mecanismo de 'branching pós-primitiva' de verdade (GD01-095, GD01-112)",
+        "EffectSpec.secondaryTarget?: {name, targetScope, targetFilter} — 2º pool de alvo com escopo PRÓPRIO no mesmo spec; só COMMAND (Main) usa (resolve com action.targets pronto, não pausa) — legalActions.ts (mainPhaseCandidates) gera 1 candidato guloso com os 2 pools preenchidos (GD01-103, GD01-112)",
+        "targetFilter 'active' (oposto de 'rested') — GD01-103/112"
+      ],
+      "verification": "13 testes novos (gd01.test.ts: 11, legalActions.test.ts: 2, incluindo enumeração real via trial-apply pros 2 Commands com secondaryTarget). Suíte completa (106/1018) + tsc --noEmit + gundam-index.mjs (163 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase10_engine_gaps_etapa3_lote5_batch2": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — segundo lote de 7 gaps bespoke fechados (novas primitivas de zona, StaticAbility de combate, proteção inata, filtro condicional a board)",
+      "cards_unlocked": ["GD01-039", "GD01-045", "GD01-067", "GD01-063", "GD01-094", "GD01-091", "GD01-122"],
+      "engine_additions": [
+        "PrimitiveCall novos: deployFromTopFilterReveal (GD01-045 — como lookAtTopFilterReveal mas destino battleArea), searchTrashToHand (GD01-067 — busca em ZONA INTEIRA sempre visível, não 'topo N'), moveTopCardToChosenPosition (GD01-039 — a POSIÇÃO em si é a escolha, reusa enumChoice com opções top/bottom fixas). Todos 3 entraram em ChoicePrimitive/isChoicePrimitive; abilityDispatch.ts monta deckTopReveal/trashSearch/enumChoice conforme; PendingDecision.abilityResolution.queue[] ganhou campo trashSearch novo",
+        "StaticBoardCondition ganhou 'battlingEnemyLevelAtMost' (GD01-063 — 'while this Unit is battling an enemy Unit Lv.N or lower') — reusa isBoardConditionMet/excludeInstanceId (Lote 3) pra achar o lado oposto do combate ATUAL via state.combat",
+        "CombatTrigger ganhou requiresLinkUnitEnemy? (filtra destroyEnemyInBattle por 'o inimigo destruído ERA Link Unit', checado ANTES do DESTROY_CARD limpar o pareamento) e oncePerTurn? (marca via usedKeywordsThisTurn com chave sintética 'combatTrigger:<on>', mesmo mecanismo de <Support>/<Repair>) — GD01-094",
+        "CardDef.innateDamageProtection?: {maxAttackerAp, requiresOwnKeyword?, duringYourTurnOnly?} — proteção CONTÍNUA (diferente de CombatState.unitDamageProtection, que é pontual/por-batalha tipo ST03-014). combat.ts ganhou checagem simétrica pro ATACANTE (não só defensor) — achado ao testar: 'during your turn' só é satisfeito enquanto a Unit ataca (defensor nunca age no seu turno), então a aplicação real de GD01-091 protege do CONTRA-dano, não do dano recebido defendendo. findInnateDamageProtection() procura tanto na própria Unit quanto no Pilot pareado (mesma convenção Lote 3 de 'this Unit' num texto de Pilot)",
+        "TargetFilterResolver ganhou 'hp<=conditionalLinkUnit:<n>:<n>' (GD01-122 — o limite de HP muda conforme o CONTROLLER tem Link Unit em campo ou não)"
+      ],
+      "data_fixes": "GD01-063 (ZnO) e GD01-091 (Chang Wufei) tinham effectKeywords/keywordTags fixos (First Strike / Breach) na própria CardDef quando o texto real é condicional — mesmo achado de classe do GD01-108/019/081 (Lote 1/3) — corrigido ao autorar.",
+      "verification": "18 testes novos (gd01.test.ts + combat.test.ts, incluindo 3 achados de teste corrigidos ao rodar: DESTROY_CARD reseta damage a 0 ao sair de campo, e a semântica real de 'during your turn' em GD01-091 protege o atacante, não o defensor). Suíte completa (106/1029) + tsc --noEmit + gundam-index.mjs (167 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase11_engine_gaps_etapa3_lote5_batch3": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — terceiro lote (GD01-003, reciclagem de lixeira pro deck + shuffle)",
+      "cards_unlocked": ["GD01-003"],
+      "engine_additions": [
+        "PrimitiveCall 'returnTrashToDeckAndShuffle' + GameEvent 'RETURN_TRASH_TO_DECK_SHUFFLE' — move até N cartas da lixeira (as N primeiras, sem escolha real de QUAIS — simplificação documentada) pro deck e reembaralha com createRng(seed ^ eventLog.length), mesmo espírito do nonce de mulliganNonce mas variando por EVENTO (a carta pode ser usada mais de 1x no jogo)",
+        "predicate 'controllerTrashCountAtLeast:<n>' — 'if you do' quando NÃO há escolha de jogador envolvida (diferente de chosenNonEmpty), só estado de board ANTES da própria primitiva rodar (ordem cost->condition->actions de resolveEffectSpec já garante isso)",
+        "'During Link' + 'if you do' combinados num predicate composto único (';') — sem trash pra devolver a primitiva já é no-op, então a combinação reflete o 'if you do' corretamente sem precisar de condição aninhada"
+      ],
+      "data_fix": "GD01-003 (Banshee Destroy Mode) tinha effectKeywords/keywordTags:['First Strike'] fixos quando a concessão real é TEMPORÁRIA e condicional — mesmo achado de classe do GD01-108/019/063/081/091 — corrigido.",
+      "test_robustness": "server/deckCoverageGate.test.ts tinha um teste com 3 códigos de carta deferida HARDCODED que quebrava a cada lote fechado (3ª vez que isso aconteceu nesta sessão) — trocado por derivação dinâmica de DEFERRED_CLAUSES filtrada por isCardPlayable (exclui GD01-001/066, que aparecem em DEFERRED_CLAUSES mas já são jogáveis).",
+      "verification": "2 testes novos (gd01.test.ts). Suíte completa (106/1032) + tsc --noEmit + gundam-index.mjs (168 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase12_engine_gaps_etapa3_lote5_batch4": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — quarto lote (GD01-046, gatilho reativo ao USO da própria keyword <Support>)",
+      "cards_unlocked": ["GD01-046"],
+      "engine_additions": [
+        "CardDef.onSupportUsed?: {requiresPairedPilotTrait?, requiresTargetTrait?, oncePerTurn?} — checado direto em activateSupport (keywords.ts), não via EffectSpec/trigger dispatch (o gatilho é o ATO de usar a própria <Support>, não um trigger de carta comum tipo Deploy/Attack/Destroyed). Quando a condição bate, emite SET_ACTIVE na própria fonte logo após o REST_CARD do custo de Support — cancela o 'custo' de rest na prática."
+      ],
+      "verification": "3 testes novos (combat.test.ts). Suíte completa (106/1035) + tsc --noEmit + gundam-index.mjs (168 assinaturas, sem novo spec — é campo estrutural de CardDef) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase13_engine_gaps_etapa3_lote5_batch5": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — quinto lote (GD01-090, imunidade a redução de stat por efeito inimigo)",
+      "cards_unlocked": ["GD01-090"],
+      "engine_additions": [
+        "StatModifier.appliedBy?: PlayerId — quem CAUSOU o modificador (controller do efeito/keyword), não o dono da carta modificada. Opcional: ausente = origem desconhecida, nunca filtrado (preserva comportamento antigo pra todo caller não atualizado). Setado em compilePrimitive 'modifyStat' (effectSpec.ts, via ctx.controller) e em activateSupport (keywords.ts, via source.owner)",
+        "CardDef.innateStatReductionImmunity?: {stat, duringLinkOnly?} + hasStatReductionImmunity()/applicableStatModifiers() (types.ts) — filtra reduções (amount<0) de origem INIMIGA (appliedBy != card.owner) do cálculo de effectiveAp/effectiveHp quando a Unit (ou seu Pilot pareado, mesma convenção de 'this Unit' em texto de Pilot) tem a imunidade ativa. Reusa o lookup de Pilot pareado + satisfiesLinkCondition já existentes (Lote 3)"
+      ],
+      "test_robustness": "appliedBy é campo real em StatModifier/MODIFY_STAT de produção (não só de teste) — quebrou 5 asserções .toEqual([...]) de forma EXATA em testes pré-existentes e não relacionados (gd01.test.ts GD01-130, st01.test.ts x2, combat.test.ts, pendingDecision.test.ts, st01VsSt02Match.test.ts), cada uma corrigida adicionando o appliedBy correto ao literal esperado. Também invalidou os 13 hashes do golden master (serialização de evento mudou) — regenerados via 'pnpm gundam:golden:update' após confirmar que winner/reason/turnCount/eventCount de cada par ficaram idênticos (mudança é só no formato do log, não no comportamento das regras).",
+      "verification": "3 testes novos (gd01.test.ts). Suíte completa (106/1038) + tsc --noEmit + gundam-index.mjs (168 assinaturas, sem novo spec) + gundam-coverage.mjs + golden master regenerado, todos verdes."
+    },
+    "phase14_engine_gaps_etapa3_lote5_batch6": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — sexto lote (GD01-005, During Link + alvo implícito pós-Destroyed)",
+      "cards_unlocked": ["GD01-005"],
+      "engine_additions": [
+        "DestroyedInBattle ganhou wasLinkUnit (mesmo princípio de wasPaired, mas exige satisfazer o Link — Pilot pareado bate com `link` da Unit — não só estar pareada com qualquer Pilot) e formerPairedPilotId (o pairedPilotId de ANTES do DESTROY_CARD; a carta pode já ter ido pro trash via `pairedPilotFollowEvents`/CR 3-3-6, mas o motor acha por instanceId em qualquer zona)",
+        "EffectSpec.duringLink?: boolean — mesmo padrão de duringPair, só que gateado por wasLinkUnit em vez de wasPaired; consultado por dispatchDestroyedFromEffect/dispatchDestroyedTriggers",
+        "AbilitySource/AbilityQueueEntry ganharam implicitTargets?: Record<string,string[]> — alvo(s) que o motor já resolveu (não o jogador) antes de despachar um gatilho interativo, ex. {formerPairedPilot:[id]}; threadeado por deferOrDispatchAbilities (caminho imediato E caminho de fila) e mesclado em ctx.targets por resolveAbility (actions.ts) na hora de resolver",
+        "discardCandidateHandIds ganhou o 4º parâmetro implicitTargets — candidatos de descarte agora também incluem cartas que um moveZone(toZone:'hand') anterior no mesmo spec devolve à mão (mesmo espírito de já incluir cartas de um 'draw' anterior, ST04-002)"
+      ],
+      "verification": "12 testes novos (destroyedTrigger.test.ts, incluindo o caminho completo runCombat->pendingDecision(abilityResolution+implicitTargets)->resolveAbility, e o gate duringLink negativo com Pilot errado). Suíte completa (106/1041) + tsc --noEmit + gundam-index.mjs (169 assinaturas) + gundam-coverage.mjs + golden master regenerado (mesmo winner/reason/turnCount/eventCount em todos os pares — só a serialização mudou), todos verdes."
+    },
+    "phase15_engine_gaps_etapa3_lote5_batch7": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — sétimo lote (GD01-002, deploy alternativo por sacrifício de Link Unit)",
+      "cards_unlocked": ["GD01-002"],
+      "engine_additions": [
+        "CardDef.alternateDeploySacrifice?: {nameContains, level} — 'you may destroy 1 of your Link Units with X in its card name that is Lv.N. If you do, play this card as if it has 0 Lv. and cost.' Validado em deployCard (deploy.ts) via DeployOptions.sacrificeInstanceId novo: a Unit sacrificada precisa ser amiga, em campo, satisfazer Link (pareada + satisfiesLinkCondition) e bater nameContains/level. Se válido, pula canPayLevel/payCostEvents (freeDeploy) e o DESTROY_CARD do sacrifício entra no MESMO lote de eventos que o deploy da carta nova — a carta nova já fica em campo ANTES do 【Destroyed】 do sacrifício ser despachado (dispatchDestroyedFromEffect), então uma pausa ali (ex.: a própria GD01-005 tem 【During Link】【Destroyed】, fechada no batch anterior) não deixa nada pela metade — mesma convenção docs/45 (Rewloola matando Char's Zaku Ⅱ com a carta nova já em campo).",
+        "GD01-002 também tinha a cláusula trivial 【Attack】'Choose 1 enemy Unit. Rest it.' — EffectSpec direto, sem gap novo (reaproveita a primitiva 'rest' já existente)."
+      ],
+      "known_limitation": "legalActions.ts NÃO gera candidato pra essa via alternativa (bots/fuzzer só exploram o deploy normal, pagando custo de verdade) — mesma classe de simplificação documentada já aceita em outros lotes (ex. AbilityResolutionModal só singular); jogadores humanos/testes que passem sacrificeInstanceId explicitamente funcionam normalmente.",
+      "verification": "5 testes novos (deploy.test.ts: 4, incluindo o caminho completo com pausa/resolveAbility do 【Destroyed】 da sacrificada; gd01.test.ts: 1, pro 【Attack】). Suíte completa (106/1047) + tsc --noEmit + gundam-index.mjs (170 assinaturas) + gundam-coverage.mjs, todos verdes. Sem regressão no golden master (a via alternativa não é auto-explorada por bots)."
+    },
+    "phase16_engine_gaps_etapa3_lote5_batch8": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — oitavo lote (GD01-023, custo de descarte filtrado + condição + busca-e-pareamento na lixeira)",
+      "cards_unlocked": ["GD01-023"],
+      "engine_additions": [
+        "PrimitiveCall.discardNamed ganhou filter?: CardDefFilter — restringe a escolha de descarte (custo OU ação) por trait/cardType/nível; ausente = qualquer carta (comportamento de antes). Validado de novo em compilePrimitive (defesa em profundidade) e em buildQueueEntry (abilityDispatch.ts, pro caminho interativo — filtra discardCandidateHandIds pelo filter, se houver).",
+        "PrimitiveCall novo 'pairFromTrashSearch' (player, filter, name?) — mesmo padrão de searchTrashToHand (busca em ZONA INTEIRA, escolha em ctx.targets[name ?? 'trashSearch']), mas o destino é PAREAR com a fonte do efeito (ctx.sourceInstanceId; MOVE_CARD pra battleArea + PAIR_CARDS), não a mão. buildQueueEntry reusa o MESMO shape 'trashSearch' de searchTrashToHand (validação idêntica, só muda o destino).",
+        "predicate novo 'selfNotPaired' (predicates.ts) — negação de selfIsPaired (já existente); 'If a Pilot is not paired with this Unit, ...'.",
+        "GD01-023 ativa pelo caminho V0 já existente de activateAbility (mesmo de RASIDS_ORDERS_MAIN/GAMOW_ACTIVATE_ACTION) — quem chama resolve targets.discard/targets.trashSearch ANTES de ativar (sem pausa/PendingDecision); activateAbility NÃO foi alterado. A custo (discard) é pago mesmo quando a condição (selfNotPaired) é falsa — só o pareamento fica condicionado, igual a qualquer outro 'if' deste motor."
+      ],
+      "test_robustness": "server/deckCoverageGate.test.ts: o teste 'relata TODAS as cartas deferidas' dependia de >=2 códigos REALMENTE deferidos de GD01 (4ª vez nesta sessão que um lote fechado quebra esse fixture) — trocado por combinar os deferidos restantes de GD01 (agora só 1: GD01-065) com GD02-001 (carta real de outra wave, 0% implementada, ESTÁVEL — nunca 'fecha' pelo progresso do Lote 5 de GD01).",
+      "verification": "6 testes novos (gd01.test.ts, incluindo o caminho real via applyPlayerAction({kind:'activateAbility'})). Suíte completa (106/1053) + tsc --noEmit + gundam-index.mjs (171 assinaturas) + gundam-coverage.mjs, todos verdes."
+    },
+    "phase17_engine_gaps_etapa3_lote5_batch9_FINAL": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Lote 5 — nono e ÚLTIMO lote (GD01-065, gatilho reativo a QUALQUER pareamento de Unit branca) — 130/130 cartas de GD01 jogáveis",
+      "cards_unlocked": ["GD01-065"],
+      "engine_additions": [
+        "CardDef.onAnyPairing?: {requiresPairedUnitColor?} — 'When you pair a Pilot with this Unit or one of your white Units, ...' colapsa pra 'a Unit recém-pareada tem esta cor' (a própria fonte já tem essa cor, não precisa de 2 fontes separadas). oncePerTurn reusa o campo CardDef já existente.",
+        "EffectSpec.trigger novo 'AnyPairing' (só um valor de string livre, mesmo padrão de todo outro trigger) — despachado por collectNewPairings/dispatchAnyPairingFromEffect (abilityDispatch.ts), que diffam before/after por qualquer Unit que ganhou pairedPilotId novo (evento PAIR_CARDS), escaneiam o battleArea do controller por onAnyPairing e chamam deferOrDispatchAbilities — reusa 100% do mecanismo de 'choose 1 enemy Unit' já existente (pausa real, PendingDecision.abilityResolution).",
+        "2 pontos de disparo: deploy.ts (Pilot jogado da mão via playAsPilot) e dispatcher.ts (dentro do loop de dispatchTrigger, ao lado de dispatchDestroyedFromEffect — QUALQUER EffectSpec cujas primitivas pareiem, ex. pairFromTrashSearch de GD01-023, dispara também).",
+        "Achado corrigido ao implementar: deferOrDispatchAbilities (ao contrário de dispatchTrigger) não checava oncePerTurn sozinho — sem filtrar isso em dispatchAnyPairingFromEffect, uma 2ª ativação no mesmo turno pausaria pra escolha de novo (a marcação usedKeywordsThisTurn só acontece DEPOIS, quando resolveAbility finalmente chama dispatchTrigger). Corrigido filtrando fontes já usadas ANTES de montar a fila."
+      ],
+      "verification": "10 testes novos (deploy.test.ts: 4, caminho real via deployCard incluindo Once-per-Turn; gd01.test.ts: 2, incluindo prova do hook via dispatcher.ts com pairFromTrashSearch sintético). Suíte completa (106/1059) + tsc --noEmit + gundam-index.mjs (172 assinaturas) + gundam-coverage.mjs, todos verdes. Sem regressão no golden master (onAnyPairing é opt-in por CardDef, no-op pra qualquer carta sem o campo).",
+      "milestone": "Com este lote, os 130/130 cartas de GD01 estão jogáveis (deferred_pure_cards: 0). Restam só GD01-001/GD01-066 como 'implementada*' (polish, não bloqueia — ver polish_not_blocking) e o merge feature/wave-gd01 -> dev."
+    },
+    "phase6_file_split_etapa1": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Modularização de content/gd01.ts (2659 linhas) em pasta gd01/",
+      "structure": {
+        "gd01/effects.ts": "~1016 linhas — TOKEN_FATUM_00 + todos os EffectSpec bespoke + GD01_EFFECT_SPECS (mantidos num único arquivo: poucas referências cruzadas entre specs Main/Action da mesma carta tornariam uma quebra por lote arriscada para ganho só cosmético; ainda assim é redução de ~62% frente ao bloco original de CardDefs+EffectSpecs somados)",
+        "gd01/unitsBlue.ts": "GD01-001..022",
+        "gd01/unitsGreen.ts": "GD01-023..043",
+        "gd01/unitsRed.ts": "GD01-044..064",
+        "gd01/unitsWhite.ts": "GD01-065..086",
+        "gd01/pilots.ts": "GD01-087..098",
+        "gd01/commands.ts": "GD01-099..122",
+        "gd01/bases.ts": "GD01-123..130",
+        "gd01/index.ts": "barrel — funde os 7 chunks de CardDef em GD01_CARD_DEFS e reexporta tudo de effects.ts"
+      },
+      "compat": "content/gd01.ts removido (não virou re-export shim); resolução de diretório (./gd01 -> ./gd01/index.ts) preserva 100% dos imports existentes sem alteração, exceto 2 imports com extensão .ts explícita (scripts/gundam-coverage.mjs, server/deckCoverageGate.test.ts) que precisaram apontar pra gd01/index.ts.",
+      "verification": "gundam-index.mjs regenerado (155 assinaturas, idêntico a antes do split — sem drift de conteúdo), tsc --noEmit limpo, suíte completa (106 arquivos / 989 testes) verde, gundam-coverage.mjs rodado direto (sem exceções)."
     }
   },
   "deferred_summary": {
-    "total_clauses": 36,
-    "unique_engine_blockers": 26,
-    "next_engine_work_priority": [
-      {
-        "batch": 2,
-        "label": "Busca no Topo do Deck com Filtro Composto",
-        "effort": "baixo (~3-4h)",
-        "cards_unlocked": 2,
-        "tags": ["engine:busca-topo-deck-filtro-especifico"],
-        "cards": ["GD01-048", "GD01-109"]
-      },
-      {
-        "batch": 3,
-        "label": "StaticAbility com Condição Genérica + Aura de Piloto Condicional",
-        "effort": "médio (~1-2 dias)",
-        "cards_unlocked": 9,
-        "tags": ["engine:static-ability-keyword-condicao-generica", "engine:static-ability-condicao-generica", "engine:aura-piloto-condicional"],
-        "cards": ["GD01-019", "GD01-034", "GD01-054", "GD01-076", "GD01-081", "GD01-087", "GD01-089", "GD01-092", "GD01-096"],
-        "risco": "Aura de Piloto depende do ciclo de vida do pareamento (pairedWith) — precisa cessar imediatamente se o Piloto for destruído/bounced/despareado."
-      },
-      {
-        "batch": 4,
-        "label": "Escolha de Até N Alvos",
-        "effort": "médio (~1 dia)",
-        "cards_unlocked": 3,
-        "tags": ["engine:escolha-de-ate-n-alvos"],
-        "cards": ["GD01-044", "GD01-112", "GD01-114"]
-      },
-      {
-        "batch": 5,
-        "label": "Gaps bespoke restantes (1 carta por tag na maioria, avaliar caso a caso via RAG antes de generalizar; GD01-043 já tem a primitiva pronta — ver phase5_engine_gaps_batch1.bonus_unlock_available)",
-        "effort": "alto (variável)",
-        "cards_unlocked": 20,
-        "tags": [
-          "engine:deploy-alternativo-sacrificio", "engine:reciclagem-lixeira-deck",
-          "engine:during-link-e-alvo-implicito-pos-destroy", "engine:custo-dinamico-na-mao", "engine:busca-lixeira-e-pareamento-por-efeito",
-          "engine:escolha-de-posicao-para-1-carta-revelada", "engine:relaxamento-alvo-por-ap-nao-so-nivel", "engine:deploy-direto-do-topo-do-deck",
-          "engine:gatilho-por-uso-de-keyword", "engine:keyword-condicional-a-combate-especifico", "engine:gatilho-por-evento-de-pareamento",
-          "engine:busca-lixeira-para-mao", "engine:imunidade-a-reducao-de-stat",
-          "engine:protecao-continua-condicional", "engine:target-filter-relativo-a-propria-carta", "engine:combat-trigger-filtro-link-unit",
-          "engine:condicional-a-resultado-de-primitiva-anterior", "engine:multiplos-escopos-de-alvo-no-mesmo-spec", "engine:filtro-alvo-condicional"
-        ],
-        "cards": ["GD01-002", "GD01-003", "GD01-005", "GD01-016", "GD01-023", "GD01-039", "GD01-043", "GD01-045", "GD01-046", "GD01-063", "GD01-065", "GD01-067", "GD01-070", "GD01-090", "GD01-091", "GD01-093", "GD01-094", "GD01-095", "GD01-103", "GD01-122"]
-      }
-    ],
+    "total_clauses": 2,
+    "unique_engine_blockers": 2,
+    "next_engine_work_priority": [],
+    "lote5_complete": "Lote 5 (docs/debates 2026-09-13) fechado por completo — 9 batches, 5 cartas puramente deferidas fechadas nesta sessão (GD01-046 em batch anterior + GD01-090/005/002/023/065 nesta rodada, ver phase12-17_engine_gaps_etapa3_lote5_batch*). deferred_pure_cards: 0 — nenhuma carta de GD01 está mais totalmente bloqueada.",
     "polish_not_blocking": {
-      "note": "GD01-001 (engine:aura-concessao-keyword-grupo) e GD01-066 (engine:atacar-no-turno-do-deploy-fora-de-link) já são 'implementada*' — jogáveis hoje, só a 2ª cláusula de cada segue deferida. Fechar depois dos lotes 2-5, não bloqueia nada.",
+      "note": "GD01-001 (engine:aura-concessao-keyword-grupo) e GD01-066 (engine:atacar-no-turno-do-deploy-fora-de-link) já são 'implementada*' — jogáveis hoje, só a 2ª cláusula de cada segue deferida. Cada uma exige uma primitiva de motor genuína (aura de concessão de keyword EM GRUPO pra GD01-001; exceção de 'pode atacar no turno do deploy' atribuível a um token ESCOLHIDO, fora da regra nativa de Link Unit, pra GD01-066) — NÃO são quick-fixes. Fechar depois do resto do lote 5, não bloqueia nada.",
       "cards": ["GD01-001", "GD01-066"]
     }
   }

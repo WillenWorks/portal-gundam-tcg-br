@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isCardPlayable, validateDeckPayload } from "./deckCoverageGate.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
-import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01.ts";
+import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
 import type { CardDef } from "../src/modules/simulator/engine/types.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 
@@ -40,23 +40,33 @@ describe("deckCoverageGate — decks válidos (90 cartas GD01)", () => {
   });
 });
 
-describe("deckCoverageGate — decks com carta deferida (content/deferred.ts)", () => {
-  it("rejeita um deck com 1 carta deferida (GD01-002 Unicorn Gundam Destroy Mode) misturada com cartas válidas", () => {
-    const deck = deckOf([GD01_CARD_DEFS["GD01-008"], GD01_CARD_DEFS["GD01-035"], GD01_CARD_DEFS["GD01-002"]]);
+describe("deckCoverageGate — decks com carta sem cobertura no motor (0% implementada)", () => {
+  // 5ª vez nesta sessão que este fixture quebra por depender de quantos gaps de GD01
+  // ainda restam: com o Lote 5 inteiro fechado (GD01-002/005/023/065/090), `DEFERRED_CLAUSES`
+  // não tem mais NENHUM código de GD01 com `isCardPlayable` falso (GD01-001/066 são
+  // "implementada*" — têm EffectSpec real, só uma 2ª cláusula residual segue deferida, e por
+  // isso já SÃO jogáveis). Pra nunca mais depender do progresso de um lote específico,
+  // usa exclusivamente cartas SINTÉTICAS de outra wave (0% implementada por definição — ver
+  // describe "códigos inexistentes/fora do catálogo" logo abaixo, mesmo padrão).
+  const unplayable1: CardDef = { code: "GD02-001", nameEn: "Psycho Gundam", cardType: "UNIT", color: "red" };
+  const unplayable2: CardDef = { code: "GD02-002", nameEn: "Psyco Gundam Mk-II", cardType: "UNIT", color: "red" };
+
+  it("rejeita um deck com 1 carta sem cobertura misturada com cartas válidas", () => {
+    const deck = deckOf([GD01_CARD_DEFS["GD01-008"], GD01_CARD_DEFS["GD01-035"], unplayable1]);
     const validation = validateDeckPayload(deck);
     expect(validation.valid).toBe(false);
-    expect(validation.unplayableCards).toEqual(["GD01-002"]);
+    expect(validation.unplayableCards).toEqual(["GD02-001"]);
   });
 
-  it("relata TODAS as cartas deferidas do deck, não só a primeira", () => {
-    const deck = deckOf([GD01_CARD_DEFS["GD01-002"], GD01_CARD_DEFS["GD01-003"], GD01_CARD_DEFS["GD01-044"]]);
+  it("relata TODAS as cartas sem cobertura do deck, não só a primeira", () => {
+    const deck = deckOf([GD01_CARD_DEFS["GD01-008"], unplayable1, unplayable2]);
     const validation = validateDeckPayload(deck);
     expect(validation.valid).toBe(false);
-    expect(validation.unplayableCards).toEqual(["GD01-002", "GD01-003", "GD01-044"]);
+    expect(validation.unplayableCards).toEqual(["GD02-001", "GD02-002"]);
   });
 
-  it("isCardPlayable rejeita diretamente uma carta deferida", () => {
-    expect(isCardPlayable(GD01_CARD_DEFS["GD01-002"])).toBe(false);
+  it("isCardPlayable rejeita diretamente uma carta sem cobertura", () => {
+    expect(isCardPlayable(unplayable1)).toBe(false);
   });
 });
 

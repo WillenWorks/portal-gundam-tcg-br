@@ -30,13 +30,19 @@
     "preventAttackThisTurn": { "description": "Impede a Unit alvo de atacar neste turno.", "since": "ST04-015 Archangel" },
     "lookAtTopFilterReveal": { "description": "Olha o topo N do deck; pode revelar 1 carta que casa um filtro e somar à mão; o resto volta (embaralhado) pro fundo.", "since": "ST03-006 Char's Zaku Ⅱ" },
     "deployFromHandTriggered": { "description": "Deploya uma Unit da mão (escolhida, casando um CardDefFilter) sem pagar custo de ação nem de recurso.", "since": "ST03-010 Full Frontal" },
-    "deployThisCard": { "description": "Coloca a própria carta em campo (Burst), aplicando a regra de 1 Base; dispatcher.ts encadeia o 【Deploy】 dela em seguida.", "since": "GD01 (docs/47 Classe B — Burst→Deploy)" }
+    "deployThisCard": { "description": "Coloca a própria carta em campo (Burst), aplicando a regra de 1 Base; dispatcher.ts encadeia o 【Deploy】 dela em seguida.", "since": "GD01 (docs/47 Classe B — Burst→Deploy)" },
+    "deployFromTopFilterReveal": { "description": "Como lookAtTopFilterReveal, mas a carta escolhida vai DIRETO pra battleArea (deploy), não pra mão.", "since": "GD01-045 Duel Gundam (Assault Shroud) (Lote 5)" },
+    "searchTrashToHand": { "description": "Busca 1 carta que casa um CardDefFilter na LIXEIRA (zona inteira, sempre visível) e adiciona à mão.", "since": "GD01-067 Gundam Aerial Rebuild (Lote 5)" },
+    "moveTopCardToChosenPosition": { "description": "Move o TOPO do deck pra top ou bottom — a posição em si é escolha do jogador (enumChoice), não fixa por quem autora.", "since": "GD01-039 Dopp (Lote 5)" },
+    "returnTrashToDeckAndShuffle": { "description": "Move até N cartas da lixeira (as N primeiras, sem escolha real) pro deck do dono e re-embaralha (createRng(seed ^ eventLog.length)).", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" },
+    "pairFromTrashSearch": { "description": "Busca 1 Pilot que casa um CardDefFilter na LIXEIRA e pareia com a fonte do efeito (mesmo padrão de searchTrashToHand, destino é parear, não a mão).", "since": "GD01-023 Char's Gelgoog (Lote 5)" }
   },
   "targetRefKinds": {
     "self": { "description": "A própria fonte do efeito.", "since": "ST01" },
     "pairedUnit": { "description": "A Unit pareada com a fonte (ou a própria fonte, se ela já é Unit) — pra efeito de Pilot cujo texto diz \"this Unit\".", "since": "ST01" },
     "instance": { "description": "instanceId literal, já conhecido em tempo de autoria/teste.", "since": "ST01" },
     "named": { "description": "Grupo de alvo nomeado, resolvido ANTES pela camada de decisão (UI/IA/teste) e injetado em EffectContext.targets.", "since": "ST01" },
+    "namedGroup": { "description": "Como \"named\", mas consome o array INTEIRO de ctx.targets[name] (0..EffectSpec.targetCount.max), não só group[0] — \"Choose 1 to 2 ...\"/\"Choose 2 ...\".", "since": "GD01-044 Kshatriya (Lote 4)" },
     "group": { "description": "Grupo COLETIVO computado dinamicamente a partir de ctx.state (TargetGroup) — sem escolha externa.", "since": "ST01" }
   },
   "targetGroupKinds": {
@@ -55,6 +61,7 @@
     "attackingEnemyUnit": { "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).", "since": "GD01-050 LaGOWE" },
     "attackingPlayer": { "description": "Verdadeiro se o combate atual tem o jogador oponente como alvo original (não uma Unit).", "since": "GD01-059 Zee Zulu" },
     "pairedPilotHasTrait:<value>": { "description": "O Pilot pareado com a fonte tem o trait dado.", "since": "ST01-002 Gundam (MA Form)" },
+    "pairedPilotHasAnyTrait:<value>": { "description": "O Pilot pareado com a fonte tem QUALQUER UM dos traits dados (OR, separados por vírgula).", "since": "GD01-044 Kshatriya (Lote 4)" },
     "cardInTrashNamed:<value>": { "description": "O trash do controller tem uma carta cujo nome EN contém o valor dado.", "since": "ST02-016 Corsica Base" },
     "selfApAtLeast:<n>": { "description": "AP efetivo da própria fonte é >= N.", "since": "ST04-006 Aegis Gundam" },
     "controllerHasOtherLinkUnit": { "description": "O controller tem outra Link Unit em campo (além da fonte).", "since": "ST04-009 Miguel's Ginn" },
@@ -71,7 +78,10 @@
     "controllerOtherUnitCountAtLeast:<n>": { "description": "O controller tem N+ outras Units em campo (além da fonte).", "since": "GD01-001 Gundam" },
     "selfIsLinkUnit": { "description": "A própria fonte (Unit) é Link Unit agora.", "since": "GD01-073 Sword Strike Gundam" },
     "selfIsPaired": { "description": "A própria fonte (Unit) tem Pilot pareado agora (sem checar Link).", "since": "GD01-082 Gundam Aerial (Mirasoul Flight Unit)" },
-    "controllerTrashUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas Unit com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles).", "since": "GD01-027 Big Zam" }
+    "selfNotPaired": { "description": "A própria fonte (Unit) NÃO tem Pilot pareado agora — negação de selfIsPaired.", "since": "GD01-023 Char's Gelgoog (Lote 5)" },
+    "controllerTrashUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas Unit com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles).", "since": "GD01-027 Big Zam" },
+    "chosenNonEmpty:<value>": { "description": "A escolha nomeada ctx.targets[<value>] (já resolvida pela camada de decisão antes de resolveEffectSpec rodar) não é vazia — usado pra \"if you do\"/\"choose 2 ... if you do\" quando a condição é sobre a MESMA escolha que a primitiva vai consumir.", "since": "GD01-095 Dearka Elthman / GD01-112 Extreme Hatred (Lote 5)" },
+    "controllerTrashCountAtLeast:<n>": { "description": "O trash do controller tem N+ cartas (contagem simples, qualquer tipo) — usado pra \"if you do\" quando não há escolha de jogador envolvida, só estado de board antes da primitiva rodar.", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },
@@ -82,6 +92,9 @@
     "trait:<value>": { "description": "Candidato tem o trait dado.", "since": "GD01-049 Blitz Gundam" },
     "ap>=<n>": { "description": "AP efetivo do candidato >= N.", "since": "GD01-049 Blitz Gundam" },
     "rested": { "description": "Candidato está rested.", "since": "ST0x — Thoroughly Damaged / Suletta Mercury" },
+    "active": { "description": "Candidato NÃO está rested (oposto de \"rested\").", "since": "GD01-103/GD01-112 (Lote 5)" },
+    "level<=self": { "description": "Nível do candidato <= nível da PRÓPRIA fonte do efeito (relativo, não um número literal — precisa de sourceInstanceId em TargetFilterResolver/computeLegalTargets). Se a fonte é Pilot, resolve pra Unit pareada.", "since": "GD01-093 Marida Cruz (Lote 5)" },
+    "hp<=conditionalLinkUnit:<n>:<n>": { "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.", "since": "GD01-122 Covert Operative (Lote 5)" },
     "linkUnit": { "description": "Candidato é Link Unit agora.", "since": "GD01-101 Deep Devotion" },
     "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" }
   }

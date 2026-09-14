@@ -12,6 +12,32 @@
     "sourceText": "【When Paired】If you have 2 or more other Units in play, draw 1."
   },
   {
+    "id": "GD01-002-Attack",
+    "cardCode": "GD01-002",
+    "trigger": "Attack",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit. Rest it."
+  },
+  {
+    "id": "GD01-003-Attack",
+    "cardCode": "GD01-003",
+    "trigger": "Attack",
+    "ops": [
+      "returnTrashToDeckAndShuffle",
+      "setActive",
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfIsLinkUnit;controllerTrashCountAtLeast:1",
+    "sourceText": "【During Link】【Attack】Choose 12 cards from your trash. Return them to their owner's deck and shuffle it. If you do, set this Unit as active. It gains <First Strike> during this turn."
+  },
+  {
     "id": "GD01-004-WhenPaired",
     "cardCode": "GD01-004",
     "trigger": "When Paired",
@@ -22,6 +48,19 @@
     "targetFilter": "hp<=2",
     "predicate": null,
     "sourceText": "【When Paired】Choose 1 enemy Unit with 2 or less HP. Rest it."
+  },
+  {
+    "id": "GD01-005-Destroyed",
+    "cardCode": "GD01-005",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Destroyed】Return this Unit's paired Pilot to its owner's hand. Then, discard 1."
   },
   {
     "id": "GD01-007-Destroyed",
@@ -118,6 +157,19 @@
     "targetFilter": "rested",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD01-023-ActivateMain",
+    "cardCode": "GD01-023",
+    "trigger": "Activate·Main",
+    "ops": [
+      "discardNamed",
+      "pairFromTrashSearch"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfNotPaired",
+    "sourceText": "【Activate･Main】Discard 1 (Zeon)/(Neo Zeon) Unit card：If a Pilot is not paired with this Unit, choose 1 (Newtype) Pilot card that is Lv.3 or lower from your trash. Pair it with this Unit."
   },
   {
     "id": "GD01-024-Deploy",
@@ -217,6 +269,54 @@
     "sourceText": "【Deploy】If 5 or more enemy Units are in play, deal 1 damage to all enemy Units."
   },
   {
+    "id": "GD01-039-Deploy",
+    "cardCode": "GD01-039",
+    "trigger": "Deploy",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
+  },
+  {
+    "id": "GD01-043-Deploy",
+    "cardCode": "GD01-043",
+    "trigger": "Deploy",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "color:green",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your green Units. During this turn, it may choose an active enemy Unit with 4 or less AP as its attack target."
+  },
+  {
+    "id": "GD01-044-WhenPaired",
+    "cardCode": "GD01-044",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "pairedPilotHasAnyTrait:Cyber-Newtype,Newtype",
+    "sourceText": "【When Paired･(Cyber-Newtype)/(Newtype) Pilot】Choose 1 to 2 enemy Units. Deal 1 damage to them."
+  },
+  {
+    "id": "GD01-045-WhenPaired",
+    "cardCode": "GD01-045",
+    "trigger": "When Paired",
+    "ops": [
+      "deployFromTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Look at the top 3 cards of your deck. You may deploy 1 (ZAFT) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
     "id": "GD01-047-Attack",
     "cardCode": "GD01-047",
     "trigger": "Attack",
@@ -227,6 +327,18 @@
     "targetFilter": null,
     "predicate": "controllerOtherRestedUnitCountAtLeast:2",
     "sourceText": "【Attack】If 2 or more other rested friendly Units are in play, choose 1 enemy Unit. Deal 3 damage to it."
+  },
+  {
+    "id": "GD01-048-Deploy",
+    "cardCode": "GD01-048",
+    "trigger": "Deploy",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Look at the top card of your deck. If it is a (Zeon)/(Neo Zeon) Unit card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck."
   },
   {
     "id": "GD01-049-Deploy",
@@ -314,6 +426,18 @@
     "sourceText": "【Attack】If you are attacking the enemy player, this Unit gets AP+2 during this battle."
   },
   {
+    "id": "GD01-065-AnyPairing",
+    "cardCode": "GD01-065",
+    "trigger": "AnyPairing",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Pair】【Once per Turn】When you pair a Pilot with this Unit or one of your white Units, choose 1 enemy Unit. It gets AP-2 during this turn."
+  },
+  {
     "id": "GD01-066-Deploy",
     "cardCode": "GD01-066",
     "trigger": "Deploy",
@@ -324,6 +448,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Deploy 1 [Fatum-00]((Triple Ship Alliance)･AP2･HP2･<Blocker>) Unit token."
+  },
+  {
+    "id": "GD01-067-WhenPaired",
+    "cardCode": "GD01-067",
+    "trigger": "When Paired",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 Command card that is Lv.5 or lower from your trash. Add it to your hand."
   },
   {
     "id": "GD01-068-Deploy",
@@ -448,6 +584,31 @@
     "sourceText": "【When Linked】Draw 1."
   },
   {
+    "id": "GD01-093-Attack",
+    "cardCode": "GD01-093",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=self",
+    "predicate": "sourcePairedUnitIsLinkUnit",
+    "sourceText": "【During Link】【Attack】Choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD01-095-WhenLinked",
+    "cardCode": "GD01-095",
+    "trigger": "When Linked",
+    "ops": [
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "chosenNonEmpty:discard",
+    "sourceText": "【When Linked】Discard 1. If you do, draw 1."
+  },
+  {
     "id": "GD01-097-ActivateMain",
     "cardCode": "GD01-097",
     "trigger": "Activate·Main",
@@ -531,6 +692,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】All friendly Units that are Lv.4 or lower recover 2 HP."
+  },
+  {
+    "id": "GD01-103-Main",
+    "cardCode": "GD01-103",
+    "trigger": "Main",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Earth Federation;active",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 active friendly (Earth Federation) Unit and 1 active enemy Unit. Rest them."
   },
   {
     "id": "GD01-104-Burst",
@@ -617,6 +791,18 @@
     "sourceText": "【Main】Deal 2 damage to all Units with <Blocker>."
   },
   {
+    "id": "GD01-109-Main",
+    "cardCode": "GD01-109",
+    "trigger": "Main",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Look at the top 5 cards of your deck. You may reveal 1 (Operation Meteor)/(G Team) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
     "id": "GD01-110-Action",
     "cardCode": "GD01-110",
     "trigger": "Action",
@@ -653,6 +839,19 @@
     "sourceText": "【Burst】Choose 1 enemy Unit. Deal 2 damage to it."
   },
   {
+    "id": "GD01-112-Main",
+    "cardCode": "GD01-112",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active",
+    "predicate": "chosenNonEmpty:target",
+    "sourceText": "【Main】Choose 2 of your active Units. Rest them. If you do, choose 1 enemy Unit. Deal 3 damage to it."
+  },
+  {
     "id": "GD01-113-Action",
     "cardCode": "GD01-113",
     "trigger": "Action",
@@ -675,6 +874,18 @@
     "targetFilter": "trait:ZAFT",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 friendly (ZAFT) Unit. It gets AP+3 during this turn."
+  },
+  {
+    "id": "GD01-114-Action",
+    "cardCode": "GD01-114",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】Choose 2 friendly Units. They get AP+1 during this turn."
   },
   {
     "id": "GD01-115-Main",
@@ -809,6 +1020,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】Choose 1 rested Unit with <Blocker>. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "GD01-122-Main",
+    "cardCode": "GD01-122",
+    "trigger": "Main",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=conditionalLinkUnit:2:4",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit with 2 or less HP. Return it to its owner's hand. If you have a Link Unit in play, choose 1 enemy Unit with 4 or less HP instead."
   },
   {
     "id": "GD01-123-Burst",

@@ -66,7 +66,7 @@ function perPlayerFeatures(player: ViewPlayerState, state: GameState): number[] 
     totalAp / 40,
     totalHp / 40,
     units.filter((u) => u.rested).length / 6,
-    units.filter((u) => hasKeyword(u, "Blocker")).length / 6,
+    units.filter((u) => hasKeyword(u, "Blocker", state)).length / 6,
     units.filter((u) => u.damage > 0).length / 6,
     remHp / 40,
     base ? 1 : 0,

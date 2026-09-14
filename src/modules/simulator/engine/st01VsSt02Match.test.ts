@@ -242,7 +242,7 @@ describe("partida real ST01 vs ST02 (docs/18, motor de jogo real + gaps document
       specs: ALL_SPECS,
       targets: { target: [sandrockId] }, // AERIAL_SCORE_SIX_WHEN_PAIRED: Sandrock (Lv4) recebe AP-3
     });
-    expect(findCard(state, sandrockId).statModifiers).toEqual([{ stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber }]);
+    expect(findCard(state, sandrockId).statModifiers).toEqual([{ stat: "ap", amount: -3, duration: "endOfTurn", appliedOnTurn: state.turnNumber, appliedBy: "A" }]);
 
     const guntankId = mkInstance(state, "A", ST01_CARD_DEFS.GUNTANK, "hand");
     state = deployCard(state, "A", guntankId, { specs: ALL_SPECS, targets: { target: [leoId] } }); // GUNTANK_DEPLOY: Leo (HP2) fica rested

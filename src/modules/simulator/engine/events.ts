@@ -8,6 +8,7 @@ import type {
   Zone,
 } from "./types";
 import { effectiveHp } from "./types";
+import { createRng, shuffleInPlace } from "./rng";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
   const instance: CardInstance = {
@@ -433,6 +434,18 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const [card] = deck.splice(idx, 1);
       if (event.position === "top") deck.unshift(card);
       else deck.push(card);
+      return state;
+    }
+    case "RETURN_TRASH_TO_DECK_SHUFFLE": {
+      const player = state.players[event.player];
+      for (const id of event.instanceIds) {
+        const idx = player.trash.findIndex((c) => c.instanceId === id);
+        if (idx === -1) continue;
+        const [card] = player.trash.splice(idx, 1);
+        card.zone = "deck";
+        player.deck.push(card);
+      }
+      shuffleInPlace(player.deck, createRng(state.seed ^ state.eventLog.length));
       return state;
     }
     case "SET_SHIELD_PROTECTION": {

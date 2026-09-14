@@ -327,7 +327,7 @@ function applyPlayerActionInner(
       }
 
       // Sem EffectSpec de 【Activate·Main】 — cai em `<Support N>` (keyword de motor).
-      if (hasKeyword(source, "Support")) {
+      if (hasKeyword(source, "Support", state)) {
         const supportTargetId = action.targets?.target?.[0];
         if (!supportTargetId) throw new Error("<Support> precisa de uma Unit amiga alvo (targets.target[0])");
         return activateSupport(state, action.sourceInstanceId, supportTargetId);
@@ -435,12 +435,14 @@ function applyPlayerActionInner(
         const handDiscard = q.handDiscard;
         const deckReorder = q.deckReorder;
         const enumChoice = q.enumChoice;
+        const trashSearch = q.trashSearch;
 
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
         // (não é "may") — não caem nos `continue` de skip; a validação abaixo
-        // exige a escolha.
-        if (!deckReveal && !handDiscard && !deckReorder && !enumChoice) {
+        // exige a escolha. `trashSearch` (GD01-067) é como `deckReveal` — "não
+        // escolher" é um caminho legal (nada sai da lixeira, sem custo nenhum).
+        if (!deckReveal && !handDiscard && !deckReorder && !enumChoice && !trashSearch) {
           // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
           if (!r.activate) continue;
           if (q.needsTarget && r.targetIds.length === 0) continue;
@@ -452,6 +454,12 @@ function applyPlayerActionInner(
         // que o cliente manda de volta aqui.
         if (q.needsTarget && r.targetIds.length > 0 && !r.targetIds.every((id) => q.legalTargets.includes(id))) {
           throw new Error(`Alvo inválido pra ${r.specId} — não está entre os alvos legais.`);
+        }
+        // Lote 4 (docs/debates 2026-09-13) — "Choose 1 to 2"/"Choose 2 ...": nunca mais
+        // que `max`, sem repetir. Não força um piso mínimo aqui (mesma leniência já
+        // existente pra alvo singular — cliente pode sempre "declinar").
+        if (q.targetCount && (r.targetIds.length > q.targetCount.max || new Set(r.targetIds).size !== r.targetIds.length)) {
+          throw new Error(`Escolha de alvos inválida pra ${r.specId} — no máximo ${q.targetCount.max}, sem repetir.`);
         }
         if (handChoice && r.targetIds.length > 0 && !r.targetIds.every((id) => handChoice.legalHandIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da mão.`);
@@ -478,6 +486,9 @@ function applyPlayerActionInner(
             throw new Error(`Escolha inválida pra ${r.specId} — opções: ${values.join(" / ")}.`);
           }
         }
+        if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
+          throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
+        }
 
         // Só `target` — NUNCA aliasar pra `shield`: um EffectSpec que combina
         // `addShieldToHand` + alvo nomeado (ex. ST03-015 Rewloola "Add 1 Shield
@@ -492,6 +503,11 @@ function applyPlayerActionInner(
         if (handDiscard) targets.discard = r.targetIds;
         if (deckReorder) deckReorder.slots.forEach((slot, i) => { targets[slot.name] = r.targetIds[i] ? [r.targetIds[i]] : []; });
         if (enumChoice) targets[enumChoice.key] = r.targetIds;
+        if (trashSearch) targets.trashSearch = r.targetIds;
+        // Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) que o motor já
+        // resolveu (ex. `formerPairedPilot`, ver `DestroyedInBattle.formerPairedPilotId`),
+        // não escolhidos pelo jogador.
+        if (q.implicitTargets) Object.assign(targets, q.implicitTargets);
 
         if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {

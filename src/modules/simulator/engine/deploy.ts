@@ -1,10 +1,10 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
-import { effectivePilotDef, satisfiesLinkCondition } from "./types";
+import { effectiveCost, effectivePilotDef, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { deferOrDispatchAbilities, filterDispatchableSpecs } from "./abilityDispatch";
+import { deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -53,6 +53,17 @@ export interface DeployOptions {
   targets?: Record<string, string[]>;
   predicateResolver?: PredicateResolver;
   targetFilterResolver?: TargetFilterResolver;
+  /**
+   * Lote 5 (docs/debates 2026-09-13) — GD01-002: instanceId de uma Unit amiga (Link
+   * Unit, batendo com `CardDef.alternateDeploySacrifice`) que o jogador escolhe
+   * DESTRUIR pra jogar esta carta como se tivesse 0 Lv. e custo. Ausente = deploy
+   * normal (paga custo/nível de verdade). O sacrifício dispara o 【Destroyed】 da Unit
+   * sacrificada (via `dispatchDestroyedFromEffect`, mesmo caminho de qualquer destroy
+   * fora de combate) ANTES do deploy desta carta — se isso pausar (ex.: a própria
+   * GD01-005 "Unicorn Mode" tem 【During Link】【Destroyed】), o deploy fica pendente
+   * até o jogador resolver.
+   */
+  sacrificeInstanceId?: string;
 }
 
 export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): boolean {
@@ -63,7 +74,7 @@ export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): b
 // extraído pra costs.ts (payResourceCostEvents) — reaproveitado também pela primitiva de
 // DSL `payResourceCost` (ver effectSpec.ts, docs/18 lacuna #4, ex. ST02-006 Tallgeese "④").
 function payCostEvents(state: GameState, player: PlayerId, def: CardDef, resourceInstanceIds?: string[]): GameEvent[] {
-  return payResourceCostEvents(state, player, def.cost ?? 0, resourceInstanceIds);
+  return payResourceCostEvents(state, player, effectiveCost(def, state, player), resourceInstanceIds);
 }
 
 /** Joga uma carta Unit/Pilot/Base da mão (Comprehensive Rules 7 — Main Phase). */
@@ -83,13 +94,43 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   if (def.cardType === "COMMAND" && !def.pilotMode) throw new Error("Command não usa deployCard — ver playCommand()");
   if (def.cardType === "RESOURCE") throw new Error("Resource não é jogado da mão via deployCard — é comprado na Resource Phase");
 
-  if (!canPayLevel(state, player, def)) {
+  // Lote 5 (docs/debates 2026-09-13) — GD01-002: deploy alternativo por sacrifício de
+  // Link Unit. Validado ANTES da checagem de nível/custo normal — se válido, ambos
+  // são tratados como satisfeitos ("play this card as if it has 0 Lv. and cost"). O
+  // DESTROY_CARD do sacrifício entra no MESMO lote de eventos que o próprio deploy
+  // (aplicados juntos, abaixo) — só DEPOIS de a carta nova já estar em campo é que o
+  // 【Destroyed】 do sacrifício é despachado (pode pausar, ex.: a própria GD01-005 tem
+  // 【During Link】【Destroyed】 — mesma convenção de "carta já em campo, pausa só afeta
+  // o que vem depois" do docs/45, Rewloola matando Char's Zaku Ⅱ).
+  const base = state;
+  let freeDeploy = false;
+  if (options.sacrificeInstanceId) {
+    const altSac = def.alternateDeploySacrifice;
+    if (!altSac) throw new Error(`${def.code} não tem deploy alternativo por sacrifício de Link Unit`);
+    const sac = findCard(state, options.sacrificeInstanceId);
+    if (sac.owner !== player || sac.zone !== "battleArea") {
+      throw new Error("A Unit sacrificada precisa ser amiga e estar na Battle Area");
+    }
+    const sacPilot = sac.pairedPilotId ? findCard(state, sac.pairedPilotId) : undefined;
+    const sacIsLinkUnit = !!sacPilot && satisfiesLinkCondition(effectivePilotDef(sacPilot), sac.def);
+    if (!sacIsLinkUnit || !sac.def.nameEn.includes(altSac.nameContains) || (sac.def.level ?? 0) !== altSac.level) {
+      throw new Error(
+        `A Unit sacrificada pra jogar ${def.code} precisa ser uma Link Unit com "${altSac.nameContains}" no nome e Lv.${altSac.level}`,
+      );
+    }
+    freeDeploy = true;
+  }
+
+  if (!freeDeploy && !canPayLevel(base, player, def)) {
     throw new Error(
-      `Nível insuficiente pra jogar ${def.code}: precisa de ${def.level ?? 0} recursos em campo, tem ${state.players[player].resourceArea.length}`,
+      `Nível insuficiente pra jogar ${def.code}: precisa de ${def.level ?? 0} recursos em campo, tem ${base.players[player].resourceArea.length}`,
     );
   }
 
-  const events: GameEvent[] = payCostEvents(state, player, def, options.resourceInstanceIds);
+  const events: GameEvent[] = freeDeploy ? [] : payCostEvents(base, player, def, options.resourceInstanceIds);
+  if (freeDeploy && options.sacrificeInstanceId) {
+    events.push({ type: "DESTROY_CARD", instanceId: options.sacrificeInstanceId });
+  }
 
   if (def.cardType === "UNIT") {
     // V2 (docs/27): a jogada NUNCA é bloqueada pelo limite de 6 Units — a
@@ -100,7 +141,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     // só ser tratada DEPOIS de ela entrar em campo.
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "battleArea" });
   } else if (def.cardType === "BASE") {
-    const existing = state.players[player].baseSection[0];
+    const existing = base.players[player].baseSection[0];
     if (existing) {
       // regra confirmada: a Base excedente vai pro trash, mas NÃO é "destruída" —
       // por isso MOVE_CARD, nunca DESTROY_CARD (não dispara gatilho Destroyed).
@@ -115,7 +156,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "baseSection" });
   } else if (playAsPilot) {
     if (!options.pairWithUnitId) throw new Error("Pilot precisa de uma Unit amiga escolhida pra parear ao ser jogado (Comprehensive Rules 3-3-1)");
-    const unit = findCard(state, options.pairWithUnitId);
+    const unit = findCard(base, options.pairWithUnitId);
     if (unit.owner !== player || unit.zone !== "battleArea") {
       throw new Error("A Unit de pareamento precisa ser amiga e estar na Battle Area");
     }
@@ -130,9 +171,31 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     });
   }
 
-  let next = applyEvents(state, events);
+  let next = applyEvents(base, events);
 
   const specs = options.specs ?? [];
+
+  if (freeDeploy && options.sacrificeInstanceId) {
+    // GD01-002: dispara o 【Destroyed】 da Unit sacrificada — a carta nova já está em
+    // campo (evento acima), então uma pausa aqui (ex.: 【During Link】【Destroyed】 da
+    // própria GD01-005) não deixa nada "pela metade".
+    next = dispatchDestroyedFromEffect(base, next, specs, {
+      predicateResolver: options.predicateResolver,
+      targetFilterResolver: options.targetFilterResolver,
+    });
+    if (next.pendingDecision.A || next.pendingDecision.B) return next;
+  }
+
+  // Lote 5 (docs/debates 2026-09-13) — GD01-065: jogar um Pilot da mão (PAIR_CARDS
+  // acima, só quando `playAsPilot`) pode reagir em Units do controller com
+  // `CardDef.onAnyPairing` — no-op (collectNewPairings vazio) pra deploy de
+  // Unit/Base, que não pareia nada.
+  next = dispatchAnyPairingFromEffect(base, next, specs, {
+    predicateResolver: options.predicateResolver,
+    targetFilterResolver: options.targetFilterResolver,
+  });
+  if (next.pendingDecision.A || next.pendingDecision.B) return next;
+
   if (specs.length > 0) {
     // 【Deploy】 passa pelo MESMO mecanismo de pausa que 【When Paired】/【Attack】
     // (`deferOrDispatchAbilities`) — antes ia direto por `dispatchTrigger`, que

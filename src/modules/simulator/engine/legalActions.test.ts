@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { advanceToMainPhase } from "./phases";
-import { declareAttack, proceedToBlockStep } from "./combat";
+import { declareAttack, proceedToBlockStep, skipBlock } from "./combat";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
-import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
+import { ALL_EFFECT_SPECS, GD01_CARD_DEFS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { actionOwner, enumerateLegalActions } from "./legalActions";
 
 /**
@@ -141,5 +141,62 @@ describe("enumerateLegalActions", () => {
     const state = mainPhaseGame();
     const raw = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, { ...OPTS, validate: false });
     expect(raw.some((a) => a.kind === "finishTurn")).toBe(true);
+  });
+
+  it("Action Step: GD01-114 (targetCount {2,2}) gera 1 candidato com os 2 alvos, não 1 por alvo (Lote 4, docs/debates 2026-09-13)", () => {
+    const state = advanceToMainPhase(createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 1, firstPlayer: "B" }));
+    giveResources(state, "A", 4);
+    giveResources(state, "B", 4);
+    const unit1 = place(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    const unit2 = place(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    place(state, "A", GD01_CARD_DEFS["GD01-114"], "hand");
+    const attackerB = place(state, "B", ST01_CARD_DEFS.GUNDAM, "battleArea");
+
+    // B ataca A diretamente -> defendingPlayer = A -> actionPriority começa em A (events.ts DECLARE_ATTACK).
+    let combatState = declareAttack(state, attackerB, "player");
+    combatState = proceedToBlockStep(combatState);
+    combatState = skipBlock(combatState);
+    expect(actionOwner(combatState)).toBe("A");
+
+    const actions = enumerateLegalActions(combatState, "A", ALL_EFFECT_SPECS, OPTS);
+    const plays = actions.filter((a) => a.kind === "playCommand" && a.trigger === "Action");
+    expect(plays).toHaveLength(1); // não 1 candidato por combinação/alvo — escolha gulosa determinística
+    const play = plays[0];
+    expect(play.kind === "playCommand" && play.targets?.target).toEqual(expect.arrayContaining([unit1, unit2]));
+    expect(play.kind === "playCommand" && play.targets?.target).toHaveLength(2);
+
+    // a validação por aplicação de teste (trial-apply) já rodou dentro de enumerateLegalActions —
+    // prova que resolveAbility/dispatchTrigger aceitam de fato os 2 alvos (não só o candidato cru).
+  });
+
+  it("Main Phase: GD01-103 (secondaryTarget) gera 1 candidato com os 2 pools preenchidos (amigo + inimigo) — Lote 5, docs/debates 2026-09-13", () => {
+    const state = mainPhaseGame();
+    giveResources(state, "A", 4);
+    const friendlyId = place(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea"); // Gundam, Earth Federation, active
+    place(state, "A", GD01_CARD_DEFS["GD01-103"], "hand");
+    const enemyId = place(state, "B", GD01_CARD_DEFS["GD01-064"], "battleArea");
+
+    const actions = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS);
+    const plays = actions.filter((a) => a.kind === "playCommand" && a.trigger === "Main");
+    expect(plays).toHaveLength(1);
+    const play = plays[0];
+    expect(play.kind === "playCommand" && play.targets?.target).toEqual([friendlyId]);
+    expect(play.kind === "playCommand" && play.targets?.enemyTarget).toEqual([enemyId]);
+  });
+
+  it("Main Phase: GD01-112 (targetCount {2,2} + secondaryTarget) gera 1 candidato com 2 alvos amigos + 1 inimigo, todos aceitos pelo trial-apply", () => {
+    const state = mainPhaseGame();
+    giveResources(state, "A", 6); // GD01-112 é Lv.6
+    const unit1 = place(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    const unit2 = place(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea");
+    place(state, "A", GD01_CARD_DEFS["GD01-112"], "hand");
+    const enemyId = place(state, "B", GD01_CARD_DEFS["GD01-047"], "battleArea");
+
+    const actions = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS);
+    const plays = actions.filter((a) => a.kind === "playCommand" && a.trigger === "Main");
+    expect(plays).toHaveLength(1);
+    const play = plays[0];
+    expect(play.kind === "playCommand" && play.targets?.target).toEqual(expect.arrayContaining([unit1, unit2]));
+    expect(play.kind === "playCommand" && play.targets?.enemyTarget).toEqual([enemyId]);
   });
 });

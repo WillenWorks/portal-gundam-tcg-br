@@ -51,7 +51,7 @@ const { ST01_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st01D
 const { ST02_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st02Deck.ts");
 const { ST03_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st03Deck.ts");
 const { ST04_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st04Deck.ts");
-const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01.ts");
+const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/index.ts");
 
 const DEF_BY_CODE = new Map();
 for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, GD01_CARD_DEFS]) {

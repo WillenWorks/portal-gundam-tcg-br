@@ -3,7 +3,7 @@ import { otherPlayer } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { computeLegalTargets, resolveEffectSpec, specNeedsNamedTarget } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { checkTriggerLoopGuard, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
+import { checkTriggerLoopGuard, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
 
 /**
@@ -116,6 +116,17 @@ export function dispatchTrigger(
     });
     if (next.gameOver) break; // guard estourou dentro da cascata de Destroyed
 
+    // Lote 5 (docs/debates 2026-09-13) — GD01-065: qualquer primitiva que pareou
+    // (ex. `pairFromTrashSearch`, GD01-023) dispara "AnyPairing" pra Units reativas
+    // do controller (mesmo mecanismo do 【Destroyed】 acima, mas escutando PAIR_CARDS).
+    next = dispatchAnyPairingFromEffect(before, next, allSpecs, {
+      predicateResolver: opts.predicateResolver,
+      targetFilterResolver: opts.targetFilterResolver,
+      cascadeDepth: cascadeDepth + 1,
+      queueBudget,
+    });
+    if (next.gameOver || next.pendingDecision[current.owner]) break;
+
     // docs/47 Classe B — 【Burst】Deploy this card: a `deployThisCard` acabou de
     // pôr a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token
     // / dano). Burst só acontece no Damage Step, então alvo nomeado é auto-mirado
@@ -127,7 +138,7 @@ export function dispatchTrigger(
         const autoTargets: Record<string, string[]> = {};
         for (const ds of deployTriggerSpecs) {
           if (!specNeedsNamedTarget(ds)) continue;
-          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver);
+          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver, current.instanceId);
           if (legal.length > 0) autoTargets.target = [legal[0]];
         }
         const dispatchable = filterDispatchableSpecs(
