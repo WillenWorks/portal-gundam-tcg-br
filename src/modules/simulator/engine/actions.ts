@@ -59,6 +59,7 @@ export type PlayerAction =
       cardInstanceId: string;
       resourceInstanceIds?: string[];
       pairWithUnitId?: string;
+      sacrificeInstanceId?: string;
       targets?: Record<string, string[]>;
     }
   | {
@@ -181,6 +182,7 @@ function applyPlayerActionInner(
       return deployCard(state, actingPlayer, action.cardInstanceId, {
         resourceInstanceIds: action.resourceInstanceIds,
         pairWithUnitId: action.pairWithUnitId,
+        sacrificeInstanceId: action.sacrificeInstanceId,
         specs,
         targets: action.targets,
         predicateResolver,

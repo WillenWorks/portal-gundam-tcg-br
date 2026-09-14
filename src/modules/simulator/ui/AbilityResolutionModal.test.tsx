@@ -302,4 +302,76 @@ describe("AbilityResolutionModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "X-1", activate: false, targetIds: [] }]);
   });
+
+  it("multi-alvo (targetCount max: 2): permite selecionar até 2 alvos e envia ambos", () => {
+    const multiTarget: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "k1",
+          specId: "GD01-044-WhenPaired",
+          label: "Choose 1 to 2 enemy Units. Deal 2 damage divided among them.",
+          optional: false,
+          needsTarget: true,
+          targetCount: { min: 1, max: 2 },
+          targetScope: "enemyUnit",
+          legalTargets: ["e1", "e2"],
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={multiTarget} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+
+    // Clica no 1º alvo
+    fireEvent.click(screen.getByRole("button", { name: "Zaku II" }));
+    expect(confirm).toBeEnabled();
+
+    // Clica no 2º alvo (agora 2 selecionados)
+    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "GD01-044-WhenPaired", activate: true, targetIds: ["e1", "e2"] },
+    ]);
+  });
+
+  it("trashSearch (busca na lixeira): permite selecionar carta do descarte ou 'Nenhuma'", () => {
+    const trashDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "a1",
+          specId: "GD01-067-WhenPaired",
+          label: "Search your trash for 1 Command card and add it to your hand.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          trashSearch: {
+            legalTrashIds: ["c1"],
+            label: "Search trash",
+          },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(
+      <AbilityResolutionModal
+        decision={trashDecision}
+        resolveLabel={(id) => (id === "c1" ? "Signs of a Revolution" : id)}
+        onResolve={onResolve}
+      />,
+    );
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeEnabled(); // 0 alvos ou 1 é válido
+
+    fireEvent.click(screen.getByRole("button", { name: "Signs of a Revolution" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "GD01-067-WhenPaired", activate: true, targetIds: ["c1"] },
+    ]);
+  });
 });
