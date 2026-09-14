@@ -135,7 +135,7 @@ export interface MatchLogDraft {
   deckB?: DeckList;
   playerAId?: string;
   playerBId?: string;
-  winner: string;
+  winner: string | null;
   winReason: string;
   turns: number;
   durationMs?: number;
@@ -1048,10 +1048,13 @@ function logGameOverOnce(match: MatchRecord): void {
   const over = match.state.gameOver;
   if (!over || gameOverLogged.has(match.id)) return;
   gameOverLogged.add(match.id);
-  const loser: PlayerId = over.winner === "A" ? "B" : "A";
+  const loser: PlayerId | null = over.winner === null ? null : over.winner === "A" ? "B" : "A";
+  const winnerLabel =
+    over.winner === null ? "null" : `${over.winner}(${match.seats[over.winner]?.displayName ?? "?"})`;
+  const loserLabel = loser === null ? "null" : `${loser}(${match.seats[loser]?.displayName ?? "?"})`;
   console.info(
-    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${over.winner}(${match.seats[over.winner]?.displayName ?? "?"}) ` +
-      `loser=${loser}(${match.seats[loser]?.displayName ?? "?"}) reason=${over.reason} turn=${match.state.turnNumber}`,
+    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${winnerLabel} ` +
+      `loser=${loserLabel} reason=${over.reason} turn=${match.state.turnNumber}`,
   );
 
   if (matchLogSink && !match.loggedAt) {

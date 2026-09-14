@@ -170,8 +170,8 @@ describe("docs/45 — 2 pausas 【Destroyed】 cross-player no mesmo evento (fil
     const next = dispatchDestroyedTriggers(
       state,
       [
-        { instanceId: zakuA, owner: "A", wasPaired: false },
-        { instanceId: zakuB, owner: "B", wasPaired: false },
+        { instanceId: zakuA, owner: "A", wasPaired: false, wasLinkUnit: false },
+        { instanceId: zakuB, owner: "B", wasPaired: false, wasLinkUnit: false },
       ],
       SPECS,
       { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver },
@@ -191,8 +191,8 @@ describe("docs/45 — 2 pausas 【Destroyed】 cross-player no mesmo evento (fil
     const paused = dispatchDestroyedTriggers(
       state,
       [
-        { instanceId: zakuA, owner: "A", wasPaired: false },
-        { instanceId: zakuB, owner: "B", wasPaired: false },
+        { instanceId: zakuA, owner: "A", wasPaired: false, wasLinkUnit: false },
+        { instanceId: zakuB, owner: "B", wasPaired: false, wasLinkUnit: false },
       ],
       SPECS,
       { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver },
