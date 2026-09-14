@@ -11,7 +11,8 @@
  * inimiga dentro do HP exigido, só por existir alguma Unit inimiga qualquer. */
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "../content";
 import { computeLegalTargets, specNeedsNamedTarget } from "../engine/effectSpec";
-import type { CardDef, GameState, PlayerId } from "../engine/types";
+import type { CardDef, CardInstance, GameState, PlayerId } from "../engine/types";
+import { effectiveCost, effectivePilotDef, satisfiesLinkCondition } from "../engine/types";
 
 export interface PlayabilityContext {
   /** Main Phase própria, sem combate. */
@@ -37,9 +38,39 @@ function blockedByMissingTarget(code: string, trigger: string, ctx: PlayabilityC
   });
 }
 
+import { findCard } from "../engine/events";
+
+/** Procura Units amigas que cumprem os requisitos de sacrifício alternativo de deploy (ex. GD01-002 Unicorn Destroy Mode). */
+export function findEligibleSacrifices(def: CardDef, ctx: PlayabilityContext): CardInstance[] {
+  if (!def.alternateDeploySacrifice || !ctx.state || !ctx.controller) return [];
+  const altSac = def.alternateDeploySacrifice;
+  const player = ctx.state.players[ctx.controller];
+  if (!player) return [];
+  return player.battleArea.filter((u) => {
+    if (u.def.cardType !== "UNIT") return false;
+    if (u.def.level !== altSac.level) return false;
+    if (!u.def.nameEn.includes(altSac.nameContains)) return false;
+    if (!u.pairedPilotId) return false;
+    try {
+      const pilot = findCard(ctx.state, u.pairedPilotId);
+      return satisfiesLinkCondition(effectivePilotDef(pilot), u.def);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** Checa se o jogador pode bancar a carta: ou pelo custo efetivo + nível, ou via deploy alternativo por sacrifício. */
+export function canAffordCard(def: CardDef, ctx: PlayabilityContext): boolean {
+  const cost = effectiveCost(def, ctx.state, ctx.controller);
+  const normalAffordable = ctx.activeResources >= cost && ctx.totalResources >= (def.level ?? 0);
+  if (normalAffordable) return true;
+  return findEligibleSacrifices(def, ctx).length > 0;
+}
+
 /** Modos de jogo possíveis AGORA. Vazio = injogável (carta fica esmaecida). */
 export function playableModes(def: CardDef, ctx: PlayabilityContext): Array<"deploy" | "commandMain" | "commandAction"> {
-  if (ctx.activeResources < (def.cost ?? 0) || ctx.totalResources < (def.level ?? 0)) return [];
+  if (!canAffordCard(def, ctx)) return [];
 
   const modes: Array<"deploy" | "commandMain" | "commandAction"> = [];
   const isPilotLike = def.cardType === "PILOT" || !!def.pilotMode;

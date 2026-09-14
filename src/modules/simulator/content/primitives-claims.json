@@ -81,7 +81,8 @@
     "selfNotPaired": { "description": "A própria fonte (Unit) NÃO tem Pilot pareado agora — negação de selfIsPaired.", "since": "GD01-023 Char's Gelgoog (Lote 5)" },
     "controllerTrashUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas Unit com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles).", "since": "GD01-027 Big Zam" },
     "chosenNonEmpty:<value>": { "description": "A escolha nomeada ctx.targets[<value>] (já resolvida pela camada de decisão antes de resolveEffectSpec rodar) não é vazia — usado pra \"if you do\"/\"choose 2 ... if you do\" quando a condição é sobre a MESMA escolha que a primitiva vai consumir.", "since": "GD01-095 Dearka Elthman / GD01-112 Extreme Hatred (Lote 5)" },
-    "controllerTrashCountAtLeast:<n>": { "description": "O trash do controller tem N+ cartas (contagem simples, qualquer tipo) — usado pra \"if you do\" quando não há escolha de jogador envolvida, só estado de board antes da primitiva rodar.", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" }
+    "controllerTrashCountAtLeast:<n>": { "description": "O trash do controller tem N+ cartas (contagem simples, qualquer tipo) — usado pra \"if you do\" quando não há escolha de jogador envolvida, só estado de board antes da primitiva rodar.", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" },
+    "controllerOtherUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O controller tem N+ outras Units (além da fonte) em campo com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles) — versão em Battle Area de controllerTrashUnitCountWithAnyTraitAtLeast.", "since": "ST05-012 McGillis Fareed" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },
@@ -96,6 +97,8 @@
     "level<=self": { "description": "Nível do candidato <= nível da PRÓPRIA fonte do efeito (relativo, não um número literal — precisa de sourceInstanceId em TargetFilterResolver/computeLegalTargets). Se a fonte é Pilot, resolve pra Unit pareada.", "since": "GD01-093 Marida Cruz (Lote 5)" },
     "hp<=conditionalLinkUnit:<n>:<n>": { "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.", "since": "GD01-122 Covert Operative (Lote 5)" },
     "linkUnit": { "description": "Candidato é Link Unit agora.", "since": "GD01-101 Deep Devotion" },
-    "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" }
+    "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" },
+    "notSelf": { "description": "Exclui a própria fonte do pool de alvos (ex. \"Choose 1 of your OTHER Units\" com targetScope friendlyUnit, que por padrão inclui a fonte).", "since": "ST05-001 Gundam Barbatos 4th Form" },
+    "damaged": { "description": "Candidato tem dano acumulado > 0.", "since": "ST05-015 Isaribi" }
   }
 }

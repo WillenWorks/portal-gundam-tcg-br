@@ -107,12 +107,12 @@ import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
-import { otherPlayer, hasKeyword, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveCost, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
-import { playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
+import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -353,7 +353,7 @@ function useMobileDockMaxHeight(): number | undefined {
 // -----------------------------------------------------------------------------
 
 type PendingAction =
-  | { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action" }
+  | { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action"; sacrificeInstanceId?: string }
   /** 【Activate·Main】 de carta em campo (Etapa 3) — `cardInstanceId` = a carta em campo. */
   | { kind: "activateAbility"; cardInstanceId: string; abilityCost: number; abilityNeedsTarget: boolean; cardName: string };
 /** Um jeito de jogar a carta em preview. Cards Command/Pilot (`def.pilotMode`) têm 2 modos ("Jogar como Comando" / "Parear como Piloto"); o resto tem 1. */
@@ -752,7 +752,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         | undefined)
     : undefined;
   const pendingCost =
-    pending?.kind === "activateAbility" ? pending.abilityCost : (pendingCard?.def.cost ?? 0);
+    pending?.kind === "activateAbility"
+      ? pending.abilityCost
+      : pending?.kind === "deploy" && pending.sacrificeInstanceId
+        ? 0
+        : pendingCard
+          ? effectiveCost(pendingCard.def, view as unknown as GameState, seat)
+          : 0;
   const resourcesReady = selectedResources.length === pendingCost;
 
   /** Alvos legais reais da ação em andamento (`pending`) — evita iluminar todas as
@@ -843,8 +849,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     );
   };
 
-  const startDeploy = (card: CardInstance) => {
-    setPending({ kind: "deploy", cardInstanceId: card.instanceId });
+  const startDeploy = (card: CardInstance, sacrificeInstanceId?: string) => {
+    setPending({ kind: "deploy", cardInstanceId: card.instanceId, sacrificeInstanceId });
   };
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
@@ -899,6 +905,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         kind: "deployCard",
         cardInstanceId: pending.cardInstanceId,
         pairWithUnitId: sel.pairWithUnitId,
+        sacrificeInstanceId: pending.sacrificeInstanceId,
         resourceInstanceIds,
       });
     } else if (pending.kind === "activateAbility") {
@@ -955,10 +962,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   /** Modos de jogo de uma carta da mão AGORA (considerando custo/nível/fase/alvo). Vazio = injogável. */
   const handPlayModes = (c: CardInstance): HandPlayMode[] => {
-    const modes = playableModes(c.def, playabilityCtx());
+    const ctx = playabilityCtx();
+    const modes = playableModes(c.def, ctx);
     const asCommand: HandPlayMode = { label: `Jogar como Comando (${commandTrigger ?? "Main"})`, run: () => { setPreview(null); startCommand(c); } };
     const asPilot: HandPlayMode = { label: "Parear como Piloto", run: () => { setPreview(null); startDeploy(c); } };
-    const plain = (label: string, fn: (card: CardInstance) => void): HandPlayMode => ({ label, run: () => { setPreview(null); fn(c); } });
+    const plain = (label: string, fn: (card: CardInstance, sacId?: string) => void, sacId?: string): HandPlayMode => ({
+      label,
+      run: () => {
+        setPreview(null);
+        fn(c, sacId);
+      },
+    });
     const isDual = c.def.cardType === "COMMAND" && !!c.def.pilotMode;
 
     if (isDual) {
@@ -968,6 +982,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return out;
     }
     if (c.def.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
+
+    // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
+    const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
+    const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
+    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= (c.def.level ?? 0) && ctx.myTurnMain;
+
+    const out: HandPlayMode[] = [];
+    if (normalAffordable && modes.includes("deploy")) {
+      out.push(plain(eligibleSacrifices.length > 0 ? `Jogar Normal (Custo ${normalCost})` : "Jogar", startDeploy));
+    }
+    if (ctx.myTurnMain && eligibleSacrifices.length > 0) {
+      for (const sac of eligibleSacrifices) {
+        out.push({
+          label: `Sacrificar ${sac.def.nameEn} (Custo 0)`,
+          run: () => {
+            setPreview(null);
+            startDeploy(c, sac.instanceId);
+          },
+        });
+      }
+    }
+
+    if (out.length > 0) return out;
     return modes.includes("deploy") ? [plain("Jogar", startDeploy)] : [];
   };
 
@@ -1091,14 +1128,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const modes = handPlayModes(c);
     const playable = modes.length > 0;
     const ctx = playabilityCtx();
-    const shortOnResources = ctx.activeResources < (c.def.cost ?? 0);
+    const effCost = effectiveCost(c.def, ctx.state, ctx.controller);
+    const shortOnResources = ctx.activeResources < effCost;
     const shortOnLevel = ctx.totalResources < (c.def.level ?? 0);
     const blockedReason = playable
       ? undefined
       : shortOnLevel
         ? `Nível insuficiente — precisa de ${c.def.level} recursos em campo.`
         : shortOnResources
-          ? `Recursos insuficientes — custo ${c.def.cost}, você tem ${ctx.activeResources} ativos.`
+          ? `Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`
           : isDual
             ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
             : isCommand
@@ -1106,7 +1144,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               : c.def.cardType === "PILOT" || c.def.pilotMode
                 ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
                 : notMainPhaseReason;
-    return { modes, playable, blockedReason };
+    return { modes, playable, blockedReason, effectiveCost: effCost };
   }
 
   /** Índices dos shields de `player` que estão na seleção atual (adapter: a página
@@ -1337,7 +1375,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? pending.abilityNeedsTarget
             ? (pendingCost > 0 ? "Escolha o alvo da habilidade e os recursos pra pagar o custo." : "Escolha o alvo da habilidade e confirme.")
             : (pendingCost > 0 ? "Escolha os recursos pra pagar o custo e confirme." : "Confirme para ativar a habilidade.")
-          : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
+          : pending.sacrificeInstanceId
+            ? "Invocação por sacrifício pronta. Confirme para invocar."
+            : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
       return {
         kind: "pending",
         verb,
@@ -1516,8 +1556,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               <HandFan
                 anchored
                 cards={myHandCards.map((c) => {
-                  const { playable, blockedReason } = describeHandCard(c);
-                  return { card: c, playable, blockedReason };
+                  const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
+                  return { card: c, playable, blockedReason, effectiveCost: effCost };
                 })}
                 art={art}
                 onPeek={(c) => {
@@ -1649,6 +1689,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             if (enemyUnit) return enemyUnit.def.nameEn;
             const friendlyUnit = publicUnits(view.players[seat]).find((u) => u.instanceId === instanceId);
             if (friendlyUnit) return friendlyUnit.def.nameEn;
+            const myTrashCard = view.players[seat].trash.find((c) => !isHidden(c) && c.instanceId === instanceId);
+            if (myTrashCard && !isHidden(myTrashCard)) return myTrashCard.def.nameEn;
+            const oppTrashCard = view.players[opponentSeat].trash.find((c) => !isHidden(c) && c.instanceId === instanceId);
+            if (oppTrashCard && !isHidden(oppTrashCard)) return oppTrashCard.def.nameEn;
             const myRestedResources = (view.players[seat].resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter(
               (r) => r.rested,
             );

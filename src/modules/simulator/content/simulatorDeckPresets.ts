@@ -20,6 +20,7 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "ST02", label: 'ST02 "Wings of Advance"' },
   { key: "ST03", label: 'ST03 "Zeon\'s Rush"' },
   { key: "ST04", label: 'ST04 "SEED Strike"' },
+  { key: "ST05", label: 'ST05 "Iron-Blooded Struggle"' },
   { key: "GD01-FED", label: "Federation Vanguard (GD01)" },
   { key: "GD01-ZEON", label: "Zeon Legion (GD01)" },
   { key: "GD01-NEWTYPE", label: "Newtype Corps (GD01)" },

@@ -241,7 +241,9 @@ export type StaticTargetCondition =
   | { kind: "apAtLeast"; n: number }
   | { kind: "colorIs"; color: string }
   | { kind: "traitIs"; trait: string }
-  | { kind: "hasKeyword"; keyword: string };
+  | { kind: "hasKeyword"; keyword: string }
+  /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
+  | { kind: "isDamaged" };
 
 export interface StaticAbility {
   condition: StaticEffectCondition;
@@ -479,6 +481,7 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
+  if (cond.kind === "isDamaged") return target.damage > 0;
   return hasKeyword(target, cond.keyword, state);
 }
 

@@ -1,8 +1,8 @@
 /**
- * Golden-master do motor (docs/44, Fase 2 — §4.3; wave GD01, Fase 3B). Roda
- * uma partida `randomLegal` vs `randomLegal` até o fim, para cada par de
- * decks em `GOLDEN_PAIRS` (10 pares ST01–ST04 + 5 pares GD01, incluindo
- * espelhos), com um seed FIXO por par, e reduz o `GameState` final a um hash
+ * Golden-master do motor (docs/44, Fase 2 — §4.3; wave GD01, Fase 3B; wave
+ * ST05). Roda uma partida `randomLegal` vs `randomLegal` até o fim, para cada
+ * par de decks em `GOLDEN_PAIRS` (10 pares ST01–ST04 + 5 pares GD01 + 6 pares
+ * ST05, incluindo espelhos), com um seed FIXO por par, e reduz o `GameState` final a um hash
  * SHA-256 estável. Um PR que muda qualquer resultado de regra do motor muda o
  * hash — e falha no CI se não for acompanhado de `--update` com justificativa.
  *
@@ -21,15 +21,17 @@ import { buildSt01DeckList } from "../../fixtures/st01Deck";
 import { buildSt02DeckList } from "../../fixtures/st02Deck";
 import { buildSt03DeckList } from "../../fixtures/st03Deck";
 import { buildSt04DeckList } from "../../fixtures/st04Deck";
+import { buildSt05DeckList } from "../../fixtures/st05Deck";
 import { buildGd01DeckList } from "../../fixtures/gd01Deck";
 
-export type DeckKey = "ST01" | "ST02" | "ST03" | "ST04" | "GD01";
+export type DeckKey = "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01";
 
 const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  ST05: buildSt05DeckList,
   GD01: buildGd01DeckList,
 };
 
@@ -86,7 +88,24 @@ const GD01_PAIRS: GoldenPair[] = (() => {
   return pairs;
 })();
 
-export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS];
+/**
+ * Wave ST05 (Iron-Blooded Struggle) — 6 pares novos (ST05 contra cada deck já
+ * golden + espelho), seeds 16..21 (continuação de GD01_PAIRS, nunca
+ * reaproveitados — mesma regra do bloco acima).
+ */
+const ST05_PAIRS: GoldenPair[] = (() => {
+  const others: DeckKey[] = ["ST01", "ST02", "ST03", "ST04", "GD01"];
+  const pairs: GoldenPair[] = [];
+  let seed = ST01_04_PAIRS.length + GD01_PAIRS.length + 1;
+  for (const other of others) {
+    pairs.push({ key: `${other}_vs_ST05_seed${seed}`, a: other, b: "ST05", seed });
+    seed++;
+  }
+  pairs.push({ key: `ST05_vs_ST05_seed${seed}`, a: "ST05", b: "ST05", seed });
+  return pairs;
+})();
+
+export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS, ...ST05_PAIRS];
 
 /**
  * Campos do `GameState` que NÃO fazem parte da lógica de regras e precisam

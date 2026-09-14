@@ -12,7 +12,7 @@
 import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
-import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
+import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
@@ -126,9 +126,30 @@ export function BattleSlot({
   // piloto). Antes o "+2/+1 LINK" na tira do piloto truncava.
   const isLinkUnit = Boolean(pilot) && satisfiesLinkCondition(effectivePilotDef(pilot!), unit.def);
 
+  const isBlocker = hasKeyword(unit, "Blocker", state);
+  const isBreach = hasKeyword(unit, "Breach", state);
+  const breachVal = keywordValue(unit, "Breach", state);
+  const isFirstStrike = hasKeyword(unit, "First Strike", state);
+  const isSupport = hasKeyword(unit, "Support", state);
+  const supportVal = keywordValue(unit, "Support", state);
+  const isRepair = hasKeyword(unit, "Repair", state);
+  const repairVal = keywordValue(unit, "Repair", state);
+  const isHighMobility = hasKeyword(unit, "High Mobility", state);
+
+  const hasStatImmunity = Boolean(
+    unit.def.innateStatReductionImmunity ||
+      (pilot && pilot.def.innateStatReductionImmunity && (!pilot.def.innateStatReductionImmunity.duringLinkOnly || isLinkUnit)),
+  );
+  const isControllersTurn = state ? state.activePlayer === unit.owner : true;
+  const hasDamageProtection = Boolean(
+    unit.def.innateDamageProtection ||
+      (pilot && pilot.def.innateDamageProtection && (!pilot.def.innateDamageProtection.duringYourTurnOnly || isControllersTurn)),
+  );
+  const isToken = Boolean(unit.def.isToken);
+
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
-  const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && hasKeyword(unit, "Blocker", state);
+  const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
   const showActivate = Boolean(actions?.onActivate);
 
   // Frente 4 (docs/38 §3.1) — sem botão de "olho": o cluster de canto guarda só
@@ -252,6 +273,81 @@ export function BattleSlot({
               Pair
             </span>
           ) : null}
+          {/* Micro-chips de status, keywords e tokens */}
+          <div className="pointer-events-none absolute left-0 top-[clamp(0.95rem,calc(var(--card-w-std,2.17rem)*0.22),1.35rem)] z-10 flex flex-col items-start gap-0.5">
+            {isToken ? (
+              <span
+                className="rounded-r-xs bg-fuchsia-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Token Unit (gerada por efeito)"
+              >
+                Token
+              </span>
+            ) : null}
+            {isBlocker ? (
+              <span
+                className="rounded-r-xs bg-sky-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Blocker: Pode redirecionar ataques para si"
+              >
+                BLK
+              </span>
+            ) : null}
+            {isBreach ? (
+              <span
+                className="rounded-r-xs bg-rose-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title={`Breach ${breachVal ?? 1}: Causa dano a shields ao destruir units em batalha`}
+              >
+                BRC{breachVal && breachVal > 1 ? ` ${breachVal}` : ""}
+              </span>
+            ) : null}
+            {isFirstStrike ? (
+              <span
+                className="rounded-r-xs bg-amber-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="First Strike: Causa dano de combate primeiro"
+              >
+                FST
+              </span>
+            ) : null}
+            {isSupport ? (
+              <span
+                className="rounded-r-xs bg-emerald-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title={`Support ${supportVal ?? 1}: Transfere AP a outra Unit amiga`}
+              >
+                SUP{supportVal && supportVal > 1 ? ` ${supportVal}` : ""}
+              </span>
+            ) : null}
+            {isRepair ? (
+              <span
+                className="rounded-r-xs bg-teal-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title={`Repair ${repairVal ?? 1}: Recupera HP no início do seu turno`}
+              >
+                REP{repairVal && repairVal > 1 ? ` ${repairVal}` : ""}
+              </span>
+            ) : null}
+            {isHighMobility ? (
+              <span
+                className="rounded-r-xs bg-purple-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="High Mobility: Só pode ser bloqueada por Units com High Mobility"
+              >
+                HM
+              </span>
+            ) : null}
+            {hasStatImmunity ? (
+              <span
+                className="rounded-r-xs bg-indigo-600/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Imunidade: AP/HP não podem ser reduzidos por efeitos"
+              >
+                IMMUNE
+              </span>
+            ) : null}
+            {hasDamageProtection ? (
+              <span
+                className="rounded-r-xs bg-emerald-700/90 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-white shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Proteção: O primeiro dano sofrido a cada turno é anulado"
+              >
+                GUARD
+              </span>
+            ) : null}
+          </div>
           {/* AP / HP efetivos — badges de canto (V6.3: sempre no rodapé da
               arte agora — o Piloto não overlay mais em cima delas). */}
           {/* Frente 4 (feedback Willen 2ª rodada): badges escalam com

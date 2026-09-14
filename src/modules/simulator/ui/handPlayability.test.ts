@@ -150,3 +150,60 @@ describe("isPlayableNow", () => {
     expect(isPlayableNow(def({ cardType: "UNIT", cost: 1, level: 1 }), ctx({}))).toBe(true);
   });
 });
+
+describe("playableModes — GD01 dynamicCost e alternateDeploySacrifice", () => {
+  it("GD01-016 Jegan (custo 3) é jogável com 2 recursos quando há 2+ Earth Federation em campo", () => {
+    const jegan = def({
+      code: "GD01-016",
+      nameEn: "Jegan",
+      cardType: "UNIT",
+      cost: 3,
+      level: 2,
+      dynamicCost: { condition: { kind: "friendlyOtherUnitTraitCountAtLeast", trait: "Earth Federation", n: 2 }, amount: -1 },
+    });
+
+    const state = freshState();
+    // Sem as 2 units, com 2 recursos -> não pode (precisaria de 3)
+    expect(playableModes(jegan, ctx({ state, controller: "A", activeResources: 2, totalResources: 3 }))).toEqual([]);
+
+    // Coloca 2 units Earth Federation amigas
+    place(state, "A", def({ traits: ["Earth Federation"] }));
+    place(state, "A", def({ traits: ["Earth Federation"] }));
+
+    // Agora com 2 recursos ativos -> pode jogar!
+    expect(playableModes(jegan, ctx({ state, controller: "A", activeResources: 2, totalResources: 3 }))).toEqual(["deploy"]);
+  });
+
+  it("GD01-002 Unicorn Destroy Mode (custo 5, lv 5) é jogável por sacrifício mesmo com 0 recursos", () => {
+    const destroyMode = def({
+      code: "GD01-002",
+      nameEn: "Unicorn Gundam (Destroy Mode)",
+      cardType: "UNIT",
+      cost: 5,
+      level: 5,
+      alternateDeploySacrifice: { nameContains: "Unicorn Mode", level: 5 },
+    });
+
+    const state = freshState();
+    // Sem sacrifício e com 0 recursos -> não pode
+    expect(playableModes(destroyMode, ctx({ state, controller: "A", activeResources: 0, totalResources: 0 }))).toEqual([]);
+
+    // Coloca um Unicorn Mode Lv.5 pareado com Banagher Links
+    const pilotDef = def({ code: "GD01-088", nameEn: "Banagher Links", cardType: "PILOT", traits: ["Earth Federation"] });
+    const pilot = place(state, "A", pilotDef);
+
+    const unicornModeDef = def({
+      code: "GD01-005",
+      nameEn: "Unicorn Gundam (Unicorn Mode)",
+      cardType: "UNIT",
+      level: 5,
+      link: { kind: "pilotName", values: ["Banagher Links"] },
+    });
+    const unicornUnit = place(state, "A", unicornModeDef);
+    unicornUnit.pairedPilotId = pilot.instanceId;
+
+    // Agora pode jogar mesmo com 0 recursos e 0 nível!
+    expect(playableModes(destroyMode, ctx({ state, controller: "A", activeResources: 0, totalResources: 0 }))).toEqual(["deploy"]);
+  });
+});
+

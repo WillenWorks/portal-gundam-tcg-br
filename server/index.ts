@@ -17,6 +17,7 @@ import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
 import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
+import { buildSt05DeckList } from "../src/modules/simulator/fixtures/st05Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
@@ -4283,6 +4284,7 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
+  ST05: buildSt05DeckList,
   ...Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
 };
 

@@ -4,6 +4,7 @@ import { buildSt01DeckList } from "../fixtures/st01Deck";
 import { buildSt02DeckList } from "../fixtures/st02Deck";
 import { buildSt03DeckList } from "../fixtures/st03Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
+import { buildSt05DeckList } from "../fixtures/st05Deck";
 import { computeDeckLegality } from "../../../lib/deck-legality";
 import type { DeckLegalityData, DeckLegalityItem } from "../../../lib/deck-legality";
 
@@ -16,15 +17,15 @@ import type { DeckLegalityData, DeckLegalityItem } from "../../../lib/deck-legal
  *    `src/lib/deck-legality.ts`): 50 cartas no deck principal, 10 no de
  *    recursos, no máximo 2 cores e no máximo 4 cópias por `code`. A checagem de
  *    banido/restrito depende do catálogo vivo (Prisma) e roda no servidor / CI
- *    (`catalog:*`), fora do alcance deste módulo puro — os fixtures ST01-04 são
+ *    (`catalog:*`), fora do alcance deste módulo puro — os fixtures ST01-05 são
  *    os starter decks oficiais, sem carta banida.
  * 2. **Cobertura de efeitos** — toda carta do deck é `implementada`, `vanilla`
  *    ou `implementada*` no dashboard `pnpm catalog:coverage` (docs/48). O gate
- *    de CI (`catalog:coverage:gate` sobre ST01..ST04) confirma `0 faltando`
- *    para esses quatro sets, então o bot nunca encosta num efeito sem regra.
+ *    de CI (`catalog:coverage:gate` sobre ST01..ST05) confirma `0 faltando`
+ *    para esses cinco sets, então o bot nunca encosta num efeito sem regra.
  *
- * Enquanto só os quatro starter decks passam nos dois critérios, o registro tem
- * quatro entradas. Novos decks entram aqui conforme a cobertura avança.
+ * Enquanto só os cinco starter decks passam nos dois critérios, o registro tem
+ * cinco entradas. Novos decks entram aqui conforme a cobertura avança.
  */
 export interface ValidatedDeck {
   id: string;
@@ -37,6 +38,7 @@ export const VALIDATED_DECKS: Record<string, ValidatedDeck> = {
   ST02: { id: "ST02", label: 'ST02 "Wings of Advance"', build: buildSt02DeckList },
   ST03: { id: "ST03", label: 'ST03 "Zeon\'s Rush"', build: buildSt03DeckList },
   ST04: { id: "ST04", label: 'ST04 "SEED Strike"', build: buildSt04DeckList },
+  ST05: { id: "ST05", label: 'ST05 "Iron-Blooded Struggle"', build: buildSt05DeckList },
 };
 
 /** `true` se `id` é um deck liberado para o bot (chave de `VALIDATED_DECKS`). */

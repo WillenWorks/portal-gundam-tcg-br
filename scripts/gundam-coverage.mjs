@@ -13,13 +13,13 @@
  *   - faltando       : texto bespoke sem cobertura nem deferimento.  <-- FALHA O CI
  *
  * Uso:
- *   node scripts/gundam-coverage.mjs                     # ST01..ST04, tabela + resumo
+ *   node scripts/gundam-coverage.mjs                     # ST01..ST05, tabela + resumo
  *   node scripts/gundam-coverage.mjs --sets=ST01,ST03    # só esses
  *   node scripts/gundam-coverage.mjs --all               # todos os sets do dataset (GD/EB…)
  *   node scripts/gundam-coverage.mjs --gate              # exit != 0 se houver `faltando` nos sets pedidos
  *   node scripts/gundam-coverage.mjs --out=docs/_generated/coverage.md
  *
- * O CI (.github/workflows/ci.yml) roda com `--gate` sobre ST01..ST04.
+ * O CI (.github/workflows/ci.yml) roda com `--gate` sobre ST01..ST05.
  *
  * Além do `.md` (gitignored), grava SEMPRE `src/modules/simulator/content/_index/coverage.json`
  * (versionado, determinístico, ordenado por code) — fonte dos dashboards de `/admin`
@@ -33,7 +33,7 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, outFile: null };
@@ -51,10 +51,11 @@ const { ST01_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st01D
 const { ST02_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st02Deck.ts");
 const { ST03_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st03Deck.ts");
 const { ST04_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st04Deck.ts");
+const { ST05_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st05Deck.ts");
 const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/index.ts");
 
 const DEF_BY_CODE = new Map();
-for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, GD01_CARD_DEFS]) {
+for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
 const SPECS_BY_CODE = new Map();
@@ -202,7 +203,16 @@ function classify(code) {
 
   const bespoke = hasBespokeText(effect);
   const hasStructured = Boolean(
-    def && (def.staticAbilities?.length || def.combatTriggers?.length || def.attackTargetRules),
+    def &&
+      (def.staticAbilities?.length ||
+        def.combatTriggers?.length ||
+        def.attackTargetRules ||
+        def.dynamicCost ||
+        def.onSupportUsed ||
+        def.innateStatReductionImmunity ||
+        def.innateDamageProtection ||
+        def.alternateDeploySacrifice ||
+        def.onAnyPairing),
   );
   const hasSpec = specs.length > 0;
 

@@ -23,6 +23,7 @@ export interface HandFanCard {
   playable: boolean;
   /** motivo curto em PT — mostrado via `title` e embutido no rótulo acessível. */
   blockedReason?: string;
+  effectiveCost?: number;
 }
 
 interface HandFanProps {
@@ -95,8 +96,10 @@ export function HandFan({
     <div className="scrollbar-ghost w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
       <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-4 pb-1" : "pb-2 pt-6")}>
         {cards.map((entry, index) => {
-          const { card, playable, blockedReason } = entry;
+          const { card, playable, blockedReason, effectiveCost } = entry;
           const cost = card.def.cost;
+          const displayCost = effectiveCost ?? cost;
+          const hasDiscount = effectiveCost !== undefined && cost !== undefined && effectiveCost < cost;
           const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
@@ -107,7 +110,7 @@ export function HandFan({
             cornerActions.push({
               key: "play",
               icon: Play,
-              label: `Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`,
+              label: `Jogar ${card.def.nameEn}${displayCost !== undefined ? ` · custo ${displayCost}` : ""}`,
               tone: "primary",
               onClick: () => onPeek(card),
             });
@@ -169,8 +172,16 @@ export function HandFan({
                   backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
                 >
                   {cost !== undefined ? (
-                    <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
-                      {cost}
+                    <span
+                      className={cn(
+                        "absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full text-[9px] font-black shadow-sm",
+                        hasDiscount
+                          ? "bg-emerald-400 text-black ring-1 ring-emerald-200 shadow-[0_0_6px_rgba(52,211,153,0.85)] animate-pulse"
+                          : "bg-amber-500 text-black",
+                      )}
+                      title={hasDiscount ? `Custo reduzido de ${cost} para ${displayCost}` : `Custo ${cost}`}
+                    >
+                      {displayCost}
                     </span>
                   ) : null}
                   {card.def.cardType === "UNIT" ? (

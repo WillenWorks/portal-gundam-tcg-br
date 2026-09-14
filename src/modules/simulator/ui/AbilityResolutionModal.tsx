@@ -47,7 +47,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
   const [activate, setActivate] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
   );
-  const [target, setTarget] = useState<Record<string, string>>({});
+  const [targets, setTargets] = useState<Record<string, string[]>>({});
   /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
   const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
 
@@ -64,13 +64,29 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
       return { ...s, [specId]: cur };
     });
 
-  /** `deckTopReveal`/`handDiscard`/`deckReorder`/`enumChoice` ignoram o toggle Ativar/Pular (mandatórios). */
+  /** `deckTopReveal`/`handDiscard`/`deckReorder`/`enumChoice`/`trashSearch` ignoram o toggle Ativar/Pular (mandatórios). */
   const showActivateToggle = (specId: string) => {
     const q = itemFor(specId);
-    return q.optional && !q.deckTopReveal && !q.handDiscard && !q.deckReorder && !q.enumChoice;
+    return q.optional && !q.deckTopReveal && !q.handDiscard && !q.deckReorder && !q.enumChoice && !q.trashSearch;
   };
-  const pickTarget = (specId: string, instanceId: string) =>
-    setTarget((s) => (s[specId] === instanceId ? withoutKey(s, specId) : { ...s, [specId]: instanceId }));
+
+  const pickSingle = (specId: string, instanceId: string) =>
+    setTargets((s) => ({
+      ...s,
+      [specId]: s[specId]?.[0] === instanceId ? [] : [instanceId],
+    }));
+
+  const toggleMulti = (specId: string, instanceId: string, max: number) =>
+    setTargets((s) => {
+      const cur = s[specId] ?? [];
+      if (cur.includes(instanceId)) {
+        return { ...s, [specId]: cur.filter((id) => id !== instanceId) };
+      }
+      if (cur.length < max) {
+        return { ...s, [specId]: [...cur, instanceId] };
+      }
+      return s;
+    });
 
   const move = (index: number, dir: -1 | 1) => {
     setOrder((current) => {
@@ -84,16 +100,21 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
 
   const canConfirm = order.every((specId) => {
     const q = itemFor(specId);
+    const chosen = targets[specId] ?? [];
     if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
-    if (q.handDiscard) return q.handDiscard.legalHandIds.length === 0 || Boolean(target[specId]);
+    if (q.handDiscard) return q.handDiscard.legalHandIds.length === 0 || chosen.length > 0;
     if (q.deckReorder) {
       const want = Math.min(q.deckReorder.slots.length, q.deckReorder.topCards.length);
       return Object.keys(reorder[specId] ?? {}).length === want;
     }
-    if (q.enumChoice) return Boolean(target[specId]);
+    if (q.enumChoice) return chosen.length > 0;
+    if (q.trashSearch) return true; // 0 ou 1 id da lixeira — sempre válido
     if (!activate[specId]) return true;
-    if (q.handChoice) return q.handChoice.legalHandIds.length === 0 || Boolean(target[specId]);
-    if (q.needsTarget && optionsFor(specId).length > 0) return Boolean(target[specId]);
+    if (q.handChoice) return q.handChoice.legalHandIds.length === 0 || chosen.length > 0;
+    if (q.needsTarget && optionsFor(specId).length > 0) {
+      const min = q.targetCount?.min ?? 1;
+      return chosen.length >= Math.min(min, optionsFor(specId).length);
+    }
     return true;
   });
 
@@ -101,17 +122,18 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     onResolve(
       order.map((specId) => {
         const q = itemFor(specId);
-        const chosen = target[specId];
-        if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
-        if (q.handDiscard) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
+        const chosen = targets[specId] ?? [];
+        if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen };
+        if (q.handDiscard) return { specId, activate: true, targetIds: chosen };
         if (q.deckReorder) {
           const map = reorder[specId] ?? {};
           return { specId, activate: true, targetIds: q.deckReorder.slots.map((s) => map[s.name]).filter(Boolean) };
         }
-        if (q.enumChoice) return { specId, activate: true, targetIds: chosen ? [chosen] : [] };
+        if (q.enumChoice) return { specId, activate: true, targetIds: chosen };
+        if (q.trashSearch) return { specId, activate: true, targetIds: chosen };
         const on = Boolean(activate[specId]);
-        if (q.handChoice) return { specId, activate: on, targetIds: on && chosen ? [chosen] : [] };
-        return { specId, activate: on, targetIds: q.needsTarget && chosen ? [chosen] : [] };
+        if (q.handChoice) return { specId, activate: on, targetIds: on ? chosen : [] };
+        return { specId, activate: on, targetIds: q.needsTarget ? chosen : [] };
       }),
     );
 
@@ -166,16 +188,27 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
 
                 {on && q.needsTarget ? (
                   opts.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {opts.map((opt) => (
-                        <Toggle
-                          key={opt.instanceId}
-                          active={target[specId] === opt.instanceId}
-                          onClick={() => setTarget((s) => ({ ...s, [specId]: opt.instanceId }))}
-                        >
-                          {opt.label}
-                        </Toggle>
-                      ))}
+                    <div className="mt-2 space-y-1">
+                      {q.targetCount && q.targetCount.max > 1 ? (
+                        <p className="text-[10px] text-amber-300">
+                          Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap gap-1">
+                        {opts.map((opt) => {
+                          const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
+                          const maxTargets = q.targetCount?.max ?? 1;
+                          return (
+                            <Toggle
+                              key={opt.instanceId}
+                              active={isSelected}
+                              onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
+                            >
+                              {opt.label}
+                            </Toggle>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
@@ -190,8 +223,8 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                         {q.handChoice.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
-                            active={target[specId] === instanceId}
-                            onClick={() => pickTarget(specId, instanceId)}
+                            active={(targets[specId] ?? []).includes(instanceId)}
+                            onClick={() => pickSingle(specId, instanceId)}
                           >
                             {resolveHandLabel?.(instanceId) ?? "Carta"}
                           </Toggle>
@@ -215,16 +248,16 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                         return (
                           <Toggle
                             key={card.instanceId}
-                            active={target[specId] === card.instanceId}
+                            active={(targets[specId] ?? []).includes(card.instanceId)}
                             disabled={!revealable}
-                            onClick={() => pickTarget(specId, card.instanceId)}
+                            onClick={() => pickSingle(specId, card.instanceId)}
                           >
                             {card.def.nameEn}
                             {revealable ? "" : " (não revelável)"}
                           </Toggle>
                         );
                       })}
-                      <Toggle active={!target[specId]} onClick={() => setTarget((s) => withoutKey(s, specId))}>
+                      <Toggle active={(targets[specId] ?? []).length === 0} onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}>
                         Não revelar
                       </Toggle>
                     </div>
@@ -239,8 +272,8 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                         {q.handDiscard.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
-                            active={target[specId] === instanceId}
-                            onClick={() => pickTarget(specId, instanceId)}
+                            active={(targets[specId] ?? []).includes(instanceId)}
+                            onClick={() => pickSingle(specId, instanceId)}
                           >
                             {resolveHandLabel?.(instanceId) ?? "Carta"}
                           </Toggle>
@@ -283,12 +316,37 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                       {q.enumChoice.options.map((opt) => (
                         <Toggle
                           key={opt.value}
-                          active={target[specId] === opt.value}
-                          onClick={() => setTarget((s) => ({ ...s, [specId]: opt.value }))}
+                          active={(targets[specId] ?? []).includes(opt.value)}
+                          onClick={() => pickSingle(specId, opt.value)}
                         >
                           {opt.label}
                         </Toggle>
                       ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {q.trashSearch ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-[10px] text-muted-portal">
+                      Lixeira ({q.trashSearch.legalTrashIds.length} cartas) — escolha 1 carta (ou nenhuma):
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {q.trashSearch.legalTrashIds.map((instanceId) => (
+                        <Toggle
+                          key={instanceId}
+                          active={(targets[specId] ?? []).includes(instanceId)}
+                          onClick={() => pickSingle(specId, instanceId)}
+                        >
+                          {resolveLabel(instanceId)}
+                        </Toggle>
+                      ))}
+                      <Toggle
+                        active={(targets[specId] ?? []).length === 0}
+                        onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}
+                      >
+                        Nenhuma
+                      </Toggle>
                     </div>
                   </div>
                 ) : null}
