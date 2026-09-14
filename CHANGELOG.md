@@ -14,8 +14,45 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 ### No radar
 - **Validação de Machine Learning**: Análise dos logs reais coletados para validação prática do modelo antes de sua ativação em produção.
 - **Ranking no simulador**: Sistema de pontuação competitiva, temporadas e matchmaking pareado — Fase 4 do produto.
-- **Cobertura de efeitos das coleções GD/EB**: Dano a múltiplos alvos e filtros relativos à carta-fonte.
+- **Fechar as últimas 5 cartas de GD01** (Jegan, Buster Gundam, Gundam Aerial, Duo Maxwell, Chang Wufei) sem cobertura no motor, mais as cláusulas ainda deferidas (ver `docs/MANUAL_DESENVOLVIMENTO.md`).
+- **Cobertura de efeitos das coleções EB/GD02+**: ainda fora do escopo do motor.
 - **Comunidade & Social**: Perfis públicos, decks favoritos/compartilháveis e vitrine de arquétipos.
+
+---
+
+## [1.3.0] — 2026-09-14
+
+Wave **GD01 "Mobile Suit Gundam Unicorn"** chega jogável em todas as modalidades do simulador, com suporte ao deck do próprio jogador em qualquer uma delas — e 2 bugs reais de motor corrigidos na wave.
+
+### 🎮 Simulador — GD01 liberado + deck próprio em toda modalidade
+- **ST01, ST02, ST03, ST04 e os 4 decks de teste de GD01** (Federation Vanguard,
+  Zeon Legion, Newtype Corps, Sleeves Uprising) agora aparecem no seletor de
+  deck da Fila Online, Convite Direto, Treino Solo e Arena Multiplayer.
+- **Deck do seu próprio Hangar** pode ser usado em qualquer modalidade — a
+  linha do deck aparece verde (jogável) ou vermelha (tem carta sem cobertura
+  no motor) na lista; se você insistir num deck vermelho, a tela mostra a
+  mensagem com o motivo exato (quais cartas faltam) em vez de deixar a
+  partida travar.
+- Removido o kill-switch que mantinha GD01 restrito ao Treino Solo — o gate
+  de cobertura (`validateDeckPayload`) continua sendo a única defesa real
+  contra carta sem regra implementada, tanto pra deck fixo quanto pra deck
+  próprio.
+
+### 🐛 Correções — Burst de 8 cartas de GD01 (incluindo Banagher Links)
+- `hasBurst: true` sozinho não bastava: sem um `EffectSpec` de gatilho
+  "Burst" cadastrado pra carta, ela nunca virava elegível pra decisão de
+  Burst — quebrava como Shield e ficava presa no trash pra sempre, mesmo
+  tendo Burst impresso. Corrigido em **Banagher Links, Marida Cruz, Dearka
+  Elthman, Guel Jeturk, Elan Ceres, Citizens Take a Stand!, Midair
+  Modifications e Kusanagi**.
+
+### 🧹 Organização interna
+- Documentação de desenvolvimento consolidada num manual único
+  (`docs/MANUAL_DESENVOLVIMENTO.md`) — histórico completo do projeto,
+  arquitetura do motor, processos e pendências conhecidas num só lugar.
+- Arquivos de processo/sessão (transcrições de debate entre IAs, planos de
+  sessão avulsos) saíram do controle de versão — continuam no ambiente local
+  de quem os gerou, sem poluir o repositório.
 
 ---
 

@@ -21,6 +21,7 @@ Portal brasileiro completo focado no **Gundam Card Game**, integrando catálogo 
 ### 🎮 Simulador de Partidas em Tempo Real
 - **Motor Autoritativo Server-Side**: partidas executadas com regras estritas, determinismo e validação de legalidade de cada ação.
 - Suporte a partidas remotas com WebSocket / Socket.IO.
+- **Decks disponíveis em toda modalidade** (Fila Online, Convite Direto e Treino Solo): os 4 Starters oficiais (**ST01–ST04**), os 4 decks de teste da wave **GD01 "Mobile Suit Gundam Unicorn"** e **qualquer deck do seu próprio Hangar** — com validação automática de cobertura (carta sem regra implementada no motor bloqueia a partida com um aviso claro, não trava o jogo).
 - **Modo Solo — Treino contra o Bot (`/simulador/treino`)**:
   - Permite aos jogadores logados treinarem contra a IA a qualquer momento sem depender de oponente online.
   - Níveis de dificuldade: Fácil, Normal (Heurística determinística completa) e Difícil (MCTS - Monte Carlo Tree Search).
@@ -124,10 +125,19 @@ pnpm sim:train                 # Roda treino do modelo neural do bot (TensorFlow
    - Promover os pesos neurais para produção apenas após superarem consistentemente a heurística em taxa de vitória (> 55%) e estabilidade.
 2. **Sistema de Ranking e Matchmaking**:
    - Partidas ranqueadas competitivas com pontuação ELO e temporadas.
-3. **Expansão de Coleções no Simulador**:
-   - Implementação de efeitos e condicionais específicas dos sets de expansão (GD01, EB01).
+3. **Fechar a cobertura de GD01 e expandir pra EB01/GD02+**:
+   - GD01 já está jogável no simulador; faltam ~5 cartas sem `EffectSpec` e algumas cláusulas deferidas (dano a múltiplos alvos, filtros relativos à carta-fonte) — detalhes em `docs/MANUAL_DESENVOLVIMENTO.md`. EB01 e sets seguintes ainda não começaram.
 4. **Social & Comunidade**:
    - Perfis públicos de jogadores, decks em destaque da comunidade e exportação para formatos de impressão.
+
+---
+
+## 📖 Documentação
+
+- **`docs/MANUAL_DESENVOLVIMENTO.md`** — manual único de desenvolvimento: visão do produto, linha do tempo completa, arquitetura do motor do simulador, processos de trabalho e todas as pendências conhecidas. Ponto de entrada recomendado antes de mexer no código.
+- **`docs/00`–`docs/49`** — documentação técnica detalhada por tema/fase (arquitetura, setup, migrations, cada sprint do simulador).
+- **`docs/legado/`** — planos e instruções antigos, mantidos como referência histórica.
+- **`CHANGELOG.md`** — histórico de versões voltado ao usuário final.
 
 ---
 
