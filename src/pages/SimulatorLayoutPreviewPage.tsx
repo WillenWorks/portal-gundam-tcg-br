@@ -617,6 +617,7 @@ function LayoutPreview() {
       {dockState ? (
         <CenterDecisionModal
           state={dockState}
+          confirmEndTurnOpen={true}
           onEndTurn={() => {
             sfx.playClick();
             setScenario("normal");

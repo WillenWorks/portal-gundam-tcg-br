@@ -7,11 +7,12 @@ import { CenterDecisionModal } from "./CenterDecisionModal";
 afterEach(cleanup);
 
 describe("CenterDecisionModal", () => {
-  it("renders idle end-turn banner when it is your turn", () => {
+  it("renders idle end-turn banner when it is your turn and confirmEndTurnOpen is true", () => {
     const onEndTurn = vi.fn();
     render(
       <CenterDecisionModal
         state={{ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 30, turnNumber: 2 }}
+        confirmEndTurnOpen={true}
         onEndTurn={onEndTurn}
       />
     );
@@ -20,6 +21,18 @@ describe("CenterDecisionModal", () => {
     expect(btn).toBeInTheDocument();
     fireEvent.click(btn);
     expect(onEndTurn).toHaveBeenCalledTimes(1);
+
+    const cancelBtn = screen.getByRole("button", { name: /continuar jogando/i });
+    expect(cancelBtn).toBeInTheDocument();
+  });
+
+  it("does not render idle modal when confirmEndTurnOpen is false or undefined", () => {
+    const { container } = render(
+      <CenterDecisionModal
+        state={{ kind: "idle", yourTurn: true, phaseLabel: "Fase Principal", timerSeconds: 30, turnNumber: 2 }}
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("does not render when it is not your turn and no abandon is available", () => {

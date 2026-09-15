@@ -13,6 +13,7 @@ export interface CenterDecisionModalProps {
   onConfirm?: () => void;
   onCancel?: () => void;
   onEndTurn?: () => void;
+  onCancelEndTurn?: () => void;
   onDeclareAttackPlayer?: () => void;
   onCancelAttack?: () => void;
   onSkipBlock?: () => void;
@@ -21,6 +22,8 @@ export interface CenterDecisionModalProps {
   onClaimAbandon?: () => void;
   /** Permite recolher temporariamente o modal para ver o campo livre */
   dismissible?: boolean;
+  /** Se false, oculta o modal no estado idle a menos que o usuário tenha clicado em passar turno */
+  confirmEndTurnOpen?: boolean;
 }
 
 const SCOPE_LABEL: Record<"combat" | "endPhase", string> = {
@@ -34,20 +37,22 @@ export function CenterDecisionModal({
   onConfirm,
   onCancel,
   onEndTurn,
+  onCancelEndTurn,
   onDeclareAttackPlayer,
   onCancelAttack,
   onSkipBlock,
   onPass,
   onToggleAutoPass,
   onClaimAbandon,
+  confirmEndTurnOpen,
 }: CenterDecisionModalProps) {
   // Estados que não demandam modal central imediato (idle de oponente ou gameOver que já tem GameOverOverlay)
   if (state.kind === "oppDecision" || state.kind === "gameOver") {
     return null;
   }
 
-  // No estado idle, só exibe se for o turno do jogador (botão de encerrar turno proeminente)
-  if (state.kind === "idle" && !state.yourTurn) {
+  // No estado idle, só exibe se for o turno do jogador e se confirmEndTurnOpen for explicitamente true
+  if (state.kind === "idle" && (!state.yourTurn || !confirmEndTurnOpen)) {
     return null;
   }
 
@@ -65,7 +70,7 @@ export function CenterDecisionModal({
               </p>
               <p className="mt-0.5 text-[11px] text-muted-portal">
                 {state.turnNumber !== undefined ? `Turno ${state.turnNumber} · ` : ""}
-                {state.timerSeconds !== null ? `${state.timerSeconds}s restantes` : "Aguardando sua ação"}
+                {state.timerSeconds !== null ? `${state.timerSeconds}s restantes` : "Deseja encerrar o turno?"}
               </p>
             </div>
             <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
@@ -76,6 +81,15 @@ export function CenterDecisionModal({
                 onClick={onEndTurn}
               >
                 Encerrar Turno
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-11 w-full rounded-arena border-white/20 bg-slate-900/60 px-5 font-bold uppercase tracking-wider text-slate-200 hover:bg-slate-800 sm:w-auto"
+                disabled={busy}
+                onClick={onCancelEndTurn ?? onCancel}
+              >
+                Continuar Jogando
               </Button>
             </div>
           </div>

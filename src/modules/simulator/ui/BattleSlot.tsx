@@ -61,12 +61,9 @@ interface BattleSlotProps {
    *  desliza e pousa; `"heavy"` (custo 4–10) cai com peso (impacto + shake).
    *  Roda 1× na montagem do slot. `motion-reduce` neutraliza (ver index.css). */
   justDeployed?: "light" | "heavy";
-  /** Frente 4 (feedback Willen 4ª rodada) — animação de ataque: enquanto o
-   *  combate está no step de declaração/dano, a Unit atacante AVANÇA na direção
-   *  do alvo (vetor em px de viewport: centro do slot → centro do alvo) e volta
-   *  pro slot ao fim. `null`/ausente = repousada. `prefers-reduced-motion`
-   *  neutraliza (checado em JS — é `transform` inline). */
-  attacking?: { towardX: number; towardY: number } | null;
+  /** Frente 4 — animação de ataque: avanço tático contra a unidade ou escudo inimigo,
+   *  com fase de avanço/strike e fase de recuo de volta pro slot. */
+  attacking?: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" } | null;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -75,14 +72,25 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-/** vetor alvo → deslocamento capado (avança ~18% da distância, no máx. 44px) +
- *  leve rotação na direção do alvo. */
-function lungeStyle(v: { towardX: number; towardY: number }): { transform: string } {
+/** vetor alvo → deslocamento dinâmico no avanço e recuo no retorno */
+function lungeStyle(v: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" }): React.CSSProperties {
+  if (v.phase === "return") {
+    return {
+      transform: "translate(0px, 0px) rotate(0deg) scale(1)",
+      transition: "transform 260ms cubic-bezier(0.25, 1, 0.5, 1)",
+      zIndex: 35,
+    };
+  }
   const mag = Math.hypot(v.towardX, v.towardY) || 1;
-  const dist = Math.min(mag * 0.18, 44);
+  // Avança expressivamente em direção ao alvo (até 65% da distância real, max 160px)
+  const dist = Math.min(mag * 0.65, 160);
   const k = dist / mag;
-  const angle = Math.max(-7, Math.min(7, (v.towardX / mag) * 7));
-  return { transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg)` };
+  const angle = Math.max(-9, Math.min(9, (v.towardX / mag) * 9));
+  return {
+    transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg) scale(1.05)`,
+    transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.25, 1.2)",
+    zIndex: 45,
+  };
 }
 
 export function BattleSlot({
