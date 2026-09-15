@@ -64,6 +64,10 @@ interface BattleSlotProps {
   /** Frente 4 — animação de ataque: avanço tático contra a unidade ou escudo inimigo,
    *  com fase de avanço/strike e fase de recuo de volta pro slot. */
   attacking?: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" } | null;
+  /** Clique em slot vazio do tabuleiro (ex.: posicionar uma Unit em deploy) */
+  onEmptySlotClick?: () => void;
+  /** Se o slot vazio está ativo como destino válido para posicionamento */
+  emptySlotActive?: boolean;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -111,6 +115,8 @@ export function BattleSlot({
   registerRef,
   justDeployed,
   attacking,
+  onEmptySlotClick,
+  emptySlotActive,
 }: BattleSlotProps) {
   if (!unit) {
     return (
@@ -118,9 +124,41 @@ export function BattleSlot({
       // ocupado abaixo — senão a linha do grid (que soma a MAIOR célula)
       // ficaria mais alta só quando algum slot da fileira tem Piloto pareado,
       // e as vazias/sem-piloto pareciam "cair pra cima".
-      <div className="flex w-full flex-col">
-        <div className="relative aspect-[63/88] w-full rounded-arena border border-dashed border-primary/25 bg-slate-900/40">
-          <div className="absolute inset-1 rounded-arena border border-primary/10" aria-hidden />
+      <div
+        className={cn(
+          "flex w-full flex-col transition-all duration-200",
+          emptySlotActive && "cursor-pointer scale-[1.02]",
+        )}
+        onClick={emptySlotActive ? onEmptySlotClick : undefined}
+        role={emptySlotActive ? "button" : undefined}
+        tabIndex={emptySlotActive ? 0 : undefined}
+        aria-label={emptySlotActive ? "Posicionar unidade neste slot" : undefined}
+        onKeyDown={
+          emptySlotActive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onEmptySlotClick?.();
+                }
+              }
+            : undefined
+        }
+      >
+        <div
+          className={cn(
+            "relative aspect-[63/88] w-full rounded-arena border border-dashed bg-slate-900/40 transition-colors",
+            emptySlotActive
+              ? "border-cyan-400/70 bg-cyan-950/30 shadow-[0_0_15px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400/40 animate-pulse"
+              : "border-primary/25",
+          )}
+        >
+          <div
+            className={cn(
+              "absolute inset-1 rounded-arena border transition-colors",
+              emptySlotActive ? "border-cyan-400/30" : "border-primary/10",
+            )}
+            aria-hidden
+          />
         </div>
         <div className="h-[clamp(1.15rem,calc(var(--card-w-std,2.17rem)*0.34),2.1rem)] shrink-0" aria-hidden />
       </div>

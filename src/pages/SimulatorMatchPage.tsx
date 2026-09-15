@@ -904,6 +904,31 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   }, [introStage]);
 
+  // Callback de término de cada banner de fase
+  const handlePhaseBannerDone = useCallback(() => {
+    setPhaseBannerQueue((prev) => {
+      const next = prev.slice(1);
+      if (next.length === 0) {
+        setIntroStage("complete");
+      }
+      return next;
+    });
+  }, []);
+
+  // Recuperação de segurança: se a partida já está em andamento (Main Phase, sem mulligan ativo nem animação em curso),
+  // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada.
+  useEffect(() => {
+    if (!matchView || introStage === "complete") return;
+    const v = matchView.view;
+    const hasMulligan = v.pendingDecision.A?.kind === "mulligan" || v.pendingDecision.B?.kind === "mulligan";
+    if (!hasMulligan && v.turnNumber >= 1 && setupAnim === null && phaseBannerQueue.length === 0) {
+      const t = setTimeout(() => {
+        setIntroStage("complete");
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [matchView, introStage, setupAnim, phaseBannerQueue]);
+
   if (!matchView || artLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-muted-portal">
@@ -1065,17 +1090,54 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setSelected((current) => (current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId]));
   };
 
+  const executeDeploy = useCallback(
+    (cardInstanceId: string, pairWithUnitId?: string, sacrificeInstanceId?: string, resourceIds?: string[]) => {
+      runAction({
+        kind: "deployCard",
+        cardInstanceId,
+        pairWithUnitId,
+        sacrificeInstanceId,
+        resourceInstanceIds: resourceIds && resourceIds.length > 0 ? resourceIds : undefined,
+      });
+      clearSelection();
+    },
+    [runAction],
+  );
+
   /** clique num Recurso ativo pra incluí-lo/tirá-lo do pagamento manual do custo. */
   const toggleResource = (instanceId: string) => {
     if (!pending) return;
     sfx.playClick();
-    setSelectedResources((current) =>
-      current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId],
-    );
+    const nextResources = selectedResources.includes(instanceId)
+      ? selectedResources.filter((id) => id !== instanceId)
+      : [...selectedResources, instanceId];
+    setSelectedResources(nextResources);
+
+    // Se for deploy de Unit simples (não piloto, sem sacrifício pendente) e atingiu o custo exato, auto-invoca imediatamente
+    const isUnit = pendingCard?.def.cardType === "UNIT" && !pendingCard.def.pilotMode;
+    if (
+      pending.kind === "deploy" &&
+      isUnit &&
+      !pending.sacrificeInstanceId &&
+      nextResources.length === pendingCost
+    ) {
+      executeDeploy(pending.cardInstanceId, undefined, undefined, nextResources);
+    }
   };
 
   const startDeploy = (card: CardInstance, sacrificeInstanceId?: string) => {
+    const isUnit = card.def.cardType === "UNIT" && !card.def.pilotMode;
+    const effCost = sacrificeInstanceId ? 0 : effectiveCost(card.def, view as unknown as GameState, seat);
+
+    // Se for Unit simples de custo 0 (ou com sacrifício já escolhido), invoca na hora
+    if (isUnit && effCost === 0) {
+      executeDeploy(card.instanceId, undefined, sacrificeInstanceId, undefined);
+      return;
+    }
+
     setPending({ kind: "deploy", cardInstanceId: card.instanceId, sacrificeInstanceId });
+    setSelected([]);
+    setSelectedResources([]);
   };
   const startCommand = (card: CardInstance) => {
     if (!commandTrigger) return;
@@ -1122,17 +1184,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         showActionError(sel.error);
         return;
       }
-      // Etapa 4 (When Paired) + fix do Guntank (Deploy) — gatilhos direcionados são
-      // resolvidos depois, no AbilityResolutionModal; aqui não mandamos `targets`
-      // (o motor pausa sozinho, via `deferOrDispatchAbilities`, se precisar de interação).
-      sfx.playDeploy();
-      runAction({
-        kind: "deployCard",
-        cardInstanceId: pending.cardInstanceId,
-        pairWithUnitId: sel.pairWithUnitId,
-        sacrificeInstanceId: pending.sacrificeInstanceId,
-        resourceInstanceIds,
-      });
+      executeDeploy(pending.cardInstanceId, sel.pairWithUnitId, pending.sacrificeInstanceId, resourceInstanceIds);
     } else if (pending.kind === "activateAbility") {
       if (pending.abilityNeedsTarget && selected.length === 0) {
         showActionError("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
@@ -1339,6 +1391,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               activateLabel: ability?.kind === "support" ? "Support" : undefined,
             }
           : undefined;
+      const isDeployingUnit =
+        isSelf &&
+        !unit &&
+        pending?.kind === "deploy" &&
+        pendingCard?.def.cardType === "UNIT" &&
+        !pendingCard.def.pilotMode;
+
       return (
         <BattleSlot
           key={unit?.instanceId ?? `empty-${i}`}
@@ -1363,6 +1422,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onHoverCard={isWide ? setHoveredCard : undefined}
           actions={actions}
           registerRef={unit ? board.register(unit.instanceId) : undefined}
+          emptySlotActive={isDeployingUnit}
+          onEmptySlotClick={
+            isDeployingUnit
+              ? () => {
+                  if (pendingCost > 0 && selectedResources.length !== pendingCost) {
+                    showActionError(`Selecione ${pendingCost} recurso(s) ativo(s) para pagar o custo antes de invocar.`);
+                    return;
+                  }
+                  executeDeploy(
+                    pending!.cardInstanceId,
+                    undefined,
+                    pending!.sacrificeInstanceId,
+                    selectedResources.length > 0 ? selectedResources : undefined,
+                  );
+                }
+              : undefined
+          }
         />
       );
     });
@@ -1610,9 +1686,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return pending.abilityNeedsTarget ? "Escolha o alvo e os recursos pra pagar o custo" : "Escolha os recursos pra pagar o custo";
     }
     if (pending) {
+      const isUnit = pendingCard?.def.cardType === "UNIT" && !pendingCard.def.pilotMode;
+      const isPilot = pendingCard?.def.cardType === "PILOT" || !!pendingCard?.def.pilotMode;
+      if (isPilot) {
+        if (pendingCost > 0 && !resourcesReady) {
+          return `Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) e escolha a Unit para parear`;
+        }
+        return pendingDeployHint ?? "Escolha a Unit para parear no tabuleiro e confirme";
+      }
+      if (isUnit) {
+        if (pendingCost > 0 && !resourcesReady) {
+          return `Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) (clique nos seus recursos)`;
+        }
+        return "Recurso pago! Posicionando Unit no campo…";
+      }
       if (pendingDeployHint) return "Escolha a Unit pra parear e confirme";
       if (pendingCost > 0 && !resourcesReady) return `Pague o custo: ${selectedResources.length}/${pendingCost} recursos`;
-      return "Escolha o alvo / pareamento no tabuleiro e confirme";
+      return "Escolha o alvo no tabuleiro e confirme";
     }
     if (attackerId) return "Escolha o alvo do ataque (Unit ou jogador)";
     if (iAmDefending) return "Defenda: ative um <Blocker> ou não bloqueie";
@@ -1954,15 +2044,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <PhaseAnnouncementBanner
           key={phaseBannerQueue[0]}
           phase={phaseBannerQueue[0]}
-          onDone={() => {
-            setPhaseBannerQueue((prev) => {
-              const next = prev.slice(1);
-              if (next.length === 0) {
-                setIntroStage("complete");
-              }
-              return next;
-            });
-          }}
+          onDone={handlePhaseBannerDone}
         />
       ) : null}
 

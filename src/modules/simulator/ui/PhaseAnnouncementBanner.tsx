@@ -2,7 +2,7 @@
  * Apresenta anúncios cinematográficos ("FASE DE COMPRA", "FASE DE RECUPERAÇÃO", "FASE PRINCIPAL")
  * com estilo HUD mecha/Gundam, brilhos de neon e sincronia de som procedural.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sfx } from "../audio/soundEffects";
 
 export interface PhaseAnnouncementBannerProps {
@@ -19,6 +19,10 @@ export function PhaseAnnouncementBanner({
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const [visible, setVisible] = useState(true);
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
 
   useEffect(() => {
     sfx.playTurnStartAlert();
@@ -27,14 +31,14 @@ export function PhaseAnnouncementBanner({
     }, Math.max(300, durationMs - 250));
 
     const doneTimer = setTimeout(() => {
-      onDone?.();
+      onDoneRef.current?.();
     }, durationMs);
 
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(doneTimer);
     };
-  }, [phase, durationMs, onDone]);
+  }, [phase, durationMs]);
 
   if (!visible) return null;
 

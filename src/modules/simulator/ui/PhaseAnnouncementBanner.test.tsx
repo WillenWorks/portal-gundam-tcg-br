@@ -27,4 +27,28 @@ describe("PhaseAnnouncementBanner", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it("does not reset timer or play sound repeatedly when parent re-renders with new onDone reference", () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    const { rerender } = render(<PhaseAnnouncementBanner phase="FASE PRINCIPAL" durationMs={1000} onDone={() => onDone()} />);
+
+    // Simula re-renders a cada 300ms com closures novas
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    rerender(<PhaseAnnouncementBanner phase="FASE PRINCIPAL" durationMs={1000} onDone={() => onDone()} />);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    rerender(<PhaseAnnouncementBanner phase="FASE PRINCIPAL" durationMs={1000} onDone={() => onDone()} />);
+
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
 });
