@@ -64,15 +64,17 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Classe D — gap de motor transversal (não amarrado a 1 carta).
+  // Classe D — gap de motor transversal (não amarrado a 1 carta). FECHADA
+  // (docs/47 Fase 2): `pairedPilotFollowEvents` movida de `combat.ts` (local,
+  // não-exportada) pra `types.ts` (exportada) e chamada também por
+  // `compilePrimitive` (`destroy`/`damageUnit` letal em effectSpec.ts) e por
+  // `deployCard` (sacrifício de Link Unit em GD01-002, deploy.ts). Achado
+  // ADICIONAL ao fechar: os 2 kinds de `CombatTrigger.action` que matam uma
+  // Unit (`damageAllEnemyUnits`/`damageChosenEnemyUnit`, combat.ts) também não
+  // chamavam `pairedPilotFollowEvents` — mesma causa raiz, mesmo fix, corrigido
+  // junto (Sinanju/Heavyarms já produziam esse caso e nunca tinham teste
+  // cobrindo alvo pareado).
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "*",
-    clause: "Pilot pareado seguir a Unit destruída por dano/destroy de EFEITO (fora de combate).",
-    reason:
-      "`compilePrimitive` (`damageUnit`/`destroy`) emite só o `DESTROY_CARD` da Unit; só `combat.ts` emite `pairedPilotFollowEvents`. CR 3-3-6: o Pilot deveria ir junto pro trash. Nenhuma carta ST01–ST04 produz esse caso hoje (Close Combat/Rewloola miram Units, não Link Units específicas), mas GD/EB produzem.",
-    blockedBy: "engine:pilot-follow-so-em-combate",
-  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe E — Wave GD01: Mecânicas avançadas, bounce, auras e custos dinâmicos (Fase 2 Claude).

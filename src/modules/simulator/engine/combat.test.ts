@@ -373,6 +373,21 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
     expect(findCard(state, enemyId).damage).toBe(2);
   });
 
+  it("ST03-001 Sinanju — dano do combatTrigger mata a Unit inimiga escolhida: o Pilot pareado dela também vai pro trash (CR 3-3-6, docs/47 Fase 2)", () => {
+    let state = stripBase(freshGame(), "B");
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
+    const enemyPilotId = place(state, "B", ST03_CARD_DEFS.CHAR_AZNABLE); // hp:1 impresso -> soma no efetivo da Unit pareada (CR 3-3-5)
+    // GEARA_ZULU (HP2) pareada com Char Aznable (HP+1) = HP efetivo 3; 1 de dano prévio + 2 do combatTrigger = letal.
+    const enemyUnitId = place(state, "B", ST03_CARD_DEFS.GEARA_ZULU, { rested: true, pairedPilotId: enemyPilotId, damage: 1 });
+    findCard(state, enemyPilotId).pairedUnitId = enemyUnitId;
+
+    state = runToDamageStep(state, sinanjuId, "player");
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === enemyUnitId)).toBe(true);
+    expect(state.players.B.trash.some((c) => c.instanceId === enemyPilotId)).toBe(true);
+  });
+
   it("ST03-001 Sinanju — Base absorve o dano: nenhum shield cai, nenhum dano colateral", () => {
     let state = freshGame(); // B mantém a EX Base
     const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU);

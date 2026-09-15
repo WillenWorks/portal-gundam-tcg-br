@@ -1,5 +1,14 @@
 import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
+import {
+  effectiveAp,
+  effectiveHp,
+  effectivePilotDef,
+  hasKeyword,
+  keywordValue,
+  otherPlayer,
+  pairedPilotFollowEvents,
+  satisfiesLinkCondition,
+} from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 
 /**
@@ -259,6 +268,7 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
             events.push({ type: "DAMAGE_UNIT", instanceId: enemy.instanceId, amount: action.amount });
             if (enemy.damage + action.amount >= effectiveHp(enemy, state)) {
               events.push({ type: "DESTROY_CARD", instanceId: enemy.instanceId });
+              events.push(...pairedPilotFollowEvents(enemy));
             }
           }
           break;
@@ -272,6 +282,7 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
             events.push({ type: "DAMAGE_UNIT", instanceId: chosen.instanceId, amount: action.amount });
             if (chosen.damage + action.amount >= effectiveHp(chosen, state)) {
               events.push({ type: "DESTROY_CARD", instanceId: chosen.instanceId });
+              events.push(...pairedPilotFollowEvents(chosen));
             }
           }
           break;
@@ -412,12 +423,6 @@ export function resolveDamageStep(state: GameState): GameState {
   }
 
   return applyEvents(state, events);
-}
-
-function pairedPilotFollowEvents(unit: CardInstance): GameEvent[] {
-  // Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino
-  if (!unit.pairedPilotId) return [];
-  return [{ type: "DESTROY_CARD", instanceId: unit.pairedPilotId }];
 }
 
 // ---------------------------------------------------------------------------

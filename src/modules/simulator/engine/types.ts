@@ -1018,3 +1018,16 @@ export type GameEvent =
   | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
   | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
   | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] };
+
+/**
+ * Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino
+ * (trash) quando ela é destruída — POR QUALQUER MOTIVO, não só combate.
+ * Movida de `combat.ts` (era local/não-exportada, só usada ali) pra cá e
+ * exportada: `compilePrimitive` (`effectSpec.ts`, `destroy`/`damageUnit`)
+ * também precisa dela — Unit pareada morta por EFEITO fora de combate não
+ * levava o Pilot junto, gap transversal fechado na revalidação (docs/47).
+ */
+export function pairedPilotFollowEvents(unit: CardInstance): GameEvent[] {
+  if (!unit.pairedPilotId) return [];
+  return [{ type: "DESTROY_CARD", instanceId: unit.pairedPilotId }];
+}
