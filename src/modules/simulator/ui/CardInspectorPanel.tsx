@@ -12,7 +12,7 @@ import { Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
-import { CardEffectText, inspectorStats } from "./CardInspectorModal";
+import { CardEffectText, inspectorStats, staticAbilityKeywordLabels } from "./CardInspectorModal";
 import { CardFace } from "./CardFace";
 
 interface CardInspectorPanelProps {
@@ -109,7 +109,14 @@ function PanelBody({
   const apBuffed = !statsAreModifier && ap !== undefined && ap !== (def.ap ?? 0);
   const hpDamaged = inPlay && card.damage > 0;
 
-  const keywords = [...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])])];
+  const keywords = [
+    ...new Set([
+      ...(def.keywordTags ?? []),
+      ...(def.triggerKeywords ?? []),
+      ...(def.effectKeywords ?? []),
+      ...staticAbilityKeywordLabels(def),
+    ]),
+  ];
   const activeBuffs = card.statModifiers.map((m) => `${m.stat.toUpperCase()} ${m.amount >= 0 ? "+" : ""}${m.amount}`);
   const grantedKeywords = card.keywordGrants.map((g) => g.keyword);
 

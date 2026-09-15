@@ -201,3 +201,56 @@ describe("primitiva deployFromHandTriggered (ST03-010, docs/41)", () => {
     ).toThrow(/não casa o filtro/);
   });
 });
+
+describe("CR 3-3-6 — Pilot pareado segue a Unit destruída por EFEITO (docs/47 Fase 2, deferred.ts '*' fechado)", () => {
+  const unitDef: CardDef = { code: "U-PAIR", nameEn: "Paired Unit", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 2 };
+  const pilotDef: CardDef = { code: "P-PAIR", nameEn: "Paired Pilot", cardType: "PILOT", color: "blue" };
+
+  function stateWithPairedUnit(): { state: GameState; unitId: string; pilotId: string } {
+    const state = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 40, firstPlayer: "A" });
+    const unit = fxInstance("B", unitDef, "battleArea");
+    const pilot = fxInstance("B", pilotDef, "battleArea");
+    unit.pairedPilotId = pilot.instanceId;
+    pilot.pairedUnitId = unit.instanceId;
+    state.players.B.battleArea.push(unit, pilot);
+    return { state, unitId: unit.instanceId, pilotId: pilot.instanceId };
+  }
+
+  it("'destroy' manda o Pilot pareado pro trash junto com a Unit (antes só a Unit ia)", () => {
+    const { state, unitId, pilotId } = stateWithPairedUnit();
+    const events = compilePrimitive({ op: "destroy", target: { kind: "named", name: "target" } }, fxCtx(state, "A", { target: [unitId] }));
+    const next = applyEvents(state, events);
+    expect(next.players.B.trash.some((c) => c.instanceId === unitId)).toBe(true);
+    expect(next.players.B.trash.some((c) => c.instanceId === pilotId)).toBe(true);
+  });
+
+  it("'damageUnit' letal manda o Pilot pareado pro trash junto", () => {
+    const { state, unitId, pilotId } = stateWithPairedUnit();
+    const events = compilePrimitive(
+      { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 2 },
+      fxCtx(state, "A", { target: [unitId] }),
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.B.trash.some((c) => c.instanceId === unitId)).toBe(true);
+    expect(next.players.B.trash.some((c) => c.instanceId === pilotId)).toBe(true);
+  });
+
+  it("'damageUnit' NÃO letal não manda nem a Unit nem o Pilot pro trash", () => {
+    const { state, unitId, pilotId } = stateWithPairedUnit();
+    const events = compilePrimitive(
+      { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
+      fxCtx(state, "A", { target: [unitId] }),
+    );
+    const next = applyEvents(state, events);
+    expect(next.players.B.trash.some((c) => c.instanceId === unitId)).toBe(false);
+    expect(next.players.B.trash.some((c) => c.instanceId === pilotId)).toBe(false);
+  });
+
+  it("Unit sem Pilot pareado: 'destroy' não gera nenhum efeito colateral", () => {
+    const state = createGame(buildVanillaDeckList(), buildVanillaDeckList(), { seed: 41, firstPlayer: "A" });
+    const unit = fxInstance("B", unitDef, "battleArea");
+    state.players.B.battleArea.push(unit);
+    const events = compilePrimitive({ op: "destroy", target: { kind: "named", name: "target" } }, fxCtx(state, "A", { target: [unit.instanceId] }));
+    expect(events).toEqual([{ type: "DESTROY_CARD", instanceId: unit.instanceId }]);
+  });
+});

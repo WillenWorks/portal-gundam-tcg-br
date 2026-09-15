@@ -31,7 +31,7 @@ interface AbilityResolutionModalProps {
    */
   resolveHandLabel?: (instanceId: string) => string;
   busy?: boolean;
-  onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>) => void;
+  onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>) => void;
 }
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -48,6 +48,8 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
   );
   const [targets, setTargets] = useState<Record<string, string[]>>({});
+  /** docs/47 Fase 5 — escolha do 2º pool de alvo (`q.secondaryTarget`), ex. ST05-010 Mikazuki Augus. */
+  const [secondaryTargets, setSecondaryTargets] = useState<Record<string, string[]>>({});
   /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
   const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
 
@@ -72,6 +74,12 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
 
   const pickSingle = (specId: string, instanceId: string) =>
     setTargets((s) => ({
+      ...s,
+      [specId]: s[specId]?.[0] === instanceId ? [] : [instanceId],
+    }));
+
+  const pickSecondary = (specId: string, instanceId: string) =>
+    setSecondaryTargets((s) => ({
       ...s,
       [specId]: s[specId]?.[0] === instanceId ? [] : [instanceId],
     }));
@@ -113,7 +121,10 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     if (q.handChoice) return q.handChoice.legalHandIds.length === 0 || chosen.length > 0;
     if (q.needsTarget && optionsFor(specId).length > 0) {
       const min = q.targetCount?.min ?? 1;
-      return chosen.length >= Math.min(min, optionsFor(specId).length);
+      if (chosen.length < Math.min(min, optionsFor(specId).length)) return false;
+    }
+    if (q.secondaryTarget && q.secondaryTarget.legalTargets.length > 0) {
+      return (secondaryTargets[specId] ?? []).length > 0;
     }
     return true;
   });
@@ -123,6 +134,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
       order.map((specId) => {
         const q = itemFor(specId);
         const chosen = targets[specId] ?? [];
+        const secondaryChosen = q.secondaryTarget ? (secondaryTargets[specId] ?? []) : undefined;
         if (q.deckTopReveal) return { specId, activate: true, targetIds: chosen };
         if (q.handDiscard) return { specId, activate: true, targetIds: chosen };
         if (q.deckReorder) {
@@ -133,7 +145,12 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
         if (q.trashSearch) return { specId, activate: true, targetIds: chosen };
         const on = Boolean(activate[specId]);
         if (q.handChoice) return { specId, activate: on, targetIds: on ? chosen : [] };
-        return { specId, activate: on, targetIds: q.needsTarget ? chosen : [] };
+        return {
+          specId,
+          activate: on,
+          targetIds: q.needsTarget ? chosen : [],
+          secondaryTargetIds: q.secondaryTarget ? (on ? secondaryChosen : []) : undefined,
+        };
       }),
     );
 
@@ -212,6 +229,27 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                     </div>
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
+                  )
+                ) : null}
+
+                {on && q.secondaryTarget ? (
+                  q.secondaryTarget.legalTargets.length > 0 ? (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[10px] text-amber-300">E também:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {q.secondaryTarget.legalTargets.map((instanceId) => (
+                          <Toggle
+                            key={instanceId}
+                            active={(secondaryTargets[specId] ?? []).includes(instanceId)}
+                            onClick={() => pickSecondary(specId, instanceId)}
+                          >
+                            {resolveLabel(instanceId)}
+                          </Toggle>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
                   )
                 ) : null}
 

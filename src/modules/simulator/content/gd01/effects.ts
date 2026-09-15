@@ -706,16 +706,35 @@ export const ZEE_ZULU_ATTACK: EffectSpec = {
 };
 
 // GD01-066 Justice Gundam — 【Deploy】Deploy 1 [Fatum-00]((Triple Ship Alliance)･AP2･HP2･<Blocker>) Unit token.
-// (a 2ª cláusula oficial, "【During Pair】【Attack】Choose 1 of your (Triple Ship
-// Alliance) Unit tokens. It may attack on the turn it is deployed.", segue
-// deferida em deferred.ts — concessão de "pode atacar no turno em que foi
-// deployada" fora da exceção nativa de Link Unit, fora do escopo desta resolução.)
 export const JUSTICE_GUNDAM_DEPLOY: EffectSpec = {
   id: "GD01-066-Deploy",
   cardCode: "GD01-066",
   trigger: "Deploy",
   actions: [{ op: "spawnToken", def: TOKEN_FATUM_00, player: "controller", zone: "battleArea" }],
   sourceText: "【Deploy】Deploy 1 [Fatum-00]((Triple Ship Alliance)･AP2･HP2･<Blocker>) Unit token.",
+};
+
+// GD01-066 Justice Gundam — 2ª cláusula, fechada na revalidação (docs/47 Fase 3):
+// "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It
+// may attack on the turn it is deployed." `selfIsPaired` já é o predicado certo
+// aqui (tempo real — a Unit ainda está viva no trigger Attack, diferente do
+// `duringPair` de Destroyed que precisa de snapshot `wasPaired`; mesmo padrão já
+// usado por GD01-073/GD01-082 com `selfIsLinkUnit`/`selfIsPaired`). A exceção de
+// "pode atacar no turno do deploy" vira keyword sintética `AttackOnDeployTurn`
+// via `grantKeyword` (endOfTurn) — combat.ts/declareAttack aceita como
+// equivalente a Link Unit. Filtro `isToken` novo em predicates.ts.
+export const JUSTICE_GUNDAM_ATTACK: EffectSpec = {
+  id: "GD01-066-Attack",
+  cardCode: "GD01-066",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfIsPaired",
+    then: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "AttackOnDeployTurn", duration: "endOfTurn" }],
+  },
+  actions: [],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Triple Ship Alliance;isToken",
+  sourceText: "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed.",
 };
 
 // GD01-047 Shamblo — 【Attack】If 2 or more other rested friendly Units are in play, choose 1 enemy Unit. Deal 3 damage to it.
@@ -1376,6 +1395,7 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   LAGOWE_ATTACK,
   ZEE_ZULU_ATTACK,
   JUSTICE_GUNDAM_DEPLOY,
+  JUSTICE_GUNDAM_ATTACK,
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
   CITIZENS_TAKE_A_STAND_BURST,

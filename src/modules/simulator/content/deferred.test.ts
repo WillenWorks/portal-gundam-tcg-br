@@ -24,9 +24,9 @@ const KNOWN_CARD_CODES = new Set<string>(
 );
 
 describe("DEFERRED_CLAUSES", () => {
-  it("é uma lista tipada e não-vazia (Lane 1B populou)", () => {
+  it("é uma lista tipada (docs/47: fechou as 6 cartas de ST01-05/GD01 conhecidas até aqui — pode ficar vazia até uma wave nova achar uma cláusula nova)", () => {
     expect(Array.isArray(DEFERRED_CLAUSES)).toBe(true);
-    expect(DEFERRED_CLAUSES.length).toBeGreaterThan(0);
+    expect(DEFERRED_CLAUSES.length).toBeGreaterThanOrEqual(0);
   });
 
   it("cada entrada tem os 4 campos preenchidos e blockedBy com prefixo engine:", () => {

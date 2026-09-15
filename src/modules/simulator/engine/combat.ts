@@ -1,6 +1,16 @@
-import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
+import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import {
+  effectiveAp,
+  effectiveHp,
+  effectivePilotDef,
+  hasKeyword,
+  keywordValue,
+  otherPlayer,
+  pairedPilotFollowEvents,
+  satisfiesLinkCondition,
+} from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
+import { matchesCardDefFilter } from "./effectSpec";
 
 /**
  * Sequência de combate (Comprehensive Rules seção 8, ver docs/18 "Estrutura
@@ -31,12 +41,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
   if (state.combat) throw new Error("Já existe um combate em andamento");
   if (attacker.enteredZoneOnTurn === state.turnNumber) {
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
-    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3).
+    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3), ou
+    // se um efeito concedeu a exceção explicitamente (GD01-066 Justice Gundam —
+    // "Choose 1 of your Unit tokens. It may attack on the turn it is deployed.",
+    // keyword sintética via `grantKeyword`, docs/47 Fase 3).
     const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
     const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
-    if (!isLinkUnit) {
+    const hasDeployTurnGrant = hasKeyword(attacker, "AttackOnDeployTurn", state);
+    if (!isLinkUnit && !hasDeployTurnGrant) {
       throw new Error(
-        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3)",
+        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito",
       );
     }
   }
@@ -212,12 +226,19 @@ function findInnateDamageProtection(unit: CardInstance, state: GameState): CardD
  * tanto na própria Unit (`attacker.def`) quanto no Pilot pareado com ela
  * (`CombatTrigger` pode viver nos dois lados — ver `CardDef.combatTriggers`).
  */
-function combatTriggerEvents(attacker: CardInstance, state: GameState, on: CombatTrigger["on"], destroyedEnemy?: CardInstance): GameEvent[] {
-  if (attacker.owner !== state.activePlayer) return []; // "during your turn" — nunca satisfeito pelo defensor
+interface CombatTriggerResult {
+  events: GameEvent[];
+  /** docs/47 Fase 6 — gatilhos que precisam de escolha real do jogador (não resolvidos aqui, ver `resolveDamageStep`). */
+  pendingChoices: PendingCombatTriggerChoice[];
+}
+
+function combatTriggerEvents(attacker: CardInstance, state: GameState, on: CombatTrigger["on"], destroyedEnemy?: CardInstance): CombatTriggerResult {
+  if (attacker.owner !== state.activePlayer) return { events: [], pendingChoices: [] }; // "during your turn" — nunca satisfeito pelo defensor
   const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
   const sources = [attacker.def, ...(pilot ? [pilot.def] : [])];
 
   const events: GameEvent[] = [];
+  const pendingChoices: PendingCombatTriggerChoice[] = [];
   for (const def of sources) {
     for (const trigger of def.combatTriggers ?? []) {
       if (trigger.on !== on) continue;
@@ -259,27 +280,36 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
             events.push({ type: "DAMAGE_UNIT", instanceId: enemy.instanceId, amount: action.amount });
             if (enemy.damage + action.amount >= effectiveHp(enemy, state)) {
               events.push({ type: "DESTROY_CARD", instanceId: enemy.instanceId });
+              events.push(...pairedPilotFollowEvents(enemy));
             }
           }
           break;
         }
         case "damageChosenEnemyUnit": {
-          // Sem escolha real de alvo em combate (docs/43 §4): auto-mira a 1ª Unit
-          // inimiga legal na Battle Area. Determinístico e testável.
+          // docs/47 Fase 6 — escolha REAL do jogador (antes: auto-mira a 1ª Unit
+          // inimiga legal, docs/43 §4). Sem alvo legal, o efeito não ativa (igual
+          // a antes) — não gera pausa nenhuma.
           const opponent = state.players[otherPlayer(attacker.owner)];
-          const chosen = opponent.battleArea.find((c) => c.def.cardType === "UNIT");
-          if (chosen) {
-            events.push({ type: "DAMAGE_UNIT", instanceId: chosen.instanceId, amount: action.amount });
-            if (chosen.damage + action.amount >= effectiveHp(chosen, state)) {
-              events.push({ type: "DESTROY_CARD", instanceId: chosen.instanceId });
-            }
+          const legalCandidates = opponent.battleArea.filter((c) => c.def.cardType === "UNIT").map((c) => c.instanceId);
+          if (legalCandidates.length > 0) {
+            pendingChoices.push({ sourceInstanceId: attacker.instanceId, action, legalCandidates, label: def.nameEn });
+          }
+          break;
+        }
+        case "retrieveFromTrash": {
+          // docs/47 Fase 6 — ST05-011 Akihiro Altland.
+          const legalCandidates = state.players[attacker.owner].trash
+            .filter((c) => matchesCardDefFilter(c.def, action.filter))
+            .map((c) => c.instanceId);
+          if (legalCandidates.length > 0) {
+            pendingChoices.push({ sourceInstanceId: attacker.instanceId, action, legalCandidates, label: def.nameEn });
           }
           break;
         }
       }
     }
   }
-  return events;
+  return { events, pendingChoices };
 }
 
 export function resolveDamageStep(state: GameState): GameState {
@@ -289,6 +319,14 @@ export function resolveDamageStep(state: GameState): GameState {
   const attacker = findCard(state, combat.attackerId);
   const attackerHasFirstStrike = hasKeyword(attacker, "First Strike", state);
   const events: GameEvent[] = [];
+  // docs/47 Fase 6 — acumula gatilhos de combate que precisam de escolha real
+  // do jogador (`damageChosenEnemyUnit`/`retrieveFromTrash`); resolvidos DEPOIS
+  // de Burst/Destroyed, não aqui (ver `combat.pendingTriggerChoices` no retorno).
+  const pendingChoices: PendingCombatTriggerChoice[] = [];
+  const pushTrigger = (result: CombatTriggerResult) => {
+    events.push(...result.events);
+    pendingChoices.push(...result.pendingChoices);
+  };
 
   if (combat.currentTarget === "player") {
     const defendingPlayer = combat.defendingPlayer;
@@ -312,7 +350,7 @@ export function resolveDamageStep(state: GameState): GameState {
         if (hadShields) {
           // ST03-001 Sinanju — "when this Unit destroys an enemy shield area card
           // with battle damage, choose 1 enemy Unit. Deal 2 damage to it."
-          events.push(...combatTriggerEvents(attacker, state, "destroyEnemyShieldInBattle"));
+          pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyShieldInBattle"));
         }
       }
     }
@@ -358,7 +396,7 @@ export function resolveDamageStep(state: GameState): GameState {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
         events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
       } else {
         if (!attackerDamagePrevented) {
@@ -384,7 +422,7 @@ export function resolveDamageStep(state: GameState): GameState {
           events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
           events.push(...pairedPilotFollowEvents(defender));
           events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-          events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+          pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         }
       }
     } else {
@@ -399,7 +437,7 @@ export function resolveDamageStep(state: GameState): GameState {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
         events.push(...breachEvents(attacker, combat.defendingPlayer, state));
-        events.push(...combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
       }
       if (attackerWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
@@ -411,13 +449,14 @@ export function resolveDamageStep(state: GameState): GameState {
     }
   }
 
-  return applyEvents(state, events);
-}
-
-function pairedPilotFollowEvents(unit: CardInstance): GameEvent[] {
-  // Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino
-  if (!unit.pairedPilotId) return [];
-  return [{ type: "DESTROY_CARD", instanceId: unit.pairedPilotId }];
+  const next = applyEvents(state, events);
+  // docs/47 Fase 6 — sobrevive em `combat` (limpo só em `COMBAT_ENDED`, mesmo
+  // espírito de `shieldProtection`/`unitDamageProtection`) até `actions.ts`
+  // converter em `PendingDecision.abilityResolution`, DEPOIS de Burst/Destroyed.
+  if (pendingChoices.length > 0 && next.combat) {
+    next.combat.pendingTriggerChoices = pendingChoices;
+  }
+  return next;
 }
 
 // ---------------------------------------------------------------------------
