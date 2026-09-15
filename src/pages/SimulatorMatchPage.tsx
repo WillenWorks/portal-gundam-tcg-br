@@ -1090,19 +1090,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setSelected((current) => (current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId]));
   };
 
-  const executeDeploy = useCallback(
-    (cardInstanceId: string, pairWithUnitId?: string, sacrificeInstanceId?: string, resourceIds?: string[]) => {
-      runAction({
-        kind: "deployCard",
-        cardInstanceId,
-        pairWithUnitId,
-        sacrificeInstanceId,
-        resourceInstanceIds: resourceIds && resourceIds.length > 0 ? resourceIds : undefined,
-      });
-      clearSelection();
-    },
-    [runAction],
-  );
+  const executeDeploy = (
+    cardInstanceId: string,
+    pairWithUnitId?: string,
+    sacrificeInstanceId?: string,
+    resourceIds?: string[],
+  ) => {
+    runAction({
+      kind: "deployCard",
+      cardInstanceId,
+      pairWithUnitId,
+      sacrificeInstanceId,
+      resourceInstanceIds: resourceIds && resourceIds.length > 0 ? resourceIds : undefined,
+    });
+    clearSelection();
+  };
 
   /** clique num Recurso ativo pra incluí-lo/tirá-lo do pagamento manual do custo. */
   const toggleResource = (instanceId: string) => {
