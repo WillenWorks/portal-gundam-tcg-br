@@ -176,6 +176,16 @@ const AKIHIRO_ALTLAND: CardDef = {
   triggerKeywords: ["Burst", "During Link"],
   keywordTags: ["Burst", "During Link"],
   hasBurst: true,
+  // "【During Link】During your turn, when this Unit destroys an enemy Unit with
+  // battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your
+  // trash. Add it to your hand." Fechada na revalidação (docs/47 Fase 6) — "this
+  // Unit" é a Unit pareada/linkada (mesmo padrão de ST02-003/ST02-011: gatilho
+  // definido no Piloto, procurado via `combatTriggerEvents` em ambos os lados do
+  // pareamento). "During your turn" já é garantido por `combatTriggerEvents` só
+  // rodar pro atacante ativo — `condition: "duringLink"` cobre o resto do texto.
+  combatTriggers: [
+    { condition: "duringLink", on: "destroyEnemyInBattle", action: { kind: "retrieveFromTrash", filter: { cardType: "UNIT", anyTrait: ["Tekkadan"], maxLevel: 2 } } },
+  ],
 };
 
 const MCGILLIS_FAREED: CardDef = {

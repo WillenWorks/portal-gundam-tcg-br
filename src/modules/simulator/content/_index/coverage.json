@@ -220,10 +220,8 @@
         {
           "code": "ST03-001",
           "name": "Sinanju",
-          "status": "implementada*",
-          "deferredClauses": [
-            "when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST03-002",
@@ -317,8 +315,8 @@
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 5,
         "deferida": 0,
         "faltando": 0
@@ -496,10 +494,8 @@
         {
           "code": "ST05-011",
           "name": "Akihiro Altland",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your trash. Add it to your hand."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST05-012",
@@ -527,8 +523,8 @@
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 4,
         "deferida": 0,
         "faltando": 0

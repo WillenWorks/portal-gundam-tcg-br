@@ -52,14 +52,13 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   // 【During Pair】"gains <High-Maneuver>" fechada na revalidação (docs/47): já
   // era StaticAbility condicional viável (`hasKeyword`/`keywordValue` recebem
   // `state` em todos os call sites reais) — fixture atualizada em st03Deck.ts.
+  // "choose 1 enemy Unit. Deal 2 damage to it." fechada (docs/47 Fase 6):
+  // `damageChosenEnemyUnit` deixou de auto-mirar — `combat.pendingTriggerChoices`
+  // (populado em `combatTriggerEvents`/`resolveDamageStep`) vira
+  // `PendingDecision.abilityResolution` de verdade em `actions.ts`
+  // (`finishDamageStep`/`pauseForCombatTriggerChoices`), DEPOIS de Burst e
+  // Destroyed resolverem (mesma ordem FIFO já usada pros outros 2).
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "ST03-001",
-    clause: "when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it.",
-    reason:
-      "O `combatTrigger` `destroyEnemyShieldInBattle` AUTO-mira a 1ª Unit inimiga legal na Battle Area — não há sistema de escolha de alvo durante o combate. Determinístico e testável, mas não é a escolha do jogador.",
-    blockedBy: "engine:sem-escolha-de-alvo-em-combate",
-  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe D — gap de motor transversal (não amarrado a 1 carta). FECHADA
@@ -91,15 +90,14 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe F — Wave ST05: retrieve de trash via combate.
+  // ST05-011 Akihiro Altland 【During Link】"...choose 1 (Tekkadan) Unit card
+  // that is Lv.2 or lower from your trash. Add it to your hand." FECHADA
+  // (docs/47 Fase 6): `CombatTrigger.action` ganhou o kind `retrieveFromTrash`
+  // (mesmo `CardDefFilter`/`matchesCardDefFilter` já usados por
+  // `searchTrashToHand`), resolvido via `combat.pendingTriggerChoices` +
+  // `PendingDecision.abilityResolution` (mesmo mecanismo do Sinanju acima,
+  // reusando o widget `trashSearch` já existente na UI).
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "ST05-011",
-    clause:
-      "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
-    reason:
-      "`CombatTrigger.action` só cobre `draw` / `damageAllEnemyUnits` / `damageChosenEnemyUnit` — não há kind pra buscar carta do trash com filtro (trait + level) e devolver pra mão. A 1ª cláusula da carta (【Burst】Add this card to your hand) está implementada (`AKIHIRO_ALTLAND_BURST`, content/st05.ts).",
-    blockedBy: "engine:combat-trigger-sem-retrieve-trash",
-  },
   // ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your Units and 1 enemy
   // Unit. Deal 1 damage to them." FECHADA (docs/47 Fase 5): `AbilityQueueEntry`
   // ganhou `secondaryTarget` (irmão de `legalTargets`), `resolveAbility` ganhou
