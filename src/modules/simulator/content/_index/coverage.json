@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "196 specs",
+  "generatedFrom": "197 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -490,10 +490,8 @@
         {
           "code": "ST05-010",
           "name": "Mikazuki Augus",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST05-011",
@@ -529,8 +527,8 @@
         }
       ],
       "counts": {
-        "impl": 9,
-        "implStar": 2,
+        "impl": 10,
+        "implStar": 1,
         "vanilla": 4,
         "deferida": 0,
         "faltando": 0

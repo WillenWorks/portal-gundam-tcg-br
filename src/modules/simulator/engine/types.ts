@@ -801,6 +801,18 @@ export type PendingDecision =
          * hora de resolver (`resolveAbility`), junto com a escolha real do jogador.
          */
         implicitTargets?: Record<string, string[]>;
+        /**
+         * docs/47 Fase 5 — 2º alvo nomeado no caminho de FILA (gatilho automático
+         * pausado, ex. ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your
+         * Units and 1 enemy Unit"), espelhando `EffectSpec.secondaryTarget`
+         * (que até aqui só era resolvido no caminho de Command 【Main】/【Action】,
+         * que já vem com `action.targets` prontos — não passa pela fila). Campo
+         * IRMÃO de `legalTargets`/`targetScope` (que continuam sendo o POOL
+         * PRIMÁRIO) — nunca reaproveitado entre specs, mesma convenção dos
+         * demais campos de escolha aqui. A escolha viaja em
+         * `resolution.secondaryTargetIds` e vira `ctx.targets[name]`.
+         */
+        secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; legalTargets: string[] };
       }>;
       /**
        * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO

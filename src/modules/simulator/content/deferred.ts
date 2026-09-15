@@ -100,11 +100,10 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "`CombatTrigger.action` só cobre `draw` / `damageAllEnemyUnits` / `damageChosenEnemyUnit` — não há kind pra buscar carta do trash com filtro (trait + level) e devolver pra mão. A 1ª cláusula da carta (【Burst】Add this card to your hand) está implementada (`AKIHIRO_ALTLAND_BURST`, content/st05.ts).",
     blockedBy: "engine:combat-trigger-sem-retrieve-trash",
   },
-  {
-    cardCode: "ST05-010",
-    clause: "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
-    reason:
-      "`EffectSpec.secondaryTarget` (2º alvo nomeado) só é resolvido no caminho especial de Command 【Main】 jogada da mão (`legalActions.ts` `mainPhaseCandidates`, precedente GD01-103/112). O dispatcher genérico de gatilho automático (`abilityDispatch.ts` → `pendingDecision.abilityResolution`) não carrega um 2º alvo nomeado na fila da decisão — achado no fuzzing da wave ST05 (partida travava em `pendingDecision` esperando um alvo que a UI/enumeração nunca oferecia). A 1ª cláusula da carta (【Burst】Add this card to your hand) está implementada (`MIKAZUKI_AUGUS_BURST`, content/st05.ts).",
-    blockedBy: "engine:secondaryTarget-fora-de-command-main-da-mao",
-  },
+  // ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your Units and 1 enemy
+  // Unit. Deal 1 damage to them." FECHADA (docs/47 Fase 5): `AbilityQueueEntry`
+  // ganhou `secondaryTarget` (irmão de `legalTargets`), `resolveAbility` ganhou
+  // `resolution.secondaryTargetIds`, `legalActions.ts` enumera o produto de
+  // pool primário × secundário — mesmo `EffectSpec.secondaryTarget` já usado
+  // por Command (GD01-103/112), agora também no caminho de fila.
 ] as const;

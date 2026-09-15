@@ -2269,6 +2269,19 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "ST05-010-WhenPaired",
+    "cardCode": "ST05-010",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit",
+      "damageUnit"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
+  },
+  {
     "id": "ST05-011-Burst",
     "cardCode": "ST05-011",
     "trigger": "Burst",

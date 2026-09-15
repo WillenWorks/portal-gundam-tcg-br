@@ -102,7 +102,12 @@ export type PlayerAction =
    */
   | {
       kind: "resolveAbility";
-      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>;
+      /**
+       * `secondaryTargetIds` (docs/47 Fase 5) — resposta pro `secondaryTarget`
+       * da entrada da fila, se houver (ST05-010 Mikazuki Augus 【When Paired】).
+       * Igual a `targetIds`: 0 ou 1 id, virando `ctx.targets[secondaryTarget.name]`.
+       */
+      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>;
     }
   /**
    * Resolve a `PendingDecision.mulligan` de início de partida (Comprehensive
@@ -438,6 +443,8 @@ function applyPlayerActionInner(
         const deckReorder = q.deckReorder;
         const enumChoice = q.enumChoice;
         const trashSearch = q.trashSearch;
+        // docs/47 Fase 5 — 2º pool de alvo (ST05-010 Mikazuki Augus 【When Paired】).
+        const secondaryIds = r.secondaryTargetIds ?? [];
 
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
@@ -449,6 +456,11 @@ function applyPlayerActionInner(
           if (!r.activate) continue;
           if (q.needsTarget && r.targetIds.length === 0) continue;
           if (handChoice && r.targetIds.length === 0) continue;
+          // "Choose 1 X AND 1 Y" (ST05-010) — os 2 alvos são exigidos JUNTOS;
+          // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
+          // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
+          // lança "alvo nomeado não foi resolvido" pro 2º ao compilar as actions).
+          if (q.secondaryTarget && secondaryIds.length === 0) continue;
         }
 
         // V0 (docs/25): os candidatos legais foram calculados no servidor ao
@@ -491,6 +503,9 @@ function applyPlayerActionInner(
         if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
         }
+        if (q.secondaryTarget && secondaryIds.length > 0 && !secondaryIds.every((id) => q.secondaryTarget!.legalTargets.includes(id))) {
+          throw new Error(`Alvo secundário inválido pra ${r.specId} — não está entre os alvos legais.`);
+        }
 
         // Só `target` — NUNCA aliasar pra `shield`: um EffectSpec que combina
         // `addShieldToHand` + alvo nomeado (ex. ST03-015 Rewloola "Add 1 Shield
@@ -506,6 +521,7 @@ function applyPlayerActionInner(
         if (deckReorder) deckReorder.slots.forEach((slot, i) => { targets[slot.name] = r.targetIds[i] ? [r.targetIds[i]] : []; });
         if (enumChoice) targets[enumChoice.key] = r.targetIds;
         if (trashSearch) targets.trashSearch = r.targetIds;
+        if (q.secondaryTarget) targets[q.secondaryTarget.name] = secondaryIds;
         // Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) que o motor já
         // resolveu (ex. `formerPairedPilot`, ver `DestroyedInBattle.formerPairedPilotId`),
         // não escolhidos pelo jogador.

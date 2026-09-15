@@ -22,17 +22,12 @@ import type { EffectSpec, PrimitiveCall } from "../engine/effectSpec";
  * `CombatTrigger.action` pra buscar carta no trash (só `draw`/
  * `damageAllEnemyUnits`/`damageChosenEnemyUnit`). Ver `content/deferred.ts`.
  *
- * DEFERIDO: ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your Units and
- * 1 enemy Unit. Deal 1 damage to them." — `EffectSpec.secondaryTarget` só é
- * resolvido no caminho especial de Command 【Main】 jogada da mão
- * (`legalActions.ts` `mainPhaseCandidates`, precedente GD01-103/112); o
- * dispatcher genérico de gatilho automático (`abilityDispatch.ts` →
- * `pendingDecision.abilityResolution`) NÃO carrega um 2º alvo nomeado na fila
- * — achado no fuzzing desta wave (partida travava com a fila pedindo só o
- * alvo primário). Fechar isso exige estender `PendingDecision`,
- * `abilityDispatch.ts`, `legalActions.ts` E `actions.ts` (resolveAbility) pra
- * um 2º `TargetRef` nomeado por entrada de fila — fora do escopo desta wave.
- * Ver `content/deferred.ts`.
+ * ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your Units and 1 enemy
+ * Unit. Deal 1 damage to them." fechada na revalidação (docs/47 Fase 5):
+ * `EffectSpec.secondaryTarget` (2º pool de alvo) passou a ser resolvido também
+ * no caminho de FILA (gatilho automático pausado — `abilityDispatch.ts` →
+ * `pendingDecision.abilityResolution`), não só no caminho de Command 【Main】/
+ * 【Action】 (precedente GD01-103/112). Ver `MIKAZUKI_AUGUS_WHEN_PAIRED` abaixo.
  */
 
 // ST05-001 Gundam Barbatos 4th Form — 【Deploy】Choose 1 of your other Units.
@@ -97,6 +92,25 @@ export const MIKAZUKI_AUGUS_BURST: EffectSpec = {
   trigger: "Burst",
   actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
   sourceText: "【Burst】Add this card to your hand.",
+};
+
+// ST05-010 Mikazuki Augus — 2ª cláusula, fechada na revalidação (docs/47 Fase 5):
+// "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to
+// them." `secondaryTarget` (2º pool de alvo) agora também é resolvido no
+// caminho de FILA (gatilho automático pausado, não só Command 【Main】/【Action】
+// — precedente GD01-103/112) via `AbilityQueueEntry.secondaryTarget` +
+// `resolution.secondaryTargetIds`.
+export const MIKAZUKI_AUGUS_WHEN_PAIRED: EffectSpec = {
+  id: "ST05-010-WhenPaired",
+  cardCode: "ST05-010",
+  trigger: "When Paired",
+  actions: [
+    { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
+    { op: "damageUnit", target: { kind: "named", name: "enemyTarget" }, amount: 1 },
+  ],
+  targetScope: "friendlyUnit",
+  secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit" },
+  sourceText: "【When Paired】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
 };
 
 // ST05-011 Akihiro Altland — 【Burst】Add this card to your hand. (a cláusula
@@ -210,6 +224,7 @@ export const ST05_EFFECT_SPECS: EffectSpec[] = [
   GUSION_REBAKE_DESTROYED,
   SCHWALBE_GRAZE_WHEN_PAIRED,
   MIKAZUKI_AUGUS_BURST,
+  MIKAZUKI_AUGUS_WHEN_PAIRED,
   AKIHIRO_ALTLAND_BURST,
   MCGILLIS_FAREED_BURST,
   MCGILLIS_FAREED_WHEN_PAIRED,

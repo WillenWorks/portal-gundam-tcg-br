@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
+import { advanceToMainPhase } from "../engine/phases";
+import { deployCard } from "../engine/deploy";
+import { applyPlayerAction } from "../engine/actions";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt05DeckList, ST05_CARD_DEFS } from "../fixtures/st05Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
@@ -24,7 +27,7 @@ import {
   WITH_IRON_AND_BLOOD_ACTION,
   WITH_IRON_AND_BLOOD_MAIN,
 } from "./st05";
-import { defaultPredicateResolver } from "./predicates";
+import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 
 function freshGame(): GameState {
   return createGame(buildSt05DeckList(), buildSt05DeckList(), { seed: 51, firstPlayer: "A" });
@@ -40,9 +43,9 @@ describe("ST05 — fixtures e cobertura", () => {
     expect(buildSt05DeckList().resources).toHaveLength(10);
   });
 
-  it("15 EffectSpecs cadastrados cobrindo 9 das 15 cartas únicas (resto é vanilla/static/keyword)", () => {
+  it("16 EffectSpecs cadastrados cobrindo 9 das 15 cartas únicas (resto é vanilla/static/keyword)", () => {
     const codes = new Set(ST05_EFFECT_SPECS.map((s) => s.cardCode));
-    expect(ST05_EFFECT_SPECS).toHaveLength(15);
+    expect(ST05_EFFECT_SPECS).toHaveLength(16);
     expect(codes).toEqual(
       new Set([
         "ST05-001",
@@ -117,6 +120,69 @@ describe("ST05 — EffectSpecs bespoke", () => {
     const pilotId = placeCard(state, "A", ST05_CARD_DEFS.MIKAZUKI_AUGUS, "shields");
     const next = applyEvents(state, resolveEffectSpec(MIKAZUKI_AUGUS_BURST, ctxFor(state, pilotId)));
     expect(next.players.A.hand.some((c) => c.instanceId === pilotId)).toBe(true);
+  });
+
+  it("ST05-010 Mikazuki Augus — 【When Paired】pausa pedindo 2 alvos (1 Unit própria + 1 inimiga) e causa 1 de dano em cada ao resolver (docs/47 Fase 5, deferred.ts fechado)", () => {
+    const state = advanceToMainPhase(freshGame());
+    for (let i = 0; i < 4; i++) placeCard(state, "A", ST05_CARD_DEFS.RESOURCE, "resourceArea");
+    const allyId = placeCard(state, "A", ST05_CARD_DEFS.GRAZE_CUSTOM, "battleArea");
+    const enemyId = placeCard(state, "B", ST05_CARD_DEFS.GRAZE, "battleArea");
+    const pilotId = placeCard(state, "A", ST05_CARD_DEFS.MIKAZUKI_AUGUS, "hand");
+
+    const paused = deployCard(state, "A", pilotId, {
+      pairWithUnitId: allyId,
+      specs: ST05_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+
+    const decision = paused.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue.find((e) => e.specId === "ST05-010-WhenPaired") : undefined;
+    expect(q).toBeDefined();
+    expect(q?.legalTargets).toEqual([allyId]);
+    expect(q?.secondaryTarget?.targetScope).toBe("enemyUnit");
+    expect(q?.secondaryTarget?.legalTargets).toEqual([enemyId]);
+
+    const resolved = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [allyId], secondaryTargetIds: [enemyId] }] },
+      ST05_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(findCard(resolved, allyId).damage).toBe(1);
+    expect(findCard(resolved, enemyId).damage).toBe(1);
+    expect(resolved.pendingDecision.A).toBeNull();
+  });
+
+  it("ST05-010 Mikazuki Augus — 【When Paired】sem alvo inimigo legal: 'Choose 1 X AND 1 Y' não ativa nem a metade (nenhum dano, mesmo com o alvo próprio escolhido)", () => {
+    const state = advanceToMainPhase(freshGame());
+    for (let i = 0; i < 4; i++) placeCard(state, "A", ST05_CARD_DEFS.RESOURCE, "resourceArea");
+    const allyId = placeCard(state, "A", ST05_CARD_DEFS.GRAZE_CUSTOM, "battleArea");
+    const pilotId = placeCard(state, "A", ST05_CARD_DEFS.MIKAZUKI_AUGUS, "hand");
+
+    const paused = deployCard(state, "A", pilotId, {
+      pairWithUnitId: allyId,
+      specs: ST05_EFFECT_SPECS,
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    });
+
+    const decision = paused.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue.find((e) => e.specId === "ST05-010-WhenPaired") : undefined;
+    expect(q?.secondaryTarget?.legalTargets).toEqual([]);
+
+    const resolved = applyPlayerAction(
+      paused,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [allyId], secondaryTargetIds: [] }] },
+      ST05_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(findCard(resolved, allyId).damage).toBe(0); // "Choose 1 X and 1 Y" — sem o 2º, o efeito inteiro não ativa
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 
   it("ST05-011 Akihiro Altland — 【Burst】adiciona a própria carta à mão (a cláusula 【During Link】 está deferida)", () => {
