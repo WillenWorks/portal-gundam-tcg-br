@@ -98,6 +98,20 @@ describe("DeckDealAnimation", () => {
     expect(travelling.style.marginLeft).toBe("-45px");
   });
 
+  it("deal-hand com cards: renderiza container com sim-anim-card-flip e revela os nomes das cartas", () => {
+    mockMatchMedia(false);
+    const mockCards = [
+      { def: { code: "ST01-001", nameEn: "Gundam" } },
+      { def: { code: "ST01-002", nameEn: "Guncannon" } },
+    ];
+    const { container } = render(
+      <DeckDealAnimation mode="deal-hand" onDone={vi.fn()} cards={mockCards} />,
+    );
+    expect(container.querySelectorAll(".sim-anim-card-flip")).toHaveLength(5);
+    expect(screen.getByText("Gundam")).toBeInTheDocument();
+    expect(screen.getByText("Guncannon")).toBeInTheDocument();
+  });
+
   it("prefers-reduced-motion: sem animação, onDone quase imediato", () => {
     mockMatchMedia(true);
     const onDone = vi.fn();

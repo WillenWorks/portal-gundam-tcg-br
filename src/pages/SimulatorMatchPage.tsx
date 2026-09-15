@@ -117,7 +117,6 @@ import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulat
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
 import {
-  ActionDock,
   type ActionDockState,
   ArenaPlaymat,
   type ArenaSide,
@@ -129,6 +128,7 @@ import {
   cardBackUrl,
   CardInspectorModal,
   CardInspectorPanel,
+  CenterDecisionModal,
   type LinkedPilot,
   CombatLane,
   CounterChip,
@@ -199,6 +199,34 @@ const SETUP_ANIM_LABEL: Record<DeckDealMode, string> = {
 /** centro (viewport px) de um `DOMRect`, ou `null`. */
 function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
   return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
+
+function deckCenter(r: DOMRect | null, mirrored = false): { x: number; y: number } | null {
+  if (!r) return null;
+  const x = r.left + r.width / 2;
+  const y = mirrored ? r.top + r.height * 0.2 : r.bottom - r.height * 0.2;
+  return { x, y };
+}
+
+/** centro da primeira carta de escudo dentro da trilha ShieldRail */
+function shieldRailCenter(r: DOMRect | null): { x: number; y: number } | null {
+  if (!r) return null;
+  const cardH = Math.round(r.width * (88 / 63));
+  return {
+    x: r.left + r.width / 2,
+    y: r.top + cardH / 2,
+  };
+}
+
+/** centro da carta central da mão dentro da prateleira HandFan */
+function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: number } | null {
+  if (!r) return null;
+  const w = cardW && cardW > 0 ? cardW : 84;
+  const cardH = Math.round(w * (88 / 63));
+  return {
+    x: r.left + r.width / 2,
+    y: r.bottom - 4 - cardH / 2,
+  };
 }
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -502,6 +530,26 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     async (action: PlayerAction) => {
       setBusy(true);
       try {
+        // Áudio e feedback sensorial Gundam com micro-delays antes do despacho
+        if (action.kind === "declareAttack") {
+          sfx.playAttackBeam();
+          await new Promise((r) => setTimeout(r, 120));
+        } else if (action.kind === "activateBlocker") {
+          sfx.playShieldBlock();
+          await new Promise((r) => setTimeout(r, 150));
+        } else if (action.kind === "playCommand") {
+          sfx.playNewtypeFlash();
+          await new Promise((r) => setTimeout(r, 120));
+        } else if (action.kind === "finishTurn") {
+          sfx.playTurnStartAlert();
+          await new Promise((r) => setTimeout(r, 100));
+        } else if (action.kind === "deployCard") {
+          sfx.playDeploy();
+          await new Promise((r) => setTimeout(r, 100));
+        } else {
+          sfx.playClick();
+        }
+
         // Modo socket: o eco vem pelo broadcast `match:view_update` (o hook
         // resolve quando chega). Modo SSE: `sendAction` faz o POST e aplica a
         // resposta. Nos dois casos a view já está aplicada quando isto resolve.
@@ -657,7 +705,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     const prev = setupSnapshotRef.current;
     setupSnapshotRef.current = cur;
-    if (!prev || v.gameOver) return;
+    const reduced =
+      typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    if (!prev || v.gameOver) {
+      if (!prev && !v.gameOver && cur.turnNumber <= 1 && !reduced) {
+        if (cur.shields >= 6) {
+          setSetupAnim("deal-shields");
+        } else if (cur.handLen >= 5) {
+          setSetupAnim("deal-hand");
+        }
+      }
+      return;
+    }
 
     // Disparos sonoros táticos (Asticassia Sound Engine)
     if (prev.activePlayer !== cur.activePlayer && cur.activePlayer === matchView.seat) {
@@ -667,14 +726,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       sfx.playShieldBurst();
     }
 
-    const reduced =
-      typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
     if (reduced) return;
     if (prev.shields === 0 && cur.shields >= 6 && cur.turnNumber <= 1) {
       setSetupAnim("deal-shields");
     } else if (prev.mulliganPending && !cur.mulliganPending) {
       setSetupAnim("mulligan");
-    } else if (prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) {
+    } else if ((prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) || (prev.handLen < cur.handLen && cur.turnNumber === 1)) {
       setSetupAnim("deal-hand");
     }
   }, [matchView]);
@@ -1051,6 +1108,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     });
   }
 
+  const targetingActive = Boolean(
+    (pending && (legalTargetInstanceIds.size > 0 || pending.kind === "command" || pending.kind === "activateAbility")) ||
+    (attackerId !== null && combat === null) ||
+    iAmDefending,
+  );
+
   /** Os 6 slots fixos de uma Battle Area (fragmento — o `ArenaPlaymat` monta o grid).
    *  Só Units; Pilots pareados aparecem acoplados via `DockedPilot`. */
   function renderBattleSlots(player: ViewPlayerState, isSelf: boolean) {
@@ -1064,6 +1127,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       (r) => !isHidden(r) && !(r as CardInstance).rested,
     ).length;
 
+    const isLegalTargetForSlot = (unit: CardInstance | null): boolean => {
+      if (!unit) return false;
+      if (selecting) {
+        return legalTargetInstanceIds.has(unit.instanceId);
+      }
+      if (canBeTargeted) {
+        return unit.rested;
+      }
+      if (canBlockWith) {
+        return hasKeyword(unit, "Blocker", boardForStats) && !unit.rested;
+      }
+      return false;
+    };
+
     return Array.from({ length: 6 }).map((_, i) => {
       const unit = units[i] ?? null;
       // Frente 4 (feedback Willen 4ª rodada) — Unit recém-posta neste turno que
@@ -1076,14 +1153,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           : undefined;
       const ability = unit && canActivateHere ? fieldAbilityFor(unit) : null;
       const canActivate = Boolean(ability && myActiveResources >= ability.cost);
+      const isLegal = isLegalTargetForSlot(unit);
+
       const actions =
         unit && (canAttackFrom || (canBeTargeted && unit.rested) || canBlockWith || canActivate)
           ? {
               onAttack: canAttackFrom ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
               onDeclareTarget: canBeTargeted && unit.rested ? (u: CardInstance) => declareAttack({ unitId: u.instanceId }) : undefined,
-              onBlocker: canBlockWith
+              onBlocker: canBlockWith && isLegal
                 ? (u: CardInstance) => {
-                    sfx.playImpact();
+                    sfx.playShieldBlock();
                     runAction({ kind: "activateBlocker", blockerId: u.instanceId });
                   }
                 : undefined,
@@ -1098,7 +1177,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           unit={unit}
           pilot={unit ? pairedPilotOf(player, unit) : null}
           art={art}
-          legalTarget={Boolean(unit && legalTargetInstanceIds.has(unit.instanceId))}
+          targetingActive={targetingActive}
+          legalTarget={isLegal}
           selected={Boolean(unit && selected.includes(unit.instanceId))}
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
@@ -1203,7 +1283,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       shields: (
         <ShieldRail
           orientation="vertical"
-          count={player.counts.shields}
+          count={setupAnim === "deal-shields" && isSelf ? 0 : player.counts.shields}
           underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
           selectable={false}
           selectedIndexes={selectedShieldIndexes(player)}
@@ -1217,9 +1297,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <BaseCardGauge
           base={base}
           art={art}
-          legalTarget={Boolean(base && legalTargetInstanceIds.has(base.instanceId))}
+          targetingActive={targetingActive}
+          legalTarget={Boolean(
+            (base && legalTargetInstanceIds.has(base.instanceId)) ||
+            (!isSelf && attackerId !== null && combat === null),
+          )}
           selected={Boolean(base && selected.includes(base.instanceId))}
-          onSelect={(b) => toggleSelect(b.instanceId)}
+          onSelect={
+            !isSelf && attackerId !== null && combat === null
+              ? () => declareAttack("player")
+              : (b) => toggleSelect(b.instanceId)
+          }
           onInspect={setInspect}
           onHoverCard={isWide ? setHoveredCard : undefined}
           onActivate={canActivateBase && baseAbility ? (b) => startActivateAbility(b, baseAbility) : undefined}
@@ -1276,6 +1364,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       battleRow: renderBattleSlots(player, isSelf),
       battleAreaRef: board.register(playerAreaKey(pid)),
       shieldStationRef: board.register(playerShieldKey(pid)),
+      shieldRailRef: board.register(`shieldRail:${pid}`),
       deckStationRef: board.register(`deckStation:${pid}`),
       handRef: isSelf ? board.register("hand:self") : undefined,
       handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
@@ -1555,10 +1644,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             hand={
               <HandFan
                 anchored
-                cards={myHandCards.map((c) => {
-                  const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
-                  return { card: c, playable, blockedReason, effectiveCost: effCost };
-                })}
+                cards={
+                  setupAnim === "deal-hand" || setupAnim === "mulligan"
+                    ? []
+                    : myHandCards.map((c) => {
+                        const { playable, blockedReason, effectiveCost: effCost } = describeHandCard(c);
+                        return { card: c, playable, blockedReason, effectiveCost: effCost };
+                      })
+                }
                 art={art}
                 onPeek={(c) => {
                   const { modes, blockedReason } = describeHandCard(c);
@@ -1759,18 +1852,41 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         <DeckDealAnimation
           mode={setupAnim}
           label={SETUP_ANIM_LABEL[setupAnim]}
-          origin={rectCenter(board.rectOf(`deckStation:${seat}`))}
+          origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
           cardW={board.rectOf(`deckStation:${seat}`)?.width}
-          dest={rectCenter(
-            board.rectOf(setupAnim === "deal-shields" ? playerShieldKey(seat) : "hand:self"),
-          )}
+          dest={
+            setupAnim === "deal-shields"
+              ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
+              : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
+          }
+          cards={
+            setupAnim === "deal-hand" || setupAnim === "mulligan"
+              ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
+              : undefined
+          }
+          art={art}
           onDone={() => setSetupAnim(null)}
         />
       ) : null}
 
-      {/* Fase B (plano visual §03) — superfície ÚNICA de "o que faço agora?": substitui
-          os cards de decisão centralizados + o flash de fase. Fixo no canto, nunca cobre o board.
-          No fim de jogo some — o `GameOverOverlay` no centro assume. */}
+      {/* Modal tático centralizado de decisões críticas (Encerrar Turno, Blocker, Ação, Ataque, Alvos).
+          Centralizado em todos os tipos de displays (mobile landscape, tablet, desktop). */}
+      {!gameOverResult ? (
+        <CenterDecisionModal
+          state={computeDockState()}
+          busy={busy}
+          onEndTurn={() => runAction({ kind: "finishTurn" })}
+          onDeclareAttackPlayer={() => declareAttack("player")}
+          onCancelAttack={() => setAttackerId(null)}
+          onSkipBlock={() => runAction({ kind: "skipBlock" })}
+          onPass={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
+          onToggleAutoPass={(next) => toggleAutoPass(next)}
+          onConfirm={confirmPending}
+          onCancel={clearSelection}
+          onClaimAbandon={() => claimAbandon()}
+        />
+      ) : null}
+
       {gameOverResult ? (
         <GameOverOverlay
           won={gameOverResult.won}
@@ -1778,27 +1894,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           redirectSeconds={redirectSecondsLeft}
           onLeave={leaveMatchScreen}
         />
-      ) : (
-        <ActionDock
-          state={computeDockState()}
-          busy={busy}
-          // Feedback.pdf §5 — o dock não ECOA mais o log (o histórico é só na
-          // gaveta) e some pra a esquerda quando a gaveta está aberta pra não
-          // ficar por cima dela.
-          logOpen={logOpen}
-          onConfirm={confirmPending}
-          onCancel={clearSelection}
-          onEndTurn={() => runAction({ kind: "finishTurn" })}
-          onDeclareAttackPlayer={() => declareAttack("player")}
-          onCancelAttack={() => setAttackerId(null)}
-          onSkipBlock={() => runAction({ kind: "skipBlock" })}
-          onPass={() => runAction(iHavePriority ? { kind: "passAction" } : { kind: "passEndPhaseAction" })}
-          onToggleAutoPass={(next) => toggleAutoPass(next)}
-          onClaimAbandon={() => claimAbandon()}
-          onLeaveAfterGameOver={leaveMatchScreen}
-          mobileMaxHeightPx={dockMaxHeightPx}
-        />
-      )}
+      ) : null}
     </div>
   );
 

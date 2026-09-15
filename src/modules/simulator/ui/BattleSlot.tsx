@@ -9,6 +9,7 @@
  * (olho) SEMPRE ancorado no canto; Atacar / Ativar / Blocker / Mirar aparecem à
  * esquerda dele quando a jogada é possível. Sem badge "BLK" na carta — o botão
  * de escudo só aparece quando é hora de bloquear. */
+import { useEffect } from "react";
 import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
@@ -17,6 +18,7 @@ import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
+import { sfx } from "../audio/soundEffects";
 
 export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
@@ -36,6 +38,8 @@ interface BattleSlotProps {
   art: ArtLookup;
   /** alvo legal de uma seleção/ataque em andamento — realça em verde/dourado. */
   legalTarget?: boolean;
+  /** modo de mira/seleção de alvo ativo globalmente (alvos não-válidos ficam esmaecidos). */
+  targetingActive?: boolean;
   selected?: boolean;
   isAttacker?: boolean;
   /** Frente 4 (docs/38 §4.3) — Unit que ativou <Blocker> nesta batalha: sobe
@@ -86,6 +90,7 @@ export function BattleSlot({
   pilot,
   art,
   legalTarget,
+  targetingActive,
   selected,
   isAttacker,
   isBlocking,
@@ -121,9 +126,6 @@ export function BattleSlot({
   const hpRemaining = Math.max(0, effectiveHp(unit, state, pilot) - unit.damage);
   const apBuffed = ap !== (unit.def.ap ?? 0);
   const hpDamaged = unit.damage > 0;
-  // Frente 4 (feedback Willen 3ª rodada): a Unit ganha só um selo curto "LINK"
-  // (sem números — o modificador já está no AP/HP final acima e no chip do
-  // piloto). Antes o "+2/+1 LINK" na tira do piloto truncava.
   const isLinkUnit = Boolean(pilot) && satisfiesLinkCondition(effectivePilotDef(pilot!), unit.def);
 
   const isBlocker = hasKeyword(unit, "Blocker", state);
@@ -147,22 +149,27 @@ export function BattleSlot({
   );
   const isToken = Boolean(unit.def.isToken);
 
+  useEffect(() => {
+    if (justDeployed === "light") {
+      sfx.playThrusterBoost();
+    } else if (justDeployed === "heavy") {
+      sfx.playExplosion();
+    }
+  }, [justDeployed]);
+
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   const showTarget = Boolean(actions?.onDeclareTarget);
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
   const showActivate = Boolean(actions?.onActivate);
 
-  // Frente 4 (docs/38 §3.1) — sem botão de "olho": o cluster de canto guarda só
-  // ações OPERACIONAIS (Atacar / Ativar / Blocker / Mirar). Inspecionar é por
-  // clique na área neutra da carta (ver `bodyInspects`).
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
   if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: actions?.activateLabel ?? "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
   if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
   if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
 
-  // clique na carta (fora de seleção de alvo) abre o inspetor.
-  const bodyInspects = Boolean(onInspect) && !legalTarget;
+  const isInvalidTarget = Boolean(targetingActive && !legalTarget);
+  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -173,10 +180,6 @@ export function BattleSlot({
       }
     : {};
 
-  // Frente 4 (feedback Willen 4ª rodada) — avanço do atacante em direção ao
-  // alvo. `transform` inline VENCE as classes de lift (`isAttacker` etc.), então
-  // já é o transform final do slot enquanto o combate roda; ao limpar, a
-  // transição CSS traz o slot de volta.
   const lunge = attacking && !prefersReducedMotion() ? lungeStyle(attacking) : undefined;
 
   return (
@@ -186,20 +189,17 @@ export function BattleSlot({
       data-attacking={lunge ? "true" : undefined}
       style={lunge}
       className={cn(
-        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-[transform,box-shadow] duration-[240ms] ease-out motion-reduce:transition-none",
-        // no hover/foco o slot sobe no empilhamento pra a tira de ações (canto
-        // sup. direito, levemente pra fora) passar por cima do slot vizinho.
+        "group/slot relative flex w-full flex-col overflow-hidden rounded-arena border bg-gradient-to-b from-slate-900/80 to-black/80 transition-[transform,box-shadow,opacity,filter] duration-[240ms] ease-out motion-reduce:transition-none",
         "hover:z-30 focus-within:z-30",
-        // Frente 4 (docs/38 §4.3) — Unit que declarou ataque/bloqueio sobe ~6px
-        // com leve inclinação (elevação tática, estilo Master Duel).
-        // `motion-reduce` neutraliza o transform.
         isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
         legalTarget
-          ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.55)]"
+          ? "z-20 border-emerald-400 ring-2 ring-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : selected || isAttacker
             ? "border-primary shadow-[0_0_10px_rgba(56,189,248,0.5)]"
-            : "border-primary/20",
+            : isInvalidTarget
+              ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
+              : "border-primary/20",
       )}
     >
       {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
@@ -244,6 +244,16 @@ export function BattleSlot({
           justDeployed === "heavy" && "sim-anim-drop-heavy",
         )}
       >
+        {justDeployed === "light" && (
+          <div className="pointer-events-none absolute inset-0 -m-3 flex items-center justify-center overflow-visible z-30" aria-hidden>
+            <div className="size-full rounded-full border-2 border-cyan-400 sim-shockwave-cyan shadow-[0_0_20px_rgba(56,189,248,0.9)]" />
+          </div>
+        )}
+        {justDeployed === "heavy" && (
+          <div className="pointer-events-none absolute inset-0 -m-4 flex items-center justify-center overflow-visible z-30" aria-hidden>
+            <div className="size-full rounded-full border-3 border-amber-500 sim-shockwave-amber shadow-[0_0_28px_rgba(245,158,11,1)]" />
+          </div>
+        )}
         <CardFace
           nameEn={unit.def.nameEn}
           code={unit.def.code}
@@ -253,6 +263,16 @@ export function BattleSlot({
           dimmed={unit.rested}
           backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
         >
+          {legalTarget ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span
+                aria-label="Alvo Válido"
+                className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
+              >
+                <Crosshair className="size-3/4" />
+              </span>
+            </div>
+          ) : null}
           {/* Selo no canto SUP. ESQUERDO da arte: "LINK" (âmbar) quando o
               pareamento satisfaz a Link condition, ou "PAIR" (ciano) quando só
               há Piloto pareado sem Link — pedido do feedback (Feedback.pdf): "ter

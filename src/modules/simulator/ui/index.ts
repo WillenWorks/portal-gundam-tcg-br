@@ -27,6 +27,7 @@ export { CombatLane } from "./CombatLane";
 export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
 export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
+export { CenterDecisionModal, type CenterDecisionModalProps } from "./CenterDecisionModal";
 export { GameOverOverlay } from "./GameOverOverlay";
 export { gameOverReasonLabel } from "./gameOverReason";
 export { MatchPrompt } from "./MatchPrompt";

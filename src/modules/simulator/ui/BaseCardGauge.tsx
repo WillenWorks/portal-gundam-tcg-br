@@ -4,7 +4,7 @@
  * BASE"): a carta + a barra de HP + o número de dano sobreposto contam tudo.
  * EX Base = moldura dourada (`--accent`). `title`/`aria-label` carregam a
  * leitura textual como tooltip. Alvo legal realçado em verde. */
-import { Zap } from "lucide-react";
+import { Crosshair, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveHp } from "@/modules/simulator/engine/types";
@@ -16,6 +16,8 @@ interface BaseCardGaugeProps {
   base: CardInstance | null;
   art: ArtLookup;
   legalTarget?: boolean;
+  /** modo de mira/seleção de alvos ativo globalmente (não-alvos ficam esmaecidos). */
+  targetingActive?: boolean;
   selected?: boolean;
   onSelect?: (base: CardInstance) => void;
   onInspect?: (card: CardInstance) => void;
@@ -30,7 +32,7 @@ interface BaseCardGaugeProps {
 // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
 const WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
-export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onInspect, onHoverCard, onActivate, busy }: BaseCardGaugeProps) {
+export function BaseCardGauge({ base, art, legalTarget, targetingActive, selected, onSelect, onInspect, onHoverCard, onActivate, busy }: BaseCardGaugeProps) {
   if (!base) {
     return (
       <div
@@ -44,9 +46,11 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
   const maxHp = effectiveHp(base);
   const remaining = Math.max(0, maxHp - base.damage);
   const pct = maxHp > 0 ? Math.round((remaining / maxHp) * 100) : 0;
-  const isEx = base.def.isToken ?? false;
+  const isEx = Boolean(base.def.isToken);
   const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
 
+  const hasAbility = Boolean(onActivate);
+  const isInvalidTarget = Boolean(targetingActive && !legalTarget);
   // Frente 4 (docs/38 §3.1) — o botão de "olho" foi eliminado. Inspeção agora
   // é por clique na área neutra da carta (ver `bodyInspects` abaixo). O cluster
   // do canto guarda só ações OPERACIONAIS (ex.: Ativar habilidade da Base tipo
@@ -55,7 +59,7 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
   if (onActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => onActivate(base) });
 
   // clique na carta (fora de seleção de alvo) abre o inspetor.
-  const bodyInspects = Boolean(onInspect) && !legalTarget;
+  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -74,20 +78,22 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
       className={cn(
         // V6.3 (docs/34): `overflow-hidden rounded-arena` — antes a moldura
         // era um retângulo reto em volta de uma arte já arredondada (o
-        // `CardFace` interno já se arredonda sozinho), descasando borda
+        // `CardFace` interno já se arredondava sozinho), descasando borda
         // reta com conteúdo arredondado. Também clipa a barra de HP/badge
         // de dano no mesmo raio.
-        "relative block overflow-hidden rounded-arena border",
+        "relative block overflow-hidden rounded-arena border transition-[transform,box-shadow,opacity,filter] duration-200",
         WIDTH,
         legalTarget
-          ? "border-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.55)]"
+          ? "z-20 border-emerald-400 ring-2 ring-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : selected
             ? "border-primary"
-            : base.rested
-              ? "border-slate-600/40 opacity-75"
-              : isEx
-                ? "border-accent/60"
-                : "border-amber-500/25",
+            : isInvalidTarget
+              ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
+              : base.rested
+                ? "border-slate-600/40 opacity-75"
+                : isEx
+                  ? "border-accent/60"
+                  : "border-amber-500/25",
       )}
     >
       <div
@@ -129,6 +135,16 @@ export function BaseCardGauge({ base, art, legalTarget, selected, onSelect, onIn
           dimmed={base.rested}
           backFallback={isGenericArtCard(base.def.cardType, base.def.isToken)}
         >
+          {legalTarget ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span
+                aria-label="Alvo Válido"
+                className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
+              >
+                <Crosshair className="size-3/4" />
+              </span>
+            </div>
+          ) : null}
           {base.rested ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45">
               <span className="rotate-[-12deg] border border-slate-300/60 bg-black/70 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest text-slate-200">

@@ -40,6 +40,8 @@ interface HandFanProps {
   emptyLabel?: string;
   /** prateleira ancorada na base da arena (overlap + hover-lift, sem corte). */
   anchored?: boolean;
+  /** desliga a animação de montagem (slide-in) ao substituir transição fluida de deal. */
+  skipMountAnim?: boolean;
 }
 
 /** teto de sobreposição — acima disto a carta vira uma lasca ilegível. */
@@ -69,8 +71,10 @@ export function HandFan({
   overlap,
   emptyLabel = "Mão vazia.",
   anchored,
+  skipMountAnim,
 }: HandFanProps) {
   if (cards.length === 0) {
+    if (!emptyLabel) return null;
     return (
       <p className="px-2 py-4 text-center text-[11px] uppercase tracking-[0.18em] text-muted-portal">{emptyLabel}</p>
     );
@@ -129,11 +133,8 @@ export function HandFan({
               className={cn(
                 "group/hc relative block shrink-0 border-t-2 bg-slate-950/80",
                 "hover:z-20 focus-within:z-20",
-                // Frente 4 (docs/38 §4.1) — "draw de carta": cada carta recém
-                // montada (comprada) desliza de baixo pra cima ~250ms easeOut.
-                // Só cartas NOVAS animam (React reaproveita as já montadas pela
-                // `key`). `motion-reduce` desliga.
-                "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
+                // Quando ancorado ou skipMountAnim ativo (após deal), as cartas entram sem salto
+                !skipMountAnim && !anchored && "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
                 playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
               )}
             >
