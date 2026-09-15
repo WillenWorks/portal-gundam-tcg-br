@@ -32,22 +32,20 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   // `specNeedsChoice`; `abilityDispatch.ts` monta `handDiscard` / `deckReorder` /
   // `enumChoice` na fila e `resolveAbility` valida + injeta em `ctx.targets`.
   // `playCommand` passou a PAUSAR quando o spec tem escolha (Command vai pro
-  // trash em `resolveAbility`, CR 3-4-4). Sub-caso ainda deferido:
-  {
-    cardCode: "ST02-015",
-    clause: "look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom",
-    reason:
-      "Só quando o 【Deploy】 vem por JOGADA NORMAL (deployCard → camada de decisão). Via 【Burst】 (Burst→Base Deploy encadeado no dispatcher, Classe B) o 'Add 1 Shield' roda mas a reordenação não — o caminho encadeado não passa por `deferOrDispatchAbilities`. Auto-decidir a ordem mid-combat seria pior que pular (deck fica como está).",
-    blockedBy: "engine:burst-deploy-nao-tem-camada-de-decisao",
-  },
+  // trash em `resolveAbility`, CR 3-4-4). Sub-caso (ST02-015 via Burst) fechado
+  // na revalidação (docs/47 Fase 4, ver Classe B abaixo).
 
   // Classe B — 【Burst】Deploy this card não dispara o 【Deploy】 da Base — FECHADA
   // (docs/47 Lane 1D): primitiva `deployThisCard` (aplica a regra de 1 Base) +
-  // `dispatcher.ts` encadeia o 【Deploy】 logo após. Rewloola (【Deploy】 com alvo
-  // de dano) auto-mira mid-combat, igual Sinanju (ver Classe C). Saint Gabriel:
-  // o "Add 1 Shield" dispara; a reordenação do topo do deck via Burst continua
-  // pulada (o caminho encadeado não passa pela camada de decisão — só o 【Deploy】
-  // por jogada normal reordena; ver Classe A ST02-015).
+  // `dispatcher.ts` encadeia o 【Deploy】 logo após. Sub-caso fechado na
+  // revalidação (docs/47 Fase 4): o encadeamento agora usa
+  // `deferOrDispatchAbilities` (mesmo helper de `deployCard`/`playCommand`) em
+  // vez de auto-mirar 1 alvo e chamar `dispatchTrigger` direto — Saint Gabriel
+  // (ST02-015, reordenação de deck) e Rewloola (ST03-015, escolha real de alvo
+  // de dano) agora PAUSAM via Burst igual a uma jogada normal, em vez de
+  // pular a cláusula ou auto-mirar. Achado: mesmo sem nenhum alvo legal, o
+  // spec ainda entra na fila (`legalTargets: []`) — não é um dead-end,
+  // `resolveAbility` já aceitava `targetIds: []` pra esse caso (actions.ts).
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe C — ST03-001 Sinanju: aproximações aceitas (docs/43 §4).

@@ -1,9 +1,9 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { computeLegalTargets, resolveEffectSpec, specNeedsNamedTarget } from "./effectSpec";
+import { resolveEffectSpec } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { checkTriggerLoopGuard, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
+import { checkTriggerLoopGuard, deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect } from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
 
 /**
@@ -127,37 +127,25 @@ export function dispatchTrigger(
     });
     if (next.gameOver || next.pendingDecision[current.owner]) break;
 
-    // docs/47 Classe B — 【Burst】Deploy this card: a `deployThisCard` acabou de
-    // pôr a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token
-    // / dano). Burst só acontece no Damage Step, então alvo nomeado é auto-mirado
-    // (mesma aproximação de Sinanju — sem escolha de alvo em combate, deferred.ts
-    // Classe C). Sem `pendingDecision` nova nesse caminho.
+    // docs/47 Fase 4 — 【Burst】Deploy this card: a `deployThisCard` acabou de pôr
+    // a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token /
+    // dano / reordenar deck). Antes disso chamava `dispatchTrigger` direto com
+    // auto-mira de um único alvo nomeado — sem suporte a `ChoicePrimitive`
+    // (deckReorder, discardNamed, etc.), gap fechado usando o MESMO
+    // `deferOrDispatchAbilities` que `deployCard`/`playCommand` usam pro Deploy
+    // por jogada normal: resolve specs automáticos inline e PAUSA (mesmo
+    // `PendingDecision.abilityResolution` de sempre) quando algum precisa de
+    // escolha real — ex. ST02-015 Saint Gabriel "look at top 2, return 1 to
+    // top e 1 to bottom" via Burst (deferred.ts Classe A, fechada).
     if (!next.pendingDecision[current.owner] && spec.actions.some((c) => c.op === "deployThisCard")) {
       const deployTriggerSpecs = findTriggerSpecs(allSpecs, current.def.code, "Deploy");
       if (deployTriggerSpecs.length > 0) {
-        const autoTargets: Record<string, string[]> = {};
-        for (const ds of deployTriggerSpecs) {
-          if (!specNeedsNamedTarget(ds)) continue;
-          const legal = computeLegalTargets(next, ds, current.owner, opts.targetFilterResolver, current.instanceId);
-          if (legal.length > 0) autoTargets.target = [legal[0]];
-        }
-        const dispatchable = filterDispatchableSpecs(
-          next,
-          current.def.code,
-          "Deploy",
-          allSpecs,
-          current.owner,
-          autoTargets.target,
-          opts.targetFilterResolver,
-        );
         // Encadeamento Burst→Deploy: profundidade de cascata incrementa aqui
         // também (antes ficava parada em `chainDepth`, um dos 2 gaps que
         // deixavam o guard anterior incompleto — docs/debates 2026-09-13 §1.1).
-        next = dispatchTrigger(next, sourceInstanceId, "Deploy", dispatchable, {
-          targets: autoTargets,
+        next = deferOrDispatchAbilities(next, current.owner, "Deploy", [{ code: current.def.code, instanceId: current.instanceId }], allSpecs, {
           predicateResolver: opts.predicateResolver,
           targetFilterResolver: opts.targetFilterResolver,
-          allSpecs,
           cascadeDepth: cascadeDepth + 1,
           queueBudget,
         });

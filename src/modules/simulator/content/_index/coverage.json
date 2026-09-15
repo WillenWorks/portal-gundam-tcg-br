@@ -197,10 +197,8 @@
         {
           "code": "ST02-015",
           "name": "Saint Gabriel Institute",
-          "status": "implementada*",
-          "deferredClauses": [
-            "look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom"
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST02-016",
@@ -210,8 +208,8 @@
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 5,
         "deferida": 0,
         "faltando": 0

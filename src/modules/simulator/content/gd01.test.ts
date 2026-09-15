@@ -1425,7 +1425,7 @@ describe("Burst — 8 cartas GD01 com hasBurst:true sem EffectSpec de Burst (ach
     expect(findCard(next, restedAllyId).cannotAttackUntilTurn).toBe(next.turnNumber);
   });
 
-  it("GD01-129 Kusanagi: 【Burst】Deploy this card encadeia o 【Deploy】 (Add 1 Shield + bounce)", () => {
+  it("GD01-129 Kusanagi: 【Burst】Deploy this card encadeia o 【Deploy】 e PAUSA pra escolha real do bounce (docs/47 Fase 4)", () => {
     const state = freshGame();
     const kusanagiId = placeCard(state, "A", GD01_CARD_DEFS["GD01-129"], "shields");
     const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: kusanagiId, toZone: "trash" }]);
@@ -1443,8 +1443,24 @@ describe("Burst — 8 cartas GD01 com hasBurst:true sem EffectSpec de Burst (ach
     });
 
     expect(findCard(next, kusanagiId).zone).toBe("baseSection"); // deployThisCard (Base)
-    expect(next.players.A.hand.length).toBe(handBefore + 1); // 【Deploy】 Add 1 Shield to hand
-    expect(next.players.A.shields.length).toBe(shieldsBefore - 1);
-    expect(findCard(next, enemyId).zone).toBe("hand"); // 【Deploy】 bounce (alvo auto-mirado, único legal)
+    // pausou: shield + bounce são o MESMO spec (Add Shield + moveZone alvo nomeado) — resolvem juntos.
+    expect(next.players.A.hand.length).toBe(handBefore);
+    const decision = next.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.specId).toBe("GD01-129-Deploy");
+    expect(q?.legalTargets).toEqual([enemyId]);
+
+    const resolved = applyPlayerAction(
+      next,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [enemyId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.players.A.hand.length).toBe(handBefore + 1); // 【Deploy】 Add 1 Shield to hand
+    expect(resolved.players.A.shields.length).toBe(shieldsBefore - 1);
+    expect(findCard(resolved, enemyId).zone).toBe("hand"); // 【Deploy】 bounce
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 });

@@ -550,6 +550,16 @@ function applyPlayerActionInner(
       if (decision.trigger === "Destroyed" && !next.gameOver && next.combat?.step === "damage") {
         return resolveBattleEndStep(next);
       }
+      // docs/47 Fase 4 — veio de 【Deploy】 encadeado por 【Burst】 durante o Damage
+      // Step (ex. ST02-015 Saint Gabriel, ST03-015 Rewloola, GD01-129 Kusanagi):
+      // `resolveBurstDecision` já tinha essa checagem pra quando o próprio
+      // `dispatchTrigger("Burst")` NÃO pausava; faltava o espelho aqui, pra
+      // quando o encadeamento de Deploy É que pausa (achado por fuzzing —
+      // `selfPlay.ts`, o combate ficava parado em "damage" pra sempre depois de
+      // resolver a escolha, `actionOwner` nunca mais achava quem age).
+      if (decision.trigger === "Deploy" && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B && next.combat?.step === "damage") {
+        return resolveBattleEndStep(next);
+      }
       return next;
     }
 
