@@ -40,12 +40,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
   if (state.combat) throw new Error("Já existe um combate em andamento");
   if (attacker.enteredZoneOnTurn === state.turnNumber) {
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
-    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3).
+    // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3), ou
+    // se um efeito concedeu a exceção explicitamente (GD01-066 Justice Gundam —
+    // "Choose 1 of your Unit tokens. It may attack on the turn it is deployed.",
+    // keyword sintética via `grantKeyword`, docs/47 Fase 3).
     const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
     const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
-    if (!isLinkUnit) {
+    const hasDeployTurnGrant = hasKeyword(attacker, "AttackOnDeployTurn", state);
+    if (!isLinkUnit && !hasDeployTurnGrant) {
       throw new Error(
-        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3)",
+        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito",
       );
     }
   }

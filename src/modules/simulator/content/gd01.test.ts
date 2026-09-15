@@ -34,6 +34,7 @@ import {
   GAMOW_ACTIVATE_ACTION,
   TACTICAL_TESTING_SECTOR_ACTIVATE_MAIN,
   JUSTICE_GUNDAM_DEPLOY,
+  JUSTICE_GUNDAM_ATTACK,
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
   IRON_FISTED_DISCIPLINE_MAIN,
@@ -353,6 +354,35 @@ describe("Primitivas existentes reaproveitadas (deployThisCard/spawnToken/addShi
     const token = next.players.A.battleArea.find((c) => c.def.nameEn === "Fatum-00");
     expect(token?.def.isToken).toBe(true);
     expect(token?.def.effectKeywords).toContain("Blocker");
+  });
+
+  it("GD01-066 Justice Gundam (Attack): 'selfIsPaired' só ativa a 2ª cláusula quando pareada (docs/47 Fase 3, deferred.ts fechado)", () => {
+    const state = freshGame();
+    const justiceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-066"], "battleArea");
+    expect(specActiveCalls(JUSTICE_GUNDAM_ATTACK, ctxFor(state, justiceId), defaultPredicateResolver)).toEqual([]);
+
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "battleArea");
+    findCard(state, justiceId).pairedPilotId = pilotId;
+    expect(specActiveCalls(JUSTICE_GUNDAM_ATTACK, ctxFor(state, justiceId), defaultPredicateResolver)).toHaveLength(1);
+  });
+
+  it("GD01-066 Justice Gundam (Attack): concede <AttackOnDeployTurn> ao token Fatum-00 escolhido, permitindo atacar no turno em que foi deployado", () => {
+    let state = advanceToMainPhase(freshGame());
+    const justiceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-066"], "battleArea");
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "battleArea");
+    findCard(state, justiceId).pairedPilotId = pilotId;
+    state = applyEvents(state, resolveEffectSpec(JUSTICE_GUNDAM_DEPLOY, ctxFor(state, justiceId), defaultPredicateResolver));
+    const tokenId = state.players.A.battleArea.find((c) => c.def.nameEn === "Fatum-00")!.instanceId;
+    findCard(state, tokenId).enteredZoneOnTurn = state.turnNumber; // deployado NESTE turno
+
+    // sem a concessão, o token recém-deployado não pode atacar (CR 3-2-4).
+    expect(() => declareAttack(state, tokenId, "player")).toThrow(/recém-deployada/);
+
+    const ctx = ctxFor(state, justiceId, "A", { target: [tokenId] });
+    const withGrant = applyEvents(state, resolveEffectSpec(JUSTICE_GUNDAM_ATTACK, ctx, defaultPredicateResolver));
+    expect(hasKeyword(findCard(withGrant, tokenId), "AttackOnDeployTurn", withGrant)).toBe(true);
+
+    expect(() => declareAttack(withGrant, tokenId, "player")).not.toThrow();
   });
 
   it("GD01-006 Delta Plus: 'During Link, HP+1' agora é staticAbility real (effectiveHp reage a Link)", () => {

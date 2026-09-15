@@ -5,10 +5,10 @@
   "total_cards": 130,
   "metrics": {
     "vanilla_cards": 28,
-    "implemented_cards": 101,
-    "implemented_with_deferred_clause": 1,
+    "implemented_cards": 102,
+    "implemented_with_deferred_clause": 0,
     "deferred_pure_cards": 0,
-    "deferred_clauses": 1,
+    "deferred_clauses": 0,
     "playable_cards_total": 130
   },
   "pipeline_progress": {
@@ -242,6 +242,14 @@
       "verification": "10 testes novos (deploy.test.ts: 4, caminho real via deployCard incluindo Once-per-Turn; gd01.test.ts: 2, incluindo prova do hook via dispatcher.ts com pairFromTrashSearch sintético). Suíte completa (106/1059) + tsc --noEmit + gundam-index.mjs (172 assinaturas) + gundam-coverage.mjs, todos verdes. Sem regressão no golden master (onAnyPairing é opt-in por CardDef, no-op pra qualquer carta sem o campo).",
       "milestone": "Com este lote, os 130/130 cartas de GD01 estão jogáveis (deferred_pure_cards: 0). Restam só GD01-001/GD01-066 como 'implementada*' (polish, não bloqueia — ver polish_not_blocking) e o merge feature/wave-gd01 -> dev."
     },
+    "phase19_engine_gaps_revalidacao_lote2": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Revalidação (docs/47 Fase 3) — GD01-066 fechada: as 130/130 cartas de GD01 estão sem nenhuma cláusula deferida",
+      "cards_unlocked": ["GD01-066"],
+      "finding": "A nota anterior ('exceção de attack no turno do deploy fora da regra nativa de Link Unit... não existe primitiva pra isso') estava incorreta. `condition.predicate: 'selfIsPaired'` já é o predicado certo pra 【During Pair】 em tempo real (GD01-073/082 já usavam o equivalente `selfIsLinkUnit`/`selfIsPaired` pra 【Attack】/【Activate·Action】) — o `duringPair`/`wasPaired` de `abilityDispatch.ts` é específico do trigger Destroyed (snapshot pré-DESTROY_CARD), não se aplica aqui. A exceção 'pode atacar no turno do deploy' virou keyword sintética `AttackOnDeployTurn` via `grantKeyword`(endOfTurn), aceita em `combat.ts`/`declareAttack` como alternativa a Link Unit. Único filtro novo: `isToken` em `predicates.ts` (composição `trait:X;isToken`).",
+      "verification": "Novo EffectSpec `JUSTICE_GUNDAM_ATTACK` (GD01-066-Attack) em content/gd01/effects.ts. Testes novos em gd01.test.ts. Suíte completa + tsc --noEmit + gundam-index.mjs + gundam-coverage.mjs, todos verdes."
+    },
     "phase18_engine_gaps_revalidacao_lote1": {
       "completed": true,
       "agent": "claude-code",
@@ -270,13 +278,10 @@
     }
   },
   "deferred_summary": {
-    "total_clauses": 1,
-    "unique_engine_blockers": 1,
-    "next_engine_work_priority": ["engine:atacar-no-turno-do-deploy-fora-de-link"],
+    "total_clauses": 0,
+    "unique_engine_blockers": 0,
+    "next_engine_work_priority": [],
     "lote5_complete": "Lote 5 (docs/debates 2026-09-13) fechado por completo — 9 batches, 5 cartas puramente deferidas fechadas nesta sessão (GD01-046 em batch anterior + GD01-090/005/002/023/065 nesta rodada, ver phase12-17_engine_gaps_etapa3_lote5_batch*). deferred_pure_cards: 0 — nenhuma carta de GD01 está mais totalmente bloqueada.",
-    "polish_not_blocking": {
-      "note": "GD01-001 fechada na revalidação (phase18, docs/47) — a nota anterior de que exigia 'primitiva de motor genuína' estava incorreta, era conteúdo puro. Resta só GD01-066 (engine:atacar-no-turno-do-deploy-fora-de-link) como 'implementada*' — jogável hoje, só a 2ª cláusula (exceção de 'pode atacar no turno do deploy' atribuível a um token ESCOLHIDO, fora da regra nativa de Link Unit) segue deferida. Plano de fechamento em docs/47 Fase 3 (3 mudanças aditivas pequenas, não uma nova pipeline).",
-      "cards": ["GD01-066"]
-    }
+    "revalidacao_completa": "docs/47 Fases 1+3 (phase18/19) fecharam GD01-001 e GD01-066 — as 130/130 cartas de GD01 estão sem NENHUMA cláusula deferida. As 2 notas antigas de 'exige primitiva de motor genuína' em polish_not_blocking eram incorretas; ambas eram conteúdo/predicado já suportado."
   }
 }

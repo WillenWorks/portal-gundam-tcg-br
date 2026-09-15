@@ -299,6 +299,10 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // Exclui a própria fonte do pool de `friendlyUnit` (que por padrão a inclui).
   if (filter === "notSelf") return ctx.sourceInstanceId ? candidate.instanceId !== ctx.sourceInstanceId : true;
 
+  // GD01-066 Justice Gundam — "Choose 1 of your (Triple Ship Alliance) Unit TOKENS."
+  // Sempre em composição com `trait:X` via ";" (o texto nunca restringe só por token).
+  if (filter === "isToken") return candidate.def.isToken === true;
+
   // ST05-015 Isaribi — 【Activate･Main】"Choose 1 of your damaged Units."
   if (filter === "damaged") return candidate.damage > 0;
 

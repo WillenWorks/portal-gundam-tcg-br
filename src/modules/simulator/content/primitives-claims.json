@@ -99,6 +99,7 @@
     "linkUnit": { "description": "Candidato é Link Unit agora.", "since": "GD01-101 Deep Devotion" },
     "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" },
     "notSelf": { "description": "Exclui a própria fonte do pool de alvos (ex. \"Choose 1 of your OTHER Units\" com targetScope friendlyUnit, que por padrão inclui a fonte).", "since": "ST05-001 Gundam Barbatos 4th Form" },
-    "damaged": { "description": "Candidato tem dano acumulado > 0.", "since": "ST05-015 Isaribi" }
+    "damaged": { "description": "Candidato tem dano acumulado > 0.", "since": "ST05-015 Isaribi" },
+    "isToken": { "description": "Candidato é um token (CardDef.isToken), não uma carta física.", "since": "GD01-066 Justice Gundam (revalidação docs/47 Fase 3)" }
   }
 }

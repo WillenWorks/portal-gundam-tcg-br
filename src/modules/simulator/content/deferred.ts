@@ -82,14 +82,14 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   // revalidação (docs/47): `StaticAbility` já suportava `scope:"allFriendlyUnits"`
   // + `targetCondition:{kind:"traitIs"}` + concessão de keyword — não precisava
   // de nenhuma primitiva nova, só apontar a aura pra esse formato em unitsBlue.ts.
+  // GD01-066 "…It may attack on the turn it is deployed." fechada (docs/47 Fase 3):
+  // `condition.predicate: "selfIsPaired"` (já existente, mesmo padrão de
+  // GD01-073/082 — tempo real, não precisa do `duringPair`/`wasPaired` de
+  // Destroyed) + keyword sintética `AttackOnDeployTurn` via `grantKeyword`
+  // (endOfTurn), aceita em `combat.ts`/`declareAttack` como equivalente a Link
+  // Unit. Filtro `isToken` novo em `predicates.ts`. Nenhuma "nova primitiva de
+  // motor genuína" foi necessária, ao contrário do que a entrada antiga dizia.
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "GD01-066",
-    clause: "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed.",
-    reason:
-      "A 1ª cláusula (【Deploy】Deploy 1 [Fatum-00] token) já foi resolvida (`JUSTICE_GUNDAM_DEPLOY`, `TOKEN_FATUM_00`). Esta 2ª cláusula concede exceção de \"pode atacar no turno em que foi deployada\" a um token ESCOLHIDO, fora da regra nativa de Link Unit (`enteredZoneOnTurn`/combat.ts) — não existe primitiva pra isso.",
-    blockedBy: "engine:atacar-no-turno-do-deploy-fora-de-link",
-  },
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe F — Wave ST05: retrieve de trash via combate.

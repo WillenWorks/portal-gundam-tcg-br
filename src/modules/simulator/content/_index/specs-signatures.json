@@ -438,6 +438,18 @@
     "sourceText": "【During Pair】【Once per Turn】When you pair a Pilot with this Unit or one of your white Units, choose 1 enemy Unit. It gets AP-2 during this turn."
   },
   {
+    "id": "GD01-066-Attack",
+    "cardCode": "GD01-066",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Triple Ship Alliance;isToken",
+    "predicate": "selfIsPaired",
+    "sourceText": "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed."
+  },
+  {
     "id": "GD01-066-Deploy",
     "cardCode": "GD01-066",
     "trigger": "Deploy",
@@ -2184,6 +2196,192 @@
   {
     "id": "ST04-016-Deploy",
     "cardCode": "ST04-016",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST05-001-Deploy",
+    "cardCode": "ST05-001",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "notSelf",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your other Units. Deal 1 damage to it. It gets AP+1 during this turn."
+  },
+  {
+    "id": "ST05-003-ActivateMain",
+    "cardCode": "ST05-003",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "damageUnit",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】Rest this Unit：Choose 1 of your Units. Deal 1 damage to it. It gets AP+1 during this turn."
+  },
+  {
+    "id": "ST05-005-Destroyed",
+    "cardCode": "ST05-005",
+    "trigger": "Destroyed",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=4",
+    "predicate": null,
+    "sourceText": "【Destroyed】Choose 1 enemy Unit with 4 or less AP. Rest it."
+  },
+  {
+    "id": "ST05-007-WhenPaired",
+    "cardCode": "ST05-007",
+    "trigger": "When Paired",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit that is Lv.3 or lower. It gets AP-2 during this turn."
+  },
+  {
+    "id": "ST05-010-Burst",
+    "cardCode": "ST05-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST05-011-Burst",
+    "cardCode": "ST05-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST05-012-Burst",
+    "cardCode": "ST05-012",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST05-012-WhenPaired",
+    "cardCode": "ST05-012",
+    "trigger": "When Paired",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": "controllerOtherUnitCountWithAnyTraitAtLeast:Gjallarhorn,Tekkadan:2",
+    "sourceText": "【When Paired】If you have 2 or more other (Gjallarhorn)/(Tekkadan) Units in play, choose 1 enemy Unit with 3 or less HP. Rest it."
+  },
+  {
+    "id": "ST05-013-Action",
+    "cardCode": "ST05-013",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 of your Units. Deal 1 damage to it. It gets AP+3 during this turn."
+  },
+  {
+    "id": "ST05-013-Main",
+    "cardCode": "ST05-013",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 of your Units. Deal 1 damage to it. It gets AP+3 during this turn."
+  },
+  {
+    "id": "ST05-014-Burst",
+    "cardCode": "ST05-014",
+    "trigger": "Burst",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "ST05-014-Main",
+    "cardCode": "ST05-014",
+    "trigger": "Main",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit that is Lv.3 or lower. Destroy it."
+  },
+  {
+    "id": "ST05-015-ActivateMain",
+    "cardCode": "ST05-015",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "damaged",
+    "predicate": null,
+    "sourceText": "【Activate･Main】Rest this Base：Choose 1 of your damaged Units. It gets AP+2 during this turn."
+  },
+  {
+    "id": "ST05-015-Burst",
+    "cardCode": "ST05-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST05-015-Deploy",
+    "cardCode": "ST05-015",
     "trigger": "Deploy",
     "ops": [
       "addShieldToHand"
