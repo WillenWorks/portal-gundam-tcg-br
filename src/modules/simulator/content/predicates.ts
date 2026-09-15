@@ -4,6 +4,7 @@ import {
   effectiveAp,
   effectiveHp,
   effectivePilotDef,
+  hasKeyword,
   otherPlayer,
   satisfiesLinkCondition,
   type CardInstance,
@@ -274,9 +275,12 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   const apAtMost = filter.match(/^ap<=(\d+)$/);
   if (apAtMost) return effectiveAp(candidate, ctx.state) <= Number(apAtMost[1]);
 
-  // ST04-015 Archangel — "friendly Unit with <Blocker>".
+  // ST04-015 Archangel — "friendly Unit with <Blocker>". `hasKeyword` (não só
+  // `effectKeywords ?? []`/`keywordGrants`) também enxerga concessão via
+  // `staticAbilities` (ex. Sinanju 【During Pair】<High-Maneuver>) — achado ao
+  // fechar deferred.ts ST03-001/GD01-001 (docs/47).
   const hasKw = filter.match(/^hasKeyword:(.+)$/);
-  if (hasKw) return (candidate.def.effectKeywords ?? []).includes(hasKw[1]) || candidate.keywordGrants.some((g) => g.keyword === hasKw[1]);
+  if (hasKw) return hasKeyword(candidate, hasKw[1], ctx.state);
 
   // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
   const traitMatch = filter.match(/^trait:(.+)$/);

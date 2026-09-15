@@ -51,14 +51,10 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe C — ST03-001 Sinanju: aproximações aceitas (docs/43 §4).
+  // 【During Pair】"gains <High-Maneuver>" fechada na revalidação (docs/47): já
+  // era StaticAbility condicional viável (`hasKeyword`/`keywordValue` recebem
+  // `state` em todos os call sites reais) — fixture atualizada em st03Deck.ts.
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "ST03-001",
-    clause: "【During Pair】This Unit gains <High-Maneuver>.",
-    reason:
-      "Modelado como keyword FIXA (`effectKeywords: ['High-Maneuver']` em st03Deck.ts) em vez de condicional a 【During Pair】. `hasKeyword` é consultado sem `state` em ~9 pontos do motor; propagar `state` por 1 carta não compensa. Sinanju tem Link e quase sempre ataca pareada — a diferença só apareceria atacando sem Pilot.",
-    blockedBy: "engine:hasKeyword-sem-state",
-  },
   {
     cardCode: "ST03-001",
     clause: "when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it.",
@@ -80,13 +76,11 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe E — Wave GD01: Mecânicas avançadas, bounce, auras e custos dinâmicos (Fase 2 Claude).
+  // GD01-001 "All your (White Base Team) Units gain <Repair 1>" fechada na
+  // revalidação (docs/47): `StaticAbility` já suportava `scope:"allFriendlyUnits"`
+  // + `targetCondition:{kind:"traitIs"}` + concessão de keyword — não precisava
+  // de nenhuma primitiva nova, só apontar a aura pra esse formato em unitsBlue.ts.
   // ─────────────────────────────────────────────────────────────────────────
-  {
-    cardCode: "GD01-001",
-    clause: "All your (White Base Team) Units gain <Repair 1>",
-    reason: "Aura contínua que concede keyword em grupo depende do pipeline de Layers/Auras da Fase 2.",
-    blockedBy: "engine:aura-concessao-keyword-grupo",
-  },
   {
     cardCode: "GD01-066",
     clause: "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed.",

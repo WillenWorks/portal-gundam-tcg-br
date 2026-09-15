@@ -5,10 +5,10 @@
   "total_cards": 130,
   "metrics": {
     "vanilla_cards": 28,
-    "implemented_cards": 100,
-    "implemented_with_deferred_clause": 2,
+    "implemented_cards": 101,
+    "implemented_with_deferred_clause": 1,
     "deferred_pure_cards": 0,
-    "deferred_clauses": 2,
+    "deferred_clauses": 1,
     "playable_cards_total": 130
   },
   "pipeline_progress": {
@@ -242,6 +242,14 @@
       "verification": "10 testes novos (deploy.test.ts: 4, caminho real via deployCard incluindo Once-per-Turn; gd01.test.ts: 2, incluindo prova do hook via dispatcher.ts com pairFromTrashSearch sintético). Suíte completa (106/1059) + tsc --noEmit + gundam-index.mjs (172 assinaturas) + gundam-coverage.mjs, todos verdes. Sem regressão no golden master (onAnyPairing é opt-in por CardDef, no-op pra qualquer carta sem o campo).",
       "milestone": "Com este lote, os 130/130 cartas de GD01 estão jogáveis (deferred_pure_cards: 0). Restam só GD01-001/GD01-066 como 'implementada*' (polish, não bloqueia — ver polish_not_blocking) e o merge feature/wave-gd01 -> dev."
     },
+    "phase18_engine_gaps_revalidacao_lote1": {
+      "completed": true,
+      "agent": "claude-code",
+      "label": "Revalidação (docs/47) — GD01-001 fechada: a nota 'exige primitiva de motor genuína' em polish_not_blocking estava desatualizada",
+      "cards_unlocked": ["GD01-001"],
+      "finding": "StaticAbility (Lote 3, phase7_engine_gaps_etapa2) já suportava scope:'allFriendlyUnits' + targetCondition:{kind:'traitIs'} + concessão de keyword — a combinação nunca tinha sido usada pra um grupo com filtro de trait (só self/pairedUnit até então), mas o código de findActiveStaticKeywordAbility já resolvia sem mudança nenhuma. Trocado o effectKeywords/keywordTags fixo (só a própria Gundam) por staticAbilities com scope de grupo em unitsBlue.ts.",
+      "verification": "2 testes novos (gd01.test.ts: aura concede Repair a outra Unit White Base Team sem tê-la impressa + cura real na End Phase; st03.test.ts: fix irmão de ST03-001, ver deferred.ts). Suíte completa + gundam-coverage.mjs, todos verdes."
+    },
     "phase6_file_split_etapa1": {
       "completed": true,
       "agent": "claude-code",
@@ -262,13 +270,13 @@
     }
   },
   "deferred_summary": {
-    "total_clauses": 2,
-    "unique_engine_blockers": 2,
-    "next_engine_work_priority": [],
+    "total_clauses": 1,
+    "unique_engine_blockers": 1,
+    "next_engine_work_priority": ["engine:atacar-no-turno-do-deploy-fora-de-link"],
     "lote5_complete": "Lote 5 (docs/debates 2026-09-13) fechado por completo — 9 batches, 5 cartas puramente deferidas fechadas nesta sessão (GD01-046 em batch anterior + GD01-090/005/002/023/065 nesta rodada, ver phase12-17_engine_gaps_etapa3_lote5_batch*). deferred_pure_cards: 0 — nenhuma carta de GD01 está mais totalmente bloqueada.",
     "polish_not_blocking": {
-      "note": "GD01-001 (engine:aura-concessao-keyword-grupo) e GD01-066 (engine:atacar-no-turno-do-deploy-fora-de-link) já são 'implementada*' — jogáveis hoje, só a 2ª cláusula de cada segue deferida. Cada uma exige uma primitiva de motor genuína (aura de concessão de keyword EM GRUPO pra GD01-001; exceção de 'pode atacar no turno do deploy' atribuível a um token ESCOLHIDO, fora da regra nativa de Link Unit, pra GD01-066) — NÃO são quick-fixes. Fechar depois do resto do lote 5, não bloqueia nada.",
-      "cards": ["GD01-001", "GD01-066"]
+      "note": "GD01-001 fechada na revalidação (phase18, docs/47) — a nota anterior de que exigia 'primitiva de motor genuína' estava incorreta, era conteúdo puro. Resta só GD01-066 (engine:atacar-no-turno-do-deploy-fora-de-link) como 'implementada*' — jogável hoje, só a 2ª cláusula (exceção de 'pode atacar no turno do deploy' atribuível a um token ESCOLHIDO, fora da regra nativa de Link Unit) segue deferida. Plano de fechamento em docs/47 Fase 3 (3 mudanças aditivas pequenas, não uma nova pipeline).",
+      "cards": ["GD01-066"]
     }
   }
 }

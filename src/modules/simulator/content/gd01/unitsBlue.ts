@@ -11,9 +11,11 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     ap: 3,
     hp: 3,
     traits: ["Earth Federation","White Base Team"],
-    effectKeywords: ["Repair"],
+    // "All your (White Base Team) Units gain <Repair 1>." — aura contínua e
+    // incondicional (scope de grupo + filtro de trait, não bônus só na própria
+    // carta; StaticAbility já suporta essa combinação, ver findActiveStaticKeywordAbility).
+    staticAbilities: [{ condition: "always", scope: "allFriendlyUnits", keyword: "Repair", keywordValue: 1, targetCondition: { kind: "traitIs", trait: "White Base Team" } }],
     triggerKeywords: ["When Paired"],
-    keywordTags: ["Repair 1"],
     link: {"kind":"pilotName","values":["Amuro Ray"]},
   },
   "GD01-002": {

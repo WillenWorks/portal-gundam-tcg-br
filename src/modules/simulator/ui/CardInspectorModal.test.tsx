@@ -45,6 +45,22 @@ describe("CardInspectorModal", () => {
     }
   });
 
+  it("mostra keyword de StaticAbility como badge (Sinanju/GD01-001, deferred.ts fechado — inspetor só lia keywordTags/effectKeywords)", () => {
+    render(
+      <CardInspectorModal
+        card={card({
+          nameEn: "Sinanju",
+          cardType: "UNIT",
+          staticAbilities: [{ condition: "duringPair", scope: "self", keyword: "High-Maneuver" }],
+        })}
+        art={{}}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("High-Maneuver (During Pair)")).toBeInTheDocument();
+  });
+
   it("a gaveta de telemetria abre/fecha pelo botão e lista os atributos", () => {
     render(
       <CardInspectorModal

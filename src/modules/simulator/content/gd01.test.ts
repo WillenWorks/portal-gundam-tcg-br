@@ -609,6 +609,27 @@ describe("Lote 3 (docs/debates 2026-09-13) — StaticAbility com condição gen�
     expect(hasKeyword(findCard(state, redUnitId), "Repair", state)).toBe(false);
   });
 
+  it("GD01-001 Gundam: aura 'All your (White Base Team) Units gain <Repair 1>' concede a keyword a OUTRA Unit do grupo sem tê-la impressa (deferred.ts fechado)", () => {
+    const state = freshGame();
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    // GD01-013 Gundam (outra versão): mesmo traits ["Earth Federation","White Base Team"], sem Repair impresso.
+    const otherWhiteBaseUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-013"], "battleArea");
+    expect(hasKeyword(findCard(state, otherWhiteBaseUnitId), "Repair", state)).toBe(true);
+    expect(keywordValue(findCard(state, otherWhiteBaseUnitId), "Repair", state)).toBe(1);
+
+    // Unit sem trait White Base Team NÃO recebe a aura.
+    const nonWhiteBaseUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, Principality of Zeon
+    expect(hasKeyword(findCard(state, nonWhiteBaseUnitId), "Repair", state)).toBe(false);
+
+    // Sem `state`, a concessão via StaticAbility não é vista (limite documentado em `hasKeyword`).
+    expect(hasKeyword(findCard(state, otherWhiteBaseUnitId), "Repair")).toBe(false);
+
+    // Fim de turno (activePlayer "A"): a Unit sem Repair impresso, mas danificada, é curada pela aura.
+    findCard(state, otherWhiteBaseUnitId).damage = 1;
+    const healed = runEndPhase(state);
+    expect(findCard(healed, otherWhiteBaseUnitId).damage).toBe(0);
+  });
+
   it("GD01-089 Riddhe Marcenas (Pilot): concede AP+1 à Unit pareada só enquanto ela mesma tiver <Repair>", () => {
     const state = freshGame();
     const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-089"], "battleArea");
