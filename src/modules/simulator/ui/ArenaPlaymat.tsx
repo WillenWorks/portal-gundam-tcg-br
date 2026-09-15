@@ -69,6 +69,8 @@ export interface ArenaSide {
   /** Frente 4 (docs/38 §3.4) — ref-callback pra o `CombatLane` medir a coluna
    *  Base/Escudos (a seta de ataque "no jogador" mira nela, não no centro). */
   shieldStationRef?: (el: HTMLElement | null) => void;
+  /** ref-callback pra medir a trilha de escudos especificamente (posicionamento exato do deal). */
+  shieldRailRef?: (el: HTMLElement | null) => void;
   /** Frente 4 (feedback Willen 4ª rodada) — ref-callback pra a coluna
    *  Exílio/Descarte/Deck: origem da `DeckDealAnimation` (compra / mulligan /
    *  montagem de escudos animam A PARTIR daqui). */
@@ -289,13 +291,13 @@ function ShieldStation({
     <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (
         <>
-          {shields}
+          <div ref={side.shieldRailRef} className="w-full flex justify-center">{shields}</div>
           {side.base}
         </>
       ) : (
         <>
           {side.base}
-          {shields}
+          <div ref={side.shieldRailRef} className="w-full flex justify-center">{shields}</div>
         </>
       )}
     </div>

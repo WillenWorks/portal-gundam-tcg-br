@@ -23,7 +23,6 @@ import type { CardDef, CardInstance, CombatState, GameState, PlayerId } from "@/
 import { ST01_CARD_DEFS } from "@/modules/simulator/fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "@/modules/simulator/fixtures/st02Deck";
 import {
-  ActionDock,
   type ActionDockState,
   ArenaPlaymat,
   type ArenaSide,
@@ -32,6 +31,7 @@ import {
   BurstModal,
   cardBackUrl,
   CardInspectorModal,
+  CenterDecisionModal,
   type LinkedPilot,
   CombatLane,
   CounterChip,
@@ -46,6 +46,7 @@ import {
   useBoardElements,
   type ArtLookup,
 } from "@/modules/simulator/ui";
+import { sfx } from "@/modules/simulator/audio/soundEffects";
 
 const S1 = ST01_CARD_DEFS;
 const S2 = ST02_CARD_DEFS;
@@ -89,6 +90,35 @@ export interface LayoutPreviewFixture {
  *  `DeckDealAnimation` nas zonas reais. */
 function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
   return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+}
+
+/** centro da pilha de deck real dentro da coluna de deck/exílio */
+function deckCenter(r: DOMRect | null, mirrored = false): { x: number; y: number } | null {
+  if (!r) return null;
+  const x = r.left + r.width / 2;
+  const y = mirrored ? r.top + r.height * 0.2 : r.bottom - r.height * 0.2;
+  return { x, y };
+}
+
+/** centro da primeira carta de escudo dentro da trilha ShieldRail */
+function shieldRailCenter(r: DOMRect | null): { x: number; y: number } | null {
+  if (!r) return null;
+  const cardH = Math.round(r.width * (88 / 63));
+  return {
+    x: r.left + r.width / 2,
+    y: r.top + cardH / 2,
+  };
+}
+
+/** centro da carta central da mão dentro da prateleira HandFan */
+function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: number } | null {
+  if (!r) return null;
+  const w = cardW && cardW > 0 ? cardW : 84;
+  const cardH = Math.round(w * (88 / 63));
+  return {
+    x: r.left + r.width / 2,
+    y: r.bottom - 4 - cardH / 2,
+  };
 }
 
 let SEQ = 0;
@@ -272,7 +302,13 @@ type Scenario =
   | "mulligan"
   | "deal-shields"
   | "deploy-light"
-  | "deploy-heavy";
+  | "deploy-heavy"
+  | "modal-end-turn"
+  | "modal-action-step"
+  | "modal-defending"
+  | "modal-attacking"
+  | "modal-pending"
+  | "modal-abandon";
 
 const SCENARIO_LABEL: Record<Scenario, string> = {
   normal: "Normal",
@@ -284,6 +320,12 @@ const SCENARIO_LABEL: Record<Scenario, string> = {
   "deal-shields": "Montar escudos (6 → shield)",
   "deploy-light": "Jogar Unit leve (custo 1–3)",
   "deploy-heavy": "Jogar Unit pesada (custo 4–10)",
+  "modal-end-turn": "Modal: Encerrar Turno (Sua vez)",
+  "modal-action-step": "Modal: Passo de Ação (Passar)",
+  "modal-defending": "Modal: Defesa / Blocker",
+  "modal-attacking": "Modal: Ataque Declarado",
+  "modal-pending": "Modal: Alvos / Custo Pendente",
+  "modal-abandon": "Modal: W.O. / Abandono",
 };
 
 export default function SimulatorLayoutPreviewPage() {
@@ -314,7 +356,9 @@ function LayoutPreview() {
   const [activeResources, setActiveResources] = useState(6);
   const [showArrow, setShowArrow] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [targetingMode, setTargetingMode] = useState(false);
   const [scenario, setScenario] = useState<Scenario>("normal");
+  const [previewShields, setPreviewShields] = useState(2);
   const [replayKey, setReplayKey] = useState(0);
   // deploy anim: nº de "jogadas" (força o remount do slot) + peso.
   const [deployTick, setDeployTick] = useState(0);
@@ -402,11 +446,19 @@ function LayoutPreview() {
       shields: (
         <ShieldRail
           orientation="vertical"
-          count={side.shields}
+          count={isViewer && scenario === "deal-shields" ? 0 : isViewer ? previewShields : side.shields}
           underAim={Boolean(combat && combat.currentTarget === "player" && combat.defendingPlayer === pid)}
         />
       ),
-      base: <BaseCardGauge base={side.base} art={art} onInspect={(c) => openInspect(c)} />,
+      base: (
+        <BaseCardGauge
+          base={side.base}
+          art={art}
+          targetingActive={targetingMode}
+          legalTarget={targetingMode && !isViewer}
+          onInspect={(c) => openInspect(c)}
+        />
+      ),
       resources: (
         <div className="flex items-end justify-center gap-2">
           <CounterChip variant="stack" label="Deck de Recursos" count={side.resourceDeckCount} />
@@ -433,6 +485,7 @@ function LayoutPreview() {
             const slot = side.slots[i] ?? null;
             // cenário de deploy: anima o slot 0 do lado "você" (remonta via `deployTick`).
             const deployHere = isViewer && i === 0 && deployWeight ? deployWeight : undefined;
+            const isTarget = targetingMode && (isViewer ? (i === 1 || i === 3) : (i === 0 || i === 2));
             return (
               <BattleSlot
                 key={`${slot?.unit.instanceId ?? `${pid}-empty-${i}`}-${deployHere ? deployTick : 0}`}
@@ -441,6 +494,8 @@ function LayoutPreview() {
                 art={art}
                 state={previewState}
                 justDeployed={deployHere}
+                targetingActive={targetingMode}
+                legalTarget={isTarget}
                 isAttacker={Boolean(slot && combat?.attackerId === slot.unit.instanceId)}
                 attacking={
                   slot && combat?.attackerId === slot.unit.instanceId ? attackVector : undefined
@@ -458,6 +513,7 @@ function LayoutPreview() {
       ),
       battleAreaRef: board.register(playerAreaKey(pid)),
       shieldStationRef: board.register(playerShieldKey(pid)),
+      shieldRailRef: board.register(`shieldRail:${pid}`),
       deckStationRef: board.register(`deckStation:${pid}`),
       handRef: isViewer ? board.register(`hand:${pid}`) : undefined,
       handSummary: isViewer ? undefined : (
@@ -466,9 +522,32 @@ function LayoutPreview() {
     };
   }
 
-  const dockState: ActionDockState = combat
-    ? { kind: "attacking", attackerName: attackerCard?.def.nameEn ?? "Unit" }
-    : { kind: "idle", yourTurn: true, phaseLabel: "Fase Principal · Ação", timerSeconds: 42, turnNumber: 5 };
+  const dockState: ActionDockState | null = useMemo(() => {
+    switch (scenario) {
+      case "modal-end-turn":
+        return { kind: "idle", yourTurn: true, phaseLabel: "Fase Principal · Ação", timerSeconds: 25, turnNumber: 5 };
+      case "modal-action-step":
+        return { kind: "actionStep", scope: "combat", autoPass: false, hasPlay: true };
+      case "modal-defending":
+        return { kind: "defending" };
+      case "modal-attacking":
+        return { kind: "attacking", attackerName: attackerCard?.def.nameEn ?? "Wing Gundam" };
+      case "modal-pending":
+        return {
+          kind: "pending",
+          verb: "Escolher",
+          cardName: "Unit Alvo",
+          selectedCount: 1,
+          hint: "Selecione 1 Unit inimiga com custo ≤ 3 para devolver à mão.",
+          cost: null,
+          canConfirm: true,
+        };
+      case "modal-abandon":
+        return { kind: "abandonAvailable", idleSeconds: 65 };
+      default:
+        return null;
+    }
+  }, [scenario, attackerCard]);
 
   return (
     <div
@@ -488,6 +567,8 @@ function LayoutPreview() {
         onShowArrow={setShowArrow}
         reducedMotion={reducedMotion}
         onReducedMotion={setReducedMotion}
+        targetingMode={targetingMode}
+        onTargetingMode={setTargetingMode}
         scenario={scenario}
         onScenario={setScenario}
         onReplayDraw={() => setReplayKey((k) => k + 1)}
@@ -505,7 +586,11 @@ function LayoutPreview() {
             hand={
               <HandFan
                 anchored
-                cards={fixture.hand}
+                cards={
+                  scenario === "deal-hand" || scenario === "mulligan"
+                    ? []
+                    : fixture.hand
+                }
                 art={art}
                 onPeek={(c) => openInspect(c)}
                 onInspect={(c) => openInspect(c)}
@@ -529,7 +614,43 @@ function LayoutPreview() {
         />
       ) : null}
 
-      <ActionDock state={dockState} />
+      {dockState ? (
+        <CenterDecisionModal
+          state={dockState}
+          onEndTurn={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onPass={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onSkipBlock={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onDeclareAttackPlayer={() => {
+            sfx.playAttackBeam();
+            setScenario("normal");
+          }}
+          onCancelAttack={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onConfirm={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onCancel={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+          onClaimAbandon={() => {
+            sfx.playClick();
+            setScenario("normal");
+          }}
+        />
+      ) : null}
 
       {inspect ? (
         <CardInspectorModal
@@ -552,9 +673,7 @@ function LayoutPreview() {
         <DeckDealAnimation
           mode="shuffle"
           label="Embaralhando o deck…"
-          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
           cardW={board.rectOf(`deckStation:${viewer}`)?.width}
-          dest={rectCenter(board.rectOf(`deckStation:${viewer}`))}
           onDone={() => setScenario("normal")}
         />
       ) : null}
@@ -562,9 +681,11 @@ function LayoutPreview() {
         <DeckDealAnimation
           mode="deal-hand"
           label="Comprando a mão inicial…"
-          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          origin={deckCenter(board.rectOf(`deckStation:${viewer}`), false)}
           cardW={board.rectOf(`deckStation:${viewer}`)?.width}
-          dest={rectCenter(board.rectOf(`hand:${viewer}`))}
+          dest={handCenter(board.rectOf(`hand:${viewer}`), board.rectOf(`deckStation:${viewer}`)?.width)}
+          cards={fixture.hand.map((h) => h.card)}
+          art={art}
           onDone={() => setScenario("normal")}
         />
       ) : null}
@@ -572,9 +693,11 @@ function LayoutPreview() {
         <DeckDealAnimation
           mode="mulligan"
           label="Mulligan…"
-          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          origin={deckCenter(board.rectOf(`deckStation:${viewer}`), false)}
           cardW={board.rectOf(`deckStation:${viewer}`)?.width}
-          dest={rectCenter(board.rectOf(`hand:${viewer}`))}
+          dest={handCenter(board.rectOf(`hand:${viewer}`), board.rectOf(`deckStation:${viewer}`)?.width)}
+          cards={fixture.hand.map((h) => h.card)}
+          art={art}
           onDone={() => setScenario("normal")}
         />
       ) : null}
@@ -582,10 +705,13 @@ function LayoutPreview() {
         <DeckDealAnimation
           mode="deal-shields"
           label="Montando os escudos…"
-          origin={rectCenter(board.rectOf(`deckStation:${viewer}`))}
+          origin={deckCenter(board.rectOf(`deckStation:${viewer}`), false)}
           cardW={board.rectOf(`deckStation:${viewer}`)?.width}
-          dest={rectCenter(board.rectOf(playerShieldKey(viewer)))}
-          onDone={() => setScenario("normal")}
+          dest={shieldRailCenter(board.rectOf(`shieldRail:${viewer}`))}
+          onDone={() => {
+            setPreviewShields(6);
+            setScenario("normal");
+          }}
         />
       ) : null}
 
@@ -610,6 +736,8 @@ interface ControlBarProps {
   onShowArrow: (v: boolean) => void;
   reducedMotion: boolean;
   onReducedMotion: (v: boolean) => void;
+  targetingMode: boolean;
+  onTargetingMode: (v: boolean) => void;
   scenario: Scenario;
   onScenario: (s: Scenario) => void;
   onReplayDraw: () => void;
@@ -654,6 +782,16 @@ function ControlBar(p: ControlBarProps) {
         <span>Forçar reduced-motion</span>
       </label>
 
+      <label className="flex shrink-0 items-center gap-1.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={p.targetingMode}
+          onChange={(e) => p.onTargetingMode(e.target.checked)}
+          className="rounded text-primary"
+        />
+        <span className="font-semibold text-emerald-400">Demarcação Alvos (Válido vs Inválido)</span>
+      </label>
+
       <label className="flex shrink-0 items-center gap-1.5">
         <span className="text-muted-portal">Animação / cenário</span>
         <select
@@ -677,6 +815,75 @@ function ControlBar(p: ControlBarProps) {
       >
         ▶ re-animar mão
       </button>
+
+      <div className="flex shrink-0 items-center gap-1 border-l border-white/10 pl-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">SFX Gundam:</span>
+        <button
+          type="button"
+          onClick={() => sfx.playNewtypeFlash()}
+          title="Flash Newtype (agudo espacial cristalino)"
+          className="rounded border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25"
+        >
+          ✨ Newtype
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playBeamRifle()}
+          title="Tiro de Beam Rifle"
+          className="rounded border border-pink-400/40 bg-pink-500/10 px-1.5 py-0.5 text-[11px] font-bold text-pink-300 hover:bg-pink-500/25"
+        >
+          ⚡ Rifle
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playBeamSaberSlash()}
+          title="Golpe de Beam Saber"
+          className="rounded border border-red-400/40 bg-red-500/10 px-1.5 py-0.5 text-[11px] font-bold text-red-300 hover:bg-red-500/25"
+        >
+          ⚔️ Saber
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playMonoeyeLock()}
+          title="Lock-on Monoeye Zaku"
+          className="rounded border border-rose-400/40 bg-rose-500/10 px-1.5 py-0.5 text-[11px] font-bold text-rose-300 hover:bg-rose-500/25"
+        >
+          👁️ Monoeye
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playShieldBlock()}
+          title="Bloqueio metálico com escudo"
+          className="rounded border border-cyan-400/40 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500/25"
+        >
+          🛡️ Bloco
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playExplosion()}
+          title="Explosão de Unidade"
+          className="rounded border border-orange-400/40 bg-orange-500/10 px-1.5 py-0.5 text-[11px] font-bold text-orange-300 hover:bg-orange-500/25"
+        >
+          💥 Destruição
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playCardDraw()}
+          title="Draw / Compra de Carta"
+          className="rounded border border-sky-400/40 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-bold text-sky-300 hover:bg-sky-500/25"
+        >
+          🎴 Draw
+        </button>
+        <button
+          type="button"
+          onClick={() => sfx.playTurnStartAlert()}
+          title="Alerta de Início de Turno"
+          className="rounded border border-yellow-400/40 bg-yellow-500/10 px-1.5 py-0.5 text-[11px] font-bold text-yellow-300 hover:bg-yellow-500/25"
+        >
+          🚨 Turno
+        </button>
+      </div>
     </div>
   );
 }
+
