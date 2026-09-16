@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { DeckDealAnimation } from "./DeckDealAnimation";
+import { sfx } from "../audio/soundEffects";
 
 /** avança timers dentro de `act` pra o React flushar os setState. */
 function advance(ms: number) {
@@ -119,5 +120,91 @@ describe("DeckDealAnimation", () => {
     expect(container.querySelector(".sim-anim-deal")).toBeNull();
     advance(100);
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  // docs/53 — bug real: a página reusa a MESMA instância de `DeckDealAnimation`
+  // conforme `setupAnim` avança (shuffle → deal-hand → deal-shields) sem
+  // desmontar. `phase` só reinicializava no `useState` (roda 1x, no mount), então
+  // trocar `mode` sozinho nunca tirava a fase de "shuffle" — as 5 cartas da mão
+  // nunca saíam da pilha. Este teste re-renderiza com um novo `mode` SEM trocar
+  // `key` (o cenário exato do bug) pra provar que o efeito de resincronização
+  // resolve sozinho, independente do `key={setupAnim}` que a página também ganhou.
+  it("docs/53 — troca de `mode` via re-render (mesma instância, sem remontar) resincroniza `phase`", () => {
+    mockMatchMedia(false);
+    const onDone = vi.fn();
+    const { container, rerender } = render(<DeckDealAnimation mode="shuffle" onDone={onDone} />);
+    expect(container.querySelector(".sim-anim-shuffle")).not.toBeNull();
+    expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(0);
+
+    rerender(<DeckDealAnimation mode="deal-hand" onDone={onDone} />);
+    expect(container.querySelector(".sim-anim-shuffle")).toBeNull();
+    expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(5);
+
+    advance(1200);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  // docs/53 — cadência dos escudos: 160ms de stagger (não 90ms da mão), som de
+  // trava no pouso do 6º escudo, e onDone só depois do hold total
+  // (6 * SHIELD_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD = 6*160 + 450 + 250 = 1660ms).
+  it("docs/53 — deal-shields: stagger de 160ms, som de trava no 6º escudo e onDone após o hold de 1660ms", () => {
+    mockMatchMedia(false);
+    const onDone = vi.fn();
+    const playCardDrawSpy = vi.spyOn(sfx, "playCardDraw");
+    const playShieldBlockSpy = vi.spyOn(sfx, "playShieldBlock");
+    const { container } = render(<DeckDealAnimation mode="deal-shields" onDone={onDone} />);
+
+    expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(6);
+    const travelling = container.querySelectorAll<HTMLElement>(".sim-anim-deal");
+    expect(travelling[1].style.animationDelay).toBe("160ms");
+    expect(travelling[5].style.animationDelay).toBe("800ms");
+
+    // 6 sons de saque, um a cada 160ms (t=0,160,320,480,640,800)
+    advance(800);
+    expect(playCardDrawSpy).toHaveBeenCalledTimes(6);
+    expect(playShieldBlockSpy).not.toHaveBeenCalled();
+
+    // 6º escudo pousa e trava aos 5*160 + 450 = 1250ms
+    advance(450);
+    expect(playShieldBlockSpy).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+
+    // hold total: 6*160 + 450 + 250 = 1660ms — não antes
+    advance(409);
+    expect(onDone).not.toHaveBeenCalled();
+    advance(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  // docs/56 tarefa 2 — saque de 1 carta por turno: 1 carta só, som de saque,
+  // onDone em 400ms (rápido, não segura o jogo).
+  it("docs/56 — single-draw: 1 carta viajando, toca playCardDraw e chama onDone em 400ms", () => {
+    mockMatchMedia(false);
+    const onDone = vi.fn();
+    const playCardDrawSpy = vi.spyOn(sfx, "playCardDraw");
+    const { container } = render(<DeckDealAnimation mode="single-draw" onDone={onDone} />);
+
+    expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(1);
+    expect(playCardDrawSpy).toHaveBeenCalledTimes(1);
+
+    advance(399);
+    expect(onDone).not.toHaveBeenCalled();
+    advance(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("docs/56 — single-draw ancorado vai reto da origem ao destino (1 ponto, sem leque)", () => {
+    mockMatchMedia(false);
+    const { container } = render(
+      <DeckDealAnimation
+        mode="single-draw"
+        onDone={vi.fn()}
+        origin={{ x: 800, y: 120 }}
+        dest={{ x: 500, y: 640 }}
+      />,
+    );
+    const travelling = container.querySelector(".sim-anim-deal") as HTMLElement;
+    expect(travelling.style.getPropertyValue("--dx")).toBe("-300px");
+    expect(travelling.style.getPropertyValue("--dy")).toBe("520px");
   });
 });

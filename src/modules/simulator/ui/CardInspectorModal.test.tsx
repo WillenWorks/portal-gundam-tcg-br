@@ -172,4 +172,101 @@ describe("CardInspectorModal", () => {
     );
     expect(screen.getByRole("button", { name: "Jogar" })).toBeInTheDocument();
   });
+
+  it("ST05 Barbatos: renderiza arte, efeito pt-BR por padrão e popover com retrato de Mikazuki Augus", () => {
+    render(
+      <CardInspectorModal
+        card={card({
+          code: "ST05-001",
+          nameEn: "Gundam Barbatos 4th Form",
+          cardType: "UNIT",
+          link: { kind: "pilotName", values: ["Mikazuki Augus"] },
+        })}
+        art={{
+          "ST05-001": { imageUrl: "https://tcgplayer-cdn.com/barbatos.jpg" },
+        }}
+        onClose={vi.fn()}
+        effectPt="【Deploy】Você pode colocar 1 carta da sua mão no topo do seu deck."
+        effectEn="【Deploy】You may place 1 card from your hand on top of your deck."
+        linkedPilots={[
+          {
+            name: "Mikazuki Augus",
+            art: { imageUrl: "https://tcgplayer-cdn.com/mikazuki.jpg" },
+            note: "Disponível na sua mão",
+          },
+        ]}
+      />,
+    );
+
+    // Arte grande carregada
+    const barbatosImg = screen.getByRole("img", { name: "Gundam Barbatos 4th Form" });
+    expect(barbatosImg).toHaveAttribute("src", "https://tcgplayer-cdn.com/barbatos.jpg");
+
+    // Popover de link com retrato de Mikazuki
+    expect(screen.getByText("Mikazuki Augus")).toBeInTheDocument();
+    expect(screen.getByText("Disponível na sua mão")).toBeInTheDocument();
+    const mikazukiImg = screen.getByRole("img", { name: "Mikazuki Augus" });
+    expect(mikazukiImg).toHaveAttribute("src", "https://tcgplayer-cdn.com/mikazuki.jpg");
+
+    // Telemetria com efeito pt-BR por padrão
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText(/Você pode colocar 1 carta/)).toBeInTheDocument();
+
+    // Toggle pt/en funcional
+    fireEvent.click(screen.getByRole("button", { name: "en" }));
+    expect(screen.getByText(/You may place 1 card/)).toBeInTheDocument();
+  });
+
+  it("GD01 Loto (vanilla): não exibe bloco de efeito nem toggle, mantendo o painel de telemetria limpo", () => {
+    render(
+      <CardInspectorModal
+        card={card({
+          code: "GD01-011",
+          nameEn: "Loto",
+          cardType: "UNIT",
+          cost: 1,
+          level: 1,
+          ap: 1,
+          hp: 2,
+          traits: ["Earth Federation"],
+        })}
+        art={{
+          "GD01-011": { imageUrl: "https://tcgplayer-cdn.com/loto.jpg" },
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("Custo")).toBeInTheDocument();
+    expect(screen.getByText("Nível")).toBeInTheDocument();
+    expect(screen.getByText(/Earth Federation/)).toBeInTheDocument();
+    // Nenhum bloco de efeito ou toggle de idioma
+    expect(screen.queryByText("Efeito")).toBeNull();
+    expect(screen.queryByRole("button", { name: "en" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "pt" })).toBeNull();
+  });
+
+  it("inPlay: computa AP/HP dinâmicos com dano acumulado e bônus ativos", () => {
+    render(
+      <CardInspectorModal
+        card={card(
+          { code: "GD01-065", nameEn: "Freedom Gundam", cardType: "UNIT", ap: 5, hp: 5 },
+          { damage: 2, statModifiers: [{ stat: "ap", amount: 2, duration: "permanent", appliedOnTurn: 1 }] },
+        )}
+        art={{}}
+        onClose={vi.fn()}
+        inPlay
+      />,
+    );
+
+    // Barra inferior inPlay: AP 7 (5 base + 2 buff) e HP 3 (5 base - 2 dano)
+    expect(screen.getByText("AP 7")).toBeInTheDocument();
+    expect(screen.getByText("HP 3")).toBeInTheDocument();
+
+    // Na gaveta de telemetria, lista o bônus "Ativo agora"
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("Ativo agora")).toBeInTheDocument();
+    expect(screen.getByText("AP +2")).toBeInTheDocument();
+  });
 });

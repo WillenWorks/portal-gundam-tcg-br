@@ -96,6 +96,8 @@ interface ArenaPlaymatProps {
    *  docs/33) — `useArenaScale` mede a caixa real e recalcula `--card-w`
    *  sozinho, não precisa de fórmula separada pra este modo. */
   expanded?: boolean;
+  /** Destaque de iniciativa: destaca o lado do primeiro jogador e escurece com glow oposto o do segundo jogador */
+  highlightSide?: "self" | "opponent" | null;
 }
 
 /** perspectiva fixa da mesa — não depende de `--card-w`, então fica fora do
@@ -125,7 +127,7 @@ const OPPONENT_STYLE: CSSProperties = { transform: "scale(0.96)" };
 // pequena) — a cascata do Shield vira o modo achatado pra não roubar altura.
 const SHIELD_COMPACT_THRESHOLD_PX = 88;
 
-export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded }: ArenaPlaymatProps) {
+export function ArenaPlaymat({ opponent, self, hand, overlay, className, expanded, highlightSide }: ArenaPlaymatProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const groupRef = useRef<HTMLDivElement | null>(null);
   const [compact, setCompact] = useState(false);
@@ -180,8 +182,10 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
         <div
           className={cn(
-            "flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90 transition-colors duration-500",
+            "flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90 transition-all duration-700",
             skin.oppClasses,
+            highlightSide === "self" && "brightness-75 opacity-70 shadow-[inset_0_0_50px_rgba(244,63,94,0.2)] ring-1 ring-rose-500/30",
+            highlightSide === "opponent" && "brightness-110 opacity-100 shadow-[inset_0_0_60px_rgba(56,189,248,0.4)] ring-2 ring-cyan-400/70",
           )}
           style={OPPONENT_STYLE}
         >
@@ -204,8 +208,10 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
         <div
           className={cn(
-            "flex min-h-0 flex-1 items-start justify-center px-2 pt-3 transition-colors duration-500",
+            "flex min-h-0 flex-1 items-start justify-center px-2 pt-3 transition-all duration-700",
             skin.selfClasses,
+            highlightSide === "self" && "brightness-110 opacity-100 shadow-[inset_0_0_60px_rgba(56,189,248,0.4)] ring-2 ring-cyan-400/70",
+            highlightSide === "opponent" && "brightness-75 opacity-70 shadow-[inset_0_0_50px_rgba(244,63,94,0.2)] ring-1 ring-rose-500/30",
           )}
         >
           {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é

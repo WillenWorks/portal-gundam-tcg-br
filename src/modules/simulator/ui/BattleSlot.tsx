@@ -22,7 +22,6 @@ import { sfx } from "../audio/soundEffects";
 
 export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
-  onDeclareTarget?: (unit: CardInstance) => void;
   onBlocker?: (unit: CardInstance) => void;
   /** habilidade de campo — 【Activate·Main】 com EffectSpec (ex.: Tallgeese "Set
    *  active") ou a keyword `<Support N>` (ex.: Angelo's Geara Zulu). */
@@ -61,12 +60,13 @@ interface BattleSlotProps {
    *  desliza e pousa; `"heavy"` (custo 4–10) cai com peso (impacto + shake).
    *  Roda 1× na montagem do slot. `motion-reduce` neutraliza (ver index.css). */
   justDeployed?: "light" | "heavy";
-  /** Frente 4 (feedback Willen 4ª rodada) — animação de ataque: enquanto o
-   *  combate está no step de declaração/dano, a Unit atacante AVANÇA na direção
-   *  do alvo (vetor em px de viewport: centro do slot → centro do alvo) e volta
-   *  pro slot ao fim. `null`/ausente = repousada. `prefers-reduced-motion`
-   *  neutraliza (checado em JS — é `transform` inline). */
-  attacking?: { towardX: number; towardY: number } | null;
+  /** Frente 4 — animação de ataque: avanço tático contra a unidade ou escudo inimigo,
+   *  com fase de avanço/strike e fase de recuo de volta pro slot. */
+  attacking?: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" } | null;
+  /** Clique em slot vazio do tabuleiro (ex.: posicionar uma Unit em deploy) */
+  onEmptySlotClick?: () => void;
+  /** Se o slot vazio está ativo como destino válido para posicionamento */
+  emptySlotActive?: boolean;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -75,14 +75,25 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-/** vetor alvo → deslocamento capado (avança ~18% da distância, no máx. 44px) +
- *  leve rotação na direção do alvo. */
-function lungeStyle(v: { towardX: number; towardY: number }): { transform: string } {
+/** vetor alvo → deslocamento dinâmico no avanço e recuo no retorno */
+function lungeStyle(v: { towardX: number; towardY: number; phase?: "advance" | "strike" | "return" }): React.CSSProperties {
+  if (v.phase === "return") {
+    return {
+      transform: "translate(0px, 0px) rotate(0deg) scale(1)",
+      transition: "transform 260ms cubic-bezier(0.25, 1, 0.5, 1)",
+      zIndex: 35,
+    };
+  }
   const mag = Math.hypot(v.towardX, v.towardY) || 1;
-  const dist = Math.min(mag * 0.18, 44);
+  // Avança expressivamente em direção ao alvo (até 65% da distância real, max 160px)
+  const dist = Math.min(mag * 0.65, 160);
   const k = dist / mag;
-  const angle = Math.max(-7, Math.min(7, (v.towardX / mag) * 7));
-  return { transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg)` };
+  const angle = Math.max(-9, Math.min(9, (v.towardX / mag) * 9));
+  return {
+    transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg) scale(1.05)`,
+    transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.25, 1.2)",
+    zIndex: 45,
+  };
 }
 
 export function BattleSlot({
@@ -103,6 +114,8 @@ export function BattleSlot({
   registerRef,
   justDeployed,
   attacking,
+  onEmptySlotClick,
+  emptySlotActive,
 }: BattleSlotProps) {
   if (!unit) {
     return (
@@ -110,9 +123,41 @@ export function BattleSlot({
       // ocupado abaixo — senão a linha do grid (que soma a MAIOR célula)
       // ficaria mais alta só quando algum slot da fileira tem Piloto pareado,
       // e as vazias/sem-piloto pareciam "cair pra cima".
-      <div className="flex w-full flex-col">
-        <div className="relative aspect-[63/88] w-full rounded-arena border border-dashed border-primary/25 bg-slate-900/40">
-          <div className="absolute inset-1 rounded-arena border border-primary/10" aria-hidden />
+      <div
+        className={cn(
+          "flex w-full flex-col transition-all duration-200",
+          emptySlotActive && "cursor-pointer scale-[1.02]",
+        )}
+        onClick={emptySlotActive ? onEmptySlotClick : undefined}
+        role={emptySlotActive ? "button" : undefined}
+        tabIndex={emptySlotActive ? 0 : undefined}
+        aria-label={emptySlotActive ? "Posicionar unidade neste slot" : undefined}
+        onKeyDown={
+          emptySlotActive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onEmptySlotClick?.();
+                }
+              }
+            : undefined
+        }
+      >
+        <div
+          className={cn(
+            "relative aspect-[63/88] w-full rounded-arena border border-dashed bg-slate-900/40 transition-colors",
+            emptySlotActive
+              ? "border-cyan-400/70 bg-cyan-950/30 shadow-[0_0_15px_rgba(6,182,212,0.35)] ring-1 ring-cyan-400/40 animate-pulse"
+              : "border-primary/25",
+          )}
+        >
+          <div
+            className={cn(
+              "absolute inset-1 rounded-arena border transition-colors",
+              emptySlotActive ? "border-cyan-400/30" : "border-primary/10",
+            )}
+            aria-hidden
+          />
         </div>
         <div className="h-[clamp(1.15rem,calc(var(--card-w-std,2.17rem)*0.34),2.1rem)] shrink-0" aria-hidden />
       </div>
@@ -158,15 +203,15 @@ export function BattleSlot({
   }, [justDeployed]);
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
-  const showTarget = Boolean(actions?.onDeclareTarget);
+  // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
+  // decisão mais crítica do Block Step, precisa se destacar das outras ações.
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
   const showActivate = Boolean(actions?.onActivate);
 
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
   if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: actions?.activateLabel ?? "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
-  if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
-  if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
+  if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "emerald", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
 
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
   const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
@@ -194,7 +239,7 @@ export function BattleSlot({
         isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
         legalTarget
-          ? "z-20 border-emerald-400 ring-2 ring-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
+          ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : selected || isAttacker
             ? "border-primary shadow-[0_0_10px_rgba(56,189,248,0.5)]"
             : isInvalidTarget

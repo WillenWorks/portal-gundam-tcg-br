@@ -60,6 +60,16 @@ describe("HandFan", () => {
     expect(blocked.querySelector('[class*="grayscale"]')).not.toBeNull();
   });
 
+  it("carta jogável no Action Step ganha glow âmbar/amarelo e botão com tom accent", () => {
+    hand([
+      { card: command("Counter Attack"), playable: true, actionStepPlayable: true },
+    ]);
+    const [actionCard] = containers();
+    expect(actionCard.className).toContain("border-amber-400");
+    expect(actionCard.className).toContain("shadow-[0_0_18px_rgba(251,191,36,0.85)]");
+    expect(actionCard.className).toContain("animate-pulse");
+  });
+
   it('Frente 4 (docs/38 §3.1): sem botão de olho — "Jogar" só quando jogável, inspeção no corpo da carta', () => {
     const onPeek = vi.fn();
     const onInspect = vi.fn();

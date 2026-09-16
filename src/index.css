@@ -434,6 +434,21 @@
     }
   }
 
+  /* docs/56 tarefa 1 — CardDepartureAnimation: clone deslizando da posição de
+   * origem até a pilha de Trash/Exílio. `depart` (descarte comum) é um
+   * deslize liso; `depart-destroy` (Unit morta em combate/efeito) ganha um
+   * tremor + rotação antes de desintegrar, coordenado com `sfx.playExplosion()`. */
+  @keyframes sim-card-depart {
+    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 0.95; }
+    100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.55) rotate(-6deg); opacity: 0; }
+  }
+  @keyframes sim-card-depart-destroy {
+    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+    15% { transform: translate3d(-3%, 0, 0) scale(1.04) rotate(-3deg); filter: brightness(1.6) drop-shadow(0 0 14px rgba(239, 68, 68, 0.9)); }
+    30% { transform: translate3d(3%, 0, 0) scale(0.98) rotate(3deg); }
+    100% { transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) scale(0.4) rotate(10deg); opacity: 0; filter: brightness(0.6); }
+  }
+
   .sim-perspective { perspective: 1000px; }
   .sim-preserve-3d { transform-style: preserve-3d; }
   .sim-backface-hidden {
@@ -454,6 +469,8 @@
   .sim-shockwave-cyan { animation: sim-shockwave-expand 600ms cubic-bezier(0.1, 0.9, 0.2, 1) forwards; }
   .sim-shockwave-amber { animation: sim-shockwave-expand 750ms cubic-bezier(0.1, 0.9, 0.2, 1) forwards; }
   .sim-shield-barrier { animation: sim-shield-barrier 650ms ease-out forwards; }
+  .sim-anim-depart { animation: sim-card-depart 420ms cubic-bezier(0.4, 0, 0.6, 1) both; }
+  .sim-anim-depart-destroy { animation: sim-card-depart-destroy 420ms cubic-bezier(0.3, 0, 0.6, 1) both; }
 
   @media (prefers-reduced-motion: reduce) {
     .sim-anim-land-soft,
@@ -467,7 +484,9 @@
     .sim-anim-card-flip,
     .sim-shockwave-cyan,
     .sim-shockwave-amber,
-    .sim-shield-barrier {
+    .sim-shield-barrier,
+    .sim-anim-depart,
+    .sim-anim-depart-destroy {
       animation: none !important;
     }
   }

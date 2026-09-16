@@ -24,6 +24,8 @@ export interface HandFanCard {
   /** motivo curto em PT — mostrado via `title` e embutido no rótulo acessível. */
   blockedReason?: string;
   effectiveCost?: number;
+  /** Destaque âmbar pulsante quando a carta é um comando 【Action】 jogável durante o Action Step */
+  actionStepPlayable?: boolean;
 }
 
 interface HandFanProps {
@@ -100,7 +102,7 @@ export function HandFan({
     <div className="scrollbar-ghost w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
       <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-4 pb-1" : "pb-2 pt-6")}>
         {cards.map((entry, index) => {
-          const { card, playable, blockedReason, effectiveCost } = entry;
+          const { card, playable, blockedReason, effectiveCost, actionStepPlayable } = entry;
           const cost = card.def.cost;
           const displayCost = effectiveCost ?? cost;
           const hasDiscount = effectiveCost !== undefined && cost !== undefined && effectiveCost < cost;
@@ -115,7 +117,7 @@ export function HandFan({
               key: "play",
               icon: Play,
               label: `Jogar ${card.def.nameEn}${displayCost !== undefined ? ` · custo ${displayCost}` : ""}`,
-              tone: "primary",
+              tone: actionStepPlayable ? "accent" : "primary",
               onClick: () => onPeek(card),
             });
           }
@@ -135,7 +137,11 @@ export function HandFan({
                 "hover:z-20 focus-within:z-20",
                 // Quando ancorado ou skipMountAnim ativo (após deal), as cartas entram sem salto
                 !skipMountAnim && !anchored && "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
-                playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
+                actionStepPlayable
+                  ? "border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.85)] ring-2 ring-amber-400/80 animate-pulse"
+                  : playable
+                    ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]"
+                    : "border-transparent",
               )}
             >
               {/* só a ARTE fica em P&B quando injogável — os botões do canto não.

@@ -1,7 +1,14 @@
 /* docs/19, Sessão 3 — modal imersivo de 【Burst】 (extraído de
  * SimulatorMatchPage.tsx, onde nasceu na Sessão 2). Arte ampliada da shield
  * quebrada + botões claros. Indica a fila quando mais de uma shield com
- * Burst caiu no mesmo Damage Step. */
+ * Burst caiu no mesmo Damage Step.
+ *
+ * docs/56 tarefa 3 — reancorado no TERÇO SUPERIOR (era centralizado com
+ * `bg-black/85` cobrindo a tela inteira): o wrapper `fixed inset-0` continua
+ * captando clique em qualquer lugar (decisão obrigatória, não dá pra ignorar
+ * clicando no board por trás), mas SEM fundo escuro — só o painel em si tem
+ * cor, então a Battle Area, os Recursos e a mão do próprio jogador continuam
+ * 100% visíveis por baixo. */
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ArtLookup } from "./cardArt";
@@ -17,10 +24,10 @@ interface BurstModalProps {
 
 export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 animate-in fade-in duration-200 motion-reduce:animate-none">
+    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
       {/* Frente 4 (docs/38 §4.2) — revelação de escudo/Burst: o painel entra
           com "pop" (zoom) e a carta ganha pulso de luz neon dourado. */}
-      <div className="panel-cut hero-surface w-full max-w-xs border border-amber-500/50 p-4 animate-in zoom-in-90 fade-in duration-300 ease-out motion-reduce:animate-none">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,36rem)] max-h-[70vh] overflow-y-auto border border-amber-500/50 p-4 shadow-2xl backdrop-blur-md animate-in zoom-in-90 fade-in duration-300 ease-out motion-reduce:animate-none">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-amber-300">
           <Sparkles className="size-4" /> Burst
         </p>
