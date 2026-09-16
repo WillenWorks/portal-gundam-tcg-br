@@ -3,7 +3,12 @@
  * pode ter 1+ efeitos simultâneos: o jogador ordena (não é cadeia, é ordenação
  * de eventos), escolhe o alvo de cada um (Unit inimiga / Recurso próprio / Unit
  * amiga) e, pra efeito `optional`, ativa ou pula. "Confirmar" envia
- * `resolveAbility` na ordem montada aqui. */
+ * `resolveAbility` na ordem montada aqui.
+ *
+ * docs/56 tarefa 3 — reancorado no topo (era centralizado com `bg-black/85`
+ * cobrindo a tela). Listas de alvo usam SCROLL HORIZONTAL compacto (não mais
+ * `flex-wrap`, que crescia verticalmente e podia empurrar o painel até cobrir
+ * a mão) — a Battle Area, Recursos e mão do jogador continuam visíveis. */
 import { useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -155,8 +160,8 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
-      <div className="panel-cut hero-surface w-full max-w-sm border border-amber-400/50 p-4">
+    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,40rem)] max-h-[70vh] overflow-y-auto border border-amber-400/50 p-4 shadow-2xl backdrop-blur-md">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-300">
           <Sparkles className="size-4" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
         </p>
@@ -211,7 +216,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                           Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
                         </p>
                       ) : null}
-                      <div className="flex flex-wrap gap-1">
+                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {opts.map((opt) => {
                           const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
                           const maxTargets = q.targetCount?.max ?? 1;
@@ -236,7 +241,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                   q.secondaryTarget.legalTargets.length > 0 ? (
                     <div className="mt-2 space-y-1">
                       <p className="text-[10px] text-amber-300">E também:</p>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.secondaryTarget.legalTargets.map((instanceId) => (
                           <Toggle
                             key={instanceId}
@@ -257,7 +262,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                   q.handChoice.legalHandIds.length > 0 ? (
                     <div className="mt-2 space-y-1">
                       <p className="text-[10px] text-muted-portal">Escolha 1 Unidade da sua mão pra implantar sem custo:</p>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handChoice.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
@@ -280,7 +285,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                       Topo do deck ({q.deckTopReveal.count}) — revele 1 Unidade (Zeon)/(Neo Zeon) ou nenhuma. O resto vai
                       pro fundo.
                     </p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.deckTopReveal.topCards.map((card) => {
                         const revealable = q.deckTopReveal!.revealableIds.includes(card.instanceId);
                         return (
@@ -306,7 +311,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                   q.handDiscard.legalHandIds.length > 0 ? (
                     <div className="mt-2 space-y-1">
                       <p className="text-[10px] text-muted-portal">Escolha 1 carta da mão pra descartar:</p>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handDiscard.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
@@ -350,7 +355,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                 {q.enumChoice ? (
                   <div className="mt-2 space-y-1">
                     <p className="text-[10px] text-muted-portal">Escolha:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.enumChoice.options.map((opt) => (
                         <Toggle
                           key={opt.value}
@@ -369,7 +374,7 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
                     <p className="text-[10px] text-muted-portal">
                       Lixeira ({q.trashSearch.legalTrashIds.length} cartas) — escolha 1 carta (ou nenhuma):
                     </p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.trashSearch.legalTrashIds.map((instanceId) => (
                         <Toggle
                           key={instanceId}
@@ -429,7 +434,7 @@ function Toggle({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "min-h-8 rounded-arena border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
+        "min-h-8 shrink-0 rounded-arena border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
         active ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-black/40 text-slate-300 hover:border-amber-400/50",
         disabled && "cursor-not-allowed opacity-40 hover:border-white/10",
       )}

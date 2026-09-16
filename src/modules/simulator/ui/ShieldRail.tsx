@@ -40,6 +40,9 @@ interface ShieldRailProps {
   /** Frente 4 (docs/38 §3.4) — a trilha está sob mira direta de um ataque
    *  "no jogador": pulso sutil na borda. */
   underAim?: boolean;
+  /** docs/55 tarefa 2 — alvo legal de ataque direto em andamento (mesmo halo
+   *  esmeralda pulsante de Unit/Base). */
+  legalTarget?: boolean;
   /** "vertical" = cascata na coluna lateral; "horizontal" (padrão) = linha de glifos. */
   orientation?: "horizontal" | "vertical";
   /** V6.2 (docs/33) — achata a cascata (só `vertical`), ver docstring do arquivo. */
@@ -54,6 +57,7 @@ export function ShieldRail({
   onSelectIndex,
   justBroken,
   underAim,
+  legalTarget,
   orientation = "horizontal",
   compact,
 }: ShieldRailProps) {
@@ -68,10 +72,11 @@ export function ShieldRail({
       aria-label={label}
       title={label}
       className={cn(
-        "rounded-arena",
+        "rounded-arena transition-shadow duration-150",
         vertical ? "relative flex flex-col items-center" : "flex items-center gap-0.5",
         justBroken && "ring-1 ring-red-500/60",
         underAim && "ring-2 ring-red-400/70 animate-pulse motion-reduce:animate-none",
+        legalTarget && "z-20 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-105",
       )}
     >
       {/* V6 (docs/31): número fixo no canto, não se move conforme shields

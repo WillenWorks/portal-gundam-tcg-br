@@ -25,6 +25,7 @@ export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";
 export { RotateDevicePrompt } from "./RotateDevicePrompt";
 export { CombatLane } from "./CombatLane";
 export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
+export { CardDepartureAnimation, type DepartingCard, type DepartureDest } from "./CardDepartureAnimation";
 export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
 export { CenterDecisionModal, type CenterDecisionModalProps } from "./CenterDecisionModal";

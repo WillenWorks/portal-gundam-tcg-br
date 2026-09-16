@@ -3,6 +3,9 @@
  *  - `deal-hand`    : 5 cartas completas em alta resolução saem da pilha pra mão com som individual
  *  - `mulligan`     : as 5 voltam pra pilha → embaralha centralmente → 5 novas saem
  *  - `deal-shields` : 6 cartas completas com moldura dourada e som de impacto de escudo
+ *  - `single-draw`  : docs/56 tarefa 2 — 1 carta só, saque normal de Draw Phase
+ *    (início de qualquer turno > 1). Rápida (400ms) e nunca bloqueia a mão —
+ *    a página não inclui este modo na lista que esvazia a `HandFan`.
  *
  * Componente APRESENTACIONAL e auto-contido: renderiza um overlay `fixed`
  * (`pointer-events-none`) com cartas reais e card-backs animados por CSS. */
@@ -12,7 +15,7 @@ import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "../audio/soundEffects";
 
-export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields";
+export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields" | "single-draw";
 
 /** ponto em coords de viewport (px). */
 export interface DeckDealPoint {
@@ -65,12 +68,19 @@ function targets(
         dy: base.dy + i * cascadeStep,
       }));
     }
+    if (mode === "single-draw") {
+      // 1 carta só — vai reto pro ponto de destino, sem leque.
+      return [{ dx: base.dx, dy: base.dy }];
+    }
     // Leque horizontal da mão: 5 cartas distribuídas exatamente no passo do HandFan (1.14*w)
     const handSpacing = Math.round(w * 1.14);
     return Array.from({ length: 5 }, (_, i) => ({
       dx: base.dx + (i - 2) * handSpacing,
       dy: base.dy,
     }));
+  }
+  if (mode === "single-draw") {
+    return [{ dx: 0, dy: 130 }];
   }
   if (mode === "deal-shields") {
     // Coluna vertical empilhada no palco não-ancorado
@@ -89,11 +99,17 @@ function targets(
 }
 
 const DEAL_STAGGER = 90;
+/** docs/53 — escudos usam um stagger mais lento que a mão: 6 cartas empilhando
+ *  em 90ms cada ficavam borradas/quase simultâneas; 160ms deixa cada uma
+ *  visivelmente voar e pousar antes da próxima sair da pilha. */
+const SHIELD_STAGGER = 160;
 const FLIGHT_MS = 450;
 const HAND_REVEAL_HOLD = 340;
 const SHIELD_STACK_HOLD = 250;
 const RETURN_MS = 340;
 const SHUFFLE_MS = 1300;
+/** docs/56 tarefa 2 — saque de 1 carta por turno: rápido, não segura o jogo. */
+const SINGLE_DRAW_MS = 400;
 
 export function DeckDealAnimation({
   mode,
@@ -127,6 +143,19 @@ export function DeckDealAnimation({
   const [phase, setPhase] = useState<"return" | "shuffle" | "deal">(
     mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal",
   );
+
+  // docs/53 — bug real: a página reusa a MESMA instância de `DeckDealAnimation`
+  // conforme `setupAnim` muda de valor (shuffle → deal-hand → deal-shields),
+  // sem desmontar. Como `phase` só era inicializado no `useState` (roda 1x, no
+  // mount), a troca de `mode` sozinha nunca reposicionava a fase — depois do
+  // shuffle, `phase` ficava travado em "shuffle" e as 5 cartas da mão nunca
+  // saíam da pilha (`showTravel` exige `phase === "deal" | "return"`). Este
+  // efeito resincroniza `phase` toda vez que `mode` muda; como o mulligan
+  // mantém `mode === "mulligan"` do início ao fim, os `setPhase` internos do
+  // temporizador abaixo (return → shuffle → deal) não são pisados por aqui.
+  useEffect(() => {
+    setPhase(mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal");
+  }, [mode]);
 
   const onDoneRef = useRef(onDone);
   useEffect(() => {
@@ -165,14 +194,18 @@ export function DeckDealAnimation({
       // Hold para o jogador ver as cartas compradas antes de passar o controle à mão:
       timers.push(setTimeout(() => onDoneRef.current(), 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
     } else if (mode === "deal-shields") {
-      // Som individual de saída para cada um dos 6 escudos
+      // Som individual de saída para cada um dos 6 escudos, no stagger mais
+      // lento (docs/53) pra cada um ficar visivelmente audível ao sair da pilha.
       for (let i = 0; i < 6; i++) {
-        timers.push(setTimeout(() => sfx.playCardDraw(), i * DEAL_STAGGER));
+        timers.push(setTimeout(() => sfx.playCardDraw(), i * SHIELD_STAGGER));
       }
-      // O 6º escudo se empilha aos 5 * 120 + 560 = 1160ms -> impacto de escudo!
-      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * DEAL_STAGGER + FLIGHT_MS));
-      // Hold com os escudos empilhados no lugar correto antes de liberar:
-      timers.push(setTimeout(() => onDoneRef.current(), 5 * DEAL_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD));
+      // O 6º escudo (índice 5) pousa e trava — impacto de escudo!
+      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * SHIELD_STAGGER + FLIGHT_MS));
+      // Hold com os 6 escudos empilhados e visíveis antes de liberar pro ShieldRail real:
+      timers.push(setTimeout(() => onDoneRef.current(), 6 * SHIELD_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD));
+    } else if (mode === "single-draw") {
+      sfx.playCardDraw();
+      timers.push(setTimeout(() => onDoneRef.current(), SINGLE_DRAW_MS));
     } else {
       // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms)
       sfx.playCardDraw();
@@ -202,6 +235,8 @@ export function DeckDealAnimation({
   const pts = targets(mode, base, w);
   const shuffling = !reduced && phase === "shuffle";
   const showTravel = !reduced && (phase === "deal" || phase === "return");
+  // docs/53 — escudos usam o stagger mais lento (SHIELD_STAGGER); mão/mulligan seguem no DEAL_STAGGER de sempre.
+  const travelStagger = mode === "deal-shields" ? SHIELD_STAGGER : DEAL_STAGGER;
 
   return (
     <div
@@ -307,7 +342,8 @@ export function DeckDealAnimation({
                     "--dx": `${t.dx}px`,
                     "--dy": `${t.dy}px`,
                     zIndex: 40 + i,
-                    animationDelay: `${i * DEAL_STAGGER}ms`,
+                    animationDelay: `${i * travelStagger}ms`,
+                    animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
                   } as React.CSSProperties
                 }
                 className={cn(
@@ -322,7 +358,10 @@ export function DeckDealAnimation({
               >
                 {isFlipping ? (
                   <div
-                    style={{ animationDelay: `${i * DEAL_STAGGER}ms` }}
+                    style={{
+                      animationDelay: `${i * travelStagger}ms`,
+                      animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                    }}
                     className="relative h-full w-full sim-preserve-3d sim-anim-card-flip"
                   >
                     {/* Verso (Back Face) */}

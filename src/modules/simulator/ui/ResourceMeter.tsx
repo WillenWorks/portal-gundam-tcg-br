@@ -39,6 +39,11 @@ interface ResourceMeterProps {
   readOnly?: boolean;
   costProgress?: { paid: number; total: number };
   className?: string;
+  /** docs/54 — halo piscante nas peças ATIVAS ainda não escolhidas, indicando
+   *  que dá pra clicar nelas AGORA pra pagar o custo em andamento: ciano pra
+   *  invocação direta (Unit/Base), âmbar pra Piloto/Comando (fluxo bidirecional
+   *  alvo↔recurso). `null`/omitido = sem halo (visual padrão). */
+  highlightTone?: "cyan" | "amber" | null;
 }
 
 function pieceTitle(r: ResourceMeterItem): string {
@@ -59,6 +64,7 @@ export function ResourceMeter({
   readOnly,
   costProgress,
   className,
+  highlightTone,
 }: ResourceMeterProps) {
   const active = resources.filter((r) => !r.rested).length;
   const summary = `${active} recurso(s) ativo(s) de ${resources.length} · nível ${level}`;
@@ -67,11 +73,15 @@ export function ResourceMeter({
   function pieceVisual(r: ResourceMeterItem, selected: boolean, pickable: boolean) {
     const tone = selected
       ? "border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
-      : r.isEx
-        ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
-        : r.rested
-          ? "border-white/10 opacity-60"
-          : "border-primary/50";
+      : pickable && highlightTone === "cyan"
+        ? "border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.7)] ring-1 ring-cyan-400/50 animate-pulse"
+        : pickable && highlightTone === "amber"
+          ? "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.7)] ring-1 ring-amber-400/50 animate-pulse"
+          : r.isEx
+            ? "border-accent shadow-[0_0_6px_rgba(234,179,8,0.35)]"
+            : r.rested
+              ? "border-white/10 opacity-60"
+              : "border-primary/50";
     // caixa EXTERNA já nasce em paisagem quando gasto (footprint = retrato
     // rotacionado); só a imagem por dentro gira 90° (docs/34).
     const shape = cn(

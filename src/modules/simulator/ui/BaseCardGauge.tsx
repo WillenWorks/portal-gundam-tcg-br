@@ -27,12 +27,15 @@ interface BaseCardGaugeProps {
    *  Asticassia "Rest this Base") — mesmo fluxo de custo/alvo dos Units. */
   onActivate?: (base: CardInstance) => void;
   busy?: boolean;
+  /** docs/55 tarefa 5 — golpe de ataque direto acabou de acertar (fase "strike"
+   *  da coreografia de combate): tremor/flash breve. O pai controla a duração. */
+  struck?: boolean;
 }
 
 // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
 const WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
-export function BaseCardGauge({ base, art, legalTarget, targetingActive, selected, onSelect, onInspect, onHoverCard, onActivate, busy }: BaseCardGaugeProps) {
+export function BaseCardGauge({ base, art, legalTarget, targetingActive, selected, onSelect, onInspect, onHoverCard, onActivate, busy, struck }: BaseCardGaugeProps) {
   if (!base) {
     return (
       <div
@@ -83,8 +86,11 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
         // de dano no mesmo raio.
         "relative block overflow-hidden rounded-arena border transition-[transform,box-shadow,opacity,filter] duration-200",
         WIDTH,
+        // docs/55 tarefa 5 — impacto de ataque direto: flash/tremor vermelho
+        // breve (o pai controla a duração via `struck`), some sozinho.
+        struck && "z-20 scale-105 ring-4 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.9)]",
         legalTarget
-          ? "z-20 border-emerald-400 ring-2 ring-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
+          ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : selected
             ? "border-primary"
             : isInvalidTarget

@@ -22,7 +22,6 @@ import { sfx } from "../audio/soundEffects";
 
 export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
-  onDeclareTarget?: (unit: CardInstance) => void;
   onBlocker?: (unit: CardInstance) => void;
   /** habilidade de campo — 【Activate·Main】 com EffectSpec (ex.: Tallgeese "Set
    *  active") ou a keyword `<Support N>` (ex.: Angelo's Geara Zulu). */
@@ -204,15 +203,15 @@ export function BattleSlot({
   }, [justDeployed]);
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
-  const showTarget = Boolean(actions?.onDeclareTarget);
+  // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
+  // decisão mais crítica do Block Step, precisa se destacar das outras ações.
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
   const showActivate = Boolean(actions?.onActivate);
 
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
   if (showActivate) cornerActions.push({ key: "activate", icon: Zap, label: actions?.activateLabel ?? "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => actions!.onActivate!(unit) });
-  if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "sky", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
-  if (showTarget) cornerActions.push({ key: "target", icon: Crosshair, label: "Mirar aqui", tone: "emerald", disabled: busy, onClick: () => actions!.onDeclareTarget!(unit) });
+  if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "emerald", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
 
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
   const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
@@ -240,7 +239,7 @@ export function BattleSlot({
         isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
         legalTarget
-          ? "z-20 border-emerald-400 ring-2 ring-emerald-400/40 shadow-[0_0_18px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
+          ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : selected || isAttacker
             ? "border-primary shadow-[0_0_10px_rgba(56,189,248,0.5)]"
             : isInvalidTarget

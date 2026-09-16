@@ -76,31 +76,30 @@ describe("SimulatorLayoutPreviewPage (dev-only)", () => {
     }
   });
 
-  it("não abre modal no cenário Normal e renderiza o CenterDecisionModal apenas quando selecionado no selectbox", () => {
+  it("docs/52 — não abre modal no cenário Normal, e o CenterDecisionModal só abre pra fim de turno (jogada regular saiu pro TopTacticalHUD)", () => {
     render(<SimulatorLayoutPreviewPage />);
     const select = screen.getByDisplayValue("Normal");
 
     // No cenário Normal inicial, o tabuleiro fica livre sem modal de ataque ou turno travado na tela
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.queryByRole("button", { name: /atacar o jogador/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /encerrar turno/i })).toBeNull();
 
-    // Cenário: Modal Ataque Declarado (só abre ao selecionar no selectbox)
+    // docs/52 — Ataque Declarado, Passo de Ação e Defesa/Blocker deixaram de
+    // abrir modal central (viraram botões contextuais do TopTacticalHUD/
+    // ActionDock na tela de partida real); este harness estático não monta
+    // esses componentes, então o cenário simplesmente não abre nada no centro.
     fireEvent.change(select, { target: { value: "modal-attacking" } });
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /atacar o jogador/i })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
 
-    // Cenário: Modal Encerrar Turno
+    fireEvent.change(select, { target: { value: "modal-action-step" } });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.change(select, { target: { value: "modal-defending" } });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // Cenário: Modal Encerrar Turno — segue centralizado (decisão rara, sob confirmação explícita)
     fireEvent.change(select, { target: { value: "modal-end-turn" } });
     expect(screen.getByRole("button", { name: /encerrar turno/i })).toBeInTheDocument();
-
-    // Cenário: Modal Passo de Ação
-    fireEvent.change(select, { target: { value: "modal-action-step" } });
-    expect(screen.getByRole("button", { name: /passar turno/i })).toBeInTheDocument();
-
-    // Cenário: Modal Defesa / Blocker
-    fireEvent.change(select, { target: { value: "modal-defending" } });
-    expect(screen.getByRole("button", { name: /não bloquear/i })).toBeInTheDocument();
   });
 
   it("durante animação deal-hand a mão estática é ocultada para as cartas animadas ocuparem seu lugar", () => {

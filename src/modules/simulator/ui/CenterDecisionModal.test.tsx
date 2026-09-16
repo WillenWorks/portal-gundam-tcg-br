@@ -59,64 +59,30 @@ describe("CenterDecisionModal", () => {
     expect(onClaimAbandon).toHaveBeenCalledTimes(1);
   });
 
-  it("renders defending decision modal with skip button", () => {
-    const onSkipBlock = vi.fn();
-    render(
-      <CenterDecisionModal
-        state={{ kind: "defending" }}
-        onSkipBlock={onSkipBlock}
-      />
-    );
-
-    expect(screen.getByText(/ataque recebido/i)).toBeInTheDocument();
-
-    const skipBtn = screen.getByRole("button", { name: /não bloquear/i });
-    fireEvent.click(skipBtn);
-    expect(onSkipBlock).toHaveBeenCalledTimes(1);
+  // docs/52 — as decisões de jogada regular saíram do modal central: vivem no
+  // TopTacticalHUD (MatchPrompt) e no ActionDock. Nunca mais um card bloqueante
+  // no centro da tela pra essas 4 situações.
+  it("never renders a center modal for defending (moved to TopTacticalHUD)", () => {
+    const { container } = render(<CenterDecisionModal state={{ kind: "defending" }} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders actionStep decision modal with pass turn button", () => {
-    const onPass = vi.fn();
-    render(
-      <CenterDecisionModal
-        state={{ kind: "actionStep", scope: "combat", autoPass: false, hasPlay: true }}
-        onPass={onPass}
-      />
+  it("never renders a center modal for actionStep (moved to TopTacticalHUD)", () => {
+    const { container } = render(
+      <CenterDecisionModal state={{ kind: "actionStep", scope: "combat", autoPass: false, hasPlay: true }} />
     );
-
-    expect(screen.getByText(/passo de ação/i)).toBeInTheDocument();
-    const passBtn = screen.getByRole("button", { name: /passar turno/i });
-    fireEvent.click(passBtn);
-    expect(onPass).toHaveBeenCalledTimes(1);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders attacking decision modal with attack player and cancel buttons", () => {
-    const onDeclareAttackPlayer = vi.fn();
-    const onCancelAttack = vi.fn();
-    render(
-      <CenterDecisionModal
-        state={{ kind: "attacking", attackerName: "Gundam RX-78-2" }}
-        onDeclareAttackPlayer={onDeclareAttackPlayer}
-        onCancelAttack={onCancelAttack}
-      />
+  it("never renders a center modal for attacking (declare attack happens on the board)", () => {
+    const { container } = render(
+      <CenterDecisionModal state={{ kind: "attacking", attackerName: "Gundam RX-78-2" }} />
     );
-
-    expect(screen.getByText(/ataque declarado/i)).toBeInTheDocument();
-    expect(screen.getByText(/gundam rx-78-2/i)).toBeInTheDocument();
-
-    const atkBtn = screen.getByRole("button", { name: /atacar o jogador/i });
-    fireEvent.click(atkBtn);
-    expect(onDeclareAttackPlayer).toHaveBeenCalledTimes(1);
-
-    const cancelBtn = screen.getByRole("button", { name: /cancelar/i });
-    fireEvent.click(cancelBtn);
-    expect(onCancelAttack).toHaveBeenCalledTimes(1);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders pending prompt decision modal with confirm and cancel buttons", () => {
-    const onConfirm = vi.fn();
-    const onCancel = vi.fn();
-    render(
+  it("never renders a center modal for pending target/resource selection (moved to TopTacticalHUD)", () => {
+    const { container } = render(
       <CenterDecisionModal
         state={{
           kind: "pending",
@@ -127,20 +93,8 @@ describe("CenterDecisionModal", () => {
           cost: null,
           canConfirm: true,
         }}
-        onConfirm={onConfirm}
-        onCancel={onCancel}
       />
     );
-
-    expect(screen.getByText(/definir alvo \/ recursos/i)).toBeInTheDocument();
-    expect(screen.getByText(/selecione 1 unit inimiga/i)).toBeInTheDocument();
-
-    const confirmBtn = screen.getByRole("button", { name: /confirmar/i });
-    fireEvent.click(confirmBtn);
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-
-    const cancelBtn = screen.getByRole("button", { name: /cancelar/i });
-    fireEvent.click(cancelBtn);
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(container).toBeEmptyDOMElement();
   });
 });
