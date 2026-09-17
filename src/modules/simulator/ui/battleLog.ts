@@ -139,7 +139,8 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
         abandonment: "abandono",
         resignation: "desistência",
       };
-      return entry("system", `FIM DE JOGO — vitória de ${player(event.winner)} (${reason[event.reason] ?? event.reason})`);
+      const winnerText = event.winner ? `vitória de ${player(event.winner)}` : "empate";
+      return entry("system", `FIM DE JOGO — ${winnerText} (${reason[event.reason] ?? event.reason})`);
     }
     // ruído puro de motor — nunca no feed
     case "COMBAT_STEP_CHANGE":

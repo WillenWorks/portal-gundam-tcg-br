@@ -113,6 +113,12 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerUnitWithTraitInPlay[1]));
   }
+  // ST06-014 Clan Battle — 【Activate･Main】"If a friendly (Clan) Link Unit is in play, ...".
+  const controllerLinkUnitWithTraitInPlay = predicate.match(/^controllerLinkUnitWithTraitInPlay:(.+)$/);
+  if (controllerLinkUnitWithTraitInPlay) {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerLinkUnitWithTraitInPlay[1]) && isPairedLinkUnit(ctx.state, u));
+  }
   // ST03-011 Char Aznable — 【Attack】"if it is a Link Unit" — a fonte é o Pilot,
   // "this Unit" é a Unit pareada com ele.
   if (predicate === "sourcePairedUnitIsLinkUnit") {
@@ -292,6 +298,11 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-069 Strike Rouge — "1 of your rested white Units with <Blocker>" (cor impressa da carta, não trait).
   const colorMatch = filter.match(/^color:(.+)$/);
   if (colorMatch) return candidate.def.color === colorMatch[1];
+
+  // ST06-007 Ortega's Rick Dom — "Choose 1 of your other (Clan) Units" (exclui a própria fonte).
+  if (filter === "isNotSelf") {
+    return ctx.sourceInstanceId !== undefined && candidate.instanceId !== ctx.sourceInstanceId;
+  }
 
   return false;
 };

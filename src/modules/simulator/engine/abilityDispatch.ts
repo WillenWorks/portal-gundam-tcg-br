@@ -409,12 +409,12 @@ export const MAX_QUEUE_BREADTH = 150;
 
 /** Lançada quando o guard anti-loop estoura em `process.env.NODE_ENV === "test"` — falha alta e legível em vez de travar o worker/CI. Carrega os últimos eventos do `eventLog` pra facilitar o repro. */
 export class TriggerLoopException extends Error {
-  constructor(
-    message: string,
-    public readonly recentEvents: GameEvent[],
-  ) {
+  readonly recentEvents: GameEvent[];
+
+  constructor(message: string, recentEvents: GameEvent[]) {
     super(message);
     this.name = "TriggerLoopException";
+    this.recentEvents = recentEvents;
   }
 }
 
@@ -444,7 +444,9 @@ export function checkTriggerLoopGuard(
       : `largura da fila de gatilhos (${queueBudget.count}) excedeu MAX_QUEUE_BREADTH (${MAX_QUEUE_BREADTH})`;
   const recentEvents = state.eventLog.slice(-20);
 
-  if (process.env.NODE_ENV === "test") {
+  const isTestEnv = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV === "test";
+
+  if (isTestEnv) {
     throw new TriggerLoopException(
       `Loop de gatilhos detectado: ${cause}. Últimos ${recentEvents.length} eventos anexados em .recentEvents.`,
       recentEvents,

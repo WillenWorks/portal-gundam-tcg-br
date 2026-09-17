@@ -456,7 +456,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "SET_UNIT_DAMAGE_PROTECTION": {
       if (state.combat) {
-        state.combat.unitDamageProtection = { instanceId: event.instanceId, maxAttackerAp: event.maxAttackerAp };
+        state.combat.unitDamageProtection = {
+          instanceId: event.instanceId,
+          maxAttackerAp: event.maxAttackerAp,
+          maxAttackerLevel: event.maxAttackerLevel,
+        };
       }
       return state;
     }

@@ -71,6 +71,7 @@
     "enemyUnitExistsWithApAtMost:<n>": { "description": "Existe alguma Unit inimiga em campo com AP efetivo <= N.", "since": "GD01-098 Elan Ceres" },
     "isControllersTurn": { "description": "É o turno do controller do efeito.", "since": "GD01-125 Zanzibar" },
     "controllerUnitWithTraitInPlay:<value>": { "description": "O controller tem uma Unit em campo com o trait dado.", "since": "GD01-130 13th Tactical Testing Sector" },
+    "controllerLinkUnitWithTraitInPlay:<value>": { "description": "O controller tem uma Link Unit em campo com o trait dado.", "since": "ST06-014 Clan Battle" },
     "sourcePairedUnitIsLinkUnit": { "description": "A Unit pareada com a fonte (ou a própria fonte, se já é Unit) é Link Unit agora.", "since": "ST03-011 Char Aznable" },
     "noControllerUnitTokenWithTrait:<value>": { "description": "O controller NÃO tem nenhum token de Unit em campo com o trait dado.", "since": "ST04-012 Striker Pack" },
     "pairedPilotLevelAtLeast:<n>": { "description": "O Pilot pareado com a fonte tem nível efetivo >= N.", "since": "ST04-001 Aile Strike Gundam" },
@@ -96,6 +97,7 @@
     "level<=self": { "description": "Nível do candidato <= nível da PRÓPRIA fonte do efeito (relativo, não um número literal — precisa de sourceInstanceId em TargetFilterResolver/computeLegalTargets). Se a fonte é Pilot, resolve pra Unit pareada.", "since": "GD01-093 Marida Cruz (Lote 5)" },
     "hp<=conditionalLinkUnit:<n>:<n>": { "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.", "since": "GD01-122 Covert Operative (Lote 5)" },
     "linkUnit": { "description": "Candidato é Link Unit agora.", "since": "GD01-101 Deep Devotion" },
-    "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" }
+    "color:<value>": { "description": "Cor impressa do candidato é a dada (não trait).", "since": "GD01-069 Strike Rouge" },
+    "isNotSelf": { "description": "Exclui a própria fonte do efeito da lista de candidatos válidos.", "since": "ST06-007 Ortega's Rick Dom" }
   }
 }
