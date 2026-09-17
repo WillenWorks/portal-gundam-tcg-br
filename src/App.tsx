@@ -24,6 +24,8 @@ import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
 import SeriesHubPage from "@/pages/SeriesHubPage";
 import SeriesDetailPage from "@/pages/SeriesDetailPage";
+import ArticlesPage from "@/pages/ArticlesPage";
+import ArticleDetailPage from "@/pages/ArticleDetailPage";
 import NotFound from "@/pages/NotFound";
 import BinderPage from "@/pages/BinderPage";
 import BinderListPage from "@/pages/BinderListPage";
@@ -51,6 +53,9 @@ const SimulatorLayoutPreviewPage = lazy(() => import("@/pages/SimulatorLayoutPre
 // sob /admin (o AdminPage monolítico só casa /admin/:section de 1 segmento).
 const SimulatorCoveragePage = lazy(() => import("@/pages/admin/SimulatorCoveragePage"));
 const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthoringPage"));
+// CMS de Artigos (Módulo Editorial) -- "articles" é 1 segmento, então precisa vir ANTES de
+// /admin/:section no Switch (senão o AdminPage monolítico "ganha" a rota, ver comentário acima).
+const AdminArticlesPage = lazy(() => import("@/pages/admin/AdminArticlesPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -103,6 +108,8 @@ function AppRouter() {
         <Route path="/sets" component={CollectionsPage} />
         <Route path="/series/:slug" component={SeriesDetailPage} />
         <Route path="/series" component={SeriesHubPage} />
+        <Route path="/articles/:slug" component={ArticleDetailPage} />
+        <Route path="/articles" component={ArticlesPage} />
         <Route path="/database" component={CardsPage} />
         <Route path="/eventos" component={TournamentsPage} />
         <Route path="/novidades" component={ChangelogPage} />
@@ -149,6 +156,7 @@ function AppRouter() {
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/simulador/cobertura">{() => <RequireAuth adminOnly><LazyRoute label="Cobertura de efeitos"><SimulatorCoveragePage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/simulador/autoria">{() => <RequireAuth adminOnly><LazyRoute label="RAG de autoria"><SimulatorAuthoringPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/articles">{() => <RequireAuth adminOnly><LazyRoute label="Artigos"><AdminArticlesPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>

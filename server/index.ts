@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -1472,11 +1472,15 @@ app.get("/api/binders/share/:shareId", authOptional, async (req: RequestWithUser
   res.json(binder);
 });
 
-app.get("/api/posts", async (req, res) => {
+// Pública por padrão -- só ADMIN/EDITOR autenticado consegue listar rascunho/revisão (pra
+// alimentar o CMS). Sem isso, omitir `status` na query devolvia TODOS os posts (inclusive
+// DRAFT) pra qualquer visitante -- artigo não publicado vazando pelo endpoint público.
+app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
   setPublicCache(res, 20, 90);
   const status = normalizeQueryValue(req.query.status);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
-  const where = status ? { status: status as any } : undefined;
+  const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
+  const where = isEditor ? (status ? { status: status as PostStatus } : undefined) : { status: PostStatus.PUBLISHED };
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
@@ -1570,6 +1574,18 @@ app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async
   const id = String(req.params.id);
   await prisma.post.delete({ where: { id } });
   res.status(204).send();
+});
+
+// Leitor público (ArticleDetailPage) -- busca por slug. Rascunho/revisão só é visível pra
+// quem tem ADMIN/EDITOR (preview do próprio CMS antes de publicar), mesma regra da listagem.
+app.get("/api/posts/slug/:slug", authOptional, async (req: RequestWithUser, res) => {
+  const slug = String(req.params.slug);
+  const post = await prisma.post.findUnique({ where: { slug }, include: { author: true } });
+  if (!post) return res.status(404).json({ error: "Artigo não encontrado." });
+  const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
+  if (post.status !== PostStatus.PUBLISHED && !isEditor) return res.status(404).json({ error: "Artigo não encontrado." });
+  setPublicCache(res, 20, 90);
+  res.json(post);
 });
 
 app.get("/api/sets", async (_req, res) => {

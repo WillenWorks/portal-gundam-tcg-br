@@ -291,6 +291,28 @@ export type SeriesMetadata = {
   galleryImages?: string[];
 };
 
+// Módulo Editorial — artigos públicos (model Post no schema). postType/status batem 1:1
+// com os enums PostType/PostStatus do Prisma (NEWS/PREVIEW/REVIEW/GUIDE, DRAFT/REVIEW/PUBLISHED).
+export type PostType = "NEWS" | "PREVIEW" | "REVIEW" | "GUIDE";
+export type PostStatus = "DRAFT" | "REVIEW" | "PUBLISHED";
+export type ApiPost = {
+  id: string;
+  authorId: string;
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  contentMd: string;
+  coverImage?: string | null;
+  galleryJson?: string[] | null;
+  youtubeUrl?: string | null;
+  postType: PostType;
+  status: PostStatus;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: AuthUser;
+};
+
 export type TaxonomyEntry = {
   id: string;
   kind: "TRAIT" | "SOURCE_TITLE";
@@ -582,11 +604,12 @@ export const api = {
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
-  listPosts: (status?: string) => request<any[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
-  listPostsPage: (status?: string, pagination: PaginationParams = {}) =>
-    request<PaginatedResponse<any>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
-  createPost: (payload: any) => mutate<any>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
-  updatePost: (id: string, payload: any) => mutate<any>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
+  listPosts: (status?: PostStatus) => request<ApiPost[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
+  listPostsPage: (status?: PostStatus, pagination: PaginationParams = {}) =>
+    request<PaginatedResponse<ApiPost>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
+  getPostBySlug: (slug: string) => request<ApiPost>(`/posts/slug/${encodeURIComponent(slug)}`, undefined, { ttlMs: 20_000 }),
+  createPost: (payload: Partial<ApiPost>) => mutate<ApiPost>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
+  updatePost: (id: string, payload: Partial<ApiPost>) => mutate<ApiPost>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
   deletePost: (id: string) => mutate<void>(`/posts/${id}`, { method: "DELETE" }, ["/posts"]),
   listSets: () => request<Array<{ id: string; code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null; _count?: { cards: number } }>>("/sets", undefined, { ttlMs: 60_000 }),
   // Versão de gestão: traz também coleções ocultadas (isActive=false), pro admin poder
