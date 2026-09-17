@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, BookOpen, ChevronDown, Compass, Dices, Eye, Layers, RefreshCw, Sparkles, Swords } from "lucide-react";
+import { ArrowRight, BookOpen, ChevronDown, Compass, Dices, Layers, Swords } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,9 @@ export type SeriesInfo = {
   description: string;
   tcgStyle: string;
   colorAccent: string;
+  // slug da página de lore em /series/:slug (Universe Hub) — só as séries já cobertas
+  // pela Wave 1 têm isso preenchido; as demais continuam só com o link pro catálogo.
+  loreSlug?: string;
 };
 
 export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
@@ -38,7 +41,9 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
   },
   {
     id: "zeta-gundam",
-    dbName: "Mobile Suit Zeta Gundam",
+    // Grafia exata do dataset oficial (sourceTitle em data/gcg-official-cards.json) -- "Zeta"
+    // por extenso nunca bate com carta nenhuma, o link "Ver Cartas" ficava sempre vazio.
+    dbName: "Mobile Suit Z Gundam",
     name: "Mobile Suit Zeta Gundam",
     jpName: "機動戦士Ζガンダム",
     timeline: "Universal Century (U.C. 0087)",
@@ -50,6 +55,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
       "Sete anos após a Guerra de Um Ano, a tropa militarista de elite Titans oprime as colônias espaciais. Kamille Bidan junta-se à resistência AEUG ao lado de Quattro Bajeena (Char Aznable).",
     tcgStyle: "Morfologia transformável Wave Rider, Bio-Sensor ativado sob pressão crítica e alto poder de contra-ataque.",
     colorAccent: "border-sky-500/40 hover:border-sky-400 text-sky-300",
+    loreSlug: "mobile-suit-z-gundam",
   },
   {
     id: "gundam-0080",
@@ -215,6 +221,7 @@ export const GUNDAM_SERIES_CATALOG: SeriesInfo[] = [
       "A sangrenta guerra racial entre a Federação Terrestre (Naturais) e a ZAFT (Coordenadores geneticamente aprimorados). Os amigos de infância Kira Yamato e Athrun Zala colidem em lados opostos pilotando os Mobile Suits G-Weapons.",
     tcgStyle: "Blindagem Phase Shift Armor imune a dano físico balístico, múltiplos disparos com Hi-MAT e ataques coordenados.",
     colorAccent: "border-cyan-500/40 hover:border-cyan-400 text-cyan-300",
+    loreSlug: "mobile-suit-gundam-seed",
   },
   {
     id: "gundam-seed-destiny",
@@ -510,7 +517,7 @@ export function GundamSeriesShowcase() {
                 </div>
 
                 {/* Rodapé com Ações */}
-                <div className="p-3.5 px-5 border-t border-white/10 bg-slate-900/40 flex items-center justify-between text-xs">
+                <div className="p-3.5 px-5 border-t border-white/10 bg-slate-900/40 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <button
                     type="button"
                     onClick={() => toggleAccordion(series.id)}
@@ -520,13 +527,24 @@ export function GundamSeriesShowcase() {
                     <ChevronDown className={cn("size-3.5 transition-transform duration-200", isOpen && "rotate-180")} />
                   </button>
 
-                  <Link
-                    href={`/cards?series=${encodeURIComponent(series.dbName)}&sort=code_asc`}
-                    className="font-semibold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
-                    title={`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`}
-                  >
-                    Ver Cartas ({series.cardCount}) <ArrowRight className="size-3" />
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    {series.loreSlug ? (
+                      <Link
+                        href={`/series/${series.loreSlug}`}
+                        className="font-semibold uppercase tracking-wider text-white hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                        title={`Ver a página de lore completa de ${series.name}`}
+                      >
+                        <BookOpen className="size-3" />Ver Lore
+                      </Link>
+                    ) : null}
+                    <Link
+                      href={`/cards?series=${encodeURIComponent(series.dbName)}&sort=code_asc`}
+                      className="font-semibold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                      title={`Ver as ${series.cardCount} cartas de ${series.name} no banco de dados`}
+                    >
+                      Ver Cartas ({series.cardCount}) <ArrowRight className="size-3" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
@@ -541,18 +559,18 @@ export function GundamSeriesShowcase() {
             </div>
             <div>
               <h4 className="font-heading text-lg uppercase text-white">
-                Enciclopédia Wiki Anaheim HUB — Em Breve
+                Universe Hub — Wiki em construção, primeiras séries no ar
               </h4>
               <p className="text-xs text-slate-400 mt-0.5 max-w-2xl">
-                Uma central temática completa com fichas de Mobile Suits, especificações de canhões e feixes,
-                histórico de pilotos e árvores de linhagem de cada saga da franquia.
+                Sinopse, Mobile Suits, pilotos e curiosidades de cada saga, em português. Zeta Gundam e Gundam SEED já
+                estão completos — as demais séries chegam em waves seguintes.
               </p>
             </div>
           </div>
 
           <Button asChild variant="outline" className="rounded-none border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 text-xs uppercase tracking-[0.14em] shrink-0">
-            <Link href="/cards">
-              Explorar Todas no Database <ArrowRight className="ml-1.5 size-3.5" />
+            <Link href="/series">
+              Abrir Universe Hub <ArrowRight className="ml-1.5 size-3.5" />
             </Link>
           </Button>
         </div>
