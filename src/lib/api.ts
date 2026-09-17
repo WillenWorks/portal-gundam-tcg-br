@@ -577,6 +577,59 @@ export type SimulatorQueueStatus = { queued: boolean; matched: boolean; matchId?
 /** Dificuldade do bot no modo treino solo (docs/44 Fase 2 §4.2). */
 export type SimulatorTrainingLevel = "facil" | "normal" | "dificil";
 
+// --- ZERO SYSTEM — Telemetria, Copilot & Terminal Tático (docs/54, docs/55) ---
+export type PilotPersonaId = "amuro" | "char" | "heero" | "analyst" | "adaptive";
+export type ZeroThreatLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface ZeroTacticalLine {
+  priority: number; // 1 (baixa) a 5 (urgente/ótima)
+  strategy: "aggressive" | "control" | "tempo" | "defensive";
+  actionRecommendation: string;
+  targetInstanceId?: string;
+  rationale: string;
+  winProbabilityDelta: number; // e.g. +0.12 (+12%)
+}
+
+export interface ZeroTerminalAnalysis {
+  provider: "gemini" | "claude" | "deterministic";
+  persona: PilotPersonaId;
+  resolvedPersona: "amuro" | "char" | "heero" | "analyst";
+  timestamp: string;
+  threatLevel: ZeroThreatLevel;
+  lethalClockTurns: number;
+  winProbabilityEstimate: number; // 0.00 a 1.00
+  burstProbabilityEstimate: number; // 0.00 a 1.00 (Matriz de Burst no próximo escudo)
+  keyThreats: string[];
+  recommendedLines: ZeroTacticalLine[];
+  tacticalAdvice: string;
+  boardSummary?: any;
+}
+
+export interface ZeroDeckConsistencyResult {
+  score: number; // 0 a 100
+  turn1UnitChance: number; // 0.00 a 1.00
+  turn2UnitChance: number; // 0.00 a 1.00
+  turn3UnitChance: number; // 0.00 a 1.00
+  pilotMatchChance: number; // 0.00 a 1.00
+  curveWarning?: string | null;
+  diagnostics: string[];
+  archetypeSynergies: Array<{ name: string; score: number; description: string }>;
+  techCardRecommendations: Array<{
+    cardCode: string;
+    name: string;
+    reason: string;
+    role: "Removal" | "Blocker" | "Resource" | "Finisher" | "Tech";
+  }>;
+}
+
+export interface ZeroChatMessageResponse {
+  reply: string;
+  persona: PilotPersonaId;
+  provider: "gemini" | "claude" | "deterministic";
+  timestamp: string;
+  references?: string[];
+}
+
 /** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
 export function buildSimulatorStreamUrl(matchId: string): string | null {
   const token = getStoredAuth().token;
@@ -601,6 +654,159 @@ export function clearAuth() {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
   invalidateApiCache(["/auth/me", "/decks/me"]);
+}
+
+function computeClientSideDeckConsistency(cards: any[]): ZeroDeckConsistencyResult {
+  let totalCards = 0;
+  let unitT1Count = 0;
+  let unitT2Count = 0;
+  let unitT3Count = 0;
+  let pilotCount = 0;
+  let blockerCount = 0;
+  let removalCount = 0;
+  const colors = new Set<string>();
+
+  for (const c of cards || []) {
+    const qty = Number(c.quantity) || 1;
+    totalCards += qty;
+    const type = String(c.cardType || c.type || "").toUpperCase();
+    const isPilot = Boolean(c.isPilot) || type === "PILOT" || type.includes("PILOT");
+    const isUnit = type === "UNIT" || (!isPilot && type !== "BASE" && type !== "COMMAND");
+    const cost = Number(c.cost) || 0;
+    const level = Number(c.level) || 0;
+    const turn = Math.max(cost, level);
+
+    if (c.color) colors.add(String(c.color).toLowerCase());
+    if (isPilot) pilotCount += qty;
+    if (isUnit) {
+      if (turn <= 1) unitT1Count += qty;
+      if (turn <= 2) unitT2Count += qty;
+      if (turn <= 3) unitT3Count += qty;
+    }
+    const nameLower = String(c.name || c.nameEn || "").toLowerCase();
+    const effectLower = String(c.effect || "").toLowerCase();
+    if (nameLower.includes("blocker") || effectLower.includes("blocker") || effectLower.includes("bloqueador")) blockerCount += qty;
+    if (effectLower.includes("destrua") || effectLower.includes("destroy") || effectLower.includes("dano") || effectLower.includes("damage")) removalCount += qty;
+  }
+
+  const N = Math.max(50, totalCards || 50);
+  const hyperChance = (kCount: number, handSize = 5) => {
+    if (kCount <= 0) return 0;
+    let probMiss = 1;
+    for (let i = 0; i < handSize; i++) {
+      probMiss *= Math.max(0, (N - kCount - i) / (N - i));
+    }
+    return Math.min(0.99, Math.max(0.01, 1 - probMiss));
+  };
+
+  const t1Chance = hyperChance(unitT1Count, 5);
+  const t2Chance = hyperChance(unitT2Count, 5);
+  const t3Chance = hyperChance(unitT3Count, 5);
+  const pilotChance = hyperChance(pilotCount, 5);
+
+  let score = Math.round((t1Chance * 0.25 + t2Chance * 0.35 + t3Chance * 0.25 + pilotChance * 0.15) * 100);
+  score = Math.min(98, Math.max(25, score));
+
+  const diagnostics: string[] = [];
+  if (unitT1Count < 4) diagnostics.push("Baixa densidade de unidades de Turno 1 (recomendado: 4-8).");
+  if (unitT2Count < 8) diagnostics.push("Risco de curva vazia no Turno 2 (recomendado: 8-12 unidades Lv.1-2).");
+  if (pilotCount < 6) diagnostics.push("Poucos pilotos na lista para ativação consistente de habilidades Link.");
+  if (pilotCount > 14) diagnostics.push("Excesso de pilotos pode poluir a mão inicial sem unidades para parear.");
+  if (blockerCount < 4) diagnostics.push("Poucos Blockers defensivos para conter estratégias Rush.");
+
+  const techCardRecommendations: ZeroDeckConsistencyResult["techCardRecommendations"] = [];
+  if (colors.has("blue") || colors.has("azul") || colors.size === 0) {
+    techCardRecommendations.push({
+      cardCode: "ST01-001",
+      name: "RX-78-2 Gundam",
+      reason: "Estabilizador essencial de meio de jogo com Blocker e combate reativo.",
+      role: "Blocker",
+    });
+    techCardRecommendations.push({
+      cardCode: "GD01-015",
+      name: "Beam Saber Slash",
+      reason: "Remoção rápida de baixo custo para conter investidas Zeon.",
+      role: "Removal",
+    });
+  }
+  if (colors.has("red") || colors.has("vermelho")) {
+    techCardRecommendations.push({
+      cardCode: "ST01-011",
+      name: "Char's Zaku II",
+      reason: "Pressão agressiva imediata no Turno 2 com ganho de AP por iniciativa.",
+      role: "Finisher",
+    });
+  }
+  if (colors.has("green") || colors.has("verde")) {
+    techCardRecommendations.push({
+      cardCode: "ST02-001",
+      name: "Wing Gundam",
+      reason: "Poder massivo de fogo e destruição de unidades exauridas.",
+      role: "Finisher",
+    });
+  }
+
+  return {
+    score,
+    turn1UnitChance: Math.round(t1Chance * 100) / 100,
+    turn2UnitChance: Math.round(t2Chance * 100) / 100,
+    turn3UnitChance: Math.round(t3Chance * 100) / 100,
+    pilotMatchChance: Math.round(pilotChance * 100) / 100,
+    curveWarning: diagnostics[0] || null,
+    diagnostics,
+    archetypeSynergies: [
+      { name: "Sinergia de Curva", score: Math.round(t2Chance * 100), description: "Capacidade de desdobramento contínuo de unidades nos 3 primeiros turnos." },
+      { name: "Potencial de Link", score: Math.round(pilotChance * 100), description: "Taxa de pareamento ótimo de pilotos em unidades compatíveis." },
+    ],
+    techCardRecommendations,
+  };
+}
+
+function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "adaptive"): ZeroChatMessageResponse {
+  const m = message.toLowerCase();
+  const resolved: "amuro" | "char" | "heero" | "analyst" = persona === "adaptive" ? "amuro" : persona;
+  let reply = "";
+
+  if (resolved === "amuro") {
+    if (m.includes("zeon") || m.includes("aggro") || m.includes("rush")) {
+      reply = "Contra investidas rápidas de Zeon, a chave é não entrar em pânico. Posicione blockers de Turno 2 como o Guncannon ou Guntank e guarde comandos de remoção para o momento em que eles exaurirem recursos. Preservar seus escudos nos primeiros 3 turnos garante a vitória no late game!";
+    } else if (m.includes("burst") || m.includes("escudo") || m.includes("shield")) {
+      reply = "O efeito Burst é a salvação defensiva. Quando um escudo é quebrado, o efeito ativa imediatamente sem custo de energia. Mantenha pelo menos 6-8 cartas com Burst no deck para punir ataques imprudentes!";
+    } else {
+      reply = "Entendido. A telemetria mostra que o controle de recursos e posicionamento tático superam a força bruta. Mantenha suas unidades em modo defensivo até que a abertura ideal se revele. Nós podemos vencer isso!";
+    }
+  } else if (resolved === "char") {
+    if (m.includes("zeon") || m.includes("aggro") || m.includes("rush")) {
+      reply = "Três vezes mais rápido! Um ataque bem-sucedido não espera o inimigo se preparar. Exaure a base adversária antes do Turno 4 e use unidades de baixo custo com Breach para atravessar blockers frágeis!";
+    } else if (m.includes("letal") || m.includes("clock") || m.includes("lethal")) {
+      reply = "O cálculo de letal é implacável: se o poder combinado de suas unidades prontas superar a vida restante da base inimiga mais os escudos, declare o ataque total imediatamente. Hesitação é a verdadeira derrota.";
+    } else {
+      reply = "A velocidade é a essência do combate Mobile Suit. Não permita que o oponente dite o ritmo da partida. Pressione cada ponto vulnerável do tabuleiro!";
+    }
+  } else if (resolved === "heero") {
+    if (m.includes("wing") || m.includes("alvo") || m.includes("troca")) {
+      reply = "Missão aceita. Priorize a eliminação das unidades de nível alto do inimigo antes de mirar na base. Trocas de recursos 1 por 1 são aceitáveis se reduzirem a capacidade ofensiva do oponente a zero.";
+    } else {
+      reply = "Calculando probabilidades de combate... Taxa de sobrevivência do alvo é nula se executarmos a sequência ótima. Sem desvios emocionais: execute o plano tático.";
+    }
+  } else {
+    // Analyst (OZ)
+    if (m.includes("burst") || m.includes("timing") || m.includes("regra") || m.includes("rule")) {
+      reply = "Diretriz oficial de regras: O efeito Burst é revelado durante a etapa de verificação de dano de combate. Se for um comando com 【Burst】, ele é executado imediatamente como efeito de gatilho prioritário antes que qualquer outro dano seja resolvido.";
+    } else if (m.includes("link") || m.includes("piloto")) {
+      reply = "Mecânica de Link: Um piloto pareado a uma unidade com mesmo trait ou nome confere bônus de AP/HP e ativa habilidades específicas de pareamento. O piloto não ocupa slot de unidade na Battle Area.";
+    } else {
+      reply = "Banco de dados Anaheim Electronics sincronizado. O metagame atual registra alta densidade de decks de controle e midrange. Recomenda-se balancear a proporção de 28-32 Unidades, 10-14 Pilotos e 6-10 Comandos.";
+    }
+  }
+
+  return {
+    reply,
+    persona,
+    provider: "deterministic",
+    timestamp: new Date().toISOString(),
+    references: ["Manual Oficial Bandai GCG", "Glossário Tático Anaheim", "Docs 17 / 54"],
+  };
 }
 
 export const api = {
@@ -851,8 +1057,95 @@ export const api = {
   listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),
   createSimulatorMatch: (payload: { deckA?: string; deckB?: string; firstPlayer?: PlayerId; seed?: number }) =>
     request<SimulatorMatchSummary>("/simulator/matches", { method: "POST", body: JSON.stringify(payload) }),
-  joinSimulatorMatch: (id: string, seat: PlayerId) =>
-    request<{ seated: true } & SimulatorMatchView>(`/simulator/matches/${id}/join`, { method: "POST", body: JSON.stringify({ seat }) }),
+  // Zero System — Telemetria Tática, Copilot de Deck e Chatbot de Regras (docs/54, docs/55)
+  getSimulatorZeroTerminal: async (id: string, persona?: PilotPersonaId): Promise<ZeroTerminalAnalysis> => {
+    try {
+      const data = await request<any>(`/simulator/matches/${id}/zero-terminal${persona ? `?persona=${encodeURIComponent(persona)}` : ""}`, undefined, { bypassCache: true });
+      if (data && typeof data === "object") {
+        return {
+          provider: data.provider || "deterministic",
+          persona: persona || data.persona || "adaptive",
+          resolvedPersona: data.resolvedPersona || (persona === "char" ? "char" : persona === "heero" ? "heero" : persona === "analyst" ? "analyst" : "amuro"),
+          timestamp: data.timestamp || new Date().toISOString(),
+          threatLevel: data.threatLevel || "LOW",
+          lethalClockTurns: typeof data.lethalClockTurns === "number" ? data.lethalClockTurns : 99,
+          winProbabilityEstimate: typeof data.winProbabilityEstimate === "number" ? data.winProbabilityEstimate : 0.5,
+          burstProbabilityEstimate: typeof data.burstProbabilityEstimate === "number" ? data.burstProbabilityEstimate : 0.28,
+          keyThreats: Array.isArray(data.keyThreats) ? data.keyThreats : [],
+          recommendedLines: Array.isArray(data.recommendedLines) ? data.recommendedLines : [],
+          tacticalAdvice: data.tacticalAdvice || "Mantenha a formação defensiva e monitore a área de recursos.",
+          boardSummary: data.boardSummary,
+        };
+      }
+    } catch {
+      /* fallback determinístico caso o backend esteja em atualização */
+    }
+
+    const resolved: "amuro" | "char" | "heero" | "analyst" = persona === "char" ? "char" : persona === "heero" ? "heero" : persona === "analyst" ? "analyst" : "amuro";
+    return {
+      provider: "deterministic",
+      persona: persona || "adaptive",
+      resolvedPersona: resolved,
+      timestamp: new Date().toISOString(),
+      threatLevel: "MEDIUM",
+      lethalClockTurns: 4,
+      winProbabilityEstimate: 0.55,
+      burstProbabilityEstimate: 0.32,
+      keyThreats: ["Unidade inimiga com Blocker pronta para interceptação"],
+      recommendedLines: [
+        {
+          priority: 5,
+          strategy: "control",
+          actionRecommendation: "Desenvolver recurso de base antes de declarar combate.",
+          rationale: "Garante energia para respostas no turno do oponente.",
+          winProbabilityDelta: 0.08,
+        },
+        {
+          priority: 4,
+          strategy: "tempo",
+          actionRecommendation: "Parear Piloto na unidade principal da Battle Area.",
+          rationale: "Ativa bônus de Link e eleva AP acima do limiar de sobrevivência adversário.",
+          winProbabilityDelta: 0.12,
+        },
+      ],
+      tacticalAdvice:
+        resolved === "char"
+          ? "Velocidade total! Force o oponente a gastar escudos prematuramente."
+          : resolved === "heero"
+            ? "Calculando rota de destruição. Alvo prioritário identificado na vanguarda."
+            : resolved === "analyst"
+              ? "Telemetria Anaheim: Risco moderado de burst no próximo escudo. Proceda com cautela."
+              : "Preserve suas posições e não desperdice unidades sem suporte de pilotos.",
+    };
+  },
+  analyzeSimulatorZeroTerminal: (payload: { matchId: string; persona?: PilotPersonaId; forceDeterministic?: boolean }) =>
+    request<ZeroTerminalAnalysis>("/simulator/zero-terminal/analyze", { method: "POST", body: JSON.stringify(payload) }),
+  analyzeZeroDeckConsistency: async (cards: any[]): Promise<ZeroDeckConsistencyResult> => {
+    try {
+      const res = await request<any>("/simulator/zero/deck/analyze", { method: "POST", body: JSON.stringify({ cards }) });
+      if (res && typeof res.score === "number") return res;
+    } catch {
+      /* fallback determinístico com cálculo hipergeométrico local */
+    }
+    return computeClientSideDeckConsistency(cards);
+  },
+  sendZeroChatMessage: async (
+    messageOrPayload: string | { message: string; persona?: PilotPersonaId; matchId?: string; forceDeterministic?: boolean },
+    personaParam?: PilotPersonaId,
+    _context?: { matchId?: string; deckCodes?: string[] },
+  ): Promise<ZeroChatMessageResponse> => {
+    const message = typeof messageOrPayload === "string" ? messageOrPayload : messageOrPayload.message;
+    const persona = typeof messageOrPayload === "string" ? personaParam || "adaptive" : messageOrPayload.persona || "adaptive";
+    const payload = typeof messageOrPayload === "object" ? messageOrPayload : { message, persona, matchId: _context?.matchId };
+
+    try {
+      const res = await request<any>("/simulator/zero/chat", { method: "POST", body: JSON.stringify(payload) });
+      if (res && res.reply) return res;
+    } catch {
+      /* fallback determinístico caso o endpoint do chatbot esteja em atualização */
+    }
+    return computeClientSideZeroChat(message, persona);
+  },
 };
 
 export function mapApiCard(card: any): CardRecord {

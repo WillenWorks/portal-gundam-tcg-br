@@ -100,7 +100,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { AlertTriangle, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Bug, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
 import { api, getStoredAuth, type SimulatorMatchView } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,7 @@ import {
   MulliganModal,
   FirstPlayerReveal,
   SideboardModal,
+  ZeroCoachHud,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
@@ -390,8 +391,26 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  asas — reseta sozinho se a tela deixar de ser wide (guard no render). */
   const [boardExpanded, setBoardExpanded] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  /** ZERO SYSTEM — Assistente Tático In-Game (Atalho 'Z'). */
+  const [zeroCoachOpen, setZeroCoachOpen] = useState(false);
   /** docs/44 Fase 3 §5.1 — modal de bug report ("Reportar situação"). `code` != null = já enviado, mostra o BUG-XXXXXX. */
   const [bugReport, setBugReport] = useState<{ open: boolean; busy: boolean; code: string | null }>({ open: false, busy: false, code: null });
+
+  // Atalho de teclado 'Z' para alternar o Zero Coach HUD
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        setZeroCoachOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   /** Feedback.pdf §5 — erro de JOGADA (jogada ilegal, custo/alvo faltando) numa
    *  faixa própria no topo-centro, FORA da área do log e do `ActionDock`. Some
    *  sozinho. Erros de SISTEMA (conexão, W.O., auto-pass) seguem em `toast`. */
@@ -1412,6 +1431,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             busy={busy}
           />
         </div>
+        {/* ZERO SYSTEM — Zero Coach HUD (Atalho 'Z') */}
+        <Button
+          variant="outline"
+          size="icon"
+          data-testid="zero-coach-dock-btn"
+          className={`pointer-events-auto size-8 rounded-arena border-cyan-500/40 bg-slate-950/80 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300 transition-all ${
+            zeroCoachOpen ? "bg-cyan-500/30 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]" : ""
+          }`}
+          onClick={() => setZeroCoachOpen((v) => !v)}
+          title="Abrir Zero Coach HUD (Atalho: Z)"
+          aria-label="Abrir Zero Coach HUD"
+          aria-pressed={zeroCoachOpen}
+        >
+          <BrainCircuit className="size-4" />
+        </Button>
         {/* docs/44 Fase 3 §5.1 — bug report só pra jogador logado (guest do desafio
             por link não tem token; o servidor também recusa com 403). */}
         {getStoredAuth().token ? (
@@ -1739,6 +1773,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       {/* docs/19, Sessão 4 — feed de log de batalha (painel lateral retrátil / gaveta). */}
       <BattleLogDrawer entries={battleLog} open={logOpen} onToggle={() => setLogOpen((o) => !o)} />
+
+      {/* ZERO SYSTEM — Zero Coach HUD (Atalho 'Z') */}
+      <ZeroCoachHud
+        open={zeroCoachOpen}
+        onToggle={() => setZeroCoachOpen((o) => !o)}
+        matchId={matchId}
+        turnNumber={view?.turnNumber}
+        activePlayer={view?.activePlayer}
+        seat={seat}
+        view={view}
+      />
 
       {/* Aviso/confirmação da partida (capturas 4) — painel no topo-centro, fora
           do caminho do tabuleiro, nunca bloqueia clique/hover. */}

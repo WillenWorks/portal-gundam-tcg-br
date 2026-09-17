@@ -1,6 +1,7 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useState } from "react";
 import {
+  BrainCircuit,
   ChevronDown,
   ChevronRight,
   Download,
@@ -49,6 +50,7 @@ import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { downloadDeckImage, generateDeckImageBlob, type ExportCardEntry } from "@/utils/deckImageExport";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
+import { ZeroCopilotDrawer } from "@/components/deckbuilder/ZeroCopilotDrawer";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -443,6 +445,8 @@ export default function DeckbuilderPage() {
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [altArtModelId, setAltArtModelId] = useState<string | null>(null);
   const [openingHandOpen, setOpeningHandOpen] = useState(false);
+  /** ZERO SYSTEM — Assistente Copilot do Hangar OZ. */
+  const [zeroCopilotOpen, setZeroCopilotOpen] = useState(false);
   const [previewCard, setPreviewCard] = useState<CardRecord | null>(null);
   const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
   const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
@@ -1005,6 +1009,66 @@ export default function DeckbuilderPage() {
     });
   };
 
+  const zeroCopilotCards = useMemo(() => {
+    return entries.map((entry) => {
+      const card = cardCache[entry.cardId];
+      return {
+        cardCode: card?.code || entry.cardId,
+        quantity: entry.quantity,
+        cost: card?.cost,
+        level: card?.level,
+        cardType: card?.type,
+        isPilot: card?.type === "Pilot" || Boolean(card?.pilotName),
+        color: card?.color,
+        name: card?.name || card?.namePt,
+        effect: card?.effect,
+        imageUrl: card?.imageUrl,
+      };
+    });
+  }, [entries, cardCache]);
+
+  const handleZeroCopilotAdd = async (cardCode: string) => {
+    const foundInCache = Object.values(cardCache).find((c) => c.code === cardCode);
+    if (foundInCache) {
+      increment(foundInCache);
+      toast.success(`+1 cópia de ${foundInCache.namePt || foundInCache.name} adicionada ao deck.`);
+      return;
+    }
+    try {
+      const results = await api.listCards({ q: cardCode });
+      const found = (results as any[]).find((c: any) => c.code === cardCode) || results[0];
+      if (found) {
+        const record = mapApiCard(found);
+        cacheCards([record]);
+        increment(record);
+        toast.success(`+1 cópia de ${record.namePt || record.name} adicionada ao deck.`);
+      } else {
+        toast.error(`Carta ${cardCode} não encontrada no arsenal.`);
+      }
+    } catch {
+      toast.error(`Falha ao buscar carta ${cardCode}.`);
+    }
+  };
+
+  const handleZeroCopilotInspect = async (cardCode: string) => {
+    const foundInCache = Object.values(cardCache).find((c) => c.code === cardCode);
+    if (foundInCache) {
+      setPreviewCard(foundInCache);
+      return;
+    }
+    try {
+      const results = await api.listCards({ q: cardCode });
+      const found = (results as any[]).find((c: any) => c.code === cardCode) || results[0];
+      if (found) {
+        const record = mapApiCard(found);
+        cacheCards([record]);
+        setPreviewCard(record);
+      }
+    } catch {
+      /* silencia */
+    }
+  };
+
   // Resource sempre soma 10 de verdade, em tempo real. Decrementar uma arte que NAO
   // e a padrao compensa aumentando a padrao na hora (voce troca uma copia por outra,
   // o total nunca cai). Decrementar a PROPRIA arte padrao NAO se autocura de proposito
@@ -1289,6 +1353,20 @@ export default function DeckbuilderPage() {
               >
                 <Save className="mr-1.5 size-4" />
                 Salvar Deck
+              </Button>
+
+              {/* ZERO COPILOT — Assistente IA (docs/54, docs/55) */}
+              <Button
+                data-testid="zero-copilot-btn"
+                className="rounded-none border border-cyan-500/50 bg-cyan-950/70 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 font-heading uppercase tracking-wider text-xs px-3.5 h-9 shadow-md shadow-cyan-500/20 transition-all"
+                onClick={() => setZeroCopilotOpen(true)}
+                title="Abrir Zero Copilot — Assistente IA de Consistência e Tech Cards"
+              >
+                <BrainCircuit className="mr-1.5 size-4 text-cyan-400" />
+                Zero Copilot
+                <span className="ml-1.5 rounded-none bg-cyan-500/30 px-1 py-0.2 text-[9px] font-mono font-bold text-cyan-200 border border-cyan-400/40">
+                  IA
+                </span>
               </Button>
 
               <Tooltip><TooltipTrigger asChild>
@@ -1736,7 +1814,20 @@ export default function DeckbuilderPage() {
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-portal">Consistência</p>
                   <h3 className="mt-2 font-heading text-3xl uppercase heading-portal">Mão inicial<MetricTooltip metric="mao-inicial" what="Probabilidade de a sua mão de abertura (5 cartas compradas do deck principal embaralhado) conter certos tipos de carta. Cálculo hipergeométrico." howToRead="Quanto maior a %, mais confiável é abrir bem. 'Com 1 mulligan' conta a mão original OU a redistribuída — pela regra oficial, o mulligan é um sorteio novo e independente, não uma troca parcial." /></h3>
                 </div>
-                <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}><Eye className="mr-2 size-4" />Simular abertura</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="rounded-none border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10"
+                    onClick={() => setZeroCopilotOpen(true)}
+                  >
+                    <BrainCircuit className="mr-1.5 size-4 text-cyan-400" />
+                    Zero Copilot (IA)
+                  </Button>
+                  <Button variant="outline" className="rounded-none" disabled={stats.mainDeckCount === 0} onClick={() => setOpeningHandOpen(true)}>
+                    <Eye className="mr-2 size-4" />
+                    Simular abertura
+                  </Button>
+                </div>
               </div>
               {stats.mainDeckCount > 0 ? (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -2067,6 +2158,17 @@ export default function DeckbuilderPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ZERO COPILOT DRAWER — Hangar OZ (docs/54, docs/55) */}
+      <ZeroCopilotDrawer
+        open={zeroCopilotOpen}
+        onClose={() => setZeroCopilotOpen(false)}
+        deckCards={zeroCopilotCards}
+        deckName={deckName}
+        colors={Object.keys(stats.colorMap)}
+        onAddCard={handleZeroCopilotAdd}
+        onInspectCard={handleZeroCopilotInspect}
+      />
     </PublicShell>
   );
 }
