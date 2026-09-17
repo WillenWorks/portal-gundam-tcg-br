@@ -39,9 +39,16 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
   if (!base) {
     return (
       <div
-        title="Base: nenhuma em jogo"
-        aria-label="Base: nenhuma em jogo"
-        className={cn("aspect-[63/88] overflow-hidden rounded-arena border border-dashed border-white/10 bg-white/[0.015]", WIDTH)}
+        title={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
+        aria-label={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
+        onClick={legalTarget && onSelect ? () => onSelect(null as any) : undefined}
+        className={cn(
+          "aspect-[63/88] overflow-hidden rounded-arena border border-dashed transition-all duration-150",
+          WIDTH,
+          legalTarget
+            ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse cursor-pointer hover:brightness-125 bg-emerald-950/20"
+            : "border-white/10 bg-white/[0.015]",
+        )}
       />
     );
   }
