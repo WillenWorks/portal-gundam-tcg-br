@@ -149,12 +149,13 @@ export function AppTopNav() {
         <div className="hidden items-center gap-2 md:flex">
           <Button
             type="button"
-            size="sm"
-            className="rounded-none border border-primary/50 bg-primary/15 text-xs font-semibold uppercase tracking-[0.14em] text-primary hover:bg-primary/25"
+            size="icon"
+            className="rounded-none border border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 2xl:size-auto 2xl:px-3.5 2xl:py-2"
             onClick={() => setSupportOpen(true)}
             title="Apoiar o Anaheim Hub via Pix"
           >
-            <HeartHandshake className="mr-1.5 size-3.5" />Apoiar
+            <HeartHandshake className="size-4 2xl:mr-1.5 2xl:size-3.5" />
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] 2xl:inline">Apoiar</span>
           </Button>
 
           <Button
