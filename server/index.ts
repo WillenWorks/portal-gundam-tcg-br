@@ -56,6 +56,10 @@ import {
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
 import {
+  getTacticalTelemetry,
+  analyzeTacticalState,
+} from "./services/zeroTerminalService.ts";
+import {
   buildDeckListFromUserDeck,
   UserDeckSimulatorError,
 } from "../src/modules/simulator/content/userDeckBuilder.ts";
@@ -4406,6 +4410,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       playerDeckList: resolvedA.list,
       botDeckList: resolvedB.list,
       level: body.level,
+      persona: body.persona,
       human: { userId: req.user!.userId, displayName: req.user!.username },
     });
     res.status(201).json({ matchId });
@@ -4424,6 +4429,30 @@ app.get("/api/simulator/training/:matchId", authRequired, async (req: RequestWit
   const seat = seatFor(match, req.user!.userId);
   if (!seat) return res.status(403).json({ error: "Você não é jogador desta partida de treino." });
   res.json({ seated: true, ...matchViewFor(match, seat) });
+});
+
+// --- Zero System — Telemetria Tática Multimodal (docs/55, Fase 3) ---
+
+app.get("/api/simulator/matches/:id/zero-terminal", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id));
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Você não é jogador desta partida." });
+  const persona = req.query.persona as any;
+  const analysis = await getTacticalTelemetry(match.id, seat, { persona });
+  res.json(analysis);
+});
+
+app.post("/api/simulator/zero-terminal/analyze", authRequired, async (req: RequestWithUser, res) => {
+  const { matchId, persona, forceDeterministic } = req.body ?? {};
+  if (!matchId) return res.status(400).json({ error: "matchId é obrigatório." });
+  await loadMatch(String(matchId));
+  const match = getMatch(String(matchId));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId) ?? "A";
+  const analysis = await getTacticalTelemetry(match.id, seat, { persona, forceDeterministic });
+  res.json(analysis);
 });
 
 // --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---

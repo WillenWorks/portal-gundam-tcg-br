@@ -61,6 +61,34 @@ describe("createTrainingMatch", () => {
     expect(getMatch(matchId)?.seats.B?.bot).toEqual({ policy: "mcts", level: "dificil" });
   });
 
+  it("aceita nivel zero_system com persona adaptativa por padrao", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "zero_system", human: HUMAN });
+    expect(matchId).toBeDefined();
+    expect(getMatch(matchId)?.seats.B?.bot).toEqual({
+      policy: "zero_system",
+      level: "zero_system",
+      persona: "adaptive",
+    });
+    expect(getMatch(matchId)?.seats.B?.displayName).toBe("Zero System (ADAPTIVE)");
+  });
+
+  it("aceita nivel zero_system com persona customizada (char)", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "zero_system", persona: "char", human: HUMAN });
+    expect(matchId).toBeDefined();
+    expect(getMatch(matchId)?.seats.B?.bot).toEqual({
+      policy: "zero_system",
+      level: "zero_system",
+      persona: "char",
+    });
+    expect(getMatch(matchId)?.seats.B?.displayName).toBe("Zero System (CHAR)");
+  });
+
+  it("recusa persona invalida com status 400", () => {
+    expect(() =>
+      createTrainingMatch({ deckId: "ST01", level: "zero_system", persona: "kira_yamato", human: HUMAN }),
+    ).toThrow(TrainingMatchError);
+  });
+
   it("recusa o próprio bot como jogador humano", () => {
     expect(() =>
       createTrainingMatch({ deckId: "ST01", level: "normal", human: { userId: SIM_BOT_USER_ID, displayName: "x" } }),

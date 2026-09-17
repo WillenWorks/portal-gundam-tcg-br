@@ -5,7 +5,7 @@ import { applyPlayerAction } from "../../src/modules/simulator/engine/actions.ts
 import { actionOwner, enumerateLegalActions } from "../../src/modules/simulator/engine/legalActions.ts";
 import { viewStateFor } from "../../src/modules/simulator/engine/viewState.ts";
 import { createRng } from "../../src/modules/simulator/engine/rng.ts";
-import { heuristicPolicy, mctsPolicy, neuralPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
+import { heuristicPolicy, mctsPolicy, neuralPolicy, zeroSystemPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
 import {
   ALL_EFFECT_SPECS,
   defaultPredicateResolver,
@@ -60,17 +60,20 @@ const DEFAULT_MAX_ACTIONS = 400;
  * @param {object} opts
  * @param {import("../../src/modules/simulator/engine/types.ts").GameState} opts.initialState
  * @param {"A"|"B"} opts.seat
- * @param {"facil"|"normal"|"dificil"} opts.level
+ * @param {"facil"|"normal"|"dificil"|"zero_system"} opts.level
+ * @param {"amuro"|"char"|"heero"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
  * @param {(action: unknown) => (void | Promise<void>)} opts.commit
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}
  */
-export async function driveBotTurn({ initialState, seat, level, seed, commit, maxActions = DEFAULT_MAX_ACTIONS }) {
+export async function driveBotTurn({ initialState, seat, level, persona = "adaptive", seed, commit, maxActions = DEFAULT_MAX_ACTIONS }) {
   let policy;
   let neuralHandle = null;
 
-  if (level === "dificil") {
+  if (level === "zero_system" || level === "adaptive") {
+    policy = zeroSystemPolicy({ persona });
+  } else if (level === "dificil") {
     policy = mctsPolicy({
       rollouts: 16,
       depthTurns: 8,

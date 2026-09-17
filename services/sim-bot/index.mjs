@@ -81,7 +81,13 @@ async function processTurn(turn) {
   if (!botSeat) throw new Error(`partida ${turn.matchId} não tem assento de bot`);
 
   const seats = row.seats && typeof row.seats === "object" ? row.seats : {};
-  const level = seats?.[botSeat]?.bot?.level === "facil" ? "facil" : "normal";
+  const botConfig = seats?.[botSeat]?.bot ?? {};
+  const rawLevel = botConfig.level;
+  const level =
+    rawLevel === "facil" || rawLevel === "dificil" || rawLevel === "zero_system" || rawLevel === "adaptive"
+      ? rawLevel
+      : "normal";
+  const persona = botConfig.persona ?? "adaptive";
 
   if (state.gameOver) {
     console.log(`[sim-bot] turno ${turn.id}: partida ${turn.matchId} já terminou — nada a fazer`);
@@ -92,6 +98,7 @@ async function processTurn(turn) {
     initialState: state,
     seat: botSeat,
     level,
+    persona,
     seed: turnSeed(turn.matchId, state.turnNumber, turn.attempts),
     commit: (action) => commitAction(turn.matchId, action),
   });

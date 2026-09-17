@@ -35,3 +35,10 @@ export {
   type SimulateToEndOptions,
   type SimulateToEndResult,
 } from "./simulateToEnd";
+
+export {
+  zeroSystemPolicy,
+  chooseZeroSystemAction,
+  type ZeroSystemPersona,
+  type ZeroSystemPolicyOptions,
+} from "./zeroSystemPolicy";

@@ -49,7 +49,11 @@ export interface MatchSeat {
    * a policy inline; o worker (`services/sim-bot/`) processa e aplica as ações
    * de volta pela API autoritativa.
    */
-  bot?: { policy: "heuristic" | "mcts"; level: HeuristicLevel | "dificil" };
+  bot?: {
+    policy: "heuristic" | "mcts" | "zero_system";
+    level: HeuristicLevel | "dificil" | "zero_system";
+    persona?: "amuro" | "char" | "heero" | "adaptive";
+  };
 }
 
 /**
