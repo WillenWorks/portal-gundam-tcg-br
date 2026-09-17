@@ -69,6 +69,8 @@ import {
 import {
   getTacticalTelemetry,
   analyzeTacticalState,
+  analyzeDeckConsistency,
+  consultZeroTerminalRAG,
 } from "./services/zeroTerminalService.ts";
 import {
   buildDeckListFromUserDeck,
@@ -4919,6 +4921,44 @@ app.post("/api/simulator/zero-terminal/analyze", authRequired, async (req: Reque
   const seat = seatFor(match, req.user!.userId) ?? "A";
   const analysis = await getTacticalTelemetry(match.id, seat, { persona, forceDeterministic });
   res.json(analysis);
+});
+
+app.post("/api/simulator/zero/deck/analyze", authRequired, async (req: RequestWithUser, res) => {
+  const { cards } = req.body ?? {};
+  if (!cards || !Array.isArray(cards)) {
+    return res.status(400).json({ error: "O campo 'cards' (array) é obrigatório." });
+  }
+  try {
+    const analysis = analyzeDeckConsistency(cards);
+    return res.json(analysis);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao analisar consistência do deck no Zero Copilot." });
+  }
+});
+
+app.post("/api/simulator/zero/chat", authRequired, async (req: RequestWithUser, res) => {
+  const { message, persona, matchId, forceDeterministic } = req.body ?? {};
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({ error: "O campo 'message' (string) é obrigatório." });
+  }
+  let state = undefined;
+  if (matchId) {
+    await loadMatch(String(matchId));
+    const match = getMatch(String(matchId));
+    if (match) state = match.state;
+  }
+  try {
+    const response = await consultZeroTerminalRAG({
+      message: message.trim(),
+      persona,
+      matchId: matchId ? String(matchId) : undefined,
+      state,
+      forceDeterministic,
+    });
+    return res.json(response);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao processar consulta no Zero Terminal." });
+  }
 });
 
 // --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---

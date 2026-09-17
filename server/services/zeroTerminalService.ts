@@ -3,8 +3,89 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { CardInstance, GameState, PlayerId } from "../../src/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, hasKeyword, otherPlayer } from "../../src/modules/simulator/engine/types";
 import { getMatch } from "../../src/modules/simulator/server/matchStore";
+import { getCardDefByCode } from "../../src/modules/simulator/content/allCardDefs";
 
-export type PilotPersonaId = "amuro" | "char" | "heero" | "adaptive";
+export type PilotPersonaId = "amuro" | "char" | "heero" | "analyst" | "adaptive";
+export type ZeroPersonaId = "amuro" | "char" | "heero" | "oz_analyst" | "analyst" | "adaptive";
+
+export interface BurstThreatMatrix {
+  estimatedBurstProbability: number; // 0.00 a 1.00
+  threatSeverity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  knownBurstsInGraveyard: number;
+  knownBurstsInBattleArea: number;
+  knownBurstsInBase: number;
+  totalKnownBurstsSeen: number;
+  remainingShieldsCount: number;
+  estimatedRemainingBurstsInDeckAndShields: number;
+  tacticalWarning: string;
+}
+
+export interface DeckCardInput {
+  code: string;
+  count?: number;
+  quantity?: number;
+  name?: string;
+  nameEn?: string;
+  color?: string;
+  cardType?: string;
+  level?: number;
+  cost?: number;
+  hasBurst?: boolean;
+  traits?: string[];
+  card?: any;
+}
+
+export interface DeckConsistencyAnalysis {
+  totalCards: number;
+  consistencyScore: number; // 0..100
+  grade: "S" | "A" | "B" | "C" | "D";
+  openingProbabilities: {
+    turn1PlayProbability: number;
+    turn2PlayProbability: number;
+    turn3PlayProbability: number;
+    pilotInOpeningHandProbability: number;
+    turn3IdealPairProbability: number;
+  };
+  curveBreakdown: {
+    cost1Count: number;
+    cost2Count: number;
+    cost3to4Count: number;
+    cost5PlusCount: number;
+    averageCost: number;
+  };
+  cardTypeBreakdown: {
+    unitsCount: number;
+    pilotsCount: number;
+    commandsCount: number;
+    basesCount: number;
+    burstCount: number;
+    lowCostUnitsCount: number;
+  };
+  colorDistribution: Record<string, number>;
+  warnings: string[];
+  recommendations: string[];
+  suggestedTechCards?: Array<{ code: string; name: string; reason: string }>;
+}
+
+export interface ZeroRAGQueryOptions {
+  message: string;
+  persona?: ZeroPersonaId;
+  matchId?: string;
+  state?: GameState;
+  forceDeterministic?: boolean;
+  apiKeyGemini?: string;
+  apiKeyClaude?: string;
+}
+
+export interface ZeroRAGResponse {
+  provider: "gemini" | "claude" | "deterministic";
+  persona: ZeroPersonaId;
+  personaName: string;
+  answer: string;
+  matchedRules: Array<{ keyword: string; explanation: string }>;
+  confidence: number;
+  timestamp: string;
+}
 
 export interface TacticalUnitSummary {
   instanceId: string;
@@ -67,7 +148,7 @@ export interface TacticalLine {
 export interface ZeroSystemAnalysis {
   provider: "gemini" | "claude" | "deterministic";
   persona: PilotPersonaId;
-  resolvedPersona: "amuro" | "char" | "heero";
+  resolvedPersona: "amuro" | "char" | "heero" | "analyst";
   timestamp: string;
   threatLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   lethalClockTurns: number;
@@ -76,6 +157,10 @@ export interface ZeroSystemAnalysis {
   recommendedLines: TacticalLine[];
   tacticalAdvice: string;
   boardSummary: TacticalBoardSummary;
+  burstMatrix?: BurstThreatMatrix;
+  friendlyLethalReady?: boolean;
+  enemyLethalImminent?: boolean;
+  sequencingAdvice?: string[];
 }
 
 export interface ZeroSystemAnalysisOptions {
@@ -184,7 +269,7 @@ export function extractTacticalBoardSummary(state: GameState, seat: PlayerId): T
 export function resolveEffectivePersona(
   board: TacticalBoardSummary,
   persona: PilotPersonaId = "adaptive",
-): "amuro" | "char" | "heero" {
+): "amuro" | "char" | "heero" | "analyst" {
   if (persona !== "adaptive") return persona;
 
   const f = board.friendly;
@@ -204,13 +289,133 @@ export function resolveEffectivePersona(
   return "heero";
 }
 
-export function calculateTacticalMetrics(board: TacticalBoardSummary, persona: "amuro" | "char" | "heero"): {
+export function computeBurstThreatMatrix(
+  stateOrBoard: GameState | TacticalBoardSummary,
+  defendingSeat?: PlayerId,
+): BurstThreatMatrix {
+  // Caso 1: Chamado com GameState completo
+  if ("players" in stateOrBoard && defendingSeat) {
+    const opp = stateOrBoard.players[defendingSeat];
+    const remainingShieldsCount = opp.shields.length;
+    if (remainingShieldsCount === 0) {
+      return {
+        estimatedBurstProbability: 0,
+        threatSeverity: "LOW",
+        knownBurstsInGraveyard: 0,
+        knownBurstsInBattleArea: 0,
+        knownBurstsInBase: 0,
+        totalKnownBurstsSeen: 0,
+        remainingShieldsCount: 0,
+        estimatedRemainingBurstsInDeckAndShields: 0,
+        tacticalWarning: "Oponente sem escudos restantes. Risco de Burst nulo neste momento.",
+      };
+    }
+
+    const isBurst = (c: CardInstance) =>
+      Boolean(
+        c.def.hasBurst ||
+        c.def.triggerKeywords?.includes("Burst") ||
+        c.def.keywordTags?.some((k) => k.toLowerCase().includes("burst"))
+      );
+
+    const knownBurstsInGraveyard = opp.trash.filter(isBurst).length;
+    const knownBurstsInBattleArea = opp.battleArea.filter(isBurst).length;
+    const knownBurstsInBase = opp.baseSection.filter(isBurst).length;
+    const totalKnownBurstsSeen = knownBurstsInGraveyard + knownBurstsInBattleArea + knownBurstsInBase;
+
+    // Deck padrão tem ~12 bursts (faixa de 8 a 16)
+    const estimatedDeckTotalBursts = 12;
+    const remainingUnseenCards = Math.max(1, opp.deck.length + opp.shields.length);
+    const estimatedRemainingBurstsInDeckAndShields = Math.max(
+      0,
+      Math.min(estimatedDeckTotalBursts - totalKnownBurstsSeen, remainingUnseenCards),
+    );
+
+    let rawProb = estimatedRemainingBurstsInDeckAndShields / remainingUnseenCards;
+    rawProb = Math.max(0.05, Math.min(0.85, rawProb));
+    const estimatedBurstProbability = Math.round(rawProb * 100) / 100;
+
+    let threatSeverity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    let tacticalWarning: string;
+
+    if (estimatedBurstProbability >= 0.45) {
+      threatSeverity = "CRITICAL";
+      tacticalWarning = "ALERTA MÁXIMO DE BURST: Poucos bursts foram revelados até agora. Alta probabilidade de reversão imediata ao quebrar o próximo escudo! Ataque com Unidades secundárias primeiro.";
+    } else if (estimatedBurstProbability >= 0.28) {
+      threatSeverity = "HIGH";
+      tacticalWarning = "Ameaça elevada de Burst. Evite atacar primeiro com sua Unidade principal ou Link Unit para não sofrer remoção surpresa.";
+    } else if (estimatedBurstProbability >= 0.15) {
+      threatSeverity = "MEDIUM";
+      tacticalWarning = "Probabilidade moderada de Burst no próximo escudo. Mantenha cautela na ordem de ataque.";
+    } else {
+      threatSeverity = "LOW";
+      tacticalWarning = "Múltiplos Bursts do adversário já foram descartados ou revelados. Risco de virada por escudo é reduzido.";
+    }
+
+    return {
+      estimatedBurstProbability,
+      threatSeverity,
+      knownBurstsInGraveyard,
+      knownBurstsInBattleArea,
+      knownBurstsInBase,
+      totalKnownBurstsSeen,
+      remainingShieldsCount,
+      estimatedRemainingBurstsInDeckAndShields,
+      tacticalWarning,
+    };
+  }
+
+  // Caso 2: Chamado com TacticalBoardSummary
+  const board = stateOrBoard as TacticalBoardSummary;
+  const remainingShieldsCount = board.enemy.shieldCount;
+  if (remainingShieldsCount === 0) {
+    return {
+      estimatedBurstProbability: 0,
+      threatSeverity: "LOW",
+      knownBurstsInGraveyard: 0,
+      knownBurstsInBattleArea: 0,
+      knownBurstsInBase: 0,
+      totalKnownBurstsSeen: 0,
+      remainingShieldsCount: 0,
+      estimatedRemainingBurstsInDeckAndShields: 0,
+      tacticalWarning: "Oponente sem escudos restantes. Risco de Burst nulo.",
+    };
+  }
+
+  const rawProb = Math.min(0.65, Math.max(0.1, (remainingShieldsCount * 2) / 28));
+  const estimatedBurstProbability = Math.round(rawProb * 100) / 100;
+  const threatSeverity = estimatedBurstProbability >= 0.35 ? "HIGH" : estimatedBurstProbability >= 0.2 ? "MEDIUM" : "LOW";
+
+  return {
+    estimatedBurstProbability,
+    threatSeverity,
+    knownBurstsInGraveyard: 0,
+    knownBurstsInBattleArea: 0,
+    knownBurstsInBase: 0,
+    totalKnownBurstsSeen: 0,
+    remainingShieldsCount,
+    estimatedRemainingBurstsInDeckAndShields: Math.round(remainingShieldsCount * 1.5),
+    tacticalWarning: threatSeverity === "HIGH"
+      ? "Risco de Burst relevante em escudos intactos. Ataque com cautela."
+      : "Risco moderado de Burst no próximo escudo.",
+  };
+}
+
+export function calculateTacticalMetrics(
+  board: TacticalBoardSummary,
+  persona: "amuro" | "char" | "heero" | "analyst",
+  burstMatrix?: BurstThreatMatrix,
+): {
   threatLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   lethalClockTurns: number;
   winProbabilityEstimate: number;
   keyThreats: string[];
   recommendedLines: TacticalLine[];
   tacticalAdvice: string;
+  burstMatrix?: BurstThreatMatrix;
+  friendlyLethalReady?: boolean;
+  enemyLethalImminent?: boolean;
+  sequencingAdvice?: string[];
 } {
   const f = board.friendly;
   const e = board.enemy;
@@ -262,7 +467,26 @@ export function calculateTacticalMetrics(board: TacticalBoardSummary, persona: "
     keyThreats.push(`${e.units[0].name} [${e.units[0].cardCode}]`);
   }
 
-  // 5. Recommended Lines & Persona Advice
+  // 5. Matriz de Burst & Sequencing Advisor
+  const matrix = burstMatrix ?? computeBurstThreatMatrix(board);
+  const friendlyLethalReady = f.readyAp >= enemyHealthPool && (e.blockerCount === 0 || f.units.filter((u) => !u.rested).length > e.blockerCount);
+  const enemyLethalImminent = e.totalAp >= friendlyHealthPool || e.readyAp >= friendlyHealthPool;
+
+  const sequencingAdvice: string[] = [];
+  if (friendlyLethalReady) {
+    sequencingAdvice.push("FINALIZAÇÃO CONFIRMADA: Seu AP pronto supera a vida/escudos do oponente. Declare ataques diretos para vitória imediata.");
+  }
+  if (e.blockerCount > 0 && f.handCount > 0) {
+    sequencingAdvice.push("Neutralize os Blockers inimigos com ações de Commands antes de declarar os ataques principais.");
+  }
+  if (matrix.threatSeverity === "CRITICAL" || matrix.threatSeverity === "HIGH") {
+    sequencingAdvice.push("ORDEM DE ATAQUE: Unidades menores devem atacar primeiro para absorver possíveis Bursts antes da sua Unidade principal.");
+  }
+  if (f.units.some((u) => !u.hasLink && u.cardCode)) {
+    sequencingAdvice.push("Considere parear Piloto compatível antes do ataque para ativar habilidade de Link e atacar imediatamente.");
+  }
+
+  // 6. Recommended Lines & Persona Advice
   const recommendedLines: TacticalLine[] = [];
   let tacticalAdvice = "";
 
@@ -337,6 +561,33 @@ export function calculateTacticalMetrics(board: TacticalBoardSummary, persona: "
       threatLevel === "CRITICAL"
         ? "Char Aznable: 'Eles pensam que nos encurralaram? A melhor defesa é aniquilar a linha deles antes que possam piscar!'"
         : "Char Aznable: 'Mostre a eles a velocidade do Cometa Vermelho. Ataque o ponto mais fraco e não conceda um instante de fôlego!'";
+  } else if (persona === "analyst") {
+    // Linha Analista OZ / Anaheim Electronics: Rulings, Metagame & Risco Estatístico
+    recommendedLines.push({
+      priority: 5,
+      strategy: "control",
+      actionRecommendation: "Verificar matriz de probabilidade de Burst antes de declarar ataques à base.",
+      rationale: "Mitigação estatística: 1 Burst imprevisto pode reverter a vantagem de tempo em 2 turnos.",
+      winProbabilityDelta: +0.15,
+    });
+    recommendedLines.push({
+      priority: 4,
+      strategy: "tempo",
+      actionRecommendation: "Sincronizar resolução de triggers e pareamento de Link Units na Main Phase.",
+      rationale: "Maximizar eficiência de custo por ponto de poder conforme curvas competitivas.",
+      winProbabilityDelta: +0.10,
+    });
+    recommendedLines.push({
+      priority: 3,
+      strategy: "defensive",
+      actionRecommendation: "Preservar reserva de energia para ativação de comandos reativos no turno adversário.",
+      rationale: "Garante resposta prioritária a ameaças de alto impacto.",
+      winProbabilityDelta: +0.07,
+    });
+
+    tacticalAdvice = matrix && matrix.threatSeverity === "HIGH"
+      ? "Estrategista da OZ: 'Atenção ao risco elevado na matriz de Burst dos escudos. Recomendo neutralizar unidades de apoio antes de investir contra a base.'"
+      : "Estrategista da OZ: 'Telemetria Anaheim sincronizada. Mantenha controle rígido da curva de recursos e execute jogadas dentro do timing ótimo.'";
   } else {
     // Linha Heero: Zero System Cálculo Objetivo
     const isLethalPossible = f.readyAp >= enemyHealthPool;
@@ -387,12 +638,16 @@ export function calculateTacticalMetrics(board: TacticalBoardSummary, persona: "
     keyThreats,
     recommendedLines,
     tacticalAdvice,
+    burstMatrix: matrix,
+    friendlyLethalReady,
+    enemyLethalImminent,
+    sequencingAdvice,
   };
 }
 
 export async function analyzeWithGemini(
   board: TacticalBoardSummary,
-  persona: "amuro" | "char" | "heero",
+  persona: "amuro" | "char" | "heero" | "analyst",
   metrics: ReturnType<typeof calculateTacticalMetrics>,
   apiKey?: string,
   clientOverride?: { models: { generateContent: (args: any) => Promise<any> } },
@@ -415,7 +670,7 @@ Estado do Tabuleiro:
 - Ameaças Chave: ${metrics.keyThreats.join("; ")}
 
 Instrução:
-Gere uma mensagem tática curta em português (pt-BR), de até 3 frases, incorporando a personalidade de ${persona.toUpperCase()} (${persona === "amuro" ? "analítico, protetor, focado em Newtype e defesa" : persona === "char" ? "audacioso, três vezes mais rápido, ofensivo fulminante" : "frio, calculista, objetivo militar implacável do Zero System"}).
+Gere uma mensagem tática curta em português (pt-BR), de até 3 frases, incorporando a personalidade de ${persona.toUpperCase()} (${persona === "amuro" ? "analítico, protetor, focado em Newtype e defesa" : persona === "char" ? "audacioso, três vezes mais rápido, ofensivo fulminante" : persona === "analyst" ? "especialista militar e engenheiro da Anaheim Electronics, focado em metagame, telemetria e rulings oficiais" : "frio, calculista, objetivo militar implacável do Zero System"}).
 Responda APENAS o texto da fala do piloto.`;
 
     const response = await ai.models.generateContent({
@@ -435,7 +690,7 @@ Responda APENAS o texto da fala do piloto.`;
 
 export async function analyzeWithClaude(
   board: TacticalBoardSummary,
-  persona: "amuro" | "char" | "heero",
+  persona: "amuro" | "char" | "heero" | "analyst",
   metrics: ReturnType<typeof calculateTacticalMetrics>,
   apiKey?: string,
   clientOverride?: { messages: { create: (args: any) => Promise<any> } },
@@ -472,7 +727,9 @@ export async function analyzeTacticalState(options: ZeroSystemAnalysisOptions): 
 
   const boardSummary = extractTacticalBoardSummary(state, seat);
   const resolvedPersona = resolveEffectivePersona(boardSummary, persona);
-  const metrics = calculateTacticalMetrics(boardSummary, resolvedPersona);
+  const oppSeat = otherPlayer(seat);
+  const burstMatrix = computeBurstThreatMatrix(state, oppSeat);
+  const metrics = calculateTacticalMetrics(boardSummary, resolvedPersona, burstMatrix);
 
   let provider: "gemini" | "claude" | "deterministic" = "deterministic";
   let finalAdvice = metrics.tacticalAdvice;
@@ -517,6 +774,10 @@ export async function analyzeTacticalState(options: ZeroSystemAnalysisOptions): 
     recommendedLines: metrics.recommendedLines,
     tacticalAdvice: finalAdvice,
     boardSummary,
+    burstMatrix,
+    friendlyLethalReady: metrics.friendlyLethalReady,
+    enemyLethalImminent: metrics.enemyLethalImminent,
+    sequencingAdvice: metrics.sequencingAdvice,
   };
 }
 
@@ -536,4 +797,475 @@ export async function getTacticalTelemetry(
     persona: options.persona ?? "adaptive",
     forceDeterministic: options.forceDeterministic,
   });
+}
+
+// --- 2. Análise de Consistência e Distribuição Hipergeométrica do Deckbuilder ---
+
+export function combinations(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  if (k === 0 || k === n) return 1;
+  const kEff = Math.min(k, n - k);
+  let c = 1;
+  for (let i = 1; i <= kEff; i++) {
+    c = (c * (n - (kEff - i))) / i;
+  }
+  return c;
+}
+
+export function hypergeometricPAtLeastK(
+  populationSize: number,
+  successesInPop: number,
+  sampleSize: number,
+  minSuccesses: number = 1,
+): number {
+  if (successesInPop <= 0 || sampleSize <= 0) return 0;
+  if (minSuccesses <= 0) return 1;
+  const N = Math.max(1, Math.round(populationSize));
+  const K = Math.min(N, Math.max(0, Math.round(successesInPop)));
+  const n = Math.min(N, Math.max(0, Math.round(sampleSize)));
+
+  if (K < minSuccesses) return 0;
+
+  const totalWays = combinations(N, n);
+  if (totalWays <= 0) return 0;
+
+  let pLessThanK = 0;
+  for (let x = 0; x < minSuccesses; x++) {
+    const successWays = combinations(K, x);
+    const failWays = combinations(N - K, n - x);
+    pLessThanK += (successWays * failWays) / totalWays;
+  }
+
+  const p = 1 - pLessThanK;
+  return Math.min(1, Math.max(0, Math.round(p * 1000) / 1000));
+}
+
+export function analyzeDeckConsistency(cardsInput: any[]): DeckConsistencyAnalysis {
+  const normalizedCards: Array<{
+    code: string;
+    count: number;
+    name: string;
+    color: string;
+    cardType: string;
+    cost: number;
+    level: number;
+    hasBurst: boolean;
+    traits: string[];
+  }> = [];
+
+  for (const item of cardsInput || []) {
+    let code = "";
+    let count = 1;
+    if (typeof item === "string") {
+      code = item;
+      count = 1;
+    } else if (item && typeof item === "object") {
+      code = item.code || item.card?.code || item.id || "";
+      count = Number(item.count ?? item.quantity ?? 1);
+    }
+    if (!code) continue;
+
+    const def = getCardDefByCode(code);
+    const rawCard = item && typeof item === "object" ? (item.card || item) : {};
+
+    const cardType = (rawCard.cardType || rawCard.type || def?.cardType || "UNIT").toUpperCase();
+    if (cardType === "RESOURCE") continue;
+
+    const color = (rawCard.color || def?.color || "Blue").toLowerCase();
+    const cost = Number(rawCard.cost ?? def?.cost ?? 2);
+    const level = Number(rawCard.level ?? def?.level ?? (cardType === "UNIT" ? 3 : 1));
+    const hasBurst = Boolean(
+      rawCard.hasBurst ??
+      def?.hasBurst ??
+      rawCard.triggerKeywords?.includes("Burst") ??
+      def?.triggerKeywords?.includes("Burst") ??
+      rawCard.keywordTags?.some((k: string) => String(k).toLowerCase().includes("burst"))
+    );
+    const name = rawCard.namePt || rawCard.name || rawCard.nameEn || def?.nameEn || code;
+    const traits = rawCard.traits || def?.traits || [];
+
+    normalizedCards.push({
+      code: code.toUpperCase(),
+      count: Math.max(1, count),
+      name,
+      color,
+      cardType,
+      cost,
+      level,
+      hasBurst,
+      traits,
+    });
+  }
+
+  const totalCards = normalizedCards.reduce((sum, c) => sum + c.count, 0);
+  const unitsCount = normalizedCards.filter((c) => c.cardType === "UNIT").reduce((sum, c) => sum + c.count, 0);
+  const pilotsCount = normalizedCards.filter((c) => c.cardType === "PILOT").reduce((sum, c) => sum + c.count, 0);
+  const commandsCount = normalizedCards.filter((c) => c.cardType === "COMMAND").reduce((sum, c) => sum + c.count, 0);
+  const basesCount = normalizedCards.filter((c) => c.cardType === "BASE").reduce((sum, c) => sum + c.count, 0);
+  const burstCount = normalizedCards.filter((c) => c.hasBurst).reduce((sum, c) => sum + c.count, 0);
+
+  const lowCostUnitsCount = normalizedCards
+    .filter((c) => c.cardType === "UNIT" && (c.cost <= 2 || c.level <= 2))
+    .reduce((sum, c) => sum + c.count, 0);
+
+  const cost1Count = normalizedCards.filter((c) => c.cost === 1).reduce((sum, c) => sum + c.count, 0);
+  const cost2Count = normalizedCards.filter((c) => c.cost === 2).reduce((sum, c) => sum + c.count, 0);
+  const cost3to4Count = normalizedCards.filter((c) => c.cost >= 3 && c.cost <= 4).reduce((sum, c) => sum + c.count, 0);
+  const cost5PlusCount = normalizedCards.filter((c) => c.cost >= 5).reduce((sum, c) => sum + c.count, 0);
+
+  const totalCostWeighted = normalizedCards.reduce((sum, c) => sum + c.cost * c.count, 0);
+  const averageCost = totalCards > 0 ? Number((totalCostWeighted / totalCards).toFixed(2)) : 0;
+
+  const colorDistribution: Record<string, number> = {};
+  for (const c of normalizedCards) {
+    colorDistribution[c.color] = (colorDistribution[c.color] || 0) + c.count;
+  }
+  const uniqueColors = Object.keys(colorDistribution);
+
+  // Cálculo Hipergeométrico
+  const population = totalCards > 0 ? totalCards : 50;
+  const turn1PlayProbability = hypergeometricPAtLeastK(population, lowCostUnitsCount, 5, 1);
+  const turn2PlayProbability = hypergeometricPAtLeastK(population, lowCostUnitsCount, 6, 1);
+  const turn3PlayProbability = hypergeometricPAtLeastK(population, lowCostUnitsCount, 7, 1);
+  const pilotInOpeningHandProbability = hypergeometricPAtLeastK(population, pilotsCount, 5, 1);
+  const pilotByTurn3Probability = hypergeometricPAtLeastK(population, pilotsCount, 7, 1);
+  const turn3IdealPairProbability = Math.round(turn3PlayProbability * pilotByTurn3Probability * 1000) / 1000;
+
+  // Pontuação e Grade
+  let score = 50;
+  if (turn2PlayProbability >= 0.85) score += 25;
+  else if (turn2PlayProbability >= 0.70) score += 15;
+  else if (turn2PlayProbability >= 0.50) score += 5;
+  else score -= 15;
+
+  if (pilotsCount >= 6 && pilotsCount <= 10) score += 15;
+  else if (pilotsCount >= 4 && pilotsCount <= 12) score += 8;
+  else score -= 10;
+
+  if (uniqueColors.length === 1) score += 10;
+  else if (uniqueColors.length === 2) score += 5;
+  else score -= 25;
+
+  if (totalCards === 50) score += 5;
+  else score -= 15;
+
+  if (cost5PlusCount > 14) score -= 15;
+  else if (averageCost >= 2.0 && averageCost <= 3.3) score += 10;
+
+  const consistencyScore = Math.max(5, Math.min(100, score));
+  let grade: "S" | "A" | "B" | "C" | "D";
+  if (consistencyScore >= 90) grade = "S";
+  else if (consistencyScore >= 80) grade = "A";
+  else if (consistencyScore >= 68) grade = "B";
+  else if (consistencyScore >= 50) grade = "C";
+  else grade = "D";
+
+  // Alertas e Recomendações
+  const warnings: string[] = [];
+  const recommendations: string[] = [];
+
+  if (totalCards !== 50) {
+    warnings.push(`Tamanho irregular: deck possui ${totalCards} cartas (o formato oficial exige exatamente 50 cartas principais).`);
+  }
+
+  if (lowCostUnitsCount < 10) {
+    warnings.push(`Early game vulnerável: apenas ${lowCostUnitsCount} Unidades de custo 1-2. Risco de ${(100 - turn2PlayProbability * 100).toFixed(0)}% de passar os primeiros turnos sem campo.`);
+    recommendations.push("Inclua entre 12 e 16 unidades de nível 1-2 (custo 1-2) para estabilizar a saída.");
+  }
+
+  if (pilotsCount < 4) {
+    warnings.push(`Pilotos insuficientes: apenas ${pilotsCount} cartas. Link Units e aceleração de rush ficarão comprometidas.`);
+    recommendations.push("Mantenha uma proporção de 6 a 10 pilotos sinérgicos com suas Unidades principais.");
+  } else if (pilotsCount > 12) {
+    warnings.push(`Excesso de Pilotos (${pilotsCount}): risco de comprar mãos sem Unidades compatíveis para parear.`);
+  }
+
+  if (cost5PlusCount > 14) {
+    warnings.push(`Curva excessivamente pesada: ${cost5PlusCount} cartas de custo 5+. Alta probabilidade de mãos mortas nos turnos 1 a 3.`);
+    recommendations.push("Substitua parte dos finalizadores caros por comandos rápidos ou Unidades de transição (custo 3-4).");
+  }
+
+  if (uniqueColors.length > 2) {
+    warnings.push(`Violação de regras: foram detectadas ${uniqueColors.length} cores no deck. O regulamento oficial Bandai permite no máximo 2 cores.`);
+  }
+
+  if (burstCount < 8) {
+    recommendations.push("Seu deck possui poucos efeitos Burst. Adicionar cartas com Burst aumenta a resiliência contra agressões rápidas.");
+  }
+
+  const suggestedTechCards: Array<{ code: string; name: string; reason: string }> = [];
+  if (colorDistribution["blue"]) {
+    suggestedTechCards.push(
+      { code: "GD01-015", name: "Gundam Aerial", reason: "Blocker essencial e reciclador de recursos defensivos no meta azul." },
+      { code: "ST01-010", name: "Suletta Mercury", reason: "Piloto excelente para acelerar Link Unit e gerar compras consistentes." },
+    );
+  }
+  if (colorDistribution["red"]) {
+    suggestedTechCards.push(
+      { code: "ST03-001", name: "Sinanju", reason: "Pressão agressiva direta nos escudos inimigos com High-Maneuver." },
+      { code: "ST03-010", name: "Full Frontal", reason: "Gatilho When Paired para implantar Unidades adicionais gratuitamente." },
+    );
+  }
+  if (colorDistribution["green"]) {
+    suggestedTechCards.push(
+      { code: "ST02-001", name: "Wing Gundam", reason: "Finalizador versátil capaz de abater Unidades descansadas." },
+      { code: "ST02-010", name: "Heero Yuy", reason: "Excelente sinergia de combate para garantir trocas favoráveis." },
+    );
+  }
+  if (colorDistribution["white"]) {
+    suggestedTechCards.push(
+      { code: "GD02-001", name: "Strike Freedom", reason: "Unidade de alta mobilidade com Breach para perfurar defesas." },
+      { code: "ST04-001", name: "Kira Yamato", reason: "Piloto de alto valor para proteção e longevidade da mesa." },
+    );
+  }
+
+  return {
+    totalCards,
+    consistencyScore,
+    grade,
+    openingProbabilities: {
+      turn1PlayProbability,
+      turn2PlayProbability,
+      turn3PlayProbability,
+      pilotInOpeningHandProbability,
+      turn3IdealPairProbability,
+    },
+    curveBreakdown: {
+      cost1Count,
+      cost2Count,
+      cost3to4Count,
+      cost5PlusCount,
+      averageCost,
+    },
+    cardTypeBreakdown: {
+      unitsCount,
+      pilotsCount,
+      commandsCount,
+      basesCount,
+      burstCount,
+      lowCostUnitsCount,
+    },
+    colorDistribution,
+    warnings,
+    recommendations,
+    suggestedTechCards: suggestedTechCards.slice(0, 4),
+  };
+}
+
+// --- 3. Zero Terminal RAG Conversacional & Base de Regras (docs/17) ---
+
+export interface GlossaryRuleEntry {
+  keyword: string;
+  aliases: string[];
+  explanation: string;
+  category: "EFFECT_KEYWORD" | "TRIGGER_KEYWORD" | "CORE_MECHANIC";
+}
+
+export const OFFICIAL_GLOSSARY_RULES: GlossaryRuleEntry[] = [
+  {
+    keyword: "Blocker",
+    aliases: ["blocker", "bloquear", "bloqueador", "block", "bloqueio"],
+    explanation: "Quando o oponente declara ataque, você pode descansar essa Unit pra mudar o alvo do ataque pra ela. Protege outra Unit sua trocando quem recebe o dano.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "Burst",
+    aliases: ["burst", "escudo", "trigger de escudo", "dano de escudo"],
+    explanation: "Efeito que ativa quando a carta é revelada como escudo destruído em batalha, em vez de simplesmente ir pro descarte — concede uma vantagem tática, recuperação ou remoção imediata.",
+    category: "TRIGGER_KEYWORD",
+  },
+  {
+    keyword: "Link Unit",
+    aliases: ["link", "link unit", "during link", "parear", "pair", "rush"],
+    explanation: "Uma Unit pareada com seu Piloto compatível (por traço ou nome) torna-se Link Unit. O principal bônus mecânico é poder atacar no mesmo turno em que entra em jogo (rush) e manter habilidades ativas de Link.",
+    category: "CORE_MECHANIC",
+  },
+  {
+    keyword: "Breach",
+    aliases: ["breach", "breach x", "rompimento", "dano penetrante"],
+    explanation: "Quando essa Unit destrói uma Unit inimiga com dano de batalha DURANTE O SEU TURNO, causa X de dano direto na primeira carta da área de escudo do oponente (a Base, se houver, ou o escudo do topo). Se o oponente não tiver nem Base nem escudo, o efeito não ativa.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "Repair",
+    aliases: ["repair", "repair x", "curar", "cura", "recuperar hp"],
+    explanation: "No fim do seu turno, essa Unit recupera X pontos de HP. Não cura instantaneamente durante a batalha — só no fechamento do turno do seu controlador.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "Support",
+    aliases: ["support", "support x", "suporte", "dar ap"],
+    explanation: "Descansando essa Unit durante sua fase principal, concede AP+X para 1 outra Unit aliada até o fim do turno. O valor soma em efeitos existentes, não duplica.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "First Strike",
+    aliases: ["first strike", "ataque primeiro", "primeiro golpe", "iniciativa"],
+    explanation: "Durante uma batalha, essa Unit causa dano ANTES da Unit inimiga. Se o dano dela já for suficiente pra destruir o alvo, o inimigo pode nem chegar a causar dano de volta.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "High-Maneuver",
+    aliases: ["high-maneuver", "high maneuver", "imparavel", "inbloqueavel", "sem bloqueio"],
+    explanation: "Essa Unit não pode ser bloqueada. Ataques dela sempre acertam o alvo original escolhido, mesmo que o oponente tenha Blocker disponível.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "Suppression",
+    aliases: ["suppression", "supressao", "dois escudos", "dano duplo"],
+    explanation: "Quando o dano de batalha dessa Unit atinge o escudo do oponente, atinge os 2 primeiros escudos ao mesmo tempo, não só 1.",
+    category: "EFFECT_KEYWORD",
+  },
+  {
+    keyword: "Deploy",
+    aliases: ["deploy", "ao entrar", "iniciar", "entrar em jogo"],
+    explanation: "O efeito ativa no momento em que a carta entra em jogo (é colocada na mesa), automaticamente — não precisa de ação extra do jogador pra disparar.",
+    category: "TRIGGER_KEYWORD",
+  },
+  {
+    keyword: "Once per Turn",
+    aliases: ["once per turn", "uma vez por turno", "opt"],
+    explanation: "Limite de uso mecânico — esse efeito só pode ser ativado 1 vez por turno, mesmo que a condição pra ativar aconteça de novo no mesmo turno.",
+    category: "TRIGGER_KEYWORD",
+  },
+  {
+    keyword: "When Paired",
+    aliases: ["when paired", "ao parear", "momento de parear"],
+    explanation: "Dispara no exato momento em que o pareamento com o Piloto acontece (não durante todo o tempo pareado, só no instante da ação de parear).",
+    category: "TRIGGER_KEYWORD",
+  },
+  {
+    keyword: "During Pair",
+    aliases: ["during pair", "enquanto pareado"],
+    explanation: "O efeito permanece ativo durante todo o tempo em que a Unit estiver pareada com um Piloto (ou modo piloto de command).",
+    category: "TRIGGER_KEYWORD",
+  },
+  {
+    keyword: "Sideboard",
+    aliases: ["sideboard", "troca de cartas", "bo3", "reserva"],
+    explanation: "Em partidas no formato Melhor de 3 (Bo3), cada jogador pode cadastrar até 10 cartas no Sideboard. Entre os Jogos 1 e 2 (e Jogo 3 se houver), há 180 segundos para realizar substituições. O deck final deve manter exatamente 50 cartas respeitando o limite de até 2 cores e 4 cópias por carta.",
+    category: "CORE_MECHANIC",
+  },
+  {
+    keyword: "Mulligan",
+    aliases: ["mulligan", "trocar mao", "mao inicial"],
+    explanation: "No início da partida, após comprar a mão inicial de 5 cartas, cada jogador tem a opção de fazer 1 Mulligan: devolver a mão e comprar 5 novas cartas.",
+    category: "CORE_MECHANIC",
+  },
+  {
+    keyword: "Base",
+    aliases: ["base", "secao de base", "vida da base", "destruir base"],
+    explanation: "A Base fornece pontos de vida adicionais e proteção para os escudos. Danos direcionados ao jogador atingem primeiro a Base antes de começarem a quebrar escudos.",
+    category: "CORE_MECHANIC",
+  },
+];
+
+export async function consultZeroTerminalRAG(options: ZeroRAGQueryOptions): Promise<ZeroRAGResponse> {
+  const { message, persona = "heero", forceDeterministic = false } = options;
+  const q = message.toLowerCase().trim();
+
+  // 1. Busca por matching no glossário oficial
+  const matchedRules = OFFICIAL_GLOSSARY_RULES.filter((r) =>
+    r.aliases.some((alias) => q.includes(alias)) || q.includes(r.keyword.toLowerCase()),
+  );
+
+  const matched = matchedRules.length > 0 ? matchedRules : [OFFICIAL_GLOSSARY_RULES[0]]; // fallback Blocker
+  const personaName =
+    persona === "amuro"
+      ? "Amuro Ray"
+      : persona === "char"
+      ? "Char Aznable"
+      : persona === "oz_analyst" || persona === "analyst"
+      ? "Estrategista da OZ"
+      : "Heero Yuy";
+
+  const contextText = matched.map((m) => `[${m.keyword}]: ${m.explanation}`).join("\n");
+
+  let provider: "gemini" | "claude" | "deterministic" = "deterministic";
+  let finalAnswer = "";
+
+  if (!forceDeterministic) {
+    // 1. Tenta Gemini (Principal)
+    const geminiKey = options.apiKeyGemini || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    if (geminiKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const prompt = `Você é o subsistema tático Zero System no Gundam Card Game, respondendo na voz da persona: ${personaName}.
+Diretrizes Oficiais de Tradução e Regras (docs/17):
+- Nomes de keywords em inglês mantêm-se em inglês (ex: Blocker, Breach, Repair, Burst, Link Unit).
+- Explicações mecânicas em português pt-BR claro e preciso.
+
+Contexto Mecânico das Regras Oficiais:
+${contextText}
+
+Pergunta do Jogador: "${message}"
+
+Instrução:
+Responda de forma direta e objetiva (2 a 4 frases), explicando o funcionamento mecânico oficial da regra e incorporando o tom característico de ${personaName}.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: prompt,
+        });
+        const text = response.text?.trim();
+        if (text) {
+          provider = "gemini";
+          finalAnswer = text;
+        }
+      } catch (err) {
+        // Fallback para Claude
+      }
+    }
+
+    if (!finalAnswer) {
+      // 2. Tenta Claude (Fallback)
+      const claudeKey = options.apiKeyClaude || process.env.ANTHROPIC_API_KEY;
+      if (claudeKey) {
+        try {
+          const anthropic = new Anthropic({ apiKey: claudeKey });
+          const response = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 300,
+            messages: [
+              {
+                role: "user",
+                content: `Você é o Zero System no Gundam Card Game com persona ${personaName}.\nContexto oficial: ${contextText}\nPergunta: "${message}"\nResponda em pt-BR com precisão de regras em 2-3 frases no tom do personagem.`,
+              },
+            ],
+          });
+          const block = response.content[0];
+          if (block && block.type === "text" && block.text.trim()) {
+            provider = "claude";
+            finalAnswer = block.text.trim();
+          }
+        } catch (err) {
+          // Fallback para Determinístico
+        }
+      }
+    }
+  }
+
+  // 3. Resposta Determinística
+  if (!finalAnswer) {
+    const mainRule = matched[0];
+    if (persona === "amuro") {
+      finalAnswer = `Amuro Ray: 'Entendido. Segundo as regras oficiais de combate, sobre ${mainRule.keyword}: ${mainRule.explanation} Mantenha o foco na leitura da mesa para antecipar os próximos passos do adversário.'`;
+    } else if (persona === "char") {
+      finalAnswer = `Char Aznable: 'Preste bastante atenção: sobre ${mainRule.keyword}: ${mainRule.explanation} No Gundam TCG, quem compreende o ritmo da batalha age três vezes mais rápido que o oponente!'`;
+    } else if (persona === "oz_analyst" || persona === "analyst") {
+      finalAnswer = `Estrategista da OZ: 'Conforme as Regras Oficiais do Gundam Card Game (Comprehensive Rules v1.8): a mecânica de ${mainRule.keyword} estabelece que: ${mainRule.explanation} Recomenda-se aplicar este procedimento para assegurar conformidade competitiva.'`;
+    } else {
+      finalAnswer = `Heero Yuy: 'Zero System acionado. Diretriz tática de ${mainRule.keyword}: ${mainRule.explanation} Parâmetros mapeados. Prossiga com a execução da missão.'`;
+    }
+  }
+
+  return {
+    provider,
+    persona,
+    personaName,
+    answer: finalAnswer,
+    matchedRules: matched.map((m) => ({ keyword: m.keyword, explanation: m.explanation })),
+    confidence: matchedRules.length > 0 ? 0.95 : 0.7,
+    timestamp: new Date().toISOString(),
+  };
 }
