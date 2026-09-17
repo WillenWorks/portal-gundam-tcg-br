@@ -263,6 +263,10 @@ export interface MatchupMatrixResponse {
 }
 
 
+// Pastas de Coleção Públicas -- tag opcional por item de binder (dono marca antes de
+// compartilhar), exibida como badge no grid/fichário do PublicBinderPage.
+export type BinderItemTag = "FOR_TRADE" | "WISHLIST";
+
 export type ApiBinder = {
   id: string;
   shareId: string;
@@ -272,7 +276,7 @@ export type ApiBinder = {
   createdAt?: string;
   updatedAt?: string;
   user?: AuthUser;
-  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; card: any }>;
+  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; tag?: BinderItemTag | null; card: any }>;
   _count?: { items: number };
 };
 

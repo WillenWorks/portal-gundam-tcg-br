@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -1434,7 +1434,7 @@ app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) =
   const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
   if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
 
-  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number }> };
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number; tag?: BinderItemTag | null }> };
   await prisma.cardBinder.update({
     where: { id: binderId },
     data: { name: payload.name, description: payload.description, isPublic: payload.isPublic },
@@ -1443,7 +1443,7 @@ app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) =
     await prisma.cardBinderItem.deleteMany({ where: { binderId } });
     if (payload.items.length) {
       await prisma.cardBinderItem.createMany({
-        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index })),
+        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index, tag: item.tag || null })),
       });
     }
   }

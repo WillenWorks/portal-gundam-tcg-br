@@ -18,7 +18,7 @@ import RulingDetailPage from "@/pages/RulingDetailPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PublicProfilePage from "@/pages/PublicProfilePage";
 import SharedDeckPage from "@/pages/SharedDeckPage";
-import SharedBinderPage from "@/pages/SharedBinderPage";
+import PublicBinderPage from "@/pages/PublicBinderPage";
 import PublicDecksPage from "@/pages/PublicDecksPage";
 import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
@@ -103,7 +103,7 @@ function AppRouter() {
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
         <Route path="/decks" component={PublicDecksPage} />
         <Route path="/deck/:shareId" component={SharedDeckPage} />
-        <Route path="/binder/:shareId" component={SharedBinderPage} />
+        <Route path="/binder/:shareId" component={PublicBinderPage} />
         <Route path="/sets/:code" component={SetDetailPage} />
         <Route path="/sets" component={CollectionsPage} />
         <Route path="/series/:slug" component={SeriesDetailPage} />
