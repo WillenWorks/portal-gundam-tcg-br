@@ -1383,10 +1383,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   };
 
-  const declareAttack = (target: AttackTarget) => {
-    if (!attackerId) return;
+  const declareAttack = (target: AttackTarget, explicitAttackerId?: string) => {
+    const effAttackerId = explicitAttackerId ?? attackerId;
+    if (!effAttackerId) return;
     sfx.playAttackBeam();
-    runAction({ kind: "declareAttack", attackerId, target });
+    setAttackerId(null);
+    runAction({ kind: "declareAttack", attackerId: effAttackerId, target });
   };
 
   // P3 — contexto de jogabilidade: recursos, fase, Unit livre pra parear, alvos.
@@ -1560,7 +1562,34 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const actions =
         unit && (canAttackThisUnit || (canBeTargeted && unit.rested) || canBlockWith || canActivate)
           ? {
-              onAttack: canAttackThisUnit ? (u: CardInstance) => setAttackerId(u.instanceId) : undefined,
+              onAttack: canAttackThisUnit
+                ? (u: CardInstance) => {
+                    const opponentPid = otherPlayer(seat);
+                    const opponent = view.players[opponentPid];
+                    const enemyUnits = publicUnits(opponent);
+                    const hasLegalEnemyUnit = enemyUnits.some((eu) => {
+                      if (eu.rested) return true;
+                      const staticRelax = u.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
+                      if (staticRelax >= (eu.def.level ?? 999)) return true;
+                      const granted =
+                        u.attackTargetRelaxUntilTurn?.turn === view.turnNumber
+                          ? u.attackTargetRelaxUntilTurn
+                          : undefined;
+                      if (granted?.maxLevel !== undefined && granted.maxLevel >= (eu.def.level ?? 999)) return true;
+                      if (granted?.maxAp !== undefined && granted.maxAp >= (eu.def.ap ?? 999)) return true;
+                      return false;
+                    });
+                    const cannotTargetPlayer = Boolean(u.def.attackTargetRules?.cannotTargetPlayer);
+
+                    // Se não há unidades inimigas que possam ser alvos legais, o único alvo válido é o jogador:
+                    if (!hasLegalEnemyUnit && !cannotTargetPlayer) {
+                      declareAttack("player", u.instanceId);
+                      return;
+                    }
+
+                    setAttackerId(u.instanceId);
+                  }
+                : undefined,
               // docs/55 tarefa 3 — som + delay de confirmação visual (300ms)
               // moram só dentro de `runAction` (evita tocar `playShieldBlock`
               // 2x — o clique disparava o som na hora E de novo lá dentro).
@@ -1727,6 +1756,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           legalTarget={isDirectAttackTarget}
           selectable={isDirectAttackTarget}
           selectedIndexes={selectedShieldIndexes(player)}
+          onSelectArea={isDirectAttackTarget ? () => declareAttack("player") : undefined}
           onSelectIndex={(i) => {
             if (isDirectAttackTarget) {
               declareAttack("player");

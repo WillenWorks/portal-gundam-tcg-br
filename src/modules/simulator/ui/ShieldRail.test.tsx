@@ -98,4 +98,23 @@ describe("ShieldRail", () => {
     render(<ShieldRail count={3} />);
     expect(screen.getByRole("list").className).not.toMatch(/flex-col/);
   });
+
+  it("onSelectArea dispara ao clicar no container ou em qualquer shield", () => {
+    const onSelectArea = vi.fn();
+    render(<ShieldRail count={3} orientation="vertical" legalTarget onSelectArea={onSelectArea} />);
+    const list = screen.getByRole("list");
+    expect(list.className).toMatch(/cursor-pointer/);
+    expect(list.className).toMatch(/ring-emerald-400/);
+    list.click();
+    expect(onSelectArea).toHaveBeenCalledTimes(1);
+  });
+
+  it("onSelectArea funciona mesmo com count 0 (ataque letal ao jogador sem escudos)", () => {
+    const onSelectArea = vi.fn();
+    render(<ShieldRail count={0} orientation="vertical" legalTarget onSelectArea={onSelectArea} />);
+    const list = screen.getByRole("list");
+    expect(list.className).toMatch(/cursor-pointer/);
+    list.click();
+    expect(onSelectArea).toHaveBeenCalledTimes(1);
+  });
 });
