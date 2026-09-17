@@ -163,7 +163,7 @@ export interface MatchLogDraft {
   deckB?: DeckList;
   playerAId?: string;
   playerBId?: string;
-  winner: string;
+  winner: string | null;
   winReason: string;
   turns: number;
   durationMs?: number;
@@ -1297,12 +1297,13 @@ function logGameOverOnce(match: MatchRecord): void {
   // No Bo3, só loga o encerramento definitivo da partida quando matchStatus === "FINISHED"
   if (match.format === "bo3" && match.matchStatus !== "FINISHED") return;
   gameOverLogged.add(match.id);
-  const loser: PlayerId | null = over.winner ? (over.winner === "A" ? "B" : "A") : null;
-  const winnerName = over.winner ? (match.seats[over.winner]?.displayName ?? "?") : "-";
-  const loserName = loser ? (match.seats[loser]?.displayName ?? "?") : "-";
+  const loser: PlayerId | null = over.winner === null ? null : over.winner === "A" ? "B" : "A";
+  const winnerLabel =
+    over.winner === null ? "null" : `${over.winner}(${match.seats[over.winner]?.displayName ?? "?"})`;
+  const loserLabel = loser === null ? "null" : `${loser}(${match.seats[loser]?.displayName ?? "?"})`;
   console.info(
-    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${over.winner ?? "DRAW"}(${winnerName}) ` +
-      `loser=${loser ?? "-"}(${loserName}) reason=${over.reason} turn=${match.state.turnNumber}`,
+    `[SIMULADOR][GAME-OVER] match=${match.id} winner=${winnerLabel} ` +
+      `loser=${loserLabel} reason=${over.reason} turn=${match.state.turnNumber}`,
   );
 
   if (matchLogSink && !match.loggedAt) {

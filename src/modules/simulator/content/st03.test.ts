@@ -4,6 +4,7 @@ import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt03DeckList, ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
 import type { GameState, PlayerId } from "../engine/types";
+import { hasKeyword } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
@@ -168,6 +169,20 @@ describe("ST03 — EffectSpecs bespoke", () => {
       on: "destroyEnemyShieldInBattle",
       action: { kind: "damageChosenEnemyUnit", amount: 2 },
     });
+  });
+
+  it("ST03-001 Sinanju — <High-Maneuver> só 【During Pair】 (StaticAbility condicional, deferred.ts fechado)", () => {
+    const state = freshGame();
+    const sinanjuId = placeCard(state, "A", ST03_CARD_DEFS.SINANJU, "battleArea");
+    expect(hasKeyword(findCard(state, sinanjuId), "High-Maneuver", state)).toBe(false); // sem Pilot pareado
+
+    const pilotId = placeCard(state, "A", ST03_CARD_DEFS.FULL_FRONTAL, "battleArea");
+    findCard(state, sinanjuId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = sinanjuId;
+    expect(hasKeyword(findCard(state, sinanjuId), "High-Maneuver", state)).toBe(true); // pareada com Full Frontal
+
+    // Sem `state`, a concessão condicional não é vista (limite documentado em `hasKeyword`).
+    expect(hasKeyword(findCard(state, sinanjuId), "High-Maneuver")).toBe(false);
   });
 
   it("defaultTargetFilterResolver — ap<=5 aceita Unit fraca e rejeita Unit forte", () => {

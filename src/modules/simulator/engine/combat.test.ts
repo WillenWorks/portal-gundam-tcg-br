@@ -19,6 +19,10 @@ import {
 } from "./combat";
 import { activateSupport } from "./keywords";
 import { applyEvent, findCard } from "./events";
+import { applyPlayerAction } from "./actions";
+import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content/predicates";
+import { ST05_CARD_DEFS, buildSt05DeckList } from "../fixtures/st05Deck";
+import { placeCard } from "./__testkit__/cardHarness";
 
 let seq = 0;
 /**
@@ -72,6 +76,22 @@ function runToDamageStep(state: GameState, attackerId: string, target: Parameter
   next = passAction(next, next.combat!.attackingPlayer);
   expect(next.combat!.step).toBe("damage");
   return next;
+}
+
+/**
+ * Igual a `runToDamageStep`, mas o 2º `passAction` passa pela camada de
+ * `actions.ts` (`applyPlayerAction`) em vez do `passAction` puro de
+ * `combat.ts` — dispara `resolveDamageStep` + Burst/Destroyed + `finishDamageStep`
+ * (docs/47 Fase 6), então o retorno pode já vir com uma pausa
+ * `PendingDecision.abilityResolution` (escolha de gatilho de combate) ou já
+ * com o Battle End resolvido, dependendo do que a batalha exigir.
+ */
+function runToDamageStepViaActions(state: GameState, attackerId: string, target: Parameters<typeof declareAttack>[2]): GameState {
+  let next = declareAttack(state, attackerId, target);
+  next = proceedToBlockStep(next);
+  next = skipBlock(next);
+  next = passAction(next, next.combat!.defendingPlayer);
+  return applyPlayerAction(next, next.combat!.attackingPlayer, { kind: "passAction" }, [], defaultPredicateResolver, defaultTargetFilterResolver);
 }
 
 describe("sequência de combate (Comprehensive Rules seção 8 / docs/18)", () => {
@@ -360,17 +380,73 @@ describe("Link Unit ataca no turno em que foi deployada (Comprehensive Rules 3-2
 });
 
 describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
-  it("ST03-001 Sinanju — destruir shield inimigo em batalha causa 2 de dano na 1ª Unit inimiga", () => {
+  it("ST03-001 Sinanju — destruir shield inimigo em batalha PAUSA pedindo escolha real entre as Units inimigas legais (docs/47 Fase 6, deferred.ts fechado)", () => {
     let state = stripBase(freshGame(), "B");
     const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
-    const enemyId = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, { rested: true }); // HP3, sobrevive a 2
+    const enemy1Id = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, { rested: true }); // HP3, sobrevive a 2
+    const enemy2Id = place(state, "B", ST03_CARD_DEFS.GEARA_ZULU, { rested: true }); // HP2, sobrevive a 2
     const shieldsBefore = state.players.B.shields.length;
 
-    state = runToDamageStep(state, sinanjuId, "player");
-    state = resolveDamageStep(state);
+    const afterAction = runToDamageStepViaActions(state, sinanjuId, "player");
 
-    expect(state.players.B.shields).toHaveLength(shieldsBefore - 1);
-    expect(findCard(state, enemyId).damage).toBe(2);
+    expect(afterAction.players.B.shields).toHaveLength(shieldsBefore - 1);
+    const decision = afterAction.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.legalTargets.slice().sort()).toEqual([enemy1Id, enemy2Id].sort());
+    // ainda não resolveu — nenhuma das duas tomou dano.
+    expect(findCard(afterAction, enemy1Id).damage).toBe(0);
+    expect(findCard(afterAction, enemy2Id).damage).toBe(0);
+
+    // escolhe enemy1 (HP3, sobrevive a 2) — GEARA_ZULU (enemy2, HP2) morreria e teria
+    // o damage resetado a 0 pelo DESTROY_CARD, o que confundiria a asserção abaixo.
+    const resolved = applyPlayerAction(
+      afterAction,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [enemy1Id] }] },
+      [],
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(findCard(resolved, enemy1Id).damage).toBe(2); // só a Unit ESCOLHIDA toma dano
+    expect(findCard(resolved, enemy2Id).damage).toBe(0);
+    expect(resolved.pendingDecision.A).toBeNull();
+    expect(resolved.combat).toBeNull(); // Battle End já rodou (finishDamageStep)
+  });
+
+  it("ST03-001 Sinanju — dano do combatTrigger, ao ser resolvido, mata a Unit inimiga escolhida e o Pilot pareado dela também vai pro trash (CR 3-3-6, docs/47 Fase 2 + Fase 6)", () => {
+    let state = stripBase(freshGame(), "B");
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
+    const enemyPilotId = place(state, "B", ST03_CARD_DEFS.CHAR_AZNABLE); // hp:1 impresso -> soma no efetivo da Unit pareada (CR 3-3-5)
+    // GEARA_ZULU (HP2) pareada com Char Aznable (HP+1) = HP efetivo 3; 1 de dano prévio + 2 do combatTrigger = letal.
+    const enemyUnitId = place(state, "B", ST03_CARD_DEFS.GEARA_ZULU, { rested: true, pairedPilotId: enemyPilotId, damage: 1 });
+    findCard(state, enemyPilotId).pairedUnitId = enemyUnitId;
+
+    const afterAction = runToDamageStepViaActions(state, sinanjuId, "player");
+    const decision = afterAction.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.legalTargets).toEqual([enemyUnitId]); // único inimigo em campo
+
+    const resolved = applyPlayerAction(
+      afterAction,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [enemyUnitId] }] },
+      [],
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.players.B.trash.some((c) => c.instanceId === enemyUnitId)).toBe(true);
+    expect(resolved.players.B.trash.some((c) => c.instanceId === enemyPilotId)).toBe(true);
+    expect(resolved.pendingDecision.A).toBeNull();
+  });
+
+  it("ST03-001 Sinanju — sem Unit inimiga legal: não pausa, combate termina normalmente", () => {
+    let state = stripBase(freshGame(), "B");
+    const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU);
+
+    const afterAction = runToDamageStepViaActions(state, sinanjuId, "player");
+
+    expect(afterAction.pendingDecision.A).toBeNull();
+    expect(afterAction.combat).toBeNull();
   });
 
   it("ST03-001 Sinanju — Base absorve o dano: nenhum shield cai, nenhum dano colateral", () => {
@@ -557,5 +633,69 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
     state = resolveDamageStep(state);
 
     expect(findCard(state, attackerId).damage).toBe(3); // sem <Breach>, sem proteção
+  });
+});
+
+describe("ST05-011 Akihiro Altland — During Link + retrieve de trash via combate (docs/47 Fase 6, deferred.ts fechado)", () => {
+  function freshSt05Game(): GameState {
+    const state = createGame(buildSt05DeckList(), buildSt05DeckList(), { seed: 9, firstPlayer: "A" });
+    return { ...state, phase: "main" };
+  }
+
+  it("destrói inimigo em batalha com Link satisfeito: PAUSA pedindo escolha real na lixeira, resolve movendo a carta pra mão", () => {
+    let state = stripBase(freshSt05Game(), "B");
+    const pilotId = place(state, "A", ST05_CARD_DEFS.AKIHIRO_ALTLAND);
+    const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: pilotId }); // AP3, link com Akihiro Altland
+    findCard(state, pilotId).pairedUnitId = attackerId;
+    const trashCardId = placeCard(state, "A", ST05_CARD_DEFS.GRAZE_CUSTOM, "trash"); // Tekkadan, Lv.2
+    const enemyId = place(state, "B", ST05_CARD_DEFS.GRAZE, { rested: true }); // AP2/HP2, morre a 3 de dano
+
+    const afterAction = runToDamageStepViaActions(state, attackerId, { unitId: enemyId });
+
+    expect(afterAction.players.B.battleArea.some((c) => c.instanceId === enemyId)).toBe(false); // inimigo morreu
+    const decision = afterAction.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.trashSearch?.legalTrashIds).toEqual([trashCardId]);
+    expect(afterAction.players.A.hand.some((c) => c.instanceId === trashCardId)).toBe(false); // ainda não resolveu
+
+    const resolved = applyPlayerAction(
+      afterAction,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [trashCardId] }] },
+      [],
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.players.A.hand.some((c) => c.instanceId === trashCardId)).toBe(true);
+    expect(resolved.pendingDecision.A).toBeNull();
+    expect(resolved.combat).toBeNull();
+  });
+
+  it("sem Link (Piloto errado pareado): não pausa, gatilho não ativa", () => {
+    let state = stripBase(freshSt05Game(), "B");
+    const wrongPilotId = place(state, "A", ST05_CARD_DEFS.MCGILLIS_FAREED); // não linka com Gundam Gusion Rebake
+    const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: wrongPilotId });
+    findCard(state, wrongPilotId).pairedUnitId = attackerId;
+    placeCard(state, "A", ST05_CARD_DEFS.GRAZE_CUSTOM, "trash");
+    const enemyId = place(state, "B", ST05_CARD_DEFS.GRAZE, { rested: true });
+
+    const afterAction = runToDamageStepViaActions(state, attackerId, { unitId: enemyId });
+
+    expect(afterAction.players.B.battleArea.some((c) => c.instanceId === enemyId)).toBe(false); // inimigo ainda morre no combate normal
+    expect(afterAction.pendingDecision.A).toBeNull();
+    expect(afterAction.combat).toBeNull();
+  });
+
+  it("sem carta elegível na lixeira: não pausa", () => {
+    let state = stripBase(freshSt05Game(), "B");
+    const pilotId = place(state, "A", ST05_CARD_DEFS.AKIHIRO_ALTLAND);
+    const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: pilotId });
+    findCard(state, pilotId).pairedUnitId = attackerId;
+    const enemyId = place(state, "B", ST05_CARD_DEFS.GRAZE, { rested: true });
+
+    const afterAction = runToDamageStepViaActions(state, attackerId, { unitId: enemyId });
+
+    expect(afterAction.pendingDecision.A).toBeNull();
+    expect(afterAction.combat).toBeNull();
   });
 });

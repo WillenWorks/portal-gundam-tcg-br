@@ -4,6 +4,7 @@ import {
   effectiveAp,
   effectiveHp,
   effectivePilotDef,
+  hasKeyword,
   otherPlayer,
   satisfiesLinkCondition,
   type CardInstance,
@@ -185,6 +186,23 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     ).length;
     return count >= min;
   }
+  // ST05-012 McGillis Fareed — 【When Paired】"If you have 2 or more other
+  // (Gjallarhorn)/(Tekkadan) Units in play, ...". Mesma convenção de OR entre
+  // traits de `controllerTrashUnitCountWithAnyTraitAtLeast`, só que na Battle
+  // Area (não no trash) e excluindo a própria fonte ("other").
+  const controllerOtherUnitCountWithAnyTraitAtLeast = predicate.match(/^controllerOtherUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerOtherUnitCountWithAnyTraitAtLeast) {
+    const traits = controllerOtherUnitCountWithAnyTraitAtLeast[1].split(",");
+    const min = Number(controllerOtherUnitCountWithAnyTraitAtLeast[2]);
+    const owner = ctx.state.players[ctx.controller];
+    const count = owner.battleArea.filter(
+      (c) =>
+        c.instanceId !== ctx.sourceInstanceId &&
+        c.def.cardType === "UNIT" &&
+        (c.def.traits ?? []).some((t) => traits.includes(t)),
+    ).length;
+    return count >= min;
+  }
   // GD01-095 Dearka Elthman — "Discard 1. If you do, draw 1." Lote 5 (docs/debates
   // 2026-09-13): "if you do" = a escolha nomeada `<key>` (já resolvida ANTES de
   // `resolveEffectSpec` rodar, pela camada de decisão) não veio vazia — não é
@@ -263,9 +281,12 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   const apAtMost = filter.match(/^ap<=(\d+)$/);
   if (apAtMost) return effectiveAp(candidate, ctx.state) <= Number(apAtMost[1]);
 
-  // ST04-015 Archangel — "friendly Unit with <Blocker>".
+  // ST04-015 Archangel — "friendly Unit with <Blocker>". `hasKeyword` (não só
+  // `effectKeywords ?? []`/`keywordGrants`) também enxerga concessão via
+  // `staticAbilities` (ex. Sinanju 【During Pair】<High-Maneuver>) — achado ao
+  // fechar deferred.ts ST03-001/GD01-001 (docs/47).
   const hasKw = filter.match(/^hasKeyword:(.+)$/);
-  if (hasKw) return (candidate.def.effectKeywords ?? []).includes(hasKw[1]) || candidate.keywordGrants.some((g) => g.keyword === hasKw[1]);
+  if (hasKw) return hasKeyword(candidate, hasKw[1], ctx.state);
 
   // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
   const traitMatch = filter.match(/^trait:(.+)$/);
@@ -279,6 +300,17 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-103/112 — "1/2 active friendly/enemy Unit(s)" (o oposto de "rested").
   if (filter === "active") return !candidate.rested;
+
+  // ST05-001 Gundam Barbatos 4th Form — 【Deploy】"Choose 1 of your OTHER Units."
+  // Exclui a própria fonte do pool de `friendlyUnit` (que por padrão a inclui).
+  if (filter === "notSelf") return ctx.sourceInstanceId ? candidate.instanceId !== ctx.sourceInstanceId : true;
+
+  // GD01-066 Justice Gundam — "Choose 1 of your (Triple Ship Alliance) Unit TOKENS."
+  // Sempre em composição com `trait:X` via ";" (o texto nunca restringe só por token).
+  if (filter === "isToken") return candidate.def.isToken === true;
+
+  // ST05-015 Isaribi — 【Activate･Main】"Choose 1 of your damaged Units."
+  if (filter === "damaged") return candidate.damage > 0;
 
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);

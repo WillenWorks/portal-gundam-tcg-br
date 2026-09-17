@@ -17,8 +17,9 @@ import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
 import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
+import { buildSt05DeckList } from "../src/modules/simulator/fixtures/st05Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
-import { validateDeckPayload } from "./deckCoverageGate.ts";
+import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import {
   computeSwissStandings,
   generateSwissPairings,
@@ -4742,30 +4743,74 @@ app.delete("/api/decks/me/:id", authRequired, async (req: RequestWithUser, res) 
  * ------------------------------------------------------------------------- */
 
 /**
- * Kill-switch (docs/debates 2026-09-13, Fase 1) — liga GD01 na Fila Online e
- * no Convite Direto (os dois passam por `resolveDeckKey`/`SIMULATOR_DECKS`)
- * sem precisar de rebuild: é uma env var lida no boot do processo, então
- * basta reiniciar o servidor com `ENABLE_GD01_ONLINE=true` pra ativar (ou
- * remover pra desativar de novo). Default `false` — GD01 só disponível no
- * caminho incondicional (Treino Solo, ver `resolveDeckForTraining` abaixo)
- * até o rollout canário confirmar 72h sem exceção real.
+ * docs/debates 2026-09-13 (Fase 1) introduziu um kill-switch (`ENABLE_GD01_ONLINE`)
+ * pra liberar GD01 na Fila Online/Convite Direto aos poucos, depois de 72h de
+ * canário sem exceção real — o canário passou e o Willen pediu (2026-09-14)
+ * pra deixar os 4 decks de GD01 disponíveis incondicionalmente, junto com
+ * ST01, em TODAS as modalidades (Fila Online, Convite Direto, Treino Solo).
+ * O kill-switch foi removido; `validateDeckPayload` continua sendo a rede de
+ * segurança real (roda pra QUALQUER deck, preset ou do próprio jogador).
  */
-const ENABLE_GD01_ONLINE = process.env.ENABLE_GD01_ONLINE === "true";
-
 const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST01: buildSt01DeckList,
   ST02: buildSt02DeckList,
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
-  ...(ENABLE_GD01_ONLINE
-    ? Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build]))
-    : {}),
+  ST05: buildSt05DeckList,
+  ...Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
   const key = typeof raw === "string" ? raw.toUpperCase() : "";
   const build = SIMULATOR_DECKS[key];
   return build ? { key, build } : null;
+}
+
+type SimulatorDeckResolution = { ok: true; key: string; build: () => DeckList } | { ok: false; message: string };
+
+/**
+ * Resolve um deckId pra Fila Online/Convite Direto (REST `queue/join` e os
+ * eventos `queue:join`/`challenge:create`/`challenge:accept` do socket) —
+ * aceita tanto um preset (`SIMULATOR_DECKS`) quanto o id de um deck salvo no
+ * Hangar do PRÓPRIO `userId` chamador (docs/debates 2026-09-14, pedido do
+ * Willen: "permita que o usuário use o seu próprio deck" em todas as
+ * modalidades). Sempre valida cobertura (`validateDeckPayload`/
+ * `checkUserDeckSimulatorCoverage`) antes de aprovar — nunca confia no
+ * cliente, mesmo que a UI já tenha mostrado o deck como "verde".
+ */
+async function resolveOnlineSimulatorDeck(raw: unknown, userId: string): Promise<SimulatorDeckResolution> {
+  const rawStr = typeof raw === "string" ? raw.trim() : "";
+  if (!rawStr) return { ok: false, message: "Selecione um deck." };
+
+  const preset = resolveDeckKey(rawStr);
+  if (preset) {
+    const validation = validateDeckPayload(preset.build());
+    if (!validation.valid) {
+      return { ok: false, message: `Deck "${preset.key}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.` };
+    }
+    return { ok: true, key: preset.key, build: preset.build };
+  }
+
+  const dbDeck = await prisma.deck.findFirst({
+    where: { id: rawStr, userId },
+    include: { items: { include: { card: true } } },
+  });
+  if (!dbDeck) {
+    return {
+      ok: false,
+      message: `Deck "${rawStr}" não encontrado — use um dos starters (${Object.keys(SIMULATOR_DECKS).join(", ")}) ou um deck salvo no seu Hangar.`,
+    };
+  }
+  const coverage = checkUserDeckSimulatorCoverage(dbDeck);
+  if (!coverage.valid) {
+    const detail = coverage.unplayableCards.length ? coverage.unplayableCards.join(", ") : (coverage.reason ?? "estrutura inválida");
+    return {
+      ok: false,
+      message: `Seu deck "${dbDeck.name}" tem carta(s) sem cobertura no simulador: ${detail}. Troque essas cartas ou use um deck oficial.`,
+    };
+  }
+  const list = coverage.list!;
+  return { ok: true, key: dbDeck.id, build: () => list };
 }
 
 function matchSummary(match: ReturnType<typeof getMatch>) {
@@ -4789,19 +4834,39 @@ function matchSummary(match: ReturnType<typeof getMatch>) {
 
 // --- Fila de matchmaking ("Simulador Beta") — qualquer usuário logado. ---
 
-app.post("/api/simulator/queue/join", authRequired, (req: RequestWithUser, res) => {
+app.post("/api/simulator/queue/join", authRequired, async (req: RequestWithUser, res) => {
   const body = req.body as { deck?: string };
-  const resolved = resolveDeckKey(body.deck);
-  if (!resolved) return res.status(400).json({ error: `Deck inválido — use um de: ${Object.keys(SIMULATOR_DECKS).join(", ")}.` });
-  const deckList = resolved.build();
-  const validation = validateDeckPayload(deckList);
-  if (!validation.valid) {
-    return res.status(400).json({
-      error: `Deck "${resolved.key}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.`,
-    });
-  }
-  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList });
+  const resolved = await resolveOnlineSimulatorDeck(body.deck, req.user!.userId);
+  if (!resolved.ok) return res.status(400).json({ error: resolved.message });
+  const status = joinQueue({ userId: req.user!.userId, displayName: req.user!.username, deckKey: resolved.key, deckList: resolved.build() });
   res.json(status);
+});
+
+/**
+ * Lista os decks salvos do usuário JÁ com o veredito de cobertura do
+ * simulador (docs/debates 2026-09-14) — a tela de escolha de deck usa isto
+ * pra pintar cada linha de verde (jogável) ou vermelho (tem carta sem
+ * cobertura), sem precisar tentar entrar na fila só pra descobrir.
+ */
+app.get("/api/simulator/my-decks", authRequired, async (req: RequestWithUser, res) => {
+  const decks = await prisma.deck.findMany({
+    where: { userId: req.user!.userId },
+    include: { items: { include: { card: true } } },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+  res.json(
+    decks.map((deck) => {
+      const coverage = checkUserDeckSimulatorCoverage(deck);
+      return {
+        id: deck.id,
+        name: deck.name,
+        format: deck.format,
+        simulatorValid: coverage.valid,
+        unplayableCards: coverage.unplayableCards,
+        reason: coverage.reason ?? null,
+      };
+    }),
+  );
 });
 
 app.post("/api/simulator/queue/leave", authRequired, (req: RequestWithUser, res) => {
@@ -4836,9 +4901,9 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (isValidatedDeck(upper)) {
         return { key: upper, list: VALIDATED_DECKS[upper].build() };
       }
-      // GD01 Fase 1 (docs/debates 2026-09-13) — liberado incondicionalmente no
-      // Treino Solo/Amistoso (não passa pelo kill-switch ENABLE_GD01_ONLINE,
-      // que só protege a Fila Online/Convite Direto em SIMULATOR_DECKS).
+      // GD01 (docs/debates 2026-09-13/14) — liberado em TODAS as modalidades,
+      // incluindo Treino Solo/Amistoso (ver `SIMULATOR_DECKS` acima, sem
+      // kill-switch desde 2026-09-14).
       if (GD01_TEST_DECKS[upper]) {
         return { key: upper, list: GD01_TEST_DECKS[upper].build() };
       }
@@ -5283,7 +5348,7 @@ async function boot() {
   attachSimulatorSocket(httpServer, {
     jwtSecret: JWT_SECRET,
     allowedOrigins,
-    resolveDeck: resolveDeckKey,
+    resolveDeck: resolveOnlineSimulatorDeck,
   });
   httpServer.listen(PORT, () => {
     console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);

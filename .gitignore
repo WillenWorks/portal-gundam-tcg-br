@@ -74,3 +74,12 @@ services/sim-trainer/data/
 services/sim-trainer/models/
 # log de progresso do benchmark do bot MCTS (gundam:mcts:bench) — efêmero
 .mcts-bench-progress.log
+# Sessões de debate multi-agente (Gemini↔Claude) e planos de sessão avulsos —
+# mesmo espírito do bloco acima (AI_GUIDE.md/PLANEJAMENTO.md/implementation_plan.md):
+# processo de trabalho, não produto. As decisões finais de cada um foram
+# condensadas em docs/MANUAL_DESENVOLVIMENTO.md (2026-09-15) antes da remoção.
+.debate/
+docs/debates/
+/implementation_plan-9-11.md
+/implementation_plan_GD01_deck_test.md
+/PLANO_METAGAME_TORNEIOS_TELEMETRIA.md

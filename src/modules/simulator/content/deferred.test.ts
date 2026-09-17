@@ -4,6 +4,7 @@ import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
+import { ST05_CARD_DEFS } from "../fixtures/st05Deck";
 import { GD01_CARD_DEFS } from "./gd01";
 import { DEFERRED_CLAUSES } from "./deferred";
 
@@ -17,15 +18,15 @@ import { DEFERRED_CLAUSES } from "./deferred";
  */
 
 const KNOWN_CARD_CODES = new Set<string>(
-  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, GD01_CARD_DEFS].flatMap((defs) =>
+  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS].flatMap((defs) =>
     Object.values(defs).map((def) => def.code),
   ),
 );
 
 describe("DEFERRED_CLAUSES", () => {
-  it("é uma lista tipada e não-vazia (Lane 1B populou)", () => {
+  it("é uma lista tipada (docs/47: fechou as 6 cartas de ST01-05/GD01 conhecidas até aqui — pode ficar vazia até uma wave nova achar uma cláusula nova)", () => {
     expect(Array.isArray(DEFERRED_CLAUSES)).toBe(true);
-    expect(DEFERRED_CLAUSES.length).toBeGreaterThan(0);
+    expect(DEFERRED_CLAUSES.length).toBeGreaterThanOrEqual(0);
   });
 
   it("cada entrada tem os 4 campos preenchidos e blockedBy com prefixo engine:", () => {

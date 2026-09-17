@@ -1,25 +1,21 @@
 /* Frente 4 (docs/38 §4) — sequências de microinteração de setup do simulador:
- *  - `shuffle`      : deck sendo embaralhado (3 cartas deslizando)
- *  - `deal-hand`    : 5 cartas saem da pilha pra zona da mão
- *  - `mulligan`     : as 5 voltam pra pilha → embaralha → 5 novas saem
- *  - `deal-shields` : 6 cartas saem da pilha pra a zona de escudos
+ *  - `shuffle`      : deck sendo embaralhado com palco tático proeminente e cartas em 3D
+ *  - `deal-hand`    : 5 cartas completas em alta resolução saem da pilha pra mão com som individual
+ *  - `mulligan`     : as 5 voltam pra pilha → embaralha centralmente → 5 novas saem
+ *  - `deal-shields` : 6 cartas completas com moldura dourada e som de impacto de escudo
+ *  - `single-draw`  : docs/56 tarefa 2 — 1 carta só, saque normal de Draw Phase
+ *    (início de qualquer turno > 1). Rápida (400ms) e nunca bloqueia a mão —
+ *    a página não inclui este modo na lista que esvazia a `HandFan`.
  *
  * Componente APRESENTACIONAL e auto-contido: renderiza um overlay `fixed`
- * (`pointer-events-none`) com card-backs animados por CSS (`src/index.css`
- * `sim-anim-*`, todos com `motion-reduce`). `onDone` dispara quando a
- * sequência termina (ou imediatamente sob `prefers-reduced-motion`).
- *
- * Frente 4 (feedback Willen 4ª rodada) — pode ancorar nas ZONAS REAIS: se
- * `origin` (pilha do deck) e `dest` (mão / zona de escudos) vêm em coords de
- * viewport, o palco é posicionado no `origin` e as cartas viajam até perto do
- * `dest`. Sem essas props, cai no modo centrado (usado pela preview). O
- * `SimulatorMatchPage` liga isso no fluxo real via heurística de diff de
- * contagem (ver `useSetupAnimation` lá). */
+ * (`pointer-events-none`) com cartas reais e card-backs animados por CSS. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { cardBackUrl } from "./cardArt";
+import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
+import { CardFace } from "./CardFace";
+import { sfx } from "../audio/soundEffects";
 
-export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields";
+export type DeckDealMode = "shuffle" | "deal-hand" | "mulligan" | "deal-shields" | "single-draw";
 
 /** ponto em coords de viewport (px). */
 export interface DeckDealPoint {
@@ -27,7 +23,19 @@ export interface DeckDealPoint {
   y: number;
 }
 
-interface DeckDealAnimationProps {
+export interface DeckDealCard {
+  def: {
+    code: string;
+    nameEn: string;
+    cardType?: string;
+    isToken?: boolean;
+    cost?: number;
+    ap?: number;
+    hp?: number;
+  };
+}
+
+export interface DeckDealAnimationProps {
   mode: DeckDealMode;
   onDone: () => void;
   /** rótulo curto mostrado sobre a animação (ex.: "Embaralhando…"). */
@@ -36,156 +44,390 @@ interface DeckDealAnimationProps {
   origin?: DeckDealPoint | null;
   /** zona de destino (mão / escudos) em coords de viewport (opcional). */
   dest?: DeckDealPoint | null;
-  /** largura da carta no tabuleiro (px) — `--card-w-std`, medida de uma zona
-   *  real pelo pai. As card-backs animadas usam ESTE tamanho pra bater com as
-   *  cartas do jogo (feedback Willen: "no mesmo tamanho das cartas"). Sem isso
-   *  cai no fallback fixo. */
+  /** largura da carta no tabuleiro (px) — `--card-w-std`. */
   cardW?: number | null;
+  /** cartas reais a serem reveladas ao final do draw / mulligan. */
+  cards?: DeckDealCard[];
+  /** mapa de artes do simulador para exibição em alta definição. */
+  art?: ArtLookup;
 }
 
-/** fallback quando o pai não mede a carta (ex.: testes) — antes era o tamanho
- *  fixo de TODAS as instâncias, pequeno demais no board real. */
-const FALLBACK_CARD_W = 56;
-
-/** posições-alvo (px, relativas ao ponto de origem do palco) por modo. Os
- *  offsets de espalhamento escalam com `u` (= cardW / referência) pra o leque /
- *  a coluna acompanharem o tamanho da carta.
- *  `base` = vetor origem→destino quando ancorado nas zonas reais; `null` = modo
- *  centrado (offsets fixos em torno do centro do palco). */
+/** posições-alvo (px, relativas ao ponto de origem do palco) por modo. */
 function targets(
   mode: DeckDealMode,
   base: { dx: number; dy: number } | null,
-  u: number,
+  w: number,
 ): { dx: number; dy: number }[] {
   if (base) {
     if (mode === "deal-shields") {
-      return Array.from({ length: 6 }, (_, i) => ({ dx: base.dx, dy: base.dy + (-40 + i * 16) * u }));
+      // Pilha vertical de escudos: todas as 6 cartas alinhadas na mesma coluna,
+      // empilhadas em cascata idêntica ao ShieldRail (passo exato ~0.097*w por shield)
+      const cascadeStep = Math.max(6, Math.round(w * 0.097));
+      return Array.from({ length: 6 }, (_, i) => ({
+        dx: base.dx,
+        dy: base.dy + i * cascadeStep,
+      }));
     }
-    return Array.from({ length: 5 }, (_, i) => ({ dx: base.dx + (-120 + i * 60) * u, dy: base.dy }));
+    if (mode === "single-draw") {
+      // 1 carta só — vai reto pro ponto de destino, sem leque.
+      return [{ dx: base.dx, dy: base.dy }];
+    }
+    // Leque horizontal da mão: 5 cartas distribuídas exatamente no passo do HandFan (1.14*w)
+    const handSpacing = Math.round(w * 1.14);
+    return Array.from({ length: 5 }, (_, i) => ({
+      dx: base.dx + (i - 2) * handSpacing,
+      dy: base.dy,
+    }));
+  }
+  if (mode === "single-draw") {
+    return [{ dx: 0, dy: 130 }];
   }
   if (mode === "deal-shields") {
-    // coluna vertical (zona de escudos, à esquerda)
-    return Array.from({ length: 6 }, (_, i) => ({ dx: -170 * u, dy: (-70 + i * 16) * u }));
+    // Coluna vertical empilhada no palco não-ancorado
+    const cascadeStep = Math.max(6, Math.round(w * 0.097));
+    return Array.from({ length: 6 }, (_, i) => ({
+      dx: -180,
+      dy: -60 + i * cascadeStep,
+    }));
   }
-  // leque horizontal (zona da mão, embaixo)
-  return Array.from({ length: 5 }, (_, i) => ({ dx: (-140 + i * 70) * u, dy: 96 * u }));
+  // Leque horizontal da mão no palco não-ancorado
+  const handSpacing = Math.round(w * 1.14);
+  return Array.from({ length: 5 }, (_, i) => ({
+    dx: (i - 2) * handSpacing,
+    dy: 130,
+  }));
 }
 
-const DEAL_STAGGER = 110;
+const DEAL_STAGGER = 90;
+/** docs/53 — escudos usam um stagger mais lento que a mão: 6 cartas empilhando
+ *  em 90ms cada ficavam borradas/quase simultâneas; 160ms deixa cada uma
+ *  visivelmente voar e pousar antes da próxima sair da pilha. */
+const SHIELD_STAGGER = 160;
+const FLIGHT_MS = 450;
+const HAND_REVEAL_HOLD = 340;
+const SHIELD_STACK_HOLD = 250;
+const RETURN_MS = 340;
 const SHUFFLE_MS = 1300;
+/** docs/56 tarefa 2 — saque de 1 carta por turno: rápido, não segura o jogo. */
+const SINGLE_DRAW_MS = 400;
 
-/** referência em que os offsets de `targets()` foram calibrados. */
-const OFFSET_REF_W = 48;
-
-export function DeckDealAnimation({ mode, onDone, label, origin, dest, cardW }: DeckDealAnimationProps) {
-  const w = cardW && cardW > 0 ? cardW : FALLBACK_CARD_W;
-  const h = w * (88 / 63); // aspect-[63/88]
-  const u = w / OFFSET_REF_W; // escala dos offsets de espalhamento
+export function DeckDealAnimation({
+  mode,
+  onDone,
+  label,
+  origin,
+  dest,
+  cardW,
+  cards,
+  art,
+}: DeckDealAnimationProps) {
   const anchored = Boolean(origin && dest);
+  const w = cardW && cardW > 0 ? cardW : anchored ? 84 : 140;
+  const h = Math.round(w * (88 / 63)); // aspect-[63/88] fixo em pixels para evitar colapso de imagem
   const ox = origin?.x ?? null;
   const oy = origin?.y ?? null;
   const dx = dest?.x ?? null;
   const dy = dest?.y ?? null;
+
   const base = useMemo(
     () => (ox !== null && oy !== null && dx !== null && dy !== null ? { dx: dx - ox, dy: dy - oy } : null),
     [ox, oy, dx, dy],
   );
+
   const reduced = useMemo(
     () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
     [],
   );
+
   // fases pro mulligan: return → shuffle → deal. Outros modos têm 1 fase só.
   const [phase, setPhase] = useState<"return" | "shuffle" | "deal">(
     mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal",
   );
+
+  // docs/53 — bug real: a página reusa a MESMA instância de `DeckDealAnimation`
+  // conforme `setupAnim` muda de valor (shuffle → deal-hand → deal-shields),
+  // sem desmontar. Como `phase` só era inicializado no `useState` (roda 1x, no
+  // mount), a troca de `mode` sozinha nunca reposicionava a fase — depois do
+  // shuffle, `phase` ficava travado em "shuffle" e as 5 cartas da mão nunca
+  // saíam da pilha (`showTravel` exige `phase === "deal" | "return"`). Este
+  // efeito resincroniza `phase` toda vez que `mode` muda; como o mulligan
+  // mantém `mode === "mulligan"` do início ao fim, os `setPhase` internos do
+  // temporizador abaixo (return → shuffle → deal) não são pisados por aqui.
+  useEffect(() => {
+    setPhase(mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal");
+  }, [mode]);
+
   const onDoneRef = useRef(onDone);
   useEffect(() => {
     onDoneRef.current = onDone;
   });
 
+  // Embaralhamento (ou fase shuffle do mulligan) se destaca de forma cinematográfica no centro do palco
+  const isCenteredStage = !anchored || mode === "shuffle" || (mode === "mulligan" && phase === "shuffle");
+
+  // Largura cinematográfica das cartas durante o palco central
+  const stageCardW = isCenteredStage ? Math.max(w, 140) : w;
+  const stageCardH = Math.round(stageCardW * (88 / 63));
+
+  // Temporizadores e Sincronia de Áudio Procedural Gundam
   useEffect(() => {
     if (reduced) {
       const t = setTimeout(() => onDoneRef.current(), 60);
       return () => clearTimeout(t);
     }
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const dealCount = mode === "deal-shields" ? 6 : 5;
-    const dealMs = () => dealCount * DEAL_STAGGER + 360;
 
     if (mode === "shuffle") {
+      // Riffle rítmico de cartas durante o embaralhamento
+      [100, 320, 560, 800, 1040].forEach((ms) => {
+        timers.push(setTimeout(() => sfx.playCardDraw(), ms));
+      });
       timers.push(setTimeout(() => onDoneRef.current(), SHUFFLE_MS));
-    } else if (mode === "deal-hand" || mode === "deal-shields") {
-      timers.push(setTimeout(() => onDoneRef.current(), dealMs()));
+    } else if (mode === "deal-hand") {
+      // Som individual de saque para cada uma das 5 cartas
+      for (let i = 0; i < 5; i++) {
+        timers.push(setTimeout(() => sfx.playCardDraw(), i * DEAL_STAGGER));
+      }
+      // Última carta aterrissa e vira em 4 * 120 + 560 = 1040ms.
+      // Sfx suave de confirmação de mão pronta:
+      timers.push(setTimeout(() => sfx.playCardDraw(), 4 * DEAL_STAGGER + FLIGHT_MS));
+      // Hold para o jogador ver as cartas compradas antes de passar o controle à mão:
+      timers.push(setTimeout(() => onDoneRef.current(), 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
+    } else if (mode === "deal-shields") {
+      // Som individual de saída para cada um dos 6 escudos, no stagger mais
+      // lento (docs/53) pra cada um ficar visivelmente audível ao sair da pilha.
+      for (let i = 0; i < 6; i++) {
+        timers.push(setTimeout(() => sfx.playCardDraw(), i * SHIELD_STAGGER));
+      }
+      // O 6º escudo (índice 5) pousa e trava — impacto de escudo!
+      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * SHIELD_STAGGER + FLIGHT_MS));
+      // Hold com os 6 escudos empilhados e visíveis antes de liberar pro ShieldRail real:
+      timers.push(setTimeout(() => onDoneRef.current(), 6 * SHIELD_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD));
+    } else if (mode === "single-draw") {
+      sfx.playCardDraw();
+      timers.push(setTimeout(() => onDoneRef.current(), SINGLE_DRAW_MS));
     } else {
-      // mulligan
-      timers.push(setTimeout(() => setPhase("shuffle"), 340));
-      timers.push(setTimeout(() => setPhase("deal"), 340 + SHUFFLE_MS));
-      timers.push(setTimeout(() => onDoneRef.current(), 340 + SHUFFLE_MS + dealMs()));
+      // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms)
+      sfx.playCardDraw();
+      timers.push(
+        setTimeout(() => {
+          setPhase("shuffle");
+          sfx.playNewtypeFlash();
+          [200, 480, 760, 1020].forEach((ms) => {
+            timers.push(setTimeout(() => sfx.playCardDraw(), ms));
+          });
+        }, RETURN_MS),
+      );
+      timers.push(
+        setTimeout(() => {
+          setPhase("deal");
+          for (let i = 0; i < 5; i++) {
+            timers.push(setTimeout(() => sfx.playCardDraw(), i * DEAL_STAGGER));
+          }
+          timers.push(setTimeout(() => sfx.playCardDraw(), 4 * DEAL_STAGGER + FLIGHT_MS));
+        }, RETURN_MS + SHUFFLE_MS),
+      );
+      timers.push(setTimeout(() => onDoneRef.current(), RETURN_MS + SHUFFLE_MS + 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
     }
     return () => timers.forEach(clearTimeout);
   }, [mode, reduced, base]);
 
-  const pts = targets(mode, base, u);
+  const pts = targets(mode, base, w);
   const shuffling = !reduced && phase === "shuffle";
   const showTravel = !reduced && (phase === "deal" || phase === "return");
+  // docs/53 — escudos usam o stagger mais lento (SHIELD_STAGGER); mão/mulligan seguem no DEAL_STAGGER de sempre.
+  const travelStagger = mode === "deal-shields" ? SHIELD_STAGGER : DEAL_STAGGER;
 
   return (
     <div
       className={cn(
         "pointer-events-none fixed inset-0 z-[55]",
-        anchored ? "" : "flex items-center justify-center",
+        isCenteredStage ? "flex items-center justify-center" : "",
       )}
       aria-hidden
     >
       <div
-        className={anchored ? "absolute h-0 w-0" : "relative flex h-64 w-80 items-center justify-center"}
-        style={anchored && origin ? { left: origin.x, top: origin.y } : undefined}
+        className={
+          isCenteredStage
+            ? "relative flex h-80 w-96 flex-col items-center justify-center"
+            : "absolute h-0 w-0"
+        }
+        style={!isCenteredStage && anchored && origin ? { left: origin.x, top: origin.y } : undefined}
       >
+        {/* Moldura tática Gundam HUD para o palco central de embaralhamento */}
+        {isCenteredStage && (
+          <div className="absolute inset-0 -m-6 flex flex-col items-center justify-between rounded-2xl border border-cyan-400/50 bg-slate-950/85 p-3 shadow-[0_0_35px_rgba(6,182,212,0.35)] backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex w-full items-center justify-between border-b border-cyan-500/30 pb-1 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-cyan-300">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,1)] animate-ping" />
+                TACTICAL_DECK_SYNC
+              </span>
+              <span className="text-cyan-400/70">GN-PARTICLE / ACTIVE</span>
+            </div>
+            <div className="flex w-full items-center justify-between border-t border-cyan-500/30 pt-1 text-[9px] font-mono tracking-widest text-slate-400">
+              <span>CALIBRATION PROTOCOL</span>
+              <span className="text-emerald-400 font-bold">100% READY</span>
+            </div>
+          </div>
+        )}
+
+        {/* Rótulo de status da operação */}
         {label ? (
-          <p className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-arena border border-primary/40 bg-slate-950/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
+          <p
+            className={cn(
+              "whitespace-nowrap rounded-arena border font-mono font-black uppercase tracking-[0.16em] shadow-lg",
+              isCenteredStage
+                ? "relative z-20 -top-8 border-cyan-400/80 bg-slate-900/90 px-4 py-1.5 text-xs text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.5)]"
+                : "absolute -top-4 left-1/2 -translate-x-1/2 border-primary/40 bg-slate-950/90 px-3 py-1 text-xs text-primary shadow-md",
+            )}
+          >
             {label}
           </p>
         ) : null}
 
-        {/* pilha do deck (referência) */}
+        {/* Pilha do deck com cascata e fan-out 3D no embaralhamento */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          {[0, 1, 2].map((i) => (
-            <img
-              key={i}
-              src={cardBackUrl}
-              alt=""
-              style={{ width: w, marginTop: i === 0 ? 0 : -h, marginLeft: i * 2 }}
-              className={cn(
-                "block aspect-[63/88] rounded-arena border border-primary/40 object-cover shadow-lg",
-                shuffling && "sim-anim-shuffle",
-              )}
-            />
-          ))}
+          {shuffling ? (
+            <div className="relative flex items-center justify-center">
+              {/* Carta da esquerda abrindo em leque */}
+              <div
+                style={{ width: `${stageCardW}px`, height: `${stageCardH}px` }}
+                className="block rounded-arena overflow-hidden border-2 border-cyan-400/90 bg-slate-950 shadow-[0_8px_25px_rgba(0,0,0,0.8),0_0_15px_rgba(34,211,238,0.5)] sim-anim-shuffle sim-anim-shuffle-left"
+              >
+                <img src={cardBackUrl} alt="Deck" className="h-full w-full object-cover object-center" />
+              </div>
+              {/* Carta central flutuando no feixe de energia */}
+              <div
+                style={{ width: `${stageCardW}px`, height: `${stageCardH}px`, marginLeft: `${-stageCardW * 0.75}px` }}
+                className="block rounded-arena overflow-hidden border-2 border-cyan-300 bg-slate-950 shadow-[0_10px_30px_rgba(0,0,0,0.9),0_0_20px_rgba(34,211,238,0.7)] sim-anim-shuffle sim-anim-shuffle-center z-10"
+              >
+                <img src={cardBackUrl} alt="Deck" className="h-full w-full object-cover object-center" />
+              </div>
+              {/* Carta da direita abrindo em leque */}
+              <div
+                style={{ width: `${stageCardW}px`, height: `${stageCardH}px`, marginLeft: `${-stageCardW * 0.75}px` }}
+                className="block rounded-arena overflow-hidden border-2 border-cyan-400/90 bg-slate-950 shadow-[0_8px_25px_rgba(0,0,0,0.8),0_0_15px_rgba(34,211,238,0.5)] sim-anim-shuffle sim-anim-shuffle-right"
+              >
+                <img src={cardBackUrl} alt="Deck" className="h-full w-full object-cover object-center" />
+              </div>
+            </div>
+          ) : (
+            // Pilha compacta de repouso antes do saque ou retorno
+            [0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{ width: `${w}px`, height: `${h}px`, marginTop: i === 0 ? 0 : `${-h}px`, marginLeft: `${i * 2}px` }}
+                className="block rounded-arena overflow-hidden border border-primary/40 bg-slate-950 shadow-lg"
+              >
+                <img src={cardBackUrl} alt="Deck" className="h-full w-full object-cover object-center" />
+              </div>
+            ))
+          )}
         </div>
 
-        {/* cartas viajando pra zona-alvo (deal) ou voltando (return) */}
+        {/* Cartas viajando pra zona-alvo (deal) ou voltando (return) com dimensões reais e 3D flip */}
         {showTravel &&
-          pts.map((t, i) => (
-            <img
-              key={i}
-              src={cardBackUrl}
-              alt=""
-              style={
-                {
-                  width: w,
-                  marginLeft: -w / 2,
-                  marginTop: -h / 2,
-                  "--dx": `${t.dx}px`,
-                  "--dy": `${t.dy}px`,
-                  animationDelay: `${i * DEAL_STAGGER}ms`,
-                } as React.CSSProperties
-              }
-              className={cn(
-                "absolute left-1/2 top-1/2 block aspect-[63/88] rounded-arena border border-primary/50 object-cover shadow-xl",
-                phase === "deal" ? "sim-anim-deal" : "sim-anim-return",
-              )}
-            />
-          ))}
+          pts.map((t, i) => {
+            const isFlipping = phase === "deal" && mode !== "deal-shields";
+            const card = cards?.[i];
+            return (
+              <div
+                key={i}
+                style={
+                  {
+                    width: `${w}px`,
+                    height: `${h}px`,
+                    marginLeft: `${-w / 2}px`,
+                    marginTop: `${-h / 2}px`,
+                    "--dx": `${t.dx}px`,
+                    "--dy": `${t.dy}px`,
+                    zIndex: 40 + i,
+                    animationDelay: `${i * travelStagger}ms`,
+                    animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                  } as React.CSSProperties
+                }
+                className={cn(
+                  "absolute left-1/2 top-1/2 block z-40",
+                  isFlipping && "sim-perspective",
+                  phase === "deal" && mode === "deal-shields"
+                    ? "rounded-arena overflow-hidden border-2 border-amber-400/90 bg-slate-950 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_0_12px_rgba(251,191,36,0.5)] sim-anim-deal"
+                    : phase === "deal"
+                      ? "sim-anim-deal"
+                      : "rounded-arena overflow-hidden border-2 border-rose-400/90 bg-slate-950 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_0_12px_rgba(244,63,94,0.5)] sim-anim-return",
+                )}
+              >
+                {isFlipping ? (
+                  <div
+                    style={{
+                      animationDelay: `${i * travelStagger}ms`,
+                      animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                    }}
+                    className="relative h-full w-full sim-preserve-3d sim-anim-card-flip"
+                  >
+                    {/* Verso (Back Face) */}
+                    <div
+                      style={{
+                        transform: "rotateY(0deg)",
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                      }}
+                      className="absolute inset-0 sim-backface-hidden overflow-hidden rounded-arena border-2 border-cyan-400/90 bg-slate-950 shadow-[0_6px_20px_rgba(0,0,0,0.8),0_0_12px_rgba(34,211,238,0.5)]"
+                    >
+                      <img
+                        src={cardBackUrl}
+                        alt="Verso da carta"
+                        className="h-full w-full object-cover object-center"
+                      />
+                    </div>
+
+                    {/* Frente (Front Face) com a arte e dados reais da carta */}
+                    <div
+                      style={{
+                        transform: "rotateY(180deg)",
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                      }}
+                      className="absolute inset-0 sim-backface-hidden overflow-hidden rounded-arena border-2 border-cyan-300 bg-slate-950 shadow-[0_8px_24px_rgba(0,0,0,0.9),0_0_16px_rgba(34,211,238,0.6)]"
+                    >
+                      {card ? (
+                        <>
+                          <CardFace
+                            nameEn={card.def.nameEn}
+                            code={card.def.code}
+                            art={art ?? {}}
+                            size="md"
+                            className="!h-full !w-full"
+                            style={{ width: "100%", height: "100%" }}
+                            backFallback={card.def.cardType ? isGenericArtCard(card.def.cardType, card.def.isToken) : false}
+                          />
+                          {card.def.cost !== undefined ? (
+                            <span
+                              className="absolute left-0.5 top-0.5 z-10 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black shadow-sm"
+                              title={`Custo ${card.def.cost}`}
+                            >
+                              {card.def.cost}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <img
+                          src={cardBackUrl}
+                          alt="Carta revelada"
+                          className="h-full w-full object-cover object-center"
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={cardBackUrl}
+                    alt="Carta em trânsito"
+                    className="h-full w-full object-cover object-center"
+                  />
+                )}
+              </div>
+            );
+          })}
       </div>
     </div>
   );

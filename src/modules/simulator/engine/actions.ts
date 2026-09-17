@@ -1,6 +1,6 @@
-import type { AttackTarget, DestroyedInBattle, GameState, PlayerId } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { applyEvent, findCard } from "./events";
+import { applyEvent, applyEvents, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
@@ -8,13 +8,14 @@ import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dis
 import {
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
+  dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
   filterDispatchableSpecs,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
-import { hasKeyword, otherPlayer } from "./types";
+import { effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -59,6 +60,7 @@ export type PlayerAction =
       cardInstanceId: string;
       resourceInstanceIds?: string[];
       pairWithUnitId?: string;
+      sacrificeInstanceId?: string;
       targets?: Record<string, string[]>;
     }
   | {
@@ -101,7 +103,12 @@ export type PlayerAction =
    */
   | {
       kind: "resolveAbility";
-      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[] }>;
+      /**
+       * `secondaryTargetIds` (docs/47 Fase 5) — resposta pro `secondaryTarget`
+       * da entrada da fila, se houver (ST05-010 Mikazuki Augus 【When Paired】).
+       * Igual a `targetIds`: 0 ou 1 id, virando `ctx.targets[secondaryTarget.name]`.
+       */
+      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>;
     }
   /**
    * Resolve a `PendingDecision.mulligan` de início de partida (Comprehensive
@@ -181,6 +188,7 @@ function applyPlayerActionInner(
       return deployCard(state, actingPlayer, action.cardInstanceId, {
         resourceInstanceIds: action.resourceInstanceIds,
         pairWithUnitId: action.pairWithUnitId,
+        sacrificeInstanceId: action.sacrificeInstanceId,
         specs,
         targets: action.targets,
         predicateResolver,
@@ -265,9 +273,7 @@ function applyPlayerActionInner(
       }
 
       next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
-      if (next.gameOver) return next;
-      if (next.pendingDecision[actingPlayer] || next.pendingDecision[otherPlayer(actingPlayer)]) return next;
-      return resolveBattleEndStep(next);
+      return finishDamageStep(next, actingPlayer);
     }
 
     case "finishTurn": {
@@ -367,20 +373,14 @@ function applyPlayerActionInner(
       }
       // Fila de 【Burst】 esvaziou: agora os 【Destroyed】 do MESMO Damage Step
       // (docs/44) — não-pausantes inline, pausante (Char's Zaku Ⅱ) vira
-      // `abilityResolution` resolvida antes do Battle End.
+      // `abilityResolution` resolvida antes do Battle End (que agora também
+      // checa `combat.pendingTriggerChoices` — docs/47 Fase 6).
       if (!next.gameOver && next.combat?.step === "damage") {
         next = dispatchDestroyedTriggers(next, decision.pendingDestroyed ?? [], specs, {
           predicateResolver,
           targetFilterResolver,
         });
-        if (
-          !next.gameOver &&
-          !next.pendingDecision[actingPlayer] &&
-          !next.pendingDecision[otherPlayer(actingPlayer)] &&
-          next.combat?.step === "damage"
-        ) {
-          next = resolveBattleEndStep(next);
-        }
+        next = finishDamageStep(next, actingPlayer);
       }
       return next;
     }
@@ -436,6 +436,8 @@ function applyPlayerActionInner(
         const deckReorder = q.deckReorder;
         const enumChoice = q.enumChoice;
         const trashSearch = q.trashSearch;
+        // docs/47 Fase 5 — 2º pool de alvo (ST05-010 Mikazuki Augus 【When Paired】).
+        const secondaryIds = r.secondaryTargetIds ?? [];
 
         // "Não revelar" ainda dispara `lookAtTopFilterReveal` (as N cartas vão
         // pro fundo). `handDiscard`/`deckReorder`/`enumChoice` são MANDATÓRIOS
@@ -447,6 +449,11 @@ function applyPlayerActionInner(
           if (!r.activate) continue;
           if (q.needsTarget && r.targetIds.length === 0) continue;
           if (handChoice && r.targetIds.length === 0) continue;
+          // "Choose 1 X AND 1 Y" (ST05-010) — os 2 alvos são exigidos JUNTOS;
+          // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
+          // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
+          // lança "alvo nomeado não foi resolvido" pro 2º ao compilar as actions).
+          if (q.secondaryTarget && secondaryIds.length === 0) continue;
         }
 
         // V0 (docs/25): os candidatos legais foram calculados no servidor ao
@@ -489,6 +496,9 @@ function applyPlayerActionInner(
         if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
         }
+        if (q.secondaryTarget && secondaryIds.length > 0 && !secondaryIds.every((id) => q.secondaryTarget!.legalTargets.includes(id))) {
+          throw new Error(`Alvo secundário inválido pra ${r.specId} — não está entre os alvos legais.`);
+        }
 
         // Só `target` — NUNCA aliasar pra `shield`: um EffectSpec que combina
         // `addShieldToHand` + alvo nomeado (ex. ST03-015 Rewloola "Add 1 Shield
@@ -504,10 +514,35 @@ function applyPlayerActionInner(
         if (deckReorder) deckReorder.slots.forEach((slot, i) => { targets[slot.name] = r.targetIds[i] ? [r.targetIds[i]] : []; });
         if (enumChoice) targets[enumChoice.key] = r.targetIds;
         if (trashSearch) targets.trashSearch = r.targetIds;
+        if (q.secondaryTarget) targets[q.secondaryTarget.name] = secondaryIds;
         // Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) que o motor já
         // resolveu (ex. `formerPairedPilot`, ver `DestroyedInBattle.formerPairedPilotId`),
         // não escolhidos pelo jogador.
         if (q.implicitTargets) Object.assign(targets, q.implicitTargets);
+
+        // docs/47 Fase 6 — entrada "crua" (sem EffectSpec correspondente):
+        // `q.combatTrigger` vem de `CombatTrigger.action` (Sinanju/Akihiro
+        // Altland), não de `specs` — compila o evento direto, sem `dispatchTrigger`.
+        if (q.combatTrigger) {
+          const chosenId = r.targetIds[0];
+          if (chosenId) {
+            if (q.combatTrigger.action.kind === "damageChosenEnemyUnit") {
+              const amount = q.combatTrigger.action.amount;
+              next = applyEvent(next, { type: "DAMAGE_UNIT", instanceId: chosenId, amount });
+              const target = findCard(next, chosenId);
+              if (target.damage >= effectiveHp(target, next)) {
+                const beforeDestroy = next;
+                next = applyEvent(next, { type: "DESTROY_CARD", instanceId: chosenId });
+                next = applyEvents(next, pairedPilotFollowEvents(target));
+                next = dispatchDestroyedFromEffect(beforeDestroy, next, specs, { predicateResolver, targetFilterResolver });
+              }
+            } else {
+              // retrieveFromTrash — "Add it to your hand."
+              next = applyEvent(next, { type: "MOVE_CARD", instanceId: chosenId, toZone: "hand" });
+            }
+          }
+          continue;
+        }
 
         if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
@@ -543,10 +578,16 @@ function applyPlayerActionInner(
       if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
       }
-      // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44): o combate estava parado no
-      // Damage Step esperando esta escolha -> fecha o Battle End Step agora.
-      if (decision.trigger === "Destroyed" && !next.gameOver && next.combat?.step === "damage") {
-        return resolveBattleEndStep(next);
+      // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44), 【Deploy】 encadeado por
+      // 【Burst】 (docs/47 Fase 4 — ST02-015/ST03-015/GD01-129, achado por
+      // fuzzing: `resolveBurstDecision` já tratava o caso sem pausa, faltava o
+      // espelho aqui) ou escolha de gatilho de combate (docs/47 Fase 6 —
+      // Sinanju/Akihiro Altland): o combate estava parado no Damage Step
+      // esperando esta escolha -> `finishDamageStep` fecha o Battle End Step
+      // (ou pausa de novo, se sobrou mais alguma coisa — Burst→Destroyed→
+      // CombatTrigger→BattleEnd, mesma ordem de sempre).
+      if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
+        return finishDamageStep(next, actingPlayer);
       }
       return next;
     }
@@ -677,4 +718,54 @@ function setPendingBurst(
       pendingDestroyed,
     },
   });
+}
+
+/**
+ * docs/47 Fase 6 — converte `combat.pendingTriggerChoices` (Sinanju
+ * `damageChosenEnemyUnit`, Akihiro Altland `retrieveFromTrash`) numa pausa
+ * `PendingDecision.abilityResolution`. Reusa os MESMOS campos de fila já
+ * existentes (`needsTarget`/`legalTargets` — mesma UI de "escolha 1 alvo" já
+ * usada por 【When Paired】/【Attack】; `trashSearch` — mesma UI de busca na
+ * lixeira de GD01-067) pra não precisar de nenhuma mudança em
+ * `AbilityResolutionModal.tsx`. `specId` é sintético, nunca existe em `specs`
+ * — `resolveAbility` reconhece essas entradas pelo campo `combatTrigger` e
+ * compila o `action` bruto direto, sem `dispatchTrigger`.
+ */
+function pauseForCombatTriggerChoices(state: GameState, player: PlayerId, choices: PendingCombatTriggerChoice[]): GameState {
+  const queue = choices.map((choice, i) => {
+    const specId = `${choice.sourceInstanceId}-combatTrigger-${i}`;
+    const base = {
+      sourceInstanceId: choice.sourceInstanceId,
+      specId,
+      label: choice.label,
+      optional: false,
+      combatTrigger: choice,
+    };
+    if (choice.action.kind === "retrieveFromTrash") {
+      return { ...base, needsTarget: false, targetScope: "enemyUnit" as const, legalTargets: [], trashSearch: { legalTrashIds: choice.legalCandidates, label: choice.label } };
+    }
+    return { ...base, needsTarget: true, targetScope: "enemyUnit" as const, legalTargets: choice.legalCandidates };
+  });
+  const next = applyEvent(state, {
+    type: "SET_PENDING_DECISION",
+    player,
+    decision: { kind: "abilityResolution", trigger: "CombatTrigger", queue },
+  });
+  if (next.combat) next.combat.pendingTriggerChoices = undefined;
+  return next;
+}
+
+/**
+ * docs/47 Fase 6 — ponto único de saída do Damage Step: Burst → Destroyed →
+ * escolha de gatilho de combate (Sinanju/Akihiro Altland) → Battle End.
+ * Chamado depois que o chamador já processou Burst/Destroyed pra este passo.
+ */
+function finishDamageStep(next: GameState, actingPlayer: PlayerId): GameState {
+  if (next.gameOver) return next;
+  if (next.pendingDecision[actingPlayer] || next.pendingDecision[otherPlayer(actingPlayer)]) return next;
+  if (next.combat?.pendingTriggerChoices?.length) {
+    return pauseForCombatTriggerChoices(next, next.combat.attackingPlayer, next.combat.pendingTriggerChoices);
+  }
+  if (next.combat?.step !== "damage") return next;
+  return resolveBattleEndStep(next);
 }

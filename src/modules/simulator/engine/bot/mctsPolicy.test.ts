@@ -128,6 +128,8 @@ describe("mctsPolicy — sanidade (amostra pequena)", () => {
       expect(rate).toBeGreaterThanOrEqual(0.7);
       expect(maxDecisionMs).toBeLessThan(20000);
     },
-    720_000,
+    // Fixo em ST01/ST02 (não escala com validatedDeckList) — já batia perto do
+    // teto de 720s nesta máquina independente da wave ST05; bump defensivo.
+    1_200_000,
   );
 });

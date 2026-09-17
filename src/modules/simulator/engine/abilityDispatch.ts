@@ -71,6 +71,22 @@ function buildQueueEntry(
     legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver, sourceInstanceId) : [],
     targetCount: spec.targetCount,
     implicitTargets,
+    // docs/47 Fase 5 — ST05-010 Mikazuki Augus 【When Paired】: 2º pool de alvo
+    // com escopo PRÓPRIO, igual ao já usado por Command (GD01-103/112), agora
+    // também no caminho de fila (gatilho automático pausado).
+    secondaryTarget: spec.secondaryTarget
+      ? {
+          name: spec.secondaryTarget.name,
+          targetScope: spec.secondaryTarget.targetScope,
+          legalTargets: computeLegalTargets(
+            state,
+            { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
+            player,
+            targetFilterResolver,
+            sourceInstanceId,
+          ),
+        }
+      : undefined,
   };
 
   const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
@@ -407,7 +423,13 @@ export const MAX_CASCADE_DEPTH = 12;
 /** Teto de LARGURA — total de gatilhos processados numa única ação, mesmo sem recursão (ex.: Board Wipe destruindo várias Units pareadas de uma vez). */
 export const MAX_QUEUE_BREADTH = 150;
 
-/** Lançada quando o guard anti-loop estoura em `process.env.NODE_ENV === "test"` — falha alta e legível em vez de travar o worker/CI. Carrega os últimos eventos do `eventLog` pra facilitar o repro. */
+/** Acesso via `globalThis` pra não exigir os tipos de `node` no `tsconfig.app` (só `vite/client`) — mesmo padrão de `setup.ts#resolveEngineVersion`. */
+function isTestEnv(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return env?.NODE_ENV === "test";
+}
+
+/** Lançada quando o guard anti-loop estoura em ambiente de teste — falha alta e legível em vez de travar o worker/CI. Carrega os últimos eventos do `eventLog` pra facilitar o repro. */
 export class TriggerLoopException extends Error {
   readonly recentEvents: GameEvent[];
 

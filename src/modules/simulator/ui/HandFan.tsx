@@ -23,6 +23,9 @@ export interface HandFanCard {
   playable: boolean;
   /** motivo curto em PT — mostrado via `title` e embutido no rótulo acessível. */
   blockedReason?: string;
+  effectiveCost?: number;
+  /** Destaque âmbar pulsante quando a carta é um comando 【Action】 jogável durante o Action Step */
+  actionStepPlayable?: boolean;
 }
 
 interface HandFanProps {
@@ -39,6 +42,8 @@ interface HandFanProps {
   emptyLabel?: string;
   /** prateleira ancorada na base da arena (overlap + hover-lift, sem corte). */
   anchored?: boolean;
+  /** desliga a animação de montagem (slide-in) ao substituir transição fluida de deal. */
+  skipMountAnim?: boolean;
 }
 
 /** teto de sobreposição — acima disto a carta vira uma lasca ilegível. */
@@ -68,8 +73,10 @@ export function HandFan({
   overlap,
   emptyLabel = "Mão vazia.",
   anchored,
+  skipMountAnim,
 }: HandFanProps) {
   if (cards.length === 0) {
+    if (!emptyLabel) return null;
     return (
       <p className="px-2 py-4 text-center text-[11px] uppercase tracking-[0.18em] text-muted-portal">{emptyLabel}</p>
     );
@@ -95,8 +102,10 @@ export function HandFan({
     <div className="scrollbar-ghost w-full overflow-x-auto overflow-y-visible overscroll-x-contain">
       <div className={cn("mx-auto flex w-max min-w-max items-end px-4", anchored ? "pt-4 pb-1" : "pb-2 pt-6")}>
         {cards.map((entry, index) => {
-          const { card, playable, blockedReason } = entry;
+          const { card, playable, blockedReason, effectiveCost, actionStepPlayable } = entry;
           const cost = card.def.cost;
+          const displayCost = effectiveCost ?? cost;
+          const hasDiscount = effectiveCost !== undefined && cost !== undefined && effectiveCost < cost;
           const state = playable ? "jogável" : (blockedReason ?? "indisponível");
           const style: CSSProperties = index === 0 ? {} : { marginLeft: overlapMargin };
 
@@ -107,8 +116,8 @@ export function HandFan({
             cornerActions.push({
               key: "play",
               icon: Play,
-              label: `Jogar ${card.def.nameEn}${cost !== undefined ? ` · custo ${cost}` : ""}`,
-              tone: "primary",
+              label: `Jogar ${card.def.nameEn}${displayCost !== undefined ? ` · custo ${displayCost}` : ""}`,
+              tone: actionStepPlayable ? "accent" : "primary",
               onClick: () => onPeek(card),
             });
           }
@@ -126,12 +135,13 @@ export function HandFan({
               className={cn(
                 "group/hc relative block shrink-0 border-t-2 bg-slate-950/80",
                 "hover:z-20 focus-within:z-20",
-                // Frente 4 (docs/38 §4.1) — "draw de carta": cada carta recém
-                // montada (comprada) desliza de baixo pra cima ~250ms easeOut.
-                // Só cartas NOVAS animam (React reaproveita as já montadas pela
-                // `key`). `motion-reduce` desliga.
-                "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
-                playable ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]" : "border-transparent",
+                // Quando ancorado ou skipMountAnim ativo (após deal), as cartas entram sem salto
+                !skipMountAnim && !anchored && "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out motion-reduce:animate-none",
+                actionStepPlayable
+                  ? "border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.85)] ring-2 ring-amber-400/80 animate-pulse"
+                  : playable
+                    ? "border-primary shadow-[0_0_12px_rgba(6,182,212,0.5)]"
+                    : "border-transparent",
               )}
             >
               {/* só a ARTE fica em P&B quando injogável — os botões do canto não.
@@ -169,8 +179,16 @@ export function HandFan({
                   backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
                 >
                   {cost !== undefined ? (
-                    <span className="absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black">
-                      {cost}
+                    <span
+                      className={cn(
+                        "absolute left-0.5 top-0.5 flex size-4 items-center justify-center rounded-full text-[9px] font-black shadow-sm",
+                        hasDiscount
+                          ? "bg-emerald-400 text-black ring-1 ring-emerald-200 shadow-[0_0_6px_rgba(52,211,153,0.85)] animate-pulse"
+                          : "bg-amber-500 text-black",
+                      )}
+                      title={hasDiscount ? `Custo reduzido de ${cost} para ${displayCost}` : `Custo ${cost}`}
+                    >
+                      {displayCost}
                     </span>
                   ) : null}
                   {card.def.cardType === "UNIT" ? (

@@ -241,7 +241,9 @@ export type StaticTargetCondition =
   | { kind: "apAtLeast"; n: number }
   | { kind: "colorIs"; color: string }
   | { kind: "traitIs"; trait: string }
-  | { kind: "hasKeyword"; keyword: string };
+  | { kind: "hasKeyword"; keyword: string }
+  /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
+  | { kind: "isDamaged" };
 
 export interface StaticAbility {
   condition: StaticEffectCondition;
@@ -284,12 +286,45 @@ export interface CombatTrigger {
     | { kind: "draw"; amount: number }
     | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number }
     /**
-     * ST03-001 Sinanju — "choose 1 enemy Unit. Deal 2 damage to it". Sem sistema
-     * de decisão em combate (docs/43 §4), o motor AUTO-MIRA a 1ª Unit inimiga
-     * legal na Battle Area — determinístico e testável; se/quando o Action Step
-     * ganhar escolha real de alvo, isto passa a consumir a escolha do jogador.
+     * ST03-001 Sinanju — "choose 1 enemy Unit. Deal 2 damage to it". Escolha
+     * REAL do jogador (docs/47 Fase 6) — pausa via `combat.pendingTriggerChoices`
+     * + `PendingDecision.abilityResolution` quando há ≥1 alvo legal.
      */
-    | { kind: "damageChosenEnemyUnit"; amount: number };
+    | { kind: "damageChosenEnemyUnit"; amount: number }
+    /**
+     * ST05-011 Akihiro Altland — "choose 1 (Tekkadan) Unit card that is Lv.2 or
+     * lower from your trash. Add it to your hand." (docs/47 Fase 6). Mesmo shape
+     * de `CardDefFilter` (effectSpec.ts) — duplicado aqui de propósito: types.ts
+     * é a camada base, effectSpec.ts já importa DELE, então importar `CardDefFilter`
+     * pra cá criaria import circular. Mantenha os campos em sync se um mudar.
+     */
+    | { kind: "retrieveFromTrash"; filter: CombatTriggerTrashFilter };
+}
+
+/** Ver nota em `CombatTrigger.action` ("retrieveFromTrash") — mesmo shape de `CardDefFilter`. */
+export interface CombatTriggerTrashFilter {
+  cardType?: CardDef["cardType"];
+  anyTrait?: string[];
+  maxLevel?: number;
+  minLevel?: number;
+}
+
+/**
+ * docs/47 Fase 6 — gatilho de combate (`damageChosenEnemyUnit`/`retrieveFromTrash`)
+ * que precisa de escolha REAL do jogador, capturado em `combat.pendingTriggerChoices`
+ * no fim do Damage Step (`combatTriggerEvents`/`resolveDamageStep`, combat.ts) e
+ * convertido em `PendingDecision.abilityResolution` por `actions.ts` (`passAction`/
+ * `resolveBurstDecision`), DEPOIS de Burst e Destroyed já terem resolvido — mesma
+ * ordem (Burst → Destroyed → esta escolha → Battle End) já usada pros outros 2.
+ * Sobrevive a `combat` (limpo só em `COMBAT_ENDED`, mesmo espírito de
+ * `shieldProtection`/`unitDamageProtection`).
+ */
+export interface PendingCombatTriggerChoice {
+  sourceInstanceId: string;
+  action: Extract<CombatTrigger["action"], { kind: "damageChosenEnemyUnit" | "retrieveFromTrash" }>;
+  /** enemy Unit ids (`damageChosenEnemyUnit`) OU trash card ids (`retrieveFromTrash`) — já filtrados, prontos pra UI. */
+  legalCandidates: string[];
+  label: string;
 }
 
 export type StatKey = "ap" | "hp";
@@ -479,6 +514,7 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
+  if (cond.kind === "isDamaged") return target.damage > 0;
   return hasKeyword(target, cond.keyword, state);
 }
 
@@ -798,6 +834,30 @@ export type PendingDecision =
          * hora de resolver (`resolveAbility`), junto com a escolha real do jogador.
          */
         implicitTargets?: Record<string, string[]>;
+        /**
+         * docs/47 Fase 5 — 2º alvo nomeado no caminho de FILA (gatilho automático
+         * pausado, ex. ST05-010 Mikazuki Augus 【When Paired】"Choose 1 of your
+         * Units and 1 enemy Unit"), espelhando `EffectSpec.secondaryTarget`
+         * (que até aqui só era resolvido no caminho de Command 【Main】/【Action】,
+         * que já vem com `action.targets` prontos — não passa pela fila). Campo
+         * IRMÃO de `legalTargets`/`targetScope` (que continuam sendo o POOL
+         * PRIMÁRIO) — nunca reaproveitado entre specs, mesma convenção dos
+         * demais campos de escolha aqui. A escolha viaja em
+         * `resolution.secondaryTargetIds` e vira `ctx.targets[name]`.
+         */
+        secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; legalTargets: string[] };
+        /**
+         * docs/47 Fase 6 — presente só quando esta entrada da fila NÃO vem de um
+         * `EffectSpec` (não tem `specId` real pra `dispatchTrigger`), mas de um
+         * `PendingCombatTriggerChoice` (`CombatTrigger.action` bruto, ver types.ts).
+         * `resolveAbility` (actions.ts) resolve isto compilando `action` direto
+         * (`DAMAGE_UNIT`/`DESTROY_CARD`/`pairedPilotFollowEvents` pra
+         * `damageChosenEnemyUnit`; `MOVE_CARD` pra `hand` pra `retrieveFromTrash`),
+         * em vez de despachar um spec. `specId` da entrada é sintético
+         * (`${sourceInstanceId}-combatTrigger-${on}`), só pra casar com
+         * `resolution.specId` — nunca existe em `specs`.
+         */
+        combatTrigger?: PendingCombatTriggerChoice;
       }>;
       /**
        * docs/45 — 【Destroyed】 que PAUSA do OUTRO jogador, disparado no MESMO
@@ -869,6 +929,8 @@ export interface CombatState {
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
   unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number } | null;
+  /** docs/47 Fase 6 — ver `PendingCombatTriggerChoice`. Populado por `resolveDamageStep`, consumido e limpo por `actions.ts` ao montar a pausa. */
+  pendingTriggerChoices?: PendingCombatTriggerChoice[];
 }
 
 /**
@@ -1015,3 +1077,16 @@ export type GameEvent =
   | { type: "SET_PENDING_DECISION"; player: PlayerId; decision: PendingDecision }
   | { type: "CLEAR_PENDING_DECISION"; player: PlayerId }
   | { type: "GAME_OVER"; winner: PlayerId | null; reason: GameOverInfo["reason"] };
+
+/**
+ * Comprehensive Rules 3-3-6: Pilot pareado segue a Unit pro mesmo destino
+ * (trash) quando ela é destruída — POR QUALQUER MOTIVO, não só combate.
+ * Movida de `combat.ts` (era local/não-exportada, só usada ali) pra cá e
+ * exportada: `compilePrimitive` (`effectSpec.ts`, `destroy`/`damageUnit`)
+ * também precisa dela — Unit pareada morta por EFEITO fora de combate não
+ * levava o Pilot junto, gap transversal fechado na revalidação (docs/47).
+ */
+export function pairedPilotFollowEvents(unit: CardInstance): GameEvent[] {
+  if (!unit.pairedPilotId) return [];
+  return [{ type: "DESTROY_CARD", instanceId: unit.pairedPilotId }];
+}

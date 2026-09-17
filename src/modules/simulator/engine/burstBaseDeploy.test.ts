@@ -8,6 +8,7 @@ import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { findCard } from "./events";
 import { dispatchTrigger } from "./dispatcher";
+import { applyPlayerAction } from "./actions";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 
 /**
@@ -15,7 +16,14 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver
  * Antes o Burst era `moveZone self → baseSection`: a Base entrava mas o efeito
  * 【Deploy】 (Add 1 Shield / token / dano) nunca rodava e a Base anterior ficava.
  * Fecha via primitiva `deployThisCard` (regra de 1 Base) + encadeamento no
- * `dispatcher.ts` (alvo nomeado auto-mirado — Burst só acontece em combate).
+ * `dispatcher.ts`.
+ *
+ * docs/47 Fase 4 — o encadeamento passou a usar `deferOrDispatchAbilities`
+ * (mesmo helper de `deployCard`/`playCommand`) em vez de auto-mirar 1 alvo e
+ * chamar `dispatchTrigger` direto: specs automáticos (sem alvo) resolvem na
+ * hora, specs com alvo nomeado OU `ChoicePrimitive` (deckReorder, etc.) PAUSAM
+ * em `PendingDecision.abilityResolution` — mesmo se não houver alvo legal
+ * (fila com `legalTargets: []`, `resolveAbility` aceita `targetIds: []`).
  */
 
 let seq = 0;
@@ -74,15 +82,36 @@ describe("【Burst】Deploy this card — encadeia o 【Deploy】 da Base (docs/
     expect(state.players.A.hand.length).toBe(handBefore + 1);
   });
 
-  it("ST02-015 Saint Gabriel: Base em campo + Add 1 Shield (a reordenação do topo NÃO roda via Burst)", () => {
+  it("ST02-015 Saint Gabriel: Base em campo + PAUSA pra reordenação (deckReorder) via Burst — resolver aplica Add 1 Shield + reorder juntos (docs/47 Fase 4, deferred.ts fechado)", () => {
     let state = freshGame();
     place(state, "A", ST01_CARD_DEFS.RESOURCE, "shields");
     const handBefore = state.players.A.hand.length;
-    const topBefore = state.players.A.deck.slice(0, 2).map((c) => c.instanceId);
+    const shieldsBefore = state.players.A.shields.length;
+    const [top1, top2] = state.players.A.deck.slice(0, 2).map((c) => c.instanceId);
     state = burst(state, "A", ST02_CARD_DEFS.SAINT_GABRIEL_INSTITUTE);
     expect(state.players.A.baseSection.some((c) => c.def.code === "ST02-015")).toBe(true);
-    expect(state.players.A.hand.length).toBe(handBefore + 1);
-    expect(state.players.A.deck.slice(0, 2).map((c) => c.instanceId)).toEqual(topBefore); // reorder pulado (deferred Classe A)
+    // pausou: shield e reorder resolvem JUNTOS (mesmo spec) na resolução da decisão, não antes.
+    expect(state.players.A.hand.length).toBe(handBefore);
+    const decision = state.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.specId).toBe("ST02-015-Deploy");
+    expect(q?.deckReorder?.slots.map((s) => s.position)).toEqual(["top", "bottom"]);
+    expect(q?.deckReorder?.topCards.map((c) => c.instanceId)).toEqual([top1, top2]);
+
+    // inverte: top2 pro topo, top1 pro fundo
+    const resolved = applyPlayerAction(
+      state,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [top2, top1] }] },
+      ALL_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.players.A.hand.length).toBe(handBefore + 1); // Add 1 Shield rodou no resolve
+    expect(resolved.players.A.shields.length).toBe(shieldsBefore - 1);
+    expect(resolved.players.A.deck[0].instanceId).toBe(top2);
+    expect(resolved.players.A.deck[resolved.players.A.deck.length - 1].instanceId).toBe(top1);
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 
   it("ST02-016 Corsica Base: Base em campo + Add 1 Shield + token [Tallgeese]", () => {
@@ -98,25 +127,52 @@ describe("【Burst】Deploy this card — encadeia o 【Deploy】 da Base (docs/
     expect(state.players.A.battleArea.filter((c) => c.def.cardType === "UNIT").length).toBe(unitsBefore + 1);
   });
 
-  it("ST03-015 Rewloola: Base em campo + Add 1 Shield + 1 de dano numa Unit inimiga AP≤5 (auto-mira)", () => {
+  it("ST03-015 Rewloola: Base em campo + Add 1 Shield roda na hora (spec incondicional); dano PAUSA pra escolha real de alvo via Burst (docs/47 Fase 4, deferred.ts fechado)", () => {
     let state = freshGame();
     place(state, "A", ST01_CARD_DEFS.RESOURCE, "shields");
     const enemyId = place(state, "B", ST01_CARD_DEFS.GM, "battleArea"); // AP2, HP2
     const handBefore = state.players.A.hand.length;
     state = burst(state, "A", ST03_CARD_DEFS.REWLOOLA);
     expect(state.players.A.baseSection.some((c) => c.def.code === "ST03-015")).toBe(true);
-    expect(state.players.A.hand.length).toBe(handBefore + 1);
-    expect(findCard(state, enemyId).damage).toBe(1);
+    expect(state.players.A.hand.length).toBe(handBefore + 1); // "Add 1 Shield" é spec separado, sem alvo — resolve na hora
+    const decision = state.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.specId).toBe("ST03-015-Deploy-Damage");
+    expect(q?.legalTargets).toEqual([enemyId]);
+
+    const resolved = applyPlayerAction(
+      state,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [enemyId] }] },
+      ALL_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(findCard(resolved, enemyId).damage).toBe(1);
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 
-  it("ST03-015 Rewloola: sem Unit inimiga AP≤5 legal, só o Add 1 Shield roda (o spec de dano não ativa, sem pausa)", () => {
+  it("ST03-015 Rewloola: sem Unit inimiga AP≤5 legal — spec de dano ainda pausa (fila vazia), mas resolve com targetIds:[] sem aplicar dano", () => {
     let state = freshGame();
     place(state, "A", ST01_CARD_DEFS.RESOURCE, "shields");
     const handBefore = state.players.A.hand.length;
     state = burst(state, "A", ST03_CARD_DEFS.REWLOOLA);
     expect(state.players.A.baseSection.some((c) => c.def.code === "ST03-015")).toBe(true);
     expect(state.players.A.hand.length).toBe(handBefore + 1); // spec incondicional "Add 1 Shield" roda
-    expect(state.pendingDecision.A).toBeNull(); // não pausou
+    const decision = state.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.specId).toBe("ST03-015-Deploy-Damage");
+    expect(q?.legalTargets).toEqual([]); // nenhum alvo legal — mesmo assim entra na fila (resolveAbility aceita targetIds:[])
+
+    const resolved = applyPlayerAction(
+      state,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [] }] },
+      ALL_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 
   it("ST03-016 Falmel: Base em campo + Add 1 Shield + token [Char's Zaku II] rested", () => {

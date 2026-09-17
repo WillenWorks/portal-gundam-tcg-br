@@ -52,6 +52,14 @@
  *        tokens sobre o effectPt atual de cada linha do JSON (pra quando as
  *        traducoes foram preenchidas/editadas a mao) e reescreve status/motivo
  *
+ *   node scripts/translate-card-effects.mjs --sets=ST05           -> lote de outro(s)
+ *        set(s) em vez do default ST01-04 (wave ST05/GD01). Aceita varios separados
+ *        por virgula (--sets=ST05,ST06). Muda o arquivo de saida pra
+ *        data/translations-<sets em minusculo, separados por hifen>.json (ex.
+ *        data/translations-st05.json, data/translations-gd01.json) -- nunca mistura
+ *        com o lote ST01-04 ja revisado. --apply/--push/--revalidate tambem aceitam
+ *        --sets= pra apontar pro arquivo certo.
+ *
  * Env: GEMINI_MODEL (default gemini-3.6-flash), TRANSLATE_DELAY_MS (pausa entre cartas,
  *      default 500 -- suba pra ~15000 se o free tier reclamar de rate limit).
  */
@@ -60,10 +68,35 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SOURCE_PATH = `${ROOT}data/gcg-official-cards.json`;
-const OUTPUT_PATH = `${ROOT}data/translations-st01-04.json`;
 const AI_ENV_PATH = `${ROOT}.spartan/ai.env`;
 
-const SET_CODE_REGEX = /^ST0[1234]-/;
+const DEFAULT_SETS = ["ST01", "ST02", "ST03", "ST04"];
+
+/** `--sets=ST05,ST06` -> `["ST05","ST06"]`. Sem a flag, usa o lote default (ST01-04). */
+function parseSetsArg(argv) {
+  const flag = argv.find((a) => a.startsWith("--sets="));
+  if (!flag) return DEFAULT_SETS;
+  return flag
+    .slice("--sets=".length)
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+/** Regex que casa `<SET>-` pra qualquer set da lista (ex. `/^(?:ST05|ST06)-/`). */
+function buildSetCodeRegex(sets) {
+  return new RegExp(`^(?:${sets.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})-`);
+}
+
+/** Lote default (ST01-04) grava no arquivo historico `translations-st01-04.json`
+ *  (nome legado, mantido pra nao quebrar `--apply`/`--push`/docs existentes); qualquer
+ *  outro lote grava em `translations-<sets>.json`, nunca no mesmo arquivo. */
+function outputPathFor(sets) {
+  const isDefault = sets.length === DEFAULT_SETS.length && sets.every((s, i) => s === DEFAULT_SETS[i]);
+  const suffix = isDefault ? "st01-04" : sets.map((s) => s.toLowerCase()).join("-");
+  return `${ROOT}data/translations-${suffix}.json`;
+}
+
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 3;
@@ -357,12 +390,12 @@ function cleanModelOutput(text) {
 // 5. Orquestracao do lote.
 // ---------------------------------------------------------------------------
 
-async function loadSourceCards() {
+async function loadSourceCards(setCodeRegex) {
   const parsed = JSON.parse(await readFile(SOURCE_PATH, "utf8"));
   const cards = Array.isArray(parsed) ? parsed : parsed.cards;
   if (!Array.isArray(cards)) throw new Error(`formato inesperado em ${SOURCE_PATH}`);
   return cards
-    .filter((c) => SET_CODE_REGEX.test(c.code ?? ""))
+    .filter((c) => setCodeRegex.test(c.code ?? ""))
     .map((c) => ({
       code: c.code,
       name: c.name ?? c.nameEn ?? "",
@@ -439,22 +472,22 @@ function mergeResults(cards, processed, previousByCode) {
   return out;
 }
 
-async function loadExistingResults() {
+async function loadExistingResults(outputPath) {
   try {
-    const parsed = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+    const parsed = JSON.parse(await readFile(outputPath, "utf8"));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-async function runBatch({ dryRun, resume }) {
-  const cards = await loadSourceCards();
-  console.log(`Cartas ST01-ST04 encontradas: ${cards.length}`);
+async function runBatch({ dryRun, resume, sets, setCodeRegex, outputPath }) {
+  const cards = await loadSourceCards(setCodeRegex);
+  console.log(`Cartas ${sets.join(",")} encontradas: ${cards.length}`);
 
   const previousByCode = new Map();
   if (resume) {
-    const previous = await loadExistingResults();
+    const previous = await loadExistingResults(outputPath);
     for (const row of previous) previousByCode.set(row.code, row);
     const done = [...previousByCode.values()].filter(isResolvedResult).length;
     console.log(`Modo --resume: ${done} cartas ja resolvidas no JSON existente, so re-traduz as pendentes.`);
@@ -513,18 +546,18 @@ async function runBatch({ dryRun, resume }) {
     const tag = result.status === "OK" ? "OK " : "REJ";
     console.log(`  [${tag}] ${result.code} ${result.name}${result.motivo ? ` -- ${result.motivo}` : ""}`);
     // Grava incremental -- se a quota estourar no meio, o progresso nao se perde.
-    await writeFile(OUTPUT_PATH, `${JSON.stringify(mergeResults(cards, results, previousByCode), null, 2)}\n`, "utf8");
+    await writeFile(outputPath, `${JSON.stringify(mergeResults(cards, results, previousByCode), null, 2)}\n`, "utf8");
     if (!dryRun && i < cards.length - 1) await sleep(BETWEEN_CARDS_DELAY_MS);
   }
 
-  await writeFile(OUTPUT_PATH, `${JSON.stringify(results, null, 2)}\n`, "utf8");
+  await writeFile(outputPath, `${JSON.stringify(results, null, 2)}\n`, "utf8");
 
   const ok = results.filter((r) => r.status === "OK").length;
   const rejected = results.filter((r) => r.status === "REJEITADO").length;
   const translated = results.filter((r) => r.status === "OK" && r.effectPt).length;
   console.log("");
   console.log(`Resumo: ${ok} OK (${translated} com texto traduzido), ${rejected} REJEITADAS.`);
-  console.log(`Arquivo gerado: ${OUTPUT_PATH}`);
+  console.log(`Arquivo gerado: ${outputPath}`);
   if (rejected > 0) {
     console.log("Revise as REJEITADAS no JSON antes de rodar --apply.");
   }
@@ -554,8 +587,8 @@ export function normalizeForCatalog(effectPt) {
     .replace(/【([^】]*)】/g, "[$1]");
 }
 
-async function runApply() {
-  const results = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+async function runApply(outputPath) {
+  const results = JSON.parse(await readFile(outputPath, "utf8"));
   const applicable = results.filter((r) => r.status === "OK" && r.effectPt);
   console.error(`-- Traducoes OK com texto: ${applicable.length} (de ${results.length} no lote)`);
   console.error("-- Rode este SQL no Postgres do catalogo. Atualiza CardModel e os prints (Card).");
@@ -578,8 +611,8 @@ async function runApply() {
 //    reescreve status/motivo. Nao chama a API.
 // ---------------------------------------------------------------------------
 
-async function runRevalidate() {
-  const rows = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+async function runRevalidate(outputPath) {
+  const rows = JSON.parse(await readFile(outputPath, "utf8"));
   let ok = 0;
   let rejected = 0;
   const out = rows.map((row) => {
@@ -603,7 +636,7 @@ async function runRevalidate() {
     rejected += 1;
     return { ...row, status: "REJEITADO", motivo: verdict.motivo, tokens };
   });
-  await writeFile(OUTPUT_PATH, `${JSON.stringify(out, null, 2)}\n`, "utf8");
+  await writeFile(outputPath, `${JSON.stringify(out, null, 2)}\n`, "utf8");
   const translated = out.filter((r) => r.status === "OK" && r.effectPt).length;
   console.log(`Revalidacao: ${ok} OK (${translated} com texto), ${rejected} REJEITADAS.`);
   for (const r of out.filter((r) => r.status === "REJEITADO")) {
@@ -618,11 +651,11 @@ async function runRevalidate() {
 //    Prefira ESTE modo pra aplicar localmente.
 // ---------------------------------------------------------------------------
 
-async function runPush() {
+async function runPush(outputPath, sets) {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   try {
-    const rows = JSON.parse(await readFile(OUTPUT_PATH, "utf8"));
+    const rows = JSON.parse(await readFile(outputPath, "utf8"));
     const applicable = rows.filter((r) => r.status === "OK" && r.effectPt);
     console.log(`Aplicando ${applicable.length} traducoes via Prisma (DATABASE_URL do .env)...`);
     let models = 0;
@@ -636,7 +669,7 @@ async function runPush() {
     }
     console.log(`OK: CardModel ${models} linhas, Card ${prints} prints.`);
     if (models === 0) {
-      console.log("AVISO: 0 CardModel atualizado -- o catalogo ST01-04 esta semeado neste banco? (pnpm run catalog:bootstrap)");
+      console.log(`AVISO: 0 CardModel atualizado -- o catalogo ${sets.join(",")} esta semeado neste banco? (pnpm run catalog:bootstrap)`);
     }
   } finally {
     await prisma.$disconnect();
@@ -644,20 +677,25 @@ async function runPush() {
 }
 
 async function main() {
-  const args = new Set(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const args = new Set(argv);
+  const sets = parseSetsArg(argv);
+  const setCodeRegex = buildSetCodeRegex(sets);
+  const outputPath = outputPathFor(sets);
+
   if (args.has("--push")) {
-    await runPush();
+    await runPush(outputPath, sets);
     return;
   }
   if (args.has("--apply")) {
-    await runApply();
+    await runApply(outputPath);
     return;
   }
   if (args.has("--revalidate")) {
-    await runRevalidate();
+    await runRevalidate(outputPath);
     return;
   }
-  await runBatch({ dryRun: args.has("--dry-run"), resume: args.has("--resume") });
+  await runBatch({ dryRun: args.has("--dry-run"), resume: args.has("--resume"), sets, setCodeRegex, outputPath });
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

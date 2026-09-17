@@ -129,9 +129,10 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
       } else {
         for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: [id] } });
       }
-    } else {
+    } else if (!someSpecNeeds) {
       out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action" });
     }
+    // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
   }
   return out;
 }
@@ -192,9 +193,10 @@ function activateAbilityCandidates(
           } else {
             for (const id of ids) out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId, targets: { target: [id] } });
           }
-        } else {
+        } else if (!someSpecNeeds) {
           out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
         }
+        // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
       } else {
         // <Support N> — alvo é outra Unit amiga
         for (const other of friendlyUnits(state, seat)) {
@@ -265,9 +267,15 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
           } else {
             for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: [id] } });
           }
-        } else {
+        } else if (!someSpecNeeds) {
           out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" });
         }
+        // `someSpecNeeds && ids.length === 0` — alvo obrigatório sem pool legal (ex.
+        // ST05-013 "Choose 1 of your Units" sem nenhuma Unit própria em campo): NÃO
+        // oferece a jogada. Achado no fuzzing da wave ST05 — antes disto, a Command
+        // entrava sem `targets`, e a resolução travava em `pendingDecision` com 0
+        // opções (mesma classe de bug do docs/48, versão "pool vazio" em vez de
+        // "condição falsa").
       }
     }
   }
@@ -325,7 +333,7 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
       // Opções por entrada da fila; produto cartesiano limitado (a fila é
       // ~1 item em ST01-04 — nenhum card dispara 2 gatilhos simultâneos).
       const perEntry = decision.queue.map((q) => {
-        const opts2: Array<{ specId: string; activate: boolean; targetIds: string[] }> = [];
+        const opts2: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }> = [];
         const idChoices: string[][] = [];
         if (q.deckTopReveal) {
           idChoices.push([]); // não revelar
@@ -348,16 +356,26 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         } else {
           idChoices.push([]);
         }
+        // docs/47 Fase 5 — ST05-010 Mikazuki Augus: 2º pool de alvo com escopo
+        // próprio, combinado (produto) com as escolhas do pool primário acima.
+        const secondaryChoices: string[][] = q.secondaryTarget
+          ? q.secondaryTarget.legalTargets.length > 0
+            ? q.secondaryTarget.legalTargets.map((id) => [id])
+            : [[]]
+          : [[]];
         for (const targetIds of idChoices) {
-          if (q.optional && targetIds.length === 0 && !q.deckTopReveal) {
-            opts2.push({ specId: q.specId, activate: false, targetIds: [] });
+          for (const secondaryTargetIds of secondaryChoices) {
+            const secondary = q.secondaryTarget ? secondaryTargetIds : undefined;
+            if (q.optional && targetIds.length === 0 && !q.deckTopReveal) {
+              opts2.push({ specId: q.specId, activate: false, targetIds: [], secondaryTargetIds: secondary });
+            }
+            opts2.push({ specId: q.specId, activate: true, targetIds, secondaryTargetIds: secondary });
           }
-          opts2.push({ specId: q.specId, activate: true, targetIds });
         }
         return opts2.length > 0 ? opts2 : [{ specId: q.specId, activate: !q.optional, targetIds: [] }];
       });
 
-      let combos: Array<Array<{ specId: string; activate: boolean; targetIds: string[] }>> = [[]];
+      let combos: Array<Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>> = [[]];
       for (const entryOpts of perEntry) {
         const next: typeof combos = [];
         for (const combo of combos) {

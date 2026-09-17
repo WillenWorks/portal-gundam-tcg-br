@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
+import type { CardDef, CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
 
@@ -44,6 +44,25 @@ export function inspectorStats(
     return { ap: ap || hp ? ap : undefined, hp: ap || hp ? hp : undefined, isModifier: true };
   }
   return { isModifier: false };
+}
+
+/**
+ * Keywords concedidas por `CardDef.staticAbilities` (ex. Sinanju 【During
+ * Pair】<High-Maneuver>, Gundam GD01-001 aura <Repair 1> de grupo) — sem isso
+ * o inspetor de carta (que só lia `keywordTags`/`effectKeywords`) não mostrava
+ * NENHUMA keyword pras cartas que usam StaticAbility em vez de keyword fixa
+ * (achado ao fechar deferred.ts ST03-001/GD01-001, docs/47). Mostra sempre,
+ * independente de `state` (é informação da CARTA, não da instância em campo).
+ */
+export function staticAbilityKeywordLabels(def: CardDef): string[] {
+  return (def.staticAbilities ?? [])
+    .filter((a) => a.keyword)
+    .map((a) => {
+      const label = a.keywordValue !== undefined ? `${a.keyword} ${a.keywordValue}` : (a.keyword as string);
+      if (a.condition === "duringPair") return `${label} (During Pair)`;
+      if (a.condition === "duringLink") return `${label} (During Link)`;
+      return label;
+    });
 }
 
 export interface LinkedPilot {
@@ -98,7 +117,12 @@ export function CardInspectorModal({
   const apLabel = statsAreModifier ? "AP (mod)" : "AP";
   const hpLabel = statsAreModifier ? "HP (mod)" : "HP";
   const uniqueKeywords = [
-    ...new Set([...(def.keywordTags ?? []), ...(def.triggerKeywords ?? []), ...(def.effectKeywords ?? [])]),
+    ...new Set([
+      ...(def.keywordTags ?? []),
+      ...(def.triggerKeywords ?? []),
+      ...(def.effectKeywords ?? []),
+      ...staticAbilityKeywordLabels(def),
+    ]),
   ];
   const activeBuffs = card.statModifiers.map((m) => `${m.stat.toUpperCase()} ${m.amount >= 0 ? "+" : ""}${m.amount}`);
   const grantedKeywords = card.keywordGrants.map((g) => g.keyword);

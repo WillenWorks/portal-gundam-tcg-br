@@ -35,11 +35,16 @@ interface ShieldRailProps {
   selectable?: boolean;
   selectedIndexes?: number[];
   onSelectIndex?: (index: number) => void;
+  /** Clique na área inteira de escudos (alvo de ataque direto ou seleção de zona) */
+  onSelectArea?: () => void;
   /** realce transitório de dano recém-tomado (o pai controla por quanto tempo). */
   justBroken?: boolean;
   /** Frente 4 (docs/38 §3.4) — a trilha está sob mira direta de um ataque
    *  "no jogador": pulso sutil na borda. */
   underAim?: boolean;
+  /** docs/55 tarefa 2 — alvo legal de ataque direto em andamento (mesmo halo
+   *  esmeralda pulsante de Unit/Base). */
+  legalTarget?: boolean;
   /** "vertical" = cascata na coluna lateral; "horizontal" (padrão) = linha de glifos. */
   orientation?: "horizontal" | "vertical";
   /** V6.2 (docs/33) — achata a cascata (só `vertical`), ver docstring do arquivo. */
@@ -52,26 +57,39 @@ export function ShieldRail({
   selectable,
   selectedIndexes = [],
   onSelectIndex,
+  onSelectArea,
   justBroken,
   underAim,
+  legalTarget,
   orientation = "horizontal",
   compact,
 }: ShieldRailProps) {
   const total = Math.max(max, count);
   const low = count <= 2;
   const vertical = orientation === "vertical";
+  const isAreaClickable = Boolean(legalTarget || onSelectArea);
   const label = `${count} de ${total} shields${count <= 1 ? " — lethal a 1 golpe" : ""}`;
 
   return (
     <div
       role="list"
       aria-label={label}
-      title={label}
+      title={isAreaClickable ? "Atacar jogador (Área de Escudos)" : label}
+      onClick={
+        isAreaClickable
+          ? (e) => {
+              e.stopPropagation();
+              onSelectArea?.() ?? onSelectIndex?.(0);
+            }
+          : undefined
+      }
       className={cn(
-        "rounded-arena",
-        vertical ? "relative flex flex-col items-center" : "flex items-center gap-0.5",
+        "rounded-arena transition-all duration-150",
+        vertical ? "relative flex flex-col items-center w-full p-0.5" : "flex items-center gap-0.5",
+        isAreaClickable && "cursor-pointer hover:ring-2 hover:ring-emerald-300 hover:brightness-110",
         justBroken && "ring-1 ring-red-500/60",
         underAim && "ring-2 ring-red-400/70 animate-pulse motion-reduce:animate-none",
+        legalTarget && "z-20 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-105",
       )}
     >
       {/* V6 (docs/31): número fixo no canto, não se move conforme shields
@@ -167,7 +185,14 @@ export function ShieldRail({
           <button
             key={i}
             type="button"
-            onClick={() => onSelectIndex?.(i)}
+            onClick={(e) => {
+              if (onSelectArea) {
+                e.stopPropagation();
+                onSelectArea();
+              } else {
+                onSelectIndex?.(i);
+              }
+            }}
             aria-pressed={selected}
             aria-label={`Shield ${i + 1}`}
             className={cn(

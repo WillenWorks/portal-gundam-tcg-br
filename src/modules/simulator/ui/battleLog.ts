@@ -138,9 +138,15 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
         noShieldsBattleDamage: "dano sem shields",
         abandonment: "abandono",
         resignation: "desistência",
+        trigger_loop_guard: "loop de gatilhos",
       };
-      const winnerText = event.winner ? `vitória de ${player(event.winner)}` : "empate";
-      return entry("system", `FIM DE JOGO — ${winnerText} (${reason[event.reason] ?? event.reason})`);
+      const reasonLabel = reason[event.reason] ?? event.reason;
+      return entry(
+        "system",
+        event.winner === null
+          ? `FIM DE JOGO — empate (${reasonLabel})`
+          : `FIM DE JOGO — vitória de ${player(event.winner)} (${reasonLabel})`,
+      );
     }
     // ruído puro de motor — nunca no feed
     case "COMBAT_STEP_CHANGE":

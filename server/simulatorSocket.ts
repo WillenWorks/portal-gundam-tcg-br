@@ -46,13 +46,20 @@ const LOBBY_ROOM = "lobby:global";
 /** Validade do guestId efêmero assinado (convidado sem cadastro). */
 const GUEST_TOKEN_TTL = "12h";
 
-type ResolvedDeck = { key: string; build: () => DeckList };
+export type SimulatorDeckResolution = { ok: true; key: string; build: () => DeckList } | { ok: false; message: string };
 
 export interface SimulatorSocketDeps {
   jwtSecret: string;
   allowedOrigins: string[];
-  /** Mesma função `resolveDeckKey` do `server/index.ts` (ST01/ST02…). */
-  resolveDeck: (raw: unknown) => ResolvedDeck | null;
+  /**
+   * Mesma função `resolveOnlineSimulatorDeck` do `server/index.ts` — aceita
+   * tanto um preset (ST01/GD01-FED/…) quanto o id de um deck salvo do
+   * PRÓPRIO `userId` chamador (docs/debates 2026-09-14 — "permita que o
+   * usuário use o seu próprio deck" em todas as modalidades, inclusive Fila
+   * Online e Convite Direto). Sempre async porque o caminho de deck próprio
+   * precisa consultar o banco; sempre valida cobertura antes de aprovar.
+   */
+  resolveDeck: (raw: unknown, userId: string) => Promise<SimulatorDeckResolution>;
 }
 
 interface SocketUser {
@@ -246,9 +253,9 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     });
 
     // ---- queue:join { deckId, mode } ----
-    socket.on("queue:join", (payload: { deckId?: string; mode?: "casual" | "ranked" } = {}) => {
-      const resolved = deps.resolveDeck(payload?.deckId);
-      if (!resolved) return socket.emit("match:error", { code: "bad_deck", message: "Deck inválido para o simulador." });
+    socket.on("queue:join", async (payload: { deckId?: string; mode?: "casual" | "ranked" } = {}) => {
+      const resolved = await deps.resolveDeck(payload?.deckId, user.userId);
+      if (!resolved.ok) return socket.emit("match:error", { code: "bad_deck", message: resolved.message });
       const status = joinQueue({
         userId: user.userId,
         displayName: user.displayName,
@@ -275,10 +282,10 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     });
 
     // ---- challenge:create { deckId } -> ack { challengeCode } ----
-    socket.on("challenge:create", (payload: { deckId?: string } = {}, ack?: (r: unknown) => void) => {
-      const resolved = deps.resolveDeck(payload?.deckId);
-      if (!resolved) {
-        if (typeof ack === "function") ack({ error: "Deck inválido para o simulador." });
+    socket.on("challenge:create", async (payload: { deckId?: string } = {}, ack?: (r: unknown) => void) => {
+      const resolved = await deps.resolveDeck(payload?.deckId, user.userId);
+      if (!resolved.ok) {
+        if (typeof ack === "function") ack({ error: resolved.message });
         return;
       }
       const entry = challenges.create({
@@ -292,10 +299,10 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     });
 
     // ---- challenge:accept { challengeCode, deckId } -> ack { matchId } ----
-    socket.on("challenge:accept", (payload: { challengeCode?: string; deckId?: string } = {}, ack?: (r: unknown) => void) => {
-      const guestDeck = deps.resolveDeck(payload?.deckId);
-      if (!guestDeck) {
-        if (typeof ack === "function") ack({ error: "Deck inválido para o simulador." });
+    socket.on("challenge:accept", async (payload: { challengeCode?: string; deckId?: string } = {}, ack?: (r: unknown) => void) => {
+      const guestDeck = await deps.resolveDeck(payload?.deckId, user.userId);
+      if (!guestDeck.ok) {
+        if (typeof ack === "function") ack({ error: guestDeck.message });
         return;
       }
       let pairing;
@@ -312,9 +319,11 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
         socket.emit("match:error", { code: "challenge", message });
         return;
       }
-      const hostDeck = deps.resolveDeck(pairing.hostDeckKey);
-      if (!hostDeck) {
-        if (typeof ack === "function") ack({ error: "O deck do anfitrião não é mais válido." });
+      // Resolve o deck do anfitrião de novo (com o `userId` DELE, não do convidado) —
+      // `hostDeckKey` pode ser o id de um deck próprio, cuja posse é checada por userId.
+      const hostDeck = await deps.resolveDeck(pairing.hostDeckKey, pairing.hostUserId);
+      if (!hostDeck.ok) {
+        if (typeof ack === "function") ack({ error: `O deck do anfitrião não é mais válido: ${hostDeck.message}` });
         return;
       }
       const match = createMatch({
@@ -322,7 +331,7 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
         deckB: guestDeck.build(),
         firstPlayer: Math.random() < 0.5 ? "A" : "B",
       });
-      match.deckKeys = { A: pairing.hostDeckKey, B: pairing.guestDeckKey };
+      match.deckKeys = { A: hostDeck.key, B: guestDeck.key };
       joinMatch(match.id, "A", { userId: pairing.hostUserId, displayName: pairing.hostDisplayName });
       joinMatch(match.id, "B", { userId: pairing.guestUserId, displayName: pairing.guestDisplayName });
 

@@ -9,7 +9,7 @@ const jsonPath = fileURLToPath(
 );
 const mdPath = fileURLToPath(new URL("../docs/_generated/coverage.md", import.meta.url));
 
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05"];
 
 function generate() {
   execFileSync(process.execPath, [scriptPath], { encoding: "utf8" });
@@ -50,7 +50,8 @@ describe("gundam-coverage — coverage.json", () => {
     expect(Object.keys(json.sets)).toEqual(GATED_SETS);
     for (const set of GATED_SETS) {
       const codes = json.sets[set].cards.map((c) => c.code);
-      expect(codes).toHaveLength(16);
+      const expectedLength = set === "ST05" ? 15 : 16;
+      expect(codes).toHaveLength(expectedLength);
       expect(codes).toEqual([...codes].sort());
       expect(codes.every((c) => c.startsWith(`${set}-`))).toBe(true);
     }

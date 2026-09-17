@@ -52,7 +52,7 @@ export function VedaTelemetryAssistant({
       .map((e) => {
         const c = cardCache[e.cardId];
         if (!c) return null;
-        if (NON_STATS_CARD_TYPES.includes(c.type?.toUpperCase())) return null;
+        if (NON_STATS_CARD_TYPES.includes(c.type?.toUpperCase() ?? "")) return null;
         return { ...c, quantity: e.quantity };
       })
       .filter(Boolean) as (CardRecord & { quantity: number })[];

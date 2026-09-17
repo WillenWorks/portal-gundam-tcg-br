@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 
@@ -364,7 +364,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       return [{ type: "DAMAGE_SHIELD", player, count: call.count }];
     }
     case "destroy": {
-      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "DESTROY_CARD", instanceId }));
+      const events: GameEvent[] = [];
+      for (const instanceId of resolveTargetIds(call.target, ctx)) {
+        events.push({ type: "DESTROY_CARD", instanceId });
+        events.push(...pairedPilotFollowEvents(findCard(ctx.state, instanceId)));
+      }
+      return events;
     }
     case "moveZone": {
       return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_CARD", instanceId, toZone: call.toZone }));
@@ -403,6 +408,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         const card = findCard(ctx.state, instanceId);
         if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
+          events.push(...pairedPilotFollowEvents(card));
         }
       }
       return events;

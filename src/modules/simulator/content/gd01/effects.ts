@@ -176,6 +176,21 @@ export const MISTRAL_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】Choose 1 enemy Unit. It gets AP-1 during this turn.",
 };
 
+// GD01-088 Banagher Links — 【Burst】Add this card to your hand. Achado
+// 2026-09-15 (pedido do Willen "verificar se Banagher está ativando
+// corretamente o burst"): `hasBurst: true` sozinho não basta —
+// `burstEligibleShieldIds` (dispatcher.ts) só oferece a decisão de 【Burst】
+// pra shields com um EffectSpec de trigger "Burst" cadastrado, mesmo quando
+// o texto é só o básico "adicione à mão" (mesmo padrão de ST01-010/011).
+// Faltava aqui — a Unit nunca virava burst-eligible, ficava presa no trash.
+export const BANAGHER_LINKS_BURST: EffectSpec = {
+  id: "GD01-088-Burst",
+  cardCode: "GD01-088",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+
 // GD01-088 Banagher Links — 【When Linked】Draw 1.
 export const BANAGHER_LINKS_WHEN_LINKED: EffectSpec = {
   id: "GD01-088-WhenLinked",
@@ -305,6 +320,19 @@ export const MIDAIR_MODIFICATIONS_MAIN: EffectSpec = {
   ],
   targetScope: "friendlyUnit",
   sourceText: "【Main】Choose 1 rested Unit with <Blocker>. Set it as active. It can't attack during this turn.",
+};
+
+// GD01-121 Midair Modifications — 【Burst】Activate this card's 【Main】. Mesmo
+// achado 2026-09-15: faltava a spec de Burst (ver GD01-088); aqui reaproveita
+// as MESMAS actions/targetScope do 【Main】 acima, igual ao padrão de
+// ST01-014 Unforeseen Incident (Burst compartilha o array com Main/Action).
+export const MIDAIR_MODIFICATIONS_BURST: EffectSpec = {
+  id: "GD01-121-Burst",
+  cardCode: "GD01-121",
+  trigger: "Burst",
+  actions: MIDAIR_MODIFICATIONS_MAIN.actions,
+  targetScope: MIDAIR_MODIFICATIONS_MAIN.targetScope,
+  sourceText: "【Burst】Activate this card's 【Main】.",
 };
 
 // GD01-124 Side 7 — 【Burst】Deploy this card.
@@ -531,6 +559,17 @@ export const WITCH_AND_BRIDE_BURST: EffectSpec = {
 export const WITCH_AND_BRIDE_MAIN: EffectSpec = { ...WITCH_AND_BRIDE_BURST, id: "GD01-117-Main", trigger: "Main", sourceText: "【Main】/【Action】Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand." };
 export const WITCH_AND_BRIDE_ACTION: EffectSpec = { ...WITCH_AND_BRIDE_MAIN, id: "GD01-117-Action", trigger: "Action" };
 
+// GD01-129 Kusanagi — 【Burst】Deploy this card. Mesmo achado 2026-09-15 de
+// GD01-088 (faltava a spec de Burst) — aqui o texto é "Deploy this card"
+// (não "add to hand"), mesmo padrão de ST01-015/GD01-130 (`deployThisCard`).
+export const KUSANAGI_BURST: EffectSpec = {
+  id: "GD01-129-Burst",
+  cardCode: "GD01-129",
+  trigger: "Burst",
+  actions: [{ op: "deployThisCard" }],
+  sourceText: "【Burst】Deploy this card.",
+};
+
 // GD01-129 Kusanagi — 【Deploy】Add 1 of your Shields to your hand. Then, choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand.
 export const KUSANAGI_DEPLOY: EffectSpec = {
   id: "GD01-129-Deploy",
@@ -667,16 +706,35 @@ export const ZEE_ZULU_ATTACK: EffectSpec = {
 };
 
 // GD01-066 Justice Gundam — 【Deploy】Deploy 1 [Fatum-00]((Triple Ship Alliance)･AP2･HP2･<Blocker>) Unit token.
-// (a 2ª cláusula oficial, "【During Pair】【Attack】Choose 1 of your (Triple Ship
-// Alliance) Unit tokens. It may attack on the turn it is deployed.", segue
-// deferida em deferred.ts — concessão de "pode atacar no turno em que foi
-// deployada" fora da exceção nativa de Link Unit, fora do escopo desta resolução.)
 export const JUSTICE_GUNDAM_DEPLOY: EffectSpec = {
   id: "GD01-066-Deploy",
   cardCode: "GD01-066",
   trigger: "Deploy",
   actions: [{ op: "spawnToken", def: TOKEN_FATUM_00, player: "controller", zone: "battleArea" }],
   sourceText: "【Deploy】Deploy 1 [Fatum-00]((Triple Ship Alliance)･AP2･HP2･<Blocker>) Unit token.",
+};
+
+// GD01-066 Justice Gundam — 2ª cláusula, fechada na revalidação (docs/47 Fase 3):
+// "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It
+// may attack on the turn it is deployed." `selfIsPaired` já é o predicado certo
+// aqui (tempo real — a Unit ainda está viva no trigger Attack, diferente do
+// `duringPair` de Destroyed que precisa de snapshot `wasPaired`; mesmo padrão já
+// usado por GD01-073/GD01-082 com `selfIsLinkUnit`/`selfIsPaired`). A exceção de
+// "pode atacar no turno do deploy" vira keyword sintética `AttackOnDeployTurn`
+// via `grantKeyword` (endOfTurn) — combat.ts/declareAttack aceita como
+// equivalente a Link Unit. Filtro `isToken` novo em predicates.ts.
+export const JUSTICE_GUNDAM_ATTACK: EffectSpec = {
+  id: "GD01-066-Attack",
+  cardCode: "GD01-066",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfIsPaired",
+    then: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "AttackOnDeployTurn", duration: "endOfTurn" }],
+  },
+  actions: [],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Triple Ship Alliance;isToken",
+  sourceText: "【During Pair】【Attack】Choose 1 of your (Triple Ship Alliance) Unit tokens. It may attack on the turn it is deployed.",
 };
 
 // GD01-047 Shamblo — 【Attack】If 2 or more other rested friendly Units are in play, choose 1 enemy Unit. Deal 3 damage to it.
@@ -693,6 +751,16 @@ export const SHAMBLO_ATTACK: EffectSpec = {
   sourceText: "【Attack】If 2 or more other rested friendly Units are in play, choose 1 enemy Unit. Deal 3 damage to it.",
 };
 
+// GD01-097 Guel Jeturk — 【Burst】Add this card to your hand. Mesmo achado
+// 2026-09-15 de GD01-088.
+export const GUEL_JETURK_BURST: EffectSpec = {
+  id: "GD01-097-Burst",
+  cardCode: "GD01-097",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+
 // GD01-097 Guel Jeturk — 【Activate･Main】【Once per Turn】If your opponent has 8 or more cards in their hand, set this Unit as active. It can't attack during this turn.
 export const GUEL_JETURK_ACTIVATE_MAIN: EffectSpec = {
   id: "GD01-097-ActivateMain",
@@ -704,6 +772,16 @@ export const GUEL_JETURK_ACTIVATE_MAIN: EffectSpec = {
   },
   actions: [],
   sourceText: "【Activate･Main】【Once per Turn】If your opponent has 8 or more cards in their hand, set this Unit as active. It can't attack during this turn.",
+};
+
+// GD01-098 Elan Ceres — 【Burst】Add this card to your hand. Mesmo achado
+// 2026-09-15 de GD01-088.
+export const ELAN_CERES_BURST: EffectSpec = {
+  id: "GD01-098-Burst",
+  cardCode: "GD01-098",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
 };
 
 // GD01-098 Elan Ceres — 【Activate･Action】【Once per Turn】If an enemy Unit with 1 or less AP is in play, this Unit recovers 1 HP.
@@ -745,6 +823,16 @@ export const GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION: EffectSpec = {
   actions: [],
   targetScope: "enemyUnit",
   sourceText: "【During Pair】【Activate･Action】【Once per Turn】②：Choose 1 enemy Unit. It gets AP-1 during this battle.",
+};
+
+// GD01-105 Citizens, Take a Stand! — 【Burst】Add this card to your hand.
+// Mesmo achado 2026-09-15 de GD01-088 — Command também pode ter Burst.
+export const CITIZENS_TAKE_A_STAND_BURST: EffectSpec = {
+  id: "GD01-105-Burst",
+  cardCode: "GD01-105",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
 };
 
 // GD01-105 Citizens, Take a Stand! — 【Main】All your Units get AP+2 during this turn.
@@ -1025,6 +1113,17 @@ export const ASSAULT_ON_TORRINGTON_BASE_ACTION: EffectSpec = {
   sourceText: "【Action】Choose 2 friendly Units. They get AP+1 during this turn.",
 };
 
+// GD01-093 Marida Cruz — 【Burst】Add this card to your hand. Mesmo achado
+// 2026-09-15 de GD01-088 — sem esta spec, o `hasBurst: true` do card def
+// nunca vira decisão de burst de verdade (ver dispatcher.ts#burstEligibleShieldIds).
+export const MARIDA_CRUZ_BURST: EffectSpec = {
+  id: "GD01-093-Burst",
+  cardCode: "GD01-093",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+
 // GD01-093 Marida Cruz — 【During Link】【Attack】Choose 1 enemy Unit whose Lv. is equal to
 // or lower than this Unit. Deal 1 damage to it. Lote 5 (docs/debates 2026-09-13):
 // 1ª carta a usar targetFilter "level<=self" (relativo à própria fonte, não um número
@@ -1041,6 +1140,16 @@ export const MARIDA_CRUZ_ATTACK: EffectSpec = {
   targetScope: "enemyUnit",
   targetFilter: "level<=self",
   sourceText: "【During Link】【Attack】Choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Deal 1 damage to it.",
+};
+
+// GD01-095 Dearka Elthman — 【Burst】Add this card to your hand. Mesmo achado
+// 2026-09-15 de GD01-088.
+export const DEARKA_ELTHMAN_BURST: EffectSpec = {
+  id: "GD01-095-Burst",
+  cardCode: "GD01-095",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
 };
 
 // GD01-095 Dearka Elthman — 【When Linked】Discard 1. If you do, draw 1. Lote 5
@@ -1213,6 +1322,7 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   BALL_ATTACK,
   CHUCHUS_DEMI_TRAINER_ATTACK,
   MISTRAL_DEPLOY,
+  BANAGHER_LINKS_BURST,
   BANAGHER_LINKS_WHEN_LINKED,
   INTERCEPT_ORDERS_BURST,
   A_SHOW_OF_RESOLVE_MAIN,
@@ -1226,6 +1336,7 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   OVERFLOWING_AFFECTION_MAIN,
   NAVAL_BOMBARDMENT_BURST,
   MIDAIR_MODIFICATIONS_MAIN,
+  MIDAIR_MODIFICATIONS_BURST,
   SIDE_7_BURST,
   SIDE_7_DEPLOY,
   SIDE_7_ACTIVATE_MAIN,
@@ -1248,6 +1359,7 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   WITCH_AND_BRIDE_BURST,
   WITCH_AND_BRIDE_MAIN,
   WITCH_AND_BRIDE_ACTION,
+  KUSANAGI_BURST,
   KUSANAGI_DEPLOY,
   NOINS_ARIES_DESTROYED,
   G_FIGHTER_DEPLOY,
@@ -1256,7 +1368,9 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   SHENLONG_GUNDAM_ATTACK,
   GYAN_WHEN_PAIRED,
   SHAMBLO_ATTACK,
+  GUEL_JETURK_BURST,
   GUEL_JETURK_ACTIVATE_MAIN,
+  ELAN_CERES_BURST,
   ELAN_CERES_ACTIVATE_ACTION,
   DEEP_DEVOTION_MAIN,
   DEEP_DEVOTION_ACTION,
@@ -1281,8 +1395,10 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   LAGOWE_ATTACK,
   ZEE_ZULU_ATTACK,
   JUSTICE_GUNDAM_DEPLOY,
+  JUSTICE_GUNDAM_ATTACK,
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
+  CITIZENS_TAKE_A_STAND_BURST,
   CITIZENS_TAKE_A_STAND_MAIN,
   G_SKY_EASY_ACTIVATE_ACTION,
   WING_GUNDAM_ZERO_DEPLOY,
@@ -1296,7 +1412,9 @@ export const GD01_EFFECT_SPECS: EffectSpec[] = [
   THE_PATH_TO_VICTORY_OR_DEFEAT_MAIN,
   KSHATRIYA_WHEN_PAIRED,
   ASSAULT_ON_TORRINGTON_BASE_ACTION,
+  MARIDA_CRUZ_BURST,
   MARIDA_CRUZ_ATTACK,
+  DEARKA_ELTHMAN_BURST,
   DEARKA_ELTHMAN_WHEN_LINKED,
   THE_STUBBORN_COG_MAIN,
   EXTREME_HATRED_MAIN,

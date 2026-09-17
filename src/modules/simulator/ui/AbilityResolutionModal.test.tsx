@@ -50,6 +50,67 @@ describe("AbilityResolutionModal", () => {
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }]);
   });
 
+  it("docs/47 Fase 5 — secondaryTarget (ST05-010 Mikazuki Augus): exige os 2 alvos antes de confirmar; envia secondaryTargetIds", () => {
+    const mikazuki: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "ST05-010-WhenPaired",
+          label: "Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+          optional: false,
+          needsTarget: true,
+          targetScope: "friendlyUnit",
+          legalTargets: ["r1"],
+          secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", legalTargets: ["e1", "e2"] },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={mikazuki} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
+    expect(confirm).toBeDisabled(); // ainda falta o 2º alvo
+
+    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "ST05-010-WhenPaired", activate: true, targetIds: ["r1"], secondaryTargetIds: ["e2"] },
+    ]);
+  });
+
+  it("docs/47 Fase 5 — secondaryTarget sem alvo legal: confirma sem escolher (secondaryTargetIds vazio)", () => {
+    const mikazukiNoEnemy: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "ST05-010-WhenPaired",
+          label: "Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+          optional: false,
+          needsTarget: true,
+          targetScope: "friendlyUnit",
+          legalTargets: ["r1"],
+          secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", legalTargets: [] },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={mikazukiNoEnemy} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "ST05-010-WhenPaired", activate: true, targetIds: ["r1"], secondaryTargetIds: [] },
+    ]);
+  });
+
   it("Attack + ownResource: mostra o cabeçalho do 【Attack】 e os recursos como alvo", () => {
     const attack: AR = {
       kind: "abilityResolution",
@@ -301,5 +362,77 @@ describe("AbilityResolutionModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pular" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "X-1", activate: false, targetIds: [] }]);
+  });
+
+  it("multi-alvo (targetCount max: 2): permite selecionar até 2 alvos e envia ambos", () => {
+    const multiTarget: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "k1",
+          specId: "GD01-044-WhenPaired",
+          label: "Choose 1 to 2 enemy Units. Deal 2 damage divided among them.",
+          optional: false,
+          needsTarget: true,
+          targetCount: { min: 1, max: 2 },
+          targetScope: "enemyUnit",
+          legalTargets: ["e1", "e2"],
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(<AbilityResolutionModal decision={multiTarget} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeDisabled();
+
+    // Clica no 1º alvo
+    fireEvent.click(screen.getByRole("button", { name: "Zaku II" }));
+    expect(confirm).toBeEnabled();
+
+    // Clica no 2º alvo (agora 2 selecionados)
+    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "GD01-044-WhenPaired", activate: true, targetIds: ["e1", "e2"] },
+    ]);
+  });
+
+  it("trashSearch (busca na lixeira): permite selecionar carta do descarte ou 'Nenhuma'", () => {
+    const trashDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "a1",
+          specId: "GD01-067-WhenPaired",
+          label: "Search your trash for 1 Command card and add it to your hand.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          trashSearch: {
+            legalTrashIds: ["c1"],
+            label: "Search trash",
+          },
+        },
+      ],
+    };
+    const onResolve = vi.fn();
+    render(
+      <AbilityResolutionModal
+        decision={trashDecision}
+        resolveLabel={(id) => (id === "c1" ? "Signs of a Revolution" : id)}
+        onResolve={onResolve}
+      />,
+    );
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).toBeEnabled(); // 0 alvos ou 1 é válido
+
+    fireEvent.click(screen.getByRole("button", { name: "Signs of a Revolution" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([
+      { specId: "GD01-067-WhenPaired", activate: true, targetIds: ["c1"] },
+    ]);
   });
 });

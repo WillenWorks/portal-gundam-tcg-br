@@ -1,5 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveCost, effectivePilotDef, satisfiesLinkCondition } from "./types";
+import { effectiveCost, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
@@ -129,7 +129,10 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
 
   const events: GameEvent[] = freeDeploy ? [] : payCostEvents(base, player, def, options.resourceInstanceIds);
   if (freeDeploy && options.sacrificeInstanceId) {
+    const sacrificed = findCard(base, options.sacrificeInstanceId);
     events.push({ type: "DESTROY_CARD", instanceId: options.sacrificeInstanceId });
+    // CR 3-3-6: sac é sempre uma Link Unit (validado acima) — o Pilot pareado segue pro trash.
+    events.push(...pairedPilotFollowEvents(sacrificed));
   }
 
   if (def.cardType === "UNIT") {

@@ -87,7 +87,10 @@ describe("self-play do bot heurístico (decks validados)", () => {
       }
       console.log(`[selfplay] heurístico vs heurístico: ${games} partidas, média ${(turns / games).toFixed(1)} turnos`);
     },
-    240_000,
+    // Timeout escala com o nº de pares de `validatedDeckList()` (i<=j) — wave ST05
+    // (docs/50) subiu de 4 pra 5 decks validados (10 -> 15 pares, 400 -> 600 partidas
+    // neste teste). Bump proporcional + folga.
+    420_000,
   );
 
   it(
@@ -116,6 +119,7 @@ describe("self-play do bot heurístico (decks validados)", () => {
       );
       expect(rate).toBeGreaterThan(0.5);
     },
-    180_000,
+    // Mesma razão do bump acima (wave ST05, docs/50): 10 -> 15 pares, 800 -> 1200 partidas.
+    300_000,
   );
 });

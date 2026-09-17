@@ -34,6 +34,7 @@ import {
   GAMOW_ACTIVATE_ACTION,
   TACTICAL_TESTING_SECTOR_ACTIVATE_MAIN,
   JUSTICE_GUNDAM_DEPLOY,
+  JUSTICE_GUNDAM_ATTACK,
   STRIKE_ROUGE_ACTIVATE_MAIN,
   GUNDAM_AERIAL_MIRASOUL_ACTIVATE_ACTION,
   IRON_FISTED_DISCIPLINE_MAIN,
@@ -50,8 +51,18 @@ import {
   KSHATRIYA_WHEN_PAIRED,
   ASSAULT_ON_TORRINGTON_BASE_ACTION,
   GD01_EFFECT_SPECS,
+  BANAGHER_LINKS_BURST,
+  MARIDA_CRUZ_BURST,
   MARIDA_CRUZ_ATTACK,
+  DEARKA_ELTHMAN_BURST,
   DEARKA_ELTHMAN_WHEN_LINKED,
+  GUEL_JETURK_BURST,
+  ELAN_CERES_BURST,
+  CITIZENS_TAKE_A_STAND_BURST,
+  MIDAIR_MODIFICATIONS_MAIN,
+  MIDAIR_MODIFICATIONS_BURST,
+  KUSANAGI_BURST,
+  KUSANAGI_DEPLOY,
   THE_STUBBORN_COG_MAIN,
   EXTREME_HATRED_MAIN,
   DOPP_DEPLOY,
@@ -63,7 +74,7 @@ import {
   CHARS_GELGOOG_ACTIVATE_MAIN,
   FREEDOM_GUNDAM_ANY_PAIRING,
 } from "./gd01";
-import { dispatchTrigger } from "../engine/dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger } from "../engine/dispatcher";
 
 /**
  * Fase 2 (Claude) da wave GD01 — testa os EffectSpecs autorados sobre as
@@ -345,6 +356,35 @@ describe("Primitivas existentes reaproveitadas (deployThisCard/spawnToken/addShi
     expect(token?.def.effectKeywords).toContain("Blocker");
   });
 
+  it("GD01-066 Justice Gundam (Attack): 'selfIsPaired' só ativa a 2ª cláusula quando pareada (docs/47 Fase 3, deferred.ts fechado)", () => {
+    const state = freshGame();
+    const justiceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-066"], "battleArea");
+    expect(specActiveCalls(JUSTICE_GUNDAM_ATTACK, ctxFor(state, justiceId), defaultPredicateResolver)).toEqual([]);
+
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "battleArea");
+    findCard(state, justiceId).pairedPilotId = pilotId;
+    expect(specActiveCalls(JUSTICE_GUNDAM_ATTACK, ctxFor(state, justiceId), defaultPredicateResolver)).toHaveLength(1);
+  });
+
+  it("GD01-066 Justice Gundam (Attack): concede <AttackOnDeployTurn> ao token Fatum-00 escolhido, permitindo atacar no turno em que foi deployado", () => {
+    let state = advanceToMainPhase(freshGame());
+    const justiceId = placeCard(state, "A", GD01_CARD_DEFS["GD01-066"], "battleArea");
+    const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-087"], "battleArea");
+    findCard(state, justiceId).pairedPilotId = pilotId;
+    state = applyEvents(state, resolveEffectSpec(JUSTICE_GUNDAM_DEPLOY, ctxFor(state, justiceId), defaultPredicateResolver));
+    const tokenId = state.players.A.battleArea.find((c) => c.def.nameEn === "Fatum-00")!.instanceId;
+    findCard(state, tokenId).enteredZoneOnTurn = state.turnNumber; // deployado NESTE turno
+
+    // sem a concessão, o token recém-deployado não pode atacar (CR 3-2-4).
+    expect(() => declareAttack(state, tokenId, "player")).toThrow(/recém-deployada/);
+
+    const ctx = ctxFor(state, justiceId, "A", { target: [tokenId] });
+    const withGrant = applyEvents(state, resolveEffectSpec(JUSTICE_GUNDAM_ATTACK, ctx, defaultPredicateResolver));
+    expect(hasKeyword(findCard(withGrant, tokenId), "AttackOnDeployTurn", withGrant)).toBe(true);
+
+    expect(() => declareAttack(withGrant, tokenId, "player")).not.toThrow();
+  });
+
   it("GD01-006 Delta Plus: 'During Link, HP+1' agora é staticAbility real (effectiveHp reage a Link)", () => {
     const state = freshGame();
     const pilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-013"], "hand"); // qualquer pilot fixture não usado aqui — substituído abaixo
@@ -597,6 +637,27 @@ describe("Lote 3 (docs/debates 2026-09-13) — StaticAbility com condição gen�
     findCard(state, pilotId).pairedUnitId = redUnitId;
     findCard(state, redUnitId).pairedPilotId = pilotId;
     expect(hasKeyword(findCard(state, redUnitId), "Repair", state)).toBe(false);
+  });
+
+  it("GD01-001 Gundam: aura 'All your (White Base Team) Units gain <Repair 1>' concede a keyword a OUTRA Unit do grupo sem tê-la impressa (deferred.ts fechado)", () => {
+    const state = freshGame();
+    placeCard(state, "A", GD01_CARD_DEFS["GD01-001"], "battleArea");
+    // GD01-013 Gundam (outra versão): mesmo traits ["Earth Federation","White Base Team"], sem Repair impresso.
+    const otherWhiteBaseUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-013"], "battleArea");
+    expect(hasKeyword(findCard(state, otherWhiteBaseUnitId), "Repair", state)).toBe(true);
+    expect(keywordValue(findCard(state, otherWhiteBaseUnitId), "Repair", state)).toBe(1);
+
+    // Unit sem trait White Base Team NÃO recebe a aura.
+    const nonWhiteBaseUnitId = placeCard(state, "A", GD01_CARD_DEFS["GD01-064"], "battleArea"); // DINN, Principality of Zeon
+    expect(hasKeyword(findCard(state, nonWhiteBaseUnitId), "Repair", state)).toBe(false);
+
+    // Sem `state`, a concessão via StaticAbility não é vista (limite documentado em `hasKeyword`).
+    expect(hasKeyword(findCard(state, otherWhiteBaseUnitId), "Repair")).toBe(false);
+
+    // Fim de turno (activePlayer "A"): a Unit sem Repair impresso, mas danificada, é curada pela aura.
+    findCard(state, otherWhiteBaseUnitId).damage = 1;
+    const healed = runEndPhase(state);
+    expect(findCard(healed, otherWhiteBaseUnitId).damage).toBe(0);
   });
 
   it("GD01-089 Riddhe Marcenas (Pilot): concede AP+1 à Unit pareada só enquanto ela mesma tiver <Repair>", () => {
@@ -1305,5 +1366,101 @@ describe("Lote 5 (docs/debates 2026-09-13) — GD01-065 Freedom Gundam: reage a 
     if (d?.kind !== "abilityResolution") throw new Error("esperava abilityResolution (AnyPairing) pendente pra A");
     expect(d.trigger).toBe("AnyPairing");
     expect(d.queue.some((q) => q.specId === "GD01-065-AnyPairing")).toBe(true);
+  });
+});
+
+/**
+ * docs/debates 2026-09-15 (pedido do Willen — "verificar se Banagher está
+ * ativando corretamente o burst"): 8 cartas GD01 tinham `hasBurst: true` no
+ * CardDef mas NENHUM EffectSpec de `trigger: "Burst"` cadastrado.
+ * `burstEligibleShieldIds` (dispatcher.ts) só oferece a decisão de 【Burst】
+ * pra uma shield quando `findTriggerSpecs(specs, code, "Burst").length > 0`
+ * — sem a spec, a carta nunca virava burst-eligible: quebrava como shield e
+ * ficava presa no trash pra sempre, mesmo tendo texto de Burst real. Corrigido
+ * cadastrando a spec que faltava pra cada uma (mesmo padrão de ST01-010/011
+ * pro caso simples "Add this card to your hand").
+ */
+describe("Burst — 8 cartas GD01 com hasBurst:true sem EffectSpec de Burst (achado 2026-09-15)", () => {
+  const ADD_TO_HAND_CASES: Array<{ code: string; label: string }> = [
+    { code: "GD01-088", label: "Banagher Links" },
+    { code: "GD01-093", label: "Marida Cruz" },
+    { code: "GD01-095", label: "Dearka Elthman" },
+    { code: "GD01-097", label: "Guel Jeturk" },
+    { code: "GD01-098", label: "Elan Ceres" },
+    { code: "GD01-105", label: "Citizens, Take a Stand!" },
+  ];
+
+  it.each(ADD_TO_HAND_CASES)("$label ($code): shield quebrada agora é burstEligible e o Burst manda a carta pra mão", ({ code }) => {
+    const state = freshGame();
+    const shieldId = placeCard(state, "A", GD01_CARD_DEFS[code], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: shieldId, toZone: "trash" }]);
+
+    // Antes do fix, esta lista vinha vazia — a carta nunca oferecia a decisão de 【Burst】.
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([shieldId]);
+
+    const next = dispatchTrigger(trashed, shieldId, "Burst", GD01_EFFECT_SPECS, {
+      targets: {},
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      allSpecs: GD01_EFFECT_SPECS,
+    });
+    expect(findCard(next, shieldId).zone).toBe("hand");
+  });
+
+  it("GD01-121 Midair Modifications: 【Burst】Activate this card's 【Main】 reaproveita as MESMAS actions do 【Main】", () => {
+    expect(MIDAIR_MODIFICATIONS_BURST.actions).toBe(MIDAIR_MODIFICATIONS_MAIN.actions);
+    expect(MIDAIR_MODIFICATIONS_BURST.targetScope).toBe(MIDAIR_MODIFICATIONS_MAIN.targetScope);
+
+    const state = freshGame();
+    const midairId = placeCard(state, "A", GD01_CARD_DEFS["GD01-121"], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: midairId, toZone: "trash" }]);
+    const restedAllyId = placeCard(trashed, "A", GD01_CARD_DEFS["GD01-035"], "battleArea", { rested: true });
+
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([midairId]);
+
+    const ctx = ctxFor(trashed, midairId, "A", { target: [restedAllyId] });
+    const events = resolveEffectSpec(MIDAIR_MODIFICATIONS_BURST, ctx, defaultPredicateResolver);
+    const next = applyEvents(trashed, events);
+    expect(findCard(next, restedAllyId).rested).toBe(false);
+    expect(findCard(next, restedAllyId).cannotAttackUntilTurn).toBe(next.turnNumber);
+  });
+
+  it("GD01-129 Kusanagi: 【Burst】Deploy this card encadeia o 【Deploy】 e PAUSA pra escolha real do bounce (docs/47 Fase 4)", () => {
+    const state = freshGame();
+    const kusanagiId = placeCard(state, "A", GD01_CARD_DEFS["GD01-129"], "shields");
+    const trashed = applyEvents(state, [{ type: "MOVE_CARD", instanceId: kusanagiId, toZone: "trash" }]);
+    const enemyId = placeCard(trashed, "B", GD01_CARD_DEFS["GD01-035"], "battleArea"); // Zaku Ⅱ, HP2 <= 3
+
+    expect(burstEligibleShieldIds(state, trashed, "A", GD01_EFFECT_SPECS)).toEqual([kusanagiId]);
+    const handBefore = trashed.players.A.hand.length;
+    const shieldsBefore = trashed.players.A.shields.length;
+
+    const next = dispatchTrigger(trashed, kusanagiId, "Burst", GD01_EFFECT_SPECS, {
+      targets: {},
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+      allSpecs: GD01_EFFECT_SPECS,
+    });
+
+    expect(findCard(next, kusanagiId).zone).toBe("baseSection"); // deployThisCard (Base)
+    // pausou: shield + bounce são o MESMO spec (Add Shield + moveZone alvo nomeado) — resolvem juntos.
+    expect(next.players.A.hand.length).toBe(handBefore);
+    const decision = next.pendingDecision.A;
+    const q = decision?.kind === "abilityResolution" ? decision.queue[0] : undefined;
+    expect(q?.specId).toBe("GD01-129-Deploy");
+    expect(q?.legalTargets).toEqual([enemyId]);
+
+    const resolved = applyPlayerAction(
+      next,
+      "A",
+      { kind: "resolveAbility", resolutions: [{ specId: q!.specId, activate: true, targetIds: [enemyId] }] },
+      GD01_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    expect(resolved.players.A.hand.length).toBe(handBefore + 1); // 【Deploy】 Add 1 Shield to hand
+    expect(resolved.players.A.shields.length).toBe(shieldsBefore - 1);
+    expect(findCard(resolved, enemyId).zone).toBe("hand"); // 【Deploy】 bounce
+    expect(resolved.pendingDecision.A).toBeNull();
   });
 });
