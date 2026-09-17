@@ -115,7 +115,6 @@ describe("Bug fixes da revalidação (Fase 2)", () => {
     const perfectStrikeId = placeCard(state, "A", GD01_CARD_DEFS["GD01-068"], "battleArea");
     const enemyPilotId = placeCard(state, "B", GD01_CARD_DEFS["GD01-087"], "battleArea");
     const enemyUnitId = placeCard(state, "B", GD01_CARD_DEFS["GD01-035"], "battleArea", {
-      hp: undefined,
       damage: (GD01_CARD_DEFS["GD01-035"].hp ?? 2) - 1, // 1 HP restante
       pairedPilotId: enemyPilotId,
     });
