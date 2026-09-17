@@ -58,6 +58,7 @@ const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthori
 const AdminArticlesPage = lazy(() => import("@/pages/admin/AdminArticlesPage"));
 const LgsTvDisplayPage = lazy(() => import("@/pages/tournaments/LgsTvDisplayPage"));
 const EventCheckinPage = lazy(() => import("@/pages/tournaments/EventCheckinPage"));
+const ZeroTerminalPage = lazy(() => import("@/pages/ZeroTerminalPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -149,6 +150,8 @@ function AppRouter() {
             </LazyRoute>
           )}
         </Route>
+        {/* Hub Zero Terminal (Zero System Central AI) */}
+        <Route path="/zero">{() => <LazyRoute label="Zero System"><ZeroTerminalPage /></LazyRoute>}</Route>
         {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
             de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>

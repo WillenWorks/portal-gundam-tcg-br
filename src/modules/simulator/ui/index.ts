@@ -35,3 +35,4 @@ export { SettingsMenu } from "./SettingsMenu";
 export { useBoardElements, playerAreaKey, playerShieldKey, type BoardElements } from "./useBoardElements";
 export { BattleLogDrawer } from "./BattleLogDrawer";
 export { buildBattleLog, describeEvent, makeNameResolver, type BattleLogEntry, type BattleLogKind } from "./battleLog";
+export { ZeroCoachHud, type ZeroCoachHudProps } from "./ZeroCoachHud";
