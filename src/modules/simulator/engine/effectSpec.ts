@@ -199,7 +199,7 @@ export type PrimitiveCall =
    * `CombatState.unitDamageProtection` pra a Unit escolhida (`target` nomeado).
    * Não-op fora de combate. `maxAttackerAp` inclusivo.
    */
-  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp: number }
+  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp?: number; maxAttackerLevel?: number }
   /**
    * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
    * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
@@ -443,7 +443,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "preventUnitBattleDamage": {
       return resolveTargetIds(call.target, ctx).map(
-        (instanceId): GameEvent => ({ type: "SET_UNIT_DAMAGE_PROTECTION", instanceId, maxAttackerAp: call.maxAttackerAp }),
+        (instanceId): GameEvent => ({
+          type: "SET_UNIT_DAMAGE_PROTECTION",
+          instanceId,
+          maxAttackerAp: call.maxAttackerAp,
+          maxAttackerLevel: call.maxAttackerLevel,
+        }),
       );
     }
     case "grantAttackTargetRelax": {

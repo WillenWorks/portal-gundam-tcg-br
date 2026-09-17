@@ -868,7 +868,7 @@ export interface CombatState {
    * por Unit específica e condicionada ao AP EFETIVO do atacante. Só 1 Unit
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
-  unitDamageProtection?: { instanceId: string; maxAttackerAp: number } | null;
+  unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number } | null;
 }
 
 /**
@@ -998,7 +998,7 @@ export type GameEvent =
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
   | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
-  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp: number }
+  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
   | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
