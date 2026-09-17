@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "220 specs",
+  "generatedFrom": "245 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -197,10 +197,8 @@
         {
           "code": "ST02-015",
           "name": "Saint Gabriel Institute",
-          "status": "implementada*",
-          "deferredClauses": [
-            "look at the top 2 cards of your deck and return 1 to the top and 1 to the bottom"
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST02-016",
@@ -210,8 +208,8 @@
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 5,
         "deferida": 0,
         "faltando": 0
@@ -222,11 +220,8 @@
         {
           "code": "ST03-001",
           "name": "Sinanju",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Pair】This Unit gains <High-Maneuver>.",
-            "when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST03-002",
@@ -320,8 +315,8 @@
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 5,
         "deferida": 0,
         "faltando": 0
@@ -430,6 +425,107 @@
         "impl": 11,
         "implStar": 0,
         "vanilla": 5,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST05": {
+      "cards": [
+        {
+          "code": "ST05-001",
+          "name": "Gundam Barbatos 4th Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-002",
+          "name": "Gundam Barbatos 2nd Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-003",
+          "name": "CGS Mobile Worker",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-004",
+          "name": "Graze Custom",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-005",
+          "name": "Gundam Gusion Rebake",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-006",
+          "name": "Hyakuren",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-007",
+          "name": "McGillis' Schwalbe Graze",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-008",
+          "name": "Graze Commander Type",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-009",
+          "name": "Graze",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-010",
+          "name": "Mikazuki Augus",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-011",
+          "name": "Akihiro Altland",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-012",
+          "name": "McGillis Fareed",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-013",
+          "name": "With Iron and Blood",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-014",
+          "name": "Fatal Strike",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST05-015",
+          "name": "Isaribi",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 11,
+        "implStar": 0,
+        "vanilla": 4,
         "deferida": 0,
         "faltando": 0
       }
