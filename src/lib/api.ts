@@ -276,6 +276,35 @@ export type ApiBinder = {
   _count?: { items: number };
 };
 
+// Universe Hub — conteúdo rico de série (kind=SOURCE_TITLE) guardado em TaxonomyEntry.metadataJson.
+// Formato livre no schema (Json?) — este type documenta o contrato que o admin/seed preenche e
+// que SeriesDetailPage consome. Todo campo é opcional pra não quebrar séries só com capa/descrição.
+export type SeriesMobileSuit = { name: string; pilot?: string; faction?: string; description?: string; image?: string };
+export type SeriesPilot = { name: string; affiliation?: string; description?: string; image?: string };
+export type SeriesMetadata = {
+  alias?: string;
+  era?: string;
+  synopsis?: string;
+  mobileSuits?: SeriesMobileSuit[];
+  pilots?: SeriesPilot[];
+  trivia?: string[];
+  galleryImages?: string[];
+};
+
+export type TaxonomyEntry = {
+  id: string;
+  kind: "TRAIT" | "SOURCE_TITLE";
+  name: string;
+  slug: string;
+  description?: string | null;
+  coverImage?: string | null;
+  officialUrl?: string | null;
+  metadataJson?: SeriesMetadata | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type CardFilters = {
   q?: string;
   color?: string;
@@ -573,9 +602,9 @@ export const api = {
   updateSeason: (id: string, payload: any) => mutate<any>(`/seasons/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/seasons"]),
   setCurrentSeason: (id: string) => mutate<any>(`/seasons/${id}/set-current`, { method: "PUT" }, ["/seasons", "/stats", "/tournaments", "/hosted-events"]),
   deleteSeason: (id: string) => mutate<void>(`/seasons/${id}`, { method: "DELETE" }, ["/seasons", "/sets", "/tournaments", "/hosted-events"]),
-  listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
+  listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<TaxonomyEntry[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
   // Mesma lógica de listAdminSets, mas pra Traits/Séries.
-  listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
+  listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<TaxonomyEntry[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
   createTaxonomy: (payload: any) => mutate<any>("/taxonomies", { method: "POST", body: JSON.stringify(payload) }, ["/taxonomies"]),
   updateTaxonomy: (id: string, payload: any) => mutate<any>(`/taxonomies/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/taxonomies"]),
   deleteTaxonomy: (id: string) => mutate<void>(`/taxonomies/${id}`, { method: "DELETE" }, ["/taxonomies"]),

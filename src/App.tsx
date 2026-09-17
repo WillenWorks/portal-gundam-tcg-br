@@ -22,6 +22,8 @@ import SharedBinderPage from "@/pages/SharedBinderPage";
 import PublicDecksPage from "@/pages/PublicDecksPage";
 import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
+import SeriesHubPage from "@/pages/SeriesHubPage";
+import SeriesDetailPage from "@/pages/SeriesDetailPage";
 import NotFound from "@/pages/NotFound";
 import BinderPage from "@/pages/BinderPage";
 import BinderListPage from "@/pages/BinderListPage";
@@ -99,6 +101,8 @@ function AppRouter() {
         <Route path="/binder/:shareId" component={SharedBinderPage} />
         <Route path="/sets/:code" component={SetDetailPage} />
         <Route path="/sets" component={CollectionsPage} />
+        <Route path="/series/:slug" component={SeriesDetailPage} />
+        <Route path="/series" component={SeriesHubPage} />
         <Route path="/database" component={CardsPage} />
         <Route path="/eventos" component={TournamentsPage} />
         <Route path="/novidades" component={ChangelogPage} />
