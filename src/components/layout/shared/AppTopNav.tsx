@@ -1,13 +1,14 @@
 /* Layout shared v8.2 — topo público consistente, alinhado à esquerda, com Simulador integrado e menu mobile intuitivo. */
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, CircleHelp, LogIn, LogOut, Menu, Moon, PanelsTopLeft, Sun, Swords, X } from "lucide-react";
+import { ChevronDown, CircleHelp, HeartHandshake, LogIn, LogOut, Menu, Moon, PanelsTopLeft, Sun, Swords, X } from "lucide-react";
 import { toast } from "sonner";
 
 import anaheimLogo from "@/assets/anaheim-logo-transparent.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
+import { CommunitySupportModal } from "@/components/support/CommunitySupportModal";
 import { cn } from "@/lib/utils";
 
 export type NavItem = {
@@ -28,6 +29,8 @@ export const publicTopNav: readonly NavItem[] = [
       { href: "/sets", label: "Produtos" },
     ],
   },
+  { href: "/series", label: "Universo" },
+  { href: "/articles", label: "Artigos" },
   { href: "/stats", label: "Estatísticas" },
   { href: "/simulador", label: "Simulador", authRequired: true },
   { href: "/rules", label: "Regras" },
@@ -82,6 +85,7 @@ export function AppTopNav() {
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileDatabaseOpen, setMobileDatabaseOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const currentPath = useMemo(() => location.split("?")[0], [location]);
   const dashboardHref = "/profile";
@@ -141,8 +145,19 @@ export function AppTopNav() {
           </nav>
         </div>
 
-        {/* Bloco Direito: Botão ? de novidades, alternador de tema e autenticação */}
+        {/* Bloco Direito: Apoiar, botão ? de novidades, alternador de tema e autenticação */}
         <div className="hidden items-center gap-2 md:flex">
+          <Button
+            type="button"
+            size="icon"
+            className="rounded-none border border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 2xl:size-auto 2xl:px-3.5 2xl:py-2"
+            onClick={() => setSupportOpen(true)}
+            title="Apoiar o Anaheim Hub via Pix"
+          >
+            <HeartHandshake className="size-4 2xl:mr-1.5 2xl:size-3.5" />
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] 2xl:inline">Apoiar</span>
+          </Button>
+
           <Button
             asChild
             variant="outline"
@@ -297,6 +312,19 @@ export function AppTopNav() {
               <span>Novidades & Atualizações</span>
             </Link>
 
+            {/* Apoiar (Pix) */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                setSupportOpen(true);
+              }}
+              className="flex w-full items-center gap-2.5 border border-primary/40 bg-primary/10 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/20"
+            >
+              <HeartHandshake className="size-3.5" />
+              <span>Apoiar o Anaheim Hub</span>
+            </button>
+
             {/* Seção de Autenticação / Perfil no Mobile */}
             <div className="mt-2 pt-2 border-t border-white/10">
               {isAuthenticated ? (
@@ -335,6 +363,8 @@ export function AppTopNav() {
           </div>
         </div>
       ) : null}
+
+      <CommunitySupportModal open={supportOpen} onOpenChange={setSupportOpen} />
     </header>
   );
 }

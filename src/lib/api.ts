@@ -263,6 +263,10 @@ export interface MatchupMatrixResponse {
 }
 
 
+// Pastas de Coleção Públicas -- tag opcional por item de binder (dono marca antes de
+// compartilhar), exibida como badge no grid/fichário do PublicBinderPage.
+export type BinderItemTag = "FOR_TRADE" | "WISHLIST";
+
 export type ApiBinder = {
   id: string;
   shareId: string;
@@ -272,8 +276,59 @@ export type ApiBinder = {
   createdAt?: string;
   updatedAt?: string;
   user?: AuthUser;
-  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; card: any }>;
+  items: Array<{ id: string; cardId: string; quantity: number; note?: string | null; position?: number; tag?: BinderItemTag | null; card: any }>;
   _count?: { items: number };
+};
+
+// Universe Hub — conteúdo rico de série (kind=SOURCE_TITLE) guardado em TaxonomyEntry.metadataJson.
+// Formato livre no schema (Json?) — este type documenta o contrato que o admin/seed preenche e
+// que SeriesDetailPage consome. Todo campo é opcional pra não quebrar séries só com capa/descrição.
+export type SeriesMobileSuit = { name: string; pilot?: string; faction?: string; description?: string; image?: string };
+export type SeriesPilot = { name: string; affiliation?: string; description?: string; image?: string };
+export type SeriesMetadata = {
+  alias?: string;
+  era?: string;
+  synopsis?: string;
+  mobileSuits?: SeriesMobileSuit[];
+  pilots?: SeriesPilot[];
+  trivia?: string[];
+  galleryImages?: string[];
+};
+
+// Módulo Editorial — artigos públicos (model Post no schema). postType/status batem 1:1
+// com os enums PostType/PostStatus do Prisma (NEWS/PREVIEW/REVIEW/GUIDE, DRAFT/REVIEW/PUBLISHED).
+export type PostType = "NEWS" | "PREVIEW" | "REVIEW" | "GUIDE";
+export type PostStatus = "DRAFT" | "REVIEW" | "PUBLISHED";
+export type ApiPost = {
+  id: string;
+  authorId: string;
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  contentMd: string;
+  coverImage?: string | null;
+  galleryJson?: string[] | null;
+  youtubeUrl?: string | null;
+  postType: PostType;
+  status: PostStatus;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author?: AuthUser;
+};
+
+export type TaxonomyEntry = {
+  id: string;
+  kind: "TRAIT" | "SOURCE_TITLE";
+  name: string;
+  slug: string;
+  description?: string | null;
+  coverImage?: string | null;
+  officialUrl?: string | null;
+  metadataJson?: SeriesMetadata | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type CardFilters = {
@@ -553,11 +608,12 @@ export const api = {
   getPublicProfile: (username: string) => request<{ id: string; username: string; displayName: string; bio?: string | null; avatarUrl?: string | null; decks: ApiDeck[]; binders: ApiBinder[] }>(`/users/${username}`, undefined, { ttlMs: 30_000 }),
   listAdminUsers: () => request<any[]>("/users/admin", undefined, { ttlMs: 5_000 }),
   updateAdminUser: (id: string, payload: any) => mutate<AuthUser>(`/users/admin/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/users/admin", "/auth/me", "/users/"]),
-  listPosts: (status?: string) => request<any[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
-  listPostsPage: (status?: string, pagination: PaginationParams = {}) =>
-    request<PaginatedResponse<any>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
-  createPost: (payload: any) => mutate<any>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
-  updatePost: (id: string, payload: any) => mutate<any>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
+  listPosts: (status?: PostStatus) => request<ApiPost[]>(`/posts${status ? `?status=${encodeURIComponent(status)}` : ""}`, undefined, { ttlMs: 20_000 }),
+  listPostsPage: (status?: PostStatus, pagination: PaginationParams = {}) =>
+    request<PaginatedResponse<ApiPost>>(`/posts${toQuery({ status, page: String(pagination.page ?? 1), pageSize: String(pagination.pageSize ?? 12) })}`, undefined, { ttlMs: 20_000 }),
+  getPostBySlug: (slug: string) => request<ApiPost>(`/posts/slug/${encodeURIComponent(slug)}`, undefined, { ttlMs: 20_000 }),
+  createPost: (payload: Partial<ApiPost>) => mutate<ApiPost>("/posts", { method: "POST", body: JSON.stringify(payload) }, ["/posts"]),
+  updatePost: (id: string, payload: Partial<ApiPost>) => mutate<ApiPost>(`/posts/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/posts"]),
   deletePost: (id: string) => mutate<void>(`/posts/${id}`, { method: "DELETE" }, ["/posts"]),
   listSets: () => request<Array<{ id: string; code: string; namePt?: string | null; nameEn: string; releaseDate?: string | null; _count?: { cards: number } }>>("/sets", undefined, { ttlMs: 60_000 }),
   // Versão de gestão: traz também coleções ocultadas (isActive=false), pro admin poder
@@ -573,9 +629,9 @@ export const api = {
   updateSeason: (id: string, payload: any) => mutate<any>(`/seasons/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/seasons"]),
   setCurrentSeason: (id: string) => mutate<any>(`/seasons/${id}/set-current`, { method: "PUT" }, ["/seasons", "/stats", "/tournaments", "/hosted-events"]),
   deleteSeason: (id: string) => mutate<void>(`/seasons/${id}`, { method: "DELETE" }, ["/seasons", "/sets", "/tournaments", "/hosted-events"]),
-  listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
+  listTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<TaxonomyEntry[]>(`/taxonomies${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 60_000 }),
   // Mesma lógica de listAdminSets, mas pra Traits/Séries.
-  listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<any[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
+  listAdminTaxonomies: (kind?: "TRAIT" | "SOURCE_TITLE") => request<TaxonomyEntry[]>(`/taxonomies/admin${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`, undefined, { ttlMs: 5_000 }),
   createTaxonomy: (payload: any) => mutate<any>("/taxonomies", { method: "POST", body: JSON.stringify(payload) }, ["/taxonomies"]),
   updateTaxonomy: (id: string, payload: any) => mutate<any>(`/taxonomies/${id}`, { method: "PUT", body: JSON.stringify(payload) }, ["/taxonomies"]),
   deleteTaxonomy: (id: string) => mutate<void>(`/taxonomies/${id}`, { method: "DELETE" }, ["/taxonomies"]),

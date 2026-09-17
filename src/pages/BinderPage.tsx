@@ -9,7 +9,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { api, mapApiCard, type CardFilters } from "@/lib/api";
+import { api, mapApiCard, type BinderItemTag, type CardFilters } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,17 @@ import type { CardRecord } from "@/modules/core/types";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
 const defaultPoolFilters: PoolFilters = { q: "", color: "", cardType: "", series: "", trait: "" };
 type PoolMeta = { colors: string[]; cardTypes: string[]; series: string[]; traits: string[] };
-type BinderEntry = { printId: string; quantity: number };
+type BinderEntry = { printId: string; quantity: number; tag?: BinderItemTag | null };
 type SortField = "rarity" | "color" | "set" | "name";
 type SortLevel = { field: SortField; direction: "asc" | "desc" };
-type BinderRow = CardRecord & { quantity: number };
+type BinderRow = CardRecord & { quantity: number; tag?: BinderItemTag | null };
+
+const TAG_CYCLE: Array<BinderItemTag | null> = [null, "FOR_TRADE", "WISHLIST"];
+const TAG_LABEL: Record<BinderItemTag, string> = { FOR_TRADE: "Para Troca", WISHLIST: "Desejo" };
+const TAG_BADGE_CLASS: Record<BinderItemTag, string> = {
+  FOR_TRADE: "border-amber-400/60 bg-amber-400/20 text-amber-200",
+  WISHLIST: "border-violet-400/60 bg-violet-400/20 text-violet-200",
+};
 
 const SORT_FIELD_LABELS: Record<SortField, string> = { rarity: "Raridade", color: "Cor", set: "Coleção/produto", name: "Nome" };
 const RARITY_ORDER = ["C", "U", "R", "SR", "LR", "Promo", "Winner", "Judge"];
@@ -75,7 +82,7 @@ function PoolCardTile({ card, quantity, onAdd, onOpenGallery }: { card: CardReco
 /** Tile de item já no binder. Em modo manual (sem critério de ordenação ativo) fica
  *  arrastável — GripVertical no canto inferior esquerdo é a alça de arraste, não
  *  conflita com o clique de remover (que continua sendo a carta em si). */
-function BinderItemTile({ row, onDecrement, onPreview, draggable }: { row: BinderRow; onDecrement: (printId: string) => void; onPreview: (card: BinderRow) => void; draggable: boolean }) {
+function BinderItemTile({ row, onDecrement, onPreview, onCycleTag, draggable }: { row: BinderRow; onDecrement: (printId: string) => void; onPreview: (card: BinderRow) => void; onCycleTag: (printId: string) => void; draggable: boolean }) {
   const printId = row.printId || row.id;
   const sortable = useSortable({ id: printId, disabled: !draggable });
   const image = row.imageMediumUrl || row.imageUrl;
@@ -95,6 +102,14 @@ function BinderItemTile({ row, onDecrement, onPreview, draggable }: { row: Binde
           <GripVertical className="size-3.5" />
         </button>
       ) : null}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onCycleTag(printId); }}
+        title="Clique pra marcar Para Troca / Desejo (aparece na pasta pública)"
+        className={`absolute bottom-1 right-1 flex items-center justify-center border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] transition ${row.tag ? TAG_BADGE_CLASS[row.tag] : "border-white/10 bg-slate-950/70 text-slate-500 opacity-0 group-hover:opacity-100"}`}
+      >
+        {row.tag ? TAG_LABEL[row.tag] : "Marcar"}
+      </button>
     </div>
   );
 }
@@ -216,7 +231,7 @@ export default function BinderPage() {
       const sorted = [...binder.items].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
       const mapped = sorted.map((item) => mapApiCard(item.card));
       cacheCards(mapped);
-      setEntries(sorted.map((item) => ({ printId: item.cardId, quantity: item.quantity })));
+      setEntries(sorted.map((item) => ({ printId: item.cardId, quantity: item.quantity, tag: item.tag ?? null })));
     }).catch((err: any) => toast.error(err?.message || "Erro ao carregar binder.")).finally(() => setLoadingBinder(false));
   }, [binderId]);
 
@@ -253,7 +268,7 @@ export default function BinderPage() {
   const rawRows = useMemo(
     () => entries.map((entry) => {
       const card = cardCache[entry.printId];
-      return card ? { ...card, quantity: entry.quantity } : null;
+      return card ? { ...card, quantity: entry.quantity, tag: entry.tag } : null;
     }).filter(Boolean) as BinderRow[],
     [entries, cardCache],
   );
@@ -283,6 +298,14 @@ export default function BinderPage() {
     setEntries((current) => current.map((e) => (e.printId === printId ? { ...e, quantity: e.quantity - 1 } : e)).filter((e) => e.quantity > 0));
   };
 
+  const cycleTag = (printId: string) => {
+    setEntries((current) => current.map((e) => {
+      if (e.printId !== printId) return e;
+      const nextIndex = (TAG_CYCLE.indexOf(e.tag ?? null) + 1) % TAG_CYCLE.length;
+      return { ...e, tag: TAG_CYCLE[nextIndex] };
+    }));
+  };
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -305,7 +328,7 @@ export default function BinderPage() {
       // Salva na ordem exibida no momento — se tiver critério de ordenação ativo, essa
       // vira a nova ordem "de verdade" (posição persistida); modo manual já é a ordem real.
       const orderedEntries = sortLevels.length ? rows.map((row) => entries.find((e) => e.printId === (row.printId || row.id))!).filter(Boolean) : entries;
-      const items = orderedEntries.filter((e) => e.quantity > 0).map((e, index) => ({ cardId: e.printId, quantity: e.quantity, position: index }));
+      const items = orderedEntries.filter((e) => e.quantity > 0).map((e, index) => ({ cardId: e.printId, quantity: e.quantity, position: index, tag: e.tag ?? null }));
       if (binderId) {
         const updated = await api.updateMyBinder(binderId, { name, description, isPublic, items });
         setShareId(updated.shareId);
@@ -329,7 +352,7 @@ export default function BinderPage() {
     toast.success("Link compartilhável copiado.");
   };
 
-  const renderTile = (row: BinderRow) => <BinderItemTile key={row.printId || row.id} row={row} onDecrement={decrement} onPreview={setPreviewCard} draggable={canDrag} />;
+  const renderTile = (row: BinderRow) => <BinderItemTile key={row.printId || row.id} row={row} onDecrement={decrement} onPreview={setPreviewCard} onCycleTag={cycleTag} draggable={canDrag} />;
 
   return (
     <PortalShell breadcrumbs={[{ label: "Binders", href: "/binders" }, { label: name }]}>
