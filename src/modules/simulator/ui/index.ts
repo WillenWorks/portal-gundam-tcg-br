@@ -19,6 +19,7 @@ export { TriggerOrderModal } from "./TriggerOrderModal";
 export { AbilityResolutionModal } from "./AbilityResolutionModal";
 export { ZoneOverflowModal } from "./ZoneOverflowModal";
 export { BugReportModal } from "./BugReportModal";
+export { SideboardModal, type SideboardModalProps } from "./SideboardModal";
 export { CardInspectorModal, type LinkedPilot } from "./CardInspectorModal";
 export { CardInspectorPanel } from "./CardInspectorPanel";
 export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";

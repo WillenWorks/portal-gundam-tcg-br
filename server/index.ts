@@ -56,6 +56,7 @@ import {
   setMatchLogSink,
   subscribe,
   touchPresence,
+  submitSideboard,
   generateBugShortCode,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
@@ -4939,6 +4940,27 @@ app.post("/api/simulator/matches/:id/actions", authRequired, async (req: Request
   try {
     await loadMatch(String(req.params.id));
     const match = applyAction(String(req.params.id), req.user!.userId, action);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Fase de Sideboard entre jogos em partidas Bo3 (docs/54, docs/55)
+app.post("/api/simulator/matches/:id/sideboard", authRequired, async (req: RequestWithUser, res) => {
+  const swapsPayload = req.body?.swaps ?? req.body;
+  const swaps = swapsPayload && (Array.isArray(swapsPayload.mainOut) || Array.isArray(swapsPayload.sideIn))
+    ? {
+        mainOut: Array.isArray(swapsPayload.mainOut) ? (swapsPayload.mainOut as string[]) : [],
+        sideIn: Array.isArray(swapsPayload.sideIn) ? (swapsPayload.sideIn as string[]) : [],
+      }
+    : undefined;
+
+  try {
+    await loadMatch(String(req.params.id));
+    const match = submitSideboard(String(req.params.id), req.user!.userId, swaps);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {

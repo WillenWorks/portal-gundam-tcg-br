@@ -152,6 +152,7 @@ import {
   SettingsMenu,
   MulliganModal,
   FirstPlayerReveal,
+  SideboardModal,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
@@ -516,6 +517,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
     },
     [sendAction, showActionError],
+  );
+
+  const handleSideboardSubmit = useCallback(
+    async (swaps: { mainOut: string[]; sideIn: string[] }) => {
+      setBusy(true);
+      try {
+        const updated = await api.submitSimulatorSideboard(matchId, swaps);
+        applyIncomingView(updated);
+        toast.success("Trocas táticas de Sideboard confirmadas!");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao submeter sideboard.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [matchId, applyIncomingView],
   );
 
   const toggleAutoPass = async (value: boolean) => {
@@ -1673,6 +1690,41 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
           busy={busy}
           onResolve={(instanceId) => runAction({ kind: "resolveZoneOverflow", instanceId })}
+        />
+      ) : null}
+
+      {/* Fase de Sideboard Bo3 (docs/54, docs/55) */}
+      {matchView?.matchStatus === "SIDEBOARDING" ? (
+        <SideboardModal
+          matchId={matchId}
+          seat={seat}
+          initialDeck={matchView.sideboardDeck}
+          sideboardDeadlineAt={matchView.sideboardDeadlineAt}
+          sideboardConfirmed={matchView.sideboardConfirmed}
+          bo3Score={matchView.bo3Score}
+          currentGameIndex={matchView.currentGameIndex}
+          art={art}
+          busy={busy}
+          onConfirmSwaps={handleSideboardSubmit}
+          onInspectCard={(code) => {
+            const foundDef =
+              matchView.sideboardDeck?.main.find((c) => c.code === code) ??
+              matchView.sideboardDeck?.sideboard.find((c) => c.code === code);
+            if (foundDef) {
+              setInspect({
+                instanceId: `sideboard-inspect-${foundDef.code}`,
+                def: foundDef,
+                owner: seat,
+                zone: "hand",
+                rested: false,
+                damage: 0,
+                statModifiers: [],
+                keywordGrants: [],
+                usedKeywordsThisTurn: [],
+                enteredZoneOnTurn: 0,
+              });
+            }
+          }}
         />
       ) : null}
 

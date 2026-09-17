@@ -2,6 +2,7 @@ import type { CardRecord, RuleEntry } from "@/modules/core/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState } from "@/modules/simulator/engine/viewState";
+import type { DeckListWithSideboard } from "@/modules/simulator/engine/sideboard";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const TOKEN_KEY = "portal-gundam-tcg-br:token";
@@ -559,6 +560,13 @@ export type SimulatorMatchView = {
   serverNow: number;
   /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2). */
   autoPassActionStep: boolean;
+  format?: "bo1" | "bo3";
+  matchStatus?: "WAITING_PLAYERS" | "READY_TO_START" | "PLAYING" | "SIDEBOARDING" | "FINISHED";
+  bo3Score?: { A: number; B: number };
+  currentGameIndex?: number;
+  sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
+  sideboardDeadlineAt?: number | null;
+  sideboardDeck?: DeckListWithSideboard;
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
@@ -832,6 +840,12 @@ export const api = {
   claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
   /** "Sair da partida" = desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch. */
   resignSimulatorMatch: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/resign`, { method: "POST" }),
+  /** Submete trocas de Sideboard entre jogos Bo3. */
+  submitSimulatorSideboard: (id: string, swaps?: { mainOut: string[]; sideIn: string[] }) =>
+    request<SimulatorMatchView>(`/simulator/matches/${id}/sideboard`, {
+      method: "POST",
+      body: JSON.stringify({ swaps }),
+    }),
   // Depuração/admin -- fora do fluxo normal (agora hosterRequired no servidor), mantidas
   // só como fallback pra criar/entrar numa partida específica manualmente.
   listSimulatorMatches: () => request<SimulatorMatchSummary[]>("/simulator/matches", undefined, { bypassCache: true }),

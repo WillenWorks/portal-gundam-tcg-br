@@ -16,8 +16,8 @@ describe("similarSpecsClient — casos canônicos (docs/44)", () => {
     expect(codesOf(r)).toContain("GD01-111");
   });
 
-  it('"Look at the top 3 cards of your deck..." → Char\'s Zaku Ⅱ (ST03-006) no topo (empatada com GD01-045, mesmo texto de abertura — Lote 5)', () => {
-    const r = similarSpecsClient("Look at the top 3 cards of your deck...", index, 3);
+  it('"Look at the top 3 cards of your deck..." → Char\'s Zaku Ⅱ (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)', () => {
+    const r = similarSpecsClient("Look at the top 3 cards of your deck...", index, 6);
     expect(codesOf(r)).toContain("ST03-006");
   });
 

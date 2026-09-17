@@ -48,7 +48,7 @@ export function VedaTelemetryAssistant({
   // Cartas expandidas do deck principal (exclui recursos e componentes fixos EX)
   const mainCards = useMemo(() => {
     return entries
-      .filter((e) => e.section !== "resource" && !NON_COUNTED_SECTIONS.has(e.section))
+      .filter((e) => e.section !== "resource" && !NON_COUNTED_SECTIONS.has(e.section ?? ""))
       .map((e) => {
         const c = cardCache[e.cardId];
         if (!c) return null;

@@ -707,7 +707,7 @@ export async function reportSituation(matchId: string, userId: string, note?: st
 export interface BotTurnRequest {
   matchId: string;
   seat: PlayerId;
-  level: HeuristicLevel | "dificil";
+  level: HeuristicLevel | "dificil" | "zero_system";
 }
 
 export type BotTurnSink = (req: BotTurnRequest) => void;

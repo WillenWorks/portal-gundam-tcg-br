@@ -1,4 +1,4 @@
-import { createMatch, joinMatch } from "./matchStore";
+import { createMatch, joinMatch, type MatchSeat } from "./matchStore";
 import { VALIDATED_DECKS, isValidatedDeck } from "../content/validatedDecks";
 
 /**

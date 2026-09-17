@@ -96,7 +96,7 @@ function remHp(card: CardInstance, state: GameState): number {
 function summarizeUnits(units: CardInstance[], state: GameState): TacticalUnitSummary[] {
   return units.map((u) => ({
     instanceId: u.instanceId,
-    name: u.def.nameEn || u.def.nameJa || u.def.code,
+    name: u.def.nameEn || u.def.code,
     cardCode: u.def.code,
     ap: effectiveAp(u, state),
     hp: effectiveHp(u, state),
@@ -104,7 +104,7 @@ function summarizeUnits(units: CardInstance[], state: GameState): TacticalUnitSu
     rested: u.rested,
     hasBlocker: hasKeyword(u, "Blocker", state),
     hasBreach: hasKeyword(u, "Breach", state),
-    hasLink: Boolean(u.pairedPilotInstanceId),
+    hasLink: Boolean(u.pairedPilotId),
     level: u.def.level ?? 1,
     cost: u.def.cost ?? 1,
   }));
@@ -167,7 +167,7 @@ export function extractTacticalBoardSummary(state: GameState, seat: PlayerId): T
       attackerName: atkCard ? (atkCard.def.nameEn || atkCard.def.code) : "Unknown",
       attackerAp: atkCard ? effectiveAp(atkCard, state) : 0,
       target: targetStr,
-      blockerId: state.combat.blockerId ?? undefined,
+      blockerId: state.combat.blockerUsedBy ?? undefined,
     };
   }
 
