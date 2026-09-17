@@ -19,6 +19,16 @@ import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
 import { validateDeckPayload } from "./deckCoverageGate.ts";
+import {
+  computeSwissStandings,
+  generateSwissPairings,
+  generateTopCutBracket,
+  type SwissParticipant,
+  type SwissMatch,
+  type SwissMatchResult,
+  type GeneratedPairing,
+  type TopCutBracket,
+} from "./services/swissTournamentEngine.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
@@ -3144,57 +3154,89 @@ async function computeHostedEventStandings(eventId: string) {
     where: { eventId },
     select: {
       id: true,
+      userId: true,
       deckSnapshotId: true,
       archetype: true,
       user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-      // Decklist travada completa -- alimenta o filtro de chips coloridos e o botão
-      // "Carregar no Deckbuilder" da visão detalhada de evento (TournamentsPage).
-      deckSnapshot: { select: { id: true, name: true, items: { select: { quantity: true, section: true, card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } } } } } },
+      deckSnapshot: {
+        select: {
+          id: true,
+          name: true,
+          items: {
+            select: {
+              quantity: true,
+              section: true,
+              card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } },
+            },
+          },
+        },
+      },
     },
   });
-  type Row = {
-    participantId: string;
-    user: (typeof participants)[number]["user"];
-    hasDeck: boolean;
-    archetype: string | null;
-    colors: string[];
-    deckSnapshot: (typeof participants)[number]["deckSnapshot"];
-    points: number; wins: number; draws: number; losses: number; byes: number; played: number;
-  };
-  const stats = new Map<string, Row>();
-  for (const p of participants) {
-    const colors = Array.from(new Set((p.deckSnapshot?.items || []).map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
-    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), archetype: p.archetype, colors, deckSnapshot: p.deckSnapshot, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
-  }
-  const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
-  for (const m of matches) {
-    const a = stats.get(m.participantAId);
-    const b = m.participantBId ? stats.get(m.participantBId) : null;
-    if (!a) continue;
-    if (m.result === HostedEventMatchResult.BYE) {
-      a.points += HOSTED_EVENT_POINTS.win;
-      a.wins += 1;
-      a.byes += 1;
-      a.played += 1;
-    } else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) {
-      a.points += HOSTED_EVENT_POINTS.win;
-      a.wins += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.loss; b.losses += 1; b.played += 1; }
-    } else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) {
-      a.points += HOSTED_EVENT_POINTS.loss;
-      a.losses += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.win; b.wins += 1; b.played += 1; }
-    } else if (m.result === HostedEventMatchResult.DRAW) {
-      a.points += HOSTED_EVENT_POINTS.draw;
-      a.draws += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.draw; b.draws += 1; b.played += 1; }
-    }
-    // PENDING: confronto ainda sem resultado lançado, não conta pra classificação.
-  }
-  return Array.from(stats.values()).sort((x, y) => y.points - x.points || y.wins - x.wins || x.losses - y.losses);
+
+  const rawMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const swissParticipants: SwissParticipant[] = participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = rawMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  const standingRows = computeSwissStandings(swissParticipants, swissMatches);
+  const pMap = new Map(participants.map((p) => [p.id, p]));
+
+  return standingRows.map((row) => {
+    const p = pMap.get(row.participantId);
+    const colors = Array.from(
+      new Set(
+        (p?.deckSnapshot?.items || [])
+          .map((item) => item.card.color)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ).sort();
+
+    return {
+      participantId: row.participantId,
+      rank: row.rank,
+      user: p?.user ?? {
+        id: row.userId,
+        username: row.username || "",
+        displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+      },
+      hasDeck: Boolean(p?.deckSnapshotId),
+      archetype: p?.archetype || null,
+      colors,
+      deckSnapshot: p?.deckSnapshot || null,
+      points: row.matchPoints,
+      wins: row.matchWins,
+      draws: row.matchDraws,
+      losses: row.matchLosses,
+      byes: row.byes,
+      played: row.matchesPlayed,
+      omwPercent: row.omwPercent,
+      ogwPercent: row.ogwPercent,
+      gameWinRate: row.gameWinRate,
+      matchWinRate: row.matchWinRate,
+    };
+  });
 }
 
 app.get("/api/hosted-events/:id/standings", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
@@ -3305,6 +3347,413 @@ app.delete("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequir
   if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
   await prisma.hostedEventMatch.delete({ where: { id: match.id } });
   res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Terminal 3 -- Pareamento Suíço Automático, Top Cut, LGS TV Display e Check-in
+ * ------------------------------------------------------------------------- */
+
+// Gerar próxima rodada com pareamento Suíço determinístico
+app.post("/api/hosted-events/:id/rounds/generate-swiss", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+
+  if (event.participants.length < 2) {
+    return res.status(400).json({ error: "Pelo menos 2 participantes são necessários para gerar rodadas suíças." });
+  }
+
+  // Verifica se há rodadas anteriores com partidas ainda pendentes
+  const pendingMatch = await prisma.hostedEventMatch.findFirst({
+    where: {
+      round: { eventId: event.id },
+      result: HostedEventMatchResult.PENDING,
+    },
+    include: { round: true },
+  });
+  if (pendingMatch) {
+    return res.status(409).json({
+      error: `A Rodada ${pendingMatch.round.roundNumber} ainda possui partidas pendentes de resultado.`,
+    });
+  }
+
+  const previousMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId: event.id } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const lastRound = await prisma.hostedEventRound.findFirst({
+    where: { eventId: event.id },
+    orderBy: [{ roundNumber: "desc" }],
+  });
+  const nextRoundNumber = (lastRound?.roundNumber ?? 0) + 1;
+
+  const swissParticipants: SwissParticipant[] = event.participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = previousMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  let pairings: GeneratedPairing[];
+  try {
+    pairings = generateSwissPairings(swissParticipants, swissMatches, nextRoundNumber);
+  } catch (err: any) {
+    return res.status(400).json({ error: err?.message || "Erro ao gerar pareamento suíço." });
+  }
+
+  const round = await prisma.hostedEventRound.create({
+    data: {
+      eventId: event.id,
+      roundNumber: nextRoundNumber,
+      status: HostedEventRoundStatus.IN_PROGRESS,
+      matches: {
+        create: pairings.map((p) => ({
+          tableNumber: p.tableNumber,
+          participantAId: p.participantAId,
+          participantBId: p.participantBId || null,
+          result: p.isBye ? HostedEventMatchResult.BYE : HostedEventMatchResult.PENDING,
+          reportedAt: p.isBye ? new Date() : null,
+        })),
+      },
+    },
+    include: hostedEventRoundInclude,
+  });
+
+  if (event.status === HostedEventStatus.DRAFT || event.status === HostedEventStatus.SCHEDULED) {
+    await prisma.hostedEvent.update({
+      where: { id: event.id },
+      data: { status: HostedEventStatus.IN_PROGRESS },
+    });
+  }
+
+  res.status(201).json(round);
+});
+
+// Gerar chave eliminatória de Top Cut (Single Elimination)
+app.post("/api/hosted-events/:id/top-cut/generate", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+
+  const body = req.body as { cutSize?: 4 | 8 | 16 };
+  const requestedSize = body.cutSize ?? (event.participants.length >= 16 ? 8 : 4);
+  if (![4, 8, 16].includes(requestedSize)) {
+    return res.status(400).json({ error: "Tamanho de Top Cut inválido (permitidos: 4, 8 ou 16)." });
+  }
+
+  const pendingMatch = await prisma.hostedEventMatch.findFirst({
+    where: {
+      round: { eventId: event.id },
+      result: HostedEventMatchResult.PENDING,
+    },
+    include: { round: true },
+  });
+  if (pendingMatch) {
+    return res.status(409).json({
+      error: `Não é possível gerar o Top Cut enquanto a Rodada ${pendingMatch.round.roundNumber} tiver partidas pendentes.`,
+    });
+  }
+
+  const rawMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId: event.id } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const swissParticipants: SwissParticipant[] = event.participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = rawMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  const standings = computeSwissStandings(swissParticipants, swissMatches);
+  if (standings.length < requestedSize) {
+    return res.status(400).json({
+      error: `Participantes insuficientes para Top ${requestedSize} (apenas ${standings.length} disponíveis).`,
+    });
+  }
+
+  let bracket: TopCutBracket;
+  try {
+    bracket = generateTopCutBracket(standings, requestedSize as 4 | 8 | 16);
+  } catch (err: any) {
+    return res.status(400).json({ error: err?.message || "Erro ao gerar chave de Top Cut." });
+  }
+
+  const lastRound = await prisma.hostedEventRound.findFirst({
+    where: { eventId: event.id },
+    orderBy: [{ roundNumber: "desc" }],
+  });
+  const nextRoundNumber = (lastRound?.roundNumber ?? 0) + 1;
+
+  const round = await prisma.hostedEventRound.create({
+    data: {
+      eventId: event.id,
+      roundNumber: nextRoundNumber,
+      status: HostedEventRoundStatus.IN_PROGRESS,
+      matches: {
+        create: bracket.matches.map((m) => ({
+          tableNumber: m.tableNumber,
+          participantAId: m.participantA.id,
+          participantBId: m.participantB.id,
+          result: HostedEventMatchResult.PENDING,
+        })),
+      },
+    },
+    include: hostedEventRoundInclude,
+  });
+
+  res.status(201).json({ round, bracketName: bracket.roundName });
+});
+
+// Endpoint público de LGS TV Display (otimizado para telas e projetores da loja)
+app.get("/api/hosted-events/:id/tv", async (req, res) => {
+  setPublicCache(res, 3, 10);
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+    include: {
+      hoster: { select: { id: true, username: true, displayName: true } },
+      seasonRef: true,
+      participants: {
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          deckSnapshot: {
+            select: {
+              id: true,
+              name: true,
+              items: {
+                select: {
+                  quantity: true,
+                  section: true,
+                  card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+      rounds: {
+        include: {
+          matches: {
+            include: {
+              participantA: {
+                select: {
+                  id: true,
+                  archetype: true,
+                  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+                  deckSnapshot: { select: { name: true } },
+                },
+              },
+              participantB: {
+                select: {
+                  id: true,
+                  archetype: true,
+                  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+                  deckSnapshot: { select: { name: true } },
+                },
+              },
+            },
+            orderBy: [{ tableNumber: "asc" }, { createdAt: "asc" }],
+          },
+        },
+        orderBy: [{ roundNumber: "asc" }],
+      },
+    },
+  });
+
+  if (!event) {
+    return res.status(404).json({ error: "Evento não encontrado." });
+  }
+
+  const standings = await computeHostedEventStandings(event.id);
+  const inProgressRound = [...event.rounds].reverse().find((r) => r.status === HostedEventRoundStatus.IN_PROGRESS);
+  const currentRound = inProgressRound || (event.rounds.length > 0 ? event.rounds[event.rounds.length - 1] : null);
+
+  res.json({
+    event: {
+      id: event.id,
+      name: event.name,
+      description: event.description,
+      venueName: event.venueName,
+      city: event.city,
+      country: event.country,
+      format: event.format,
+      status: event.status,
+      dateStart: event.dateStart,
+      dateEnd: event.dateEnd,
+      maxPlayers: event.maxPlayers,
+      hoster: event.hoster,
+    },
+    currentRound: currentRound
+      ? {
+          id: currentRound.id,
+          roundNumber: currentRound.roundNumber,
+          status: currentRound.status,
+          matches: currentRound.matches.map((m) => ({
+            id: m.id,
+            tableNumber: m.tableNumber,
+            result: m.result,
+            reportedAt: m.reportedAt,
+            participantA: {
+              id: m.participantA.id,
+              displayName: m.participantA.user.displayName || m.participantA.user.username,
+              username: m.participantA.user.username,
+              avatarUrl: m.participantA.user.avatarUrl,
+              archetype: m.participantA.archetype,
+              deckName: m.participantA.deckSnapshot?.name,
+            },
+            participantB: m.participantB
+              ? {
+                  id: m.participantB.id,
+                  displayName: m.participantB.user.displayName || m.participantB.user.username,
+                  username: m.participantB.user.username,
+                  avatarUrl: m.participantB.user.avatarUrl,
+                  archetype: m.participantB.archetype,
+                  deckName: m.participantB.deckSnapshot?.name,
+                }
+              : null,
+          })),
+        }
+      : null,
+    totalRounds: event.rounds.length,
+    standings,
+    participantsCount: event.participants.length,
+  });
+});
+
+// Status do jogador para check-in no evento
+app.get("/api/hosted-events/:id/checkin-status", authOptional, async (req: RequestWithUser, res) => {
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+    select: {
+      id: true,
+      name: true,
+      venueName: true,
+      city: true,
+      format: true,
+      status: true,
+      dateStart: true,
+      maxPlayers: true,
+      hoster: { select: { displayName: true, username: true } },
+    },
+  });
+
+  if (!event) return res.status(404).json({ error: "Evento não encontrado." });
+
+  if (!req.user) {
+    return res.json({ event, participant: null, isCheckedIn: false });
+  }
+
+  const participant = await prisma.hostedEventParticipant.findFirst({
+    where: { eventId: event.id, userId: req.user.userId },
+    include: hostedEventParticipantInclude,
+  });
+
+  res.json({
+    event,
+    participant,
+    isCheckedIn: Boolean(participant?.deckLockedAt),
+  });
+});
+
+// Check-in de jogador e trava irrevogável de decklist via DeckSnapshot
+app.post("/api/hosted-events/:id/checkin", authRequired, async (req: RequestWithUser, res) => {
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+  });
+
+  if (!event) return res.status(404).json({ error: "Evento não encontrado." });
+
+  if (event.status === HostedEventStatus.COMPLETED || event.status === HostedEventStatus.CANCELLED) {
+    return res.status(400).json({ error: "Este evento já foi encerrado ou cancelado." });
+  }
+
+  const body = req.body as { deckId?: string };
+  if (!body.deckId) return res.status(400).json({ error: "Selecione um deck para fazer o check-in." });
+
+  const deck = await prisma.deck.findFirst({
+    where: { id: body.deckId, userId: req.user!.userId },
+    include: { items: { include: { card: true } } },
+  });
+
+  if (!deck) return res.status(404).json({ error: "Deck não encontrado na sua conta." });
+
+  const legalityData = await loadDeckLegalityData();
+  const legality = computeDeckLegality(
+    deck.items.map((i) => ({
+      cardModelId: i.card?.cardModelId ?? null,
+      cardType: i.card?.cardType ?? "",
+      color: i.card?.color ?? null,
+      quantity: i.quantity,
+      section: i.section || "main",
+    })),
+    legalityData,
+  );
+
+  if (!legality.isLegal) {
+    return res.status(400).json({
+      error: `Deck ilegal para torneio: ${legality.reasons.join("; ")}`,
+    });
+  }
+
+  let participant = await prisma.hostedEventParticipant.findFirst({
+    where: { eventId: event.id, userId: req.user!.userId },
+  });
+
+  if (participant && participant.deckLockedAt) {
+    return res.status(409).json({ error: "Seu check-in e deck já foram travados neste evento." });
+  }
+
+  if (!participant) {
+    if (event.maxPlayers) {
+      const count = await prisma.hostedEventParticipant.count({ where: { eventId: event.id } });
+      if (count >= event.maxPlayers) {
+        return res.status(409).json({ error: "O limite de vagas deste evento já foi atingido." });
+      }
+    }
+    participant = await prisma.hostedEventParticipant.create({
+      data: { eventId: event.id, userId: req.user!.userId },
+    });
+  }
+
+  const deckSnapshotId = await createDeckSnapshot(deck.id);
+
+  const updated = await prisma.hostedEventParticipant.update({
+    where: { id: participant.id },
+    data: {
+      deckId: deck.id,
+      deckSnapshotId,
+      deckLockedAt: new Date(),
+    },
+    include: hostedEventParticipantInclude,
+  });
+
+  res.json(updated);
 });
 
 /* ---------------------------------------------------------------------------

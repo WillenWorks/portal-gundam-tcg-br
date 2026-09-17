@@ -49,6 +49,8 @@ const SimulatorLayoutPreviewPage = lazy(() => import("@/pages/SimulatorLayoutPre
 // sob /admin (o AdminPage monolítico só casa /admin/:section de 1 segmento).
 const SimulatorCoveragePage = lazy(() => import("@/pages/admin/SimulatorCoveragePage"));
 const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthoringPage"));
+const LgsTvDisplayPage = lazy(() => import("@/pages/tournaments/LgsTvDisplayPage"));
+const EventCheckinPage = lazy(() => import("@/pages/tournaments/EventCheckinPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -115,6 +117,27 @@ function AppRouter() {
         <Route path="/deckbuilder">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/organizador/eventos/:id/tv">
+          {(params) => (
+            <LazyRoute label="LGS TV Display">
+              <LgsTvDisplayPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/eventos/:id/tv">
+          {(params) => (
+            <LazyRoute label="LGS TV Display">
+              <LgsTvDisplayPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/eventos/:id/checkin">
+          {(params) => (
+            <LazyRoute label="Check-in de Jogador">
+              <EventCheckinPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
         {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
             de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>

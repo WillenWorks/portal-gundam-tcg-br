@@ -6,7 +6,7 @@
  * deck -- de mão única: uma vez travado, não tem "destravar" nem no front nem na API. */
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { CalendarClock, Lock, Plus, Swords, Trash2, Trophy, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Lock, Plus, Swords, Trash2, Trophy, UserPlus, Users, Tv, QrCode, Sparkles } from "lucide-react";
 
 import { api, type ApiDeck } from "@/lib/api";
 import { PortalShell } from "@/components/layout/PortalShell";
@@ -153,6 +153,8 @@ export default function OrganizerPage() {
   const [matchDraft, setMatchDraft] = useState<Record<string, { participantAId: string; participantBId: string; tableNumber: string }>>({});
   const [creatingMatchRoundId, setCreatingMatchRoundId] = useState<string | null>(null);
   const [matchBusyId, setMatchBusyId] = useState<string | null>(null);
+  const [generatingSwiss, setGeneratingSwiss] = useState(false);
+  const [generatingTopCut, setGeneratingTopCut] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -363,6 +365,42 @@ export default function OrganizerPage() {
     }
   };
 
+  const generateSwissRound = async () => {
+    if (!roundsEvent) return;
+    setGeneratingSwiss(true);
+    try {
+      await api.generateHostedEventSwissRound(roundsEvent.id);
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success("Próxima rodada suíça gerada com sucesso!");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar rodada suíça.");
+    } finally {
+      setGeneratingSwiss(false);
+    }
+  };
+
+  const generateTopCut = async () => {
+    if (!roundsEvent) return;
+    const cutSize = (roundsEvent.participants?.length ?? 0) >= 16 ? 8 : 4;
+    if (!window.confirm(`Deseja gerar a chave eliminatória de Top Cut (Top ${cutSize})?`)) return;
+    setGeneratingTopCut(true);
+    try {
+      await api.generateHostedEventTopCut(roundsEvent.id, cutSize as 4 | 8);
+      await refreshRoundsEvent(roundsEvent.id);
+      toast.success(`Chave de Top ${cutSize} gerada com sucesso!`);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar Top Cut.");
+    } finally {
+      setGeneratingTopCut(false);
+    }
+  };
+
+  const copyCheckinLink = (eventId: string) => {
+    const url = `${window.location.origin}/eventos/${eventId}/checkin`;
+    navigator.clipboard.writeText(url);
+    toast.success("Link de check-in copiado para a área de transferência!");
+  };
+
   const updateRoundStatus = async (round: HostedEventRound, status: HostedEventRound["status"]) => {
     if (!roundsEvent) return;
     setRoundBusyId(round.id);
@@ -485,10 +523,18 @@ export default function OrganizerPage() {
                 <p className="flex items-center gap-2 text-sm text-muted-portal"><CalendarClock className="size-4" />{new Date(event.dateStart).toLocaleString("pt-BR")}</p>
                 {event.venueName || event.city ? <p className="text-sm text-muted-portal">{[event.venueName, event.city, event.country].filter(Boolean).join(" · ")}</p> : null}
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{event.format}{event.maxPlayers ? ` · até ${event.maxPlayers} jogadores` : ""}</p>
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button variant="outline" className="rounded-none" onClick={() => openModal(event)}>Editar</Button>
                   <Button variant="outline" className="rounded-none" onClick={() => openParticipants(event)}><Users className="mr-2 size-4" />Participantes{event.participants ? ` (${event.participants.length})` : ""}</Button>
                   <Button variant="outline" className="rounded-none" onClick={() => openRounds(event)}><Swords className="mr-2 size-4" />Rodadas{event.rounds ? ` (${event.rounds.length})` : ""}</Button>
+                  <Button asChild variant="outline" className="rounded-none border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/20">
+                    <a href={`/organizador/eventos/${event.id}/tv`} target="_blank" rel="noreferrer">
+                      <Tv className="mr-2 size-4" />TV Display
+                    </a>
+                  </Button>
+                  <Button variant="outline" className="rounded-none text-slate-300" onClick={() => copyCheckinLink(event.id)}>
+                    <QrCode className="mr-2 size-4" />Check-in
+                  </Button>
                   <Button variant="outline" className="rounded-none text-red-400 hover:text-red-300" onClick={() => removeEvent(event)}><Trash2 className="mr-2 size-4" />Cancelar</Button>
                 </div>
               </CardContent>
@@ -662,9 +708,31 @@ export default function OrganizerPage() {
           </div>
 
           <div className="space-y-3 pt-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Rodadas ({roundsEvent?.rounds?.length ?? 0})</p>
-              <Button variant="outline" className="rounded-none" disabled={creatingRound} onClick={addRound}><Plus className="mr-2 size-4" />Nova rodada</Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-none border-cyan-500/40 text-cyan-400 hover:bg-cyan-950/30"
+                  disabled={generatingSwiss}
+                  onClick={generateSwissRound}
+                >
+                  <Sparkles className="mr-2 size-4" />
+                  {generatingSwiss ? "Gerando..." : "Gerar Rodada Suíça (Auto)"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-none border-amber-500/40 text-amber-400 hover:bg-amber-950/30"
+                  disabled={generatingTopCut}
+                  onClick={generateTopCut}
+                >
+                  <Trophy className="mr-2 size-4" />
+                  {generatingTopCut ? "Gerando..." : "Top Cut"}
+                </Button>
+                <Button variant="outline" className="rounded-none" disabled={creatingRound} onClick={addRound}>
+                  <Plus className="mr-2 size-4" />Manual
+                </Button>
+              </div>
             </div>
 
             {!roundsEvent?.rounds?.length ? (

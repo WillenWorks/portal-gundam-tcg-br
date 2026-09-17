@@ -669,6 +669,16 @@ export const api = {
     mutate<any>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "PUT", body: JSON.stringify({ result }) }, ["/hosted-events"]),
   deleteHostedEventMatch: (eventId: string, roundId: string, matchId: string) =>
     mutate<void>(`/hosted-events/${eventId}/rounds/${roundId}/matches/${matchId}`, { method: "DELETE" }, ["/hosted-events"]),
+  generateHostedEventSwissRound: (eventId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/rounds/generate-swiss`, { method: "POST" }, ["/hosted-events"]),
+  generateHostedEventTopCut: (eventId: string, cutSize?: 4 | 8 | 16) =>
+    mutate<any>(`/hosted-events/${eventId}/top-cut/generate`, { method: "POST", body: JSON.stringify({ cutSize }) }, ["/hosted-events"]),
+  getHostedEventTvData: (eventId: string) =>
+    request<any>(`/hosted-events/${eventId}/tv`, undefined, { ttlMs: 3_000, bypassCache: true }),
+  getHostedEventCheckinStatus: (eventId: string) =>
+    request<any>(`/hosted-events/${eventId}/checkin-status`, undefined, { bypassCache: true }),
+  checkinHostedEvent: (eventId: string, deckId: string) =>
+    mutate<any>(`/hosted-events/${eventId}/checkin`, { method: "POST", body: JSON.stringify({ deckId }) }, ["/hosted-events"]),
   listPublicDecks: () => request<ApiDeck[]>("/decks/public", undefined, { ttlMs: 15_000 }),
   getDeckLegalityData: () => request<{ rules: { mainSize: number; resourceSize: number; maxColors: number; maxCopiesDefault: number }; banned: any[]; restricted: any[]; banGroups: any[] }>("/decks/legality", undefined, { ttlMs: 60_000 }),
   listPublicDecksPage: (
