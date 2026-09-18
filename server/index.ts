@@ -98,6 +98,8 @@ import {
 } from "./metaAnalyticsService.ts";
 import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
+import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
+import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 
 const prisma = new PrismaClient();
 
@@ -2429,6 +2431,23 @@ app.get("/api/stats/matchup-matrix", async (req, res) => {
   else if (windowParam === "90d") sinceDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const matrix = await getMatchupMatrix(prisma, { seasonId: resolved.seasonId, sinceDate });
   res.json({ season: resolved.season, window: windowParam, ...matrix });
+});
+
+// Terminal 3 (docs/54 §8.3, "Zero Local Intelligence") -- Painel de Metagame Regional
+// Geográfico. País -> Estado -> Cidade -> Loja Parceira, derivado a partir dos mesmos
+// resultados reais (TournamentEntry/HostedEventParticipant) que alimentam os demais
+// endpoints de metagame, nunca de deck público. Público (mesmo padrão de /api/stats/*).
+app.get("/api/metagame/regional", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const stateUf = typeof req.query.state === "string" && req.query.state ? req.query.state.toUpperCase() : undefined;
+  const city = typeof req.query.city === "string" && req.query.city ? req.query.city : undefined;
+  const store = typeof req.query.store === "string" && req.query.store ? req.query.store : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const regional = await getRegionalMetagame(prisma, { seasonId: resolved.seasonId, setId, stateUf, city, store });
+  res.json({ season: resolved.season, setId: setId ?? null, ...regional });
 });
 
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
@@ -5024,6 +5043,30 @@ app.post("/api/simulator/zero/chat", authRequired, async (req: RequestWithUser, 
     return res.json(response);
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Falha ao processar consulta no Zero Terminal." });
+  }
+});
+
+// Terminal 3 (docs/54 §4 "Zero Foresight") -- simulador Monte Carlo de 10.000 iterações
+// que projeta Tier Shift do metagame. `scenario.presenceDeltas` permite testar "e se a
+// presença de X mudar Y%?" (ver zeroForesightService.ts). Resultado cacheado em memória
+// (10min) porque a simulação só muda quando novos torneios/eventos entram no banco.
+app.post("/api/simulator/zero/foresight/simulate", authRequired, async (req: RequestWithUser, res) => {
+  const { seasonId: seasonParamRaw, setId, scenario, iterations } = req.body ?? {};
+  const seasonParam = typeof seasonParamRaw === "string" && seasonParamRaw ? seasonParamRaw : "current";
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+
+  const presenceDeltas = scenario?.presenceDeltas && typeof scenario.presenceDeltas === "object" ? scenario.presenceDeltas : undefined;
+  try {
+    const report = await runZeroForesightSimulationCached(prisma, {
+      seasonId: resolved.seasonId,
+      setId: typeof setId === "string" && setId ? setId : null,
+      scenario: presenceDeltas ? { presenceDeltas } : null,
+      iterations: typeof iterations === "number" ? iterations : undefined,
+    });
+    return res.json({ season: resolved.season, ...report });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao rodar a simulação Zero Foresight." });
   }
 });
 
