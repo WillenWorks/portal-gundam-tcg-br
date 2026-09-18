@@ -55,7 +55,11 @@ export interface CardDef {
    * Reusa `StaticBoardCondition` (Lote 3): a "fonte" aqui é a própria carta na
    * MÃO, nunca contada nela mesma (nem excluída à parte — não está em campo/trash).
    */
-  dynamicCost?: { condition: StaticBoardCondition; amount: number };
+  dynamicCost?: { condition: StaticBoardCondition; amount: number; perEnemyUnit?: boolean };
+  /**
+   * Redução ou modificação dinâmica de Nível na mão (ex.: ST08-001 Xi Gundam).
+   */
+  dynamicLevel?: { condition: StaticBoardCondition; amount: number; perEnemyUnit?: boolean };
   /**
    * Pilot nativo (`cardType: "PILOT"`): modificador impresso de AP que a Unit
    * pareada ganha enquanto pareada (Comprehensive Rules 3-3-5, sem depender de
@@ -189,6 +193,19 @@ export interface CardDef {
     level: number;
   };
   /**
+   * Custos e condições alternativas de deploy (GD01/GD03).
+   * Permite invocar sem pagar custo/nível normais ao cumprir o requisito especificado
+   * (descarte da mão, sacrifício por traço ou nível, ou retorno à mão).
+   */
+  alternateDeploy?: {
+    kind: "sacrifice" | "discard" | "bounce";
+    nameContains?: string;
+    level?: number;
+    trait?: string;
+    requiresLink?: boolean;
+    discardCount?: number;
+  };
+  /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-065 "【During Pair】【Once per Turn】When
    * you pair a Pilot with this Unit or one of your white Units, choose 1 enemy Unit.
    * It gets AP-2 during this turn." "this Unit or one of your white Units" colapsa
@@ -228,7 +245,11 @@ export type StaticBoardCondition =
    * achar o lado oposto do combate atual). Sem `state.combat`, ou se a fonte
    * não é nenhum dos 2 lados do combate atual, é `false`.
    */
-  | { kind: "battlingEnemyLevelAtMost"; maxLevel: number };
+  | { kind: "battlingEnemyLevelAtMost"; maxLevel: number }
+  /** ST08-001 Xi Gundam: "While you have no Units that are Lv.6 or higher in play" */
+  | { kind: "noUnitLevelAtLeast"; maxLevel: number }
+  /** ST07-004 Gundam Virtue / ST07-007 Kyrios: "While you have a (CB) Pilot in play" */
+  | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -500,6 +521,18 @@ export function isBoardConditionMet(
     const enemy = state.players[otherPlayer(owner)].battleArea.find((c) => c.instanceId === enemyId);
     return !!enemy && (enemy.def.level ?? 0) <= cond.maxLevel;
   }
+  if (cond.kind === "noUnitLevelAtLeast") {
+    const ownerState = state.players[owner];
+    return !ownerState.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.level ?? 0) >= cond.maxLevel);
+  }
+  if (cond.kind === "friendlyUnitWithTraitCountAtLeast") {
+    const ownerState = state.players[owner];
+    return (
+      ownerState.battleArea.filter(
+        (c) => (cond.cardType ? c.def.cardType === cond.cardType : true) && (c.def.traits ?? []).includes(cond.trait),
+      ).length >= cond.n
+    );
+  }
   // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
   const ownerState = state.players[owner];
   return (
@@ -621,7 +654,28 @@ export function effectiveCost(def: CardDef, state?: GameState, controller?: Play
   const base = def.cost ?? 0;
   if (!def.dynamicCost || !state || !controller) return base;
   const met = isBoardConditionMet(state, controller, def.dynamicCost.condition);
-  return Math.max(0, base + (met ? def.dynamicCost.amount : 0));
+  if (!met) return base;
+  if (def.dynamicCost.perEnemyUnit) {
+    const enemyCount = state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT").length;
+    return Math.max(0, base + def.dynamicCost.amount * enemyCount);
+  }
+  return Math.max(0, base + def.dynamicCost.amount);
+}
+
+/**
+ * Nível efetivo de deploy de `def` — aplica `def.dynamicLevel` se a condição
+ * estiver satisfeita (ex.: ST08-001 Xi Gundam).
+ */
+export function effectiveLevel(def: CardDef, state?: GameState, controller?: PlayerId): number {
+  const base = def.level ?? 0;
+  if (!def.dynamicLevel || !state || !controller) return base;
+  const met = isBoardConditionMet(state, controller, def.dynamicLevel.condition);
+  if (!met) return base;
+  if (def.dynamicLevel.perEnemyUnit) {
+    const enemyCount = state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT").length;
+    return Math.max(0, base + def.dynamicLevel.amount * enemyCount);
+  }
+  return Math.max(0, base + def.dynamicLevel.amount);
 }
 
 /** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */

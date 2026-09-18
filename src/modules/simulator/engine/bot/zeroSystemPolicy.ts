@@ -5,7 +5,7 @@ import type { LegalAction } from "../legalActions";
 import type { Rng } from "../rng";
 import type { SelfPlayPolicy } from "../selfPlay";
 
-export type ZeroSystemPersona = "amuro" | "char" | "heero" | "adaptive";
+export type ZeroSystemPersona = "amuro" | "char" | "heero" | "treize" | "adaptive";
 
 export interface ZeroSystemPolicyOptions {
   persona?: ZeroSystemPersona;
@@ -61,7 +61,7 @@ interface ZeroCtx {
   oppTotalAp: number;
   myReadyAp: number;
   oppReadyAp: number;
-  resolvedPersona: "amuro" | "char" | "heero";
+  resolvedPersona: "amuro" | "char" | "heero" | "treize";
 }
 
 function resolveAdaptivePersona(
@@ -69,9 +69,11 @@ function resolveAdaptivePersona(
   oppShields: number,
   myReadyAp: number,
   oppReadyAp: number,
+  myTotalAp: number,
+  oppTotalAp: number,
   myBase: CardInstance | null,
   state: GameState,
-): "amuro" | "char" | "heero" {
+): "amuro" | "char" | "heero" | "treize" {
   const myBaseHp = myBase ? remHp(myBase, state) : 0;
   // Perigo iminente de derrota -> Postura Defensiva / Controle (Amuro)
   if (myShields <= 2 || oppReadyAp >= myBaseHp + myShields * 3) {
@@ -80,6 +82,10 @@ function resolveAdaptivePersona(
   // Oportunidade clara de letal ou pressão fulminante -> Postura Agressiva / Blitz (Char)
   if (oppShields <= 2 || myReadyAp >= 10) {
     return "char";
+  }
+  // Duelo aristocrático de forças de elite em equilíbrio de alta potência (Treize)
+  if (myTotalAp >= 8 && oppTotalAp >= 8) {
+    return "treize";
   }
   // Estado neutro ou equilibrado -> Cálculo Matemático de Objetivos (Heero)
   return "heero";
@@ -107,7 +113,7 @@ function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptiv
 
   const resolvedPersona =
     persona === "adaptive"
-      ? resolveAdaptivePersona(myShieldCount, oppShieldCount, myReadyAp, oppReadyAp, myBase, state)
+      ? resolveAdaptivePersona(myShieldCount, oppShieldCount, myReadyAp, oppReadyAp, myTotalAp, oppTotalAp, myBase, state)
       : persona;
 
   return {
@@ -356,6 +362,59 @@ function scoreAttackHeero(ctx: ZeroCtx, attackerId: string, target: AttackTarget
   return 2;
 }
 
+// --- TREIZE KHUSHRENADA (Duelo Cavalheiresco, Combate Aristocrático de Elite) ---
+function scoreBlockTreize(ctx: ZeroCtx, blockerId: string): number {
+  const combat = ctx.view.combat;
+  if (!combat) return -5;
+  const attacker = byId(ctx.oppUnits, combat.attackerId);
+  const blocker = byId(ctx.myUnits, blockerId);
+  if (!attacker || !blocker) return -5;
+
+  const atkAp = effectiveAp(attacker, ctx.state);
+  const blockerAp = effectiveAp(blocker, ctx.state);
+  const blockerSurvives = remHp(blocker, ctx.state) > atkAp;
+  const blockerKillsAtk = blockerAp >= remHp(attacker, ctx.state);
+
+  // Duelo honroso: bloqueia se abater o campeão inimigo com dignidade
+  if (blockerKillsAtk && blockerSurvives) return 24;
+  if (blockerKillsAtk) return 14;
+
+  const baseInDanger = !!ctx.myBase && remHp(ctx.myBase, ctx.state) <= atkAp;
+  if (baseInDanger || ctx.myShieldCount <= 1) return 16;
+
+  return -4;
+}
+
+function scoreAttackTreize(ctx: ZeroCtx, attackerId: string, target: AttackTarget): number {
+  const attacker = byId(ctx.myUnits, attackerId);
+  if (!attacker) return 0;
+  const atkAp = effectiveAp(attacker, ctx.state);
+  const atkHpRem = remHp(attacker, ctx.state);
+  const atkVal = unitValue(attacker, ctx.state);
+
+  if (target === "player") {
+    return 10 + atkAp * 1.5;
+  }
+
+  const enemy = byId(ctx.oppUnits, target.unitId);
+  if (!enemy) return 0;
+  const enemyAp = effectiveAp(enemy, ctx.state);
+  const enemyHpRem = remHp(enemy, ctx.state);
+  const enemyVal = unitValue(enemy, ctx.state);
+  const kills = atkAp >= enemyHpRem;
+  const survives = enemyAp < atkHpRem;
+
+  // Duelo nobre: busca desmantelar os campeões mais fortes do adversário
+  const elitePrestige = enemyAp * 2 + (enemy.def.level ?? 0) * 2;
+  if (kills && survives) return 42 + enemyVal + elitePrestige;
+  if (kills && !survives) {
+    const delta = enemyVal - atkVal;
+    return delta >= 0 ? 22 + delta * 2 + elitePrestige : 6;
+  }
+  if (!survives) return -6;
+  return 3;
+}
+
 function scoreDeployZero(ctx: ZeroCtx, action: Extract<LegalAction, { kind: "deployCard" }>): number {
   const card = byId(ctx.myHand, action.cardInstanceId);
   if (!card) return 10;
@@ -377,6 +436,7 @@ function scoreDeployZero(ctx: ZeroCtx, action: Extract<LegalAction, { kind: "dep
     if (ctx.resolvedPersona === "amuro" && isBlocker) personaBonus += 12;
     if (ctx.resolvedPersona === "char" && (isBreach || (def.ap ?? 0) >= 4)) personaBonus += 10;
     if (ctx.resolvedPersona === "heero") personaBonus += stats >= 7 ? 8 : 4;
+    if (ctx.resolvedPersona === "treize" && ((def.ap ?? 0) >= 4 || (def.level ?? 0) >= 5)) personaBonus += 12;
 
     return 28 + stats + personaBonus - 3 * ctx.myUnits.length;
   }
@@ -427,11 +487,13 @@ function scoreZeroAction(action: LegalAction, _index: number, ctx: ZeroCtx): num
     case "activateBlocker": {
       if (ctx.resolvedPersona === "amuro") return scoreBlockAmuro(ctx, action.blockerId);
       if (ctx.resolvedPersona === "char") return scoreBlockChar(ctx, action.blockerId);
+      if (ctx.resolvedPersona === "treize") return scoreBlockTreize(ctx, action.blockerId);
       return scoreBlockHeero(ctx, action.blockerId);
     }
     case "declareAttack": {
       if (ctx.resolvedPersona === "amuro") return scoreAttackAmuro(ctx, action.attackerId, action.target);
       if (ctx.resolvedPersona === "char") return scoreAttackChar(ctx, action.attackerId, action.target);
+      if (ctx.resolvedPersona === "treize") return scoreAttackTreize(ctx, action.attackerId, action.target);
       return scoreAttackHeero(ctx, action.attackerId, action.target);
     }
     case "deployCard":

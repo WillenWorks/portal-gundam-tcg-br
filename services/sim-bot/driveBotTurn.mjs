@@ -61,7 +61,7 @@ const DEFAULT_MAX_ACTIONS = 400;
  * @param {import("../../src/modules/simulator/engine/types.ts").GameState} opts.initialState
  * @param {"A"|"B"} opts.seat
  * @param {"facil"|"normal"|"dificil"|"zero_system"} opts.level
- * @param {"amuro"|"char"|"heero"|"adaptive"} [opts.persona]
+ * @param {"amuro"|"char"|"heero"|"treize"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
  * @param {(action: unknown) => (void | Promise<void>)} opts.commit
  * @param {number} [opts.maxActions]

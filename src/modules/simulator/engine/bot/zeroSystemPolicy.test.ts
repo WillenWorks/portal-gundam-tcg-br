@@ -190,6 +190,29 @@ describe("zeroSystemPolicy — Personas e IA Tática", () => {
     expect(chosen).toEqual({ kind: "activateBlocker", blockerId: "blk" });
   });
 
+  it("Persona Treize Khushrenada: prioriza duelo de honra e abate do campeão inimigo de elite", () => {
+    const tallgeese = card("tg", "A", def({ code: "OZ-00MS", cardType: "UNIT", ap: 5, hp: 5, level: 6 }));
+    const grunt = card("grunt", "B", def({ code: "GRUNT", cardType: "UNIT", ap: 1, hp: 1, level: 1 }), { rested: true });
+    const champion = card("boss", "B", def({ code: "CHAMPION", cardType: "UNIT", ap: 4, hp: 4, level: 5 }), { rested: true });
+
+    const v = view({
+      viewer: "A",
+      A: { battleArea: [tallgeese], shields: 4 },
+      B: { battleArea: [grunt, champion], shields: 4 },
+    });
+
+    const actions: LegalAction[] = [
+      { kind: "declareAttack", attackerId: "tg", target: { unitId: "grunt" } },
+      { kind: "declareAttack", attackerId: "tg", target: { unitId: "boss" } },
+      { kind: "declareAttack", attackerId: "tg", target: "player" },
+      { kind: "passAction" },
+    ];
+
+    const chosen = chooseZeroSystemAction(v, actions, rng, { persona: "treize" });
+    // Treize desdenha de abater o peão fraco ou bater covardemente no jogador quando há um campeão adversário para duelar
+    expect(chosen).toEqual({ kind: "declareAttack", attackerId: "tg", target: { unitId: "boss" } });
+  });
+
   it("zeroSystemPolicy instancia corretamente a policy de self-play", () => {
     const policy = zeroSystemPolicy({ persona: "adaptive" });
     expect(typeof policy).toBe("function");

@@ -42,3 +42,13 @@ export {
   type ZeroSystemPersona,
   type ZeroSystemPolicyOptions,
 } from "./zeroSystemPolicy";
+
+export {
+  analyzeOpponentDeck,
+  buildZeroCounterDeck,
+  recommendCounterPersona,
+  validateGeneratedDeckLegality,
+  type OpponentDeckProfile,
+  type ZeroCounterDeckOptions,
+  type ZeroCounterDeckResult,
+} from "./zeroCounterDeckBuilder";

@@ -1787,6 +1787,666 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD03-001-WhenPaired",
+    "cardCode": "GD03-001",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it. When this effect destroys an enemy Unit, draw 1."
+  },
+  {
+    "id": "GD03-005-Deploy",
+    "cardCode": "GD03-005",
+    "trigger": "Deploy",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Draw 1."
+  },
+  {
+    "id": "GD03-006-Deploy",
+    "cardCode": "GD03-006",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 to 2 enemy Units with 3 or less HP. Rest them."
+  },
+  {
+    "id": "GD03-007-Destroyed",
+    "cardCode": "GD03-007",
+    "trigger": "Destroyed",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Destroyed】Choose 1 enemy Unit with 3 or less HP. Rest it."
+  },
+  {
+    "id": "GD03-0100-Burst",
+    "cardCode": "GD03-0100",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-021-Deploy",
+    "cardCode": "GD03-021",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit. Rest it."
+  },
+  {
+    "id": "GD03-023-Deploy",
+    "cardCode": "GD03-023",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "GD03-084-Burst",
+    "cardCode": "GD03-084",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-085-Burst",
+    "cardCode": "GD03-085",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-086-Burst",
+    "cardCode": "GD03-086",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-087-Burst",
+    "cardCode": "GD03-087",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-087-WhenLinked",
+    "cardCode": "GD03-087",
+    "trigger": "When Linked",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 enemy Unit that is Lv.3 or lower. Rest it."
+  },
+  {
+    "id": "GD03-088-Burst",
+    "cardCode": "GD03-088",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-089-Burst",
+    "cardCode": "GD03-089",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-090-Attack",
+    "cardCode": "GD03-090",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Cyclops Team",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 of your (Cyclops Team) Units. It gains <Breach 1> during this turn."
+  },
+  {
+    "id": "GD03-090-Burst",
+    "cardCode": "GD03-090",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-091-Burst",
+    "cardCode": "GD03-091",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-092-Burst",
+    "cardCode": "GD03-092",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-093-Burst",
+    "cardCode": "GD03-093",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-094-Burst",
+    "cardCode": "GD03-094",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-095-Burst",
+    "cardCode": "GD03-095",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-096-Burst",
+    "cardCode": "GD03-096",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-097-Burst",
+    "cardCode": "GD03-097",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-098-Burst",
+    "cardCode": "GD03-098",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-099-Burst",
+    "cardCode": "GD03-099",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-101-Main",
+    "cardCode": "GD03-101",
+    "trigger": "Main",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Draw 1."
+  },
+  {
+    "id": "GD03-102-Burst",
+    "cardCode": "GD03-102",
+    "trigger": "Burst",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Draw 1."
+  },
+  {
+    "id": "GD03-103-Burst",
+    "cardCode": "GD03-103",
+    "trigger": "Burst",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Burst】Choose 1 enemy Unit with 2 or less HP. Rest it."
+  },
+  {
+    "id": "GD03-105-Burst",
+    "cardCode": "GD03-105",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-111-Action",
+    "cardCode": "GD03-111",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Mafty",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly (Mafty) Unit. It gets AP+3 during this turn."
+  },
+  {
+    "id": "GD03-111-Main",
+    "cardCode": "GD03-111",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Mafty",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 friendly (Mafty) Unit. It gets AP+3 during this turn."
+  },
+  {
+    "id": "GD03-112-Burst",
+    "cardCode": "GD03-112",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-116-Action",
+    "cardCode": "GD03-116",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "GD03-116-Main",
+    "cardCode": "GD03-116",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "GD03-118-Burst",
+    "cardCode": "GD03-118",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-123-Burst",
+    "cardCode": "GD03-123",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-123-Deploy",
+    "cardCode": "GD03-123",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-124-Burst",
+    "cardCode": "GD03-124",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-124-Deploy",
+    "cardCode": "GD03-124",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-125-Burst",
+    "cardCode": "GD03-125",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-125-Deploy",
+    "cardCode": "GD03-125",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-126-Burst",
+    "cardCode": "GD03-126",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-126-Deploy",
+    "cardCode": "GD03-126",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-127-Burst",
+    "cardCode": "GD03-127",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-127-Deploy",
+    "cardCode": "GD03-127",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-128-Burst",
+    "cardCode": "GD03-128",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-128-Deploy",
+    "cardCode": "GD03-128",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-129-Burst",
+    "cardCode": "GD03-129",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-129-Deploy",
+    "cardCode": "GD03-129",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-130-Burst",
+    "cardCode": "GD03-130",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-130-Deploy",
+    "cardCode": "GD03-130",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-131-Burst",
+    "cardCode": "GD03-131",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-131-Deploy",
+    "cardCode": "GD03-131",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-132-Burst",
+    "cardCode": "GD03-132",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD03-132-Deploy",
+    "cardCode": "GD03-132",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
     "id": "ST01-002-WhenPaired",
     "cardCode": "ST01-002",
     "trigger": "When Paired",
@@ -2974,6 +3634,369 @@
   {
     "id": "ST06-015-Deploy",
     "cardCode": "ST06-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST07-001-EndOfTurn",
+    "cardCode": "ST07-001",
+    "trigger": "EndOfTurn",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": "ownResource",
+    "targetFilter": "rested",
+    "predicate": "controllerTrashCardCountWithTraitAtLeast:CB:7",
+    "sourceText": "At the end of your turn, if there are 7 or more (CB) cards in your trash, choose 1 of your Resources. Set it as active."
+  },
+  {
+    "id": "ST07-001-WhenPaired",
+    "cardCode": "ST07-001",
+    "trigger": "When Paired",
+    "ops": [
+      "millToTrash"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Place the top 2 cards of your deck into your trash. If you place a (CB) card with this effect, draw 1."
+  },
+  {
+    "id": "ST07-009-Attack",
+    "cardCode": "ST07-009",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat",
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithTraitAtLeast:CB:7",
+    "sourceText": "【Attack】This Unit gets AP+1 during this turn. If there are 7 or more (CB) cards in your trash, all your (CB) Units get AP+1 instead."
+  },
+  {
+    "id": "ST07-009-Burst",
+    "cardCode": "ST07-009",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST07-010-Burst",
+    "cardCode": "ST07-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST07-010-Destroyed",
+    "cardCode": "ST07-010",
+    "trigger": "Destroyed",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "isOpponentTurn",
+    "sourceText": "【Destroyed】If it is your opponent's turn and this is a (CB) Unit, draw 1."
+  },
+  {
+    "id": "ST07-011-Burst",
+    "cardCode": "ST07-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST07-011-WhenPaired",
+    "cardCode": "ST07-011",
+    "trigger": "When Paired",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】If this is a (CB) Unit, it may choose an active enemy Unit whose Lv. is equal to or lower than this Unit as its attack target during this turn."
+  },
+  {
+    "id": "ST07-012-Burst",
+    "cardCode": "ST07-012",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST07-013-Action",
+    "cardCode": "ST07-013",
+    "trigger": "Action",
+    "ops": [],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:CB;rested",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 rested friendly (CB) Unit. Change the attack target of the battling enemy Unit to it."
+  },
+  {
+    "id": "ST07-013-Burst",
+    "cardCode": "ST07-013",
+    "trigger": "Burst",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Draw 1."
+  },
+  {
+    "id": "ST07-014-Main",
+    "cardCode": "ST07-014",
+    "trigger": "Main",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card / Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "ST07-015-Burst",
+    "cardCode": "ST07-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST07-015-Deploy",
+    "cardCode": "ST07-015",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST08-001-WhenPaired",
+    "cardCode": "ST08-001",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "highestLevel",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit with the highest Lv. Deal 3 damage to it."
+  },
+  {
+    "id": "ST08-002-Deploy",
+    "cardCode": "ST08-002",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "ST08-004-Attack",
+    "cardCode": "ST08-004",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "attackingEnemyUnit",
+    "sourceText": "【Attack】If this Unit is attacking an enemy Unit, choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "ST08-006-Attack",
+    "cardCode": "ST08-006",
+    "trigger": "Attack",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "attackingPlayer",
+    "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2."
+  },
+  {
+    "id": "ST08-009-Deploy",
+    "cardCode": "ST08-009",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested;level<=2",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 rested enemy Unit that is Lv.2 or lower. It won't be set as active during the start phase of your opponent's next turn."
+  },
+  {
+    "id": "ST08-010-Burst",
+    "cardCode": "ST08-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST08-010-WhenPaired",
+    "cardCode": "ST08-010",
+    "trigger": "When Paired",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Mafty",
+    "predicate": null,
+    "sourceText": "【When Paired】If this is a (Mafty) Unit, choose 1 of your (Mafty) Units. During this turn, it may choose a damaged active enemy Unit as its attack target."
+  },
+  {
+    "id": "ST08-011-Burst",
+    "cardCode": "ST08-011",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST08-012-Main",
+    "cardCode": "ST08-012",
+    "trigger": "Main",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "linkUnit",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 friendly Link Unit. It gains [Breach 1] during this turn."
+  },
+  {
+    "id": "ST08-013-Action",
+    "cardCode": "ST08-013",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerHasLinkUnitWithTrait:Mafty",
+    "sourceText": "【Action】Choose 1 enemy Unit. Deal 1 damage to it. If a friendly (Mafty) Link Unit is in play, deal 2 damage instead."
+  },
+  {
+    "id": "ST08-013-Main",
+    "cardCode": "ST08-013",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerHasLinkUnitWithTrait:Mafty",
+    "sourceText": "【Main】Choose 1 enemy Unit. Deal 1 damage to it. If a friendly (Mafty) Link Unit is in play, deal 2 damage instead."
+  },
+  {
+    "id": "ST08-014-Burst",
+    "cardCode": "ST08-014",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST08-014-Deploy",
+    "cardCode": "ST08-014",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 of your Units. It gets AP+2 during this turn."
+  },
+  {
+    "id": "ST08-015-ActivateMain",
+    "cardCode": "ST08-015",
+    "trigger": "Activate: Main",
+    "ops": [
+      "payResourceCost",
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate: Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP."
+  },
+  {
+    "id": "ST08-015-Burst",
+    "cardCode": "ST08-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "ST08-015-Deploy",
+    "cardCode": "ST08-015",
     "trigger": "Deploy",
     "ops": [
       "addShieldToHand"

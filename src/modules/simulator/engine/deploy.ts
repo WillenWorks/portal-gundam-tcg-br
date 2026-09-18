@@ -1,5 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
-import { effectiveCost, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
@@ -57,17 +57,15 @@ export interface DeployOptions {
    * Lote 5 (docs/debates 2026-09-13) — GD01-002: instanceId de uma Unit amiga (Link
    * Unit, batendo com `CardDef.alternateDeploySacrifice`) que o jogador escolhe
    * DESTRUIR pra jogar esta carta como se tivesse 0 Lv. e custo. Ausente = deploy
-   * normal (paga custo/nível de verdade). O sacrifício dispara o 【Destroyed】 da Unit
-   * sacrificada (via `dispatchDestroyedFromEffect`, mesmo caminho de qualquer destroy
-   * fora de combate) ANTES do deploy desta carta — se isso pausar (ex.: a própria
-   * GD01-005 "Unicorn Mode" tem 【During Link】【Destroyed】), o deploy fica pendente
-   * até o jogador resolver.
+   * normal (paga custo/nível de verdade).
    */
   sacrificeInstanceId?: string;
+  /** instanceIds de cartas na mão a descartar para deploy alternativo por descarte */
+  discardInstanceIds?: string[];
 }
 
 export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): boolean {
-  return state.players[player].resourceArea.length >= (def.level ?? 0);
+  return state.players[player].resourceArea.length >= effectiveLevel(def, state, player);
 }
 
 // Pagamento de custo de recurso (EX Resource sai do jogo, Recurso normal só resta) foi
@@ -94,29 +92,70 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   if (def.cardType === "COMMAND" && !def.pilotMode) throw new Error("Command não usa deployCard — ver playCommand()");
   if (def.cardType === "RESOURCE") throw new Error("Resource não é jogado da mão via deployCard — é comprado na Resource Phase");
 
-  // Lote 5 (docs/debates 2026-09-13) — GD01-002: deploy alternativo por sacrifício de
-  // Link Unit. Validado ANTES da checagem de nível/custo normal — se válido, ambos
-  // são tratados como satisfeitos ("play this card as if it has 0 Lv. and cost"). O
-  // DESTROY_CARD do sacrifício entra no MESMO lote de eventos que o próprio deploy
-  // (aplicados juntos, abaixo) — só DEPOIS de a carta nova já estar em campo é que o
-  // 【Destroyed】 do sacrifício é despachado (pode pausar, ex.: a própria GD01-005 tem
-  // 【During Link】【Destroyed】 — mesma convenção de "carta já em campo, pausa só afeta
-  // o que vem depois" do docs/45, Rewloola matando Char's Zaku Ⅱ).
   const base = state;
   let freeDeploy = false;
+  const discardEvents: GameEvent[] = [];
+
+  // Deploy alternativo por descarte de cartas da mão
+  if (options.discardInstanceIds && options.discardInstanceIds.length > 0) {
+    const alt = def.alternateDeploy;
+    if (!alt || alt.kind !== "discard") {
+      throw new Error(`${def.code} não tem deploy alternativo por descarte`);
+    }
+    const requiredCount = alt.discardCount ?? 1;
+    if (options.discardInstanceIds.length !== requiredCount) {
+      throw new Error(`Deploy alternativo de ${def.code} requer descarte de exatamente ${requiredCount} carta(s)`);
+    }
+    for (const discardId of options.discardInstanceIds) {
+      if (discardId === cardInstanceId) {
+        throw new Error("Não é possível descartar a própria carta sendo jogada");
+      }
+      const discCard = findCard(state, discardId);
+      if (discCard.owner !== player || discCard.zone !== "hand") {
+        throw new Error("As cartas descartadas precisam estar na mão do jogador");
+      }
+      discardEvents.push({ type: "MOVE_CARD", instanceId: discardId, toZone: "trash" });
+    }
+    freeDeploy = true;
+  }
+
+  // Deploy alternativo por sacrifício de Unit
   if (options.sacrificeInstanceId) {
     const altSac = def.alternateDeploySacrifice;
-    if (!altSac) throw new Error(`${def.code} não tem deploy alternativo por sacrifício de Link Unit`);
+    const altGen = def.alternateDeploy && def.alternateDeploy.kind === "sacrifice" ? def.alternateDeploy : undefined;
+    if (!altSac && !altGen) {
+      throw new Error(`${def.code} não tem deploy alternativo por sacrifício de Unit`);
+    }
     const sac = findCard(state, options.sacrificeInstanceId);
     if (sac.owner !== player || sac.zone !== "battleArea") {
       throw new Error("A Unit sacrificada precisa ser amiga e estar na Battle Area");
     }
-    const sacPilot = sac.pairedPilotId ? findCard(state, sac.pairedPilotId) : undefined;
-    const sacIsLinkUnit = !!sacPilot && satisfiesLinkCondition(effectivePilotDef(sacPilot), sac.def);
-    if (!sacIsLinkUnit || !sac.def.nameEn.includes(altSac.nameContains) || (sac.def.level ?? 0) !== altSac.level) {
-      throw new Error(
-        `A Unit sacrificada pra jogar ${def.code} precisa ser uma Link Unit com "${altSac.nameContains}" no nome e Lv.${altSac.level}`,
-      );
+
+    if (altSac) {
+      const sacPilot = sac.pairedPilotId ? findCard(state, sac.pairedPilotId) : undefined;
+      const sacIsLinkUnit = !!sacPilot && satisfiesLinkCondition(effectivePilotDef(sacPilot), sac.def);
+      if (!sacIsLinkUnit || !sac.def.nameEn.includes(altSac.nameContains) || (sac.def.level ?? 0) !== altSac.level) {
+        throw new Error(
+          `A Unit sacrificada pra jogar ${def.code} precisa ser uma Link Unit com "${altSac.nameContains}" no nome e Lv.${altSac.level}`,
+        );
+      }
+    } else if (altGen) {
+      if (altGen.nameContains && !sac.def.nameEn.includes(altGen.nameContains)) {
+        throw new Error(`A Unit sacrificada precisa conter "${altGen.nameContains}" no nome`);
+      }
+      if (altGen.level !== undefined && (sac.def.level ?? 0) !== altGen.level) {
+        throw new Error(`A Unit sacrificada precisa ser de Lv.${altGen.level}`);
+      }
+      if (altGen.trait && !sac.def.traits?.includes(altGen.trait)) {
+        throw new Error(`A Unit sacrificada precisa ter o traço "${altGen.trait}"`);
+      }
+      if (altGen.requiresLink) {
+        const sacPilot = sac.pairedPilotId ? findCard(state, sac.pairedPilotId) : undefined;
+        const sacIsLinkUnit = !!sacPilot && satisfiesLinkCondition(effectivePilotDef(sacPilot), sac.def);
+        if (!sacIsLinkUnit) {
+          throw new Error("A Unit sacrificada precisa ser uma Link Unit");
+        }
+      }
     }
     freeDeploy = true;
   }
@@ -127,11 +166,11 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     );
   }
 
-  const events: GameEvent[] = freeDeploy ? [] : payCostEvents(base, player, def, options.resourceInstanceIds);
+  const events: GameEvent[] = freeDeploy ? [...discardEvents] : payCostEvents(base, player, def, options.resourceInstanceIds);
   if (freeDeploy && options.sacrificeInstanceId) {
     const sacrificed = findCard(base, options.sacrificeInstanceId);
     events.push({ type: "DESTROY_CARD", instanceId: options.sacrificeInstanceId });
-    // CR 3-3-6: sac é sempre uma Link Unit (validado acima) — o Pilot pareado segue pro trash.
+    // Se a unidade tinha piloto pareado, ele segue pro trash
     events.push(...pairedPilotFollowEvents(sacrificed));
   }
 
