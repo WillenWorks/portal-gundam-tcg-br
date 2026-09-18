@@ -198,5 +198,7 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     ap: 2,
     hp: 3,
     traits: ["Side 6"],
+    // "This Unit can't choose the enemy player as its attack target." — mesmo padrão de ST01-009 Zowort.
+    attackTargetRules: { cannotTargetPlayer: true },
   },
 };

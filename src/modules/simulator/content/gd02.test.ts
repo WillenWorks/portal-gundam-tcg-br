@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
+import { advanceToMainPhase } from "../engine/phases";
+import { declareAttack } from "../engine/combat";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt06DeckList } from "../fixtures/st06Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
 import { GD02_CARD_DEFS } from "./gd02";
 import { GD02_EFFECT_SPECS } from "./gd02/effects";
-import type { GameState } from "../engine/types";
+import type { CardDef, GameState } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
-import { resolveEffectSpec } from "../engine/effectSpec";
+import { computeLegalTargets, resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 
@@ -97,5 +99,89 @@ describe("GD02 — resolução de efeitos bespoke", () => {
       state = applyEvents(state, events);
       expect(findCard(state, sourceId).keywordGrants.some((k) => k.keyword === "Suppression")).toBe(true);
     }
+  });
+});
+
+// Token mínimo (mesmo shape de T-007 em fixtures/st03Deck.ts) -- só pra testar targetFilter "isToken".
+const TEST_TOKEN_UNIT: CardDef = { code: "T-TEST", nameEn: "Token de Teste", cardType: "UNIT", color: "green", ap: 1, hp: 5, traits: [], isToken: true };
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 1º lote de fechamento do backlog de cobertura", () => {
+  it("GD02-018/035/066: nenhuma pode escolher o jogador inimigo como alvo de ataque (attackTargetRules.cannotTargetPlayer)", () => {
+    for (const code of ["GD02-018", "GD02-035", "GD02-066"] as const) {
+      expect(GD02_CARD_DEFS[code].attackTargetRules?.cannotTargetPlayer).toBe(true);
+    }
+
+    const state = advanceToMainPhase(freshGame());
+    const attackerId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "battleArea");
+    expect(() => declareAttack(state, attackerId, "player")).toThrow(/não pode escolher o jogador inimigo/);
+  });
+
+  it("GD02-025 Gundam Heavyarms (Deploy): olha o topo do deck e devolve pro topo ou fundo, escolha do jogador", () => {
+    const state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-025"], "battleArea");
+    const topId = state.players.A.deck[0].instanceId;
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-025" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+
+    const keepOnTop = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { position: ["top"] }), defaultPredicateResolver));
+    expect(keepOnTop.players.A.deck[0].instanceId).toBe(topId);
+
+    const toBottom = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { position: ["bottom"] }), defaultPredicateResolver));
+    expect(toBottom.players.A.deck.at(-1)!.instanceId).toBe(topId);
+  });
+
+  it("GD02-039 Haman Karn's Gaza C (When Paired): 1 dano a Unit inimiga Lv.3 ou menor; recusa alvo Lv.4+", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-039"], "battleArea");
+    const lowEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 3 }, "battleArea"); // Lv.3 — casa o filtro
+    const highEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 4 }, "battleArea"); // Lv.4 — não casa
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-039" && s.trigger === "When Paired")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(lowEnemyId);
+    expect(legal).not.toContain(highEnemyId);
+
+    const events = resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [lowEnemyId] }), defaultPredicateResolver);
+    state = applyEvents(state, events);
+    expect(findCard(state, lowEnemyId).damage).toBe(1);
+  });
+
+  it("GD02-041 Sugai's Gelgoog (GQ) (Deploy): 2 dano a Unit inimiga Lv.5 ou maior; recusa alvo Lv.4-", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-041"], "battleArea");
+    const highEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 5 }, "battleArea"); // Lv.5 — casa o filtro
+    const lowEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 4 }, "battleArea"); // Lv.4 — não casa
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-041" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(highEnemyId);
+    expect(legal).not.toContain(lowEnemyId);
+
+    const events = resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [highEnemyId] }), defaultPredicateResolver);
+    state = applyEvents(state, events);
+    expect(findCard(state, highEnemyId).damage).toBe(2);
+  });
+
+  it("GD02-046 Sayla's Light-Type Guncannon (Deploy): 2 dano a Unit-token inimiga; recusa Unit normal", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-046"], "battleArea");
+    const tokenId = placeCard(state, "B", TEST_TOKEN_UNIT, "battleArea");
+    const normalUnitId = placeCard(state, "B", GD02_CARD_DEFS["GD02-018"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-046" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(tokenId);
+    expect(legal).not.toContain(normalUnitId);
+
+    const events = resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [tokenId] }), defaultPredicateResolver);
+    state = applyEvents(state, events);
+    expect(findCard(state, tokenId).damage).toBe(2);
   });
 });

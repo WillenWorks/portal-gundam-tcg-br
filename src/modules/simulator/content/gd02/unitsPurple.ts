@@ -178,6 +178,8 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     ap: 2,
     hp: 3,
     traits: ["UE","Vagan"],
+    // "This Unit can't choose the enemy player as its attack target." — mesmo padrão de ST01-009 Zowort.
+    attackTargetRules: { cannotTargetPlayer: true },
   },
   "GD02-067": {
     code: "GD02-067",

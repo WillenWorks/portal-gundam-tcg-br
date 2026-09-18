@@ -392,6 +392,58 @@ export const GD02_130_SLEIPNIR_DEPLOY: EffectSpec = {
   actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sprint 2 (docs/debates 2026-09-18) — 1º lote de fechamento do backlog de
+// cobertura de GD02 (achado no P0-1: 69 cartas "faltando"). Todos os
+// primitivos usados abaixo já existiam (mesmo padrão de GD01-039 Dopp pro
+// `moveTopCardToChosenPosition`, ST01-009 Zowort pro `cannotTargetPlayer` —
+// ver unitsBlue/Green/Purple.ts) -- pura autoria de EffectSpec, sem gap de
+// motor novo.
+// ─────────────────────────────────────────────────────────────────────────
+
+// GD02-025 Gundam Heavyarms — 【Deploy】Look at the top card of your deck. Return
+// it to the top or bottom of your deck. (mesmo texto de GD01-039 Dopp.)
+export const GD02_025_GUNDAM_HEAVYARMS_DEPLOY: EffectSpec = {
+  id: "GD02-025-Deploy",
+  cardCode: "GD02-025",
+  trigger: "Deploy",
+  actions: [{ op: "moveTopCardToChosenPosition", player: "controller", optionsKey: "position" }],
+  sourceText: "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck.",
+};
+
+// GD02-039 Haman Karn's Gaza C — 【When Paired】Choose 1 enemy Unit that is Lv.3 or lower. Deal 1 damage to it.
+export const GD02_039_HAMAN_KARN_S_GAZA_C_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-039-WhenPaired",
+  cardCode: "GD02-039",
+  trigger: "When Paired",
+  actions: [{ op: "damageUnit", amount: 1, target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=3",
+  sourceText: "【When Paired】Choose 1 enemy Unit that is Lv.3 or lower. Deal 1 damage to it.",
+};
+
+// GD02-041 Sugai's Gelgoog (GQ) — 【Deploy】Choose 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to it.
+export const GD02_041_SUGAI_S_GELGOOG_GQ_DEPLOY: EffectSpec = {
+  id: "GD02-041-Deploy",
+  cardCode: "GD02-041",
+  trigger: "Deploy",
+  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
+  targetFilter: "level>=5",
+  sourceText: "【Deploy】Choose 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to it.",
+};
+
+// GD02-046 Sayla's Light-Type Guncannon — 【Deploy】Choose 1 enemy Unit token. Deal 2 damage to it.
+export const GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY: EffectSpec = {
+  id: "GD02-046-Deploy",
+  cardCode: "GD02-046",
+  trigger: "Deploy",
+  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
+  targetFilter: "isToken",
+  sourceText: "【Deploy】Choose 1 enemy Unit token. Deal 2 damage to it.",
+};
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -427,5 +479,9 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_127_FREEDEN_DEPLOY,
   GD02_128_HAMMERHEAD_DEPLOY,
   GD02_129_ARGAMA_DEPLOY,
-  GD02_130_SLEIPNIR_DEPLOY
+  GD02_130_SLEIPNIR_DEPLOY,
+  GD02_025_GUNDAM_HEAVYARMS_DEPLOY,
+  GD02_039_HAMAN_KARN_S_GAZA_C_WHEN_PAIRED,
+  GD02_041_SUGAI_S_GELGOOG_GQ_DEPLOY,
+  GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY
 ];
