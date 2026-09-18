@@ -28,6 +28,7 @@
     "preventUnitBattleDamage": { "description": "Impede a Unit alvo de sofrer dano de batalha de atacantes até um AP, durante a batalha atual.", "since": "ST03-014 The Blue Giant" },
     "grantAttackTargetRelax": { "description": "Permite a Unit alvo escolher como alvo de ataque uma Unit normalmente inelegível (até um nível), neste turno.", "since": "ST04-011 Athrun Zala" },
     "preventAttackThisTurn": { "description": "Impede a Unit alvo de atacar neste turno.", "since": "ST04-015 Archangel" },
+    "preventActivationNextTurn": { "description": "Marca a Unit alvo pra NÃO ser destombada na Start Phase de um turno específico (state.turnNumber + 1 no momento do efeito) — consumido por computeStartPhaseEvents, limpo em CLEAR_TURN_MODIFIERS.", "since": "ST08-009 Jegan Ground Type-A (Man Hunter)" },
     "lookAtTopFilterReveal": { "description": "Olha o topo N do deck; pode revelar 1 carta que casa um filtro e somar à mão; o resto volta (embaralhado) pro fundo.", "since": "ST03-006 Char's Zaku Ⅱ" },
     "deployFromHandTriggered": { "description": "Deploya uma Unit da mão (escolhida, casando um CardDefFilter) sem pagar custo de ação nem de recurso.", "since": "ST03-010 Full Frontal" },
     "deployThisCard": { "description": "Coloca a própria carta em campo (Burst), aplicando a regra de 1 Base; dispatcher.ts encadeia o 【Deploy】 dela em seguida.", "since": "GD01 (docs/47 Classe B — Burst→Deploy)" },
@@ -50,7 +51,8 @@
     "allFriendlyLinkUnits": { "description": "Toda Unit amiga com Link ativo agora.", "since": "ST01-016 Asticassia" },
     "allEnemyUnits": { "description": "Toda Unit inimiga (opcionalmente com maxLevel).", "since": "ST02-003 Gundam Heavyarms" },
     "allFriendlyUnits": { "description": "Toda Unit amiga (opcionalmente com maxLevel).", "since": "GD01-102 The Path to Victory or Defeat" },
-    "allUnits": { "description": "Toda Unit dos DOIS lados do tabuleiro (opcionalmente com maxLevel e/ou hasKeyword) — texto oficial \"all Units\" sem \"enemy\"/\"friendly\".", "since": "GD01-024 Wing Gundam Zero / GD01-027 Big Zam / GD01-108 Strategic Arms" }
+    "allUnits": { "description": "Toda Unit dos DOIS lados do tabuleiro (opcionalmente com maxLevel e/ou hasKeyword) — texto oficial \"all Units\" sem \"enemy\"/\"friendly\".", "since": "GD01-024 Wing Gundam Zero / GD01-027 Big Zam / GD01-108 Strategic Arms" },
+    "firstOwnHandUnitWithTrait": { "description": "Resolve pra 1ª Unit da mão do controller que casa o trait dado (sem escolha interativa — não existe targetScope pra mão ainda; [] se nenhuma casar).", "since": "ST08-006 Penelope" }
   },
   "targetScopes": {
     "enemyUnit": { "description": "Pool padrão de alvo legal — Units inimigas na Battle Area.", "since": "ST01" },
@@ -88,7 +90,9 @@
     "isOpponentTurn": { "description": "Verdadeiro se for o turno do oponente.", "since": "GD03" },
     "controllerTrashCardCountWithTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas com o trait dado.", "since": "GD03" },
     "controllerHasLinkUnitWithTrait:<value>": { "description": "O controller tem uma Link Unit em campo com o trait dado.", "since": "GD03" },
-    "controllerHasPilotWithTrait:<value>": { "description": "O controller tem um Pilot pareado com o trait dado.", "since": "GD03" }
+    "controllerHasPilotWithTrait:<value>": { "description": "O controller tem um Pilot pareado com o trait dado.", "since": "GD03" },
+    "controllerHandHasUnitWithTrait:<value>": { "description": "A mão do controller tem pelo menos 1 carta Unit com o trait dado — checado ANTES da própria ação de revelar/mover rodar.", "since": "ST08-006 Penelope" },
+    "namedTargetLethalDamage:<value>:<n>": { "description": "O alvo nomeado <value> morreria se recebesse mais N de dano agora (mesma fórmula de damageUnit: card.damage + N >= effectiveHp) — avaliado ANTES do dano rodar.", "since": "GD03-001 Gundam NT-1" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },

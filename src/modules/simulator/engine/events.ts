@@ -327,6 +327,9 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
             if (card.cannotAttackUntilTurn !== undefined && card.cannotAttackUntilTurn <= event.turnNumber) {
               card.cannotAttackUntilTurn = undefined;
             }
+            if (card.cannotActivateUntilTurn !== undefined && card.cannotActivateUntilTurn <= event.turnNumber) {
+              card.cannotActivateUntilTurn = undefined;
+            }
           }
         }
       }
@@ -477,6 +480,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "SET_CANNOT_ATTACK": {
       findCard(state, event.instanceId).cannotAttackUntilTurn = event.turn;
+      return state;
+    }
+    case "SET_CANNOT_ACTIVATE": {
+      findCard(state, event.instanceId).cannotActivateUntilTurn = event.turn;
       return state;
     }
     case "SET_PENDING_DECISION": {

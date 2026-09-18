@@ -92,10 +92,17 @@ export const GD03_COMMAND_BURST_SPECS: EffectSpec[] = [
 // —————————————————————————— Bespoke Unit / Pilot / Command Effects ——————————————————————————
 
 // GD03-001 Gundam NT-1 — 【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it.
+// When this effect destroys an enemy Unit, draw 1.
 export const GD03_001_GUNDAM_NT1_WHEN_PAIRED: EffectSpec = {
   id: "GD03-001-WhenPaired",
   cardCode: "GD03-001",
   trigger: "When Paired",
+  // Calcula ANTES do dano rodar se ele vai destruir o alvo (mesma fórmula que
+  // `damageUnit` já usa internamente) — dispara o draw só nesse caso.
+  condition: {
+    predicate: "namedTargetLethalDamage:target:1",
+    then: [{ op: "draw", player: "controller", n: 1 }],
+  },
   actions: [
     { op: "damageUnit", amount: 1, target: { kind: "named", name: "target" } },
   ],

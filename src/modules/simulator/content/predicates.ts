@@ -228,6 +228,34 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const count = ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).includes(trait)).length;
     return count >= min;
   }
+  // ST08-006 Penelope — 【During Pair】【Attack】"reveal 1 (Earth Federation) Unit
+  // card from your hand... If you do, draw 2." Checa se existe pelo menos 1
+  // Unit com o trait na mão ANTES da própria ação de revelar/mover rodar —
+  // mesma ordem cost->condition->actions de `controllerTrashCountAtLeast`
+  // acima. Sem escolha interativa de QUAL carta (não existe `targetScope`
+  // pra mão ainda) — a ação que consome isto usa sempre a primeira que casar
+  // (mesma simplificação documentada de `returnTrashToDeckAndShuffle`).
+  const controllerHandHasUnitWithTrait = predicate.match(/^controllerHandHasUnitWithTrait:(.+)$/);
+  if (controllerHandHasUnitWithTrait) {
+    const trait = controllerHandHasUnitWithTrait[1];
+    return ctx.state.players[ctx.controller].hand.some(
+      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(trait),
+    );
+  }
+  // GD03-001 Gundam NT-1 — 【When Paired】"Deal 1 damage to it. When this effect
+  // destroys an enemy Unit, draw 1." Mesma matemática que `damageUnit` já usa
+  // pra decidir sozinho se dispara `DESTROY_CARD` (effectSpec.ts, case
+  // "damageUnit": `card.damage + amount >= effectiveHp(...)`) — repetida aqui
+  // pra virar um predicate de `condition`, avaliado ANTES do dano rodar
+  // (mesma ordem cost->condition->actions; o resultado não muda porque é a
+  // MESMA fórmula, só calculada 1x a mais).
+  const namedTargetLethalDamage = predicate.match(/^namedTargetLethalDamage:(.+):(\d+)$/);
+  if (namedTargetLethalDamage) {
+    const targetId = ctx.targets[namedTargetLethalDamage[1]]?.[0];
+    if (!targetId) return false;
+    const card = findCard(ctx.state, targetId);
+    return card.damage + Number(namedTargetLethalDamage[2]) >= effectiveHp(card, ctx.state);
+  }
   // ST08-013 Lady Luck — "If a friendly (Mafty) Link Unit is in play"
   const controllerHasLinkUnitWithTrait = predicate.match(/^controllerHasLinkUnitWithTrait:(.+)$/);
   if (controllerHasLinkUnitWithTrait) {

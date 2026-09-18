@@ -1791,11 +1791,12 @@
     "cardCode": "GD03-001",
     "trigger": "When Paired",
     "ops": [
+      "draw",
       "damageUnit"
     ],
     "targetScope": "enemyUnit",
     "targetFilter": "rested",
-    "predicate": null,
+    "predicate": "namedTargetLethalDamage:target:1",
     "sourceText": "【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it. When this effect destroys an enemy Unit, draw 1."
   },
   {
@@ -3851,11 +3852,12 @@
     "cardCode": "ST08-006",
     "trigger": "Attack",
     "ops": [
+      "moveZone",
       "draw"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": "attackingPlayer",
+    "predicate": "attackingPlayer;controllerHandHasUnitWithTrait:Earth Federation",
     "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2."
   },
   {
@@ -3863,7 +3865,8 @@
     "cardCode": "ST08-009",
     "trigger": "Deploy",
     "ops": [
-      "rest"
+      "rest",
+      "preventActivationNextTurn"
     ],
     "targetScope": "enemyUnit",
     "targetFilter": "rested;level<=2",

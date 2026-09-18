@@ -408,6 +408,16 @@ export interface CardInstance {
    * enquanto `=== state.turnNumber`. Limpo em `CLEAR_TURN_MODIFIERS`.
    */
   cannotAttackUntilTurn?: number;
+  /**
+   * ST08-009 Jegan Ground Type-A 【Deploy】 — "It won't be set as active during
+   * the start phase of your opponent's next turn." Guarda o `turnNumber` do
+   * turno em que a Unit alvo NÃO deve ser destombada em `computeStartPhaseEvents`
+   * (sempre "próximo turno do oponente" a partir de quem controla Jegan, ou
+   * seja `state.turnNumber + 1` no momento do Deploy — ver `effectSpec.ts`
+   * case `preventActivationNextTurn`). Consumido (checado com `===`) na Start
+   * Phase; limpo em `CLEAR_TURN_MODIFIERS` como os campos irmãos acima.
+   */
+  cannotActivateUntilTurn?: number;
 }
 
 /**
@@ -1119,6 +1129,8 @@ export type GameEvent =
   | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
+  /** ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`. */
+  | { type: "SET_CANNOT_ACTIVATE"; instanceId: string; turn: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }

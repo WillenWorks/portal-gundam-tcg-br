@@ -70,7 +70,18 @@ export type TargetGroup =
    * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
    * concedida (mesma checagem de `defaultTargetFilterResolver`).
    */
-  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string };
+  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string }
+  /**
+   * ST08-006 Penelope — "reveal 1 (Earth Federation) Unit card from your hand.
+   * Return to the bottom of your deck." Não existe `targetScope` pra mão ainda
+   * (só battleArea/baseSection via enemyUnit/friendlyUnit/anyUnit/ownResource),
+   * então isto resolve automaticamente pra 1ª Unit da mão do controller que
+   * casa o trait — sem escolha interativa, mesma simplificação documentada de
+   * `returnTrashToDeckAndShuffle` (GD01-003). Resolve pra `[]` (no-op) se não
+   * houver carta assim — o "if you do" da carta é modelado pelo `condition`
+   * (predicate `controllerHandHasUnitWithTrait:<trait>`), não por esta função.
+   */
+  | { kind: "firstOwnHandUnitWithTrait"; trait: string };
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
@@ -101,6 +112,11 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
       .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
       .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
       .map((u) => u.instanceId);
+  }
+  if (group.kind === "firstOwnHandUnitWithTrait") {
+    const owner = ctx.state.players[ctx.controller];
+    const match = owner.hand.find((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(group.trait));
+    return match ? [match.instanceId] : [];
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   return opponent.battleArea
@@ -221,6 +237,15 @@ export type PrimitiveCall =
    * `declareAttack` barra enquanto for o mesmo turno.
    */
   | { op: "preventAttackThisTurn"; target: TargetRef }
+  /**
+   * ST08-009 Jegan Ground Type-A 【Deploy】 — "It won't be set as active during
+   * the start phase of your opponent's next turn." Marca
+   * `CardInstance.cannotActivateUntilTurn = state.turnNumber + 1` na Unit alvo
+   * (Jegan sempre resolve isto no turno de quem o controla — "o próximo turno
+   * do oponente" é sempre o turno seguinte); `computeStartPhaseEvents` barra
+   * o `SET_ACTIVE` enquanto for o mesmo turno.
+   */
+  | { op: "preventActivationNextTurn"; target: TargetRef }
   /**
    * "Look at the top N cards of your deck. You may reveal 1 <filtro> card among
    * them and add it to your hand. Return the remaining cards randomly to the
@@ -478,6 +503,11 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "preventAttackThisTurn": {
       return resolveTargetIds(call.target, ctx).map(
         (instanceId): GameEvent => ({ type: "SET_CANNOT_ATTACK", instanceId, turn: ctx.turnNumber }),
+      );
+    }
+    case "preventActivationNextTurn": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({ type: "SET_CANNOT_ACTIVATE", instanceId, turn: ctx.turnNumber + 1 }),
       );
     }
     case "addShieldToHand": {

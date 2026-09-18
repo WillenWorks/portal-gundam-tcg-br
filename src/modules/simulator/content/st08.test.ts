@@ -12,11 +12,14 @@ import {
   XI_GUNDAM_WHEN_PAIRED,
   XI_GUNDAM_DEPLOY,
   MESSER_F01_ATTACK,
+  PENELOPE_ATTACK,
+  JEGAN_DEPLOY,
   VALIANT_DEPLOY,
   DAVAO_ACTIVATE_MAIN,
   ST08_EFFECT_SPECS,
 } from "./st08";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
+import { computeStartPhaseEvents } from "../engine/phases";
 
 function freshGame(): GameState {
   return createGame(buildSt08DeckList(), buildSt01DeckList(), { seed: 80, firstPlayer: "A" });
@@ -127,5 +130,103 @@ describe("ST08 — efeitos em jogo", () => {
     expect(findCard(state, messerId).damage).toBe(0);
     expect(findCard(state, r1).rested).toBe(true);
     expect(findCard(state, r2).rested).toBe(true);
+  });
+});
+
+describe("ST08 — ST08-006 Penelope [During Pair][Attack]", () => {
+  it("com (Earth Federation) Unit na mão: revela, devolve pro fundo do deck e compra 2", () => {
+    const state = freshGame();
+    const penelopeId = placeCard(state, "A", ST08_CARD_DEFS["ST08-006"], "battleArea");
+    // isola a mão pra "firstOwnHandUnitWithTrait" resolver deterministicamente
+    // pra ESTA carta (a mão inicial do deck ST08 já tem outras Units Earth Federation).
+    state.players.A.hand = [];
+    const efHandId = placeCard(state, "A", ST08_CARD_DEFS["ST08-009"], "hand"); // Jegan, trait Earth Federation
+    state.combat = {
+      step: "action",
+      attackerId: penelopeId,
+      attackingPlayer: "A",
+      defendingPlayer: "B",
+      originalTarget: "player",
+      currentTarget: "player",
+      actionPasses: { A: false, B: false },
+      actionPriority: "A",
+    };
+    const handBefore = state.players.A.hand.length;
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(PENELOPE_ATTACK, ctxFor(state, penelopeId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, efHandId).zone).toBe("deck");
+    expect(next.players.A.deck.length).toBe(deckBefore + 1 - 2); // +1 devolvida, -2 compradas
+    expect(next.players.A.hand.length).toBe(handBefore - 1 + 2); // -1 revelada, +2 compradas
+  });
+
+  it("sem (Earth Federation) Unit na mão: não revela nem compra ('if you do' falha)", () => {
+    const state = freshGame();
+    const penelopeId = placeCard(state, "A", ST08_CARD_DEFS["ST08-006"], "battleArea");
+    state.players.A.hand = [];
+    const maftyHandId = placeCard(state, "A", ST08_CARD_DEFS["ST08-004"], "hand"); // Messer, trait Mafty
+    state.combat = {
+      step: "action",
+      attackerId: penelopeId,
+      attackingPlayer: "A",
+      defendingPlayer: "B",
+      originalTarget: "player",
+      currentTarget: "player",
+      actionPasses: { A: false, B: false },
+      actionPriority: "A",
+    };
+    const handBefore = state.players.A.hand.length;
+    const deckBefore = state.players.A.deck.length;
+
+    const events = resolveEffectSpec(PENELOPE_ATTACK, ctxFor(state, penelopeId), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, maftyHandId).zone).toBe("hand");
+    expect(next.players.A.hand.length).toBe(handBefore);
+    expect(next.players.A.deck.length).toBe(deckBefore);
+  });
+});
+
+describe("ST08 — ST08-009 Jegan Ground Type-A [Deploy]", () => {
+  it("resta o alvo e marca cannotActivateUntilTurn para o turno seguinte", () => {
+    const state = freshGame();
+    const jeganId = placeCard(state, "A", ST08_CARD_DEFS["ST08-009"], "battleArea");
+    const enemyId = placeCard(state, "B", ST08_CARD_DEFS["ST08-004"], "battleArea", { rested: true }); // Lv 2
+
+    const events = resolveEffectSpec(JEGAN_DEPLOY, ctxFor(state, jeganId, { target: [enemyId] }), defaultPredicateResolver);
+    const next = applyEvents(state, events);
+
+    expect(findCard(next, enemyId).rested).toBe(true);
+    expect(findCard(next, enemyId).cannotActivateUntilTurn).toBe(next.turnNumber + 1);
+  });
+
+  it("computeStartPhaseEvents não destomba a Unit marcada na Start Phase do turno travado", () => {
+    const state = freshGame();
+    const targetTurn = state.turnNumber + 1;
+    const enemyId = placeCard(state, "B", ST08_CARD_DEFS["ST08-004"], "battleArea", {
+      rested: true,
+      cannotActivateUntilTurn: targetTurn,
+    });
+    state.activePlayer = "B";
+    state.turnNumber = targetTurn;
+
+    const events = computeStartPhaseEvents(state);
+    expect(events.find((e) => e.type === "SET_ACTIVE" && e.instanceId === enemyId)).toBeUndefined();
+  });
+
+  it("computeStartPhaseEvents volta a destombar normalmente na Start Phase seguinte (flag já expirou)", () => {
+    const state = freshGame();
+    const lockedTurn = state.turnNumber + 1;
+    const enemyId = placeCard(state, "B", ST08_CARD_DEFS["ST08-004"], "battleArea", {
+      rested: true,
+      cannotActivateUntilTurn: lockedTurn,
+    });
+    state.activePlayer = "B";
+    state.turnNumber = lockedTurn + 2; // próxima Start Phase de B, flag já não corresponde mais
+
+    const events = computeStartPhaseEvents(state);
+    expect(events.find((e) => e.type === "SET_ACTIVE" && e.instanceId === enemyId)).toBeDefined();
   });
 });
