@@ -20,6 +20,21 @@ describe("deriveStateFromCity", () => {
     expect(result.stateLabel).toBe("Não informado");
   });
 
+  it("reconhece cidade fora do dicionário manual via fallback do IBGE (Sprint 2)", () => {
+    const result = deriveStateFromCity("Pindamonhangaba", "Brasil");
+    expect(result.uf).toBe("SP");
+  });
+
+  it("cidade com nome ambíguo no IBGE (existe em 2+ UFs) cai em 'Não informado', nunca adivinha", () => {
+    const result = deriveStateFromCity("Bom Jesus", "Brasil");
+    expect(result.uf).toBeNull();
+    expect(result.stateLabel).toBe("Não informado");
+  });
+
+  it("dicionário manual tem prioridade sobre o IBGE pra desambiguar (Rio Branco -> AC, não MT)", () => {
+    expect(deriveStateFromCity("Rio Branco", "Brasil").uf).toBe("AC");
+  });
+
   it("país diferente de Brasil usa o próprio país como 'estado'", () => {
     const result = deriveStateFromCity("Tokyo", "Japão");
     expect(result.uf).toBeNull();
