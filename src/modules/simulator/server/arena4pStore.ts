@@ -674,4 +674,12 @@ export function _resetArenaForTests(): void {
   arenaMatches.clear();
   squadCodes.clear();
   queue.length = 0;
+  // `listeners` (subscribeArena) NÃO era limpo aqui -- achado ao rodar a suíte completa
+  // (2026-09-18, Sprint 2): cada `it()` em simulatorSocket4p.test.ts chama
+  // `attachSimulatorArena4pSocket` no `beforeEach`, que assina um novo listener sem nunca
+  // cancelar o anterior -- acumula 1 listener órfão (com `io` de servidor já fechado) por
+  // teste anterior do arquivo. `matchStore.ts` já limpava o equivalente
+  // (`globalMatchListeners.clear()`) -- só faltava aqui. Real leak de recursos entre testes,
+  // independente de explicar sozinho toda flakiness observada sob suíte completa.
+  listeners.clear();
 }

@@ -190,7 +190,13 @@ describe("Arena 4P — chat e emote (Socket.io real)", () => {
   it("arena:emote propaga seat + emoteId pros 4 assentos, sem persistir estado (broadcast puro)", async () => {
     const { seatB, seatC, arenaMatchId } = await assembleFullSquad("2v2");
 
-    const receivedByC = waitFor<{ arenaMatchId: string; seat: string; emoteId: string }>(seatC, "arena:emote");
+    // `waitForMatching` (não `waitFor` cru) -- defesa contra ruído de outro listener/evento
+    // sob suíte completa em paralelo (ver o fix de `_resetArenaForTests` em arena4pStore.ts).
+    const receivedByC = waitForMatching<{ arenaMatchId: string; seat: string; emoteId: string }>(
+      seatC,
+      "arena:emote",
+      (p) => p.emoteId === "gg",
+    );
     seatB.emit("arena:emote", { arenaMatchId, emoteId: "gg" });
     const payload = await receivedByC;
 
