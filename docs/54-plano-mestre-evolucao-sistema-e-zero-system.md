@@ -48,7 +48,7 @@ A expansão do motor obedecerá à governança estrita estabelecida no split de 
 | Onda | Coleções | Quantidade de Modelos Únicos | Status | Novas Mecânicas Previstas & Desafios de Motor |
 |---|---|---|---|---|
 | **Onda 6** | **GD02 + ST06 (+ ST05)** | ~147 cartas | **[CONCLUÍDO - v2.0]** | Auras globais, gatilhos de sacrifício encadeado, efeitos de Base, Sideboard Bo3 e 245 specs indexadas. |
-| **Onda 7 (Prioritária)** | **GD03 + ST07 + ST08** | ~170 cartas | **[EM ANDAMENTO - FASE 3]** | Mecânicas de contadores/tokens especializados, custos alternativos de Deploy (ex: exílio de recurso), condições de vitória tática. |
+| **Onda 7 (Prioritária)** | **GD03 + ST07 + ST08** | ~170 cartas | **[CONCLUÍDO - v2.1]** | Tokens auto-exilados ao sair do campo, Custo Alternativo de Deploy (sacrifice/discard/bounce), Dynamic Level/Cost, Zero Pilot N4 (Treize, Amuro, Char, Heero), 330 specs indexadas. |
 | **Onda 8** | **GD04 + ST09** | ~150 cartas | [Planejado] | Ejeção de Piloto reativa durante combate, troca de Unidade em campo mantendo o Piloto acoplado (Transform / Mid-battle Swap). |
 | **Onda 9** | **EB01 + ST10** | ~95 cartas | [Planejado] | Efeitos híbridos de cor dupla avançados, ativações no cemitério (Scrap/Graveyard triggers), restrições dinâmicas de ataque. |
 | **Onda 10** | **GD05 + ST11 a ST14** | ~220 cartas | [Planejado] | Rotação e formato avançado, regras de temporada oficial Bandai, finalização do ciclo de expansões primárias. |
@@ -127,15 +127,17 @@ Evolução do worker em `services/sim-bot/` e pipeline em `services/sim-trainer/
 - **Nível 1 (Recruta)**: **[CONCLUÍDO]** Heurística rápida determinística com pequenas concessões de erro.
 - **Nível 2 (Veterano / Ás)**: **[CONCLUÍDO]** Heurística pesada combinada com busca MCTS de profundidade com poda.
 - **Nível 3 (Zero System Awakening)**: **[CONCLUÍDO]** Selecionador tático autônomo com self-play e suporte a GD01/GD02/ST01-ST06.
-- **Nível 4 (Personas de Piloto — Montagem Dinâmica de Contra-Deck)**: **[EM ANDAMENTO - FASE 3]**
+- **Nível 4 (Personas de Piloto — Montagem Dinâmica de Contra-Deck)**: **[CONCLUÍDO - v2.1]**
   - *Comportamento adaptativo inédito*: Ao selecionar a Persona, a IA analisa o deck escolhido pelo jogador humano e **monta em tempo real um deck sob medida** projetado para desafiar os pontos fracos daquela estratégia:
     - *Persona Amuro Ray*: Monta listas de Controle de Recursos e Midrange Reativo com remoções cirúrgicas e blockers de alto valor para neutralizar estratégias agressivas.
     - *Persona Char Aznable*: Monta listas de Alta Velocidade (Rush/Aggro vermelho), pressionando a Base antes que decks lentos consigam estabilizar.
     - *Persona Heero Yuy*: Monta listas focadas em demolição em massa (Wipe/Destruction), trocas implacáveis de unidades e cálculo exato de letal.
+    - *Persona Treize Khushrenada*: Monta listas de Duelos Aristocráticos com Mobile Suits de elite (Xi Gundam, Penelope, Gundam Exia), priorizando o combate honroso de alto prestígio e elegância marcial.
 
-#### 4. Zero Foresight (Previsão Preditiva de Metagame) — **[EM ANDAMENTO - FASE 3]**
+#### 4. Zero Foresight (Previsão Preditiva de Metagame) — **[CONCLUÍDO - v2.1]**
 - Simula em background 10.000 confrontos entre os arquétipos registrados no sistema a cada nova carta anunciada.
 - Produz o índice de **Tier Shift**, definindo o **Tier 1** através da fusão entre a análise preditiva e os dados reais consolidados de top decks dos torneios.
+- Endpoint de alta performance com cache de 10 minutos (`POST /api/simulator/zero/foresight/simulate`).
 
 #### 5. Zero Terminal (Chatbot Tático & Conversacional) — **[CONCLUÍDO - v2.0]**
 - **Localização**: Central `/zero` (`ZeroTerminalPage.tsx`) com atalhos e suporte global.
@@ -269,11 +271,11 @@ Integrado ao Zero System, os dados de torneios cadastrados passam a ser categori
   - Entre o Jogo 1 e o Jogo 2 (e Jogo 3, se houver), abre-se a interface tática `SideboardModal.tsx` com timer regressivo de 180 segundos.
   - Validação estrita de legalidade (o deck final deve manter exatamente 50 cartas principais respeitando o teto de 2 cores e 4 cópias).
 
-### 9.2 Modos Multiplayer Reais (2v2 Tag Team e 4P Battle Royale) `[EM ANDAMENTO - FASE 3 / TERMINAL 2]`
+### 9.2 Modos Multiplayer Reais (2v2 Tag Team e 4P Battle Royale) `[CONCLUÍDO - v2.1 / TERMINAL 2]`
 - **Evolução da Rota `/simulador/multiplayer`**:
-  - Substituição da tela conceitual por infraestrutura real de rede Socket.io com suporte a 4 assentos (`seatA`, `seatB`, `seatC`, `seatD`).
-  - **Modo 2v2 Tag Team**: Duplas com escudos/bases cooperativas e turnos alternados entre os times.
-  - **Modo 4P Battle Royale (Free-for-All)**: Cada jogador com seu playmat e possibilidade de atacar bases de adversários adjacentes.
+  - Implementada infraestrutura real de rede Socket.io com suporte a 4 assentos (`seatA`, `seatB`, `seatC`, `seatD`).
+  - **Modo 2v2 Tag Team**: Duplas com escudos/bases cooperativas, bracket/lanes em tempo real e mini-radar tático flutuante.
+  - **Lobby Inteligente**: Criação de esquadrão (`AR-XXXX`), sincronização de 4/4 pilotos prontos e transição automática ao combate.
 
 ---
 
@@ -295,17 +297,18 @@ gantt
     Zero Terminal (Chatbot) + Copilot IA   :done, 2026-09-16, 2026-09-17
     Zero Coach In-Game HUD + Telemetria    :done, 2026-09-16, 2026-09-17
     Análise Hipergeométrica de Decks        :done, 2026-09-17, 2026-09-17
-    section Fase 3: Wave GD03, Hub 2, 4P & Foresight [EM ANDAMENTO]
-    Wave GD03 + ST07 + ST08 (Terminal 1)   :active, 2026-09-18, 21d
-    Zero Pilot N4 Personas (Terminal 1)    :active, 2026-09-18, 14d
-    Universe Hub Wave 2 (00 & WFM) (Term 2):active, 2026-09-18, 14d
-    Arena Multiplayer 4P (2v2 & FFA) (Term 2):active, 2026-09-22, 21d
-    Zero Foresight Monte Carlo (Terminal 3):active, 2026-09-20, 14d
-    Metagame Regional Geográfico (Term 3)  :active, 2026-09-25, 14d
-    section Fase 4: Waves GD04, EB01 & GD05
-    Wave GD04 + ST09                       :2026-11-01, 21d
-    Wave EB01 + ST10                       :2026-11-22, 21d
-    Wave GD05 + ST11 a ST14                :2026-12-15, 28d
+    section Fase 3: Wave GD03, Hub 2, 4P & Foresight [CONCLUÍDO - v2.1]
+    Wave GD03 + ST07 + ST08 (Terminal 1)   :done, 2026-09-17, 2026-09-17
+    Zero Pilot N4 Personas (Terminal 1)    :done, 2026-09-17, 2026-09-17
+    Universe Hub Wave 2 (00 & WFM) (Term 2):done, 2026-09-17, 2026-09-17
+    Arena Multiplayer 4P (2v2 Tag Team)    :done, 2026-09-17, 2026-09-17
+    Zero Foresight Monte Carlo (Terminal 3):done, 2026-09-17, 2026-09-17
+    Metagame Regional Geográfico (Term 3)  :done, 2026-09-17, 2026-09-17
+    section Fase 4: Waves GD04, EB01 & FFA 4P [PRÓXIMA FASE]
+    Wave GD04 + ST09                       :2026-10-01, 21d
+    Modo Battle Royale FFA 4P              :2026-10-15, 14d
+    Wave EB01 + ST10                       :2026-11-01, 21d
+    Wave GD05 + ST11 a ST14                :2026-12-01, 28d
 ```
 
 ---

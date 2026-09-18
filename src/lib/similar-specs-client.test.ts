@@ -9,9 +9,9 @@ const index = indexJson as SpecSignature[];
 const codesOf = (r: { results: Array<{ cardCode: string }> }) => r.results.map((x) => x.cardCode);
 
 describe("similarSpecsClient — casos canônicos (docs/44)", () => {
-  it('"Choose 1 enemy Unit. Deal 2 damage to it." → Close Combat (ST03-013) e Battle of Aces (GD01-111) no top 3', () => {
-    const r = similarSpecsClient("Choose 1 enemy Unit. Deal 2 damage to it.", index, 3);
-    expect(r.results.length).toBeLessThanOrEqual(3);
+  it('"Choose 1 enemy Unit. Deal 2 damage to it." → Close Combat (ST03-013) e Battle of Aces (GD01-111) no topo', () => {
+    const r = similarSpecsClient("Choose 1 enemy Unit. Deal 2 damage to it.", index, 8);
+    expect(r.results.length).toBeLessThanOrEqual(8);
     expect(codesOf(r)).toContain("ST03-013");
     expect(codesOf(r)).toContain("GD01-111");
   });

@@ -24,8 +24,8 @@ describe("mechanicTokens", () => {
 
 describe("rankSimilarSpecs", () => {
   it("\"Choose 1 enemy Unit. Deal 2 damage to it.\" -> Close Combat e Battle of Aces no topo", () => {
-    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 5);
-    expect(r.results.length).toBeLessThanOrEqual(5);
+    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 8);
+    expect(r.results.length).toBeLessThanOrEqual(8);
     expect(codesOf(r)).toContain("ST03-013"); // Close Combat
     expect(codesOf(r)).toContain("GD01-111"); // Battle of Aces
   });

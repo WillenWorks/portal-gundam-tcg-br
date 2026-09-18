@@ -35,7 +35,8 @@
     "searchTrashToHand": { "description": "Busca 1 carta que casa um CardDefFilter na LIXEIRA (zona inteira, sempre visível) e adiciona à mão.", "since": "GD01-067 Gundam Aerial Rebuild (Lote 5)" },
     "moveTopCardToChosenPosition": { "description": "Move o TOPO do deck pra top ou bottom — a posição em si é escolha do jogador (enumChoice), não fixa por quem autora.", "since": "GD01-039 Dopp (Lote 5)" },
     "returnTrashToDeckAndShuffle": { "description": "Move até N cartas da lixeira (as N primeiras, sem escolha real) pro deck do dono e re-embaralha (createRng(seed ^ eventLog.length)).", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" },
-    "pairFromTrashSearch": { "description": "Busca 1 Pilot que casa um CardDefFilter na LIXEIRA e pareia com a fonte do efeito (mesmo padrão de searchTrashToHand, destino é parear, não a mão).", "since": "GD01-023 Char's Gelgoog (Lote 5)" }
+    "pairFromTrashSearch": { "description": "Busca 1 Pilot que casa um CardDefFilter na LIXEIRA e pareia com a fonte do efeito (mesmo padrão de searchTrashToHand, destino é parear, não a mão).", "since": "GD01-023 Char's Gelgoog (Lote 5)" },
+    "millToTrash": { "description": "Move cartas do topo do deck direto para a lixeira (mill).", "since": "ST08-012 Davao Airfield / GD03" }
   },
   "targetRefKinds": {
     "self": { "description": "A própria fonte do efeito.", "since": "ST01" },
@@ -83,7 +84,11 @@
     "controllerTrashUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas Unit com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles).", "since": "GD01-027 Big Zam" },
     "chosenNonEmpty:<value>": { "description": "A escolha nomeada ctx.targets[<value>] (já resolvida pela camada de decisão antes de resolveEffectSpec rodar) não é vazia — usado pra \"if you do\"/\"choose 2 ... if you do\" quando a condição é sobre a MESMA escolha que a primitiva vai consumir.", "since": "GD01-095 Dearka Elthman / GD01-112 Extreme Hatred (Lote 5)" },
     "controllerTrashCountAtLeast:<n>": { "description": "O trash do controller tem N+ cartas (contagem simples, qualquer tipo) — usado pra \"if you do\" quando não há escolha de jogador envolvida, só estado de board antes da primitiva rodar.", "since": "GD01-003 Unicorn Gundam 02 Banshee (Destroy Mode) (Lote 5)" },
-    "controllerOtherUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O controller tem N+ outras Units (além da fonte) em campo com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles) — versão em Battle Area de controllerTrashUnitCountWithAnyTraitAtLeast.", "since": "ST05-012 McGillis Fareed" }
+    "controllerOtherUnitCountWithAnyTraitAtLeast:<value>:<n>": { "description": "O controller tem N+ outras Units (além da fonte) em campo com QUALQUER um dos traits dados (lista separada por vírgula, OR entre eles) — versão em Battle Area de controllerTrashUnitCountWithAnyTraitAtLeast.", "since": "ST05-012 McGillis Fareed" },
+    "isOpponentTurn": { "description": "Verdadeiro se for o turno do oponente.", "since": "GD03" },
+    "controllerTrashCardCountWithTraitAtLeast:<value>:<n>": { "description": "O trash do controller tem N+ cartas com o trait dado.", "since": "GD03" },
+    "controllerHasLinkUnitWithTrait:<value>": { "description": "O controller tem uma Link Unit em campo com o trait dado.", "since": "GD03" },
+    "controllerHasPilotWithTrait:<value>": { "description": "O controller tem um Pilot pareado com o trait dado.", "since": "GD03" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },
@@ -102,6 +107,7 @@
     "isNotSelf": { "description": "Exclui a própria fonte do efeito da lista de candidatos válidos.", "since": "ST06-007 Ortega's Rick Dom" },
     "notSelf": { "description": "Exclui a própria fonte do pool de alvos (ex. \"Choose 1 of your OTHER Units\" com targetScope friendlyUnit, que por padrão inclui a fonte).", "since": "ST05-001 Gundam Barbatos 4th Form" },
     "damaged": { "description": "Candidato tem dano acumulado > 0.", "since": "ST05-015 Isaribi" },
-    "isToken": { "description": "Candidato é um token (CardDef.isToken), não uma carta física.", "since": "GD01-066 Justice Gundam (revalidação docs/47 Fase 3)" }
+    "isToken": { "description": "Candidato é um token (CardDef.isToken), não uma carta física.", "since": "GD01-066 Justice Gundam (revalidação docs/47 Fase 3)" },
+    "highestLevel": { "description": "Filtra apenas a(s) Unit(s) com o maior nível entre os candidatos.", "since": "GD03" }
   }
 }

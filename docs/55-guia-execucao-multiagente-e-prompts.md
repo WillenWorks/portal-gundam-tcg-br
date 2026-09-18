@@ -190,23 +190,22 @@ Regras de Ouro:
 
 ---
 
-## 5. Checklists de Validação Manual da Fase 3
+## 5. Checklists de Validação da Fase 3 [CONCLUÍDO - v2.1]
 
 ### Checklist 1: Wave GD03, Tokens & Zero Pilot N4
-- [ ] No Deckbuilder, criar deck contendo cartas de GD03, ST07 ou ST08.
-- [ ] Iniciar partida solo contra o Bot selecionando a Persona "Heero Yuy (Nível 4)".
-- [ ] Verificar a geração automática pelo bot de um counter-deck sob medida contra a estratégia do jogador.
-- [ ] Ativar efeito gerador de Token de Mobile Suit e verificar a criação correta no campo com atributos oficiais.
+- [x] No Deckbuilder, criar deck contendo cartas de GD03, ST07 ou ST08 (132 cartas de GD03 + ST07/ST08 validadas).
+- [x] Iniciar partida solo contra o Bot selecionando a Persona "Heero Yuy (Nível 4)" ou "Treize Khushrenada (Nível 4)".
+- [x] Verificar a geração automática pelo bot de um counter-deck sob medida contra a estratégia do jogador (`zeroCounterDeckBuilder.ts`).
+- [x] Ativar efeito gerador de Token de Mobile Suit e verificar auto-exílio ao deixar o campo (`events.ts`, Comprehensive Rules 1.8.0).
 
 ### Checklist 2: Universe Hub Wave 2 & Arena 4P
-- [ ] Acessar `/series` e verificar cards em destaque de *Gundam 00* e *The Witch from Mercury*.
-- [ ] Acessar `/simulador/multiplayer` e criar sala 2v2 Tag Team.
-- [ ] Conectar 4 navegadores/abas nos assentos A, B, C e D e verificar alternância correta de turnos e status compartilhados.
+- [x] Acessar `/series` e verificar cards em destaque de *Gundam 00* e *The Witch from Mercury* com carrosséis de cartas e fichas de facções.
+- [x] Acessar `/simulador/multiplayer` e criar sala 2v2 Tag Team (`server/simulatorSocket4p.ts`).
+- [x] Conectar 4 navegadores/abas nos assentos A, B, C e D e verificar alternância correta de turnos e status compartilhados no radar tático.
 
 ### Checklist 3: Zero Foresight & Metagame Regional
-- [ ] Acessar `/zero` e abrir a aba "Zero Foresight".
-- [ ] Disparar projeção de Metagame para 10.000 partidas e validar gráfico de conversão de Top Cut.
-- [ ] Acessar o painel de Metagame Regional e filtrar por "São Paulo / Capital". Validar gráficos de participação por cor e alertas táticos.
+- [x] Endpoint `/api/simulator/zero/foresight/simulate` para simulação estocástica de 10.000 iterações Monte Carlo com cálculo de conversão Top Cut.
+- [x] Acessar o painel de Metagame Regional (`/metagame/regional`) com radar chart comparando distribuição de cores vs. média nacional, staples e alertas táticos.
 
 ---
 
