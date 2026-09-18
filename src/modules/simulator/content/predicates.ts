@@ -114,6 +114,12 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerUnitWithTraitInPlay[1]));
   }
+  // ST06-014 Clan Battle — 【Activate･Main】"If a friendly (Clan) Link Unit is in play, ...".
+  const controllerLinkUnitWithTraitInPlay = predicate.match(/^controllerLinkUnitWithTraitInPlay:(.+)$/);
+  if (controllerLinkUnitWithTraitInPlay) {
+    const owner = ctx.state.players[ctx.controller];
+    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerLinkUnitWithTraitInPlay[1]) && isPairedLinkUnit(ctx.state, u));
+  }
   // ST03-011 Char Aznable — 【Attack】"if it is a Link Unit" — a fonte é o Pilot,
   // "this Unit" é a Unit pareada com ele.
   if (predicate === "sourcePairedUnitIsLinkUnit") {
@@ -213,6 +219,34 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const controllerTrashCountAtLeast = predicate.match(/^controllerTrashCountAtLeast:(\d+)$/);
   if (controllerTrashCountAtLeast) {
     return ctx.state.players[ctx.controller].trash.length >= Number(controllerTrashCountAtLeast[1]);
+  }
+  // ST07-001/009 — "if there are 7 or more (CB) cards in your trash"
+  const controllerTrashCardCountWithTraitAtLeast = predicate.match(/^controllerTrashCardCountWithTraitAtLeast:(.+):(\d+)$/);
+  if (controllerTrashCardCountWithTraitAtLeast) {
+    const trait = controllerTrashCardCountWithTraitAtLeast[1];
+    const min = Number(controllerTrashCardCountWithTraitAtLeast[2]);
+    const count = ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).includes(trait)).length;
+    return count >= min;
+  }
+  // ST08-013 Lady Luck — "If a friendly (Mafty) Link Unit is in play"
+  const controllerHasLinkUnitWithTrait = predicate.match(/^controllerHasLinkUnitWithTrait:(.+)$/);
+  if (controllerHasLinkUnitWithTrait) {
+    const trait = controllerHasLinkUnitWithTrait[1];
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(trait) && isPairedLinkUnit(ctx.state, u),
+    );
+  }
+  // ST07-010 Tieria Erde — "If it is your opponent's turn"
+  if (predicate === "isOpponentTurn") {
+    return ctx.state.activePlayer !== ctx.controller;
+  }
+  // ST07-004 Virtue / ST07-007 Kyrios — "while you have a (CB) Pilot in play"
+  const controllerHasPilotWithTrait = predicate.match(/^controllerHasPilotWithTrait:(.+)$/);
+  if (controllerHasPilotWithTrait) {
+    const trait = controllerHasPilotWithTrait[1];
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (c) => c.def.cardType === "PILOT" && (c.def.traits ?? []).includes(trait),
+    );
   }
   return false;
 };
@@ -324,6 +358,18 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-069 Strike Rouge — "1 of your rested white Units with <Blocker>" (cor impressa da carta, não trait).
   const colorMatch = filter.match(/^color:(.+)$/);
   if (colorMatch) return candidate.def.color === colorMatch[1];
+
+  // ST06-007 Ortega's Rick Dom — "Choose 1 of your other (Clan) Units" (exclui a própria fonte).
+  if (filter === "isNotSelf") {
+    return ctx.sourceInstanceId !== undefined && candidate.instanceId !== ctx.sourceInstanceId;
+  }
+
+  // ST08-001 Xi Gundam — "Choose 1 enemy Unit with the highest Lv."
+  if (filter === "highestLevel") {
+    const enemyUnits = ctx.state.players[candidate.owner].battleArea.filter((u) => u.def.cardType === "UNIT");
+    const maxLevel = Math.max(...enemyUnits.map((u) => u.def.level ?? 0), 0);
+    return (candidate.def.level ?? 0) === maxLevel;
+  }
 
   return false;
 };

@@ -1,0 +1,27 @@
+{
+  "wave_id": "GD02",
+  "name": "Dual Impact",
+  "status": "PHASE_2_IMPLEMENTED",
+  "total_cards": 130,
+  "metrics": {
+    "vanilla_cards": 20,
+    "implemented_cards": 110,
+    "implemented_with_deferred_clause": 0,
+    "deferred_pure_cards": 0,
+    "deferred_clauses": 0,
+    "playable_cards_total": 130
+  },
+  "pipeline_progress": {
+    "phase1_gemini_draft": {
+      "completed": true,
+      "agent": "gemini-3.8-flash",
+      "timestamp": "2026-09-17T10:00:00Z"
+    },
+    "phase2_antigravity_core": {
+      "completed": true,
+      "agent": "antigravity",
+      "timestamp": "2026-09-17T10:30:00Z",
+      "notes": "Ingestão e fatiamento dos CardDefs (unitsBlue, unitsGreen, unitsRed, unitsPurple, unitsWhite, pilots, commands, bases) e catálogo de EffectSpecs em content/gd02/."
+    }
+  }
+}

@@ -61,8 +61,8 @@ export type TargetRef =
 export type TargetGroup =
   | { kind: "allFriendlyLinkUnits" }
   | { kind: "allEnemyUnits"; maxLevel?: number }
-  /** GD01-102 The Path to Victory or Defeat — "All friendly Units that are Lv.4 or lower recover 2 HP." */
-  | { kind: "allFriendlyUnits"; maxLevel?: number }
+  /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
+  | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
   /**
    * GD01-024 Wing Gundam Zero ("Deal 3 damage to all Units that are Lv.5 or
    * lower"), GD01-027 Big Zam / GD01-108 Strategic Arms ("all Units with
@@ -86,7 +86,12 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   if (group.kind === "allFriendlyUnits") {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea
-      .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+      .filter(
+        (u) =>
+          u.def.cardType === "UNIT" &&
+          (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel) &&
+          (!group.trait || (u.def.traits ?? []).includes(group.trait)),
+      )
       .map((u) => u.instanceId);
   }
   if (group.kind === "allUnits") {
@@ -199,7 +204,7 @@ export type PrimitiveCall =
    * `CombatState.unitDamageProtection` pra a Unit escolhida (`target` nomeado).
    * Não-op fora de combate. `maxAttackerAp` inclusivo.
    */
-  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp: number }
+  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp?: number; maxAttackerLevel?: number }
   /**
    * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
    * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
@@ -278,7 +283,9 @@ export type PrimitiveCall =
    * ENCADEIA o 【Deploy】 da carta (Add 1 Shield / token / dano). Sem esta
    * primitiva o Burst usava `moveZone self → baseSection`, que não trocava a
    * Base nem disparava o 【Deploy】 (docs/47 Classe B). */
-  | { op: "deployThisCard" };
+  | { op: "deployThisCard" }
+  /** ST07-001 Gundam Exia — "Place the top N cards of your deck into your trash. If you place a <trait> card with this effect, draw 1." */
+  | { op: "millToTrash"; player: PlayerRef; count: number; drawIfTraitMilled?: string };
 
 /**
  * Filtro sobre um `CardDef` — usado pelas primitivas que escolhem carta por
@@ -449,7 +456,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "preventUnitBattleDamage": {
       return resolveTargetIds(call.target, ctx).map(
-        (instanceId): GameEvent => ({ type: "SET_UNIT_DAMAGE_PROTECTION", instanceId, maxAttackerAp: call.maxAttackerAp }),
+        (instanceId): GameEvent => ({
+          type: "SET_UNIT_DAMAGE_PROTECTION",
+          instanceId,
+          maxAttackerAp: call.maxAttackerAp,
+          maxAttackerLevel: call.maxAttackerLevel,
+        }),
       );
     }
     case "grantAttackTargetRelax": {
@@ -587,6 +599,19 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const chosen = ctx.state.players[player].trash.slice(0, call.count);
       if (chosen.length === 0) return [];
       return [{ type: "RETURN_TRASH_TO_DECK_SHUFFLE", player, instanceIds: chosen.map((c) => c.instanceId) }];
+    }
+    case "millToTrash": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const deck = ctx.state.players[player].deck;
+      const milled = deck.slice(0, call.count);
+      const events: GameEvent[] = [];
+      for (const card of milled) {
+        events.push({ type: "MOVE_CARD", instanceId: card.instanceId, toZone: "trash" });
+      }
+      if (call.drawIfTraitMilled && milled.some((c) => (c.def.traits ?? []).includes(call.drawIfTraitMilled!))) {
+        events.push({ type: "DRAW_CARD", player, from: "deck", instanceId: null });
+      }
+      return events;
     }
   }
 }

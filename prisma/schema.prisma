@@ -464,17 +464,25 @@ model CardBinder {
 }
 
 model CardBinderItem {
-  id       String  @id @default(cuid())
+  id       String         @id @default(cuid())
   binderId String
   cardId   String
-  quantity Int     @default(1)
-  note     String? @db.Text
-  position Int     @default(0)
+  quantity Int            @default(1)
+  note     String?        @db.Text
+  position Int            @default(0)
+  // Pastas de Coleção Públicas (PublicBinderPage) -- marcação opcional do dono pra sinalizar
+  // intenção de troca/desejo na vitrine pública, sem precisar de outro modelo/tabela.
+  tag      BinderItemTag?
 
   binder CardBinder @relation(fields: [binderId], references: [id], onDelete: Cascade)
   card   Card       @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([binderId, cardId])
+}
+
+enum BinderItemTag {
+  FOR_TRADE
+  WISHLIST
 }
 
 model Ruling {

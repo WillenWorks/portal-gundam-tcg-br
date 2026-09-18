@@ -35,3 +35,20 @@ export {
   type SimulateToEndOptions,
   type SimulateToEndResult,
 } from "./simulateToEnd";
+
+export {
+  zeroSystemPolicy,
+  chooseZeroSystemAction,
+  type ZeroSystemPersona,
+  type ZeroSystemPolicyOptions,
+} from "./zeroSystemPolicy";
+
+export {
+  analyzeOpponentDeck,
+  buildZeroCounterDeck,
+  recommendCounterPersona,
+  validateGeneratedDeckLegality,
+  type OpponentDeckProfile,
+  type ZeroCounterDeckOptions,
+  type ZeroCounterDeckResult,
+} from "./zeroCounterDeckBuilder";

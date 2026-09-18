@@ -191,9 +191,16 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const player = state.players[owner];
       const card = removeFromZone(player, event.instanceId);
       if (!card) return state;
-      card.zone = event.toZone;
+
+      // Token que deixa as zonas ativas de jogo (battleArea/baseSection/resourceArea)
+      // é expurgado para `exile` (Comprehensive Rules v1.8.0), nunca vai para hand, deck, trash ou shields.
+      const targetZone = (card.def.isToken && event.toZone !== "battleArea" && event.toZone !== "baseSection" && event.toZone !== "resourceArea")
+        ? "exile"
+        : event.toZone;
+
+      card.zone = targetZone;
       card.enteredZoneOnTurn = state.turnNumber;
-      if (event.toZone !== "battleArea" && event.toZone !== "baseSection") {
+      if (targetZone !== "battleArea" && targetZone !== "baseSection") {
         if (event.toZone === "hand") unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
         card.statModifiers = [];
@@ -204,10 +211,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.attackTargetRelaxUntilTurn = undefined;
         card.cannotAttackUntilTurn = undefined;
       }
-      if (event.toZone === "shields" || event.toZone === "deck" || event.toZone === "resourceDeck") {
+      if (targetZone === "shields" || targetZone === "deck" || targetZone === "resourceDeck") {
         card.rested = false;
       }
-      player[event.toZone].push(card);
+      player[targetZone].push(card);
       return state;
     }
     case "REST_CARD": {
@@ -456,7 +463,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "SET_UNIT_DAMAGE_PROTECTION": {
       if (state.combat) {
-        state.combat.unitDamageProtection = { instanceId: event.instanceId, maxAttackerAp: event.maxAttackerAp };
+        state.combat.unitDamageProtection = {
+          instanceId: event.instanceId,
+          maxAttackerAp: event.maxAttackerAp,
+          maxAttackerLevel: event.maxAttackerLevel,
+        };
       }
       return state;
     }

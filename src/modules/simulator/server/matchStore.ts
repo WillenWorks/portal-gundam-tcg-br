@@ -7,6 +7,11 @@ import { viewStateFor, type ViewGameState } from "../engine/viewState";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
+import {
+  applySideboardSwap,
+  type DeckListWithSideboard,
+  type SideboardSwapRequest,
+} from "../engine/sideboard";
 
 /**
  * Match store em memória (docs/18, passo 4 — decisão original do Willen: em
@@ -44,7 +49,11 @@ export interface MatchSeat {
    * a policy inline; o worker (`services/sim-bot/`) processa e aplica as ações
    * de volta pela API autoritativa.
    */
-  bot?: { policy: "heuristic" | "mcts"; level: HeuristicLevel | "dificil" };
+  bot?: {
+    policy: "heuristic" | "mcts" | "zero_system";
+    level: HeuristicLevel | "dificil" | "zero_system";
+    persona?: "amuro" | "char" | "heero" | "adaptive";
+  };
 }
 
 /**
@@ -95,6 +104,9 @@ const ABANDON_THRESHOLD_MS = 180_000;
  */
 const AUTO_FORFEIT_MS = 600_000;
 
+export type MatchFormat = "bo1" | "bo3";
+export type MatchStatus = "WAITING_PLAYERS" | "READY_TO_START" | "PLAYING" | "SIDEBOARDING" | "FINISHED";
+
 export interface MatchRecord {
   id: string;
   state: GameState;
@@ -120,8 +132,24 @@ export interface MatchRecord {
   actionHistory: PlayerAction[];
   /** Modo da partida: casual (default), ranked ou training. */
   mode: "casual" | "ranked" | "training";
-  /** Listas de deck originais usadas na partida. */
+  /** Formato da partida: Bo1 (default) ou Bo3 competitivo com Sideboard */
+  format: MatchFormat;
+  /** Status do ciclo de vida da partida */
+  matchStatus: MatchStatus;
+  /** Placar acumulado de jogos no Bo3 (ex: { A: 1, B: 0 }) */
+  bo3Score: { A: number; B: number };
+  /** Índice do jogo atual no Bo3 (1, 2 ou 3) */
+  currentGameIndex: number;
+  /** Decks completos com sideboard tático de cada jogador */
+  sideboardDecks?: Partial<Record<PlayerId, DeckListWithSideboard>>;
+  /** Confirmação de troca de sideboard de cada assento entre jogos Bo3 */
+  sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
+  /** Prazo limite (epoch ms) da fase de sideboard (180s) */
+  sideboardDeadlineAt?: number | null;
+  /** Listas de deck originais ou pós-sideboard usadas na partida. */
   deckLists?: Partial<Record<PlayerId, DeckList>>;
+  /** Flag para pular mulligan em testes */
+  skipMulligan?: boolean;
   /** Timestamp em que o log final da partida foi gerado (evita duplicação). */
   loggedAt?: number;
 }
@@ -187,6 +215,13 @@ export interface MatchView {
   serverNow: number;
   /** valor de `autoPassActionStep` do assento deste viewer (docs/19, Sessão 2) — pra UI renderizar o toggle. */
   autoPassActionStep: boolean;
+  format: MatchFormat;
+  matchStatus: MatchStatus;
+  bo3Score: { A: number; B: number };
+  currentGameIndex: number;
+  sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
+  sideboardDeadlineAt?: number | null;
+  sideboardDeck?: DeckListWithSideboard;
 }
 
 export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
@@ -200,6 +235,13 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     version: match.version,
     serverNow: Date.now(),
     autoPassActionStep: match.seats[seat]?.autoPassActionStep ?? false,
+    format: match.format ?? "bo1",
+    matchStatus: match.matchStatus ?? (match.state.gameOver ? "FINISHED" : (match.seats.A && match.seats.B ? "PLAYING" : "WAITING_PLAYERS")),
+    bo3Score: match.bo3Score ?? { A: 0, B: 0 },
+    currentGameIndex: match.currentGameIndex ?? 1,
+    sideboardConfirmed: match.sideboardConfirmed,
+    sideboardDeadlineAt: match.sideboardDeadlineAt,
+    sideboardDeck: match.sideboardDecks?.[seat],
   };
 }
 
@@ -226,6 +268,7 @@ const globalMatchListeners = new Set<GlobalMatchListener>();
 // `ReturnType<typeof setTimeout>` (não `NodeJS.Timeout`) porque este arquivo mora em `src/`
 // (tipado pra browser, sem @types/node) mesmo só rodando no server em runtime.
 const turnTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+const sideboardTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 // ---------------------------------------------------------------------------
 // Persistência (docs/23) — o `Map` acima é o cache de trabalho; esta camada é o
@@ -245,7 +288,15 @@ export interface StoredMatch {
   lastSeenAt: MatchRecord["lastSeenAt"];
   actionHistory?: PlayerAction[];
   mode?: "casual" | "ranked" | "training";
+  format?: MatchFormat;
+  matchStatus?: MatchStatus;
+  bo3Score?: { A: number; B: number };
+  currentGameIndex?: number;
+  sideboardDecks?: Partial<Record<PlayerId, DeckListWithSideboard>>;
+  sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
+  sideboardDeadlineAt?: number | null;
   deckLists?: Partial<Record<PlayerId, DeckList>>;
+  skipMulligan?: boolean;
 }
 
 export interface MatchPersistence {
@@ -272,7 +323,15 @@ function toStored(match: MatchRecord): StoredMatch {
     lastSeenAt: match.lastSeenAt,
     actionHistory: match.actionHistory,
     mode: match.mode,
+    format: match.format,
+    matchStatus: match.matchStatus,
+    bo3Score: match.bo3Score,
+    currentGameIndex: match.currentGameIndex,
+    sideboardDecks: match.sideboardDecks,
+    sideboardConfirmed: match.sideboardConfirmed,
+    sideboardDeadlineAt: match.sideboardDeadlineAt,
     deckLists: match.deckLists,
+    skipMulligan: match.skipMulligan,
   };
 }
 
@@ -318,10 +377,22 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
     lastSeenAt: stored.lastSeenAt,
     actionHistory: stored.actionHistory ?? [],
     mode: stored.mode ?? "casual",
+    format: stored.format ?? "bo1",
+    matchStatus: stored.matchStatus ?? (stored.state.gameOver ? "FINISHED" : (stored.seats.A && stored.seats.B ? "PLAYING" : "WAITING_PLAYERS")),
+    bo3Score: stored.bo3Score ?? { A: 0, B: 0 },
+    currentGameIndex: stored.currentGameIndex ?? 1,
+    sideboardDecks: stored.sideboardDecks,
+    sideboardConfirmed: stored.sideboardConfirmed,
+    sideboardDeadlineAt: stored.sideboardDeadlineAt,
     deckLists: stored.deckLists,
+    skipMulligan: stored.skipMulligan,
   };
   matches.set(match.id, match);
-  armTurnTimer(match); // prazo fresco pós-restart (justo com o jogador)
+  if (match.matchStatus === "SIDEBOARDING") {
+    armSideboardTimer(match);
+  } else {
+    armTurnTimer(match); // prazo fresco pós-restart (justo com o jogador)
+  }
   return match;
 }
 
@@ -338,6 +409,9 @@ export interface CreateMatchOptions {
    */
   skipMulligan?: boolean;
   mode?: "casual" | "ranked" | "training";
+  format?: MatchFormat;
+  sideboardDeckA?: DeckListWithSideboard;
+  sideboardDeckB?: DeckListWithSideboard;
 }
 
 /**
@@ -354,6 +428,11 @@ export function createMatch(opts: CreateMatchOptions): MatchRecord {
     : createGame(opts.deckA, opts.deckB, { seed, firstPlayer, interactiveMulligan: true });
 
   const now = Date.now();
+  const format = opts.format ?? "bo1";
+  const sideboardDecks: Partial<Record<PlayerId, DeckListWithSideboard>> = {};
+  if (opts.sideboardDeckA) sideboardDecks.A = opts.sideboardDeckA;
+  if (opts.sideboardDeckB) sideboardDecks.B = opts.sideboardDeckB;
+
   const match: MatchRecord = {
     id: crypto.randomUUID(),
     state,
@@ -366,7 +445,15 @@ export function createMatch(opts: CreateMatchOptions): MatchRecord {
     lastSeenAt: {},
     actionHistory: [],
     mode: opts.mode ?? "casual",
+    format,
+    matchStatus: "WAITING_PLAYERS",
+    bo3Score: { A: 0, B: 0 },
+    currentGameIndex: 1,
+    sideboardDecks,
+    sideboardConfirmed: { A: false, B: false },
+    sideboardDeadlineAt: null,
     deckLists: { A: opts.deckA, B: opts.deckB },
+    skipMulligan: opts.skipMulligan,
   };
   matches.set(match.id, match);
   return match;
@@ -437,6 +524,9 @@ export function joinMatch(matchId: string, seat: PlayerId, player: MatchSeat): M
   match.seats[seat] = player;
   match.lastSeenAt[seat] = Date.now();
   match.updatedAt = Date.now();
+  if (match.seats.A && match.seats.B && match.matchStatus === "WAITING_PLAYERS") {
+    match.matchStatus = "PLAYING";
+  }
   armTurnTimer(match);
   persist(match);
   notify(match);
@@ -449,6 +539,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
   if (!seat) throw new MatchError("Esse usuário não é jogador desta partida (precisa entrar num assento primeiro).", 403);
+  if (match.matchStatus === "SIDEBOARDING") throw new MatchError("A partida está em fase de sideboard entre jogos.", 409);
   if (match.state.gameOver) throw new MatchError("A partida já terminou.", 409);
 
   let nextState: GameState;
@@ -464,7 +555,13 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
   match.lastSeenAt[seat] = Date.now();
   match.updatedAt = Date.now();
   match.version += 1;
-  armTurnTimer(match);
+
+  if (nextState.gameOver) {
+    handleGameOverTransition(match, nextState.gameOver.winner, nextState.gameOver.reason);
+  } else {
+    armTurnTimer(match);
+  }
+
   persist(match);
   notify(match);
   return match;
@@ -610,7 +707,7 @@ export async function reportSituation(matchId: string, userId: string, note?: st
 export interface BotTurnRequest {
   matchId: string;
   seat: PlayerId;
-  level: HeuristicLevel | "dificil";
+  level: HeuristicLevel | "dificil" | "zero_system";
 }
 
 export type BotTurnSink = (req: BotTurnRequest) => void;
@@ -687,7 +784,7 @@ export function claimAbandonWin(matchId: string, userId: string): MatchRecord {
   match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: seat, reason: "abandonment" }]);
   match.updatedAt = Date.now();
   match.version += 1;
-  armTurnTimer(match);
+  handleGameOverTransition(match, seat, "abandonment");
   persist(match);
   notify(match);
   return match;
@@ -705,9 +802,14 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
   if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
-  if (match.state.gameOver) return match;
+  if (match.state.gameOver && match.matchStatus === "FINISHED") return match;
 
   const opponentSeat: PlayerId = seat === "A" ? "B" : "A";
+  clearSideboardTimer(matchId);
+  clearTurnTimer(matchId);
+  match.turnDeadlineAt = null;
+  match.sideboardDeadlineAt = null;
+
   if (!match.seats[opponentSeat]) {
     // Sem oponente pra conceder a vitória — a partida nunca começou de verdade.
     // Descarta em vez de deixar um zumbi que `activeMatchForUser` reconecta pra
@@ -716,15 +818,19 @@ export function resignMatch(matchId: string, userId: string): MatchRecord {
     // ficar consistente com as irmãs (`claimAbandonWin`/`onTurnTimeout`): quem
     // consome o retorno nunca vê um tabuleiro "vivo" de uma partida que já não existe.
     match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
+    match.matchStatus = "FINISHED";
     logGameOverOnce(match);
     deleteMatch(matchId);
     return match;
   }
 
   match.state = applyEvents(match.state, [{ type: "GAME_OVER", winner: opponentSeat, reason: "resignation" }]);
+  match.matchStatus = "FINISHED";
+  if (match.format === "bo3") {
+    match.bo3Score[opponentSeat] = 2;
+  }
   match.updatedAt = Date.now();
   match.version += 1;
-  armTurnTimer(match);
   persist(match);
   notify(match);
   return match;
@@ -952,7 +1058,7 @@ function armTurnTimer(match: MatchRecord): void {
   maybeEnqueueBotTurn(match);
   clearTurnTimer(match.id);
 
-  if (match.state.gameOver || !match.seats.A || !match.seats.B || !decisionOwner(match.state)) {
+  if (match.state.gameOver || match.matchStatus === "SIDEBOARDING" || !match.seats.A || !match.seats.B || !decisionOwner(match.state)) {
     match.turnDeadlineAt = null;
     return;
   }
@@ -971,7 +1077,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
   if (!match) return;
   // a partida já mudou de estado (ação real, ou já tinha sido reagendada) desde que este timeout foi criado — não faz nada, quem reagendou já cuidou.
   if (match.turnDeadlineAt !== expectedDeadline) return;
-  if (match.state.gameOver) return;
+  if (match.state.gameOver || match.matchStatus === "SIDEBOARDING") return;
 
   const actingPlayer = decisionOwner(match.state);
   if (actingPlayer) {
@@ -988,6 +1094,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
       match.version += 1;
       clearTurnTimer(match.id);
       match.turnDeadlineAt = null;
+      handleGameOverTransition(match, opponentSeat, "abandonment");
       persist(match);
       notify(match);
       return;
@@ -999,6 +1106,12 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
       match.actionHistory.push(defAction);
       match.updatedAt = Date.now();
       match.version += 1;
+      if (match.state.gameOver) {
+        handleGameOverTransition(match, match.state.gameOver.winner, match.state.gameOver.reason);
+        persist(match);
+        notify(match);
+        return;
+      }
     } catch {
       // a ação-padrão do passo virou ilegal por algum motivo inesperado (não deveria acontecer) — não trava o relógio, só rearma abaixo.
     }
@@ -1007,6 +1120,140 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
   armTurnTimer(match);
   persist(match);
   notify(match);
+}
+
+function clearSideboardTimer(matchId: string): void {
+  const handle = sideboardTimeouts.get(matchId);
+  if (handle) {
+    clearTimeout(handle);
+    sideboardTimeouts.delete(matchId);
+  }
+}
+
+function armSideboardTimer(match: MatchRecord, durationMs = 180_000): void {
+  clearSideboardTimer(match.id);
+  const deadline = Date.now() + durationMs;
+  match.sideboardDeadlineAt = deadline;
+  const handle = setTimeout(() => onSideboardTimeout(match.id, deadline), durationMs);
+  sideboardTimeouts.set(match.id, handle);
+}
+
+function onSideboardTimeout(matchId: string, expectedDeadline: number): void {
+  sideboardTimeouts.delete(matchId);
+  sweepStaleMatches();
+  const match = matches.get(matchId);
+  if (!match) return;
+  if (match.matchStatus !== "SIDEBOARDING") return;
+  if (match.sideboardDeadlineAt !== expectedDeadline) return;
+
+  startNextBo3Game(match);
+}
+
+function handleGameOverTransition(match: MatchRecord, winner: PlayerId | null, reason: string): void {
+  clearTurnTimer(match.id);
+  match.turnDeadlineAt = null;
+
+  if (match.format === "bo3") {
+    if (winner) {
+      match.bo3Score[winner] = (match.bo3Score[winner] ?? 0) + 1;
+    }
+    if (match.bo3Score.A >= 2 || match.bo3Score.B >= 2) {
+      match.matchStatus = "FINISHED";
+    } else {
+      match.matchStatus = "SIDEBOARDING";
+      match.sideboardConfirmed = { A: false, B: false };
+      if (match.seats.A?.bot) match.sideboardConfirmed.A = true;
+      if (match.seats.B?.bot) match.sideboardConfirmed.B = true;
+
+      if (match.sideboardConfirmed.A && match.sideboardConfirmed.B) {
+        startNextBo3Game(match);
+        return;
+      }
+
+      armSideboardTimer(match);
+    }
+  } else {
+    match.matchStatus = "FINISHED";
+  }
+}
+
+export function submitSideboard(
+  matchId: string,
+  userId: string,
+  swaps?: SideboardSwapRequest,
+): MatchRecord {
+  const match = requireMatch(matchId);
+  const seat = seatFor(match, userId);
+  if (!seat) throw new MatchError("Esse usuário não é jogador desta partida.", 403);
+  if (match.matchStatus !== "SIDEBOARDING") {
+    throw new MatchError("A partida não está em fase de sideboard.", 400);
+  }
+
+  if (swaps && (swaps.mainOut.length > 0 || swaps.sideIn.length > 0)) {
+    const currentSideDeck = match.sideboardDecks?.[seat];
+    if (!currentSideDeck) {
+      throw new MatchError("Deck com sideboard não registrado para este jogador.", 400);
+    }
+    const updated = applySideboardSwap(currentSideDeck, swaps);
+    if (!match.sideboardDecks) match.sideboardDecks = {};
+    match.sideboardDecks[seat] = updated;
+    if (!match.deckLists) match.deckLists = {};
+    match.deckLists[seat] = {
+      main: updated.main,
+      resources: updated.resources,
+    };
+  }
+
+  if (!match.sideboardConfirmed) match.sideboardConfirmed = {};
+  match.sideboardConfirmed[seat] = true;
+  match.lastSeenAt[seat] = Date.now();
+  match.updatedAt = Date.now();
+  match.version += 1;
+
+  const oppSeat: PlayerId = seat === "A" ? "B" : "A";
+  if (match.seats[oppSeat]?.bot) {
+    match.sideboardConfirmed[oppSeat] = true;
+  }
+
+  if (match.sideboardConfirmed.A && match.sideboardConfirmed.B) {
+    return startNextBo3Game(match);
+  }
+
+  persist(match);
+  notify(match);
+  return match;
+}
+
+export function startNextBo3Game(match: MatchRecord, chooserFirstPlayer?: PlayerId): MatchRecord {
+  clearSideboardTimer(match.id);
+
+  const prevWinner = match.state.gameOver?.winner;
+  const prevLoser: PlayerId = prevWinner === "A" ? "B" : "A";
+  const firstPlayer: PlayerId = chooserFirstPlayer ?? prevLoser;
+
+  const deckA = match.deckLists?.A;
+  const deckB = match.deckLists?.B;
+  if (!deckA || !deckB) {
+    throw new MatchError("Decks da partida não encontrados para iniciar próximo jogo Bo3.", 500);
+  }
+
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  const newState = match.skipMulligan
+    ? advanceToMainPhase(createGame(deckA, deckB, { seed, firstPlayer }))
+    : createGame(deckA, deckB, { seed, firstPlayer, interactiveMulligan: true });
+
+  match.state = newState;
+  match.currentGameIndex = (match.currentGameIndex ?? 1) + 1;
+  match.matchStatus = "PLAYING";
+  match.sideboardDeadlineAt = null;
+  match.sideboardConfirmed = { A: false, B: false };
+  match.version += 1;
+  match.updatedAt = Date.now();
+
+  armTurnTimer(match);
+  persist(match);
+  notify(match);
+  return match;
 }
 
 /**
@@ -1047,6 +1294,8 @@ const gameOverLogged = new Set<string>();
 function logGameOverOnce(match: MatchRecord): void {
   const over = match.state.gameOver;
   if (!over || gameOverLogged.has(match.id)) return;
+  // No Bo3, só loga o encerramento definitivo da partida quando matchStatus === "FINISHED"
+  if (match.format === "bo3" && match.matchStatus !== "FINISHED") return;
   gameOverLogged.add(match.id);
   const loser: PlayerId | null = over.winner === null ? null : over.winner === "A" ? "B" : "A";
   const winnerLabel =
@@ -1068,7 +1317,7 @@ function logGameOverOnce(match: MatchRecord): void {
       deckB: match.deckLists?.B,
       playerAId: match.seats.A?.userId,
       playerBId: match.seats.B?.userId,
-      winner: over.winner,
+      winner: over.winner ?? "DRAW",
       winReason: over.reason,
       turns: match.state.turnNumber,
       durationMs: Date.now() - match.createdAt,
@@ -1101,6 +1350,7 @@ function notify(match: MatchRecord): void {
 
 export function deleteMatch(matchId: string): void {
   clearTurnTimer(matchId);
+  clearSideboardTimer(matchId);
   matches.delete(matchId);
   listeners.delete(matchId);
   gameOverLogged.delete(matchId);
@@ -1121,6 +1371,8 @@ export function deleteMatch(matchId: string): void {
 export function _resetAllMatchesForTests(): void {
   for (const handle of turnTimeouts.values()) clearTimeout(handle);
   turnTimeouts.clear();
+  for (const handle of sideboardTimeouts.values()) clearTimeout(handle);
+  sideboardTimeouts.clear();
   matches.clear();
   listeners.clear();
   globalMatchListeners.clear();

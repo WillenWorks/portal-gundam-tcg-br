@@ -18,10 +18,14 @@ import RulingDetailPage from "@/pages/RulingDetailPage";
 import ProfilePage from "@/pages/ProfilePage";
 import PublicProfilePage from "@/pages/PublicProfilePage";
 import SharedDeckPage from "@/pages/SharedDeckPage";
-import SharedBinderPage from "@/pages/SharedBinderPage";
+import PublicBinderPage from "@/pages/PublicBinderPage";
 import PublicDecksPage from "@/pages/PublicDecksPage";
 import CollectionsPage from "@/pages/CollectionsPage";
 import SetDetailPage from "@/pages/SetDetailPage";
+import SeriesHubPage from "@/pages/SeriesHubPage";
+import SeriesDetailPage from "@/pages/SeriesDetailPage";
+import ArticlesPage from "@/pages/ArticlesPage";
+import ArticleDetailPage from "@/pages/ArticleDetailPage";
 import NotFound from "@/pages/NotFound";
 import BinderPage from "@/pages/BinderPage";
 import BinderListPage from "@/pages/BinderListPage";
@@ -32,6 +36,7 @@ import ChangelogPage from "@/pages/ChangelogPage";
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
+const RegionalMetaPage = lazy(() => import("@/pages/RegionalMetaPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
@@ -49,6 +54,12 @@ const SimulatorLayoutPreviewPage = lazy(() => import("@/pages/SimulatorLayoutPre
 // sob /admin (o AdminPage monolítico só casa /admin/:section de 1 segmento).
 const SimulatorCoveragePage = lazy(() => import("@/pages/admin/SimulatorCoveragePage"));
 const SimulatorAuthoringPage = lazy(() => import("@/pages/admin/SimulatorAuthoringPage"));
+// CMS de Artigos (Módulo Editorial) -- "articles" é 1 segmento, então precisa vir ANTES de
+// /admin/:section no Switch (senão o AdminPage monolítico "ganha" a rota, ver comentário acima).
+const AdminArticlesPage = lazy(() => import("@/pages/admin/AdminArticlesPage"));
+const LgsTvDisplayPage = lazy(() => import("@/pages/tournaments/LgsTvDisplayPage"));
+const EventCheckinPage = lazy(() => import("@/pages/tournaments/EventCheckinPage"));
+const ZeroTerminalPage = lazy(() => import("@/pages/ZeroTerminalPage"));
 
 function RouteLoader({ label }: { label: string }) {
   return <GlobalLoader label={`Abrindo ${label}`} />;
@@ -96,13 +107,18 @@ function AppRouter() {
         <Route path="/binders/:id">{() => <RequireAuth><BinderPage /></RequireAuth>}</Route>
         <Route path="/decks" component={PublicDecksPage} />
         <Route path="/deck/:shareId" component={SharedDeckPage} />
-        <Route path="/binder/:shareId" component={SharedBinderPage} />
+        <Route path="/binder/:shareId" component={PublicBinderPage} />
         <Route path="/sets/:code" component={SetDetailPage} />
         <Route path="/sets" component={CollectionsPage} />
+        <Route path="/series/:slug" component={SeriesDetailPage} />
+        <Route path="/series" component={SeriesHubPage} />
+        <Route path="/articles/:slug" component={ArticleDetailPage} />
+        <Route path="/articles" component={ArticlesPage} />
         <Route path="/database" component={CardsPage} />
         <Route path="/eventos" component={TournamentsPage} />
         <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
+        <Route path="/metagame/regional">{() => <LazyRoute label="Metagame Regional"><RegionalMetaPage /></LazyRoute>}</Route>
         <Route path="/tournaments" component={TournamentsPage} />
         <Route path="/cards/:id" component={CardDetailPage} />
         <Route path="/cards" component={CardsPage} />
@@ -115,12 +131,35 @@ function AppRouter() {
         <Route path="/deckbuilder">{() => <LazyRoute label="Deckbuilder"><DeckbuilderPage /></LazyRoute>}</Route>
         <Route path="/profile">{() => <RequireAuth><ProfilePage /></RequireAuth>}</Route>
         <Route path="/organizador">{() => <RequireAuth hosterOnly><LazyRoute label="Organizador"><OrganizerPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/organizador/eventos/:id/tv">
+          {(params) => (
+            <LazyRoute label="LGS TV Display">
+              <LgsTvDisplayPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/eventos/:id/tv">
+          {(params) => (
+            <LazyRoute label="LGS TV Display">
+              <LgsTvDisplayPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
+        <Route path="/eventos/:id/checkin">
+          {(params) => (
+            <LazyRoute label="Check-in de Jogador">
+              <EventCheckinPage eventId={params.id} />
+            </LazyRoute>
+          )}
+        </Route>
+        {/* Hub Zero Terminal (Zero System Central AI) */}
+        <Route path="/zero">{() => <LazyRoute label="Zero System"><ZeroTerminalPage /></LazyRoute>}</Route>
         {/* Simulador Beta -- aberto a qualquer usuário logado (decisão do Willen, 2026-08-30); as rotas de servidor
             de depuração/admin continuam hosterRequired, mas o fluxo normal (fila) não precisa mais disso. */}
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
         {/* Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). */}
         <Route path="/simulador/treino">{() => <RequireAuth><LazyRoute label="Treino"><SimulatorTrainingPage /></LazyRoute></RequireAuth>}</Route>
-        {/* Modo multiplayer 4P (2x2 / Battle Royale) — Fase de Arquitetura */}
+        {/* Arena Multiplayer 4P real (Fase 3 / Terminal 2) — 2v2 Tag Team e Battle Royale via Socket.io (ver `server/simulatorSocket4p.ts`). */}
         <Route path="/simulador/multiplayer">{() => <RequireAuth><LazyRoute label="Arena Multiplayer"><SimulatorMultiplayerPage /></LazyRoute></RequireAuth>}</Route>
         {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
             no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
@@ -145,6 +184,7 @@ function AppRouter() {
         <Route path="/u/:username" component={PublicProfilePage} />
         <Route path="/admin/simulador/cobertura">{() => <RequireAuth adminOnly><LazyRoute label="Cobertura de efeitos"><SimulatorCoveragePage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/simulador/autoria">{() => <RequireAuth adminOnly><LazyRoute label="RAG de autoria"><SimulatorAuthoringPage /></LazyRoute></RequireAuth>}</Route>
+        <Route path="/admin/articles">{() => <RequireAuth adminOnly><LazyRoute label="Artigos"><AdminArticlesPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin/:section">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/admin">{() => <RequireAuth adminOnly><LazyRoute label="Gestão"><AdminPage /></LazyRoute></RequireAuth>}</Route>
         <Route path="/">{() => <Home />}</Route>

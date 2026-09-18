@@ -38,17 +38,26 @@ const { buildSt02DeckList } = await import(sim("fixtures/st02Deck.ts"));
 const { buildSt03DeckList } = await import(sim("fixtures/st03Deck.ts"));
 const { buildSt04DeckList } = await import(sim("fixtures/st04Deck.ts"));
 const { buildSt05DeckList } = await import(sim("fixtures/st05Deck.ts"));
+const { buildSt06DeckList } = await import(sim("fixtures/st06Deck.ts"));
+const { buildSt07DeckList } = await import(sim("fixtures/st07Deck.ts"));
+const { buildSt08DeckList } = await import(sim("fixtures/st08Deck.ts"));
 const { buildGd01DeckList } = await import(sim("fixtures/gd01Deck.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
+const { zeroSystemPolicy } = await import(sim("engine/bot/zeroSystemPolicy.ts"));
 const { randomLegal } = await import(sim("engine/selfPlay.ts"));
 
-/** `random` (default) | `heuristic` | `facil` | `mcts` — resolve o nome pra uma Policy do self-play. */
+/** `random` (default) | `heuristic` | `facil` | `mcts` | `zero_system` | `treize` — resolve o nome pra uma Policy do self-play. */
 function resolvePolicy(name, rollouts) {
   if (!name || name === "random") return randomLegal;
   if (name === "heuristic" || name === "normal") return heuristicPolicy({ level: "normal" });
   if (name === "facil") return heuristicPolicy({ level: "facil" });
+  if (name === "zero_system" || name === "zero" || name === "adaptive") return zeroSystemPolicy({ persona: "adaptive" });
+  if (name === "amuro") return zeroSystemPolicy({ persona: "amuro" });
+  if (name === "char") return zeroSystemPolicy({ persona: "char" });
+  if (name === "heero") return zeroSystemPolicy({ persona: "heero" });
+  if (name === "treize") return zeroSystemPolicy({ persona: "treize" });
   if (name === "mcts") {
     return mctsPolicy({
       rollouts,
@@ -57,7 +66,7 @@ function resolvePolicy(name, rollouts) {
       targetFilterResolver: defaultTargetFilterResolver,
     });
   }
-  console.error(`Policy desconhecida: ${name}. Válidas: random, heuristic, facil, mcts`);
+  console.error(`Policy desconhecida: ${name}. Válidas: random, heuristic, facil, mcts, zero_system, amuro, char, heero, treize`);
   process.exit(2);
 }
 
@@ -67,6 +76,9 @@ const DECKS = {
   ST03: buildSt03DeckList,
   ST04: buildSt04DeckList,
   ST05: buildSt05DeckList,
+  ST06: buildSt06DeckList,
+  ST07: buildSt07DeckList,
+  ST08: buildSt08DeckList,
   GD01: buildGd01DeckList,
 };
 

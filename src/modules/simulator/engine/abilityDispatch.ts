@@ -466,7 +466,9 @@ export function checkTriggerLoopGuard(
       : `largura da fila de gatilhos (${queueBudget.count}) excedeu MAX_QUEUE_BREADTH (${MAX_QUEUE_BREADTH})`;
   const recentEvents = state.eventLog.slice(-20);
 
-  if (isTestEnv()) {
+  const isTestEnv = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV === "test";
+
+  if (isTestEnv) {
     throw new TriggerLoopException(
       `Loop de gatilhos detectado: ${cause}. Últimos ${recentEvents.length} eventos anexados em .recentEvents.`,
       recentEvents,

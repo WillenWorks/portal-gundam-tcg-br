@@ -1,4 +1,4 @@
-import { createMatch, joinMatch } from "./matchStore";
+import { createMatch, joinMatch, type MatchSeat } from "./matchStore";
 import { VALIDATED_DECKS, isValidatedDeck } from "../content/validatedDecks";
 
 /**
@@ -18,11 +18,18 @@ import { VALIDATED_DECKS, isValidatedDeck } from "../content/validatedDecks";
 export const SIM_BOT_USER_ID = "sim-bot";
 export const SIM_BOT_DISPLAY_NAME = "Bot de Treino";
 
-export const TRAINING_LEVELS = ["facil", "normal", "dificil"] as const;
+export const TRAINING_LEVELS = ["facil", "normal", "dificil", "zero_system"] as const;
 export type TrainingLevel = (typeof TRAINING_LEVELS)[number];
+
+export const PILOT_PERSONAS = ["amuro", "char", "heero", "adaptive"] as const;
+export type PilotPersona = (typeof PILOT_PERSONAS)[number];
 
 export function isTrainingLevel(value: unknown): value is TrainingLevel {
   return typeof value === "string" && (TRAINING_LEVELS as readonly string[]).includes(value);
+}
+
+export function isPilotPersona(value: unknown): value is PilotPersona {
+  return typeof value === "string" && (PILOT_PERSONAS as readonly string[]).includes(value);
 }
 
 export class TrainingMatchError extends Error {
@@ -49,6 +56,8 @@ export interface CreateTrainingMatchInput {
   botDeckList?: DeckList;
   /** `unknown` de propósito — vem cru do corpo HTTP; `isTrainingLevel` valida. */
   level: unknown;
+  /** Persona tática do Zero System (opcional para level zero_system). */
+  persona?: unknown;
   human: { userId: string; displayName: string };
   /** default: aleatório — passe um valor fixo só em teste, pra determinismo. */
   seed?: number;
@@ -112,11 +121,25 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
     displayName: input.human.displayName,
     autoPassActionStep: true,
   });
+  if (input.persona !== undefined && !isPilotPersona(input.persona)) {
+    throw new TrainingMatchError(`Persona inválida — use "${PILOT_PERSONAS.join('" ou "')}".`);
+  }
+  const resolvedPersona = isPilotPersona(input.persona) ? input.persona : "adaptive";
+  const botPolicy = input.level === "zero_system" ? "zero_system" : input.level === "dificil" ? "mcts" : "heuristic";
+
+  const botSeatConfig: NonNullable<MatchSeat["bot"]> = {
+    policy: botPolicy,
+    level: input.level as TrainingLevel,
+  };
+  if (input.persona || input.level === "zero_system") {
+    botSeatConfig.persona = resolvedPersona;
+  }
+
   joinMatch(match.id, "B", {
     userId: SIM_BOT_USER_ID,
-    displayName: SIM_BOT_DISPLAY_NAME,
+    displayName: input.level === "zero_system" ? `Zero System (${resolvedPersona.toUpperCase()})` : SIM_BOT_DISPLAY_NAME,
     autoPassActionStep: true,
-    bot: { policy: input.level === "dificil" ? "mcts" : "heuristic", level: input.level },
+    bot: botSeatConfig,
   });
   return { matchId: match.id };
 }

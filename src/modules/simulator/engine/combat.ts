@@ -365,7 +365,11 @@ export function resolveDamageStep(state: GameState): GameState {
     // ST03-014 The Blue Giant — a Unit protegida não recebe dano de batalha de
     // atacante com AP efetivo <= maxAttackerAp (o atacante ainda recebe o dele).
     const unitProt = combat.unitDamageProtection;
-    const grantedProtects = !!unitProt && unitProt.instanceId === defender.instanceId && attackerAp <= unitProt.maxAttackerAp;
+    const grantedProtects =
+      !!unitProt &&
+      unitProt.instanceId === defender.instanceId &&
+      ((unitProt.maxAttackerAp !== undefined && attackerAp <= unitProt.maxAttackerAp) ||
+        (unitProt.maxAttackerLevel !== undefined && (attacker.def.level ?? 0) <= unitProt.maxAttackerLevel));
     // GD01-091 Chang Wufei (Lote 5) — proteção INATA e contínua (não instalada por
     // efeito pontual), reavaliada aqui mesmo: "During your turn, while this Unit has
     // <Breach>, it can't receive battle damage from enemy Units with 3 or less AP."

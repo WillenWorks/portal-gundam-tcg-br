@@ -11,12 +11,55 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ## [Não lançado]
 
-### No radar
-- **Validação de Machine Learning**: Análise dos logs reais coletados para validação prática do modelo antes de sua ativação em produção.
-- **Ranking no simulador**: Sistema de pontuação competitiva, temporadas e matchmaking pareado — Fase 4 do produto.
-- **Fechar as últimas 5 cartas de GD01** (Jegan, Buster Gundam, Gundam Aerial, Duo Maxwell, Chang Wufei) sem cobertura no motor, mais as cláusulas ainda deferidas (ver `docs/MANUAL_DESENVOLVIMENTO.md`).
-- **Cobertura de efeitos das coleções EB/GD02+**: ainda fora do escopo do motor.
-- **Comunidade & Social**: Perfis públicos, decks favoritos/compartilháveis e vitrine de arquétipos.
+### No radar (Fase 3 — Ciclo v2.1)
+- **Wave GD03 + ST07 + ST08**: Ingestão no motor de regras com suporte a mecânicas avançadas de Tokens e Custos Alternativos de Deploy.
+- **Zero Pilot N4 (Counter-Decks Dinâmicos)**: As 4 Personas (Heero, Char, Amuro, Treize) montam dinamicamente arquétipos específicos para punir fraquezas do deck do jogador.
+- **Universe Hub Wave 2**: Expansão de Lore para *Mobile Suit Gundam 00* (Anno Domini) e *Mobile Suit Gundam: The Witch from Mercury* (Ad Stella).
+- **Arena Multiplayer 4P Real**: Transição da tela de mock para engine Socket.io com 4 assentos para 2v2 Tag Team e 4P Battle Royale (Free-for-All).
+- **Zero Foresight & Metagame Regional**: Simulação Monte Carlo (10.000 partidas) para projeção preditiva de Tier Shift e painel geográfico de torneios por Estado, Cidade e LGS.
+
+---
+
+## [2.0.0] — 2026-09-17
+
+**Anaheim Hub v2.0 & Operação Zero System** — A maior atualização da história do Portal Gundam TCG BR! Uma virada de chave competitiva, estética e arquitetural: catálogo massivo expandido para 245 cartas autoritativas, formato Bo3 oficial com Sideboard, Motor Suíço para Lojas Físicas e a suíte completa de Inteligência Tática do **Zero System**.
+
+### 🤖 Operação Zero System — Inteligência Tática & Copilot
+- **Terminal Zero Central** (`/#/zero`): Console central de IA militar com telemetria tática, estatísticas globais e acesso ao RAG e análises.
+- **Zero Coach In-Game HUD** (`ZeroCoachHud.tsx`): HUD colapsável em tempo real dentro do simulador exibindo:
+  - *Threat Matrix*: cálculo exato de probabilidade (%) do próximo escudo do oponente conter um efeito Burst ativo.
+  - *Sequencing Advisor*: recomendações de ordem tática de ativação de comandos antes de declarar ataque.
+  - *Alerta Letal*: detecção matemática garantida de letal ofensivo e defensivo no turno corrente.
+- **Zero Copilot no Deckbuilder** (`ZeroCopilotDrawer.tsx`):
+  - *Análise Hipergeométrica*: cálculo de consistência de turnos 1 a 3 (probabilidade de abrir Unit Lv.1-2 e Piloto compatível), score tático 0-100 e curva de energia ideal.
+- **RAG de Regras & 4 Personas Táticas**:
+  - Consulta instantânea de regras oficiais com respostas orientadas por IA adaptadas ao estilo de 4 lendas: **Heero Yuy** (Frio/Objetivo), **Char Aznable** (Agressivo/Audacioso), **Amuro Ray** (Analítico/Sinergia) e **Treize Khushrenada** (Honra/Cavalheirismo).
+
+### ⚔️ Simulador — Wave GD02, ST05, ST06 & Formato Bo3 com Sideboard
+- **Ingestão Completa de Metadados**: 245 especificações autoritativas de efeitos indexadas no motor (`src/modules/simulator/content/_index/specs-signatures.json`), cobrindo GD01, ST01-ST04 e agora GD02, ST05 e ST06.
+- **Formato Oficial Melhor de 3 (Bo3)**:
+  - Suporte completo a partidas Bo3 competitivas no simulador.
+  - **Interface Tática de Sideboard** (`SideboardModal.tsx`): Transição automática entre jogos com timer regressivo de 180 segundos, suporte a até 10 cartas no Sideboard e validação estrita de legalidade (50 cartas principais, máx. 2 cores, máx. 4 cópias).
+
+### 🏆 Módulo de Torneios Avançado & Suíço LGS
+- **Motor de Pareamento Suíço Automático** (`server/services/swissEngine.ts`):
+  - Emparelhamento determinístico baseado em vitórias (3/1/0 pts).
+  - Prevenção rigorosa de rematches e resolução inteligente de BYE para número ímpar.
+  - Cálculo oficial de Tie-Breakers: **OMW%** (Opponent Match Win %) e **OGW%** (Opponent Game Win %).
+  - Suporte a corte para Top Cut (Top 4 / Top 8 / Top 16).
+- **LGS TV Display** (`LgsTvDisplayPage.tsx` na rota `/#/admin/lgs-tv/:tournamentId`):
+  - Modo fullscreen de alto contraste projetado para TVs e telões em lojas físicas e eventos.
+  - Exibição de mesas, confrontos, classificação e cronômetro de rodada oficial de 50 minutos.
+
+### 🌌 Universe Hub & Módulo Editorial
+- **Universe Hub** (`/#/series`): Imersão profunda no lore de Gundam com fichas técnicas, cronologia e cards relacionados da Wave 1 (*Mobile Suit Zeta Gundam* e *Mobile Suit Gundam SEED*).
+- **Content Hub & CMS Editorial** (`/#/artigos` e `/#/admin/artigos`):
+  - Sistema de publicação de artigos com suporte a cards interativos (`[[GD01-001]]`) e decks embutidos.
+  - Gerador de capas com IA (estética Nano Banana / Blueprint Militar).
+- **Pastas de Coleção (3D Binders)** (`/#/fichario/:id`): Exibição e compartilhamento visual de binders com tags de troca e desejo.
+- **Apoio Comunitário via Pix** (`DonateModal.tsx`): Suporte direto da comunidade para sustentabilidade dos servidores, com chave Pix de cópia rápida e mural de patronos.
+
+---
 
 ---
 

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier } from "@prisma/client";
+import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
@@ -20,6 +20,16 @@ import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts
 import { buildSt05DeckList } from "../src/modules/simulator/fixtures/st05Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
+import {
+  computeSwissStandings,
+  generateSwissPairings,
+  generateTopCutBracket,
+  type SwissParticipant,
+  type SwissMatch,
+  type SwissMatchResult,
+  type GeneratedPairing,
+  type TopCutBracket,
+} from "./services/swissTournamentEngine.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
@@ -47,6 +57,7 @@ import {
   setMatchLogSink,
   subscribe,
   touchPresence,
+  submitSideboard,
   generateBugShortCode,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
@@ -56,6 +67,12 @@ import {
   SIM_BOT_USER_ID,
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
+import {
+  getTacticalTelemetry,
+  analyzeTacticalState,
+  analyzeDeckConsistency,
+  consultZeroTerminalRAG,
+} from "./services/zeroTerminalService.ts";
 import {
   buildDeckListFromUserDeck,
   UserDeckSimulatorError,
@@ -72,6 +89,7 @@ import {
   computeSimulatorCardStats,
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
+import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
@@ -80,6 +98,8 @@ import {
 } from "./metaAnalyticsService.ts";
 import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
+import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
+import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 
 const prisma = new PrismaClient();
 
@@ -1435,7 +1455,7 @@ app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) =
   const existing = await prisma.cardBinder.findFirst({ where: { id: binderId, userId: current.id } });
   if (!existing) return res.status(404).json({ error: "Binder não encontrado." });
 
-  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number }> };
+  const payload = req.body as { name?: string; description?: string; isPublic?: boolean; items?: Array<{ cardId: string; quantity: number; note?: string | null; position?: number; tag?: BinderItemTag | null }> };
   await prisma.cardBinder.update({
     where: { id: binderId },
     data: { name: payload.name, description: payload.description, isPublic: payload.isPublic },
@@ -1444,7 +1464,7 @@ app.put("/api/binders/me/:id", authRequired, async (req: RequestWithUser, res) =
     await prisma.cardBinderItem.deleteMany({ where: { binderId } });
     if (payload.items.length) {
       await prisma.cardBinderItem.createMany({
-        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index })),
+        data: payload.items.map((item, index) => ({ binderId, cardId: item.cardId, quantity: item.quantity, note: item.note || null, position: item.position ?? index, tag: item.tag || null })),
       });
     }
   }
@@ -1473,11 +1493,15 @@ app.get("/api/binders/share/:shareId", authOptional, async (req: RequestWithUser
   res.json(binder);
 });
 
-app.get("/api/posts", async (req, res) => {
+// Pública por padrão -- só ADMIN/EDITOR autenticado consegue listar rascunho/revisão (pra
+// alimentar o CMS). Sem isso, omitir `status` na query devolvia TODOS os posts (inclusive
+// DRAFT) pra qualquer visitante -- artigo não publicado vazando pelo endpoint público.
+app.get("/api/posts", authOptional, async (req: RequestWithUser, res) => {
   setPublicCache(res, 20, 90);
   const status = normalizeQueryValue(req.query.status);
   const pagination = getPagination(req.query, { pageSize: 12, maxPageSize: 50 });
-  const where = status ? { status: status as any } : undefined;
+  const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
+  const where = isEditor ? (status ? { status: status as PostStatus } : undefined) : { status: PostStatus.PUBLISHED };
 
   if (pagination.enabled) {
     const [items, total] = await Promise.all([
@@ -1571,6 +1595,18 @@ app.delete("/api/posts/:id", authRequired, roleRequired([UserRole.ADMIN]), async
   const id = String(req.params.id);
   await prisma.post.delete({ where: { id } });
   res.status(204).send();
+});
+
+// Leitor público (ArticleDetailPage) -- busca por slug. Rascunho/revisão só é visível pra
+// quem tem ADMIN/EDITOR (preview do próprio CMS antes de publicar), mesma regra da listagem.
+app.get("/api/posts/slug/:slug", authOptional, async (req: RequestWithUser, res) => {
+  const slug = String(req.params.slug);
+  const post = await prisma.post.findUnique({ where: { slug }, include: { author: true } });
+  if (!post) return res.status(404).json({ error: "Artigo não encontrado." });
+  const isEditor = req.user?.role === UserRole.ADMIN || req.user?.role === UserRole.EDITOR;
+  if (post.status !== PostStatus.PUBLISHED && !isEditor) return res.status(404).json({ error: "Artigo não encontrado." });
+  setPublicCache(res, 20, 90);
+  res.json(post);
 });
 
 app.get("/api/sets", async (_req, res) => {
@@ -2397,6 +2433,23 @@ app.get("/api/stats/matchup-matrix", async (req, res) => {
   res.json({ season: resolved.season, window: windowParam, ...matrix });
 });
 
+// Terminal 3 (docs/54 §8.3, "Zero Local Intelligence") -- Painel de Metagame Regional
+// Geográfico. País -> Estado -> Cidade -> Loja Parceira, derivado a partir dos mesmos
+// resultados reais (TournamentEntry/HostedEventParticipant) que alimentam os demais
+// endpoints de metagame, nunca de deck público. Público (mesmo padrão de /api/stats/*).
+app.get("/api/metagame/regional", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const stateUf = typeof req.query.state === "string" && req.query.state ? req.query.state.toUpperCase() : undefined;
+  const city = typeof req.query.city === "string" && req.query.city ? req.query.city : undefined;
+  const store = typeof req.query.store === "string" && req.query.store ? req.query.store : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const regional = await getRegionalMetagame(prisma, { seasonId: resolved.seasonId, setId, stateUf, city, store });
+  res.json({ season: resolved.season, setId: setId ?? null, ...regional });
+});
+
 app.post("/api/cards", authRequired, roleRequired([UserRole.ADMIN, UserRole.EDITOR]), async (req, res) => {
   const payload = req.body as CardInput;
   await upsertCards([payload], new Map<string, string>(), payload.setId || undefined);
@@ -3145,57 +3198,89 @@ async function computeHostedEventStandings(eventId: string) {
     where: { eventId },
     select: {
       id: true,
+      userId: true,
       deckSnapshotId: true,
       archetype: true,
       user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-      // Decklist travada completa -- alimenta o filtro de chips coloridos e o botão
-      // "Carregar no Deckbuilder" da visão detalhada de evento (TournamentsPage).
-      deckSnapshot: { select: { id: true, name: true, items: { select: { quantity: true, section: true, card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } } } } } },
+      deckSnapshot: {
+        select: {
+          id: true,
+          name: true,
+          items: {
+            select: {
+              quantity: true,
+              section: true,
+              card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } },
+            },
+          },
+        },
+      },
     },
   });
-  type Row = {
-    participantId: string;
-    user: (typeof participants)[number]["user"];
-    hasDeck: boolean;
-    archetype: string | null;
-    colors: string[];
-    deckSnapshot: (typeof participants)[number]["deckSnapshot"];
-    points: number; wins: number; draws: number; losses: number; byes: number; played: number;
-  };
-  const stats = new Map<string, Row>();
-  for (const p of participants) {
-    const colors = Array.from(new Set((p.deckSnapshot?.items || []).map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
-    stats.set(p.id, { participantId: p.id, user: p.user, hasDeck: Boolean(p.deckSnapshotId), archetype: p.archetype, colors, deckSnapshot: p.deckSnapshot, points: 0, wins: 0, draws: 0, losses: 0, byes: 0, played: 0 });
-  }
-  const matches = await prisma.hostedEventMatch.findMany({ where: { round: { eventId } } });
-  for (const m of matches) {
-    const a = stats.get(m.participantAId);
-    const b = m.participantBId ? stats.get(m.participantBId) : null;
-    if (!a) continue;
-    if (m.result === HostedEventMatchResult.BYE) {
-      a.points += HOSTED_EVENT_POINTS.win;
-      a.wins += 1;
-      a.byes += 1;
-      a.played += 1;
-    } else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) {
-      a.points += HOSTED_EVENT_POINTS.win;
-      a.wins += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.loss; b.losses += 1; b.played += 1; }
-    } else if (m.result === HostedEventMatchResult.PLAYER_B_WIN) {
-      a.points += HOSTED_EVENT_POINTS.loss;
-      a.losses += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.win; b.wins += 1; b.played += 1; }
-    } else if (m.result === HostedEventMatchResult.DRAW) {
-      a.points += HOSTED_EVENT_POINTS.draw;
-      a.draws += 1;
-      a.played += 1;
-      if (b) { b.points += HOSTED_EVENT_POINTS.draw; b.draws += 1; b.played += 1; }
-    }
-    // PENDING: confronto ainda sem resultado lançado, não conta pra classificação.
-  }
-  return Array.from(stats.values()).sort((x, y) => y.points - x.points || y.wins - x.wins || x.losses - y.losses);
+
+  const rawMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const swissParticipants: SwissParticipant[] = participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = rawMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  const standingRows = computeSwissStandings(swissParticipants, swissMatches);
+  const pMap = new Map(participants.map((p) => [p.id, p]));
+
+  return standingRows.map((row) => {
+    const p = pMap.get(row.participantId);
+    const colors = Array.from(
+      new Set(
+        (p?.deckSnapshot?.items || [])
+          .map((item) => item.card.color)
+          .filter((c): c is string => Boolean(c)),
+      ),
+    ).sort();
+
+    return {
+      participantId: row.participantId,
+      rank: row.rank,
+      user: p?.user ?? {
+        id: row.userId,
+        username: row.username || "",
+        displayName: row.displayName,
+        avatarUrl: row.avatarUrl,
+      },
+      hasDeck: Boolean(p?.deckSnapshotId),
+      archetype: p?.archetype || null,
+      colors,
+      deckSnapshot: p?.deckSnapshot || null,
+      points: row.matchPoints,
+      wins: row.matchWins,
+      draws: row.matchDraws,
+      losses: row.matchLosses,
+      byes: row.byes,
+      played: row.matchesPlayed,
+      omwPercent: row.omwPercent,
+      ogwPercent: row.ogwPercent,
+      gameWinRate: row.gameWinRate,
+      matchWinRate: row.matchWinRate,
+    };
+  });
 }
 
 app.get("/api/hosted-events/:id/standings", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
@@ -3306,6 +3391,413 @@ app.delete("/api/hosted-events/:id/rounds/:roundId/matches/:matchId", authRequir
   if (!match) return res.status(404).json({ error: "Confronto não encontrado." });
   await prisma.hostedEventMatch.delete({ where: { id: match.id } });
   res.status(204).send();
+});
+
+/* ---------------------------------------------------------------------------
+ * Terminal 3 -- Pareamento Suíço Automático, Top Cut, LGS TV Display e Check-in
+ * ------------------------------------------------------------------------- */
+
+// Gerar próxima rodada com pareamento Suíço determinístico
+app.post("/api/hosted-events/:id/rounds/generate-swiss", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+
+  if (event.participants.length < 2) {
+    return res.status(400).json({ error: "Pelo menos 2 participantes são necessários para gerar rodadas suíças." });
+  }
+
+  // Verifica se há rodadas anteriores com partidas ainda pendentes
+  const pendingMatch = await prisma.hostedEventMatch.findFirst({
+    where: {
+      round: { eventId: event.id },
+      result: HostedEventMatchResult.PENDING,
+    },
+    include: { round: true },
+  });
+  if (pendingMatch) {
+    return res.status(409).json({
+      error: `A Rodada ${pendingMatch.round.roundNumber} ainda possui partidas pendentes de resultado.`,
+    });
+  }
+
+  const previousMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId: event.id } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const lastRound = await prisma.hostedEventRound.findFirst({
+    where: { eventId: event.id },
+    orderBy: [{ roundNumber: "desc" }],
+  });
+  const nextRoundNumber = (lastRound?.roundNumber ?? 0) + 1;
+
+  const swissParticipants: SwissParticipant[] = event.participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = previousMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  let pairings: GeneratedPairing[];
+  try {
+    pairings = generateSwissPairings(swissParticipants, swissMatches, nextRoundNumber);
+  } catch (err: any) {
+    return res.status(400).json({ error: err?.message || "Erro ao gerar pareamento suíço." });
+  }
+
+  const round = await prisma.hostedEventRound.create({
+    data: {
+      eventId: event.id,
+      roundNumber: nextRoundNumber,
+      status: HostedEventRoundStatus.IN_PROGRESS,
+      matches: {
+        create: pairings.map((p) => ({
+          tableNumber: p.tableNumber,
+          participantAId: p.participantAId,
+          participantBId: p.participantBId || null,
+          result: p.isBye ? HostedEventMatchResult.BYE : HostedEventMatchResult.PENDING,
+          reportedAt: p.isBye ? new Date() : null,
+        })),
+      },
+    },
+    include: hostedEventRoundInclude,
+  });
+
+  if (event.status === HostedEventStatus.DRAFT || event.status === HostedEventStatus.SCHEDULED) {
+    await prisma.hostedEvent.update({
+      where: { id: event.id },
+      data: { status: HostedEventStatus.IN_PROGRESS },
+    });
+  }
+
+  res.status(201).json(round);
+});
+
+// Gerar chave eliminatória de Top Cut (Single Elimination)
+app.post("/api/hosted-events/:id/top-cut/generate", authRequired, hosterRequired, async (req: RequestWithUser, res) => {
+  const event = await loadOwnedHostedEvent(req, res, String(req.params.id));
+  if (!event) return;
+
+  const body = req.body as { cutSize?: 4 | 8 | 16 };
+  const requestedSize = body.cutSize ?? (event.participants.length >= 16 ? 8 : 4);
+  if (![4, 8, 16].includes(requestedSize)) {
+    return res.status(400).json({ error: "Tamanho de Top Cut inválido (permitidos: 4, 8 ou 16)." });
+  }
+
+  const pendingMatch = await prisma.hostedEventMatch.findFirst({
+    where: {
+      round: { eventId: event.id },
+      result: HostedEventMatchResult.PENDING,
+    },
+    include: { round: true },
+  });
+  if (pendingMatch) {
+    return res.status(409).json({
+      error: `Não é possível gerar o Top Cut enquanto a Rodada ${pendingMatch.round.roundNumber} tiver partidas pendentes.`,
+    });
+  }
+
+  const rawMatches = await prisma.hostedEventMatch.findMany({
+    where: { round: { eventId: event.id } },
+    include: { round: { select: { roundNumber: true } } },
+  });
+
+  const swissParticipants: SwissParticipant[] = event.participants.map((p) => ({
+    id: p.id,
+    userId: p.userId,
+    displayName: p.user.displayName || p.user.username,
+    username: p.user.username,
+    avatarUrl: p.user.avatarUrl,
+    deckName: p.deckSnapshot?.name || null,
+    deckSnapshotId: p.deckSnapshotId,
+    isDropped: false,
+  }));
+
+  const swissMatches: SwissMatch[] = rawMatches.map((m) => ({
+    id: m.id,
+    roundNumber: m.round.roundNumber,
+    tableNumber: m.tableNumber,
+    participantAId: m.participantAId,
+    participantBId: m.participantBId,
+    result: m.result as SwissMatchResult,
+  }));
+
+  const standings = computeSwissStandings(swissParticipants, swissMatches);
+  if (standings.length < requestedSize) {
+    return res.status(400).json({
+      error: `Participantes insuficientes para Top ${requestedSize} (apenas ${standings.length} disponíveis).`,
+    });
+  }
+
+  let bracket: TopCutBracket;
+  try {
+    bracket = generateTopCutBracket(standings, requestedSize as 4 | 8 | 16);
+  } catch (err: any) {
+    return res.status(400).json({ error: err?.message || "Erro ao gerar chave de Top Cut." });
+  }
+
+  const lastRound = await prisma.hostedEventRound.findFirst({
+    where: { eventId: event.id },
+    orderBy: [{ roundNumber: "desc" }],
+  });
+  const nextRoundNumber = (lastRound?.roundNumber ?? 0) + 1;
+
+  const round = await prisma.hostedEventRound.create({
+    data: {
+      eventId: event.id,
+      roundNumber: nextRoundNumber,
+      status: HostedEventRoundStatus.IN_PROGRESS,
+      matches: {
+        create: bracket.matches.map((m) => ({
+          tableNumber: m.tableNumber,
+          participantAId: m.participantA.id,
+          participantBId: m.participantB.id,
+          result: HostedEventMatchResult.PENDING,
+        })),
+      },
+    },
+    include: hostedEventRoundInclude,
+  });
+
+  res.status(201).json({ round, bracketName: bracket.roundName });
+});
+
+// Endpoint público de LGS TV Display (otimizado para telas e projetores da loja)
+app.get("/api/hosted-events/:id/tv", async (req, res) => {
+  setPublicCache(res, 3, 10);
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+    include: {
+      hoster: { select: { id: true, username: true, displayName: true } },
+      seasonRef: true,
+      participants: {
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          deckSnapshot: {
+            select: {
+              id: true,
+              name: true,
+              items: {
+                select: {
+                  quantity: true,
+                  section: true,
+                  card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+      rounds: {
+        include: {
+          matches: {
+            include: {
+              participantA: {
+                select: {
+                  id: true,
+                  archetype: true,
+                  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+                  deckSnapshot: { select: { name: true } },
+                },
+              },
+              participantB: {
+                select: {
+                  id: true,
+                  archetype: true,
+                  user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+                  deckSnapshot: { select: { name: true } },
+                },
+              },
+            },
+            orderBy: [{ tableNumber: "asc" }, { createdAt: "asc" }],
+          },
+        },
+        orderBy: [{ roundNumber: "asc" }],
+      },
+    },
+  });
+
+  if (!event) {
+    return res.status(404).json({ error: "Evento não encontrado." });
+  }
+
+  const standings = await computeHostedEventStandings(event.id);
+  const inProgressRound = [...event.rounds].reverse().find((r) => r.status === HostedEventRoundStatus.IN_PROGRESS);
+  const currentRound = inProgressRound || (event.rounds.length > 0 ? event.rounds[event.rounds.length - 1] : null);
+
+  res.json({
+    event: {
+      id: event.id,
+      name: event.name,
+      description: event.description,
+      venueName: event.venueName,
+      city: event.city,
+      country: event.country,
+      format: event.format,
+      status: event.status,
+      dateStart: event.dateStart,
+      dateEnd: event.dateEnd,
+      maxPlayers: event.maxPlayers,
+      hoster: event.hoster,
+    },
+    currentRound: currentRound
+      ? {
+          id: currentRound.id,
+          roundNumber: currentRound.roundNumber,
+          status: currentRound.status,
+          matches: currentRound.matches.map((m) => ({
+            id: m.id,
+            tableNumber: m.tableNumber,
+            result: m.result,
+            reportedAt: m.reportedAt,
+            participantA: {
+              id: m.participantA.id,
+              displayName: m.participantA.user.displayName || m.participantA.user.username,
+              username: m.participantA.user.username,
+              avatarUrl: m.participantA.user.avatarUrl,
+              archetype: m.participantA.archetype,
+              deckName: m.participantA.deckSnapshot?.name,
+            },
+            participantB: m.participantB
+              ? {
+                  id: m.participantB.id,
+                  displayName: m.participantB.user.displayName || m.participantB.user.username,
+                  username: m.participantB.user.username,
+                  avatarUrl: m.participantB.user.avatarUrl,
+                  archetype: m.participantB.archetype,
+                  deckName: m.participantB.deckSnapshot?.name,
+                }
+              : null,
+          })),
+        }
+      : null,
+    totalRounds: event.rounds.length,
+    standings,
+    participantsCount: event.participants.length,
+  });
+});
+
+// Status do jogador para check-in no evento
+app.get("/api/hosted-events/:id/checkin-status", authOptional, async (req: RequestWithUser, res) => {
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+    select: {
+      id: true,
+      name: true,
+      venueName: true,
+      city: true,
+      format: true,
+      status: true,
+      dateStart: true,
+      maxPlayers: true,
+      hoster: { select: { displayName: true, username: true } },
+    },
+  });
+
+  if (!event) return res.status(404).json({ error: "Evento não encontrado." });
+
+  if (!req.user) {
+    return res.json({ event, participant: null, isCheckedIn: false });
+  }
+
+  const participant = await prisma.hostedEventParticipant.findFirst({
+    where: { eventId: event.id, userId: req.user.userId },
+    include: hostedEventParticipantInclude,
+  });
+
+  res.json({
+    event,
+    participant,
+    isCheckedIn: Boolean(participant?.deckLockedAt),
+  });
+});
+
+// Check-in de jogador e trava irrevogável de decklist via DeckSnapshot
+app.post("/api/hosted-events/:id/checkin", authRequired, async (req: RequestWithUser, res) => {
+  const event = await prisma.hostedEvent.findFirst({
+    where: { id: String(req.params.id), isActive: true },
+  });
+
+  if (!event) return res.status(404).json({ error: "Evento não encontrado." });
+
+  if (event.status === HostedEventStatus.COMPLETED || event.status === HostedEventStatus.CANCELLED) {
+    return res.status(400).json({ error: "Este evento já foi encerrado ou cancelado." });
+  }
+
+  const body = req.body as { deckId?: string };
+  if (!body.deckId) return res.status(400).json({ error: "Selecione um deck para fazer o check-in." });
+
+  const deck = await prisma.deck.findFirst({
+    where: { id: body.deckId, userId: req.user!.userId },
+    include: { items: { include: { card: true } } },
+  });
+
+  if (!deck) return res.status(404).json({ error: "Deck não encontrado na sua conta." });
+
+  const legalityData = await loadDeckLegalityData();
+  const legality = computeDeckLegality(
+    deck.items.map((i) => ({
+      cardModelId: i.card?.cardModelId ?? null,
+      cardType: i.card?.cardType ?? "",
+      color: i.card?.color ?? null,
+      quantity: i.quantity,
+      section: i.section || "main",
+    })),
+    legalityData,
+  );
+
+  if (!legality.isLegal) {
+    return res.status(400).json({
+      error: `Deck ilegal para torneio: ${legality.reasons.join("; ")}`,
+    });
+  }
+
+  let participant = await prisma.hostedEventParticipant.findFirst({
+    where: { eventId: event.id, userId: req.user!.userId },
+  });
+
+  if (participant && participant.deckLockedAt) {
+    return res.status(409).json({ error: "Seu check-in e deck já foram travados neste evento." });
+  }
+
+  if (!participant) {
+    if (event.maxPlayers) {
+      const count = await prisma.hostedEventParticipant.count({ where: { eventId: event.id } });
+      if (count >= event.maxPlayers) {
+        return res.status(409).json({ error: "O limite de vagas deste evento já foi atingido." });
+      }
+    }
+    participant = await prisma.hostedEventParticipant.create({
+      data: { eventId: event.id, userId: req.user!.userId },
+    });
+  }
+
+  const deckSnapshotId = await createDeckSnapshot(deck.id);
+
+  const updated = await prisma.hostedEventParticipant.update({
+    where: { id: participant.id },
+    data: {
+      deckId: deck.id,
+      deckSnapshotId,
+      deckLockedAt: new Date(),
+    },
+    include: hostedEventParticipantInclude,
+  });
+
+  res.json(updated);
 });
 
 /* ---------------------------------------------------------------------------
@@ -4471,6 +4963,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       playerDeckList: resolvedA.list,
       botDeckList: resolvedB.list,
       level: body.level,
+      persona: body.persona,
       human: { userId: req.user!.userId, displayName: req.user!.username },
     });
     res.status(201).json({ matchId });
@@ -4489,6 +4982,92 @@ app.get("/api/simulator/training/:matchId", authRequired, async (req: RequestWit
   const seat = seatFor(match, req.user!.userId);
   if (!seat) return res.status(403).json({ error: "Você não é jogador desta partida de treino." });
   res.json({ seated: true, ...matchViewFor(match, seat) });
+});
+
+// --- Zero System — Telemetria Tática Multimodal (docs/55, Fase 3) ---
+
+app.get("/api/simulator/matches/:id/zero-terminal", authRequired, async (req: RequestWithUser, res) => {
+  await loadMatch(String(req.params.id));
+  const match = getMatch(String(req.params.id));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId);
+  if (!seat) return res.status(403).json({ error: "Você não é jogador desta partida." });
+  const persona = req.query.persona as any;
+  const analysis = await getTacticalTelemetry(match.id, seat, { persona });
+  res.json(analysis);
+});
+
+app.post("/api/simulator/zero-terminal/analyze", authRequired, async (req: RequestWithUser, res) => {
+  const { matchId, persona, forceDeterministic } = req.body ?? {};
+  if (!matchId) return res.status(400).json({ error: "matchId é obrigatório." });
+  await loadMatch(String(matchId));
+  const match = getMatch(String(matchId));
+  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
+  const seat = seatFor(match, req.user!.userId) ?? "A";
+  const analysis = await getTacticalTelemetry(match.id, seat, { persona, forceDeterministic });
+  res.json(analysis);
+});
+
+app.post("/api/simulator/zero/deck/analyze", authRequired, async (req: RequestWithUser, res) => {
+  const { cards } = req.body ?? {};
+  if (!cards || !Array.isArray(cards)) {
+    return res.status(400).json({ error: "O campo 'cards' (array) é obrigatório." });
+  }
+  try {
+    const analysis = analyzeDeckConsistency(cards);
+    return res.json(analysis);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao analisar consistência do deck no Zero Copilot." });
+  }
+});
+
+app.post("/api/simulator/zero/chat", authRequired, async (req: RequestWithUser, res) => {
+  const { message, persona, matchId, forceDeterministic } = req.body ?? {};
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return res.status(400).json({ error: "O campo 'message' (string) é obrigatório." });
+  }
+  let state = undefined;
+  if (matchId) {
+    await loadMatch(String(matchId));
+    const match = getMatch(String(matchId));
+    if (match) state = match.state;
+  }
+  try {
+    const response = await consultZeroTerminalRAG({
+      message: message.trim(),
+      persona,
+      matchId: matchId ? String(matchId) : undefined,
+      state,
+      forceDeterministic,
+    });
+    return res.json(response);
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao processar consulta no Zero Terminal." });
+  }
+});
+
+// Terminal 3 (docs/54 §4 "Zero Foresight") -- simulador Monte Carlo de 10.000 iterações
+// que projeta Tier Shift do metagame. `scenario.presenceDeltas` permite testar "e se a
+// presença de X mudar Y%?" (ver zeroForesightService.ts). Resultado cacheado em memória
+// (10min) porque a simulação só muda quando novos torneios/eventos entram no banco.
+app.post("/api/simulator/zero/foresight/simulate", authRequired, async (req: RequestWithUser, res) => {
+  const { seasonId: seasonParamRaw, setId, scenario, iterations } = req.body ?? {};
+  const seasonParam = typeof seasonParamRaw === "string" && seasonParamRaw ? seasonParamRaw : "current";
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+
+  const presenceDeltas = scenario?.presenceDeltas && typeof scenario.presenceDeltas === "object" ? scenario.presenceDeltas : undefined;
+  try {
+    const report = await runZeroForesightSimulationCached(prisma, {
+      seasonId: resolved.seasonId,
+      setId: typeof setId === "string" && setId ? setId : null,
+      scenario: presenceDeltas ? { presenceDeltas } : null,
+      iterations: typeof iterations === "number" ? iterations : undefined,
+    });
+    return res.json({ season: resolved.season, ...report });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Falha ao rodar a simulação Zero Foresight." });
+  }
 });
 
 // --- Partida em andamento — qualquer usuário logado que já ocupa um assento nela. ---
@@ -4510,6 +5089,27 @@ app.post("/api/simulator/matches/:id/actions", authRequired, async (req: Request
   try {
     await loadMatch(String(req.params.id));
     const match = applyAction(String(req.params.id), req.user!.userId, action);
+    const seat = seatFor(match, req.user!.userId)!;
+    res.json(matchViewFor(match, seat));
+  } catch (err) {
+    if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
+});
+
+// Fase de Sideboard entre jogos em partidas Bo3 (docs/54, docs/55)
+app.post("/api/simulator/matches/:id/sideboard", authRequired, async (req: RequestWithUser, res) => {
+  const swapsPayload = req.body?.swaps ?? req.body;
+  const swaps = swapsPayload && (Array.isArray(swapsPayload.mainOut) || Array.isArray(swapsPayload.sideIn))
+    ? {
+        mainOut: Array.isArray(swapsPayload.mainOut) ? (swapsPayload.mainOut as string[]) : [],
+        sideIn: Array.isArray(swapsPayload.sideIn) ? (swapsPayload.sideIn as string[]) : [],
+      }
+    : undefined;
+
+  try {
+    await loadMatch(String(req.params.id));
+    const match = submitSideboard(String(req.params.id), req.user!.userId, swaps);
     const seat = seatFor(match, req.user!.userId)!;
     res.json(matchViewFor(match, seat));
   } catch (err) {
@@ -4790,6 +5390,12 @@ async function boot() {
   // ao lado do SSE que continua funcionando. Contrato de eventos: docs/39 §2.2.
   const httpServer = createServer(app);
   attachSimulatorSocket(httpServer, {
+    jwtSecret: JWT_SECRET,
+    allowedOrigins,
+    resolveDeck: resolveOnlineSimulatorDeck,
+  });
+  // Arena Multiplayer 4P (Fase 3 / Terminal 2) — path dedicado, ao lado do socket 1v1 acima.
+  attachSimulatorArena4pSocket(httpServer, {
     jwtSecret: JWT_SECRET,
     allowedOrigins,
     resolveDeck: resolveOnlineSimulatorDeck,

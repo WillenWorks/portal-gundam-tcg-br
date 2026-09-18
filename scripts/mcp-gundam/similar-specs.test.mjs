@@ -24,14 +24,14 @@ describe("mechanicTokens", () => {
 
 describe("rankSimilarSpecs", () => {
   it("\"Choose 1 enemy Unit. Deal 2 damage to it.\" -> Close Combat e Battle of Aces no topo", () => {
-    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 5);
-    expect(r.results.length).toBeLessThanOrEqual(5);
+    const r = rankSimilarSpecs(signatures, "Choose 1 enemy Unit. Deal 2 damage to it.", 8);
+    expect(r.results.length).toBeLessThanOrEqual(8);
     expect(codesOf(r)).toContain("ST03-013"); // Close Combat
     expect(codesOf(r)).toContain("GD01-111"); // Battle of Aces
   });
 
-  it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045, mesmo texto de abertura — Lote 5)", () => {
-    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 3);
+  it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)", () => {
+    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 6);
     expect(codesOf(r)).toContain("ST03-006");
   });
 
