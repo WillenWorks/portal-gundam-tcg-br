@@ -22,6 +22,7 @@
     "lint:simulator": "eslint src/modules/simulator",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke:regional-meta": "vitest run server/services/regionalMetaService.smoke.test.ts",
     "gundam:fuzz": "node scripts/gundam-fuzz.mjs",
     "gundam:fuzz:tokens": "node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000 --policyA=heuristic --policyB=random",
     "gundam:golden": "node scripts/gundam-golden.mjs",
