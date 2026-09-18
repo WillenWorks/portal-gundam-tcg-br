@@ -184,4 +184,69 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 1º lote de fechamento do
     state = applyEvents(state, events);
     expect(findCard(state, tokenId).damage).toBe(2);
   });
+
+  it("GD02-008 Gabthley (When Linked): 1 dano a Unit inimiga REESTED; recusa alvo ativo", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-008"], "battleArea");
+    const restedEnemyId = placeCard(state, "B", GD02_CARD_DEFS["GD02-018"], "battleArea", { rested: true });
+    const activeEnemyId = placeCard(state, "B", GD02_CARD_DEFS["GD02-018"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-008" && s.trigger === "When Linked")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(restedEnemyId);
+    expect(legal).not.toContain(activeEnemyId);
+
+    const events = resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [restedEnemyId] }), defaultPredicateResolver);
+    state = applyEvents(state, events);
+    expect(findCard(state, restedEnemyId).damage).toBe(1);
+  });
+
+  it("GD02-045 GINN (Attack): com 5+ AP atacando uma Unit inimiga, compra 1; sem AP suficiente, não compra", () => {
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-045" && s.trigger === "Attack")!;
+    expect(spec).toBeDefined();
+
+    const highApState = advanceToMainPhase(freshGame());
+    const highApAttackerId = placeCard(highApState, "A", { ...GD02_CARD_DEFS["GD02-045"], ap: 5 }, "battleArea");
+    const enemyId = placeCard(highApState, "B", GD02_CARD_DEFS["GD02-018"], "battleArea", { rested: true });
+    const afterAttack = declareAttack(highApState, highApAttackerId, { unitId: enemyId });
+    const handBefore = afterAttack.players.A.hand.length;
+    const afterEffect = applyEvents(afterAttack, resolveEffectSpec(spec, ctxFor(afterAttack, highApAttackerId), defaultPredicateResolver));
+    expect(afterEffect.players.A.hand).toHaveLength(handBefore + 1);
+
+    const lowApState = advanceToMainPhase(freshGame());
+    const lowApAttackerId = placeCard(lowApState, "A", GD02_CARD_DEFS["GD02-045"], "battleArea"); // AP base 1, não satisfaz selfApAtLeast:5
+    const enemyId2 = placeCard(lowApState, "B", GD02_CARD_DEFS["GD02-018"], "battleArea", { rested: true });
+    const afterAttack2 = declareAttack(lowApState, lowApAttackerId, { unitId: enemyId2 });
+    const handBefore2 = afterAttack2.players.A.hand.length;
+    const afterEffect2 = applyEvents(afterAttack2, resolveEffectSpec(spec, ctxFor(afterAttack2, lowApAttackerId), defaultPredicateResolver));
+    expect(afterEffect2.players.A.hand).toHaveLength(handBefore2);
+  });
+
+  it("GD02-060 Gundam Leopard (Deploy): com 7+ cartas na lixeira, resta a Unit inimiga Lv.4- escolhida; sem lixeira suficiente, não faz nada", () => {
+    let state = freshGame();
+    for (let i = 0; i < 7; i++) placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "trash");
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-060"], "battleArea");
+    const lowEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 4 }, "battleArea");
+    const highEnemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 5 }, "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-060" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(lowEnemyId);
+    expect(legal).not.toContain(highEnemyId);
+
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [lowEnemyId] }), defaultPredicateResolver));
+    expect(findCard(state, lowEnemyId).rested).toBe(true);
+
+    // Menos de 7 cartas na lixeira -- condição falsa, "then" (rest) não roda.
+    let poorState = freshGame();
+    for (let i = 0; i < 6; i++) placeCard(poorState, "A", GD02_CARD_DEFS["GD02-018"], "trash");
+    const sourceId2 = placeCard(poorState, "A", GD02_CARD_DEFS["GD02-060"], "battleArea");
+    const enemyId2 = placeCard(poorState, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 4 }, "battleArea");
+    poorState = applyEvents(poorState, resolveEffectSpec(spec, ctxFor(poorState, sourceId2, { target: [enemyId2] }), defaultPredicateResolver));
+    expect(findCard(poorState, enemyId2).rested).toBe(false);
+  });
 });

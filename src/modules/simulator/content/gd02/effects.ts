@@ -434,6 +434,47 @@ export const GD02_041_SUGAI_S_GELGOOG_GQ_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】Choose 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to it.",
 };
 
+// GD02-008 Gabthley — 【When Linked】Choose 1 rested enemy Unit. Deal 1 damage to it.
+export const GD02_008_GABTHLEY_WHEN_LINKED: EffectSpec = {
+  id: "GD02-008-WhenLinked",
+  cardCode: "GD02-008",
+  trigger: "When Linked",
+  actions: [{ op: "damageUnit", amount: 1, target: { kind: "named", name: "target" } }],
+  targetScope: "enemyUnit",
+  targetFilter: "rested",
+  sourceText: "【When Linked】Choose 1 rested enemy Unit. Deal 1 damage to it.",
+};
+
+// GD02-045 GINN Long-Range Reconnaissance Type — 【Attack】If this Unit has 5 or more AP and it
+// is attacking an enemy Unit, draw 1. (mesmo predicate composto de GD01-050 LaGOWE.)
+export const GD02_045_GINN_LONG_RANGE_RECONNAISSANCE_TYPE_ATTACK: EffectSpec = {
+  id: "GD02-045-Attack",
+  cardCode: "GD02-045",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfApAtLeast:5;attackingEnemyUnit",
+    then: [{ op: "draw", player: "controller", n: 1 }],
+  },
+  actions: [],
+  sourceText: "【Attack】If this Unit has 5 or more AP and it is attacking an enemy Unit, draw 1.",
+};
+
+// GD02-060 Gundam Leopard — 【Deploy】If there are 7 or more cards in your trash, choose 1 enemy
+// Unit that is Lv.4 or lower. Rest it.
+export const GD02_060_GUNDAM_LEOPARD_DEPLOY: EffectSpec = {
+  id: "GD02-060-Deploy",
+  cardCode: "GD02-060",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerTrashCountAtLeast:7",
+    then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=4",
+  sourceText: "【Deploy】If there are 7 or more cards in your trash, choose 1 enemy Unit that is Lv.4 or lower. Rest it.",
+};
+
 // GD02-046 Sayla's Light-Type Guncannon — 【Deploy】Choose 1 enemy Unit token. Deal 2 damage to it.
 export const GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY: EffectSpec = {
   id: "GD02-046-Deploy",
@@ -483,5 +524,8 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_025_GUNDAM_HEAVYARMS_DEPLOY,
   GD02_039_HAMAN_KARN_S_GAZA_C_WHEN_PAIRED,
   GD02_041_SUGAI_S_GELGOOG_GQ_DEPLOY,
-  GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY
+  GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY,
+  GD02_008_GABTHLEY_WHEN_LINKED,
+  GD02_045_GINN_LONG_RANGE_RECONNAISSANCE_TYPE_ATTACK,
+  GD02_060_GUNDAM_LEOPARD_DEPLOY
 ];

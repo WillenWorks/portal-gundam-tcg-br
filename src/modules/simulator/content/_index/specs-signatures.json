@@ -1365,6 +1365,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-008-WhenLinked",
+    "cardCode": "GD02-008",
+    "trigger": "When Linked",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
     "id": "GD02-014-Deploy",
     "cardCode": "GD02-014",
     "trigger": "Deploy",
@@ -1521,6 +1533,18 @@
     "sourceText": "【Deploy】Choose 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to it."
   },
   {
+    "id": "GD02-045-Attack",
+    "cardCode": "GD02-045",
+    "trigger": "Attack",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfApAtLeast:5;attackingEnemyUnit",
+    "sourceText": "【Attack】If this Unit has 5 or more AP and it is attacking an enemy Unit, draw 1."
+  },
+  {
     "id": "GD02-046-Deploy",
     "cardCode": "GD02-046",
     "trigger": "Deploy",
@@ -1544,6 +1568,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "[Deploy] Choose 1 of your Units. Deal 1 damage to it. If you do, draw 1. Then, discard 1."
+  },
+  {
+    "id": "GD02-060-Deploy",
+    "cardCode": "GD02-060",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": "controllerTrashCountAtLeast:7",
+    "sourceText": "【Deploy】If there are 7 or more cards in your trash, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
   },
   {
     "id": "GD02-068-Deploy",
