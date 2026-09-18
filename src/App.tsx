@@ -157,7 +157,7 @@ function AppRouter() {
         <Route path="/simulador">{() => <RequireAuth><LazyRoute label="Simulador"><SimulatorSandboxPage /></LazyRoute></RequireAuth>}</Route>
         {/* Modo treino solo contra o bot heurístico (docs/44 Fase 2 §4.2). */}
         <Route path="/simulador/treino">{() => <RequireAuth><LazyRoute label="Treino"><SimulatorTrainingPage /></LazyRoute></RequireAuth>}</Route>
-        {/* Modo multiplayer 4P (2x2 / Battle Royale) — Fase de Arquitetura */}
+        {/* Arena Multiplayer 4P real (Fase 3 / Terminal 2) — 2v2 Tag Team e Battle Royale via Socket.io (ver `server/simulatorSocket4p.ts`). */}
         <Route path="/simulador/multiplayer">{() => <RequireAuth><LazyRoute label="Arena Multiplayer"><SimulatorMultiplayerPage /></LazyRoute></RequireAuth>}</Route>
         {/* Tela de partida dedicada (rodada visual, 2026-08-31) -- só o matchId; o assento é resolvido
             no servidor a partir do usuário logado (ver SimulatorMatchPage.tsx). */}
