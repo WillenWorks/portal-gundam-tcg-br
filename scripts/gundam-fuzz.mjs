@@ -17,6 +17,7 @@
  *   node scripts/gundam-fuzz.mjs --policyA=heuristic --policyB=random   # heurístico vs random
  *   node scripts/gundam-fuzz.mjs --policyA=facil             # (random|heuristic|facil|mcts), default random
  *   node scripts/gundam-fuzz.mjs --policyA=mcts --rollouts=8 # MCTS (rollouts baixos p/ não demorar)
+ *   node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000  # pairwise só nesse subconjunto, ~5000 partidas no total
  *
  * Reprodução de um achado: o log imprime `par + seed + ação` — rode
  * `node scripts/gundam-fuzz.mjs --decks=<par> --games=1 --seed=<seed>`.
@@ -83,16 +84,28 @@ const DECKS = {
 };
 
 function parseArgs(argv) {
-  const args = { games: 200, seed: 1, maxTurns: 200, decks: null, policyA: "random", policyB: "random", rollouts: 8 };
+  const args = {
+    games: 200,
+    totalGames: null,
+    seed: 1,
+    maxTurns: 200,
+    decks: null,
+    pool: null,
+    policyA: "random",
+    policyB: "random",
+    rollouts: 8,
+  };
   for (const a of argv) {
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
     const [, k, v] = m;
     if (k === "games") args.games = Number(v);
+    else if (k === "totalGames") args.totalGames = Number(v);
     else if (k === "seed") args.seed = Number(v);
     else if (k === "rollouts") args.rollouts = Number(v);
     else if (k === "maxTurns") args.maxTurns = Number(v);
     else if (k === "decks") args.decks = v.split(",").map((s) => s.trim().toUpperCase());
+    else if (k === "pool") args.pool = v.split(",").map((s) => s.trim().toUpperCase());
     else if (k === "policy") args.policyA = args.policyB = v.trim().toLowerCase();
     else if (k === "policyA") args.policyA = v.trim().toLowerCase();
     else if (k === "policyB") args.policyB = v.trim().toLowerCase();
@@ -119,8 +132,21 @@ if (args.decks) {
     process.exit(2);
   }
   pairs = [[a, b]];
+} else if (args.pool) {
+  const invalid = args.pool.filter((k) => !DECKS[k]);
+  if (invalid.length > 0) {
+    console.error(`Deck(s) desconhecido(s) em --pool=${args.pool.join(",")}: ${invalid.join(", ")}. Válidos: ${deckKeys.join(", ")}`);
+    process.exit(2);
+  }
+  pairs = allPairs(args.pool);
 } else {
   pairs = allPairs(deckKeys);
+}
+
+// --totalGames reparte o total pedido igualmente entre os pares resultantes (mínimo 1/par) —
+// sobrepõe --games. Existe pra pedir "rode N partidas no total" sem calcular pares na mão.
+if (args.totalGames !== null) {
+  args.games = Math.max(1, Math.round(args.totalGames / pairs.length));
 }
 
 const policyA = resolvePolicy(args.policyA, args.rollouts);
