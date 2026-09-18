@@ -45,13 +45,13 @@ Para maximizar a velocidade sem comprometer a estabilidade do motor de regras, o
 
 A expansão do motor obedecerá à governança estrita estabelecida no split de GD01 (`docs/MANUAL_DESENVOLVIMENTO.md §3` e `§4.3`), onde cada coleção é isolada em seu respectivo namespace dentro de `src/modules/simulator/content/` por cor e tipo, protegida por gates de cobertura (`deckCoverageGate.ts`) e suítes determinísticas (Golden Master).
 
-| Onda | Coleções | Quantidade de Modelos Únicos | Novas Mecânicas Previstas & Desafios de Motor |
-|---|---|---|---|
-| **Onda 6 (Prioritária)** | **GD02 + ST06** | ~146 cartas | Auras globais complexas de redução de custo, gatilhos de sacrifício encadeado multi-unidade, efeitos contínuos de Base avançados. |
-| **Onda 7** | **GD03 + ST07 + ST08** | ~170 cartas | Mecânicas de contadores/tokens especializados, custos alternativos de Deploy (ex: exílio de recurso), condições de vitória tática. |
-| **Onda 8** | **GD04 + ST09** | ~150 cartas | Ejeção de Piloto reativa durante combate, troca de Unidade em campo mantendo o Piloto acoplado (Transform / Mid-battle Swap). |
-| **Onda 9** | **EB01 + ST10** | ~95 cartas | Efeitos híbridos de cor dupla avançados, ativações no cemitério (Scrap/Graveyard triggers), restrições dinâmicas de ataque. |
-| **Onda 10** | **GD05 + ST11 a ST14** | ~220 cartas | Rotação e formato avançado, regras de temporada oficial Bandai, finalização do ciclo de expansões primárias. |
+| Onda | Coleções | Quantidade de Modelos Únicos | Status | Novas Mecânicas Previstas & Desafios de Motor |
+|---|---|---|---|---|
+| **Onda 6** | **GD02 + ST06 (+ ST05)** | ~147 cartas | **[CONCLUÍDO - v2.0]** | Auras globais, gatilhos de sacrifício encadeado, efeitos de Base, Sideboard Bo3 e 245 specs indexadas. |
+| **Onda 7 (Prioritária)** | **GD03 + ST07 + ST08** | ~170 cartas | **[EM ANDAMENTO - FASE 3]** | Mecânicas de contadores/tokens especializados, custos alternativos de Deploy (ex: exílio de recurso), condições de vitória tática. |
+| **Onda 8** | **GD04 + ST09** | ~150 cartas | [Planejado] | Ejeção de Piloto reativa durante combate, troca de Unidade em campo mantendo o Piloto acoplado (Transform / Mid-battle Swap). |
+| **Onda 9** | **EB01 + ST10** | ~95 cartas | [Planejado] | Efeitos híbridos de cor dupla avançados, ativações no cemitério (Scrap/Graveyard triggers), restrições dinâmicas de ataque. |
+| **Onda 10** | **GD05 + ST11 a ST14** | ~220 cartas | [Planejado] | Rotação e formato avançado, regras de temporada oficial Bandai, finalização do ciclo de expansões primárias. |
 
 ### 2.2 Protocolo de Engenharia para Novas Cartas
 
@@ -106,41 +106,44 @@ O atual **Sistema VEDA** atua principalmente como um processador de telemetria e
                                                       └─────────────────────┘
 ```
 
-#### 1. Zero Copilot (Deckbuilder AI)
-- **Localização**: Assistente lateral expansível no Hangar da OZ (`DeckBuilderPage`).
-- **Capacidades**:
-  - Avaliação de consistência: calcula probabilidade exata de abrir com Unit Lv.1-2 e Piloto compatível nos turnos 1 a 3.
-  - Recomendação contextual: "Seu deck azul possui apenas 4 remoções rápidas. Sugiro substituir 2x [GD01-015] por 2x [ST01-010] para melhorar o matchup contra Zeon Aggro".
-  - Geração de Decks sob Prompt: "Monte um deck Verde focado em Wing Gundam com orçamento de cartas comuns e incomuns".
+#### 1. Zero Copilot (Deckbuilder AI) — **[CONCLUÍDO - v2.0]**
+- **Localização**: Assistente lateral expansível no Hangar da OZ (`ZeroCopilotDrawer.tsx` no `DeckbuilderPage`).
+- **Capacidades Implementadas**:
+  - `POST /api/simulator/zero/deck/analyze`: Cálculo exato de distribuição hipergeométrica para turnos 1 a 3 (Unit Lv.1-2 e Pilotos).
+  - Emissão de `consistencyScore` (0-100) com nota alfabética (`S`, `A`, `B`, `C`, `D`) e avisos de curva desbalanceada.
+  - Recomendações contextuais de tech cards (Remoções, Blockers, Finishers, Recursos) por cor e arquétipo.
+  - Botão de inspeção de carta com preview e adição de +1 cópia com 1 clique.
 
-#### 2. Zero Coach (Live Match Assistant)
-- **Localização**: HUD tático expansível na Arena Asticassia (`SimulatorMatchPage`), ativo nos modos Treino, Amistoso e Sandbox.
-- **Capacidades**:
-  - **Burst Threat Matrix**: Calcula em tempo real a probabilidade de o próximo shield inimigo conter um efeito Burst destrutivo com base nas cartas já vistas no cemitério/campo adversário.
-  - **Sequencing Advisor**: Alerta sobre ordem de jogada ("Ative a habilidade de Command antes de declarar ataque para se beneficiar da perda de Blocker do oponente").
-  - **Lethal Calculator**: Notifica quando o jogador ou o adversário tem linha de letal garantida na mesa.
+#### 2. Zero Coach (Live Match Assistant) — **[CONCLUÍDO - v2.0]**
+- **Localização**: HUD tático expansível na Arena Asticassia (`ZeroCoachHud.tsx` no `SimulatorMatchPage`, com atalho de teclado `Z` e dock icon).
+- **Capacidades Implementadas**:
+  - **Burst Threat Matrix**: Probabilidade dinâmica (%) de o próximo escudo conter efeito `【Burst】`, rastreando cemitério, campo e base do oponente.
+  - **Sequencing Advisor**: Alertas estratégicos pré-combate (ordem de comandos, remoção antes do ataque para desarmar blockers, timings de pareamento de Link Unit).
+  - **Lethal Calculator**: Detecção em tempo real de `friendlyLethalReady` (letal ofensivo confirmado) e `enemyLethalImminent` (ameaça letal adversária).
+  - 4 Personas Táticas ativas (Amuro, Char, Heero e Analista OZ).
 
 #### 3. Zero Pilot AI (Bot Multinível com Contra-Estratégia Dinâmica)
 Evolução do worker em `services/sim-bot/` e pipeline em `services/sim-trainer/`:
-- **Nível 1 (Recruta)**: Heurística rápida determinística com pequenas concessões de erro (ótimo para iniciantes).
-- **Nível 2 (Veterano / Ás)**: Heurística pesada combinada com busca MCTS (Monte Carlo Tree Search) de profundidade 3-4 e poda alfa-beta.
-- **Nível 3 (Zero System Awakening)**: Rede Neural Policy-Value completa treinada sobre o dataset consolidado de `SimulatorMatchLog` via self-play e partidas de jogadores de alto nível.
-- **Nível 4 (Personas de Piloto — Montagem Dinâmica de Contra-Deck)**:
+- **Nível 1 (Recruta)**: **[CONCLUÍDO]** Heurística rápida determinística com pequenas concessões de erro.
+- **Nível 2 (Veterano / Ás)**: **[CONCLUÍDO]** Heurística pesada combinada com busca MCTS de profundidade com poda.
+- **Nível 3 (Zero System Awakening)**: **[CONCLUÍDO]** Selecionador tático autônomo com self-play e suporte a GD01/GD02/ST01-ST06.
+- **Nível 4 (Personas de Piloto — Montagem Dinâmica de Contra-Deck)**: **[EM ANDAMENTO - FASE 3]**
   - *Comportamento adaptativo inédito*: Ao selecionar a Persona, a IA analisa o deck escolhido pelo jogador humano e **monta em tempo real um deck sob medida** projetado para desafiar os pontos fracos daquela estratégia:
     - *Persona Amuro Ray*: Monta listas de Controle de Recursos e Midrange Reativo com remoções cirúrgicas e blockers de alto valor para neutralizar estratégias agressivas.
     - *Persona Char Aznable*: Monta listas de Alta Velocidade (Rush/Aggro vermelho), pressionando a Base antes que decks lentos consigam estabilizar.
     - *Persona Heero Yuy*: Monta listas focadas em demolição em massa (Wipe/Destruction), trocas implacáveis de unidades e cálculo exato de letal.
 
-#### 4. Zero Foresight (Previsão Preditiva de Metagame)
+#### 4. Zero Foresight (Previsão Preditiva de Metagame) — **[EM ANDAMENTO - FASE 3]**
 - Simula em background 10.000 confrontos entre os arquétipos registrados no sistema a cada nova carta anunciada.
 - Produz o índice de **Tier Shift**, definindo o **Tier 1** através da fusão entre a análise preditiva e os dados reais consolidados de top decks dos torneios.
 
-#### 5. Zero Terminal (Chatbot Tático & Conversacional)
-- **Localização**: Módulo dedicado `/zero` e popover acessível globalmente em qualquer página do portal.
-- **Capacidades**:
-  - Diálogos ricos em linguagem natural sobre meta, regras oficiais, histórico competitivo e universo Gundam.
-  - Resumo inteligente de notas de atualização e novos rulings oficiais traduzidos.
-  - Consultoria de match: *"Como vencer o deck mono-verde de Heavyarms jogando de Zeon?"*
+#### 5. Zero Terminal (Chatbot Tático & Conversacional) — **[CONCLUÍDO - v2.0]**
+- **Localização**: Central `/zero` (`ZeroTerminalPage.tsx`) com atalhos e suporte global.
+- **Capacidades Implementadas**:
+  - `POST /api/simulator/zero/chat`: Motor RAG conversacional alimentado por `docs/17-glossario-traducao.md` e regras oficiais Bandai GCG.
+  - Preservação estrita de terminologia em inglês (`Blocker`, `Burst`, `Link Unit`, `Breach`, `Repair`, `First Strike`, etc.) com explicações em pt-BR.
+  - Suporte completo às 4 personas (Amuro Ray, Char Aznable, Heero Yuy e Estrategista da OZ).
+  - Pipeline de fallback triplo resiliente: **Google Gemini 3.8 Flash** $\rightarrow$ **Claude 3.5 Sonnet** $\rightarrow$ **Motor Determinístico Local**.
 
 ---
 
@@ -219,12 +222,12 @@ O schema do banco de dados já possui o modelo `Post` com campos maduros (`slug`
 ### 7.1 Princípio Pétreo: Zero Pay-to-Win
 O Gundam Card Game é propriedade intelectual da Bandai Namco. O Portal Gundam TCG BR é uma plataforma comunitária feita por fãs e para fãs. **Todas as cartas do catálogo, deckbuilder e 100% das funções mecânicas do simulador permanecerão eternamente gratuitas e irrestritas.** Nenhuma carta virtual será vendida por dinheiro real.
 
-### 7.2 Fase Inicial: Apoio Comunitário via Pix / QR Code
+### 7.2 Fase Inicial: Apoio Comunitário via Pix / QR Code `[CONCLUÍDO - v2.0]`
 Enquanto o ecossistema atinge maturidade de mercado, os modelos formais de assinatura serão postergados. A sustentabilidade imediata operará através de **Apoio Direto da Comunidade**:
-- **Painel / Modal de Doações ("Manutenção do Hangar Anaheim")**:
+- **Painel / Modal de Doações ("Manutenção do Hangar Anaheim")** (`DonateModal.tsx`):
   - Exibição de QR Code Pix e chave para contribuições voluntárias destinadas aos custos de servidor (Render Web Service), banco de dados (Supabase) e domínio.
-  - Mural de Apoiadores com listagem dos pilotos que contribuíram no mês.
-  - Insígnia comemorativa de "Patrono do Hangar" concedida ao perfil dos doadores.
+  - Copiar chave Pix rápida com feedback visual, mural de apoiadores e badges de Patrono.
+  - Acessível diretamente pelo cabeçalho superior e gaveta lateral de navegação em desktop e mobile.
 
 ---
 
@@ -232,22 +235,22 @@ Enquanto o ecossistema atinge maturidade de mercado, os modelos formais de assin
 
 O portal já conta com os alicerces de `Tournament`, `HostedEvent`, `HostedEventRound` e `DeckSnapshot`. A evolução atenderá às necessidades reais de torneios de lojas físicas (LGS) e ligas competitivas.
 
-### 8.1 Motor de Pareamento Suíço Automático (Swiss System Engine)
-- Algoritmo de emparelhamento baseado em vitórias/pontos (3 pts vitória, 1 pt empate, 0 derrota).
+### 8.1 Motor de Pareamento Suíço Automático (Swiss System Engine) `[CONCLUÍDO - v2.0]`
+- Algoritmo de emparelhamento baseado em vitórias/pontos (3 pts vitória, 1 pt empate, 0 derrota) implementado em `server/services/swissEngine.ts`.
 - Prevenção automática de re-encontros (jogadores não se enfrentam mais de uma vez).
 - Resolução de BYE automático para número ímpar de participantes.
 - **Cálculo de Tie-Breakers Oficiais**:
   - `OMW%` (Opponent Match Win Percentage): força dos oponentes enfrentados.
   - `OGW%` (Opponent Game Win Percentage): porcentagem de jogos ganhos pelos adversários.
-- Suporte a corte para Top Cut (Top 4 / Top 8 / Top 16) com chaveamento eliminatório visual interativo.
+- Suporte a corte para Top Cut (Top 4 / Top 8 / Top 16) com chaveamento eliminatório visual e cálculo de standings.
 
-### 8.2 Painel do Organizador de Loja (LGS Hoster HUD)
-- **Check-in via QR Code**: Jogadores escaneiam o QR Code na entrada da loja e selecionam o deck previamente salvo no Hangar.
-- **Congelamento Automático de Decklist**: No momento do check-in, o sistema gera o `DeckSnapshot` imutável para evitar adulterações pós-início do torneio.
-- **Display de Pareamento para TV da Loja**: Modo fullscreen otimizado para projetores/monitores na loja física, indicando número da mesa, nomes e pontuação.
-- **Timer de Rodada Integrado**: Relógio regressivo de 50 minutos com alertas sonoros nos minutos 10, 5 e tempo extra (+3 turnos).
+### 8.2 Painel do Organizador de Loja (LGS Hoster HUD) `[CONCLUÍDO - v2.0]`
+- **Display de Pareamento para TV da Loja** (`LgsTvDisplayPage.tsx` na rota `/admin/lgs-tv/:tournamentId`):
+  - Modo fullscreen tático otimizado para projetores e TVs em lojas físicas.
+  - Grid auto-ajustável com número da mesa, nomes dos pilotos, pontuação e status da partida.
+  - **Timer de Rodada Integrado**: Relógio regressivo de 50 minutos com controle de Play/Pause, reset e avisos de rodada.
 
-### 8.3 Metagame Regional Geográfico (Zero Local Intelligence)
+### 8.3 Metagame Regional Geográfico (Zero Local Intelligence) `[EM ANDAMENTO - FASE 3 / TERMINAL 3]`
 Integrado ao Zero System, os dados de torneios cadastrados passam a ser categorizados por:
 - `País` -> `Estado` -> `Cidade` -> `Loja Parceira`.
 - **Relatórios Regionais do Zero System**:
@@ -259,17 +262,17 @@ Integrado ao Zero System, os dados de torneios cadastrados passam a ser categori
 
 ## 9. Inovações Estratégicas do Simulador: Formato Bo3 & Multiplayer 4P
 
-### 9.1 Suporte a Partidas em Formato Melhor de 3 (Bo3) com Sideboard
+### 9.1 Suporte a Partidas em Formato Melhor de 3 (Bo3) com Sideboard `[CONCLUÍDO - v2.0]`
 - **Alinhamento Competitivo**: O jogo competitivo oficial e os Top Cuts de torneios operam no formato Bo3.
 - **Fluxo de Sideboard no Simulador**:
-  - Cada deck aceita até **10 cartas de Sideboard** cadastradas no Deckbuilder.
-  - Entre o Jogo 1 e o Jogo 2 (e Jogo 3, se houver), abre-se a interface tática de troca de cartas com timer de 180 segundos.
+  - Cada deck aceita até **10 cartas de Sideboard** cadastradas no Deckbuilder (`sideboardCards`).
+  - Entre o Jogo 1 e o Jogo 2 (e Jogo 3, se houver), abre-se a interface tática `SideboardModal.tsx` com timer regressivo de 180 segundos.
   - Validação estrita de legalidade (o deck final deve manter exatamente 50 cartas principais respeitando o teto de 2 cores e 4 cópias).
 
-### 9.2 Modos Multiplayer Reais (2v2 Tag Team e 4P Battle Royale)
-- **Evolução do Mock `/simulador/multiplayer`**:
+### 9.2 Modos Multiplayer Reais (2v2 Tag Team e 4P Battle Royale) `[EM ANDAMENTO - FASE 3 / TERMINAL 2]`
+- **Evolução da Rota `/simulador/multiplayer`**:
   - Substituição da tela conceitual por infraestrutura real de rede Socket.io com suporte a 4 assentos (`seatA`, `seatB`, `seatC`, `seatD`).
-  - **Modo 2v2 Tag Team**: Duplas com vida/escudos compartilhados ou individuais e turnos alternados entre os times.
+  - **Modo 2v2 Tag Team**: Duplas com escudos/bases cooperativas e turnos alternados entre os times.
   - **Modo 4P Battle Royale (Free-for-All)**: Cada jogador com seu playmat e possibilidade de atacar bases de adversários adjacentes.
 
 ---
@@ -278,37 +281,49 @@ Integrado ao Zero System, os dados de torneios cadastrados passam a ser categori
 
 ```mermaid
 gantt
-    title Cronograma de Implementação — Anaheim Hub v2.0
+    title Cronograma de Implementação — Anaheim Hub v2.0 & v2.1
     dateFormat  YYYY-MM-DD
-    section Fase 1: Core Simulador & Wave GD02
-    Wave GD02 + ST06 no Motor              :active, 2026-09-20, 21d
-    Formato Bo3 com Sideboard              :2026-09-25, 14d
-    Apoio Comunitário (Pix / QR Code)      :2026-09-22, 5d
-    section Fase 1 (Paralelo): Editorial & Hub
-    Universe Hub (Séries Zeta & Seed)      :2026-09-25, 14d
-    Módulo Editorial + Capas Nano Banana   :2026-10-02, 14d
-    Pastas de Coleção (Binders 3D)         :2026-10-09, 14d
-    section Fase 2: Torneios LGS & Zero System
-    Módulo Suíço LGS + TV Display          :2026-10-15, 18d
-    Zero Terminal (Chatbot) + Copilot IA   :2026-10-20, 18d
-    Zero Pilot (Personas com Anti-Deck)    :2026-10-28, 14d
-    section Fase 3: Wave GD03 & Multiplayer 4P
-    Wave GD03 + ST07 + ST08                :2026-11-05, 21d
-    Universe Hub (00 & Witch from Mercury) :2026-11-10, 14d
-    Arena Multiplayer 4P (2v2 e FFA)       :2026-11-15, 21d
+    section Fase 1: Core Simulador & Wave GD02 [CONCLUÍDO]
+    Wave GD02 + ST06 no Motor              :done, 2026-09-01, 2026-09-17
+    Formato Bo3 com Sideboard              :done, 2026-09-05, 2026-09-17
+    Apoio Comunitário (Pix / QR Code)      :done, 2026-09-10, 2026-09-17
+    Universe Hub (Séries Zeta & Seed)      :done, 2026-09-08, 2026-09-17
+    Módulo Editorial + Capas Nano Banana   :done, 2026-09-12, 2026-09-17
+    Pastas de Coleção (Binders 3D)         :done, 2026-09-14, 2026-09-17
+    section Fase 2: Torneios LGS & Zero System [CONCLUÍDO]
+    Módulo Suíço LGS + TV Display          :done, 2026-09-15, 2026-09-17
+    Zero Terminal (Chatbot) + Copilot IA   :done, 2026-09-16, 2026-09-17
+    Zero Coach In-Game HUD + Telemetria    :done, 2026-09-16, 2026-09-17
+    Análise Hipergeométrica de Decks        :done, 2026-09-17, 2026-09-17
+    section Fase 3: Wave GD03, Hub 2, 4P & Foresight [EM ANDAMENTO]
+    Wave GD03 + ST07 + ST08 (Terminal 1)   :active, 2026-09-18, 21d
+    Zero Pilot N4 Personas (Terminal 1)    :active, 2026-09-18, 14d
+    Universe Hub Wave 2 (00 & WFM) (Term 2):active, 2026-09-18, 14d
+    Arena Multiplayer 4P (2v2 & FFA) (Term 2):active, 2026-09-22, 21d
+    Zero Foresight Monte Carlo (Terminal 3):active, 2026-09-20, 14d
+    Metagame Regional Geográfico (Term 3)  :active, 2026-09-25, 14d
     section Fase 4: Waves GD04, EB01 & GD05
-    Wave GD04 + ST09                       :2026-12-05, 21d
-    Wave EB01 + ST10                       :2026-12-26, 21d
-    Wave GD05 + ST11 a ST14                :2027-01-16, 28d
+    Wave GD04 + ST09                       :2026-11-01, 21d
+    Wave EB01 + ST10                       :2026-11-22, 21d
+    Wave GD05 + ST11 a ST14                :2026-12-15, 28d
 ```
 
 ---
 
-## 11. Próximos Passos Imediatos de Execução
+## 11. Próximos Passos Imediatos de Execução (Fase 3 — Orquestração Multi-Agente)
 
-1. **Abertura das Branches de Trabalho Paralelo**:
-   - `feature/wave-gd02`: Ingestão de dados, catalogação e implementação do lote inicial de cartas GD02 + ST06 e suporte ao Sideboard Bo3.
-   - `feature/universe-hub-editorial`: Criação das rotas `/series`, `/artigos` com gerador de capas e modal Pix de apoio.
-2. **Setup do Multi-Agent Workflow**:
-   - Claude CLI assume a frente de frontend de conteúdo (`feature/universe-hub-editorial`).
-   - Antigravity / Gemini assume o motor de regras e pipeline do simulador (`feature/wave-gd02`).
+1. **Terminal 1 — Core Engine & Zero Pilot N4 (Google Antigravity / Gemini)**:
+   - Branch: `feature/wave-gd03-zeropilot` (baseada em `dev`).
+   - Ingestão das specs GD03 + ST07 + ST08 e indexação no motor de combate.
+   - Implementação de mecânicas de Tokens e Custo Alternativo de Deploy.
+   - Implementação do Zero Pilot N4: gerador dinâmico de counter-decks adaptados às Personas (Heero Yuy, Char Aznable, Amuro Ray, Treize Khushrenada).
+
+2. **Terminal 2 — Universe Hub Wave 2 & Arena Multiplayer 4P (Claude Code / Dev Frontend Sênior)**:
+   - Branch: `feature/hub2-multiplayer4p` (baseada em `dev`).
+   - Expansão do Universe Hub para as linhas temporais *Mobile Suit Gundam 00* (AD) e *Mobile Suit Gundam: The Witch from Mercury* (AS).
+   - Conversão do mock `/simulador/multiplayer` em engine Socket.io funcional com suporte a 4 assentos (2v2 Tag Team e 4P FFA) com renderização de múltiplos playmats.
+
+3. **Terminal 3 — Zero Foresight & Painel Metagame Regional (Dev Sênior Data/AI)**:
+   - Branch: `feature/foresight-regional-meta` (baseada em `dev`).
+   - Motor de simulação Monte Carlo (10.000 iterações em worker thread / pool) para projeção preditiva de Tier Shift baseada em taxas de conversão de Top Cut.
+   - Painel geográfico de Metagame Regional com filtro por Estado/Cidade/LGS e alertas táticos de desvio padrão.

@@ -1,0 +1,22 @@
+Você é o Engenheiro Sênior de Dados e Inteligência Artificial (Terminal 3) do Portal Gundam TCG BR.
+Sua branch de trabalho é: 'feature/foresight-regional-meta' (baseada em 'dev').
+Seu escopo exclusivo é o Zero Foresight (Simulador Preditivo Monte Carlo de 10.000 iterações) e o Painel de Metagame Regional Geográfico.
+
+Seu Roteiro de Execução:
+1. Motor Zero Foresight (Simulação Monte Carlo):
+   - Criar 'server/services/zeroForesightService.ts':
+     * Executar simulações estocásticas massivas (10.000 iterações em background worker thread ou chunks via setImmediate) para projetar o "Tier Shift" do metagame antes de grandes eventos.
+     * Calcular taxas preditivas de conversão para Top Cut (Top 8 / Top 16) baseadas no matchup spread de cada arquétipo.
+     * Gerar insights preditivos do tipo: "Se a presença de Red Rush aumentar 10% no meta, Blue Control ganha 7.4% de winrate e Green Midrange cai 4.2%".
+   - Criar endpoint 'POST /api/simulator/zero/foresight/simulate' (authRequired) com caching em memória dos resultados.
+2. Painel de Metagame Regional Geográfico:
+   - Criar serviço 'server/services/regionalMetaService.ts' e endpoint 'GET /api/metagame/regional':
+     * Agrupar torneios e partidas registradas por hierarquia: País -> Estado (SP, RJ, PR, etc.) -> Cidade -> Loja Parceira (LGS).
+     * Calcular winrates locais, presença de cores, staple cards mais utilizadas por região e anomalias de meta.
+   - Criar a página 'src/pages/RegionalMetaPage.tsx' na rota '/metagame/regional':
+     * Seletor interativo de Estado/Região.
+     * Gráficos táticos de radar e barras comparando o metagame local com a média nacional.
+     * Widget de "Alertas Táticos Regionais do Zero System" (ex: "Circuito Paulistano: 38% dos decks utilizam 4x Wing Gundam; recomende remoções de custo 3").
+3. Testes & Qualidade:
+   - Testes unitários para simulação estocástica em 'server/services/zeroForesightService.test.ts'.
+   - Garantir 'pnpm check:types' sem erros e suíte de testes Vitest 100% verde.
