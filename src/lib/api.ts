@@ -263,6 +263,78 @@ export interface MatchupMatrixResponse {
   hasData: boolean;
 }
 
+// Terminal 3 (docs/54 §8.3) -- Painel de Metagame Regional Geográfico.
+export interface RegionCardStat {
+  cardModelId: string;
+  name: string;
+  color: string | null;
+  appearances: number;
+  presenceRate: number;
+  avgCopies: number;
+}
+export interface RegionColorStat {
+  color: string;
+  decks: number;
+  presenceRate: number;
+}
+export interface RegionGroupStats {
+  key: string;
+  label: string;
+  totalDecks: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number | null;
+  colorDistribution: RegionColorStat[];
+  topCards: RegionCardStat[];
+}
+export interface RegionalAnomaly {
+  scopeLabel: string;
+  kind: "card" | "color";
+  label: string;
+  regionRate: number;
+  nationalRate: number;
+  deltaPp: number;
+}
+export interface RegionalMetaResponse {
+  season: { id: string; code: string; name: string } | null;
+  setId: string | null;
+  totalDecks: number;
+  national: RegionGroupStats;
+  states: RegionGroupStats[];
+  cities: RegionGroupStats[];
+  stores: RegionGroupStats[];
+  anomalies: RegionalAnomaly[];
+  alerts: string[];
+}
+
+// Terminal 3 (docs/54 §4) -- Zero Foresight, simulador Monte Carlo de Tier Shift.
+export interface ForesightArchetypeResult {
+  archetype: string;
+  metaShare: number;
+  appearances: number;
+  projectedWinRate: number | null;
+  top8ConversionRate: number;
+  top16ConversionRate: number;
+  fusionScore: number | null;
+  tier: string | null;
+}
+export interface ForesightInsight {
+  type: "presence_impact" | "tier_shift";
+  message: string;
+}
+export interface ZeroForesightResponse {
+  season: { id: string; code: string; name: string } | null;
+  generatedAt: string;
+  seasonId: string | null;
+  setId: string | null;
+  iterations: number;
+  sampleSize: number;
+  hasMatchupData: boolean;
+  baseline: ForesightArchetypeResult[];
+  scenario: ForesightArchetypeResult[] | null;
+  insights: ForesightInsight[];
+}
 
 // Pastas de Coleção Públicas -- tag opcional por item de binder (dono marca antes de
 // compartilhar), exibida como badge no grid/fichário do PublicBinderPage.
@@ -887,6 +959,15 @@ export const api = {
   // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
   getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>
     request<MatchupMatrixResponse>(`/stats/matchup-matrix${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Terminal 3 -- Painel de Metagame Regional Geográfico (docs/54 §8.3). Drill-down
+  // País -> Estado -> Cidade -> Loja Parceira; state/city/store filtram o escopo dos
+  // "Alertas Táticos Regionais" (comparação contra a média nacional).
+  getRegionalMeta: (params: { seasonId?: string; setId?: string; state?: string; city?: string; store?: string } = {}) =>
+    request<RegionalMetaResponse>(`/metagame/regional${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Terminal 3 -- Zero Foresight (docs/54 §4). Monte Carlo de 10.000 iterações;
+  // scenario.presenceDeltas testa "e se a presença de X mudar Y%?" (fração, ex: 0.10).
+  simulateZeroForesight: (payload: { seasonId?: string; setId?: string; scenario?: { presenceDeltas: Record<string, number> }; iterations?: number }) =>
+    request<ZeroForesightResponse>("/simulator/zero/foresight/simulate", { method: "POST", body: JSON.stringify(payload) }),
   createCardRelation: (id: string, payload: { targetCardId: string; relationType: string; notePt?: string | null; sourceUrl?: string | null }) => mutate<any>(`/cards/${id}/relations`, { method: "POST", body: JSON.stringify(payload) }, ["/cards"]),
   deleteCardRelation: (id: string, relationId: string) => mutate<void>(`/cards/${id}/relations/${relationId}`, { method: "DELETE" }, ["/cards"]),
   createCard: (payload: any) => mutate<any>("/cards", { method: "POST", body: JSON.stringify(payload) }, ["/cards", "/cards/filters", "/sets", "/stats"]),

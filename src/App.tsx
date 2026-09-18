@@ -36,6 +36,7 @@ import ChangelogPage from "@/pages/ChangelogPage";
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
 const StatsPage = lazy(() => import("@/pages/StatsPage"));
+const RegionalMetaPage = lazy(() => import("@/pages/RegionalMetaPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const OrganizerPage = lazy(() => import("@/pages/OrganizerPage"));
 const SimulatorSandboxPage = lazy(() => import("@/pages/SimulatorSandboxPage"));
@@ -117,6 +118,7 @@ function AppRouter() {
         <Route path="/eventos" component={TournamentsPage} />
         <Route path="/novidades" component={ChangelogPage} />
         <Route path="/stats">{() => <LazyRoute label="Analytics"><StatsPage /></LazyRoute>}</Route>
+        <Route path="/metagame/regional">{() => <LazyRoute label="Metagame Regional"><RegionalMetaPage /></LazyRoute>}</Route>
         <Route path="/tournaments" component={TournamentsPage} />
         <Route path="/cards/:id" component={CardDetailPage} />
         <Route path="/cards" component={CardsPage} />
