@@ -56,6 +56,7 @@
     "prisma:seed:apitcg": "node prisma/seed-apitcg.mjs",
     "prisma:seed:apitcg:taxonomies": "node prisma/seed-apitcg-taxonomies.mjs",
     "prisma:seed:series-wave1": "node prisma/seed-series-wave1.mjs",
+    "prisma:seed:series-wave2": "node prisma/seed-series-wave2.mjs",
     "prisma:clear:catalog": "node prisma/clear-catalog.mjs",
     "prisma:rebuild:apitcg": "pnpm run prisma:clear:catalog && pnpm run prisma:seed:apitcg",
     "catalog:apitcg:check": "node scripts/check-apitcg-dataset.mjs",

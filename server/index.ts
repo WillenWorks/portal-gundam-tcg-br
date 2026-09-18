@@ -89,6 +89,7 @@ import {
   computeSimulatorCardStats,
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
+import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
@@ -5346,6 +5347,12 @@ async function boot() {
   // ao lado do SSE que continua funcionando. Contrato de eventos: docs/39 §2.2.
   const httpServer = createServer(app);
   attachSimulatorSocket(httpServer, {
+    jwtSecret: JWT_SECRET,
+    allowedOrigins,
+    resolveDeck: resolveOnlineSimulatorDeck,
+  });
+  // Arena Multiplayer 4P (Fase 3 / Terminal 2) — path dedicado, ao lado do socket 1v1 acima.
+  attachSimulatorArena4pSocket(httpServer, {
     jwtSecret: JWT_SECRET,
     allowedOrigins,
     resolveDeck: resolveOnlineSimulatorDeck,

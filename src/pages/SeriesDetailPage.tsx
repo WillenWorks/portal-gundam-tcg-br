@@ -8,6 +8,7 @@ import { ExternalLink } from "lucide-react";
 import { PublicShell } from "@/components/layout/PublicShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { api, type SeriesMetadata, type TaxonomyEntry } from "@/lib/api";
 
 export default function SeriesDetailPage() {
@@ -32,6 +33,23 @@ export default function SeriesDetailPage() {
   }, [entry]);
 
   const meta = useMemo(() => (entry?.metadataJson || {}) as SeriesMetadata, [entry]);
+
+  const factions = useMemo(() => {
+    const byName = new Map<string, { name: string; unitCount: number; pilotCount: number }>();
+    for (const ms of meta.mobileSuits ?? []) {
+      if (!ms.faction) continue;
+      const current = byName.get(ms.faction) ?? { name: ms.faction, unitCount: 0, pilotCount: 0 };
+      current.unitCount += 1;
+      byName.set(ms.faction, current);
+    }
+    for (const pilot of meta.pilots ?? []) {
+      if (!pilot.affiliation) continue;
+      const current = byName.get(pilot.affiliation) ?? { name: pilot.affiliation, unitCount: 0, pilotCount: 0 };
+      current.pilotCount += 1;
+      byName.set(pilot.affiliation, current);
+    }
+    return Array.from(byName.values());
+  }, [meta]);
 
   return (
     <PublicShell breadcrumbs={[{ label: "Universo Gundam", href: "/series" }, { label: entry?.name || params?.slug || "Série" }]}>
@@ -79,6 +97,29 @@ export default function SeriesDetailPage() {
 
         {entry ? (
           <>
+            {factions.length ? (
+              <section className="space-y-3">
+                <h3 className="font-heading text-2xl uppercase tracking-wide text-white dark:text-white light:text-slate-900">Ficha técnica de facções</h3>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {factions.map((faction) => (
+                    <Card key={faction.name} className="panel-cut rounded-none border-accent/25 surface-panel dark:text-white light:text-slate-900">
+                      <CardContent className="space-y-3 p-4">
+                        <h4 className="font-heading text-lg uppercase leading-tight text-accent">{faction.name}</h4>
+                        <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                          {faction.unitCount ? (
+                            <span className="rounded-none border border-white/15 bg-white/5 px-2 py-1">{faction.unitCount} mobile suit{faction.unitCount > 1 ? "s" : ""}</span>
+                          ) : null}
+                          {faction.pilotCount ? (
+                            <span className="rounded-none border border-white/15 bg-white/5 px-2 py-1">{faction.pilotCount} piloto{faction.pilotCount > 1 ? "s" : ""}</span>
+                          ) : null}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             {meta.mobileSuits?.length ? (
               <section className="space-y-3">
                 <h3 className="font-heading text-2xl uppercase tracking-wide text-white dark:text-white light:text-slate-900">Mobile Suits</h3>
@@ -149,29 +190,37 @@ export default function SeriesDetailPage() {
               ) : cards.length === 0 ? (
                 <p className="text-sm text-slate-400">Nenhuma carta catalogada com essa série ainda.</p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-                  {cards.map((card: any) => (
-                    <Card key={card.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
-                      <CardContent className="space-y-4 p-5">
-                        <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[3/4] dark:bg-slate-950/60 light:bg-slate-100">
-                          {(card.imageSmallUrl || card.thumbUrl || card.imageUrl) ? (
-                            <img src={card.imageSmallUrl || card.thumbUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.24em] text-slate-500">Sem arte</div>
-                          )}
-                        </div>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
-                            <h4 className="mt-2 line-clamp-2 min-h-[3.6rem] font-heading text-2xl uppercase leading-none">{card.namePt || card.nameEn}</h4>
-                          </div>
-                          <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
-                        </div>
-                        <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <Carousel opts={{ align: "start", loop: cards.length > 5 }} className="relative">
+                  <CarouselContent className="-ml-4">
+                    {cards.map((card: any) => (
+                      <CarouselItem key={card.id} className="basis-[62%] pl-4 xs:basis-[48%] sm:basis-[38%] md:basis-[28%] lg:basis-[22%] xl:basis-[18%]">
+                        <Card className="panel-cut h-full rounded-none surface-panel dark:text-white light:text-slate-900">
+                          <CardContent className="space-y-4 p-5">
+                            <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[3/4] dark:bg-slate-950/60 light:bg-slate-100">
+                              {(card.imageSmallUrl || card.thumbUrl || card.imageUrl) ? (
+                                <img src={card.imageSmallUrl || card.thumbUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.24em] text-slate-500">Sem arte</div>
+                              )}
+                            </div>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{card.code}</p>
+                                <h4 className="mt-2 line-clamp-2 min-h-[3.6rem] font-heading text-2xl uppercase leading-none">{card.namePt || card.nameEn}</h4>
+                              </div>
+                              <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{card.color || "—"}</Badge>
+                            </div>
+                            <Link href={`/cards/${card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir detalhe</Link>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <CarouselPrevious className="static translate-y-0 rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10" />
+                    <CarouselNext className="static translate-y-0 rounded-none border-white/15 bg-white/5 text-white hover:bg-white/10" />
+                  </div>
+                </Carousel>
               )}
             </section>
           </>
