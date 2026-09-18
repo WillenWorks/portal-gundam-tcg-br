@@ -16,6 +16,7 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 - **Zero Pilot N4 (Counter-Decks Dinâmicos)**: As 4 Personas (Heero, Char, Amuro, Treize) montam dinamicamente arquétipos específicos para punir fraquezas do deck do jogador.
 - **Universe Hub Wave 2**: Expansão de Lore para *Mobile Suit Gundam 00* (Anno Domini) e *Mobile Suit Gundam: The Witch from Mercury* (Ad Stella).
 - **Arena Multiplayer 4P Real**: Transição da tela de mock para engine Socket.io com 4 assentos para 2v2 Tag Team e 4P Battle Royale (Free-for-All).
+- **Resiliência de Estado na Arena 4P**: timer de reconexão de 45s por assento — socket caído demais tempo resolve sozinho a decisão pendente da lane (bloqueio/alvo/etc.), fechando a janela de conluio em 2v2. Transporte de duelo agora é Socket.io exclusivo (fallback SSE removido).
 - **Zero Foresight & Metagame Regional**: Simulação Monte Carlo (10.000 partidas) para projeção preditiva de Tier Shift e painel geográfico de torneios por Estado, Cidade e LGS.
 
 ---

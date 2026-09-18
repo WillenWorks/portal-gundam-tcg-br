@@ -1,58 +1,45 @@
 /**
- * Hook de transporte da tela de partida (Frente 5 — docs/39 §2.2, §3, roteiro item 4).
+ * Hook de transporte da tela de partida (Frente 5 — docs/39 §2.2, §3, roteiro
+ * item 4).
  *
- * Migra o `SimulatorMatchPage` do SSE puro para o `simulatorSocket` como
- * transporte PRIMÁRIO, com FALLBACK automático pro caminho SSE + POST antigo:
+ * Socket.io é o ÚNICO transporte de duelo (cutover Wave 5 / docs/47,
+ * concluído na branch `feature/arena4p-state-resilience`): `match:view_update`
+ * alimenta a view (guarda de ordenação por `version` no `applyIncomingView` da
+ * página); `match:action` manda a jogada e o eco volta pelo broadcast;
+ * `match:ping` mantém a presença. Esta MESMA tela é embutida dentro de cada
+ * lane da Arena Multiplayer 4P (`SimulatorMultiplayerPage.tsx`), então esta
+ * migração vale pros dois — 1v1 solo e Arena.
  *
- *  - Modo `socket`: `match:view_update` alimenta a view (guarda de ordenação por
- *    `version` no `applyIncomingView` da página); `match:action` manda a jogada e
- *    o eco volta pelo broadcast; `match:ping` mantém a presença.
- *  - Modo `sse`: exatamente o laço que vivia embutido na página — `EventSource`
- *    com backoff exponencial, resync autoritativo via REST, tratamento de 401/404.
- *
- * A decisão de transporte:
- *  - começa em `socket`;
- *  - cai pra `sse` se o socket ficar `dead` (handshake recusado) OU não entregar
- *    o 1º snapshot dentro de `SOCKET_FIRST_VIEW_TIMEOUT_MS` (servidor sem
- *    Socket.io / proxy que bloqueia WS — casos em que o `getStatus()` fica preso
- *    em `reconnecting` pra sempre em vez de virar `dead`);
- *  - volta pra `socket` se o socket se recuperar e reentregar uma view (fecha o
- *    `EventSource` de fallback nesse momento).
- *
- * ADITIVO: o SSE (`/stream`) e as rotas `POST /actions|ping|...` continuam
- * intactos no servidor — só o caminho preferido do cliente muda.
+ * Removido nesta branch: o fallback SSE (`EventSource` em `/matches/:id/stream`
+ * + resync REST) que vivia aqui como caminho alternativo enquanto o Socket.io
+ * era validado em produção. O `simulatorSocket` já reconecta sozinho com
+ * backoff exponencial pra qualquer queda de rede transitória — `status`
+ * só vira `dead` quando o SERVIDOR recusa o handshake (ex.: token inválido),
+ * caso em que não há transporte alternativo que resolvesse mesmo (a mesma
+ * auth barra o REST também); aí quem chama decide o que fazer (`onExpired`).
+ * `transport` continua no retorno como um literal fixo `"socket"` só pra não
+ * quebrar os pontos de UI que já checam por ele.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, ApiError, buildSimulatorStreamUrl, type SimulatorMatchView } from "@/lib/api";
+import { api, type SimulatorMatchView } from "@/lib/api";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
 
-export type MatchTransportKind = "socket" | "sse";
+export type MatchTransportKind = "socket";
 export type MatchConnState = "connecting" | "live" | "reconnecting" | "dead";
 
-/** Se o socket não entregar o 1º snapshot nesse prazo, cai pro SSE. */
-const SOCKET_FIRST_VIEW_TIMEOUT_MS = 6_000;
-/** Teto de espera pelo eco da ação (broadcast `match:view_update`) no modo socket. */
+/** Teto de espera pelo eco da ação (broadcast `match:view_update`). */
 const ACTION_ACK_TIMEOUT_MS = 8_000;
-/** Backoff do laço SSE de fallback (igual ao que era embutido na página). */
-const SSE_RETRY_MAX_MS = 15_000;
 /** Heartbeat de presença — bem menor que os 3min do W.O., só pra manter `lastSeenAt` fresco. */
 const PRESENCE_PING_MS = 15_000;
-
-// Wave 5 (docs/47): cutover — endurecer/remover o fallback SSE aqui.
-// Flags de transporte: hoje ambas ligadas (socket como primário, SSE como
-// fallback automático). Nenhuma muda o comportamento atual — existem só pra
-// tornar o flip trivial no cutover (SSE_FALLBACK_ENABLED = false → socket-only).
-const SOCKET_FIRST = true;
-const SSE_FALLBACK_ENABLED = true;
 
 interface UseMatchTransportOptions {
   matchId: string;
   /** Aplica uma visão nova (com a guarda de ordenação por `version`). Deve ser estável. */
   applyIncomingView: (view: SimulatorMatchView) => void;
-  /** Conexão sem volta (sessão expirada / partida encerrada). O hook já marca
-   *  `connState = "dead"`; o callback decide o toast + navegação. */
+  /** Conexão sem volta (servidor recusou o handshake / partida encerrada). O
+   *  hook já marca `connState = "dead"`; o callback decide o toast + navegação. */
   onExpired: (opts: { reason: string; toLobby: boolean }) => void;
   /** `match:error` que não está atrelado a uma ação em voo (ex.: erro de `match:join`). */
   onMatchError?: (message: string) => void;
@@ -60,19 +47,20 @@ interface UseMatchTransportOptions {
 
 export interface MatchTransport {
   connState: MatchConnState;
+  /** Sempre `"socket"` — campo mantido só pelos pontos de UI que já checam por ele. */
   transport: MatchTransportKind;
   deadReason: string | null;
   reconnectAttempt: number;
-  /** RTT do último `match:ping` com ack (ms) — só no modo socket. */
+  /** RTT do último `match:ping` com ack (ms). */
   lastPingMs: number | null;
   /** Presença do oponente pelo socket (`match:opponent_status`); `null` = sem info. */
   opponentOnline: boolean | null;
-  /** Envia a ação pelo transporte ativo. Socket: resolve quando o eco
-   *  (`match:view_update` com `lastActionSeq >= seq`) chega; rejeita em
-   *  `match:error` ou timeout. SSE: `POST` e aplica a resposta. */
+  /** Envia a ação pelo socket quando conectado (resolve quando o eco
+   *  `match:view_update` com `lastActionSeq >= seq` chega; rejeita em
+   *  `match:error` ou timeout); cai num `POST` REST pontual se o socket
+   *  estiver momentaneamente fora do ar. */
   sendAction: (action: PlayerAction) => Promise<void>;
-  /** Encerra tudo (fim de jogo / saída manual): fecha o `EventSource`, desliga o
-   *  socket e trava o backoff. */
+  /** Encerra tudo (fim de jogo / saída manual): desliga o socket. */
   teardown: () => void;
 }
 
@@ -89,7 +77,6 @@ export function useMatchTransport({
   onExpired,
   onMatchError,
 }: UseMatchTransportOptions): MatchTransport {
-  const [transport, setTransport] = useState<MatchTransportKind>(SOCKET_FIRST ? "socket" : "sse");
   const [connState, setConnState] = useState<MatchConnState>("connecting");
   const [deadReason, setDeadReason] = useState<string | null>(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
@@ -103,18 +90,10 @@ export function useMatchTransport({
   onExpiredRef.current = onExpired;
   const onMatchErrorRef = useRef(onMatchError);
   onMatchErrorRef.current = onMatchError;
-  const transportRef = useRef<MatchTransportKind>(SOCKET_FIRST ? "socket" : "sse");
-  transportRef.current = transport;
 
   const stoppedRef = useRef(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
   const socketDeliveredRef = useRef(false);
   const pendingActionRef = useRef<PendingAction | null>(null);
-
-  const closeEventSource = useCallback(() => {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
-  }, []);
 
   const settlePending = useCallback((outcome: { ok: true } | { ok: false; error: Error }) => {
     const pending = pendingActionRef.current;
@@ -125,65 +104,27 @@ export function useMatchTransport({
     else pending.reject(outcome.error);
   }, []);
 
-  const goDead = useCallback(
-    (reason: string, toLobby: boolean) => {
-      stoppedRef.current = true;
-      closeEventSource();
-      settlePending({ ok: false, error: new Error(reason) });
-      setDeadReason(reason);
-      setConnState("dead");
-      onExpiredRef.current({ reason, toLobby });
-    },
-    [closeEventSource, settlePending],
-  );
-
   const teardown = useCallback(() => {
     stoppedRef.current = true;
     settlePending({ ok: false, error: new Error("Partida encerrada.") });
-    closeEventSource();
     simulatorSocket.disconnect();
-  }, [closeEventSource, settlePending]);
+  }, [settlePending]);
 
-  // --- Transporte primário: Socket.io ---
   useEffect(() => {
     stoppedRef.current = false;
     socketDeliveredRef.current = false;
-    setTransport("socket");
     setConnState("connecting");
 
     simulatorSocket.connect();
     simulatorSocket.joinMatch(matchId);
 
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
-      fallbackTimer = null;
-      if (SSE_FALLBACK_ENABLED && !socketDeliveredRef.current && !stoppedRef.current) {
-        setConnState("reconnecting");
-        setTransport("sse");
-      }
-    }, SOCKET_FIRST_VIEW_TIMEOUT_MS);
-    const clearFallbackTimer = () => {
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer);
-        fallbackTimer = null;
-      }
-    };
-
     const offs = [
       simulatorSocket.on("match:view_update", (payload) => {
         if (stoppedRef.current) return;
-        clearFallbackTimer();
         socketDeliveredRef.current = true;
         applyRef.current(payload.view);
-
-        // Socket saudável de novo → volta pra ele e fecha o SSE de fallback.
-        if (transportRef.current === "sse" && simulatorSocket.getStatus() === "connected") {
-          closeEventSource();
-          setTransport("socket");
-        }
-        if (transportRef.current !== "sse") {
-          setConnState("live");
-          setReconnectAttempt(0);
-        }
+        setConnState("live");
+        setReconnectAttempt(0);
 
         const pending = pendingActionRef.current;
         if (pending && payload.lastActionSeq >= pending.seq) settlePending({ ok: true });
@@ -199,11 +140,13 @@ export function useMatchTransport({
       }),
       simulatorSocket.on("ping", (ms) => setLastPingMs(ms)),
       simulatorSocket.on("status", (status) => {
-        if (stoppedRef.current || transportRef.current === "sse") return;
-        if (status === "dead" && SSE_FALLBACK_ENABLED) {
-          clearFallbackTimer();
-          setConnState("reconnecting");
-          setTransport("sse");
+        if (stoppedRef.current) return;
+        if (status === "dead") {
+          const reason = "O servidor recusou a conexão — faça login de novo.";
+          settlePending({ ok: false, error: new Error(reason) });
+          setDeadReason(reason);
+          setConnState("dead");
+          onExpiredRef.current({ reason, toLobby: false });
           return;
         }
         if (status === "connected") {
@@ -218,80 +161,17 @@ export function useMatchTransport({
     ];
 
     return () => {
-      clearFallbackTimer();
       for (const off of offs) off();
       simulatorSocket.disconnect();
-      closeEventSource();
     };
-  }, [matchId, closeEventSource, settlePending]);
+  }, [matchId, settlePending]);
 
-  // --- Fallback: laço SSE + resync REST (comportamento inalterado, só isolado aqui). ---
-  useEffect(() => {
-    if (!SSE_FALLBACK_ENABLED || transport !== "sse" || stoppedRef.current) return;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let attempt = 0;
-
-    const connect = () => {
-      if (stoppedRef.current) return;
-      const url = buildSimulatorStreamUrl(matchId);
-      if (!url) {
-        goDead("Sessão inválida — faça login de novo.", false);
-        return;
-      }
-      const source = new EventSource(url);
-      eventSourceRef.current = source;
-
-      source.addEventListener("state", (event: MessageEvent) => {
-        attempt = 0;
-        setReconnectAttempt(0);
-        setConnState("live");
-        applyRef.current(JSON.parse(event.data) as SimulatorMatchView);
-      });
-
-      source.onerror = () => {
-        source.close();
-        eventSourceRef.current = null;
-        if (stoppedRef.current) return;
-        setConnState("reconnecting");
-        attempt += 1;
-        setReconnectAttempt(attempt);
-        void api
-          .getSimulatorMatch(matchId)
-          .then((res) => {
-            if (stoppedRef.current) return;
-            if ("seated" in res && res.seated) {
-              applyRef.current(res as SimulatorMatchView);
-              return;
-            }
-            goDead("Esta partida foi encerrada.", true);
-          })
-          .catch((err) => {
-            if (stoppedRef.current) return;
-            if (err instanceof ApiError && err.status === 401) {
-              goDead("Sessão expirada — faça login de novo.", false);
-            } else if (err instanceof ApiError && err.status === 404) {
-              goDead("Esta partida não está mais disponível.", true);
-            }
-            // outros erros (queda de rede momentânea) → o backoff abaixo segue
-          });
-        const delay = Math.min(SSE_RETRY_MAX_MS, 1_000 * 2 ** (attempt - 1));
-        retryTimer = setTimeout(connect, delay);
-      };
-    };
-
-    connect();
-    return () => {
-      if (retryTimer) clearTimeout(retryTimer);
-      closeEventSource();
-    };
-  }, [transport, matchId, goDead, closeEventSource]);
-
-  // --- Heartbeat de presença: socket (`match:ping`) ou REST, conforme o transporte. ---
+  // --- Heartbeat de presença: socket (`match:ping`), ou REST se ele estiver momentaneamente fora do ar. ---
   useEffect(() => {
     const ping = () => {
       if (stoppedRef.current || typeof document === "undefined") return;
       if (document.visibilityState !== "visible") return;
-      if (transportRef.current === "socket" && simulatorSocket.getStatus() === "connected") {
+      if (simulatorSocket.getStatus() === "connected") {
         simulatorSocket.ping(matchId);
       } else {
         void api.pingSimulatorMatch(matchId).catch(() => {});
@@ -308,7 +188,7 @@ export function useMatchTransport({
 
   const sendAction = useCallback(
     (action: PlayerAction): Promise<void> => {
-      const socketReady = transportRef.current === "socket" && simulatorSocket.getStatus() === "connected";
+      const socketReady = simulatorSocket.getStatus() === "connected";
       if (socketReady) {
         const seq = simulatorSocket.sendAction(matchId, action);
         return new Promise<void>((resolve, reject) => {
@@ -333,7 +213,7 @@ export function useMatchTransport({
 
   return {
     connState,
-    transport,
+    transport: "socket",
     deadReason,
     reconnectAttempt,
     lastPingMs,

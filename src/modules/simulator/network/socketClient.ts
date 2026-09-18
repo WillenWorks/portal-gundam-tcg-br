@@ -1,9 +1,9 @@
 /**
  * Cliente Socket.io do simulador (Frente 5 — docs/39 §2.2 e §3).
  *
- * Singleton. Roda AO LADO do transporte SSE atual (`buildSimulatorStreamUrl` /
- * `EventSource` em `SimulatorMatchPage.tsx`) — a página escolhe qual usar; a
- * migração total vem depois. Aqui:
+ * Singleton. Transporte ÚNICO da tela de partida (`useMatchTransport.ts`) —
+ * o fallback SSE que existia em paralelo foi removido no cutover Wave 5
+ * (docs/47, branch `feature/arena4p-state-resilience`). Aqui:
  *
  *  - Reconexão automática com backoff exponencial 500ms → 1s → 2s → 4s → teto 10s.
  *  - Ao (re)conectar, reemite `match:join` da partida ativa e recebe o snapshot.

@@ -55,7 +55,6 @@ import {
   setBugReportSink,
   setMatchPersistence,
   setMatchLogSink,
-  subscribe,
   touchPresence,
   submitSideboard,
   generateBugShortCode,
@@ -501,28 +500,6 @@ function authOptional(req: RequestWithUser, _res: Response, next: NextFunction) 
     try { req.user = jwt.verify(auth.slice(7), JWT_SECRET) as AuthPayload; } catch { /* token invalido, segue como anonimo */ }
   }
   next();
-}
-
-/**
- * Como authRequired, mas aceita o token via query string (`?token=`) além do
- * header `Authorization`. Só existe pro endpoint de SSE do simulador
- * (`/api/simulator/matches/:id/stream`, docs/18 passo 4) — a API nativa
- * `EventSource` do navegador não deixa mandar headers customizados, então
- * não tem como usar `Authorization: Bearer` nela. Todas as outras rotas
- * continuam exigindo o header normal; isso é uma exceção pontual, não uma
- * segunda forma "oficial" de autenticar.
- */
-function authFromQueryOrHeader(req: RequestWithUser, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken;
-  if (!token) return res.status(401).json({ error: "Token ausente." });
-  try {
-    req.user = jwt.verify(token, JWT_SECRET) as AuthPayload;
-    next();
-  } catch {
-    return res.status(401).json({ error: "Token inválido." });
-  }
 }
 
 function roleRequired(roles: UserRole[]) {
@@ -5258,40 +5235,6 @@ app.post("/api/simulator/matches/:id/resign", authRequired, async (req: RequestW
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
     throw err;
   }
-});
-
-// EventSource não manda header Authorization -> authFromQueryOrHeader (ver definição acima).
-app.get("/api/simulator/matches/:id/stream", authFromQueryOrHeader, async (req: RequestWithUser, res) => {
-  await loadMatch(String(req.params.id)); // re-hidrata do banco se a partida esfriou (docs/23)
-  const match = getMatch(String(req.params.id));
-  if (!match) return res.status(404).json({ error: "Partida não encontrada." });
-  const seat = seatFor(match, req.user!.userId);
-  if (!seat) return res.status(403).json({ error: "Entre num assento (join) antes de abrir o stream." });
-
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
-
-  const send = (event: string, data: unknown) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
-
-  // hint de reconexão pro EventSource nativo do cliente (o cliente também tem
-  // backoff próprio + resync REST, mas isso encurta o gap na maioria dos casos).
-  res.write("retry: 3000\n\n");
-  send("state", matchViewFor(match, seat));
-
-  const unsubscribe = subscribe(match.id, (views) => send("state", views[seat]));
-  // mantém a conexão viva através de proxies que fecham stream ocioso
-  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20000);
-
-  req.on("close", () => {
-    clearInterval(heartbeat);
-    unsubscribe();
-  });
 });
 
 // --- Depuração/admin: criar ou entrar numa partida específica manualmente (fora da fila). ---
