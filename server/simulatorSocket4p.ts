@@ -9,6 +9,12 @@
  * da Arena são `MatchRecord`s NORMAIS do `matchStore.ts` — o motor de regras
  * em `src/modules/simulator/engine/` nunca é tocado nem sabe que a Arena
  * existe.
+ *
+ * Resiliência de reconexão (branch `feature/arena4p-state-resilience`): este
+ * arquivo é quem sabe quando um assento ficou sem NENHUM socket vivo
+ * (`socketsByUser`) — por isso o relógio de `ARENA_RECONNECT_GRACE_MS`
+ * (auto-pass determinístico por queda de conexão) é armado/cancelado aqui,
+ * não em `arena4pStore.ts` (que não sabe nada de rede).
  */
 import { randomUUID } from "node:crypto";
 import type { Server as HttpServer } from "node:http";
@@ -19,8 +25,10 @@ import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
 import {
   addArenaChatMessage,
+  ARENA_RECONNECT_GRACE_MS,
   ARENA_SEAT_IDS,
   activeLaneForSeat,
+  applyDisconnectAutoPass,
   createLobby,
   createSquadInvite,
   getArenaMatch,
@@ -55,6 +63,8 @@ export interface SimulatorArenaSocketDeps {
   jwtSecret: string;
   allowedOrigins: string[];
   resolveDeck: (raw: unknown, userId: string) => Promise<SimulatorDeckResolution>;
+  /** Só teste — sobrescreve `ARENA_RECONNECT_GRACE_MS` pra não esperar 45s reais no `vitest`. */
+  disconnectGraceMs?: number;
 }
 
 interface SocketUser {
@@ -92,6 +102,35 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
   const deduper = new ActionDeduper();
   /** userId → sockets vivos daquele usuário — usado pra juntar os 4 assentos nas rooms da Arena quando ela começa. */
   const socketsByUser = new Map<string, Set<Socket>>();
+  const disconnectGraceMs = deps.disconnectGraceMs ?? ARENA_RECONNECT_GRACE_MS;
+  /** `${arenaMatchId}:${seat}` → timer de auto-pass por queda de conexão (ver `ARENA_RECONNECT_GRACE_MS`). */
+  const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function disconnectTimerKey(arenaMatchId: string, seat: ArenaSeatId): string {
+    return `${arenaMatchId}:${seat}`;
+  }
+  /** Reconectou (join_match, ping ou ação) — cancela o auto-pass por queda de conexão armado pro assento. */
+  function clearDisconnectTimer(arenaMatchId: string, seat: ArenaSeatId): void {
+    const key = disconnectTimerKey(arenaMatchId, seat);
+    const handle = disconnectTimers.get(key);
+    if (handle) {
+      clearTimeout(handle);
+      disconnectTimers.delete(key);
+    }
+  }
+  /** Socket caiu de vez (última aba do usuário) — arma o relógio de 45s antes do auto-pass. */
+  function armDisconnectTimer(arenaMatchId: string, seat: ArenaSeatId, userId: string): void {
+    clearDisconnectTimer(arenaMatchId, seat);
+    const key = disconnectTimerKey(arenaMatchId, seat);
+    const handle = setTimeout(() => {
+      disconnectTimers.delete(key);
+      // Corrida rara: o usuário reconectou entre o disconnect e o estouro do timer sem
+      // passar por join_match/ping/action ainda — se já tem socket vivo, não força nada.
+      if ((socketsByUser.get(userId)?.size ?? 0) > 0) return;
+      applyDisconnectAutoPass(arenaMatchId, seat);
+    }, disconnectGraceMs);
+    disconnectTimers.set(key, handle);
+  }
 
   function joinArenaRooms(arenaMatch: ArenaMatchRecord): void {
     for (const seat of ARENA_SEAT_IDS) {
@@ -152,6 +191,14 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       case "chat":
         io.to(arenaRoom(event.arenaMatchId)).emit("arena:chat", { arenaMatchId: event.arenaMatchId, entry: event.entry });
         break;
+      case "lane_action_forced": {
+        // Auto-pass por queda de conexão (`ARENA_RECONNECT_GRACE_MS`) — mesmo fan-out
+        // que uma ação humana normal receberia (`arena:action` handler abaixo).
+        const arenaMatch = getArenaMatch(event.arenaMatchId);
+        if (arenaMatch) pushLaneViews(arenaMatch, event.lane);
+        pushRadar(event.arenaMatchId);
+        break;
+      }
     }
   });
 
@@ -318,6 +365,8 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       const seat = seatForUserInArenaMatch(arenaMatch, user.userId);
       if (!seat) return socket.emit("arena:error", { code: "forbidden", message: "Você não é piloto desta Arena." });
 
+      clearDisconnectTimer(arenaMatchId, seat); // reconectou — cancela o auto-pass por queda de conexão, se algum estava armado
+
       void socket.join(arenaRoom(arenaMatchId));
       void socket.join(arenaSeatRoom(arenaMatchId, seat));
 
@@ -342,6 +391,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       if (!arenaMatch) return socket.emit("arena:error", { code: "not_found", message: "Partida da Arena não encontrada." });
       const seat = seatForUserInArenaMatch(arenaMatch, user.userId);
       if (!seat) return socket.emit("arena:error", { code: "forbidden", message: "Você não é piloto desta Arena." });
+      clearDisconnectTimer(arenaMatchId, seat); // ação real é sinal de vida — cancela o auto-pass por queda de conexão
       const lane = activeLaneForSeat(arenaMatch, seat);
       if (!lane) return socket.emit("arena:error", { code: "spectating", message: "Seu duelo ainda não começou ou já terminou — aguarde a próxima lane." });
 
@@ -367,6 +417,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       const arenaMatchId = String(payload?.arenaMatchId ?? "");
       const arenaMatch = getArenaMatch(arenaMatchId);
       const seat = arenaMatch ? seatForUserInArenaMatch(arenaMatch, user.userId) : undefined;
+      if (arenaMatch && seat) clearDisconnectTimer(arenaMatchId, seat); // ping é sinal de vida — cancela o auto-pass por queda de conexão
       const lane = arenaMatch && seat ? activeLaneForSeat(arenaMatch, seat) : undefined;
       if (lane) {
         try {
@@ -396,15 +447,26 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       io.to(arenaRoom(arenaMatch.id)).emit("arena:emote", { arenaMatchId: arenaMatch.id, seat, emoteId: payload.emoteId, at: Date.now() });
     });
 
-    socket.on("disconnect", () => {
+    // "disconnecting" (não "disconnect"): pelo momento em que "disconnect" dispara, o
+    // socket.io JÁ tirou o socket de todas as rooms (`socket.rooms` vem vazio) — as duas
+    // varreduras abaixo (`activeLobbyIdsFor`/`activeArenaSeatsFor`) dependem de ler
+    // `socket.rooms` ENQUANTO ele ainda está nelas, que é exatamente o que "disconnecting"
+    // garante (é o evento feito pra isso).
+    socket.on("disconnecting", () => {
       const set = socketsByUser.get(user.userId);
       set?.delete(socket);
       if ((set?.size ?? 0) > 0) return;
       socketsByUser.delete(user.userId);
       leaveArenaQueue(user.userId);
       // Assento em sala AINDA NÃO iniciada fica travado sem outra forma de liberar — libera aqui.
-      // Partidas ATIVAS não são afetadas (cada lane é uma `MatchRecord` normal com seu próprio W.O./timer).
       for (const lobbyId of activeLobbyIdsFor(user.userId)) leaveLobby(lobbyId, user.userId);
+      // Partida ATIVA: a lane em si sobrevive de graça (é uma `MatchRecord` normal do
+      // `matchStore.ts`, com seu próprio W.O./timer de turno) — mas essa janela é longa
+      // demais pro caso de socket caído (ver `ARENA_RECONNECT_GRACE_MS`), então arma o
+      // relógio mais curto da Arena em cima.
+      for (const { arenaMatchId, seat } of activeArenaSeatsFor(user.userId)) {
+        armDisconnectTimer(arenaMatchId, seat, user.userId);
+      }
     });
 
     function activeLobbyIdsFor(userId: string): string[] {
@@ -418,6 +480,21 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
         }
       }
       return ids;
+    }
+
+    function activeArenaSeatsFor(userId: string): Array<{ arenaMatchId: string; seat: ArenaSeatId }> {
+      const found: Array<{ arenaMatchId: string; seat: ArenaSeatId }> = [];
+      for (const room of socket.rooms) {
+        const match = /^arena:match:([^:]+):(seatA|seatB|seatC|seatD)$/.exec(room);
+        if (!match) continue;
+        const [, arenaMatchId, rawSeat] = match;
+        const seat = rawSeat as ArenaSeatId;
+        const arenaMatch = getArenaMatch(arenaMatchId);
+        if (arenaMatch && arenaMatch.status === "ACTIVE" && arenaMatch.seats[seat]?.userId === userId) {
+          found.push({ arenaMatchId, seat });
+        }
+      }
+      return found;
     }
   });
 

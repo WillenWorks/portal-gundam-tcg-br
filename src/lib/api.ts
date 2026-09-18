@@ -600,10 +600,13 @@ function toQuery(params: Record<string, string | undefined>) {
 
 // Simulador — "Simulador Beta" (docs/18, passo 4 + expansão 2026-08-30: fila de
 // matchmaking, timer de turno, W.O. por abandono, aberto a qualquer usuário
-// logado). O tabuleiro em si sincroniza via SSE (ver buildSimulatorStreamUrl),
-// então essas chamadas HTTP são só pra ações pontuais (fila/ping/agir/W.O.) --
-// todas sem cache (o estado de uma partida em memória muda a cada ação de
-// qualquer um dos 2 jogadores, cachear aqui só causaria tela desatualizada).
+// logado). O tabuleiro em si sincroniza por Socket.io (`simulatorSocket.ts` /
+// `useMatchTransport.ts` — SSE removido na branch
+// feature/arena4p-state-resilience), então essas chamadas HTTP são só pra
+// ações pontuais (fila/ping/agir/W.O.) e pro fallback pontual de `sendAction`
+// quando o socket está momentaneamente fora do ar -- todas sem cache (o
+// estado de uma partida em memória muda a cada ação de qualquer um dos 2
+// jogadores, cachear aqui só causaria tela desatualizada).
 export type SimulatorMatchSummary = {
   id: string;
   seats: Record<PlayerId, { userId: string; displayName: string } | null>;
@@ -717,13 +720,6 @@ export type SimulatorDeckOption = {
   unplayableCards: string[];
   reason: string | null;
 };
-
-/** URL do stream SSE, já com `?token=` -- EventSource não manda header Authorization (ver server/index.ts, authFromQueryOrHeader). null se não há sessão logada. */
-export function buildSimulatorStreamUrl(matchId: string): string | null {
-  const token = getStoredAuth().token;
-  if (!token) return null;
-  return `${API_BASE_URL}/simulator/matches/${matchId}/stream?token=${encodeURIComponent(token)}`;
-}
 
 export function getStoredAuth() {
   if (typeof window === "undefined") return { token: null, user: null as AuthUser | null };
