@@ -18,7 +18,12 @@ import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "../../src/lib/deck-leg
 const TOP_CARDS_LIMIT = 8;
 const TOP_GROUPS_LIMIT = 20;
 const ANOMALY_THRESHOLD_PP = 15; // pontos percentuais de desvio pra virar alerta tático
-const MIN_DECKS_FOR_ANOMALY = 4; // amostra mínima pra não gerar alerta com ruído estatístico
+// Amostra mínima pra virar alerta tático. N=4 (valor anterior) gera falso-positivo trivial:
+// com 4 decks, 1 card presente em todos já é 100% de presença sem significar nada sobre a
+// praça real. N=30 é o piso convencional pra estimativa de proporção não degenerar num
+// ruído puro (regra prática de amostragem estatística) -- abaixo disso, o alerta é suprimido
+// mesmo que o desvio pareça grande.
+const MIN_SAMPLE_SIZE_FOR_ANOMALY = 30;
 const UNKNOWN_LABEL = "Não informado";
 const INDEPENDENT_STORE_LABEL = "Independente / Sem loja vinculada";
 
@@ -259,7 +264,7 @@ function buildAlerts(scopeLabel: string, anomalies: RegionalAnomaly[]): string[]
 }
 
 function detectAnomalies(scopeLabel: string, region: RegionGroupStats, national: RegionGroupStats): RegionalAnomaly[] {
-  if (region.totalDecks < MIN_DECKS_FOR_ANOMALY) return [];
+  if (region.totalDecks < MIN_SAMPLE_SIZE_FOR_ANOMALY) return [];
   const anomalies: RegionalAnomaly[] = [];
 
   const nationalColorRate = new Map(national.colorDistribution.map((c) => [c.color, c.presenceRate]));

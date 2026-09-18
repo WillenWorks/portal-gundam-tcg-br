@@ -88,14 +88,60 @@ describe("getRegionalMetagame", () => {
     expect(sp?.winRate).toBeCloseTo(37.5, 1);
   });
 
-  it("presença de carta em uma cidade (Wing Gundam em SP) vira anomalia contra a média nacional quando SP é o foco", async () => {
-    const prisma = makeFakePrisma();
+  /** Fixture com amostra estatisticamente relevante (N>=30) pra exercitar o piso
+   *  MIN_SAMPLE_SIZE_FOR_ANOMALY: SP e PR com 32 decks cada (>=30), RJ com só 10
+   *  (<30) -- mesmo desvio de presença nos três, mas só SP e PR têm amostra
+   *  suficiente pra virar alerta; RJ precisa ficar suprimido por ruído estatístico. */
+  function makeSampleSizeFixturePrisma() {
+    const entries: Array<{ deckSnapshotId: string; wins: number; losses: number; draws: number; tournament: { country: string; city: string; organizer: string } }> = [];
+    const items: Record<string, Array<{ quantity: number; card: typeof CARD_WING }>> = {};
+
+    function addDecks(count: number, city: string, organizer: string, card: typeof CARD_WING, prefix: string) {
+      for (let i = 0; i < count; i++) {
+        const id = `${prefix}-${i}`;
+        entries.push({ deckSnapshotId: id, wins: 1, losses: 1, draws: 0, tournament: { country: "Brasil", city, organizer } });
+        items[id] = [{ quantity: 4, card }];
+      }
+    }
+
+    addDecks(32, "São Paulo", "LGS Paulista", CARD_WING, "SP"); // N=32 (>=30), 100% Wing Gundam
+    addDecks(32, "Curitiba", "LGS Sulista", CARD_ZAKU, "PR"); // N=32 (>=30), 0% Wing Gundam -- dilui a média nacional
+    addDecks(10, "Rio de Janeiro", "LGS Carioca", CARD_WING, "RJ"); // N=10 (<30), 100% Wing Gundam
+
+    return {
+      tournamentEntry: { findMany: async () => entries },
+      hostedEventParticipant: { findMany: async () => [] },
+      deckSnapshotItem: {
+        findMany: async ({ where }: { where: { deckSnapshotId: { in: string[] } } }) => {
+          const ids = where.deckSnapshotId.in;
+          return ids.flatMap((id) => (items[id] || []).map((item) => ({ deckSnapshotId: id, ...item })));
+        },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+  }
+
+  it("com amostra >= 30 decks (piso estatístico), presença desviada vira anomalia contra a média nacional", async () => {
+    const prisma = makeSampleSizeFixturePrisma();
     const result = await getRegionalMetagame(prisma, { seasonId: null, stateUf: "SP" });
+
+    const sp = result.states.find((s) => s.key === "SP");
+    expect(sp?.totalDecks).toBeGreaterThanOrEqual(30);
 
     const wingAnomaly = result.anomalies.find((a) => a.kind === "card" && a.label === "Wing Gundam");
     expect(wingAnomaly).toBeDefined();
     expect(wingAnomaly!.regionRate).toBeGreaterThan(wingAnomaly!.nationalRate);
     expect(result.alerts.some((msg) => msg.includes("Wing Gundam"))).toBe(true);
+  });
+
+  it("com amostra < 30 decks, suprime o alerta mesmo com o mesmo desvio de presença (evita ruído estatístico em praça pequena)", async () => {
+    const prisma = makeSampleSizeFixturePrisma();
+    const result = await getRegionalMetagame(prisma, { seasonId: null, stateUf: "RJ" });
+
+    const rj = result.states.find((s) => s.key === "RJ");
+    expect(rj?.totalDecks).toBeLessThan(30);
+    expect(result.anomalies).toEqual([]);
+    expect(result.alerts).toEqual([]);
   });
 
   it("agrupa lojas dentro da cidade selecionada", async () => {

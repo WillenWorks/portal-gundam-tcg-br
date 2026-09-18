@@ -22,6 +22,7 @@
     "lint:simulator": "eslint src/modules/simulator",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke:regional-meta": "vitest run server/services/regionalMetaService.smoke.test.ts",
     "gundam:fuzz": "node scripts/gundam-fuzz.mjs",
     "gundam:golden": "node scripts/gundam-golden.mjs",
     "gundam:golden:update": "node scripts/gundam-golden.mjs --update",
