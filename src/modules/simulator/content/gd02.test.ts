@@ -1031,3 +1031,34 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 8º lote de fechamento do
     expect(findCard(baseHealState, aeugBaseId2).damage).toBe(0);
   });
 });
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 9º lote de fechamento do backlog de cobertura", () => {
+  it("GD02-056 Gundam X (During Pair, Destroyed): se o Pilot que estava pareado é (Vulture), busca Unit (Vulture) Lv>=5 da lixeira; sem o trait, condição falsa", () => {
+    expect(GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-056")?.duringPair).toBe(true);
+
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-056"], "trash"); // já destruída no momento da resolução
+    const vulturePilotId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-091"], traits: ["Vulture"] }, "trash"); // "ex-Pilot" (CR 3-3-6, já na lixeira)
+    const highVultureUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Vulture"], level: 5 }, "trash");
+    const lowVultureUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Vulture"], level: 4 }, "trash");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-056" && s.trigger === "Destroyed")!;
+    expect(spec).toBeDefined();
+
+    const ctx = { ...ctxFor(state, sourceId, { trashSearch: [highVultureUnitId] }), targets: { formerPairedPilot: [vulturePilotId], trashSearch: [highVultureUnitId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.hand.some((c) => c.instanceId === highVultureUnitId)).toBe(true);
+    expect(state.players.A.trash.some((c) => c.instanceId === lowVultureUnitId)).toBe(true); // Lv4- não é o alvo, fica na lixeira
+
+    let nonVultureState = freshGame();
+    const sourceId2 = placeCard(nonVultureState, "A", GD02_CARD_DEFS["GD02-056"], "trash");
+    const nonVulturePilotId = placeCard(nonVultureState, "A", { ...GD02_CARD_DEFS["GD02-091"], traits: ["Neo Zeon"] }, "trash");
+    const vultureUnitId2 = placeCard(nonVultureState, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Vulture"], level: 5 }, "trash");
+    const ctx2 = {
+      ...ctxFor(nonVultureState, sourceId2, { trashSearch: [vultureUnitId2] }),
+      targets: { formerPairedPilot: [nonVulturePilotId], trashSearch: [vultureUnitId2] },
+    };
+    nonVultureState = applyEvents(nonVultureState, resolveEffectSpec(spec, ctx2, defaultPredicateResolver));
+    expect(nonVultureState.players.A.hand.some((c) => c.instanceId === vultureUnitId2)).toBe(false);
+  });
+});
