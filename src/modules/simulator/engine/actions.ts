@@ -314,6 +314,13 @@ function applyPlayerActionInner(
       if (abilitySpecs.length > 0) {
         // V0 (docs/25): mesma filtragem de `playCommand` — spec com alvo
         // ilegal/não escolhido lança, spec sem alvo legal nenhum sai do lote.
+        // Achado (Sprint 2 Lote 11, revalidação GD02-011 Moebius): faltavam
+        // `predicateResolver`/`sourceInstanceId` (últimos 2 params) — qualquer
+        // spec de Activate cujo `targetScope`/`condition` dependa da FONTE (ex.
+        // `battlingBaseOrShield`, `level<=self`, `selfIsDamaged` via `resolveSelfUnit`)
+        // sempre computava pool vazia aqui e saía do lote em silêncio (sem
+        // lançar — "spec sem alvo legal nenhum sai do lote" já cobria o
+        // sintoma), mesmo com alvo legal de verdade no board.
         const dispatchable = filterDispatchableSpecs(
           state,
           source.def.code,
@@ -322,6 +329,8 @@ function applyPlayerActionInner(
           actingPlayer,
           action.targets?.target,
           targetFilterResolver,
+          predicateResolver,
+          action.sourceInstanceId,
         );
         return dispatchTrigger(state, action.sourceInstanceId, trigger, dispatchable, {
           targets: action.targets,
@@ -351,7 +360,10 @@ function applyPlayerActionInner(
       if (action.activate) {
         // V0 (docs/25): alguns 【Burst】 reaproveitam a ação do 【Main】 da mesma
         // carta (ex.: Siege Ploy, Unforeseen Incident) e por isso também podem
-        // precisar de alvo nomeado — mesma filtragem de `playCommand`.
+        // precisar de alvo nomeado — mesma filtragem de `playCommand`. Mesmo
+        // fix de `sourceInstanceId`/`predicateResolver` do `activateAbility`
+        // acima (Sprint 2 Lote 11) — sem isso, um Burst cujo alvo dependa da
+        // fonte (ex. `level<=self`) também sairia do lote em silêncio.
         const dispatchable = filterDispatchableSpecs(
           next,
           decision.cardDef.code,
@@ -360,6 +372,8 @@ function applyPlayerActionInner(
           actingPlayer,
           action.targets?.target,
           targetFilterResolver,
+          predicateResolver,
+          decision.cardInstanceId,
         );
         next = dispatchTrigger(next, decision.cardInstanceId, "Burst", dispatchable, {
           targets: action.targets ?? {},

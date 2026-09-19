@@ -365,6 +365,16 @@ export function resolveDamageStep(state: GameState): GameState {
   if (combat.step !== "damage") throw new Error("Não é o Damage Step");
 
   const attacker = findCard(state, combat.attackerId);
+  // Sprint 2 Lote 11 (GD02-011 Moebius "【Activate･Action】Destroy this Unit: ..." —
+  // ativável no PRÓPRIO Action Step do ataque) — se o atacante foi removido do campo
+  // antes do Damage Step (autodestruição via efeito, não só combate), a batalha não
+  // causa dano NENHUM: não existe "atacante fantasma" batendo com o AP/HP congelados
+  // de quando ainda estava em campo (`effectiveAp`/`findCard` não olham zona). Sem
+  // este guard, mesmo um atacante com AP efetivo 0 ainda estourava 1 Shield "de
+  // graça" — a contagem de Shield quebrado por ataque desbloqueado é FIXA (1, ou 2 com
+  // <Suppression>), nunca proporcional ao AP. Mesma regra pra Base: sem atacante, sem
+  // dano — a batalha simplesmente não aconteceu.
+  if (attacker.zone !== "battleArea") return state;
   const attackerHasFirstStrike = hasKeyword(attacker, "First Strike", state);
   const events: GameEvent[] = [];
   // docs/47 Fase 6 — acumula gatilhos de combate que precisam de escolha real
@@ -491,7 +501,6 @@ export function resolveDamageStep(state: GameState): GameState {
           events.push(...breachEvents(attacker, combat.defendingPlayer, state));
           pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
           events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
-        events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
         }
       }
     } else {

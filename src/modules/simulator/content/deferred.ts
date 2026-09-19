@@ -108,43 +108,43 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
 
   // ─────────────────────────────────────────────────────────────────────────
   // Classe G — Sprint 2 GD02: 3 gaps de motor genuínos, achados fechando o backlog
-  // de cobertura GD02 (varredura de 2026-09-19). Diferente das classes A-F acima
-  // (todas fechadas), estas 3 são a 1ª entrada ATIVA deste registro — motor
-  // corretamente não reivindica cobertura que não tem.
-  {
-    cardCode: "GD02-011",
-    clause: "Choose 1 enemy Base/enemy Shield this Unit is battling. Deal 6 damage to it.",
-    reason:
-      "Nenhum EffectSpec/CardDef aponta pra esta carta. `AttackTarget` (types.ts) só modela \"player\" | " +
-      "{unitId} — não existe conceito de \"o Base/Shield que esta Unit está batalhando\" como pool de alvo " +
-      "endereçável. Mesmo resolvendo a pool (Base = defendingPlayer.baseSection[0], Shield = candidato a " +
-      "escolher entre os N na shields[]), o dano em Shield específico não tem primitiva: `DAMAGE_SHIELD` só " +
-      "quebra por CONTAGEM do topo do array (shift()), nunca por instanceId escolhido — usar DESTROY_CARD " +
-      "direto no Shield escolhido pularia o disparo de Burst que hoje está acoplado ao caminho de " +
-      "DAMAGE_SHIELD. Precisaria de: (1) novo targetScope lendo `state.combat` pra montar a pool " +
-      "Base∪Shields do defendingPlayer quando `combat.attackerId === source && combat.currentTarget === " +
-      "\"player\"`, (2) evento novo pra destruir 1 Shield por instanceId SEM perder o disparo de Burst.",
-    blockedBy: "engine:targetScope lendo state.combat para Base/Shield + evento de dano em Shield por instanceId",
-  },
-  {
-    cardCode: "GD02-096",
-    clause: "You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
-    reason:
-      "\"Pay its cost to deploy it\" exige pagar o CUSTO IMPRESSO da carta escolhida (variável, decidido só " +
-      "depois da escolha), não um `n` fixo — `payResourceCost` (effectSpec.ts) só aceita `n: number` " +
-      "constante no próprio EffectSpec. `deployCard` (deploy.ts linha ~86) também lança erro se " +
-      "`card.zone !== \"hand\"`, hard-gate que impede reusar o pipeline normal de deploy pra uma carta vinda " +
-      "da lixeira. Nenhum precedente no codebase (grep por \"Pay its cost to deploy\"/deploy-from-trash " +
-      "variável não achou nada) — implementar direito precisa de um pipeline de deploy paralelo (ou " +
-      "`deployCard` generalizado pra aceitar zona de origem) com pausa interativa pro jogador escolher QUAIS " +
-      "Recursos active pagam o custo da carta recém-escolhida.",
-    blockedBy: "engine:deploy pagando custo variável (da carta escolhida) a partir da lixeira, não da mão",
-  },
-  {
-    cardCode: "GD02-110",
-    clause: "Choose 1 Unit card that is Lv.5 or lower from your trash. Pay its cost to deploy it.",
-    reason: "Mesmo gap de GD02-096 (\"Pay its cost to deploy it\" da lixeira, custo variável) — ver blockedBy.",
-    blockedBy: "engine:deploy pagando custo variável (da carta escolhida) a partir da lixeira, não da mão",
-  },
+  // de cobertura GD02 (varredura de 2026-09-19). FECHADA (Sprint 2 Lote 11,
+  // 2026-09-19, revalidação "engenheiro sênior" a pedido do Willen — a
+  // reanálise achou que 2 das 3 razões de bloqueio originais estavam ERRADAS):
+  // - GD02-011 Moebius: a razão original ("DESTROY_CARD pularia o Burst") era
+  //   INCORRETA — `burstEligibleShieldIds` (dispatcher.ts) é um DIFF puro entre
+  //   `before.shields` e `after.trash`, não olha QUAL evento moveu a carta;
+  //   `DESTROY_CARD`/`MOVE_CARD` produzem o mesmo efeito de zona, então o Burst
+  //   já dispara certinho. Fechada com `targetScope: "battlingBaseOrShield"`
+  //   novo (lê `state.combat`) + primitiva `damageBattlingBaseOrShield` (Base
+  //   acumula dano normal — `DAMAGE_UNIT`/`DAMAGE_BASE` são o MESMO evento na
+  //   prática —, Shield "tem 1 HP" e destrói direto). Custo "Destroy this
+  //   Unit:" = `cost: [{op:"destroy", target:{kind:"self"}}]`, já suportado.
+  //   ACHADO ADICIONAL ao validar o custo "destroy self": `resolveDamageStep`
+  //   (combat.ts) não checava se o ATACANTE ainda estava em `battleArea` antes
+  //   de causar dano — um atacante autodestruído no próprio Action Step (via
+  //   esta carta, ou qualquer custo futuro parecido) ainda estourava 1 Shield
+  //   "de graça" no Damage Step seguinte, porque `shieldDamageEvents` quebra
+  //   por CONTAGEM fixa (1, ou 2 com <Suppression>), nunca proporcional ao AP —
+  //   nem um atacante com AP efetivo 0 (caso de Moebius) escapava disso. Bug
+  //   real, não hipotético — corrigido na causa raiz (guard `attacker.zone !==
+  //   "battleArea"` no topo de `resolveDamageStep`, sem atacante = sem dano de
+  //   NENHUM lado), não só documentado — cobre também qualquer carta GD03
+  //   futura com o mesmo padrão de autodestruição durante o próprio ataque.
+  //   ACHADO 2: `onlyDefenderFirstStrike` tinha `allyCombatTriggerEvents(...,
+  //   "destroyEnemyInBattle")` DUPLICADO (2 linhas idênticas, artefato de um
+  //   `replace_all` de um lote anterior) — disparava GD02-001/002 2x quando o
+  //   defensor tem <First Strike> mas ainda morre na troca. Corrigido junto.
+  // - GD02-096 Desil Galette / GD02-110 Awakened Power: razão original
+  //   ("precisa de pipeline de deploy paralelo") ainda procede — `deployCard`
+  //   genuinamente não reusa (exige `card.zone === "hand"`) —, mas a simplificação
+  //   ACEITA por `deployFromHandTriggered`/`deployFromTopFilterReveal` (deploy
+  //   sem encadear o 【Deploy】 da carta recém-jogada, precedente já em produção
+  //   desde ST03-010/GD01-045) também resolve este caso: nova primitiva
+  //   `deployFromTrashPayingCost` paga `effectiveCost` da carta ESCOLHIDA (não
+  //   um `n` fixo do EffectSpec) via `payResourceCostEvents` (fallback já
+  //   auto-seleciona os N primeiros Recursos active), sem checar nível do
+  //   jogador (não é a jogada normal da Main Phase, CR 7 só amarra nível à
+  //   jogada da mão) e sem reusar `deployCard`.
   // ─────────────────────────────────────────────────────────────────────────
 ] as const;

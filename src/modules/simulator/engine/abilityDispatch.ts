@@ -92,10 +92,17 @@ function buildQueueEntry(
   const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
   if (!choice) return entry;
 
-  if (choice.op === "deployFromHandTriggered") {
+  // GD02-071 Gundam Mk-II (AEUG) (`pairFromHandSearch`) reusa o MESMO shape de
+  // `deployFromHandTriggered` — busca na MÃO inteira, só muda o destino (parear
+  // com a fonte, não ir pra battleArea sozinha). Achado da revalidação Sprint 2
+  // Fase 7: antes deste branch, o op nunca tinha uma entrada de fila própria —
+  // `buildQueueEntry` caía no fallback de `moveWithinDeck`/`deckReorder` (só
+  // funcionava via `resolveEffectSpec` chamado direto em teste, nunca pela UI real).
+  if (choice.op === "deployFromHandTriggered" || choice.op === "pairFromHandSearch") {
     const chooser = resolvePlayerRef(choice.player, player);
+    const wantsPilot = choice.op === "pairFromHandSearch";
     const legalHandIds = state.players[chooser].hand
-      .filter((c) => c.def.cardType === "UNIT" && matchesCardDefFilter(c.def, choice.filter))
+      .filter((c) => c.def.cardType === (wantsPilot ? "PILOT" : "UNIT") && matchesCardDefFilter(c.def, choice.filter))
       .map((c) => c.instanceId);
     return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
   }
@@ -147,9 +154,13 @@ function buildQueueEntry(
   // GD01-067 — busca na lixeira (zona inteira, sempre visível, sem "topo N").
   // GD01-023 (pairFromTrashSearch) reusa o MESMO shape — só muda o destino (parear
   // com a fonte, não ir pra mão), a candidatura/validação de escolha é idêntica.
-  if (choice.op === "searchTrashToHand" || choice.op === "pairFromTrashSearch") {
+  // GD02-096/GD02-110 (deployFromTrashPayingCost) também reusa — destino é deploy
+  // pagando o custo da carta escolhida, mas a busca/candidatura é a mesma coisa.
+  if (choice.op === "searchTrashToHand" || choice.op === "pairFromTrashSearch" || choice.op === "deployFromTrashPayingCost") {
     const chooser = resolvePlayerRef(choice.player, player);
-    const legalTrashIds = state.players[chooser].trash.filter((c) => matchesCardDefFilter(c.def, choice.filter)).map((c) => c.instanceId);
+    const legalTrashIds = state.players[chooser].trash
+      .filter((c) => (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT") && matchesCardDefFilter(c.def, choice.filter))
+      .map((c) => c.instanceId);
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
   }
 

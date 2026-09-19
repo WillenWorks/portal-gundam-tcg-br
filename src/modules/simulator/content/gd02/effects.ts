@@ -1243,6 +1243,40 @@ export const GD02_111_DECISIVE_LAST_RESORT_MAIN: EffectSpec = {
   sourceText: "【Main】Choose 6 purple Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Destroy it.",
 };
 
+// GD02-011 Moebius (Peacemaker Team) — 【Activate･Action】Destroy this Unit：Choose 1 enemy
+// Base/enemy Shield this Unit is battling. Deal 6 damage to it.
+export const GD02_011_MOEBIUS_ACTIVATE_ACTION: EffectSpec = {
+  id: "GD02-011-ActivateAction",
+  cardCode: "GD02-011",
+  trigger: "Activate·Action",
+  cost: [{ op: "destroy", target: { kind: "self" } }],
+  actions: [{ op: "damageBattlingBaseOrShield", target: { kind: "named", name: "target" }, amount: 6 }],
+  targetScope: "battlingBaseOrShield",
+  sourceText: "【Activate･Action】Destroy this Unit：Choose 1 enemy Base/enemy Shield this Unit is battling. Deal 6 damage to it.",
+};
+
+// GD02-096 Desil Galette — 【Burst】Add this card to your hand.
+// 【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash.
+// Pay its cost to deploy it.
+export const GD02_096_DESIL_GALETTE_WHEN_LINKED: EffectSpec = {
+  id: "GD02-096-WhenLinked",
+  cardCode: "GD02-096",
+  trigger: "When Linked",
+  actions: [{ op: "deployFromTrashPayingCost", player: "controller", filter: { cardType: "UNIT", anyTrait: ["Vagan"], maxLevel: 2 } }],
+  sourceText:
+    "【Burst】Add this card to your hand.\n【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
+};
+
+// GD02-110 Awakened Power — 【Main】Choose 1 Unit card that is Lv.5 or lower from your trash.
+// Pay its cost to deploy it.
+export const GD02_110_AWAKENED_POWER_MAIN: EffectSpec = {
+  id: "GD02-110-Main",
+  cardCode: "GD02-110",
+  trigger: "Main",
+  actions: [{ op: "deployFromTrashPayingCost", player: "controller", filter: { cardType: "UNIT", maxLevel: 5 } }],
+  sourceText: "【Main】Choose 1 Unit card that is Lv.5 or lower from your trash. Pay its cost to deploy it.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -1342,5 +1376,8 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_057_ZEDAS_ATTACK,
   GD02_098_QUATTRO_BAJEENA_WHEN_LINKED,
   GD02_111_DECISIVE_LAST_RESORT_BURST,
-  GD02_111_DECISIVE_LAST_RESORT_MAIN
+  GD02_111_DECISIVE_LAST_RESORT_MAIN,
+  GD02_011_MOEBIUS_ACTIVATE_ACTION,
+  GD02_096_DESIL_GALETTE_WHEN_LINKED,
+  GD02_110_AWAKENED_POWER_MAIN
 ];
