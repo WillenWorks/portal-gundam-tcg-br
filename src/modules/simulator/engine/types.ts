@@ -846,7 +846,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
-        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase";
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
         /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */
@@ -1007,7 +1007,7 @@ export interface CombatState {
    * por Unit específica e condicionada ao AP EFETIVO do atacante. Só 1 Unit
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
-  unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number } | null;
+  unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean } | null;
   /** docs/47 Fase 6 — ver `PendingCombatTriggerChoice`. Populado por `resolveDamageStep`, consumido e limpo por `actions.ts` ao montar a pausa. */
   pendingTriggerChoices?: PendingCombatTriggerChoice[];
 }
@@ -1139,7 +1139,7 @@ export type GameEvent =
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
   | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
-  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number }
+  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
   | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */

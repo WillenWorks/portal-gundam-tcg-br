@@ -957,3 +957,77 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 7º lote de fechamento do
     expect(findCard(noLinkState, unitId2).rested).toBe(true);
   });
 });
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 8º lote de fechamento do backlog de cobertura", () => {
+  it("GD02-047 Gaza C (Activate·Main): resta e destrói a si mesma, dano 1 a Unit inimiga Lv<=5", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-047"], "battleArea");
+    const enemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-018"], level: 5 }, "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-047" && s.trigger === "Activate·Main")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(enemyId);
+
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [enemyId] }), defaultPredicateResolver));
+    expect(state.players.A.battleArea.some((c) => c.instanceId === sourceId)).toBe(false);
+    expect(findCard(state, enemyId).damage).toBe(1);
+  });
+
+  it("GD02-105 Valedictorian (Action): Unit token amiga escolhida fica protegida de qualquer dano de batalha nesta batalha (unconditional)", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-105"], "hand");
+    const tokenId = placeCard(state, "A", TEST_TOKEN_UNIT, "battleArea");
+    const normalUnitId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-105" && s.trigger === "Action")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(tokenId);
+    expect(legal).not.toContain(normalUnitId);
+
+    // combate em andamento é pré-requisito de SET_UNIT_DAMAGE_PROTECTION (mesmo setup mínimo de ST03-014 The Blue Giant)
+    state.combat = {
+      step: "action",
+      attackerId: "x",
+      attackingPlayer: "B",
+      defendingPlayer: "A",
+      originalTarget: "player",
+      currentTarget: "player",
+      actionPasses: { A: false, B: false },
+      actionPriority: "A",
+    };
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [tokenId] }), defaultPredicateResolver));
+    expect(state.combat?.unitDamageProtection).toEqual({ instanceId: tokenId, unconditional: true });
+  });
+
+  it("GD02-120 Aspiring Pilot (Action): cura 2 HP de Unit OU Base amiga (AEUG) escolhida; recusa alvo sem o trait", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-120"], "hand");
+    const aeugUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["AEUG"] }, "battleArea", { damage: 3 });
+    const aeugBaseId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-121"], traits: ["AEUG"] }, "baseSection", { damage: 2 });
+    const otherUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Earth Federation"] }, "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-120" && s.trigger === "Action")!;
+    expect(spec).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(aeugUnitId);
+    expect(legal).toContain(aeugBaseId);
+    expect(legal).not.toContain(otherUnitId);
+
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [aeugUnitId] }), defaultPredicateResolver));
+    expect(findCard(state, aeugUnitId).damage).toBe(1);
+
+    let baseHealState = freshGame();
+    const sourceId2 = placeCard(baseHealState, "A", GD02_CARD_DEFS["GD02-120"], "hand");
+    const aeugBaseId2 = placeCard(baseHealState, "A", { ...GD02_CARD_DEFS["GD02-121"], traits: ["AEUG"] }, "baseSection", { damage: 2 });
+    baseHealState = applyEvents(
+      baseHealState,
+      resolveEffectSpec(spec, ctxFor(baseHealState, sourceId2, { target: [aeugBaseId2] }), defaultPredicateResolver),
+    );
+    expect(findCard(baseHealState, aeugBaseId2).damage).toBe(0);
+  });
+});

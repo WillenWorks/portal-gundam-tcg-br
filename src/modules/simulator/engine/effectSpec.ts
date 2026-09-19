@@ -222,7 +222,8 @@ export type PrimitiveCall =
    * `CombatState.unitDamageProtection` pra a Unit escolhida (`target` nomeado).
    * Não-op fora de combate. `maxAttackerAp` inclusivo.
    */
-  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp?: number; maxAttackerLevel?: number }
+  /** GD02-105 Valedictorian — "can't receive battle damage from enemy Units during this battle" (SEM teto de AP/Level, protege de QUALQUER atacante). */
+  | { op: "preventUnitBattleDamage"; target: TargetRef; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /**
    * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
    * an active enemy Unit that is Lv.5 or lower as its attack target." Instala
@@ -491,6 +492,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           instanceId,
           maxAttackerAp: call.maxAttackerAp,
           maxAttackerLevel: call.maxAttackerLevel,
+          unconditional: call.unconditional,
         }),
       );
     }
@@ -722,7 +724,8 @@ export interface EffectSpec {
    * (sem "enemy"/"friendly") — pool são as Units dos DOIS lados do tabuleiro.
    */
   /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase";
+  /** GD02-120 Aspiring Pilot — "Choose 1 of your (AEUG) Units/Bases." (pool = Units E Bases do controller, filtro de trait aplica aos dois.) */
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -809,7 +812,9 @@ export function computeLegalTargets(
           ? [...state.players.A.battleArea, ...state.players.B.battleArea].filter((c) => c.def.cardType === "UNIT")
           : scope === "friendlyBase"
             ? state.players[controller].baseSection
-            : state.players[controller].resourceArea;
+            : scope === "friendlyUnitOrBase"
+              ? [...state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT"), ...state.players[controller].baseSection]
+              : state.players[controller].resourceArea;
 
   if (!spec.targetFilter) return pool.map((c) => c.instanceId);
   if (!resolveFilter) {

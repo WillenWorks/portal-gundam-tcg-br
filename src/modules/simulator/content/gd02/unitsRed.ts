@@ -155,6 +155,7 @@ export const UNITS_RED: Record<string, CardDef> = {
     ap: 0,
     hp: 1,
     traits: ["Neo Zeon"],
+    triggerKeywords: ["Activate: Main"],
   },
   "GD02-048": {
     code: "GD02-048",

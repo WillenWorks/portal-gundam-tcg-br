@@ -370,7 +370,10 @@ export function resolveDamageStep(state: GameState): GameState {
     const grantedProtects =
       !!unitProt &&
       unitProt.instanceId === defender.instanceId &&
-      ((unitProt.maxAttackerAp !== undefined && attackerAp <= unitProt.maxAttackerAp) ||
+      // GD02-105 Valedictorian — "can't receive battle damage from enemy Units during this
+      // battle" (sem teto de AP/Level, protege de QUALQUER atacante).
+      (unitProt.unconditional ||
+        (unitProt.maxAttackerAp !== undefined && attackerAp <= unitProt.maxAttackerAp) ||
         (unitProt.maxAttackerLevel !== undefined && (attacker.def.level ?? 0) <= unitProt.maxAttackerLevel));
     // GD01-091 Chang Wufei (Lote 5) — proteção INATA e contínua (não instalada por
     // efeito pontual), reavaliada aqui mesmo: "During your turn, while this Unit has
