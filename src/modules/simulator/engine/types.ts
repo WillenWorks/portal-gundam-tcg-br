@@ -865,7 +865,7 @@ export type PendingDecision =
          * recém-comprada). A escolha viaja em `resolution.targetIds` e vira
          * `ctx.targets.discard`. `discardNamed` no `effectSpec`.
          */
-        handDiscard?: { n: number; legalHandIds: string[]; label: string };
+        handDiscard?: { n: number; legalHandIds: string[]; cards?: CardInstance[]; label: string };
         /**
          * ST02-015 Saint Gabriel 【Deploy】 "look at the top 2 cards of your deck
          * and return 1 to the top and 1 to the bottom" — o jogador atribui cada

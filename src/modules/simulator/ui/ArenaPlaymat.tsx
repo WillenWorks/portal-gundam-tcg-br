@@ -263,7 +263,7 @@ const BATTLE_ROW_WIDTH = "calc(var(--card-w-std, 2.17rem) * 6 + 1.875rem)";
 function ResourceLane({ children }: { children: ReactNode }) {
   return (
     <div
-      className="mx-auto flex min-w-0 max-w-full justify-center overflow-visible pt-1.5"
+      className="mx-auto flex min-w-0 max-w-full justify-start overflow-visible pt-1.5 pl-0.5"
       style={{ width: BATTLE_ROW_WIDTH }}
     >
       {children}

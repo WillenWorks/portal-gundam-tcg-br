@@ -101,4 +101,47 @@ describe("viewStateFor", () => {
     expect(both.A.viewer).toBe("A");
     expect(both.B.viewer).toBe("B");
   });
+
+  it("handDiscard: popula cards para o dono da decisão (inclusive carta do deck a ser comprada) e redige a [] para o adversário", () => {
+    const state = freshGame();
+    const handCardId = place(state, "A", ST01_CARD_DEFS.GUNDAM, "hand");
+    const deckCardId = state.players.A.deck[0].instanceId;
+    const deckCardDefName = state.players.A.deck[0].def.nameEn;
+
+    state.pendingDecision.A = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          specId: "test-discard",
+          sourceInstanceId: "dummy",
+          label: "Draw 1. Then, discard 1.",
+          optional: false,
+          needsTarget: false,
+          targetScope: "friendlyUnit",
+          legalTargets: [],
+          targetCount: { min: 1, max: 1 },
+          handDiscard: {
+            n: 1,
+            legalHandIds: [handCardId, deckCardId],
+            label: "Draw 1. Then, discard 1.",
+          },
+        },
+      ],
+    };
+
+    const viewA = viewStateFor(state, "A");
+    const viewB = viewStateFor(state, "B");
+
+    const decisionA = viewA.pendingDecision.A;
+    expect(decisionA?.kind).toBe("abilityResolution");
+    expect(decisionA?.kind === "abilityResolution" && decisionA.queue[0].handDiscard?.cards).toHaveLength(2);
+    expect(decisionA?.kind === "abilityResolution" && decisionA.queue[0].handDiscard?.cards?.[0].def.nameEn).toBe("Gundam");
+    expect(decisionA?.kind === "abilityResolution" && decisionA.queue[0].handDiscard?.cards?.[1].def.nameEn).toBe(deckCardDefName);
+
+    const decisionB = viewB.pendingDecision.A;
+    expect(decisionB?.kind).toBe("abilityResolution");
+    expect(decisionB?.kind === "abilityResolution" && decisionB.queue[0].handDiscard?.cards).toHaveLength(0);
+  });
 });
+
