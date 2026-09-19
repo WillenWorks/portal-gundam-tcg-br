@@ -58,7 +58,8 @@
     "enemyUnit": { "description": "Pool padrão de alvo legal — Units inimigas na Battle Area.", "since": "ST01" },
     "ownResource": { "description": "Pool de alvo legal — cartas do próprio Resource Area.", "since": "ST01" },
     "friendlyUnit": { "description": "Pool de alvo legal — Units amigas na Battle Area.", "since": "ST01" },
-    "anyUnit": { "description": "Pool de alvo legal — Units dos DOIS lados do tabuleiro — texto oficial \"Choose 1 Unit\" sem \"enemy\"/\"friendly\".", "since": "GD01-014 G-Sky Easy / GD01-058 Galluss-K / GD01-110 Rasid's Orders" }
+    "anyUnit": { "description": "Pool de alvo legal — Units dos DOIS lados do tabuleiro — texto oficial \"Choose 1 Unit\" sem \"enemy\"/\"friendly\".", "since": "GD01-014 G-Sky Easy / GD01-058 Galluss-K / GD01-110 Rasid's Orders" },
+    "friendlyBase": { "description": "Pool de alvo legal — Bases do próprio baseSection — texto oficial \"Choose 1 active friendly Base\".", "since": "GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam (Sprint 2 Lote 7)" }
   },
   "predicates": {
     "attackingEnemyUnit": { "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).", "since": "GD01-050 LaGOWE" },
@@ -93,8 +94,12 @@
     "controllerHasPilotWithTrait:<value>": { "description": "O controller tem um Pilot pareado com o trait dado.", "since": "GD03" },
     "controllerHandHasUnitWithTrait:<value>": { "description": "A mão do controller tem pelo menos 1 carta Unit com o trait dado — checado ANTES da própria ação de revelar/mover rodar.", "since": "ST08-006 Penelope" },
     "namedTargetLethalDamage:<value>:<n>": { "description": "O alvo nomeado <value> morreria se recebesse mais N de dano agora (mesma fórmula de damageUnit: card.damage + N >= effectiveHp) — avaliado ANTES do dano rodar.", "since": "GD03-001 Gundam NT-1" },
-    "selfIsDamaged": { "description": "A própria fonte (Unit) tem dano acumulado (damage > 0) agora.", "since": "GD02-054 Gundam Barbatos 1st Form (Sprint 2 Lote 3)" },
-    "controllerHasBaseColor:<value>": { "description": "O controller tem uma Base em campo (baseSection) da cor dada.", "since": "GD02-081 Methuss (Sprint 2 Lote 3)" }
+    "selfIsDamaged": { "description": "'This Unit' tem dano acumulado (damage > 0) agora — resolve pra Unit pareada quando a fonte é um Pilot (resolveSelfUnit).", "since": "GD02-054 Gundam Barbatos 1st Form (Sprint 2 Lote 3); Pilot-aware desde GD02-095 Lafter Frankland (Lote 4)" },
+    "controllerHasBaseColor:<value>": { "description": "O controller tem uma Base em campo (baseSection) da cor dada.", "since": "GD02-081 Methuss (Sprint 2 Lote 3)" },
+    "pairedPilotColorIs:<value>": { "description": "A fonte (Unit) tem Pilot pareado com a cor impressa dada — ex. 'When Paired・Purple Pilot'.", "since": "GD02-061 Hyakuri (Sprint 2 Lote 4)" },
+    "selfColorIs:<value>": { "description": "'This Unit' tem a cor impressa dada — resolve pra Unit pareada quando a fonte é um Pilot (resolveSelfUnit).", "since": "GD02-091 Haman Karn (Sprint 2 Lote 4)" },
+    "selfLevelAtMost:<n>": { "description": "'This Unit' tem nível <= N — resolve pra Unit pareada quando a fonte é um Pilot (resolveSelfUnit).", "since": "GD02-095 Lafter Frankland (Sprint 2 Lote 4)" },
+    "enemyShieldCountAtMost:<n>": { "description": "O oponente tem <= N cartas na shield area.", "since": "GD02-037 Gundam Virsago (Sprint 2 Lote 5)" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },

@@ -1,4 +1,6 @@
 import type { EffectSpec } from "../../engine/effectSpec";
+import type { CardDef } from "../../engine/types";
+import { EX_RESOURCE_TOKEN } from "../../engine/setup";
 
 /**
  * Wave GD02 "Dual Impact" — Catálogo de EffectSpecs Oficiais.
@@ -530,6 +532,507 @@ export const GD02_081_METHUSS_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】If a friendly white Base is in play, choose 1 enemy Unit. It gets AP-2 during this turn.",
 };
 
+// GD02-004 Byarlant — 【When Paired】Choose 1 rested enemy Unit with 3 or less HP. It won't be
+// set as active during the start phase of your opponent's next turn.
+export const GD02_004_BYARLANT_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-004-WhenPaired",
+  cardCode: "GD02-004",
+  trigger: "When Paired",
+  actions: [
+    { op: "rest", target: { kind: "named", name: "target" } },
+    { op: "preventActivationNextTurn", target: { kind: "named", name: "target" } },
+  ],
+  targetScope: "enemyUnit",
+  targetFilter: "rested;hp<=3",
+  sourceText: "【When Paired】Choose 1 rested enemy Unit with 3 or less HP. It won't be set as active during the start phase of your opponent's next turn.",
+};
+
+// GD02-061 Hyakuri — 【When Paired･Purple Pilot】If there are 3 or more (Teiwaz)/(Tekkadan)
+// cards in your trash, choose 1 enemy Unit with 3 or less AP. Rest it.
+export const GD02_061_HYAKURI_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-061-WhenPaired",
+  cardCode: "GD02-061",
+  trigger: "When Paired",
+  condition: {
+    predicate: "pairedPilotColorIs:purple;controllerTrashUnitCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
+    then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "ap<=3",
+  sourceText: "【When Paired･Purple Pilot】If there are 3 or more (Teiwaz)/(Tekkadan) cards in your trash, choose 1 enemy Unit with 3 or less AP. Rest it.",
+};
+
+// GD02-089 Lalah Sune — 【Burst】Add this card to your hand.
+export const GD02_089_LALAH_SUNE_BURST: EffectSpec = {
+  id: "GD02-089-Burst",
+  cardCode: "GD02-089",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+// GD02-089 Lalah Sune — 【When Paired】Choose 1 of your other (Zeon) Link Units. It gains
+// <Breach 1> during this turn.
+export const GD02_089_LALAH_SUNE_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-089-WhenPaired",
+  cardCode: "GD02-089",
+  trigger: "When Paired",
+  actions: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "Breach 1", duration: "endOfTurn" }],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Zeon;linkUnit",
+  sourceText: "【When Paired】Choose 1 of your other (Zeon) Link Units. It gains <Breach 1> during this turn.",
+};
+
+// GD02-091 Haman Karn — 【Burst】Add this card to your hand.
+export const GD02_091_HAMAN_KARN_BURST: EffectSpec = {
+  id: "GD02-091-Burst",
+  cardCode: "GD02-091",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+// GD02-091 Haman Karn — 【When Paired】If this Unit is red, choose 1 enemy Unit whose Lv. is
+// equal to or lower than this Unit. Deal 1 damage to it. ("this Unit" = a Unit pareada.)
+export const GD02_091_HAMAN_KARN_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-091-WhenPaired",
+  cardCode: "GD02-091",
+  trigger: "When Paired",
+  condition: {
+    predicate: "selfColorIs:red",
+    then: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=self",
+  sourceText: "【When Paired】If this Unit is red, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Deal 1 damage to it.",
+};
+
+// GD02-095 Lafter Frankland — 【Burst】Add this card to your hand.
+export const GD02_095_LAFTER_FRANKLAND_BURST: EffectSpec = {
+  id: "GD02-095-Burst",
+  cardCode: "GD02-095",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+// GD02-095 Lafter Frankland — 【Attack】If this Unit is damaged and Lv.5 or lower, it gains
+// <High-Maneuver> during this battle. ("this Unit" = a Unit pareada.)
+export const GD02_095_LAFTER_FRANKLAND_ATTACK: EffectSpec = {
+  id: "GD02-095-Attack",
+  cardCode: "GD02-095",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfIsDamaged;selfLevelAtMost:5",
+    then: [{ op: "grantKeyword", target: { kind: "pairedUnit" }, keyword: "High-Maneuver", duration: "thisBattle" }],
+  },
+  actions: [],
+  sourceText: "【Attack】If this Unit is damaged and Lv.5 or lower, it gains <High-Maneuver> during this battle.",
+};
+
+// GD02-099 Gaelio Bauduin — 【Burst】Add this card to your hand.
+export const GD02_099_GAELIO_BAUDUIN_BURST: EffectSpec = {
+  id: "GD02-099-Burst",
+  cardCode: "GD02-099",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+// GD02-099 Gaelio Bauduin — 【When Paired】If there are 4 or more (Gjallarhorn) cards in your
+// trash, choose 1 enemy Unit. It gets AP-2 during this turn.
+export const GD02_099_GAELIO_BAUDUIN_WHEN_PAIRED: EffectSpec = {
+  id: "GD02-099-WhenPaired",
+  cardCode: "GD02-099",
+  trigger: "When Paired",
+  condition: {
+    predicate: "controllerTrashCardCountWithTraitAtLeast:Gjallarhorn:4",
+    then: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -2, duration: "endOfTurn" }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  sourceText: "【When Paired】If there are 4 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit. It gets AP-2 during this turn.",
+};
+
+// GD02-100 Dramatic Turnabout — 【Burst】Draw 1.
+export const GD02_100_DRAMATIC_TURNABOUT_BURST: EffectSpec = {
+  id: "GD02-100-Burst",
+  cardCode: "GD02-100",
+  trigger: "Burst",
+  actions: [{ op: "draw", player: "controller", n: 1 }],
+  sourceText: "【Burst】Draw 1.",
+};
+// GD02-100 Dramatic Turnabout — 【Main】Choose 1 friendly damaged Unit. It recovers 2 HP.
+// Then, draw 1.
+export const GD02_100_DRAMATIC_TURNABOUT_MAIN: EffectSpec = {
+  id: "GD02-100-Main",
+  cardCode: "GD02-100",
+  trigger: "Main",
+  actions: [
+    { op: "heal", target: { kind: "named", name: "target" }, amount: 2 },
+    { op: "draw", player: "controller", n: 1 },
+  ],
+  targetScope: "friendlyUnit",
+  targetFilter: "damaged",
+  sourceText: "【Main】Choose 1 friendly damaged Unit. It recovers 2 HP. Then, draw 1.",
+};
+
+// GD02-101 Beneath the Mask — 【Main】/【Action】Choose 1 to 2 enemy Units that are Lv.2 or
+// lower. Rest them.
+const BENEATH_THE_MASK_ACTIONS = [{ op: "rest" as const, target: { kind: "namedGroup" as const, name: "target" } }];
+export const GD02_101_BENEATH_THE_MASK_MAIN: EffectSpec = {
+  id: "GD02-101-Main",
+  cardCode: "GD02-101",
+  trigger: "Main",
+  actions: BENEATH_THE_MASK_ACTIONS,
+  targetScope: "enemyUnit",
+  targetFilter: "level<=2",
+  targetCount: { min: 1, max: 2 },
+  sourceText: "【Main】/【Action】Choose 1 to 2 enemy Units that are Lv.2 or lower. Rest them.",
+};
+export const GD02_101_BENEATH_THE_MASK_ACTION: EffectSpec = {
+  id: "GD02-101-Action",
+  cardCode: "GD02-101",
+  trigger: "Action",
+  actions: BENEATH_THE_MASK_ACTIONS,
+  targetScope: "enemyUnit",
+  targetFilter: "level<=2",
+  targetCount: { min: 1, max: 2 },
+  sourceText: "【Main】/【Action】Choose 1 to 2 enemy Units that are Lv.2 or lower. Rest them.",
+};
+
+// GD02-103 AGE Device — 【Burst】Choose 1 (Asuno Family) Pilot card from your trash. Add it to
+// your hand.
+export const GD02_103_AGE_DEVICE_BURST: EffectSpec = {
+  id: "GD02-103-Burst",
+  cardCode: "GD02-103",
+  trigger: "Burst",
+  actions: [{ op: "searchTrashToHand", player: "controller", filter: { cardType: "PILOT", anyTrait: ["Asuno Family"] } }],
+  sourceText: "【Burst】Choose 1 (Asuno Family) Pilot card from your trash. Add it to your hand.",
+};
+// GD02-103 AGE Device — 【Main】If you have an (AGE System) Unit in play, place 1 EX Resource.
+export const GD02_103_AGE_DEVICE_MAIN: EffectSpec = {
+  id: "GD02-103-Main",
+  cardCode: "GD02-103",
+  trigger: "Main",
+  condition: {
+    predicate: "controllerUnitWithTraitInPlay:AGE System",
+    then: [{ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea" }],
+  },
+  actions: [],
+  sourceText: "【Main】If you have an (AGE System) Unit in play, place 1 EX Resource.",
+};
+
+// GD02-107 All-Range Attack — 【Burst】Choose 1 enemy Unit. Deal 1 damage to it.
+export const GD02_107_ALL_RANGE_ATTACK_BURST: EffectSpec = {
+  id: "GD02-107-Burst",
+  cardCode: "GD02-107",
+  trigger: "Burst",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "enemyUnit",
+  sourceText: "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.",
+};
+// GD02-107 All-Range Attack — 【Main】Deal 1 damage to all enemy Units other than Link Units.
+export const GD02_107_ALL_RANGE_ATTACK_MAIN: EffectSpec = {
+  id: "GD02-107-Main",
+  cardCode: "GD02-107",
+  trigger: "Main",
+  actions: [{ op: "damageUnit", target: { kind: "group", group: { kind: "allEnemyUnits", excludeLinkUnits: true } }, amount: 1 }],
+  sourceText: "【Main】Deal 1 damage to all enemy Units other than Link Units.",
+};
+
+// GD02-108 That One Looks A Lot Stronger? — 【Main】Choose 1 friendly (Clan) Unit. During this
+// turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.
+export const GD02_108_THAT_ONE_LOOKS_A_LOT_STRONGER_MAIN: EffectSpec = {
+  id: "GD02-108-Main",
+  cardCode: "GD02-108",
+  trigger: "Main",
+  actions: [{ op: "grantAttackTargetRelax", target: { kind: "named", name: "target" }, maxLevel: 4 }],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Clan",
+  sourceText: "【Main】Choose 1 friendly (Clan) Unit. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+};
+
+// GD02-109 Undying Persistence — 【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it.
+const UNDYING_PERSISTENCE_ACTIONS = [{ op: "damageUnit" as const, target: { kind: "named" as const, name: "target" }, amount: 1 }];
+export const GD02_109_UNDYING_PERSISTENCE_MAIN: EffectSpec = {
+  id: "GD02-109-Main",
+  cardCode: "GD02-109",
+  trigger: "Main",
+  actions: UNDYING_PERSISTENCE_ACTIONS,
+  targetScope: "enemyUnit",
+  sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it.",
+};
+export const GD02_109_UNDYING_PERSISTENCE_ACTION: EffectSpec = {
+  id: "GD02-109-Action",
+  cardCode: "GD02-109",
+  trigger: "Action",
+  actions: UNDYING_PERSISTENCE_ACTIONS,
+  targetScope: "enemyUnit",
+  sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it.",
+};
+
+// GD02-112 Momentary Respite — 【Burst】Draw 1.
+export const GD02_112_MOMENTARY_RESPITE_BURST: EffectSpec = {
+  id: "GD02-112-Burst",
+  cardCode: "GD02-112",
+  trigger: "Burst",
+  actions: [{ op: "draw", player: "controller", n: 1 }],
+  sourceText: "【Burst】Draw 1.",
+};
+// GD02-112 Momentary Respite — 【Main】Choose 1 purple Pilot card from your trash. Add it to
+// your hand.
+export const GD02_112_MOMENTARY_RESPITE_MAIN: EffectSpec = {
+  id: "GD02-112-Main",
+  cardCode: "GD02-112",
+  trigger: "Main",
+  actions: [{ op: "searchTrashToHand", player: "controller", filter: { cardType: "PILOT", color: "purple" } }],
+  sourceText: "【Main】Choose 1 purple Pilot card from your trash. Add it to your hand.",
+};
+
+// GD02-113 Sisterly Care — 【Main】/【Action】If a friendly (Teiwaz) Link Unit is in play,
+// choose 1 enemy Unit with 2 or less AP. Destroy it.
+const SISTERLY_CARE_CONDITION = {
+  predicate: "controllerHasLinkUnitWithTrait:Teiwaz",
+  then: [{ op: "destroy" as const, target: { kind: "named" as const, name: "target" } }],
+};
+export const GD02_113_SISTERLY_CARE_MAIN: EffectSpec = {
+  id: "GD02-113-Main",
+  cardCode: "GD02-113",
+  trigger: "Main",
+  condition: SISTERLY_CARE_CONDITION,
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "ap<=2",
+  sourceText: "【Main】/【Action】If a friendly (Teiwaz) Link Unit is in play, choose 1 enemy Unit with 2 or less AP. Destroy it.",
+};
+export const GD02_113_SISTERLY_CARE_ACTION: EffectSpec = {
+  id: "GD02-113-Action",
+  cardCode: "GD02-113",
+  trigger: "Action",
+  condition: SISTERLY_CARE_CONDITION,
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "ap<=2",
+  sourceText: "【Main】/【Action】If a friendly (Teiwaz) Link Unit is in play, choose 1 enemy Unit with 2 or less AP. Destroy it.",
+};
+
+// GD02-116 Comrades Come First — 【Main】If there are 7 or more cards in your trash, choose 1
+// friendly (Vulture) Unit. During this turn, it may choose an active enemy Unit that is Lv.4
+// or lower as its attack target.
+export const GD02_116_COMRADES_COME_FIRST_MAIN: EffectSpec = {
+  id: "GD02-116-Main",
+  cardCode: "GD02-116",
+  trigger: "Main",
+  condition: {
+    predicate: "controllerTrashCountAtLeast:7",
+    then: [{ op: "grantAttackTargetRelax", target: { kind: "named", name: "target" }, maxLevel: 4 }],
+  },
+  actions: [],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Vulture",
+  sourceText: "【Main】If there are 7 or more cards in your trash, choose 1 friendly (Vulture) Unit. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+};
+
+// GD02-119 Persistent and Fortudinous — 【Action】If you have a (Gjallarhorn) Link Unit in
+// play, choose 1 enemy Unit. It gets AP-3 during this battle.
+export const GD02_119_PERSISTENT_AND_FORTUDINOUS_ACTION: EffectSpec = {
+  id: "GD02-119-Action",
+  cardCode: "GD02-119",
+  trigger: "Action",
+  condition: {
+    predicate: "controllerHasLinkUnitWithTrait:Gjallarhorn",
+    then: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -3, duration: "thisBattle" }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  sourceText: "【Action】If you have a (Gjallarhorn) Link Unit in play, choose 1 enemy Unit. It gets AP-3 during this battle.",
+};
+
+// T-012 Daughtress — token [Daughtress]((New UNE)・AP0・HP1) gerado por GD02-043/044.
+export const TOKEN_DAUGHTRESS: CardDef = {
+  code: "T-012",
+  nameEn: "Daughtress",
+  cardType: "UNIT",
+  color: "red",
+  ap: 0,
+  hp: 1,
+  traits: ["New UNE"],
+  isToken: true,
+};
+
+// GD02-005 Tallgeese — 【During Link】【Attack】Choose 1 enemy Unit with 2 or less HP. Rest it.
+export const GD02_005_TALLGEESE_ATTACK: EffectSpec = {
+  id: "GD02-005-Attack",
+  cardCode: "GD02-005",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfIsLinkUnit",
+    then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "hp<=2",
+  sourceText: "【During Link】【Attack】Choose 1 enemy Unit with 2 or less HP. Rest it.",
+};
+
+// GD02-037 Gundam Virsago — 【Deploy】If there are 3 or less enemy Shields, choose 1 enemy Unit
+// with 5 or less AP. Deal 2 damage to it.
+export const GD02_037_GUNDAM_VIRSAGO_DEPLOY: EffectSpec = {
+  id: "GD02-037-Deploy",
+  cardCode: "GD02-037",
+  trigger: "Deploy",
+  condition: {
+    predicate: "enemyShieldCountAtMost:3",
+    then: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 2 }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "ap<=5",
+  sourceText: "【Deploy】If there are 3 or less enemy Shields, choose 1 enemy Unit with 5 or less AP. Deal 2 damage to it.",
+};
+
+// GD02-042 Gundam Ashtaron (MA Mode) — 【Deploy】Choose 1 of your (New UNE) Units. It gains
+// <High-Maneuver> during this turn.
+export const GD02_042_GUNDAM_ASHTARON_MA_MODE_DEPLOY: EffectSpec = {
+  id: "GD02-042-Deploy",
+  cardCode: "GD02-042",
+  trigger: "Deploy",
+  actions: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "High-Maneuver", duration: "endOfTurn" }],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:New UNE",
+  sourceText: "【Deploy】Choose 1 of your (New UNE) Units. It gains <High-Maneuver> during this turn.",
+};
+
+// GD02-043 Daughtress Weapon — 【Deploy】If you have another (New UNE) Unit in play, deploy 1
+// rested [Daughtress]((New UNE)・AP0・HP1) Unit token.
+export const GD02_043_DAUGHTRESS_WEAPON_DEPLOY: EffectSpec = {
+  id: "GD02-043-Deploy",
+  cardCode: "GD02-043",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerOtherUnitCountWithAnyTraitAtLeast:New UNE:1",
+    then: [{ op: "spawnToken", def: TOKEN_DAUGHTRESS, player: "controller", zone: "battleArea", rested: true }],
+  },
+  actions: [],
+  sourceText: "【Deploy】If you have another (New UNE) Unit in play, deploy 1 rested [Daughtress]((New UNE)・AP0・HP1) Unit token.",
+};
+
+// GD02-044 Daughtress Command — 【Destroyed】If you have another (New UNE) Unit in play, deploy
+// 1 rested [Daughtress]((New UNE)・AP0・HP1) Unit token.
+export const GD02_044_DAUGHTRESS_COMMAND_DESTROYED: EffectSpec = {
+  id: "GD02-044-Destroyed",
+  cardCode: "GD02-044",
+  trigger: "Destroyed",
+  condition: {
+    predicate: "controllerOtherUnitCountWithAnyTraitAtLeast:New UNE:1",
+    then: [{ op: "spawnToken", def: TOKEN_DAUGHTRESS, player: "controller", zone: "battleArea", rested: true }],
+  },
+  actions: [],
+  sourceText: "【Destroyed】If you have another (New UNE) Unit in play, deploy 1 rested [Daughtress]((New UNE)・AP0・HP1) Unit token.",
+};
+
+// GD02-055 Gundam Gusion Rebake — 【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1
+// damage to them.
+export const GD02_055_GUNDAM_GUSION_REBAKE_DEPLOY: EffectSpec = {
+  id: "GD02-055-Deploy",
+  cardCode: "GD02-055",
+  trigger: "Deploy",
+  actions: [
+    { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
+    { op: "damageUnit", target: { kind: "named", name: "enemyTarget" }, amount: 1 },
+  ],
+  targetScope: "friendlyUnit",
+  secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit" },
+  sourceText: "【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them.",
+};
+
+// GD02-083 Graze Ritter (Ground Type) — 【Destroyed】If it is your opponent's turn, choose 1 of
+// your (Gjallarhorn) Units. Set it as active.
+export const GD02_083_GRAZE_RITTER_GROUND_TYPE_DESTROYED: EffectSpec = {
+  id: "GD02-083-Destroyed",
+  cardCode: "GD02-083",
+  trigger: "Destroyed",
+  condition: {
+    predicate: "isOpponentTurn",
+    then: [{ op: "setActive", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Gjallarhorn",
+  sourceText: "【Destroyed】If it is your opponent's turn, choose 1 of your (Gjallarhorn) Units. Set it as active.",
+};
+
+// GD02-087 Orga, Crot, and Shani — 【Burst】Add this card to your hand.
+export const GD02_087_ORGA_CROT_AND_SHANI_BURST: EffectSpec = {
+  id: "GD02-087-Burst",
+  cardCode: "GD02-087",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+// GD02-087 Orga, Crot, and Shani — 【When Linked】If this is a blue Unit, choose 1 enemy Unit
+// with <Blocker>. Rest it. ("this" = a Unit pareada/Link.)
+export const GD02_087_ORGA_CROT_AND_SHANI_WHEN_LINKED: EffectSpec = {
+  id: "GD02-087-WhenLinked",
+  cardCode: "GD02-087",
+  trigger: "When Linked",
+  condition: {
+    predicate: "selfColorIs:blue",
+    then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "hasKeyword:Blocker",
+  sourceText: "【When Linked】If this is a blue Unit, choose 1 enemy Unit with <Blocker>. Rest it.",
+};
+
+// GD02-106 White Wolf — 【Action】During this battle, your shield area cards can't receive
+// damage from enemy Units that are Lv.3 or lower.
+export const GD02_106_WHITE_WOLF_ACTION: EffectSpec = {
+  id: "GD02-106-Action",
+  cardCode: "GD02-106",
+  trigger: "Action",
+  actions: [{ op: "preventShieldDamage", maxAttackerLevel: 3 }],
+  sourceText: "【Action】During this battle, your shield area cards can't receive damage from enemy Units that are Lv.3 or lower.",
+};
+
+// GD02-075 Rick Dias (Red) — 【Attack】Choose 1 active friendly Base. Rest it. If you do, choose
+// 1 enemy Unit that is Lv.4 or lower. It gets AP-2 during this battle.
+export const GD02_075_RICK_DIAS_RED_ATTACK: EffectSpec = {
+  id: "GD02-075-Attack",
+  cardCode: "GD02-075",
+  trigger: "Attack",
+  condition: {
+    predicate: "chosenNonEmpty:target",
+    then: [{ op: "modifyStat", target: { kind: "named", name: "enemyTarget" }, stat: "ap", amount: -2, duration: "thisBattle" }],
+  },
+  actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  targetScope: "friendlyBase",
+  targetFilter: "active",
+  secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", targetFilter: "level<=4" },
+  sourceText: "【Attack】Choose 1 active friendly Base. Rest it. If you do, choose 1 enemy Unit that is Lv.4 or lower. It gets AP-2 during this battle.",
+};
+
+// GD02-069 Zeta Gundam — 【During Link】【Activate･Main】【Once per Turn】Choose 1 active friendly
+// Base. Rest it. If you do, set this Unit as active. It can't choose the enemy player as its
+// attack target during this turn.
+export const GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN: EffectSpec = {
+  id: "GD02-069-ActivateMain",
+  cardCode: "GD02-069",
+  trigger: "Activate·Main",
+  condition: {
+    predicate: "selfIsLinkUnit;chosenNonEmpty:target",
+    then: [
+      { op: "rest", target: { kind: "named", name: "target" } },
+      { op: "setActive", target: { kind: "self" } },
+      { op: "grantKeyword", target: { kind: "self" }, keyword: "CannotTargetPlayer", duration: "endOfTurn" },
+    ],
+  },
+  actions: [],
+  targetScope: "friendlyBase",
+  targetFilter: "active",
+  sourceText: "【During Link】【Activate･Main】【Once per Turn】Choose 1 active friendly Base. Rest it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -575,5 +1078,44 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_060_GUNDAM_LEOPARD_DEPLOY,
   GD02_054_GUNDAM_BARBATOS_1ST_FORM_ATTACK,
   GD02_070_GUNDAM_KIMARIS_DEPLOY,
-  GD02_081_METHUSS_DEPLOY
+  GD02_081_METHUSS_DEPLOY,
+  GD02_004_BYARLANT_WHEN_PAIRED,
+  GD02_061_HYAKURI_WHEN_PAIRED,
+  GD02_089_LALAH_SUNE_BURST,
+  GD02_089_LALAH_SUNE_WHEN_PAIRED,
+  GD02_091_HAMAN_KARN_BURST,
+  GD02_091_HAMAN_KARN_WHEN_PAIRED,
+  GD02_095_LAFTER_FRANKLAND_BURST,
+  GD02_095_LAFTER_FRANKLAND_ATTACK,
+  GD02_099_GAELIO_BAUDUIN_BURST,
+  GD02_099_GAELIO_BAUDUIN_WHEN_PAIRED,
+  GD02_100_DRAMATIC_TURNABOUT_BURST,
+  GD02_100_DRAMATIC_TURNABOUT_MAIN,
+  GD02_101_BENEATH_THE_MASK_MAIN,
+  GD02_101_BENEATH_THE_MASK_ACTION,
+  GD02_103_AGE_DEVICE_BURST,
+  GD02_103_AGE_DEVICE_MAIN,
+  GD02_107_ALL_RANGE_ATTACK_BURST,
+  GD02_107_ALL_RANGE_ATTACK_MAIN,
+  GD02_108_THAT_ONE_LOOKS_A_LOT_STRONGER_MAIN,
+  GD02_109_UNDYING_PERSISTENCE_MAIN,
+  GD02_109_UNDYING_PERSISTENCE_ACTION,
+  GD02_112_MOMENTARY_RESPITE_BURST,
+  GD02_112_MOMENTARY_RESPITE_MAIN,
+  GD02_113_SISTERLY_CARE_MAIN,
+  GD02_113_SISTERLY_CARE_ACTION,
+  GD02_116_COMRADES_COME_FIRST_MAIN,
+  GD02_119_PERSISTENT_AND_FORTUDINOUS_ACTION,
+  GD02_005_TALLGEESE_ATTACK,
+  GD02_037_GUNDAM_VIRSAGO_DEPLOY,
+  GD02_042_GUNDAM_ASHTARON_MA_MODE_DEPLOY,
+  GD02_043_DAUGHTRESS_WEAPON_DEPLOY,
+  GD02_044_DAUGHTRESS_COMMAND_DESTROYED,
+  GD02_055_GUNDAM_GUSION_REBAKE_DEPLOY,
+  GD02_083_GRAZE_RITTER_GROUND_TYPE_DESTROYED,
+  GD02_087_ORGA_CROT_AND_SHANI_BURST,
+  GD02_087_ORGA_CROT_AND_SHANI_WHEN_LINKED,
+  GD02_106_WHITE_WOLF_ACTION,
+  GD02_075_RICK_DIAS_RED_ATTACK,
+  GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN
 ];

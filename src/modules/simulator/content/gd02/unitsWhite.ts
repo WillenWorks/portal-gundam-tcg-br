@@ -51,8 +51,11 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     hp: 4,
     traits: ["AEUG"],
     link: {"kind":"pilotName","values":["Quattro Bajeena"]},
-    effectKeywords: ["Blocker","Repair"],
-    keywordTags: ["Blocker","Repair 1"],
+    // <Blocker> é inato; <Repair 1> é CONDICIONAL ("While a friendly white Base is in play, ...")
+    // — achado de dado (mesma classe de GD01-108/GD02-076): estava fixo em effectKeywords/keywordTags.
+    effectKeywords: ["Blocker"],
+    keywordTags: ["Blocker"],
+    staticAbilities: [{ condition: "always", scope: "self", keyword: "Repair", keywordValue: 1, boardCondition: { kind: "baseColorInPlay", color: "white" } }],
   },
   "GD02-073": {
     code: "GD02-073",
@@ -77,9 +80,14 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     hp: 5,
     traits: ["Academy"],
     link: {"kind":"pilotName","values":["Suletta Mercury"]},
-    effectKeywords: ["Blocker"],
+    // <High-Maneuver> é inato; <Blocker> é CONDICIONAL a "During Pair" + trash Command>=4
+    // — achado de dado: High-Maneuver faltava e Blocker estava fixo incondicional.
+    effectKeywords: ["High-Maneuver"],
     triggerKeywords: ["During Pair"],
-    keywordTags: ["Blocker"],
+    keywordTags: ["High-Maneuver"],
+    staticAbilities: [
+      { condition: "duringPair", scope: "self", keyword: "Blocker", boardCondition: { kind: "trashCardTypeCountAtLeast", cardType: "COMMAND", n: 4 } },
+    ],
   },
   "GD02-075": {
     code: "GD02-075",
@@ -105,8 +113,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     hp: 3,
     traits: ["Triple Ship Alliance"],
     link: {"kind":"trait","values":["Coordinator"]},
-    effectKeywords: ["Blocker"],
-    keywordTags: ["Blocker"],
+    // <Blocker> é CONDICIONAL ("While this Unit has 5 or more AP, ...") — achado de dado
+    // (mesma classe de GD01-108/GD02-072): estava fixo em effectKeywords/keywordTags.
+    staticAbilities: [{ condition: "always", scope: "self", keyword: "Blocker", targetCondition: { kind: "apAtLeast", n: 5 } }],
   },
   "GD02-077": {
     code: "GD02-077",

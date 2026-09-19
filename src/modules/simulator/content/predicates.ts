@@ -276,15 +276,42 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
       (c) => c.def.cardType === "PILOT" && (c.def.traits ?? []).includes(trait),
     );
   }
-  // GD02-054 Gundam Barbatos 1st Form — 【Attack】"If this Unit is damaged, draw 1."
+  // GD02-054 Gundam Barbatos 1st Form / GD02-095 Lafter Frankland (Pilot, "this Unit" =
+  // Unit pareada) — 【Attack】"If this Unit is damaged, ...".
   if (predicate === "selfIsDamaged") {
-    return findCard(ctx.state, ctx.sourceInstanceId).damage > 0;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfUnit.damage > 0;
   }
   // GD02-081 Methuss / GD02-071 Gundam Mk-II (AEUG) — "If a friendly white Base is in play, ...".
   const controllerHasBaseColor = predicate.match(/^controllerHasBaseColor:(.+)$/);
   if (controllerHasBaseColor) {
     const color = controllerHasBaseColor[1];
     return ctx.state.players[ctx.controller].baseSection.some((b) => b.def.color === color);
+  }
+  // GD02-061 Hyakuri — "【When Paired･Purple Pilot】..." — cor do PILOT recém-pareado com a fonte (Unit).
+  const pairedPilotColorIs = predicate.match(/^pairedPilotColorIs:(.+)$/);
+  if (pairedPilotColorIs) {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    if (!source.pairedPilotId) return false;
+    return findCard(ctx.state, source.pairedPilotId).def.color === pairedPilotColorIs[1];
+  }
+  // GD02-091 Haman Karn (Pilot) — "If this Unit is red, ..." — cor IMPRESSA da Unit
+  // pareada (não da própria carta do Pilot — mesma convenção de resolveSelfUnit).
+  const selfColorIs = predicate.match(/^selfColorIs:(.+)$/);
+  if (selfColorIs) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfUnit.def.color === selfColorIs[1];
+  }
+  // GD02-095 Lafter Frankland (Pilot) — "If this Unit is ... Lv.5 or lower, ...".
+  const selfLevelAtMost = predicate.match(/^selfLevelAtMost:(\d+)$/);
+  if (selfLevelAtMost) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && (selfUnit.def.level ?? 0) <= Number(selfLevelAtMost[1]);
+  }
+  // GD02-037 Gundam Virsago — "If there are 3 or less enemy Shields, ...".
+  const enemyShieldCountAtMost = predicate.match(/^enemyShieldCountAtMost:(\d+)$/);
+  if (enemyShieldCountAtMost) {
+    return ctx.state.players[otherPlayer(ctx.controller)].shields.length <= Number(enemyShieldCountAtMost[1]);
   }
   return false;
 };
@@ -294,6 +321,18 @@ function isPairedLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
   const pilot = findCard(state, unit.pairedPilotId);
   return satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
+}
+
+/**
+ * Resolve "this Unit" quando a fonte pode ser a própria Unit OU um Pilot
+ * pareado com ela (texto autorado no Pilot sempre fala da Unit pareada, não
+ * do Pilot — mesma convenção de `level<=self`/`sourcePairedUnitIsLinkUnit`).
+ * `undefined` se a fonte é Pilot sem Unit pareada agora.
+ */
+function resolveSelfUnit(state: GameState, sourceInstanceId: string): CardInstance | undefined {
+  const source = findCard(state, sourceInstanceId);
+  if (source.def.cardType === "UNIT") return source;
+  return source.pairedUnitId ? findCard(state, source.pairedUnitId) : undefined;
 }
 
 /** HP restante de verdade — HP efetivo (com buff/`During Pair`) menos o dano acumulado. Mesmo cálculo de `CardInspectorPanel`. */
@@ -387,8 +426,7 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // PAREADA (quem ataca de verdade) — se a fonte já é Unit, usa ela mesma.
   if (filter === "level<=self") {
     if (!ctx.sourceInstanceId) return false;
-    const source = findCard(ctx.state, ctx.sourceInstanceId);
-    const selfUnit = source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(ctx.state, source.pairedUnitId) : undefined;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     if (!selfUnit) return false;
     return (candidate.def.level ?? 0) <= (selfUnit.def.level ?? 0);
   }

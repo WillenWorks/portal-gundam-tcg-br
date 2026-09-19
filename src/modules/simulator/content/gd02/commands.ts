@@ -64,6 +64,21 @@ export const COMMANDS: Record<string, CardDef> = {
     triggerKeywords: ["Action"],
     pilotMode: {"pilotName":"Xavier Olivette","ap":1,"hp":0},
   },
+  "GD02-106": {
+    code: "GD02-106",
+    nameEn: "White Wolf",
+    // achado de dado: estava em pilots.ts com cardType "PILOT" (não bate com o texto oficial
+    // nem com pilotMode — um Command jogável como Pilot, não um Pilot de verdade).
+    cardType: "COMMAND",
+    color: "green",
+    level: 3,
+    cost: 1,
+    ap: 1,
+    hp: 0,
+    traits: ["Earth Federation"],
+    triggerKeywords: ["Action"],
+    pilotMode: {"pilotName":"Woolf Enneacle","ap":1,"hp":0},
+  },
   "GD02-107": {
     code: "GD02-107",
     nameEn: "All-Range Attack",

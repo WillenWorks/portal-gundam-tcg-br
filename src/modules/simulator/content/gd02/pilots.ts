@@ -198,17 +198,4 @@ export const PILOTS: Record<string, CardDef> = {
     triggerKeywords: ["Burst","When Paired"],
     hasBurst: true,
   },
-  "GD02-106": {
-    code: "GD02-106",
-    nameEn: "White Wolf",
-    cardType: "PILOT",
-    color: "green",
-    level: 3,
-    cost: 1,
-    ap: 1,
-    hp: 0,
-    traits: ["Earth Federation"],
-    triggerKeywords: ["Action"],
-    pilotMode: {"pilotName":"Woolf Enneacle","ap":1,"hp":0},
-  },
 };
