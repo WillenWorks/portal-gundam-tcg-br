@@ -92,7 +92,9 @@
     "controllerHasLinkUnitWithTrait:<value>": { "description": "O controller tem uma Link Unit em campo com o trait dado.", "since": "GD03" },
     "controllerHasPilotWithTrait:<value>": { "description": "O controller tem um Pilot pareado com o trait dado.", "since": "GD03" },
     "controllerHandHasUnitWithTrait:<value>": { "description": "A mão do controller tem pelo menos 1 carta Unit com o trait dado — checado ANTES da própria ação de revelar/mover rodar.", "since": "ST08-006 Penelope" },
-    "namedTargetLethalDamage:<value>:<n>": { "description": "O alvo nomeado <value> morreria se recebesse mais N de dano agora (mesma fórmula de damageUnit: card.damage + N >= effectiveHp) — avaliado ANTES do dano rodar.", "since": "GD03-001 Gundam NT-1" }
+    "namedTargetLethalDamage:<value>:<n>": { "description": "O alvo nomeado <value> morreria se recebesse mais N de dano agora (mesma fórmula de damageUnit: card.damage + N >= effectiveHp) — avaliado ANTES do dano rodar.", "since": "GD03-001 Gundam NT-1" },
+    "selfIsDamaged": { "description": "A própria fonte (Unit) tem dano acumulado (damage > 0) agora.", "since": "GD02-054 Gundam Barbatos 1st Form (Sprint 2 Lote 3)" },
+    "controllerHasBaseColor:<value>": { "description": "O controller tem uma Base em campo (baseSection) da cor dada.", "since": "GD02-081 Methuss (Sprint 2 Lote 3)" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },

@@ -276,6 +276,16 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
       (c) => c.def.cardType === "PILOT" && (c.def.traits ?? []).includes(trait),
     );
   }
+  // GD02-054 Gundam Barbatos 1st Form — 【Attack】"If this Unit is damaged, draw 1."
+  if (predicate === "selfIsDamaged") {
+    return findCard(ctx.state, ctx.sourceInstanceId).damage > 0;
+  }
+  // GD02-081 Methuss / GD02-071 Gundam Mk-II (AEUG) — "If a friendly white Base is in play, ...".
+  const controllerHasBaseColor = predicate.match(/^controllerHasBaseColor:(.+)$/);
+  if (controllerHasBaseColor) {
+    const color = controllerHasBaseColor[1];
+    return ctx.state.players[ctx.controller].baseSection.some((b) => b.def.color === color);
+  }
   return false;
 };
 

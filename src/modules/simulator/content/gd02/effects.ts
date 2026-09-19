@@ -485,6 +485,51 @@ export const GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY: EffectSpec = {
   targetFilter: "isToken",
   sourceText: "【Deploy】Choose 1 enemy Unit token. Deal 2 damage to it.",
 };
+// GD02-054 Gundam Barbatos 1st Form — 【Attack】If this Unit is damaged, draw 1.
+export const GD02_054_GUNDAM_BARBATOS_1ST_FORM_ATTACK: EffectSpec = {
+  id: "GD02-054-Attack",
+  cardCode: "GD02-054",
+  trigger: "Attack",
+  condition: {
+    predicate: "selfIsDamaged",
+    then: [{ op: "draw", player: "controller", n: 1 }],
+  },
+  actions: [],
+  sourceText: "【Attack】If this Unit is damaged, draw 1.",
+};
+
+// GD02-070 Gundam Kimaris — 【Deploy】If there are 4 or more (Gjallarhorn) cards in your trash,
+// draw 2. If you do, discard 2. (mesmo par draw+discardNamed de GD02-046 Burst / GD01 Lote 3.)
+export const GD02_070_GUNDAM_KIMARIS_DEPLOY: EffectSpec = {
+  id: "GD02-070-Deploy",
+  cardCode: "GD02-070",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerTrashCardCountWithTraitAtLeast:Gjallarhorn:4",
+    then: [
+      { op: "draw", player: "controller", n: 2 },
+      { op: "discardNamed", player: "controller", name: "discard", n: 2 },
+    ],
+  },
+  actions: [],
+  sourceText: "【Deploy】If there are 4 or more (Gjallarhorn) cards in your trash, draw 2. If you do, discard 2.",
+};
+
+// GD02-081 Methuss — 【Deploy】If a friendly white Base is in play, choose 1 enemy Unit. It gets
+// AP-2 during this turn.
+export const GD02_081_METHUSS_DEPLOY: EffectSpec = {
+  id: "GD02-081-Deploy",
+  cardCode: "GD02-081",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerHasBaseColor:white",
+    then: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: -2, duration: "endOfTurn" }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  sourceText: "【Deploy】If a friendly white Base is in play, choose 1 enemy Unit. It gets AP-2 during this turn.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -527,5 +572,8 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_046_SAYLA_S_LIGHT_TYPE_GUNCANNON_DEPLOY,
   GD02_008_GABTHLEY_WHEN_LINKED,
   GD02_045_GINN_LONG_RANGE_RECONNAISSANCE_TYPE_ATTACK,
-  GD02_060_GUNDAM_LEOPARD_DEPLOY
+  GD02_060_GUNDAM_LEOPARD_DEPLOY,
+  GD02_054_GUNDAM_BARBATOS_1ST_FORM_ATTACK,
+  GD02_070_GUNDAM_KIMARIS_DEPLOY,
+  GD02_081_METHUSS_DEPLOY
 ];

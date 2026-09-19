@@ -250,3 +250,76 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 1º lote de fechamento do
     expect(findCard(poorState, enemyId2).rested).toBe(false);
   });
 });
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 3º lote de fechamento do backlog de cobertura", () => {
+  it("GD02-054 Gundam Barbatos 1st Form (Attack): com dano acumulado, compra 1; sem dano, não compra", () => {
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-054" && s.trigger === "Attack")!;
+    expect(spec).toBeDefined();
+
+    let damagedState = freshGame();
+    const damagedSourceId = placeCard(damagedState, "A", GD02_CARD_DEFS["GD02-054"], "battleArea", { damage: 1 });
+    const handBefore = damagedState.players.A.hand.length;
+    damagedState = applyEvents(damagedState, resolveEffectSpec(spec, ctxFor(damagedState, damagedSourceId), defaultPredicateResolver));
+    expect(damagedState.players.A.hand).toHaveLength(handBefore + 1);
+
+    let freshSourceState = freshGame();
+    const freshSourceId = placeCard(freshSourceState, "A", GD02_CARD_DEFS["GD02-054"], "battleArea");
+    const handBefore2 = freshSourceState.players.A.hand.length;
+    freshSourceState = applyEvents(freshSourceState, resolveEffectSpec(spec, ctxFor(freshSourceState, freshSourceId), defaultPredicateResolver));
+    expect(freshSourceState.players.A.hand).toHaveLength(handBefore2);
+  });
+
+  it("GD02-070 Gundam Kimaris (Deploy): com 4+ (Gjallarhorn) na lixeira, compra 2 e descarta 2; sem lixeira suficiente, não faz nada", () => {
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-070" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+
+    let readyState = freshGame();
+    for (let i = 0; i < 4; i++) placeCard(readyState, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Gjallarhorn"] }, "trash");
+    const sourceId = placeCard(readyState, "A", GD02_CARD_DEFS["GD02-070"], "battleArea");
+    const handBefore = readyState.players.A.hand.length;
+    const discardIds = readyState.players.A.hand.slice(0, 2).map((c) => c.instanceId);
+    readyState = applyEvents(
+      readyState,
+      resolveEffectSpec(spec, ctxFor(readyState, sourceId, { discard: discardIds }), defaultPredicateResolver),
+    );
+    // Compra 2, descarta 2 -- saldo líquido zero, mas a mão de fato girou (as descartadas somem, 2 novas entram).
+    expect(readyState.players.A.hand).toHaveLength(handBefore);
+    for (const id of discardIds) {
+      expect(readyState.players.A.hand.some((c) => c.instanceId === id)).toBe(false);
+    }
+
+    let poorState = freshGame();
+    for (let i = 0; i < 3; i++) placeCard(poorState, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Gjallarhorn"] }, "trash");
+    const sourceId2 = placeCard(poorState, "A", GD02_CARD_DEFS["GD02-070"], "battleArea");
+    const handBefore2 = poorState.players.A.hand.length;
+    poorState = applyEvents(poorState, resolveEffectSpec(spec, ctxFor(poorState, sourceId2), defaultPredicateResolver));
+    expect(poorState.players.A.hand).toHaveLength(handBefore2);
+  });
+
+  it("GD02-081 Methuss (Deploy): com Base branca em campo, Unit inimiga escolhida sofre AP-2 no turno; sem Base branca, sem alvo legal", () => {
+    let state = freshGame();
+    const baseId = placeCard(state, "A", GD02_CARD_DEFS["GD02-129"], "baseSection"); // Argama, Base branca
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-081"], "battleArea");
+    const enemyId = placeCard(state, "B", GD02_CARD_DEFS["GD02-018"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-081" && s.trigger === "Deploy")!;
+    expect(spec).toBeDefined();
+    expect(baseId).toBeDefined();
+
+    const legal = computeLegalTargets(state, spec, "A", defaultTargetFilterResolver, sourceId);
+    expect(legal).toContain(enemyId);
+
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId, { target: [enemyId] }), defaultPredicateResolver));
+    expect(findCard(state, enemyId).statModifiers.some((m) => m.stat === "ap" && m.amount === -2)).toBe(true);
+
+    // Sem Base branca em campo -- condição falsa, "then" (AP-2) não roda mesmo com alvo escolhido.
+    let noBaseState = freshGame();
+    const sourceId2 = placeCard(noBaseState, "A", GD02_CARD_DEFS["GD02-081"], "battleArea");
+    const enemyId2 = placeCard(noBaseState, "B", GD02_CARD_DEFS["GD02-018"], "battleArea");
+    noBaseState = applyEvents(
+      noBaseState,
+      resolveEffectSpec(spec, ctxFor(noBaseState, sourceId2, { target: [enemyId2] }), defaultPredicateResolver),
+    );
+    expect(findCard(noBaseState, enemyId2).statModifiers).toHaveLength(0);
+  });
+});
