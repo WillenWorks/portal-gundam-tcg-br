@@ -15,14 +15,22 @@ import {
 
 /**
  * Match store em memória (docs/18, passo 4 — decisão original do Willen: em
- * memória, sem persistência, sincronização por SSE; ampliada em
- * 2026-08-30 pra fila de matchmaking automática, timer de turno e W.O. por
- * abandono, aberta a qualquer usuário logado — ver "Simulador Beta,
- * matchmaking e timer de turno" no docs/18). Cada `MatchRecord` guarda o
- * `GameState` REAL — nunca sai daqui inteiro; só `viewStateFor`/
- * `viewStatesForBothPlayers` (engine/viewState.ts) saem pra rede, um por
- * jogador, já redigido. As rotas HTTP (`server/index.ts`) só chamam as
- * funções deste módulo — nenhuma delas toca `GameState` direto.
+ * memória, sem persistência; ampliada em 2026-08-30 pra fila de matchmaking
+ * automática, timer de turno e W.O. por abandono, aberta a qualquer usuário
+ * logado — ver "Simulador Beta, matchmaking e timer de turno" no docs/18).
+ * Cada `MatchRecord` guarda o `GameState` REAL — nunca sai daqui inteiro; só
+ * `viewStateFor`/`viewStatesForBothPlayers` (engine/viewState.ts) saem pra
+ * rede, um por jogador, já redigido. As rotas HTTP (`server/index.ts`) só
+ * chamam as funções deste módulo — nenhuma delas toca `GameState` direto.
+ *
+ * Transporte de rede (docs/39, Frente 5): Socket.io é o ÚNICO caminho —
+ * `subscribeAllMatches` é o emissor global que a camada de socket
+ * (`server/simulatorSocket.ts`/`simulatorSocket4p.ts`) assina 1× no boot pra
+ * fazer o broadcast `match:view_update`. O fallback SSE por-partida
+ * (`subscribe`) que existia aqui foi removido na branch
+ * `feature/arena4p-state-resilience` (cutover Wave 5/docs/47) — o
+ * socket.io-client já reconecta sozinho com backoff, sem precisar de um
+ * transporte alternativo em paralelo.
  *
  * Persistência (docs/23, Sprint jogo remoto): o `Map` continua sendo o cache
  * de trabalho, mas há write-through fire-and-forget pra um backup no Supabase
@@ -115,7 +123,7 @@ export interface MatchRecord {
   deckKeys: Partial<Record<PlayerId, string>>;
   createdAt: number;
   updatedAt: number;
-  /** incrementa a cada `applyAction` — conveniência pra cliente detectar "cheguei atrasado" numa reconexão de SSE */
+  /** incrementa a cada `applyAction` — conveniência pra cliente detectar "cheguei atrasado" numa reconexão do socket */
   version: number;
   /** timestamp (epoch ms) até quando a decisão atual pode ser tomada antes do servidor agir sozinho — `null` quando não há decisão pendente (partida ainda não tem os 2 assentos ocupados, ou já terminou). */
   turnDeadlineAt: number | null;
@@ -249,21 +257,18 @@ function matchViewsForBothPlayers(match: MatchRecord): Record<PlayerId, MatchVie
   return { A: matchViewFor(match, "A"), B: matchViewFor(match, "B") };
 }
 
-type Listener = (views: Record<PlayerId, MatchView>, match: MatchRecord) => void;
-
 /**
- * Assinante GLOBAL (todas as partidas de uma vez), diferente de `Listener` que
- * é por-partida. É o "hook/emitter" que a camada Socket.io
- * (`server/simulatorSocket.ts`, Frente 5 / docs/39) usa pra transmitir
- * `match:view_update` na sala `match:{id}` sempre que o motor autoritativo muda
- * — recebe as duas visões JÁ redigidas (uma por assento), sem nunca tocar o
- * `GameState` real. O SSE (`subscribe` por-partida) segue funcionando em
- * paralelo, intacto.
+ * Assinante GLOBAL (todas as partidas de uma vez). É o "hook/emitter" que a
+ * camada Socket.io (`server/simulatorSocket.ts`/`simulatorSocket4p.ts`, Frente
+ * 5 / docs/39) usa pra transmitir `match:view_update` na sala `match:{id}`
+ * sempre que o motor autoritativo muda — recebe as duas visões JÁ redigidas
+ * (uma por assento), sem nunca tocar o `GameState` real. Único mecanismo de
+ * broadcast do módulo desde a remoção do fallback SSE por-partida
+ * (`feature/arena4p-state-resilience`, cutover Wave 5/docs/47).
  */
 type GlobalMatchListener = (matchId: string, views: Record<PlayerId, MatchView>, match: MatchRecord) => void;
 
 const matches = new Map<string, MatchRecord>();
-const listeners = new Map<string, Set<Listener>>();
 const globalMatchListeners = new Set<GlobalMatchListener>();
 // `ReturnType<typeof setTimeout>` (não `NodeJS.Timeout`) porque este arquivo mora em `src/`
 // (tipado pra browser, sem @types/node) mesmo só rodando no server em runtime.
@@ -346,7 +351,7 @@ function persist(match: MatchRecord): void {
 /**
  * Carrega a partida — do `Map` se estiver quente, senão do banco (re-hidrata o
  * `Map` + re-arma o timer com prazo fresco). Retorna `undefined` se não existe
- * em lugar nenhum. As rotas que podem pegar uma partida "fria" (SSE, actions,
+ * em lugar nenhum. As rotas que podem pegar uma partida "fria" (actions,
  * ping, resign, …) chamam `await loadMatch(id)` antes das funções síncronas.
  */
 export async function loadMatch(matchId: string): Promise<MatchRecord | undefined> {
@@ -567,7 +572,7 @@ export function applyAction(matchId: string, userId: string, action: PlayerActio
   return match;
 }
 
-/** Atualiza o "último sinal de vida" de um assento sem mudar nada do jogo — chamada pelo ping periódico do cliente (ver server/index.ts). Notifica os assinantes (SSE) pra que o OUTRO lado veja a presença atualizada mesmo sem nenhuma ação de jogo acontecer. */
+/** Atualiza o "último sinal de vida" de um assento sem mudar nada do jogo — chamada pelo ping periódico do cliente (ver server/index.ts). Notifica os assinantes (Socket.io) pra que o OUTRO lado veja a presença atualizada mesmo sem nenhuma ação de jogo acontecer. */
 export function touchPresence(matchId: string, userId: string): MatchRecord {
   const match = requireMatch(matchId);
   const seat = seatFor(match, userId);
@@ -1258,27 +1263,13 @@ export function startNextBo3Game(match: MatchRecord, chooserFirstPlayer?: Player
 
 /**
  * Assina TODAS as partidas de uma vez (broadcast de rede — ver
- * `GlobalMatchListener`). Chamada 1× no boot pela camada Socket.io. Devolve o
- * cancelador. Independente de `subscribe` (SSE) — os dois coexistem.
+ * `GlobalMatchListener`). Chamada 1× no boot pela camada Socket.io (1v1 e
+ * Arena 4P). Devolve o cancelador.
  */
 export function subscribeAllMatches(listener: GlobalMatchListener): () => void {
   globalMatchListeners.add(listener);
   return () => {
     globalMatchListeners.delete(listener);
-  };
-}
-
-/** Assina atualizações de uma partida (visão já redigida por jogador). Devolve a função de cancelamento. */
-export function subscribe(matchId: string, listener: Listener): () => void {
-  let set = listeners.get(matchId);
-  if (!set) {
-    set = new Set();
-    listeners.set(matchId, set);
-  }
-  set.add(listener);
-  return () => {
-    set!.delete(listener);
-    if (set!.size === 0) listeners.delete(matchId);
   };
 }
 
@@ -1338,13 +1329,8 @@ function logGameOverOnce(match: MatchRecord): void {
 
 function notify(match: MatchRecord): void {
   logGameOverOnce(match);
-  const set = listeners.get(match.id);
-  const hasLocal = !!set && set.size > 0;
-  if (!hasLocal && globalMatchListeners.size === 0) return;
+  if (globalMatchListeners.size === 0) return;
   const views = matchViewsForBothPlayers(match);
-  if (set) {
-    for (const listener of set) listener(views, match);
-  }
   for (const listener of globalMatchListeners) listener(match.id, views, match);
 }
 
@@ -1352,7 +1338,6 @@ export function deleteMatch(matchId: string): void {
   clearTurnTimer(matchId);
   clearSideboardTimer(matchId);
   matches.delete(matchId);
-  listeners.delete(matchId);
   gameOverLogged.delete(matchId);
   if (persistence) {
     void persistence.remove(matchId).catch((err) => {
@@ -1374,7 +1359,6 @@ export function _resetAllMatchesForTests(): void {
   for (const handle of sideboardTimeouts.values()) clearTimeout(handle);
   sideboardTimeouts.clear();
   matches.clear();
-  listeners.clear();
   globalMatchListeners.clear();
   queue.length = 0;
   pendingMatches.clear();

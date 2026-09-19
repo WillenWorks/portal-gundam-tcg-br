@@ -160,17 +160,19 @@ export function ResourceMeter({
   return (
     <div aria-label={summary} title={summary} className={cn("flex flex-col gap-1", readOnly && "opacity-90", className)}>
       {interactive ? (
-        // leque sobreposto das peças (sem scrollbar): 1ª peça normal, as
-        // seguintes com margem negativa. As ATIVAS são <button> pickable.
-        <div className={cn("flex min-w-0 flex-wrap items-end gap-y-1 pb-0.5")}>
+        // leque sobreposto das peças (sem scrollbar e sem quebra de linha): 1ª peça normal, as
+        // seguintes com margem negativa dinâmica conforme o volume de recursos (7+ comprimem com folga).
+        // As ATIVAS são <button> pickable.
+        <div className={cn("flex min-w-0 flex-nowrap items-end pb-0.5")}>
           {resources.map((r, i) => {
             const selected = selectedIds.includes(r.instanceId);
             const pickable = Boolean(!r.rested && onSelect);
+            const overlapRatio = resources.length > 8 ? "-0.62" : resources.length > 5 ? "-0.48" : "-0.34";
             return (
               <span
                 key={r.instanceId}
-                className="shrink-0"
-                style={i === 0 ? undefined : { marginLeft: `calc(${PORTRAIT_W} * -0.34)` }}
+                className="shrink-0 transition-transform duration-150 hover:z-20 hover:-translate-y-1"
+                style={i === 0 ? undefined : { marginLeft: `calc(${PORTRAIT_W} * ${overlapRatio})` }}
               >
                 <Piece r={r} selected={selected} pickable={pickable} />
               </span>

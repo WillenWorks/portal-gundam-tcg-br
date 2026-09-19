@@ -11,12 +11,39 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 
 ## [Não lançado]
 
-### No radar (Fase 3 — Ciclo v2.1)
-- **Wave GD03 + ST07 + ST08**: Ingestão no motor de regras com suporte a mecânicas avançadas de Tokens e Custos Alternativos de Deploy.
-- **Zero Pilot N4 (Counter-Decks Dinâmicos)**: As 4 Personas (Heero, Char, Amuro, Treize) montam dinamicamente arquétipos específicos para punir fraquezas do deck do jogador.
-- **Universe Hub Wave 2**: Expansão de Lore para *Mobile Suit Gundam 00* (Anno Domini) e *Mobile Suit Gundam: The Witch from Mercury* (Ad Stella).
-- **Arena Multiplayer 4P Real**: Transição da tela de mock para engine Socket.io com 4 assentos para 2v2 Tag Team e 4P Battle Royale (Free-for-All).
-- **Zero Foresight & Metagame Regional**: Simulação Monte Carlo (10.000 partidas) para projeção preditiva de Tier Shift e painel geográfico de torneios por Estado, Cidade e LGS.
+### No radar (Ciclo v2.2 — pós Sprint 0/1 de saneamento)
+- Branch protection formal na `dev` (bloqueio de push direto, PR + CI obrigatórios) — pendente de permissão de Administration no token do GitHub CLI.
+- Fechamento do backlog de cobertura de GD02 (69 cartas) e GD03 (76 cartas) no motor — hoje bloqueadas em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores.
+- QA E2E do restante da Arena 4P: resolução completa de partida até o fim de uma lane (bracket, desempate, final), modo Battle Royale (FFA) em uso real, chat/emotes.
+- Fechamento das 2 cláusulas de polish restantes do motor (GD01-001, GD01-066).
+
+---
+
+## [2.1.0] — 2026-09-18
+
+**Fase 3 "Ciclo v2.1"** — Terceira leva de expansão pós-Anaheim Hub: nova wave de cartas, contra-decks dinâmicos de IA, mais lore do universo Gundam, arena com 4 jogadores reais e inteligência preditiva de metagame. Fechado com uma rodada de saneamento técnico (Sprint 0/1, docs/debates 2026-09-18) antes de abrir a próxima wave.
+
+### ⚔️ Simulador — Wave ST06, ST07 & ST08 (completos) + GD02/GD03 (parcial)
+- **ST06, ST07 e ST08**: 100% cobertos no motor (todas as cartas com `EffectSpec` ou vanilla), incluindo suporte a mecânicas avançadas de **Tokens** e **Custos Alternativos de Deploy**. Gate de CI (`catalog:coverage:gate`) fechado para os 3 sets, mais ST01-05 e GD01.
+- **GD02 e GD03**: autoria em andamento — governança de vocabulário de primitivas fechada (`content/primitives-claims.json`), mas cobertura carta-a-carta ainda incompleta (69 e 76 cartas sem `EffectSpec`/deferimento, respectivamente — ver `docs/_generated/coverage.md`). Não expostos a jogadores (sem deck fixo no seletor; `server/deckCoverageGate.ts` bloqueia em runtime qualquer deck de usuário que tente usá-las).
+- Fuzz de regressão (`gundam:fuzz`) validado com 9.000 partidas focadas em Tokens/Custos Alternativos de Deploy (ST07/ST08, self e cross-pair) — 0 achados, motor estável.
+
+### 🤖 Zero Pilot N4 — Counter-Decks Dinâmicos
+- As 4 Personas táticas (Heero, Char, Amuro, Treize) agora montam dinamicamente arquétipos específicos para punir as fraquezas do deck do jogador em partidas de treino solo.
+
+### 🌌 Universe Hub — Wave 2
+- Expansão de lore para *Mobile Suit Gundam 00* (Anno Domini) e *Mobile Suit Gundam: The Witch from Mercury* (Ad Stella), com fichas técnicas e carrossel de cartas reais do catálogo.
+
+### 🎮 Arena Multiplayer 4P
+- Transição da tela de mock para engine real via Socket.io, com 4 assentos para **2v2 Tag Team** e **Battle Royale (Free-for-All)**.
+- **Resiliência de reconexão**: timer de 45s por assento — socket caído além disso resolve sozinho (auto-pass) a decisão pendente da lane (bloqueio/alvo/etc.), fechando a janela de conluio em 2v2. Transporte de duelo agora é Socket.io exclusivo (fallback SSE removido do servidor e do cliente).
+- QA manual com 4 sessões reais validou lobby, sincronização e entrada no duelo 1v1 embutido.
+- **Em validação:** resolução completa de partida até o fim de uma lane (avanço de bracket, desempate, final), modo Battle Royale em uso real, chat/emotes ainda não passaram por QA dedicado.
+
+### 🔮 Zero Foresight & Metagame Regional
+- Simulação Monte Carlo (10.000 iterações) para projeção preditiva de Tier Shift por arquétipo, agora isolada num **Worker Thread dedicado** (timeout de corte de 2s, com fallback automático in-process se o worker não responder) — nunca bloqueia o event loop principal do Express.
+- Painel geográfico de metagame (País → Estado → Cidade → Loja Parceira), com radar de cores, staple cards locais e alertas de anomalia regional — agora com **piso estatístico de amostra mínima (N≥30)** antes de emitir qualquer alerta, evitando falso positivo em praças com poucos dados.
+- Validado com smoke test de integração contra Postgres real (`pnpm run test:smoke:regional-meta`, opt-in via `RUN_DB_SMOKE_TESTS=true`) — 4/4 testes verdes, cobrindo o agrupamento geográfico e o piso de amostra ponta a ponta.
 
 ---
 

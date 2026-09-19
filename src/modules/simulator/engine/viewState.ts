@@ -1,4 +1,5 @@
 import type { CardInstance, GameState, PendingDecision, PlayerId, PlayerState, Zone } from "./types";
+import { findCard } from "./events";
 import { PLAYER_IDS, otherPlayer } from "./types";
 
 /**
@@ -96,21 +97,65 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
  * `handChoice.legalHandIds` e os `instanceId` do `deckTopReveal` não são
  * redigidos: id sozinho não revela `def` a quem não a tem (mesma postura do
  * resto de `viewState`).
+ *
+ * Para `handDiscard`, o dono recebe `cards: CardInstance[]` (permitindo renderizar
+ * o nome da carta mesmo para cartas compradas que ainda aguardam resolução do draw),
+ * enquanto pro oponente `cards` é redigido para `[]`.
  */
-function redactPendingDecisionFor(decision: PendingDecision | null, isOwner: boolean): PendingDecision | null {
-  if (!decision || isOwner || decision.kind !== "abilityResolution") return decision;
+function redactPendingDecisionFor(
+  state: GameState,
+  decision: PendingDecision | null,
+  isOwner: boolean,
+): PendingDecision | null {
+  if (!decision || decision.kind !== "abilityResolution") return decision;
+  if (!isOwner) {
+    return {
+      ...decision,
+      queue: decision.queue.map((q) => {
+        let nextQ = q;
+        if (nextQ.deckTopReveal) {
+          nextQ = { ...nextQ, deckTopReveal: { ...nextQ.deckTopReveal, topCards: [] } };
+        }
+        if (nextQ.handDiscard) {
+          nextQ = { ...nextQ, handDiscard: { ...nextQ.handDiscard, cards: [] } };
+        }
+        return nextQ;
+      }),
+    };
+  }
+
   return {
     ...decision,
-    queue: decision.queue.map((q) =>
-      q.deckTopReveal ? { ...q, deckTopReveal: { ...q.deckTopReveal, topCards: [] } } : q,
-    ),
+    queue: decision.queue.map((q) => {
+      if (!q.handDiscard) return q;
+      const cards = q.handDiscard.legalHandIds
+        .map((id) => {
+          try {
+            return findCard(state, id);
+          } catch {
+            return undefined;
+          }
+        })
+        .filter((c): c is CardInstance => Boolean(c));
+      return {
+        ...q,
+        handDiscard: {
+          ...q.handDiscard,
+          cards,
+        },
+      };
+    }),
   };
 }
 
-function redactPendingDecision(map: GameState["pendingDecision"], viewer: PlayerId): GameState["pendingDecision"] {
+function redactPendingDecision(
+  state: GameState,
+  map: GameState["pendingDecision"],
+  viewer: PlayerId,
+): GameState["pendingDecision"] {
   return {
-    A: redactPendingDecisionFor(map.A, viewer === "A"),
-    B: redactPendingDecisionFor(map.B, viewer === "B"),
+    A: redactPendingDecisionFor(state, map.A, viewer === "A"),
+    B: redactPendingDecisionFor(state, map.B, viewer === "B"),
   };
 }
 
@@ -162,7 +207,7 @@ export function viewStateFor(state: GameState, viewer: PlayerId): ViewGameState 
     phase: state.phase,
     combat: state.combat,
     endPhaseAction: state.endPhaseAction,
-    pendingDecision: redactPendingDecision(state.pendingDecision, viewer),
+    pendingDecision: redactPendingDecision(state, state.pendingDecision, viewer),
     gameOver: state.gameOver,
     eventLog: state.eventLog.slice(-EVENT_LOG_WINDOW),
     viewer,

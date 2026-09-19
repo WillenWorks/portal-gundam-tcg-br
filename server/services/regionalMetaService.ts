@@ -7,18 +7,27 @@
  *
  * O schema (Tournament/HostedEvent) não tem coluna de Estado (só country/city livres) --
  * ver SCHEMA.md "Simplicidade Primeiro" e "No Foreign Keys": em vez de migrar o banco só
- * pra isso, o Estado é DERIVADO do texto da cidade (dicionário de capitais/cidades comuns
- * do Brasil, com suporte a sufixo "Cidade - UF" quando já vem informado assim). "Loja
+ * pra isso, o Estado é DERIVADO do texto da cidade, com suporte a sufixo "Cidade - UF"
+ * quando já vem informado assim, em 2 camadas: (1) dicionário manual de capitais/praças
+ * competitivas/desambiguações conhecidas (CITY_TO_UF abaixo), com prioridade; (2) fallback
+ * pros ~5.050 municípios do IBGE com nome único entre as UFs (data/ibge-municipios-uf.json,
+ * gerado por scripts/generate-ibge-city-uf.mjs, Sprint 2 docs/debates 2026-09-18). "Loja
  * Parceira" usa HostedEvent.venueName (evento ao vivo, tem nome de local) com fallback
  * pro Tournament.organizer (report retroativo -- normalmente é o nome de quem organizou).
  */
 import { HostedEventStatus, HostedEventMatchResult, type PrismaClient } from "@prisma/client";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "../../src/lib/deck-legality.ts";
+import ibgeCityToUfData from "../../data/ibge-municipios-uf.json";
 
 const TOP_CARDS_LIMIT = 8;
 const TOP_GROUPS_LIMIT = 20;
 const ANOMALY_THRESHOLD_PP = 15; // pontos percentuais de desvio pra virar alerta tático
-const MIN_DECKS_FOR_ANOMALY = 4; // amostra mínima pra não gerar alerta com ruído estatístico
+// Amostra mínima pra virar alerta tático. N=4 (valor anterior) gera falso-positivo trivial:
+// com 4 decks, 1 card presente em todos já é 100% de presença sem significar nada sobre a
+// praça real. N=30 é o piso convencional pra estimativa de proporção não degenerar num
+// ruído puro (regra prática de amostragem estatística) -- abaixo disso, o alerta é suprimido
+// mesmo que o desvio pareça grande.
+const MIN_SAMPLE_SIZE_FOR_ANOMALY = 30;
 const UNKNOWN_LABEL = "Não informado";
 const INDEPENDENT_STORE_LABEL = "Independente / Sem loja vinculada";
 
@@ -36,8 +45,10 @@ const UF_NAME_PT: Record<string, string> = {
   SC: "Santa Catarina", SP: "São Paulo", SE: "Sergipe", TO: "Tocantins",
 };
 
-/** Cidade normalizada (sem acento/caixa) -> UF. Cobre capitais + praças competitivas
- *  comuns; qualquer cidade fora daqui cai em UNKNOWN_LABEL (nunca inventa um estado). */
+/** Cidade normalizada (sem acento/caixa) -> UF. Capitais, praças competitivas comuns e
+ *  desambiguações conhecidas (nome de cidade que colide entre UFs no IBGE cru); tem
+ *  prioridade sobre IBGE_CITY_TO_UF. Qualquer cidade fora daqui E fora do IBGE cai em
+ *  UNKNOWN_LABEL (nunca inventa um estado). */
 const CITY_TO_UF: Record<string, string> = {
   // Sudeste
   "sao paulo": "SP", "campinas": "SP", "santos": "SP", "sorocaba": "SP", "santo andre": "SP",
@@ -80,6 +91,12 @@ const CITY_TO_UF: Record<string, string> = {
   "palmas": "TO",
 };
 
+/** Municípios brasileiros gerado do IBGE (scripts/generate-ibge-city-uf.mjs, Sprint 2
+ *  docs/debates 2026-09-18) -- ~5.050 cidades com nome único entre as UFs. Cidades com
+ *  nome ambíguo (existe em 2+ estados, ex. "Rio Branco" em AC e MT) ficam de fora desse
+ *  arquivo de propósito; se precisarem de resolução, entram no CITY_TO_UF manual abaixo. */
+const IBGE_CITY_TO_UF: Record<string, string> = ibgeCityToUfData.cityToUf;
+
 function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
@@ -109,7 +126,10 @@ export function deriveStateFromCity(city: string | null | undefined, country: st
   }
 
   const key = normalizeCityKey(rawCity);
-  const uf = CITY_TO_UF[key];
+  // Dicionário manual (capitais + praças competitivas + desambiguações conhecidas) tem
+  // prioridade sobre o gerado do IBGE -- é onde ficam os casos que precisam de reforço
+  // explícito (ex. "Rio Branco" -> AC, ambíguo no IBGE cru por colidir com Rio Branco/MT).
+  const uf = CITY_TO_UF[key] ?? IBGE_CITY_TO_UF[key];
   if (uf) return { uf, stateLabel: `${uf} — ${UF_NAME_PT[uf]}`, cityLabel: rawCity };
 
   return { uf: null, stateLabel: UNKNOWN_LABEL, cityLabel: rawCity };
@@ -259,7 +279,7 @@ function buildAlerts(scopeLabel: string, anomalies: RegionalAnomaly[]): string[]
 }
 
 function detectAnomalies(scopeLabel: string, region: RegionGroupStats, national: RegionGroupStats): RegionalAnomaly[] {
-  if (region.totalDecks < MIN_DECKS_FOR_ANOMALY) return [];
+  if (region.totalDecks < MIN_SAMPLE_SIZE_FOR_ANOMALY) return [];
   const anomalies: RegionalAnomaly[] = [];
 
   const nationalColorRate = new Map(national.colorDistribution.map((c) => [c.color, c.presenceRate]));

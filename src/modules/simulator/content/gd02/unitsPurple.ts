@@ -13,6 +13,21 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     traits: ["Vulture"],
     link: {"kind":"pilotName","values":["Garrod Ran"]},
     triggerKeywords: ["During Link"],
+    effectKeywords: ["Suppression"],
+    keywordTags: ["Suppression"],
+    // "During Link, during your turn, while there are 7 or more cards in your trash, all your other (Vulture) Units get AP+2."
+    staticAbilities: [
+      {
+        condition: "duringLink",
+        scope: "allFriendlyUnits",
+        stat: "ap",
+        amount: 2,
+        excludeSelf: true,
+        duringYourTurnOnly: true,
+        boardCondition: { kind: "trashCountAtLeast", n: 7 },
+        targetCondition: { kind: "traitIs", trait: "Vulture" },
+      },
+    ],
   },
   "GD02-054": {
     code: "GD02-054",
@@ -156,6 +171,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     hp: 4,
     traits: ["Vulture"],
     link: {"kind":"trait","values":["Vulture"]},
+    // "During your turn, while there are 7 or more cards in your trash, this Unit can't
+    // receive effect damage from enemy Commands."
+    innateEffectDamageProtection: { fromCardType: "COMMAND", duringYourTurnOnly: true, requiresTrashCountAtLeast: 7 },
   },
   "GD02-065": {
     code: "GD02-065",
@@ -178,6 +196,8 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     ap: 2,
     hp: 3,
     traits: ["UE","Vagan"],
+    // "This Unit can't choose the enemy player as its attack target." — mesmo padrão de ST01-009 Zowort.
+    attackTargetRules: { cannotTargetPlayer: true },
   },
   "GD02-067": {
     code: "GD02-067",

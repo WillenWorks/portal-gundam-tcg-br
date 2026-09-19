@@ -42,17 +42,15 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
     ...actual,
-    buildSimulatorStreamUrl: vi.fn(() => "http://test.local/api/simulator/matches/m1/stream?token=x"),
     api: {
       ...actual.api,
       sendSimulatorAction: vi.fn(async () => ({ matchId: "m1", version: 9, serverNow: Date.now() })),
       pingSimulatorMatch: vi.fn(async () => ({})),
-      getSimulatorMatch: vi.fn(async () => ({ seated: true, matchId: "m1", version: 7, serverNow: Date.now() })),
     },
   };
 });
 
-import { api, buildSimulatorStreamUrl } from "@/lib/api";
+import { api } from "@/lib/api";
 import { simulatorSocket } from "@/modules/simulator/network/socketClient";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 
@@ -66,22 +64,6 @@ const socket = simulatorSocket as unknown as {
   _emit: (event: string, payload?: unknown) => void;
   _reset: () => void;
 };
-
-// EventSource não existe no jsdom — stub mínimo que registra instâncias.
-class FakeEventSource {
-  static instances: FakeEventSource[] = [];
-  url: string;
-  onerror: (() => void) | null = null;
-  listeners = new Map<string, (e: MessageEvent) => void>();
-  constructor(url: string) {
-    this.url = url;
-    FakeEventSource.instances.push(this);
-  }
-  addEventListener(type: string, cb: (e: MessageEvent) => void) {
-    this.listeners.set(type, cb);
-  }
-  close = vi.fn();
-}
 
 function fakeView(version: number) {
   return { matchId: "m1", version, serverNow: Date.now(), view: {}, seat: "A" } as never;
@@ -99,11 +81,7 @@ function setup() {
 
 beforeEach(() => {
   socket._reset();
-  FakeEventSource.instances = [];
-  (globalThis as unknown as { EventSource: unknown }).EventSource = FakeEventSource;
-  (buildSimulatorStreamUrl as ReturnType<typeof vi.fn>).mockClear();
   (api.sendSimulatorAction as ReturnType<typeof vi.fn>).mockClear();
-  (api.getSimulatorMatch as ReturnType<typeof vi.fn>).mockClear();
 });
 
 afterEach(() => {
@@ -118,7 +96,7 @@ describe("useMatchTransport", () => {
     expect(socket.joinMatch).toHaveBeenCalledWith("m1");
   });
 
-  it("recebe match:view_update → aplica a view e marca a conexão como live (transporte socket)", () => {
+  it("recebe match:view_update → aplica a view e marca a conexão como live", () => {
     const { result, applyIncomingView } = setup();
     const view = fakeView(3);
     act(() => socket._emit("match:view_update", { view, lastActionSeq: 0 }));
@@ -128,30 +106,26 @@ describe("useMatchTransport", () => {
     expect(result.current.transport).toBe("socket");
   });
 
-  it("socket dead → cai pro transporte SSE e abre o EventSource do /stream", () => {
+  it("status reconnecting → connState reconnecting e conta as tentativas", () => {
     const { result } = setup();
+    act(() => socket._emit("status", "reconnecting"));
+    expect(result.current.connState).toBe("reconnecting");
+    expect(result.current.reconnectAttempt).toBe(1);
+    act(() => socket._emit("status", "reconnecting"));
+    expect(result.current.reconnectAttempt).toBe(2);
+  });
+
+  it("socket dead (servidor recusou o handshake) → connState dead e chama onExpired, sem nenhum fallback", () => {
+    const { result, onExpired } = setup();
     act(() => socket._emit("status", "dead"));
 
-    expect(result.current.transport).toBe("sse");
-    expect(FakeEventSource.instances).toHaveLength(1);
-    expect(FakeEventSource.instances[0].url).toContain("/simulator/matches/m1/stream");
+    expect(result.current.connState).toBe("dead");
+    expect(result.current.deadReason).toBeTruthy();
+    expect(result.current.transport).toBe("socket");
+    expect(onExpired).toHaveBeenCalledWith(expect.objectContaining({ toLobby: false }));
   });
 
-  it("sem 1º snapshot do socket dentro do timeout → fallback pro SSE", () => {
-    vi.useFakeTimers();
-    try {
-      const { result } = setup();
-      expect(result.current.transport).toBe("socket");
-      act(() => {
-        vi.advanceTimersByTime(6_000);
-      });
-      expect(result.current.transport).toBe("sse");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("sendAction no modo socket usa simulatorSocket.sendAction e resolve quando o eco chega", async () => {
+  it("sendAction usa simulatorSocket.sendAction e resolve quando o eco chega", async () => {
     socket._status = "connected";
     const { result } = setup();
     act(() => socket._emit("match:view_update", { view: fakeView(1), lastActionSeq: 0 }));
@@ -167,10 +141,9 @@ describe("useMatchTransport", () => {
     await expect(pending!).resolves.toBeUndefined();
   });
 
-  it("sendAction no modo SSE cai no POST REST e aplica a resposta", async () => {
+  it("sendAction com o socket desconectado cai no POST REST e aplica a resposta", async () => {
     const { result, applyIncomingView } = setup();
-    act(() => socket._emit("status", "dead"));
-    expect(result.current.transport).toBe("sse");
+    expect(socket._status).not.toBe("connected");
 
     await act(async () => {
       await result.current.sendAction({ kind: "finishTurn" } as never);

@@ -1566,13 +1566,28 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       (r) => !isHidden(r) && !(r as CardInstance).rested,
     ).length;
 
+    const attackerUnit = attackerId ? publicUnits(view.players[seat]).find((u) => u.instanceId === attackerId) : null;
+
+    const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean => {
+      if (targetUnit.rested) return true;
+      const staticRelax = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
+      if (staticRelax >= 0 && (targetUnit.def.level ?? 999) <= staticRelax) return true;
+      const granted =
+        attacker.attackTargetRelaxUntilTurn?.turn === view.turnNumber
+          ? attacker.attackTargetRelaxUntilTurn
+          : undefined;
+      if (granted?.maxLevel !== undefined && (targetUnit.def.level ?? 999) <= granted.maxLevel) return true;
+      if (granted?.maxAp !== undefined && (targetUnit.def.ap ?? 999) <= granted.maxAp) return true;
+      return false;
+    };
+
     const isLegalTargetForSlot = (unit: CardInstance | null): boolean => {
       if (!unit) return false;
       if (selecting) {
         return legalTargetInstanceIds.has(unit.instanceId);
       }
       if (canBeTargeted) {
-        return unit.rested;
+        return attackerUnit ? canAttackerTargetEnemyUnit(attackerUnit, unit) : unit.rested;
       }
       if (canBlockWith) {
         return hasKeyword(unit, "Blocker", boardForStats) && !unit.rested;
@@ -1595,26 +1610,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const isLegal = isLegalTargetForSlot(unit);
 
       const canAttackThisUnit = canAttackFrom && Boolean(unit) && canUnitAttackNow(unit!);
+      const isAttackTarget = canBeTargeted && isLegal;
       const actions =
-        unit && (canAttackThisUnit || (canBeTargeted && unit.rested) || canBlockWith || canActivate)
+        unit && (canAttackThisUnit || isAttackTarget || canBlockWith || canActivate)
           ? {
               onAttack: canAttackThisUnit
                 ? (u: CardInstance) => {
                     const opponentPid = otherPlayer(seat);
                     const opponent = view.players[opponentPid];
                     const enemyUnits = publicUnits(opponent);
-                    const hasLegalEnemyUnit = enemyUnits.some((eu) => {
-                      if (eu.rested) return true;
-                      const staticRelax = u.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-                      if (staticRelax >= (eu.def.level ?? 999)) return true;
-                      const granted =
-                        u.attackTargetRelaxUntilTurn?.turn === view.turnNumber
-                          ? u.attackTargetRelaxUntilTurn
-                          : undefined;
-                      if (granted?.maxLevel !== undefined && granted.maxLevel >= (eu.def.level ?? 999)) return true;
-                      if (granted?.maxAp !== undefined && granted.maxAp >= (eu.def.ap ?? 999)) return true;
-                      return false;
-                    });
+                    const hasLegalEnemyUnit = enemyUnits.some((eu) => canAttackerTargetEnemyUnit(u, eu));
                     const cannotTargetPlayer = Boolean(u.def.attackTargetRules?.cannotTargetPlayer);
 
                     // Se não há unidades inimigas que possam ser alvos legais, o único alvo válido é o jogador:
@@ -1666,7 +1671,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           onSelect={(u) => {
             // docs/55 tarefa 2 — clicar direto no corpo da Unit inimiga (halo
             // verde) declara o ataque na hora, sem precisar do corner button.
-            if (canBeTargeted && u.rested) {
+            if (canBeTargeted && isLegal) {
               declareAttack({ unitId: u.instanceId });
               return;
             }
@@ -1825,10 +1830,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           struck={Boolean(activeStrike?.phase === "strike" && activeStrike.shieldsOf === pid)}
         />
       ),
-      // Deck de Recursos + a linha de recursos, juntos e centrados abaixo/acima
-      // da Battle Area (o `ArenaPlaymat` centraliza este bloco no teatro).
+      // Deck de Recursos + a linha de recursos, alinhados à esquerda na largura
+      // da Battle Area para permitir que 7+ recursos se expandam sem quebrar linha.
       resources: (
-        <div className="flex items-end justify-center gap-2">
+        <div className="flex items-end justify-start gap-2">
           {/* deck de recursos / deck: contagem visível dos 2 lados (decisão do
               Willen 2026-09-03 — sim de teste, não PvP com info oculta). */}
           <CounterChip variant="stack" label="Deck de Recursos" count={player.counts.resourceDeck} />
@@ -2395,11 +2400,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             if (resourceIndex >= 0) return `Recurso ${resourceIndex + 1} (gasto)`;
             return "Carta";
           }}
-          // ST03-010 Full Frontal 【When Paired】 — a escolha é uma carta da própria
-          // mão (sempre visível ao dono na view).
+          // ST03-010 Full Frontal 【When Paired】 / ST04-002 Strike Gundam 【Deploy】
+          // — resolve a carta da mão ou a recém-comprada do deck informada em `handDiscard.cards`.
           resolveHandLabel={(instanceId) => {
             const card = view.players[seat].hand.find((c) => !isHidden(c) && c.instanceId === instanceId);
-            return card && !isHidden(card) ? card.def.nameEn : "Carta";
+            if (card && !isHidden(card)) return card.def.nameEn;
+            if (myPendingDecision?.kind === "abilityResolution") {
+              for (const q of myPendingDecision.queue) {
+                const candidate = q.handDiscard?.cards?.find((c) => c.instanceId === instanceId);
+                if (candidate) {
+                  const isFromDeck = !view.players[seat].hand.some((h) => h.instanceId === instanceId);
+                  const name = candidate.def.nameEn;
+                  return isFromDeck ? `${name} (Comprada)` : name;
+                }
+              }
+            }
+            return "Carta";
           }}
           busy={busy}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}

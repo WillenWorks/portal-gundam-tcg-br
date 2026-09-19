@@ -28,11 +28,20 @@
  * Radar tático: cada assento tem sua "vida" lida direto do `shields.length`
  * (6 shields iniciais é regra fixa do jogo — ver `engine/setup.ts`) do lado
  * correspondente na lane em que está.
+ *
+ * Resiliência de estado (pedido do Willen, branch
+ * `feature/arena4p-state-resilience`): além do timer de turno normal de cada
+ * lane (herdado de `matchStore.ts`), a Arena tem seu PRÓPRIO relógio de
+ * presença por assento — `ARENA_RECONNECT_GRACE_MS` — que a camada de socket
+ * arma quando o socket de um assento cai de vez. Ver `applyDisconnectAutoPass`.
  */
 import type { DeckList } from "../engine/setup";
 import type { PlayerId } from "../engine/types";
 import {
+  applyAction,
   createMatch,
+  decisionOwner,
+  defaultActionFor,
   getMatch,
   joinMatch,
   matchViewFor,
@@ -50,6 +59,20 @@ export const ARENA_MAX_SHIELDS = 6;
 const SQUAD_TTL_MS = 10 * 60_000;
 /** Quantas linhas de chat/log a Arena guarda por partida (janela recente, não histórico completo). */
 const ARENA_CHAT_WINDOW = 200;
+/**
+ * Janela de tolerância de reconexão por assento (resiliência de estado da Arena
+ * 4P) antes do servidor resolver sozinho a decisão pendente da lane ativa
+ * daquele assento — ver `applyDisconnectAutoPass`. Deliberadamente mais
+ * apertada que os timers normais de turno da lane (`TURN_DECISION_MS` = 300s /
+ * `ACTION_STEP_DECISION_MS` = 30s em `matchStore.ts`): aqueles toleram um
+ * jogador CONECTADO pensando; este cobre o caso de um jogador cujo socket caiu
+ * de vez — inclusive de propósito, no meio de uma decisão (passar bloqueio,
+ * escolher alvo), pra ganhar uma janela de conluio com o parceiro em 2v2
+ * combinando a jogada por fora do jogo. 45s é curto o bastante pra fechar essa
+ * janela sem punir uma queda de rede comum (o socket.io-client já reconecta
+ * sozinho bem mais rápido que isso na maioria dos casos).
+ */
+export const ARENA_RECONNECT_GRACE_MS = 45_000;
 
 export class ArenaError extends Error {
   status: number;
@@ -150,7 +173,8 @@ export type ArenaEvent =
   | { type: "radar_update"; arenaMatchId: string; radar: Record<ArenaSeatId, ArenaRadarEntry> }
   | { type: "lane_result"; arenaMatchId: string; lane: ArenaLane }
   | { type: "arena_over"; arenaMatchId: string; winner: ArenaWinner }
-  | { type: "chat"; arenaMatchId: string; entry: ArenaChatEntry };
+  | { type: "chat"; arenaMatchId: string; entry: ArenaChatEntry }
+  | { type: "lane_action_forced"; arenaMatchId: string; lane: ArenaLane; seat: ArenaSeatId };
 
 const listeners = new Set<ArenaListener>();
 export function subscribeArena(listener: ArenaListener): () => void {
@@ -415,7 +439,8 @@ export function activeLaneForSeat(arenaMatch: ArenaMatchRecord, seat: ArenaSeatI
   return undefined;
 }
 
-function engineSeatFor(lane: ArenaLane, arenaSeat: ArenaSeatId): PlayerId {
+/** Exportado pra a camada de socket poder montar o `PlayerId` do assento sem duplicar a regra. */
+export function engineSeatFor(lane: ArenaLane, arenaSeat: ArenaSeatId): PlayerId {
   return lane.engineSeatOf.A === arenaSeat ? "A" : "B";
 }
 
@@ -546,6 +571,53 @@ function finishArena(arenaMatch: ArenaMatchRecord, winner: ArenaWinner): void {
 }
 
 // ---------------------------------------------------------------------------
+// Resiliência de reconexão: auto-pass determinístico por queda de socket (ver
+// `ARENA_RECONNECT_GRACE_MS`). Chamado pela camada de socket
+// (`server/simulatorSocket4p.ts`) quando um assento fica 45s sem nenhum
+// socket vivo.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a decisão pendente da lane ATIVA de `seat` pela opção "não fazer
+ * nada de especial" — a MESMA `defaultActionFor` que o timer normal de turno
+ * usaria (skip block, recusar Burst, resolver habilidade sem alvo, manter a
+ * mão no mulligan, ...), só que sem esperar `TURN_DECISION_MS`/
+ * `ACTION_STEP_DECISION_MS`. No-op (silencioso, seguro de chamar a qualquer
+ * momento) se: a Arena já terminou; o assento não tem lane ativa (partida
+ * ainda não começou ou já foi eliminado); a lane já terminou; ou a decisão
+ * pendente NA HORA já não é mais deste assento (o jogo andou sozinho nesse
+ * meio-tempo — reconectar ou não, tanto faz).
+ */
+export function applyDisconnectAutoPass(arenaMatchId: string, seat: ArenaSeatId): void {
+  const arenaMatch = arenaMatches.get(arenaMatchId);
+  if (!arenaMatch || arenaMatch.status === "FINISHED") return;
+  const lane = activeLaneForSeat(arenaMatch, seat);
+  if (!lane) return;
+  const match = getMatch(lane.matchId);
+  if (!match || match.state.gameOver) return;
+
+  const engineSeat = engineSeatFor(lane, seat);
+  if (decisionOwner(match.state) !== engineSeat) return;
+
+  const occupant = arenaMatch.seats[seat];
+  const action = defaultActionFor(match.state);
+  try {
+    applyAction(lane.matchId, occupant.userId, action);
+  } catch {
+    return; // ação-padrão virou ilegal por algum motivo inesperado — desiste desta tentativa, não trava nada
+  }
+
+  pushChat(arenaMatch, {
+    id: crypto.randomUUID(),
+    kind: "system",
+    seat,
+    text: `${occupant.displayName} ficou ${Math.round(ARENA_RECONNECT_GRACE_MS / 1000)}s sem conexão — o servidor resolveu a decisão pendente automaticamente.`,
+    at: Date.now(),
+  });
+  emit({ type: "lane_action_forced", arenaMatchId: arenaMatch.id, lane, seat });
+}
+
+// ---------------------------------------------------------------------------
 // Radar tático + chat
 // ---------------------------------------------------------------------------
 
@@ -602,4 +674,12 @@ export function _resetArenaForTests(): void {
   arenaMatches.clear();
   squadCodes.clear();
   queue.length = 0;
+  // `listeners` (subscribeArena) NÃO era limpo aqui -- achado ao rodar a suíte completa
+  // (2026-09-18, Sprint 2): cada `it()` em simulatorSocket4p.test.ts chama
+  // `attachSimulatorArena4pSocket` no `beforeEach`, que assina um novo listener sem nunca
+  // cancelar o anterior -- acumula 1 listener órfão (com `io` de servidor já fechado) por
+  // teste anterior do arquivo. `matchStore.ts` já limpava o equivalente
+  // (`globalMatchListeners.clear()`) -- só faltava aqui. Real leak de recursos entre testes,
+  // independente de explicar sozinho toda flakiness observada sob suíte completa.
+  listeners.clear();
 }

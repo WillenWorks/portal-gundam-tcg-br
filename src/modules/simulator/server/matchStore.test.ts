@@ -26,7 +26,6 @@ import {
   generateBugShortCode,
   setMatchPersistence,
   type BugReportDraft,
-  subscribe,
   subscribeAllMatches,
   touchPresence,
   type MatchPersistence,
@@ -138,37 +137,6 @@ describe("applyAction", () => {
     } catch (err) {
       expect((err as MatchError).status).toBe(400);
     }
-  });
-});
-
-describe("subscribe / notify", () => {
-  it("notifica os assinantes com as 2 visões redigidas a cada applyAction", () => {
-    const match = newMatch();
-    joinMatch(match.id, "A", { userId: "user-1", displayName: "Willen" });
-    joinMatch(match.id, "B", { userId: "user-2", displayName: "Convidado" });
-
-    const received: unknown[] = [];
-    const unsubscribe = subscribe(match.id, (views) => received.push(views));
-
-    applyAction(match.id, "user-1", { kind: "finishTurn" });
-
-    expect(received).toHaveLength(1);
-    const views = received[0] as Record<"A" | "B", { seat: string; view: { activePlayer: string; viewer: string } }>;
-    expect(views.A.seat).toBe("A");
-    expect(views.B.seat).toBe("B");
-    expect(views.A.view.viewer).toBe("A");
-    expect(views.B.view.viewer).toBe("B");
-    expect(views.A.view.activePlayer).toBe("A"); // ainda não trocou -- só entrou no Action Step da End Phase
-
-    // os dois passam o Action Step da End Phase -> aí sim o turno troca de verdade
-    applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
-    applyAction(match.id, "user-1", { kind: "passEndPhaseAction" });
-    expect(received).toHaveLength(3);
-    expect((received[2] as typeof views).A.view.activePlayer).toBe("B");
-
-    unsubscribe();
-    applyAction(match.id, "user-2", { kind: "finishTurn" }); // agora é vez de B — não deve notificar mais ninguém
-    expect(received).toHaveLength(3);
   });
 });
 

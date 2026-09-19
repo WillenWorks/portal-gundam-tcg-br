@@ -98,6 +98,13 @@ export interface CardDef {
    * tiver algum desses traits (ex. link "(OZ) Trait").
    */
   link?: { kind: "pilotName" | "trait"; values: string[] };
+  /**
+   * GD02-098 Quattro Bajeena — "This card's name is also treated as [Char Aznable]." Só
+   * relevante pra `satisfiesLinkCondition` (link `kind: "pilotName"` de OUTRA carta, ex.
+   * GD02-032 White Gundam `link: {"kind":"pilotName","values":["Char Aznable"]}`) — nenhum
+   * outro sistema do motor lê o nome da carta por string (efeitos usam `CardDefFilter`/traits).
+   */
+  nameAliases?: string[];
 
   /**
    * Modificador estático contínuo (Comprehensive Rules 10-2) — ao contrário
@@ -129,6 +136,16 @@ export interface CardDef {
   combatTriggers?: CombatTrigger[];
 
   /**
+   * GD02-001 Psycho Gundam / GD02-002 Gundam Epyon — "When one of your Units destroys an
+   * enemy Unit/shield card with battle damage, [this Unit does X]." Diferente de
+   * `combatTriggers`: lá "this Unit" É quem destruiu (o atacante); aqui o ATOR pode ser
+   * QUALQUER Unit amiga — o listener (dono deste campo) reage ao evento de fora, sem
+   * precisar ser ele mesmo o atacante. `condition` é avaliada no LISTENER (pareamento
+   * dele), não no ator.
+   */
+  allyCombatTriggers?: AllyCombatTrigger[];
+
+  /**
    * Restrições/relaxamentos de legalidade da própria declaração de ataque
    * (Attack Step) — não são efeitos que produzem `GameEvent`, são regras de
    * "o que é permitido escolher como alvo" (ver docs/18, lacuna #6).
@@ -147,7 +164,9 @@ export interface CardDef {
    * por um efeito pontual tipo ST03-014 The Blue Giant, dura só "esta batalha").
    */
   innateDamageProtection?: {
-    maxAttackerAp: number;
+    maxAttackerAp?: number;
+    /** GD02-006 Forbidden Gundam — "can't receive battle damage from enemy Units that are Lv.2 or lower" (nível do atacante, não AP). Mesma convenção OR de `CombatState.unitDamageProtection` — basta UM dos dois bater. */
+    maxAttackerLevel?: number;
     /** ex. "Breach" — a Unit só está protegida enquanto tiver esta keyword agora (própria ou concedida). */
     requiresOwnKeyword?: string;
     /** "During your turn" — só vale enquanto for o turno do CONTROLLER da Unit (não do atacante). */
@@ -164,6 +183,40 @@ export interface CardDef {
     /** "During Link" — só vale enquanto a Unit satisfizer a link condition com o Pilot pareado (não só "During Pair"). */
     duringLinkOnly?: boolean;
   };
+  /**
+   * GD02-064 Gundam Leopard — "During your turn, while there are 7 or more cards in your
+   * trash, this Unit can't receive effect damage from enemy Commands." Checado direto no
+   * case "damageUnit" de `effectSpec.ts` (não em combat.ts — não é dano de BATALHA).
+   */
+  innateEffectDamageProtection?: {
+    fromCardType: CardType;
+    duringYourTurnOnly?: boolean;
+    requiresTrashCountAtLeast?: number;
+  };
+  /**
+   * GD02-009 Calamity Gundam — "【Once per Turn】When this Unit's AP is reduced by an enemy
+   * effect, choose 1 rested enemy Unit. Deal 2 damage to it." Checado no case "modifyStat" de
+   * `effectSpec.ts`. Sem sistema de escolha real pra reação (não passa pelo dispatcher normal)
+   * — auto-mira a 1ª Unit inimiga rested legal.
+   */
+  onApReducedByEnemy?: { oncePerTurn?: boolean; reactDamage: number };
+  /** GD02-010 Raider Gundam — "【Once per Turn】When this Unit receives enemy effect damage, draw 1." Checado no case "damageUnit" de `effectSpec.ts`. */
+  onEffectDamageReceived?: { oncePerTurn?: boolean };
+  /**
+   * GD02-022 G-Exes — "【Once per Turn】When you place an EX Resource, choose 1 of your (AGE
+   * System) Units. It gains <Breach 2> during this turn." Checado no case "spawnToken" de
+   * `effectSpec.ts` (só quando o token é o EX Resource). Sem escolha real — auto-mira a 1ª
+   * Unit amiga legal com `requiresTargetTrait`.
+   */
+  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string };
+  /**
+   * GD02-085 Four Murasame — "【During Link】【Once per Turn】During your turn, when this Unit
+   * recovers HP, if you have 4 or less cards in your hand, draw 1." Checado nos 3 pontos que
+   * geram `HEAL_UNIT` (Repair automático em `keywords.ts`, primitiva "heal" em `effectSpec.ts`,
+   * `allyCombatTriggerEvents` em `combat.ts`) — "this Unit" já é o próprio dono do campo (não
+   * precisa resolver Pilot->Unit pareada, ao contrário de outros campos "this Unit").
+   */
+  onSelfHeal?: { duringLinkOnly?: boolean; oncePerTurn?: boolean; requiresHandCountAtMost?: number; drawAmount: number };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-046 "【During Pair･(Coordinator) Pilot】【Once per
    * Turn】When you use this Unit's <Support> to increase a (ZAFT) Unit's AP, set this Unit as
@@ -249,7 +302,11 @@ export type StaticBoardCondition =
   /** ST08-001 Xi Gundam: "While you have no Units that are Lv.6 or higher in play" */
   | { kind: "noUnitLevelAtLeast"; maxLevel: number }
   /** ST07-004 Gundam Virtue / ST07-007 Kyrios: "While you have a (CB) Pilot in play" */
-  | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number };
+  | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number }
+  /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
+  | { kind: "trashCountAtLeast"; n: number }
+  /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
+  | { kind: "baseColorInPlay"; color: string };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -280,6 +337,8 @@ export interface StaticAbility {
   duringYourTurnOnly?: boolean;
   boardCondition?: StaticBoardCondition;
   targetCondition?: StaticTargetCondition;
+  /** GD02-053 Gundam X — "all your OTHER (Vulture) Units get AP+2" — exclui a própria fonte do scope `allFriendlyUnits` (que por padrão a inclui). */
+  excludeSelf?: boolean;
 }
 
 /**
@@ -301,6 +360,8 @@ export interface CombatTrigger {
   on: "destroyEnemyInBattle" | "destroyEnemyShieldInBattle";
   /** Lote 5 (docs/debates 2026-09-13) — filtra `destroyEnemyInBattle` pra só disparar se a Unit inimiga destruída ERA Link Unit no momento da destruição (checado ANTES do DESTROY_CARD limpar o pareamento). Ex.: GD01-094 Yzak Jule. */
   requiresLinkUnitEnemy?: boolean;
+  /** GD02-093 Olba Frost — "when this Unit destroys an enemy Unit paired with a (Newtype) Pilot ...". Mais frouxo que `requiresLinkUnitEnemy`: só exige que a Unit destruída estivesse PAREADA (não satisfazendo Link) com um Pilot que tenha o trait dado — checado ANTES do DESTROY_CARD, mesma convenção. */
+  requiresEnemyPairedPilotTrait?: string;
   /** Lote 5 — "【Once per Turn】" na cláusula de combate (não existe em nenhum CombatTrigger anterior). Marcado via CardInstance.usedKeywordsThisTurn com uma chave sintética (`combatTrigger:<on>`), mesmo mecanismo de <Support>/<Repair> "Once per Turn". */
   oncePerTurn?: boolean;
   action:
@@ -320,6 +381,18 @@ export interface CombatTrigger {
      * pra cá criaria import circular. Mantenha os campos em sync se um mudar.
      */
     | { kind: "retrieveFromTrash"; filter: CombatTriggerTrashFilter };
+}
+
+/** Ver `CardDef.allyCombatTriggers` — mesmo `on`/`condition`/`oncePerTurn` de `CombatTrigger`, mas o alvo da `action` é sempre o LISTENER (dono deste campo), nunca escolha de jogador — por isso o vocabulário de `action` é menor (sem os 2 kinds que pausam pra escolha). */
+export interface AllyCombatTrigger {
+  condition: CombatTriggerCondition;
+  on: CombatTrigger["on"];
+  /** GD02-001 Psycho Gundam — "one of your (Titans) Units destroys ...". Sem isto, qualquer Unit amiga conta. */
+  requiresActorTrait?: string;
+  /** GD02-001 Psycho Gundam — "【During Pair･(Cyber-Newtype) Pilot】" — o Pilot pareado com o LISTENER precisa ter este trait (não é sobre o ator). Só faz sentido com `condition: "duringPair"`. */
+  requiresPairedPilotTrait?: string;
+  oncePerTurn?: boolean;
+  action: { kind: "heal"; amount: number } | { kind: "setActive" };
 }
 
 /** Ver nota em `CombatTrigger.action` ("retrieveFromTrash") — mesmo shape de `CardDefFilter`. */
@@ -408,6 +481,24 @@ export interface CardInstance {
    * enquanto `=== state.turnNumber`. Limpo em `CLEAR_TURN_MODIFIERS`.
    */
   cannotAttackUntilTurn?: number;
+  /**
+   * ST08-009 Jegan Ground Type-A 【Deploy】 — "It won't be set as active during
+   * the start phase of your opponent's next turn." Guarda o `turnNumber` do
+   * turno em que a Unit alvo NÃO deve ser destombada em `computeStartPhaseEvents`
+   * (sempre "próximo turno do oponente" a partir de quem controla Jegan, ou
+   * seja `state.turnNumber + 1` no momento do Deploy — ver `effectSpec.ts`
+   * case `preventActivationNextTurn`). Consumido (checado com `===`) na Start
+   * Phase; limpo em `CLEAR_TURN_MODIFIERS` como os campos irmãos acima.
+   */
+  cannotActivateUntilTurn?: number;
+  /**
+   * GD02-040 Gundam Ashtaron 【Deploy】 — "Choose 1 of your other (New UNE) Units. It can't
+   * receive battle damage from enemy Units with 2 or less HP during this turn." Diferente de
+   * `CombatState.unitDamageProtection` (só dura "esta batalha" — some com `COMBAT_ENDED`): esta
+   * concessão sobrevive a MÚLTIPLAS batalhas no mesmo turno. `turn` = só vale enquanto
+   * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
+   */
+  battleDamageImmunityUntilTurn?: { maxAttackerHp: number; turn: number };
 }
 
 /**
@@ -460,7 +551,8 @@ export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boo
   const link = unitDef.link;
   if (!link) return false;
   if (link.kind === "pilotName") {
-    return link.values.some((name) => pilotDef.nameEn.includes(name));
+    const names = [pilotDef.nameEn, ...(pilotDef.nameAliases ?? [])];
+    return link.values.some((name) => names.some((candidate) => candidate.includes(name)));
   }
   return link.values.some((trait) => (pilotDef.traits ?? []).includes(trait));
 }
@@ -533,6 +625,12 @@ export function isBoardConditionMet(
       ).length >= cond.n
     );
   }
+  if (cond.kind === "trashCountAtLeast") {
+    return state.players[owner].trash.length >= cond.n;
+  }
+  if (cond.kind === "baseColorInPlay") {
+    return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
+  }
   // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
   const ownerState = state.players[owner];
   return (
@@ -566,6 +664,7 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
+      if (ability.excludeSelf && source.instanceId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
       if (includesTarget) bonus += ability.amount;
@@ -821,7 +920,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
-        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
         /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */
@@ -855,7 +954,7 @@ export type PendingDecision =
          * recém-comprada). A escolha viaja em `resolution.targetIds` e vira
          * `ctx.targets.discard`. `discardNamed` no `effectSpec`.
          */
-        handDiscard?: { n: number; legalHandIds: string[]; label: string };
+        handDiscard?: { n: number; legalHandIds: string[]; cards?: CardInstance[]; label: string };
         /**
          * ST02-015 Saint Gabriel 【Deploy】 "look at the top 2 cards of your deck
          * and return 1 to the top and 1 to the bottom" — o jogador atribui cada
@@ -982,7 +1081,7 @@ export interface CombatState {
    * por Unit específica e condicionada ao AP EFETIVO do atacante. Só 1 Unit
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
-  unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number } | null;
+  unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean } | null;
   /** docs/47 Fase 6 — ver `PendingCombatTriggerChoice`. Populado por `resolveDamageStep`, consumido e limpo por `actions.ts` ao montar a pausa. */
   pendingTriggerChoices?: PendingCombatTriggerChoice[];
 }
@@ -1114,11 +1213,15 @@ export type GameEvent =
   /** ST02-013 Peaceful Timbre — ver `CombatState.shieldProtection`. Não-op se não houver combate em andamento. */
   | { type: "SET_SHIELD_PROTECTION"; maxAttackerLevel: number }
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
-  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number }
+  | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
   | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
+  /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */
+  | { type: "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN"; instanceId: string; maxAttackerHp: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
+  /** ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`. */
+  | { type: "SET_CANNOT_ACTIVATE"; instanceId: string; turn: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }

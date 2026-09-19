@@ -1365,6 +1365,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-008-WhenLinked",
+    "cardCode": "GD02-008",
+    "trigger": "When Linked",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
     "id": "GD02-014-Deploy",
     "cardCode": "GD02-014",
     "trigger": "Deploy",
@@ -1411,6 +1423,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "[During Link] While you are Lv.7 or higher, this Unit gains <First Strike>. \n(While this Unit is attacking, it deals damage before the enemy Unit.)"
+  },
+  {
+    "id": "GD02-025-Deploy",
+    "cardCode": "GD02-025",
+    "trigger": "Deploy",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
   },
   {
     "id": "GD02-026-Deploy",
@@ -1485,6 +1509,54 @@
     "sourceText": "[Deploy] Look at the top 3 cards of your deck. You may deploy 1 (Clan) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
   },
   {
+    "id": "GD02-039-WhenPaired",
+    "cardCode": "GD02-039",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit that is Lv.3 or lower. Deal 1 damage to it."
+  },
+  {
+    "id": "GD02-041-Deploy",
+    "cardCode": "GD02-041",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level>=5",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to it."
+  },
+  {
+    "id": "GD02-045-Attack",
+    "cardCode": "GD02-045",
+    "trigger": "Attack",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfApAtLeast:5;attackingEnemyUnit",
+    "sourceText": "【Attack】If this Unit has 5 or more AP and it is attacking an enemy Unit, draw 1."
+  },
+  {
+    "id": "GD02-046-Deploy",
+    "cardCode": "GD02-046",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "isToken",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit token. Deal 2 damage to it."
+  },
+  {
     "id": "GD02-058-Deploy",
     "cardCode": "GD02-058",
     "trigger": "Deploy",
@@ -1496,6 +1568,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "[Deploy] Choose 1 of your Units. Deal 1 damage to it. If you do, draw 1. Then, discard 1."
+  },
+  {
+    "id": "GD02-060-Deploy",
+    "cardCode": "GD02-060",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": "controllerTrashCountAtLeast:7",
+    "sourceText": "【Deploy】If there are 7 or more cards in your trash, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
   },
   {
     "id": "GD02-068-Deploy",
@@ -1791,11 +1875,12 @@
     "cardCode": "GD03-001",
     "trigger": "When Paired",
     "ops": [
+      "draw",
       "damageUnit"
     ],
     "targetScope": "enemyUnit",
     "targetFilter": "rested",
-    "predicate": null,
+    "predicate": "namedTargetLethalDamage:target:1",
     "sourceText": "【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it. When this effect destroys an enemy Unit, draw 1."
   },
   {
@@ -3851,11 +3936,12 @@
     "cardCode": "ST08-006",
     "trigger": "Attack",
     "ops": [
+      "moveZone",
       "draw"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": "attackingPlayer",
+    "predicate": "attackingPlayer;controllerHandHasUnitWithTrait:Earth Federation",
     "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2."
   },
   {
@@ -3863,7 +3949,8 @@
     "cardCode": "ST08-009",
     "trigger": "Deploy",
     "ops": [
-      "rest"
+      "rest",
+      "preventActivationNextTurn"
     ],
     "targetScope": "enemyUnit",
     "targetFilter": "rested;level<=2",

@@ -16,7 +16,11 @@ export function computeStartPhaseEvents(state: GameState): GameEvent[] {
   const player = state.players[state.activePlayer];
   for (const zone of ["battleArea", "baseSection", "resourceArea"] as const) {
     for (const card of player[zone]) {
-      if (card.rested) events.push({ type: "SET_ACTIVE", instanceId: card.instanceId });
+      // ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`:
+      // esta Unit fica rested nesta Start Phase específica em vez de destombar.
+      if (card.rested && card.cannotActivateUntilTurn !== state.turnNumber) {
+        events.push({ type: "SET_ACTIVE", instanceId: card.instanceId });
+      }
     }
   }
   return events;

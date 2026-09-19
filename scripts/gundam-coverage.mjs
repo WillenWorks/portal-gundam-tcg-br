@@ -33,7 +33,15 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05"];
+// GD02/GD03 ficam FORA do gate por enquanto: `--gate --sets=GD02,GD03` (2026-09-18)
+// mostrou 69 e 76 cartas "faltando" respectivamente (real, não é falso positivo —
+// ver docs/_generated/coverage.md) — a cobertura desses 2 sets está muito atrás
+// do que a wave GD03 do CHANGELOG [2.1.0] sugere (só a vocabulário/governança de
+// primitivas foi fechada, não a autoria de EffectSpec carta a carta). Sem risco
+// de produção: `server/deckCoverageGate.ts` já bloqueia esses decks em runtime.
+// Adicionar de volta ao GATED_SETS só depois de fechar esse backlog (rastrear
+// em AI_GUIDE.md §8, Terminal 1).
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, outFile: null };
@@ -52,10 +60,27 @@ const { ST02_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st02D
 const { ST03_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st03Deck.ts");
 const { ST04_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st04Deck.ts");
 const { ST05_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st05Deck.ts");
+const { ST06_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st06Deck.ts");
+const { ST07_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st07Deck.ts");
+const { ST08_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st08Deck.ts");
 const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/index.ts");
+const { GD02_CARD_DEFS } = await import("../src/modules/simulator/content/gd02/index.ts");
+const { GD03_CARD_DEFS } = await import("../src/modules/simulator/content/gd03/index.ts");
 
 const DEF_BY_CODE = new Map();
-for (const defs of [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS]) {
+for (const defs of [
+  ST01_CARD_DEFS,
+  ST02_CARD_DEFS,
+  ST03_CARD_DEFS,
+  ST04_CARD_DEFS,
+  ST05_CARD_DEFS,
+  ST06_CARD_DEFS,
+  ST07_CARD_DEFS,
+  ST08_CARD_DEFS,
+  GD01_CARD_DEFS,
+  GD02_CARD_DEFS,
+  GD03_CARD_DEFS,
+]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
 const SPECS_BY_CODE = new Map();
@@ -206,11 +231,17 @@ function classify(code) {
     def &&
       (def.staticAbilities?.length ||
         def.combatTriggers?.length ||
+        def.allyCombatTriggers?.length ||
         def.attackTargetRules ||
         def.dynamicCost ||
         def.onSupportUsed ||
         def.innateStatReductionImmunity ||
         def.innateDamageProtection ||
+        def.innateEffectDamageProtection ||
+        def.onApReducedByEnemy ||
+        def.onEffectDamageReceived ||
+        def.onExResourcePlaced ||
+        def.onSelfHeal ||
         def.alternateDeploySacrifice ||
         def.onAnyPairing),
   );

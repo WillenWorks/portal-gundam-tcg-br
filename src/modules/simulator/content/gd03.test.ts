@@ -109,4 +109,43 @@ describe("GD03 — resolução de efeitos bespoke", () => {
       expect(findCard(state, enemyId).damage).toBe(2);
     }
   });
+
+  it("GD03-001 Gundam NT-1 [When Paired] compra 1 quando o dano de 1 destrói o alvo", () => {
+    let state = freshGame();
+    const nt1Def = GD03_CARD_DEFS["GD03-001"];
+    const enemyDef = GD03_CARD_DEFS["GD03-002"]; // The-O, HP 5
+    const sourceId = placeCard(state, "A", nt1Def, "battleArea");
+    const enemyId = placeCard(state, "B", enemyDef, "battleArea", { damage: 4 }); // 1 a mais mata
+    const handBefore = state.players.A.hand.length;
+
+    const whenPairedSpec = GD03_EFFECT_SPECS.find((s) => s.cardCode === "GD03-001" && s.trigger === "When Paired");
+    expect(whenPairedSpec).toBeDefined();
+
+    if (whenPairedSpec) {
+      const events = resolveEffectSpec(whenPairedSpec, ctxFor(state, sourceId, { target: [enemyId] }), defaultPredicateResolver);
+      state = applyEvents(state, events);
+      // 5 de dano em cima de 5 de HP destrói o alvo — DESTROY_CARD zera `damage` e move pra trash.
+      expect(findCard(state, enemyId).zone).toBe("trash");
+      expect(state.players.A.hand.length).toBe(handBefore + 1);
+    }
+  });
+
+  it("GD03-001 Gundam NT-1 [When Paired] NÃO compra quando o dano de 1 não destrói o alvo", () => {
+    let state = freshGame();
+    const nt1Def = GD03_CARD_DEFS["GD03-001"];
+    const enemyDef = GD03_CARD_DEFS["GD03-002"]; // The-O, HP 5
+    const sourceId = placeCard(state, "A", nt1Def, "battleArea");
+    const enemyId = placeCard(state, "B", enemyDef, "battleArea"); // sem dano prévio
+    const handBefore = state.players.A.hand.length;
+
+    const whenPairedSpec = GD03_EFFECT_SPECS.find((s) => s.cardCode === "GD03-001" && s.trigger === "When Paired");
+    expect(whenPairedSpec).toBeDefined();
+
+    if (whenPairedSpec) {
+      const events = resolveEffectSpec(whenPairedSpec, ctxFor(state, sourceId, { target: [enemyId] }), defaultPredicateResolver);
+      state = applyEvents(state, events);
+      expect(findCard(state, enemyId).damage).toBe(1);
+      expect(state.players.A.hand.length).toBe(handBefore);
+    }
+  });
 });

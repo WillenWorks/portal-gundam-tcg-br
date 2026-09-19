@@ -108,4 +108,16 @@ describe("ResourceMeter", () => {
     expect(screen.queryByText(/^x\d/)).toBeNull();
     expect(container.querySelector(".overflow-x-auto")).toBeNull();
   });
+
+  it("modo interativo com 8 recursos: usa flex-nowrap em linha única e sem quebra de linha", () => {
+    const eight = Array.from({ length: 8 }, (_, i) => res(`r-${i}`));
+    const { container } = render(
+      <ResourceMeter resources={eight} level={8} selectable onSelect={() => {}} />,
+    );
+    const row = container.querySelector(".flex-nowrap");
+    expect(row).toBeInTheDocument();
+    expect(container.querySelector(".flex-wrap")).toBeNull();
+    expect(screen.getAllByRole("button")).toHaveLength(8);
+  });
 });
+

@@ -66,20 +66,29 @@ export const PENELOPE_ATTACK: EffectSpec = {
   cardCode: "ST08-006",
   trigger: "Attack",
   duringPair: true,
+  // O draw só dispara se houver 1 (Earth Federation) Unit na mão pra revelar —
+  // sem isso o texto vira "draw 2 de graça", que não é o que o card faz.
   condition: {
-    predicate: "attackingPlayer",
-    then: [{ op: "draw", player: "controller", n: 2 }],
+    predicate: "attackingPlayer;controllerHandHasUnitWithTrait:Earth Federation",
+    then: [
+      { op: "moveZone", target: { kind: "group", group: { kind: "firstOwnHandUnitWithTrait", trait: "Earth Federation" } }, toZone: "deck" },
+      { op: "draw", player: "controller", n: 2 },
+    ],
   },
   actions: [],
   sourceText: "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2.",
 };
 
 // ST08-009 Jegan Ground Type-A (Man Hunter) — 【Deploy】Choose 1 rested enemy Unit that is Lv.2 or lower.
+// It won't be set as active during the start phase of your opponent's next turn.
 export const JEGAN_DEPLOY: EffectSpec = {
   id: "ST08-009-Deploy",
   cardCode: "ST08-009",
   trigger: "Deploy",
-  actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  actions: [
+    { op: "rest", target: { kind: "named", name: "target" } },
+    { op: "preventActivationNextTurn", target: { kind: "named", name: "target" } },
+  ],
   targetScope: "enemyUnit",
   targetFilter: "rested;level<=2",
   sourceText: "【Deploy】Choose 1 rested enemy Unit that is Lv.2 or lower. It won't be set as active during the start phase of your opponent's next turn.",

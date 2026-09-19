@@ -6,6 +6,7 @@ import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import { ST05_CARD_DEFS } from "../fixtures/st05Deck";
 import { GD01_CARD_DEFS } from "./gd01";
+import { GD02_CARD_DEFS } from "./gd02";
 import { DEFERRED_CLAUSES } from "./deferred";
 
 /**
@@ -18,8 +19,8 @@ import { DEFERRED_CLAUSES } from "./deferred";
  */
 
 const KNOWN_CARD_CODES = new Set<string>(
-  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS].flatMap((defs) =>
-    Object.values(defs).map((def) => def.code),
+  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS, GD02_CARD_DEFS].flatMap(
+    (defs) => Object.values(defs).map((def) => def.code),
   ),
 );
 
@@ -47,7 +48,7 @@ describe("DEFERRED_CLAUSES", () => {
     }
   });
 
-  it("cláusula de carta específica referencia uma carta conhecida de ST01–04 ou GD01 ('*' = gap transversal)", () => {
+  it("cláusula de carta específica referencia uma carta conhecida de ST01–05, GD01 ou GD02 ('*' = gap transversal)", () => {
     for (const entry of DEFERRED_CLAUSES) {
       if (entry.cardCode === "*") continue;
       expect(KNOWN_CARD_CODES.has(entry.cardCode), `${entry.cardCode} não existe em card defs conhecidas`).toBe(true);

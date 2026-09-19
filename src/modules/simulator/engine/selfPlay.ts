@@ -72,6 +72,11 @@ export function checkStateInvariants(state: GameState): string | null {
         if (prev) return `carta ${key} em duas zonas ao mesmo tempo (${prev} e ${where})`;
         seen.set(key, where);
         if (card.zone !== zone) return `carta ${key} em ${where} mas card.zone="${card.zone}"`;
+        // Comprehensive Rules — token (EX Resource/Base, unit token) que sai de campo é
+        // removido do jogo (`exile`), nunca vai pro deck/mão/trash (ver tokenLeavesGame.test.ts).
+        if (card.def.isToken && (zone === "deck" || zone === "resourceDeck" || zone === "hand" || zone === "trash")) {
+          return `token ${key} (${card.def.code}) em ${where} — token deveria ter ido pra "exile", não pra "${zone}"`;
+        }
       }
     }
     const unitCount = state.players[pid].battleArea.filter((c) => c.def.cardType === "UNIT").length;

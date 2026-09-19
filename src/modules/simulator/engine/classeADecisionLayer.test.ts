@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createGame } from "./setup";
 import { advanceToMainPhase } from "./phases";
 import { applyPlayerAction } from "./actions";
+import { viewStateFor } from "./viewState";
 import { deployCard, playCommand } from "./deploy";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { buildSt02DeckList, ST02_CARD_DEFS } from "../fixtures/st02Deck";
@@ -67,6 +68,11 @@ describe("ST04-002 Strike Gundam — 【Deploy】Draw 1. Then, discard 1.", () =
     // legalHandIds inclui a carta que SERÁ comprada (topo do deck)
     const willDraw = paused.players.A.deck[0].instanceId;
     expect(q?.handDiscard?.legalHandIds).toContain(willDraw);
+
+    // Na visão do jogador (viewStateFor), cards contém a CardInstance da carta comprada
+    const viewA = viewStateFor(paused, "A");
+    const viewQ = viewA.pendingDecision.A?.kind === "abilityResolution" ? viewA.pendingDecision.A.queue[0] : undefined;
+    expect(viewQ?.handDiscard?.cards?.some((c) => c.instanceId === willDraw)).toBe(true);
 
     // descarta a própria carta comprada
     const next = apply(paused, "A", {

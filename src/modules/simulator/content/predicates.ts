@@ -228,6 +228,34 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const count = ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).includes(trait)).length;
     return count >= min;
   }
+  // ST08-006 Penelope — 【During Pair】【Attack】"reveal 1 (Earth Federation) Unit
+  // card from your hand... If you do, draw 2." Checa se existe pelo menos 1
+  // Unit com o trait na mão ANTES da própria ação de revelar/mover rodar —
+  // mesma ordem cost->condition->actions de `controllerTrashCountAtLeast`
+  // acima. Sem escolha interativa de QUAL carta (não existe `targetScope`
+  // pra mão ainda) — a ação que consome isto usa sempre a primeira que casar
+  // (mesma simplificação documentada de `returnTrashToDeckAndShuffle`).
+  const controllerHandHasUnitWithTrait = predicate.match(/^controllerHandHasUnitWithTrait:(.+)$/);
+  if (controllerHandHasUnitWithTrait) {
+    const trait = controllerHandHasUnitWithTrait[1];
+    return ctx.state.players[ctx.controller].hand.some(
+      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(trait),
+    );
+  }
+  // GD03-001 Gundam NT-1 — 【When Paired】"Deal 1 damage to it. When this effect
+  // destroys an enemy Unit, draw 1." Mesma matemática que `damageUnit` já usa
+  // pra decidir sozinho se dispara `DESTROY_CARD` (effectSpec.ts, case
+  // "damageUnit": `card.damage + amount >= effectiveHp(...)`) — repetida aqui
+  // pra virar um predicate de `condition`, avaliado ANTES do dano rodar
+  // (mesma ordem cost->condition->actions; o resultado não muda porque é a
+  // MESMA fórmula, só calculada 1x a mais).
+  const namedTargetLethalDamage = predicate.match(/^namedTargetLethalDamage:(.+):(\d+)$/);
+  if (namedTargetLethalDamage) {
+    const targetId = ctx.targets[namedTargetLethalDamage[1]]?.[0];
+    if (!targetId) return false;
+    const card = findCard(ctx.state, targetId);
+    return card.damage + Number(namedTargetLethalDamage[2]) >= effectiveHp(card, ctx.state);
+  }
   // ST08-013 Lady Luck — "If a friendly (Mafty) Link Unit is in play"
   const controllerHasLinkUnitWithTrait = predicate.match(/^controllerHasLinkUnitWithTrait:(.+)$/);
   if (controllerHasLinkUnitWithTrait) {
@@ -248,6 +276,95 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
       (c) => c.def.cardType === "PILOT" && (c.def.traits ?? []).includes(trait),
     );
   }
+  // GD02-054 Gundam Barbatos 1st Form / GD02-095 Lafter Frankland (Pilot, "this Unit" =
+  // Unit pareada) — 【Attack】"If this Unit is damaged, ...".
+  if (predicate === "selfIsDamaged") {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfUnit.damage > 0;
+  }
+  // GD02-081 Methuss / GD02-071 Gundam Mk-II (AEUG) — "If a friendly white Base is in play, ...".
+  const controllerHasBaseColor = predicate.match(/^controllerHasBaseColor:(.+)$/);
+  if (controllerHasBaseColor) {
+    const color = controllerHasBaseColor[1];
+    return ctx.state.players[ctx.controller].baseSection.some((b) => b.def.color === color);
+  }
+  // GD02-061 Hyakuri — "【When Paired･Purple Pilot】..." — cor do PILOT recém-pareado com a fonte (Unit).
+  const pairedPilotColorIs = predicate.match(/^pairedPilotColorIs:(.+)$/);
+  if (pairedPilotColorIs) {
+    const source = findCard(ctx.state, ctx.sourceInstanceId);
+    if (!source.pairedPilotId) return false;
+    return findCard(ctx.state, source.pairedPilotId).def.color === pairedPilotColorIs[1];
+  }
+  // GD02-091 Haman Karn (Pilot) — "If this Unit is red, ..." — cor IMPRESSA da Unit
+  // pareada (não da própria carta do Pilot — mesma convenção de resolveSelfUnit).
+  const selfColorIs = predicate.match(/^selfColorIs:(.+)$/);
+  if (selfColorIs) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && selfUnit.def.color === selfColorIs[1];
+  }
+  // GD02-095 Lafter Frankland (Pilot) — "If this Unit is ... Lv.5 or lower, ...".
+  const selfLevelAtMost = predicate.match(/^selfLevelAtMost:(\d+)$/);
+  if (selfLevelAtMost) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && (selfUnit.def.level ?? 0) <= Number(selfLevelAtMost[1]);
+  }
+  // GD02-037 Gundam Virsago — "If there are 3 or less enemy Shields, ...".
+  const enemyShieldCountAtMost = predicate.match(/^enemyShieldCountAtMost:(\d+)$/);
+  if (enemyShieldCountAtMost) {
+    return ctx.state.players[otherPlayer(ctx.controller)].shields.length <= Number(enemyShieldCountAtMost[1]);
+  }
+  // GD02-056 Gundam X — "【During Pair･(Vulture) Pilot】【Destroyed】..." — trait do Pilot que
+  // estava pareado no momento da destruição (alvo implícito "formerPairedPilot", injetado pelo
+  // dispatcher em ctx.targets ANTES do DESTROY_CARD, mesmo mecanismo de GD01-005 Unicorn Gundam).
+  const formerPairedPilotHasTrait = predicate.match(/^formerPairedPilotHasTrait:(.+)$/);
+  if (formerPairedPilotHasTrait) {
+    const pilotId = ctx.targets.formerPairedPilot?.[0];
+    if (!pilotId) return false;
+    return (findCard(ctx.state, pilotId).def.traits ?? []).includes(formerPairedPilotHasTrait[1]);
+  }
+  // GD02-021 Gundam AGE-1 Normal — "if you are Lv.7 or higher, ...". Nível do JOGADOR (não de
+  // uma carta) = quantidade de Resources em campo, mesma fórmula de `canPayLevel` (deploy.ts).
+  const controllerLevelAtLeast = predicate.match(/^controllerLevelAtLeast:(\d+)$/);
+  if (controllerLevelAtLeast) {
+    return ctx.state.players[ctx.controller].resourceArea.length >= Number(controllerLevelAtLeast[1]);
+  }
+  // GD02-003 Gundam Mk-II (Titans) — "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may
+  // discard 1 Unit card. If you do, return the card paired with this Unit to your hand." Precisa
+  // combinar 2 gates numa só predicate pra `condition2` (nível do Pilot que estava pareado +
+  // a escolha nomeada "discard" não vazia): `buildQueueEntry` (abilityDispatch.ts) monta a
+  // escolha de `discardNamed` sem olhar pro `condition` que a envolve (mesmo "prompt fantasma"
+  // aceito em GD02-056), então usar só `chosenNonEmpty:discard` sozinho devolveria o Piloto à
+  // mão mesmo com um Pilot Lv.4+ pareado (que nem deveria oferecer esta habilidade).
+  const formerPairedPilotLevelAtMostAndChosenNonEmpty = predicate.match(
+    /^formerPairedPilotLevelAtMostAndChosenNonEmpty:(\d+):(.+)$/,
+  );
+  if (formerPairedPilotLevelAtMostAndChosenNonEmpty) {
+    const [, maxLevel, key] = formerPairedPilotLevelAtMostAndChosenNonEmpty;
+    const pilotId = ctx.targets.formerPairedPilot?.[0];
+    if (!pilotId) return false;
+    const levelOk = (findCard(ctx.state, pilotId).def.level ?? 0) <= Number(maxLevel);
+    const chosenOk = (ctx.targets[key] ?? []).length > 0;
+    return levelOk && chosenOk;
+  }
+  // GD02-098 Quattro Bajeena (Pilot) — "If this is an (AEUG) Unit, ..." — trait IMPRESSO da Unit
+  // pareada (mesma convenção de selfColorIs/selfLevelAtMost).
+  const selfHasTrait = predicate.match(/^selfHasTrait:(.+)$/);
+  if (selfHasTrait) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && (selfUnit.def.traits ?? []).includes(selfHasTrait[1]);
+  }
+  // GD02-111 Decisive Last Resort — "Choose 6 purple Unit cards from your trash. Exile them...".
+  // Checado ANTES da própria primitiva `firstNInTrash` rodar (mesma ordem cost->condition->actions
+  // de controllerTrashCountAtLeast acima) — "if you do" == havia 6+ cartas elegíveis na lixeira.
+  const controllerTrashUnitColorCountAtLeast = predicate.match(/^controllerTrashUnitColorCountAtLeast:(.+):(\d+)$/);
+  if (controllerTrashUnitColorCountAtLeast) {
+    const color = controllerTrashUnitColorCountAtLeast[1];
+    const min = Number(controllerTrashUnitColorCountAtLeast[2]);
+    const count = ctx.state.players[ctx.controller].trash.filter(
+      (c) => c.def.cardType === "UNIT" && c.def.color === color,
+    ).length;
+    return count >= min;
+  }
   return false;
 };
 
@@ -256,6 +373,18 @@ function isPairedLinkUnit(state: GameState, unit: CardInstance): boolean {
   if (!unit.pairedPilotId) return false;
   const pilot = findCard(state, unit.pairedPilotId);
   return satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
+}
+
+/**
+ * Resolve "this Unit" quando a fonte pode ser a própria Unit OU um Pilot
+ * pareado com ela (texto autorado no Pilot sempre fala da Unit pareada, não
+ * do Pilot — mesma convenção de `level<=self`/`sourcePairedUnitIsLinkUnit`).
+ * `undefined` se a fonte é Pilot sem Unit pareada agora.
+ */
+function resolveSelfUnit(state: GameState, sourceInstanceId: string): CardInstance | undefined {
+  const source = findCard(state, sourceInstanceId);
+  if (source.def.cardType === "UNIT") return source;
+  return source.pairedUnitId ? findCard(state, source.pairedUnitId) : undefined;
 }
 
 /** HP restante de verdade — HP efetivo (com buff/`During Pair`) menos o dano acumulado. Mesmo cálculo de `CardInspectorPanel`. */
@@ -349,8 +478,7 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // PAREADA (quem ataca de verdade) — se a fonte já é Unit, usa ela mesma.
   if (filter === "level<=self") {
     if (!ctx.sourceInstanceId) return false;
-    const source = findCard(ctx.state, ctx.sourceInstanceId);
-    const selfUnit = source.def.cardType === "UNIT" ? source : source.pairedUnitId ? findCard(ctx.state, source.pairedUnitId) : undefined;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     if (!selfUnit) return false;
     return (candidate.def.level ?? 0) <= (selfUnit.def.level ?? 0);
   }
@@ -369,6 +497,24 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     const enemyUnits = ctx.state.players[candidate.owner].battleArea.filter((u) => u.def.cardType === "UNIT");
     const maxLevel = Math.max(...enemyUnits.map((u) => u.def.level ?? 0), 0);
     return (candidate.def.level ?? 0) === maxLevel;
+  }
+
+  // GD02-118 Heart Set on Revenge — "enemy Unit ... battling a friendly Unit with <Blocker>".
+  // O candidato precisa ser um dos 2 lados do combate ATUAL, com o outro lado sendo uma Unit
+  // AMIGA (do controller do efeito) com a keyword dada (mesmo padrão de excludeInstanceId de
+  // `battlingEnemyLevelAtMost`, só que aqui o candidato JÁ É "quem eu sou" — a fonte do olhar).
+  const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
+  if (battlingFriendlyHasKeyword) {
+    if (!ctx.sourceInstanceId) return false;
+    const combat = ctx.state.combat;
+    if (!combat) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId && combat.currentTarget !== "player") opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget !== "player" && combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const controller = findCard(ctx.state, ctx.sourceInstanceId).owner;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === controller && hasKeyword(opposing, battlingFriendlyHasKeyword[1], ctx.state);
   }
 
   return false;

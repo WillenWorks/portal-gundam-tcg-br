@@ -15,6 +15,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     effectKeywords: ["Breach"],
     triggerKeywords: ["During Pair"],
     keywordTags: ["Breach 3"],
+    // "During Pair (Cyber-Newtype) Pilot, when one of your (Titans) Units destroys an enemy
+    // shield area card with damage, this Unit recovers 2 HP."
+    allyCombatTriggers: [
+      {
+        condition: "duringPair",
+        on: "destroyEnemyShieldInBattle",
+        requiresActorTrait: "Titans",
+        requiresPairedPilotTrait: "Cyber-Newtype",
+        action: { kind: "heal", amount: 2 },
+      },
+    ],
   },
   "GD02-002": {
     code: "GD02-002",
@@ -28,6 +39,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     traits: ["White Fang"],
     link: {"kind":"pilotName","values":["Zechs Merquise"]},
     triggerKeywords: ["During Link"],
+    // "During Link, Once per Turn, during your turn, when one of your Units destroys an
+    // enemy Unit with battle damage, set this Unit as active."
+    allyCombatTriggers: [{ condition: "duringLink", on: "destroyEnemyInBattle", oncePerTurn: true, action: { kind: "setActive" } }],
   },
   "GD02-003": {
     code: "GD02-003",
@@ -81,6 +95,8 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     link: {"kind":"trait","values":["Biological CPU"]},
     effectKeywords: ["Blocker"],
     keywordTags: ["Blocker"],
+    // "During your turn, this Unit can't receive battle damage from enemy Units that are Lv.2 or lower."
+    innateDamageProtection: { maxAttackerLevel: 2, duringYourTurnOnly: true },
   },
   "GD02-007": {
     code: "GD02-007",
@@ -120,6 +136,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     hp: 5,
     traits: ["Earth Alliance"],
     link: {"kind":"trait","values":["Biological CPU"]},
+    // "Once per Turn, when this Unit's AP is reduced by an enemy effect, choose 1 rested
+    // enemy Unit. Deal 2 damage to it."
+    onApReducedByEnemy: { oncePerTurn: true, reactDamage: 2 },
   },
   "GD02-010": {
     code: "GD02-010",
@@ -132,6 +151,8 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     hp: 4,
     traits: ["Earth Alliance"],
     link: {"kind":"trait","values":["Biological CPU"]},
+    // "Once per Turn, when this Unit receives enemy effect damage, draw 1."
+    onEffectDamageReceived: { oncePerTurn: true },
   },
   "GD02-011": {
     code: "GD02-011",
@@ -227,6 +248,8 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     ap: 3,
     hp: 3,
     traits: ["OZ"],
+    // "This Unit can't choose the enemy player as its attack target." — mesmo padrão de ST01-009 Zowort.
+    attackTargetRules: { cannotTargetPlayer: true },
   },
   "GD02-019": {
     code: "GD02-019",
