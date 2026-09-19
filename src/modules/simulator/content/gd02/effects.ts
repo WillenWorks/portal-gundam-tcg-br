@@ -1033,6 +1033,45 @@ export const GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN: EffectSpec = {
   sourceText: "【During Link】【Activate･Main】【Once per Turn】Choose 1 active friendly Base. Rest it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn.",
 };
 
+// GD02-047 Gaza C — 【Activate･Main】Rest this Unit：Destroy this and choose 1 enemy Unit that
+// is Lv.5 or lower. Deal 1 damage to it.
+export const GD02_047_GAZA_C_ACTIVATE_MAIN: EffectSpec = {
+  id: "GD02-047-ActivateMain",
+  cardCode: "GD02-047",
+  trigger: "Activate·Main",
+  actions: [
+    { op: "rest", target: { kind: "self" } },
+    { op: "destroy", target: { kind: "self" } },
+    { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
+  ],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=5",
+  sourceText: "【Activate･Main】Rest this Unit：Destroy this and choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it.",
+};
+
+// GD02-105 Valedictorian — 【Action】Choose 1 of your Unit tokens. It can't receive battle
+// damage from enemy Units during this battle.
+export const GD02_105_VALEDICTORIAN_ACTION: EffectSpec = {
+  id: "GD02-105-Action",
+  cardCode: "GD02-105",
+  trigger: "Action",
+  actions: [{ op: "preventUnitBattleDamage", target: { kind: "named", name: "target" }, unconditional: true }],
+  targetScope: "friendlyUnit",
+  targetFilter: "isToken",
+  sourceText: "【Action】Choose 1 of your Unit tokens. It can't receive battle damage from enemy Units during this battle.",
+};
+
+// GD02-120 Aspiring Pilot — 【Action】Choose 1 of your (AEUG) Units/Bases. It recovers 2 HP.
+export const GD02_120_ASPIRING_PILOT_ACTION: EffectSpec = {
+  id: "GD02-120-Action",
+  cardCode: "GD02-120",
+  trigger: "Action",
+  actions: [{ op: "heal", target: { kind: "named", name: "target" }, amount: 2 }],
+  targetScope: "friendlyUnitOrBase",
+  targetFilter: "trait:AEUG",
+  sourceText: "【Action】Choose 1 of your (AEUG) Units/Bases. It recovers 2 HP.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -1117,5 +1156,8 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_087_ORGA_CROT_AND_SHANI_WHEN_LINKED,
   GD02_106_WHITE_WOLF_ACTION,
   GD02_075_RICK_DIAS_RED_ATTACK,
-  GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN
+  GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN,
+  GD02_047_GAZA_C_ACTIVATE_MAIN,
+  GD02_105_VALEDICTORIAN_ACTION,
+  GD02_120_ASPIRING_PILOT_ACTION
 ];

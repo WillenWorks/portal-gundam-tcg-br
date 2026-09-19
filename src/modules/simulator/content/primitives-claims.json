@@ -59,7 +59,8 @@
     "ownResource": { "description": "Pool de alvo legal — cartas do próprio Resource Area.", "since": "ST01" },
     "friendlyUnit": { "description": "Pool de alvo legal — Units amigas na Battle Area.", "since": "ST01" },
     "anyUnit": { "description": "Pool de alvo legal — Units dos DOIS lados do tabuleiro — texto oficial \"Choose 1 Unit\" sem \"enemy\"/\"friendly\".", "since": "GD01-014 G-Sky Easy / GD01-058 Galluss-K / GD01-110 Rasid's Orders" },
-    "friendlyBase": { "description": "Pool de alvo legal — Bases do próprio baseSection — texto oficial \"Choose 1 active friendly Base\".", "since": "GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam (Sprint 2 Lote 7)" }
+    "friendlyBase": { "description": "Pool de alvo legal — Bases do próprio baseSection — texto oficial \"Choose 1 active friendly Base\".", "since": "GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam (Sprint 2 Lote 7)" },
+    "friendlyUnitOrBase": { "description": "Pool de alvo legal — Units E Bases do controller juntas — texto oficial \"Choose 1 of your Units/Bases\".", "since": "GD02-120 Aspiring Pilot (Sprint 2 Lote 8)" }
   },
   "predicates": {
     "attackingEnemyUnit": { "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).", "since": "GD01-050 LaGOWE" },

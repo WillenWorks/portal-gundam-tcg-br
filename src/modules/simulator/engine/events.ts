@@ -470,6 +470,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
           instanceId: event.instanceId,
           maxAttackerAp: event.maxAttackerAp,
           maxAttackerLevel: event.maxAttackerLevel,
+          unconditional: event.unconditional,
         };
       }
       return state;
