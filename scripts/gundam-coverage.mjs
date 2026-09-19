@@ -231,11 +231,17 @@ function classify(code) {
     def &&
       (def.staticAbilities?.length ||
         def.combatTriggers?.length ||
+        def.allyCombatTriggers?.length ||
         def.attackTargetRules ||
         def.dynamicCost ||
         def.onSupportUsed ||
         def.innateStatReductionImmunity ||
         def.innateDamageProtection ||
+        def.innateEffectDamageProtection ||
+        def.onApReducedByEnemy ||
+        def.onEffectDamageReceived ||
+        def.onExResourcePlaced ||
+        def.onSelfHeal ||
         def.alternateDeploySacrifice ||
         def.onAnyPairing),
   );

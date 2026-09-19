@@ -171,6 +171,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     hp: 4,
     traits: ["Vulture"],
     link: {"kind":"trait","values":["Vulture"]},
+    // "During your turn, while there are 7 or more cards in your trash, this Unit can't
+    // receive effect damage from enemy Commands."
+    innateEffectDamageProtection: { fromCardType: "COMMAND", duringYourTurnOnly: true, requiresTrashCountAtLeast: 7 },
   },
   "GD02-065": {
     code: "GD02-065",

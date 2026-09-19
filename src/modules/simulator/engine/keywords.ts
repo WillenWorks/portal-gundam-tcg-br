@@ -1,5 +1,5 @@
-import type { GameEvent, GameState, PlayerId } from "./types";
-import { effectivePilotDef, hasKeyword, keywordValue } from "./types";
+import type { CardInstance, GameEvent, GameState, PlayerId } from "./types";
+import { effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 
 /**
@@ -77,9 +77,34 @@ export function computeRepairEvents(state: GameState, player: PlayerId): GameEve
       const repairValue = keywordValue(card, "Repair", state);
       if (repairValue && repairValue > 0 && card.damage > 0) {
         events.push({ type: "HEAL_UNIT", instanceId: card.instanceId, amount: repairValue });
+        events.push(...selfHealReactionEvents(card, state));
       }
     }
   }
+  return events;
+}
+
+/**
+ * GD02-085 Four Murasame — "【During Link】【Once per Turn】During your turn, when this Unit
+ * recovers HP, if you have 4 or less cards in your hand, draw 1." Autorada no PILOT — "this
+ * Unit" é a Unit pareada, por isso checa tanto o próprio `card.def` quanto o do Pilot pareado
+ * (mesma convenção de `resolveSelfUnit`, duplicada aqui pra evitar import circular com
+ * content/predicates.ts). Chamado de `computeRepairEvents` (auto-heal) e do case "heal" de
+ * `effectSpec.ts` (heal por efeito) — os 2 caminhos reais de cura que um deck pode montar.
+ */
+export function selfHealReactionEvents(card: CardInstance, state: GameState): GameEvent[] {
+  const pilot = card.pairedPilotId ? state.players[card.owner].battleArea.find((c) => c.instanceId === card.pairedPilotId) : undefined;
+  const reaction = card.def.onSelfHeal ?? pilot?.def.onSelfHeal;
+  if (!reaction) return [];
+  if (reaction.duringLinkOnly && !(pilot && satisfiesLinkCondition(effectivePilotDef(pilot), card.def))) return [];
+  if (card.owner !== state.activePlayer) return []; // "during your turn"
+  if (reaction.requiresHandCountAtMost !== undefined && state.players[card.owner].hand.length > reaction.requiresHandCountAtMost) return [];
+  const usageMarker = "onSelfHeal";
+  if (reaction.oncePerTurn && card.usedKeywordsThisTurn.includes(usageMarker)) return [];
+  const events: GameEvent[] = [];
+  if (reaction.oncePerTurn) events.push({ type: "MARK_KEYWORD_USED", instanceId: card.instanceId, keyword: usageMarker });
+  const deck = state.players[card.owner].deck;
+  events.push({ type: "DRAW_CARD", player: card.owner, from: "deck", instanceId: deck[0]?.instanceId ?? null });
   return events;
 }
 

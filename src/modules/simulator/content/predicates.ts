@@ -322,6 +322,49 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     if (!pilotId) return false;
     return (findCard(ctx.state, pilotId).def.traits ?? []).includes(formerPairedPilotHasTrait[1]);
   }
+  // GD02-021 Gundam AGE-1 Normal — "if you are Lv.7 or higher, ...". Nível do JOGADOR (não de
+  // uma carta) = quantidade de Resources em campo, mesma fórmula de `canPayLevel` (deploy.ts).
+  const controllerLevelAtLeast = predicate.match(/^controllerLevelAtLeast:(\d+)$/);
+  if (controllerLevelAtLeast) {
+    return ctx.state.players[ctx.controller].resourceArea.length >= Number(controllerLevelAtLeast[1]);
+  }
+  // GD02-003 Gundam Mk-II (Titans) — "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may
+  // discard 1 Unit card. If you do, return the card paired with this Unit to your hand." Precisa
+  // combinar 2 gates numa só predicate pra `condition2` (nível do Pilot que estava pareado +
+  // a escolha nomeada "discard" não vazia): `buildQueueEntry` (abilityDispatch.ts) monta a
+  // escolha de `discardNamed` sem olhar pro `condition` que a envolve (mesmo "prompt fantasma"
+  // aceito em GD02-056), então usar só `chosenNonEmpty:discard` sozinho devolveria o Piloto à
+  // mão mesmo com um Pilot Lv.4+ pareado (que nem deveria oferecer esta habilidade).
+  const formerPairedPilotLevelAtMostAndChosenNonEmpty = predicate.match(
+    /^formerPairedPilotLevelAtMostAndChosenNonEmpty:(\d+):(.+)$/,
+  );
+  if (formerPairedPilotLevelAtMostAndChosenNonEmpty) {
+    const [, maxLevel, key] = formerPairedPilotLevelAtMostAndChosenNonEmpty;
+    const pilotId = ctx.targets.formerPairedPilot?.[0];
+    if (!pilotId) return false;
+    const levelOk = (findCard(ctx.state, pilotId).def.level ?? 0) <= Number(maxLevel);
+    const chosenOk = (ctx.targets[key] ?? []).length > 0;
+    return levelOk && chosenOk;
+  }
+  // GD02-098 Quattro Bajeena (Pilot) — "If this is an (AEUG) Unit, ..." — trait IMPRESSO da Unit
+  // pareada (mesma convenção de selfColorIs/selfLevelAtMost).
+  const selfHasTrait = predicate.match(/^selfHasTrait:(.+)$/);
+  if (selfHasTrait) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !!selfUnit && (selfUnit.def.traits ?? []).includes(selfHasTrait[1]);
+  }
+  // GD02-111 Decisive Last Resort — "Choose 6 purple Unit cards from your trash. Exile them...".
+  // Checado ANTES da própria primitiva `firstNInTrash` rodar (mesma ordem cost->condition->actions
+  // de controllerTrashCountAtLeast acima) — "if you do" == havia 6+ cartas elegíveis na lixeira.
+  const controllerTrashUnitColorCountAtLeast = predicate.match(/^controllerTrashUnitColorCountAtLeast:(.+):(\d+)$/);
+  if (controllerTrashUnitColorCountAtLeast) {
+    const color = controllerTrashUnitColorCountAtLeast[1];
+    const min = Number(controllerTrashUnitColorCountAtLeast[2]);
+    const count = ctx.state.players[ctx.controller].trash.filter(
+      (c) => c.def.cardType === "UNIT" && c.def.color === color,
+    ).length;
+    return count >= min;
+  }
   return false;
 };
 
@@ -454,6 +497,24 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     const enemyUnits = ctx.state.players[candidate.owner].battleArea.filter((u) => u.def.cardType === "UNIT");
     const maxLevel = Math.max(...enemyUnits.map((u) => u.def.level ?? 0), 0);
     return (candidate.def.level ?? 0) === maxLevel;
+  }
+
+  // GD02-118 Heart Set on Revenge — "enemy Unit ... battling a friendly Unit with <Blocker>".
+  // O candidato precisa ser um dos 2 lados do combate ATUAL, com o outro lado sendo uma Unit
+  // AMIGA (do controller do efeito) com a keyword dada (mesmo padrão de excludeInstanceId de
+  // `battlingEnemyLevelAtMost`, só que aqui o candidato JÁ É "quem eu sou" — a fonte do olhar).
+  const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
+  if (battlingFriendlyHasKeyword) {
+    if (!ctx.sourceInstanceId) return false;
+    const combat = ctx.state.combat;
+    if (!combat) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId && combat.currentTarget !== "player") opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget !== "player" && combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const controller = findCard(ctx.state, ctx.sourceInstanceId).owner;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === controller && hasKeyword(opposing, battlingFriendlyHasKeyword[1], ctx.state);
   }
 
   return false;

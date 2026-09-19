@@ -1087,6 +1087,162 @@ export const GD02_056_GUNDAM_X_DESTROYED: EffectSpec = {
   sourceText: "【During Pair･(Vulture) Pilot】【Destroyed】Choose 1 (Vulture) Unit card that is Lv.5 or higher from your trash. Add it to your hand.",
 };
 
+// GD02-040 Gundam Ashtaron — 【Deploy】Choose 1 of your other (New UNE) Units. It can't receive
+// battle damage from enemy Units with 2 or less HP during this turn.
+export const GD02_040_GUNDAM_ASHTARON_DEPLOY: EffectSpec = {
+  id: "GD02-040-Deploy",
+  cardCode: "GD02-040",
+  trigger: "Deploy",
+  actions: [{ op: "grantBattleDamageImmunityUntilTurn", target: { kind: "named", name: "target" }, maxAttackerHp: 2 }],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:New UNE;isNotSelf",
+  sourceText: "【Deploy】Choose 1 of your other (New UNE) Units. It can't receive battle damage from enemy Units with 2 or less HP during this turn.",
+};
+
+// GD02-118 Heart Set on Revenge — 【Action】Choose 1 enemy Unit with 4 or less HP battling a
+// friendly Unit with <Blocker>. Return it to its owner's hand.
+export const GD02_118_HEART_SET_ON_REVENGE_ACTION: EffectSpec = {
+  id: "GD02-118-Action",
+  cardCode: "GD02-118",
+  trigger: "Action",
+  actions: [{ op: "moveZone", target: { kind: "named", name: "target" }, toZone: "hand" }],
+  targetScope: "enemyUnit",
+  targetFilter: "hp<=4;battlingFriendlyHasKeyword:Blocker",
+  sourceText: "【Action】Choose 1 enemy Unit with 4 or less HP battling a friendly Unit with <Blocker>. Return it to its owner's hand.",
+};
+
+// GD02-093 Olba Frost — 【Burst】Add this card to your hand.
+export const GD02_093_OLBA_FROST_BURST: EffectSpec = {
+  id: "GD02-093-Burst",
+  cardCode: "GD02-093",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+
+// GD02-021 Gundam AGE-1 Normal — 【Deploy】You may discard 1 green (Earth Federation) Unit
+// card. If you do, place 1 EX Resource. Then, if you are Lv.7 or higher, draw 1.
+export const GD02_021_GUNDAM_AGE_1_NORMAL_DEPLOY: EffectSpec = {
+  id: "GD02-021-Deploy",
+  cardCode: "GD02-021",
+  trigger: "Deploy",
+  condition: {
+    predicate: "chosenNonEmpty:discard",
+    then: [{ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea" }],
+  },
+  condition2: {
+    predicate: "controllerLevelAtLeast:7",
+    then: [{ op: "draw", player: "controller", n: 1 }],
+  },
+  actions: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT", color: "green", anyTrait: ["Earth Federation"] } }],
+  sourceText: "【Deploy】You may discard 1 green (Earth Federation) Unit card. If you do, place 1 EX Resource. Then, if you are Lv.7 or higher, draw 1.",
+};
+
+// GD02-085 Four Murasame — 【Burst】Add this card to your hand.
+export const GD02_085_FOUR_MURASAME_BURST: EffectSpec = {
+  id: "GD02-085-Burst",
+  cardCode: "GD02-085",
+  trigger: "Burst",
+  actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
+  sourceText: "【Burst】Add this card to your hand.",
+};
+
+// GD02-071 Gundam Mk-II (AEUG) — 【Deploy】If a friendly white Base is in play, you may pair 1
+// (AEUG) Pilot card from your hand with this Unit.
+export const GD02_071_GUNDAM_MK_II_AEUG_DEPLOY: EffectSpec = {
+  id: "GD02-071-Deploy",
+  cardCode: "GD02-071",
+  trigger: "Deploy",
+  condition: {
+    predicate: "controllerHasBaseColor:white",
+    then: [{ op: "pairFromHandSearch", player: "controller", filter: { cardType: "PILOT", anyTrait: ["AEUG"] } }],
+  },
+  actions: [],
+  sourceText: "【Deploy】If a friendly white Base is in play, you may pair 1 (AEUG) Pilot card from your hand with this Unit.",
+};
+
+// GD02-003 Gundam Mk-II (Titans) — 【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may discard
+// 1 Unit card. If you do, return the card paired with this Unit to your hand.
+export const GD02_003_GUNDAM_MK_II_TITANS_DESTROYED: EffectSpec = {
+  id: "GD02-003-Destroyed",
+  cardCode: "GD02-003",
+  trigger: "Destroyed",
+  duringPair: true,
+  condition: {
+    predicate: "formerPairedPilotLevelAtMostAndChosenNonEmpty:3:discard",
+    then: [{ op: "moveZone", target: { kind: "named", name: "formerPairedPilot" }, toZone: "hand" }],
+  },
+  actions: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT" } }],
+  sourceText: "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may discard 1 Unit card. If you do, return the card paired with this Unit to your hand.",
+};
+
+// GD02-057 Zedas — 【During Pair】【Attack】You may choose 1 of your other Units. Destroy it. If
+// you do, choose 1 enemy Unit that is Lv.4 or lower. Deal 2 damage to it.
+export const GD02_057_ZEDAS_ATTACK: EffectSpec = {
+  id: "GD02-057-Attack",
+  cardCode: "GD02-057",
+  trigger: "Attack",
+  duringPair: true,
+  optional: true,
+  condition: {
+    predicate: "chosenNonEmpty:target",
+    then: [{ op: "damageUnit", target: { kind: "named", name: "enemyTarget" }, amount: 2 }],
+  },
+  actions: [{ op: "destroy", target: { kind: "namedGroup", name: "target" } }],
+  targetScope: "friendlyUnit",
+  targetFilter: "notSelf",
+  secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", targetFilter: "level<=4" },
+  sourceText: "【During Pair】【Attack】You may choose 1 of your other Units. Destroy it. If you do, choose 1 enemy Unit that is Lv.4 or lower. Deal 2 damage to it.",
+};
+
+// GD02-098 Quattro Bajeena — This card's name is also treated as [Char Aznable].
+// 【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.
+export const GD02_098_QUATTRO_BAJEENA_WHEN_LINKED: EffectSpec = {
+  id: "GD02-098-WhenLinked",
+  cardCode: "GD02-098",
+  trigger: "When Linked",
+  condition: {
+    predicate: "selfHasTrait:AEUG",
+    then: [
+      { op: "draw", player: "controller", n: 1 },
+      { op: "discardNamed", player: "controller", name: "discard", n: 1 },
+    ],
+  },
+  actions: [],
+  sourceText:
+    "This card's name is also treated as [Char Aznable].\n\n【Burst】Add this card to your hand.\n【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.",
+};
+
+// GD02-111 Decisive Last Resort — 【Burst】Choose 1 enemy Unit that is Lv.3 or lower. Deal 2
+// damage to it.
+export const GD02_111_DECISIVE_LAST_RESORT_BURST: EffectSpec = {
+  id: "GD02-111-Burst",
+  cardCode: "GD02-111",
+  trigger: "Burst",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 2 }],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=3",
+  sourceText: "【Burst】Choose 1 enemy Unit that is Lv.3 or lower. Deal 2 damage to it.",
+};
+
+// GD02-111 Decisive Last Resort — 【Main】Choose 6 purple Unit cards from your trash. Exile them
+// from the game. If you do, choose 1 enemy Unit. Destroy it.
+export const GD02_111_DECISIVE_LAST_RESORT_MAIN: EffectSpec = {
+  id: "GD02-111-Main",
+  cardCode: "GD02-111",
+  trigger: "Main",
+  condition: {
+    predicate: "controllerTrashUnitColorCountAtLeast:purple:6",
+    then: [
+      { op: "moveZone", target: { kind: "group", group: { kind: "firstNInTrash", count: 6, filter: { cardType: "UNIT", color: "purple" } } }, toZone: "exile" },
+      { op: "destroy", target: { kind: "named", name: "target" } },
+    ],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  sourceText: "【Main】Choose 6 purple Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Destroy it.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -1175,5 +1331,16 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_047_GAZA_C_ACTIVATE_MAIN,
   GD02_105_VALEDICTORIAN_ACTION,
   GD02_120_ASPIRING_PILOT_ACTION,
-  GD02_056_GUNDAM_X_DESTROYED
+  GD02_056_GUNDAM_X_DESTROYED,
+  GD02_040_GUNDAM_ASHTARON_DEPLOY,
+  GD02_118_HEART_SET_ON_REVENGE_ACTION,
+  GD02_093_OLBA_FROST_BURST,
+  GD02_021_GUNDAM_AGE_1_NORMAL_DEPLOY,
+  GD02_085_FOUR_MURASAME_BURST,
+  GD02_071_GUNDAM_MK_II_AEUG_DEPLOY,
+  GD02_003_GUNDAM_MK_II_TITANS_DESTROYED,
+  GD02_057_ZEDAS_ATTACK,
+  GD02_098_QUATTRO_BAJEENA_WHEN_LINKED,
+  GD02_111_DECISIVE_LAST_RESORT_BURST,
+  GD02_111_DECISIVE_LAST_RESORT_MAIN
 ];

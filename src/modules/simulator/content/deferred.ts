@@ -104,4 +104,47 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   // `resolution.secondaryTargetIds`, `legalActions.ts` enumera o produto de
   // pool primário × secundário — mesmo `EffectSpec.secondaryTarget` já usado
   // por Command (GD01-103/112), agora também no caminho de fila.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Classe G — Sprint 2 GD02: 3 gaps de motor genuínos, achados fechando o backlog
+  // de cobertura GD02 (varredura de 2026-09-19). Diferente das classes A-F acima
+  // (todas fechadas), estas 3 são a 1ª entrada ATIVA deste registro — motor
+  // corretamente não reivindica cobertura que não tem.
+  {
+    cardCode: "GD02-011",
+    clause: "Choose 1 enemy Base/enemy Shield this Unit is battling. Deal 6 damage to it.",
+    reason:
+      "Nenhum EffectSpec/CardDef aponta pra esta carta. `AttackTarget` (types.ts) só modela \"player\" | " +
+      "{unitId} — não existe conceito de \"o Base/Shield que esta Unit está batalhando\" como pool de alvo " +
+      "endereçável. Mesmo resolvendo a pool (Base = defendingPlayer.baseSection[0], Shield = candidato a " +
+      "escolher entre os N na shields[]), o dano em Shield específico não tem primitiva: `DAMAGE_SHIELD` só " +
+      "quebra por CONTAGEM do topo do array (shift()), nunca por instanceId escolhido — usar DESTROY_CARD " +
+      "direto no Shield escolhido pularia o disparo de Burst que hoje está acoplado ao caminho de " +
+      "DAMAGE_SHIELD. Precisaria de: (1) novo targetScope lendo `state.combat` pra montar a pool " +
+      "Base∪Shields do defendingPlayer quando `combat.attackerId === source && combat.currentTarget === " +
+      "\"player\"`, (2) evento novo pra destruir 1 Shield por instanceId SEM perder o disparo de Burst.",
+    blockedBy: "engine:targetScope lendo state.combat para Base/Shield + evento de dano em Shield por instanceId",
+  },
+  {
+    cardCode: "GD02-096",
+    clause: "You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
+    reason:
+      "\"Pay its cost to deploy it\" exige pagar o CUSTO IMPRESSO da carta escolhida (variável, decidido só " +
+      "depois da escolha), não um `n` fixo — `payResourceCost` (effectSpec.ts) só aceita `n: number` " +
+      "constante no próprio EffectSpec. `deployCard` (deploy.ts linha ~86) também lança erro se " +
+      "`card.zone !== \"hand\"`, hard-gate que impede reusar o pipeline normal de deploy pra uma carta vinda " +
+      "da lixeira. Nenhum precedente no codebase (grep por \"Pay its cost to deploy\"/deploy-from-trash " +
+      "variável não achou nada) — implementar direito precisa de um pipeline de deploy paralelo (ou " +
+      "`deployCard` generalizado pra aceitar zona de origem) com pausa interativa pro jogador escolher QUAIS " +
+      "Recursos active pagam o custo da carta recém-escolhida.",
+    blockedBy: "engine:deploy pagando custo variável (da carta escolhida) a partir da lixeira, não da mão",
+  },
+  {
+    cardCode: "GD02-110",
+    clause: "Choose 1 Unit card that is Lv.5 or lower from your trash. Pay its cost to deploy it.",
+    reason: "Mesmo gap de GD02-096 (\"Pay its cost to deploy it\" da lixeira, custo variável) — ver blockedBy.",
+    blockedBy: "engine:deploy pagando custo variável (da carta escolhida) a partir da lixeira, não da mão",
+  },
+  // ─────────────────────────────────────────────────────────────────────────
 ] as const;

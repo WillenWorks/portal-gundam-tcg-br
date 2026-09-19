@@ -38,8 +38,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     hp: 3,
     traits: ["Earth Federation"],
     link: {"kind":"pilotName","values":["Woolf Enneacle"]},
-    effectKeywords: ["Breach"],
-    keywordTags: ["Breach 2"],
+    // "Once per Turn, when you place an EX Resource, choose 1 of your (AGE System) Units. It
+    // gains <Breach 2> during this turn." — achado de dado: Breach2 estava fixo em
+    // effectKeywords/keywordTags nesta própria carta, quando o texto real é condicional
+    // (gatilho de EX Resource) E concedido a uma Unit ESCOLHIDA (não necessariamente esta).
+    onExResourcePlaced: { oncePerTurn: true, grantKeyword: "Breach 2", requiresTargetTrait: "AGE System" },
   },
   "GD02-023": {
     code: "GD02-023",

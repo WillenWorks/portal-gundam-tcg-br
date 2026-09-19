@@ -98,6 +98,13 @@ export interface CardDef {
    * tiver algum desses traits (ex. link "(OZ) Trait").
    */
   link?: { kind: "pilotName" | "trait"; values: string[] };
+  /**
+   * GD02-098 Quattro Bajeena — "This card's name is also treated as [Char Aznable]." Só
+   * relevante pra `satisfiesLinkCondition` (link `kind: "pilotName"` de OUTRA carta, ex.
+   * GD02-032 White Gundam `link: {"kind":"pilotName","values":["Char Aznable"]}`) — nenhum
+   * outro sistema do motor lê o nome da carta por string (efeitos usam `CardDefFilter`/traits).
+   */
+  nameAliases?: string[];
 
   /**
    * Modificador estático contínuo (Comprehensive Rules 10-2) — ao contrário
@@ -127,6 +134,16 @@ export interface CardDef {
    * a Unit pareada com o Pilot que tem o campo).
    */
   combatTriggers?: CombatTrigger[];
+
+  /**
+   * GD02-001 Psycho Gundam / GD02-002 Gundam Epyon — "When one of your Units destroys an
+   * enemy Unit/shield card with battle damage, [this Unit does X]." Diferente de
+   * `combatTriggers`: lá "this Unit" É quem destruiu (o atacante); aqui o ATOR pode ser
+   * QUALQUER Unit amiga — o listener (dono deste campo) reage ao evento de fora, sem
+   * precisar ser ele mesmo o atacante. `condition` é avaliada no LISTENER (pareamento
+   * dele), não no ator.
+   */
+  allyCombatTriggers?: AllyCombatTrigger[];
 
   /**
    * Restrições/relaxamentos de legalidade da própria declaração de ataque
@@ -166,6 +183,40 @@ export interface CardDef {
     /** "During Link" — só vale enquanto a Unit satisfizer a link condition com o Pilot pareado (não só "During Pair"). */
     duringLinkOnly?: boolean;
   };
+  /**
+   * GD02-064 Gundam Leopard — "During your turn, while there are 7 or more cards in your
+   * trash, this Unit can't receive effect damage from enemy Commands." Checado direto no
+   * case "damageUnit" de `effectSpec.ts` (não em combat.ts — não é dano de BATALHA).
+   */
+  innateEffectDamageProtection?: {
+    fromCardType: CardType;
+    duringYourTurnOnly?: boolean;
+    requiresTrashCountAtLeast?: number;
+  };
+  /**
+   * GD02-009 Calamity Gundam — "【Once per Turn】When this Unit's AP is reduced by an enemy
+   * effect, choose 1 rested enemy Unit. Deal 2 damage to it." Checado no case "modifyStat" de
+   * `effectSpec.ts`. Sem sistema de escolha real pra reação (não passa pelo dispatcher normal)
+   * — auto-mira a 1ª Unit inimiga rested legal.
+   */
+  onApReducedByEnemy?: { oncePerTurn?: boolean; reactDamage: number };
+  /** GD02-010 Raider Gundam — "【Once per Turn】When this Unit receives enemy effect damage, draw 1." Checado no case "damageUnit" de `effectSpec.ts`. */
+  onEffectDamageReceived?: { oncePerTurn?: boolean };
+  /**
+   * GD02-022 G-Exes — "【Once per Turn】When you place an EX Resource, choose 1 of your (AGE
+   * System) Units. It gains <Breach 2> during this turn." Checado no case "spawnToken" de
+   * `effectSpec.ts` (só quando o token é o EX Resource). Sem escolha real — auto-mira a 1ª
+   * Unit amiga legal com `requiresTargetTrait`.
+   */
+  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string };
+  /**
+   * GD02-085 Four Murasame — "【During Link】【Once per Turn】During your turn, when this Unit
+   * recovers HP, if you have 4 or less cards in your hand, draw 1." Checado nos 3 pontos que
+   * geram `HEAL_UNIT` (Repair automático em `keywords.ts`, primitiva "heal" em `effectSpec.ts`,
+   * `allyCombatTriggerEvents` em `combat.ts`) — "this Unit" já é o próprio dono do campo (não
+   * precisa resolver Pilot->Unit pareada, ao contrário de outros campos "this Unit").
+   */
+  onSelfHeal?: { duringLinkOnly?: boolean; oncePerTurn?: boolean; requiresHandCountAtMost?: number; drawAmount: number };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-046 "【During Pair･(Coordinator) Pilot】【Once per
    * Turn】When you use this Unit's <Support> to increase a (ZAFT) Unit's AP, set this Unit as
@@ -309,6 +360,8 @@ export interface CombatTrigger {
   on: "destroyEnemyInBattle" | "destroyEnemyShieldInBattle";
   /** Lote 5 (docs/debates 2026-09-13) — filtra `destroyEnemyInBattle` pra só disparar se a Unit inimiga destruída ERA Link Unit no momento da destruição (checado ANTES do DESTROY_CARD limpar o pareamento). Ex.: GD01-094 Yzak Jule. */
   requiresLinkUnitEnemy?: boolean;
+  /** GD02-093 Olba Frost — "when this Unit destroys an enemy Unit paired with a (Newtype) Pilot ...". Mais frouxo que `requiresLinkUnitEnemy`: só exige que a Unit destruída estivesse PAREADA (não satisfazendo Link) com um Pilot que tenha o trait dado — checado ANTES do DESTROY_CARD, mesma convenção. */
+  requiresEnemyPairedPilotTrait?: string;
   /** Lote 5 — "【Once per Turn】" na cláusula de combate (não existe em nenhum CombatTrigger anterior). Marcado via CardInstance.usedKeywordsThisTurn com uma chave sintética (`combatTrigger:<on>`), mesmo mecanismo de <Support>/<Repair> "Once per Turn". */
   oncePerTurn?: boolean;
   action:
@@ -328,6 +381,18 @@ export interface CombatTrigger {
      * pra cá criaria import circular. Mantenha os campos em sync se um mudar.
      */
     | { kind: "retrieveFromTrash"; filter: CombatTriggerTrashFilter };
+}
+
+/** Ver `CardDef.allyCombatTriggers` — mesmo `on`/`condition`/`oncePerTurn` de `CombatTrigger`, mas o alvo da `action` é sempre o LISTENER (dono deste campo), nunca escolha de jogador — por isso o vocabulário de `action` é menor (sem os 2 kinds que pausam pra escolha). */
+export interface AllyCombatTrigger {
+  condition: CombatTriggerCondition;
+  on: CombatTrigger["on"];
+  /** GD02-001 Psycho Gundam — "one of your (Titans) Units destroys ...". Sem isto, qualquer Unit amiga conta. */
+  requiresActorTrait?: string;
+  /** GD02-001 Psycho Gundam — "【During Pair･(Cyber-Newtype) Pilot】" — o Pilot pareado com o LISTENER precisa ter este trait (não é sobre o ator). Só faz sentido com `condition: "duringPair"`. */
+  requiresPairedPilotTrait?: string;
+  oncePerTurn?: boolean;
+  action: { kind: "heal"; amount: number } | { kind: "setActive" };
 }
 
 /** Ver nota em `CombatTrigger.action` ("retrieveFromTrash") — mesmo shape de `CardDefFilter`. */
@@ -426,6 +491,14 @@ export interface CardInstance {
    * Phase; limpo em `CLEAR_TURN_MODIFIERS` como os campos irmãos acima.
    */
   cannotActivateUntilTurn?: number;
+  /**
+   * GD02-040 Gundam Ashtaron 【Deploy】 — "Choose 1 of your other (New UNE) Units. It can't
+   * receive battle damage from enemy Units with 2 or less HP during this turn." Diferente de
+   * `CombatState.unitDamageProtection` (só dura "esta batalha" — some com `COMBAT_ENDED`): esta
+   * concessão sobrevive a MÚLTIPLAS batalhas no mesmo turno. `turn` = só vale enquanto
+   * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
+   */
+  battleDamageImmunityUntilTurn?: { maxAttackerHp: number; turn: number };
 }
 
 /**
@@ -478,7 +551,8 @@ export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boo
   const link = unitDef.link;
   if (!link) return false;
   if (link.kind === "pilotName") {
-    return link.values.some((name) => pilotDef.nameEn.includes(name));
+    const names = [pilotDef.nameEn, ...(pilotDef.nameAliases ?? [])];
+    return link.values.some((name) => names.some((candidate) => candidate.includes(name)));
   }
   return link.values.some((trait) => (pilotDef.traits ?? []).includes(trait));
 }
@@ -1142,6 +1216,8 @@ export type GameEvent =
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
   | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
+  /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */
+  | { type: "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN"; instanceId: string; maxAttackerHp: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
   /** ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`. */

@@ -13,6 +13,9 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["Titans","Cyber-Newtype"],
     triggerKeywords: ["Burst","During Link"],
     hasBurst: true,
+    // "During Link, Once per Turn, during your turn, when this Unit recovers HP, if you
+    // have 4 or less cards in your hand, draw 1." ("this Unit" = a Unit pareada.)
+    onSelfHeal: { duringLinkOnly: true, oncePerTurn: true, requiresHandCountAtMost: 4, drawAmount: 1 },
   },
   "GD02-086": {
     code: "GD02-086",
@@ -119,6 +122,9 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["New UNE"],
     triggerKeywords: ["Burst"],
     hasBurst: true,
+    // "During your turn, when this Unit destroys an enemy Unit paired with a (Newtype) Pilot
+    // with battle damage, draw 1." ("this Unit" = a Unit pareada com este Pilot.)
+    combatTriggers: [{ condition: "always", on: "destroyEnemyInBattle", requiresEnemyPairedPilotTrait: "Newtype", action: { kind: "draw", amount: 1 } }],
   },
   "GD02-094": {
     code: "GD02-094",
@@ -184,6 +190,9 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["AEUG","Newtype"],
     triggerKeywords: ["Burst","When Linked"],
     hasBurst: true,
+    // "This card's name is also treated as [Char Aznable]." Afeta link condition
+    // pilotName de OUTRAS cartas (ex. GD02-032 White Gundam).
+    nameAliases: ["Char Aznable"],
   },
   "GD02-099": {
     code: "GD02-099",

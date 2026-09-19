@@ -330,6 +330,9 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
             if (card.cannotActivateUntilTurn !== undefined && card.cannotActivateUntilTurn <= event.turnNumber) {
               card.cannotActivateUntilTurn = undefined;
             }
+            if (card.battleDamageImmunityUntilTurn && card.battleDamageImmunityUntilTurn.turn <= event.turnNumber) {
+              card.battleDamageImmunityUntilTurn = undefined;
+            }
           }
         }
       }
@@ -477,6 +480,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "GRANT_ATTACK_TARGET_RELAX": {
       findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, maxAp: event.maxAp, turn: event.turn };
+      return state;
+    }
+    case "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN": {
+      findCard(state, event.instanceId).battleDamageImmunityUntilTurn = { maxAttackerHp: event.maxAttackerHp, turn: event.turn };
       return state;
     }
     case "SET_CANNOT_ATTACK": {

@@ -3,6 +3,7 @@ import { createGame } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { declareAttack, proceedToBlockStep, skipBlock } from "../engine/combat";
 import type { PlayerId } from "../engine/types";
+import { effectivePilotDef, satisfiesLinkCondition } from "../engine/types";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt06DeckList } from "../fixtures/st06Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
@@ -1060,5 +1061,132 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-18), 9º lote de fechamento do
     };
     nonVultureState = applyEvents(nonVultureState, resolveEffectSpec(spec, ctx2, defaultPredicateResolver));
     expect(nonVultureState.players.A.hand.some((c) => c.instanceId === vultureUnitId2)).toBe(false);
+  });
+});
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-19), 10º lote de fechamento do backlog de cobertura", () => {
+  it("GD02-003 Gundam Mk-II (Titans) (During Pair, Destroyed): Pilot pareado Lv<=3 + escolha de discard não vazia devolve o Pilot à mão", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-003"], "trash");
+    const lowLevelPilotId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-099"], level: 3 }, "trash");
+    const discardedUnitId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "hand");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-003" && s.trigger === "Destroyed")!;
+    expect(spec.duringPair).toBe(true);
+
+    const ctx = { ...ctxFor(state, sourceId, { discard: [discardedUnitId] }), targets: { formerPairedPilot: [lowLevelPilotId], discard: [discardedUnitId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.trash.some((c) => c.instanceId === discardedUnitId)).toBe(true);
+    expect(state.players.A.hand.some((c) => c.instanceId === lowLevelPilotId)).toBe(true);
+  });
+
+  it("GD02-003: Pilot pareado Lv.4+ não devolve o Pilot à mão mesmo com uma escolha de discard presente", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-003"], "trash");
+    const highLevelPilotId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-099"], level: 4 }, "trash");
+    const discardedUnitId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "hand");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-003" && s.trigger === "Destroyed")!;
+    const ctx = { ...ctxFor(state, sourceId, { discard: [discardedUnitId] }), targets: { formerPairedPilot: [highLevelPilotId], discard: [discardedUnitId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.hand.some((c) => c.instanceId === highLevelPilotId)).toBe(false);
+  });
+
+  it("GD02-057 Zedas (During Pair, Attack): sacrificando 1 outra Unit amiga, causa 2 de dano numa Unit inimiga Lv<=4 escolhida", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-057"], "battleArea");
+    const sacrificeId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "battleArea");
+    const enemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-004"], level: 4 }, "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-057" && s.trigger === "Attack")!;
+    expect(spec.optional).toBe(true);
+    const ctx = { ...ctxFor(state, sourceId, { target: [sacrificeId], enemyTarget: [enemyId] }), targets: { target: [sacrificeId], enemyTarget: [enemyId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.trash.some((c) => c.instanceId === sacrificeId)).toBe(true);
+    expect(findCard(state, enemyId).damage).toBe(2);
+  });
+
+  it("GD02-057: declinando o sacrifício (target vazio), nada é destruído nem sofre dano", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-057"], "battleArea");
+    const untouchedId = placeCard(state, "A", GD02_CARD_DEFS["GD02-018"], "battleArea");
+    const enemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-004"], level: 4 }, "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-057" && s.trigger === "Attack")!;
+    const ctx = { ...ctxFor(state, sourceId, { target: [], enemyTarget: [enemyId] }), targets: { target: [], enemyTarget: [enemyId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.battleArea.some((c) => c.instanceId === untouchedId)).toBe(true);
+    expect(findCard(state, enemyId).damage).toBe(0);
+  });
+
+  it("GD02-098 Quattro Bajeena (When Linked): 'this' Unit (AEUG) causa draw 1 + discard 1; Unit não-(AEUG) não dispara nada", () => {
+    let state = freshGame();
+    const aeugUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-071"], traits: ["AEUG"] }, "battleArea");
+    const pilotId = placeCard(state, "A", GD02_CARD_DEFS["GD02-098"], "battleArea");
+    state = { ...state, players: { ...state.players, A: { ...state.players.A } } };
+    findCard(state, aeugUnitId).pairedPilotId = pilotId;
+    findCard(state, pilotId).pairedUnitId = aeugUnitId;
+    const extraHandId = placeCard(state, "A", GD02_CARD_DEFS["GD02-004"], "hand");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-098" && s.trigger === "When Linked")!;
+    const handBefore = state.players.A.hand.length;
+    const ctx = { ...ctxFor(state, pilotId, { discard: [extraHandId] }), targets: { discard: [extraHandId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.hand.length).toBe(handBefore); // +1 draw, -1 discard = líquido 0
+    expect(state.players.A.trash.some((c) => c.instanceId === extraHandId)).toBe(true);
+
+    let nonAeugState = freshGame();
+    const nonAeugUnitId = placeCard(nonAeugState, "A", { ...GD02_CARD_DEFS["GD02-004"], traits: ["Zeon"] }, "battleArea");
+    const pilotId2 = placeCard(nonAeugState, "A", GD02_CARD_DEFS["GD02-098"], "battleArea");
+    findCard(nonAeugState, nonAeugUnitId).pairedPilotId = pilotId2;
+    findCard(nonAeugState, pilotId2).pairedUnitId = nonAeugUnitId;
+    const handBefore2 = nonAeugState.players.A.hand.length;
+    const ctx2 = ctxFor(nonAeugState, pilotId2);
+    nonAeugState = applyEvents(nonAeugState, resolveEffectSpec(spec, ctx2, defaultPredicateResolver));
+    expect(nonAeugState.players.A.hand.length).toBe(handBefore2);
+  });
+
+  it("GD02-098: o alias 'Char Aznable' satisfaz a link condition de OUTRAS cartas por pilotName (ex. GD02-032 White Gundam)", () => {
+    const whiteGundamDef = { ...GD02_CARD_DEFS["GD02-018"], link: { kind: "pilotName" as const, values: ["Char Aznable"] } };
+    expect(satisfiesLinkCondition(effectivePilotDef({ def: GD02_CARD_DEFS["GD02-098"] } as never), whiteGundamDef)).toBe(true);
+  });
+
+  it("GD02-111 Decisive Last Resort (Burst): causa 2 de dano numa Unit inimiga Lv<=3", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-111"], "trash");
+    const enemyId = placeCard(state, "B", { ...GD02_CARD_DEFS["GD02-004"], level: 3 }, "battleArea");
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-111" && s.trigger === "Burst")!;
+    const ctx = { ...ctxFor(state, sourceId, { target: [enemyId] }), targets: { target: [enemyId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(findCard(state, enemyId).damage).toBe(2);
+  });
+
+  it("GD02-111 (Main): com 6+ Units purple na lixeira, exila as 6 primeiras e destrói a Unit inimiga escolhida", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-111"], "hand");
+    const purpleTrashIds = Array.from({ length: 7 }, () => placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-057"], color: "purple" as const }, "trash"));
+    const enemyId = placeCard(state, "B", GD02_CARD_DEFS["GD02-004"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-111" && s.trigger === "Main")!;
+    const ctx = { ...ctxFor(state, sourceId, { target: [enemyId] }), targets: { target: [enemyId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    const exiledCount = purpleTrashIds.filter((id) => state.players.A.exile.some((c) => c.instanceId === id)).length;
+    expect(exiledCount).toBe(6);
+    expect(state.players.A.trash.some((c) => c.instanceId === purpleTrashIds[6])).toBe(true); // a 7ª ficou na lixeira
+    expect(state.players.B.battleArea.some((c) => c.instanceId === enemyId)).toBe(false);
+  });
+
+  it("GD02-111 (Main): com menos de 6 Units purple na lixeira, não exila nada nem destrói o alvo escolhido", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-111"], "hand");
+    const purpleTrashIds = Array.from({ length: 5 }, () => placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-057"], color: "purple" as const }, "trash"));
+    const enemyId = placeCard(state, "B", GD02_CARD_DEFS["GD02-004"], "battleArea");
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-111" && s.trigger === "Main")!;
+    const ctx = { ...ctxFor(state, sourceId, { target: [enemyId] }), targets: { target: [enemyId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.exile).toHaveLength(0);
+    expect(purpleTrashIds.every((id) => state.players.A.trash.some((c) => c.instanceId === id))).toBe(true);
+    expect(state.players.B.battleArea.some((c) => c.instanceId === enemyId)).toBe(true);
   });
 });
