@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { declareAttack, proceedToBlockStep, skipBlock } from "../engine/combat";
+import { applyPlayerAction } from "../engine/actions";
+import { deployCard } from "../engine/deploy";
 import type { PlayerId } from "../engine/types";
 import { effectivePilotDef, satisfiesLinkCondition } from "../engine/types";
 import { placeCard } from "../engine/__testkit__/cardHarness";
@@ -14,6 +16,7 @@ import type { EffectContext } from "../engine/effectSpec";
 import { computeLegalTargets, resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
+import { DEFERRED_CLAUSES } from "./deferred";
 
 function freshGame(): GameState {
   return createGame(buildSt06DeckList(), buildSt04DeckList(), { seed: 202, firstPlayer: "A" });
@@ -1188,5 +1191,218 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-19), 10º lote de fechamento d
     expect(state.players.A.exile).toHaveLength(0);
     expect(purpleTrashIds.every((id) => state.players.A.trash.some((c) => c.instanceId === id))).toBe(true);
     expect(state.players.B.battleArea.some((c) => c.instanceId === enemyId)).toBe(true);
+  });
+});
+
+/** Adiciona N Recursos ACTIVE genéricos na resourceArea do jogador — mesmo padrão de gd01.test.ts/st01.test.ts. */
+function addActiveResources(state: GameState, player: PlayerId, n: number): void {
+  for (let i = 0; i < n; i++) {
+    placeCard(state, player, { code: "R", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+  }
+}
+
+describe("GD02 — Sprint 2 (docs/debates 2026-09-19), 11º lote — fecha os 3 deferimentos ativos (Classe G)", () => {
+  const MOEBIUS_SPEC = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-011" && s.trigger === "Activate·Action")!;
+
+  it("GD02-011 Moebius: spec tem custo 'destroy self' + targetScope battlingBaseOrShield", () => {
+    expect(MOEBIUS_SPEC).toBeDefined();
+    expect(MOEBIUS_SPEC.cost).toEqual([{ op: "destroy", target: { kind: "self" } }]);
+    expect(MOEBIUS_SPEC.targetScope).toBe("battlingBaseOrShield");
+  });
+
+  it("GD02-011: targetScope battlingBaseOrShield é [] fora de combate, e [] se a fonte não é o atacante contra o jogador", () => {
+    let state = freshGame();
+    const moebiusId = placeCard(state, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    expect(computeLegalTargets(state, MOEBIUS_SPEC, "A", defaultTargetFilterResolver, moebiusId)).toEqual([]);
+
+    // combate existe, mas o alvo original é uma Unit rested (não o jogador) -> ainda []
+    state = stripBase(state, "B");
+    const enemyUnitId = placeCard(state, "B", GD02_CARD_DEFS["GD02-004"], "battleArea", { rested: true });
+    state = { ...state, phase: "main" };
+    state = declareAttack(state, moebiusId, { unitId: enemyUnitId });
+    expect(computeLegalTargets(state, MOEBIUS_SPEC, "A", defaultTargetFilterResolver, moebiusId)).toEqual([]);
+  });
+
+  it("GD02-011: batalhando o jogador, a pool inclui a Base (se houver) E todos os Shields — texto oficial é 'Base/Shield' (OR), não 'o que intercepta primeiro'", () => {
+    let withBase = stripBase(freshGame(), "B");
+    const baseId = placeCard(withBase, "B", GD02_CARD_DEFS["GD02-121"], "baseSection");
+    const moebiusId = placeCard(withBase, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    withBase = { ...withBase, phase: "main" };
+    withBase = declareAttack(withBase, moebiusId, "player");
+    const poolWithBase = computeLegalTargets(withBase, MOEBIUS_SPEC, "A", defaultTargetFilterResolver, moebiusId);
+    expect(poolWithBase[0]).toBe(baseId);
+    expect(poolWithBase.slice(1)).toEqual(withBase.players.B.shields.map((c) => c.instanceId));
+
+    let noBase = stripBase(freshGame(), "B");
+    const moebiusId2 = placeCard(noBase, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    const shieldIds = noBase.players.B.shields.map((c) => c.instanceId);
+    expect(shieldIds.length).toBeGreaterThan(0);
+    noBase = { ...noBase, phase: "main" };
+    noBase = declareAttack(noBase, moebiusId2, "player");
+    expect(computeLegalTargets(noBase, MOEBIUS_SPEC, "A", defaultTargetFilterResolver, moebiusId2)).toEqual(shieldIds);
+  });
+
+  it("GD02-011: caminho real via applyPlayerAction(activateAbility) — destrói a própria Unit (custo) e causa 6 de dano na Base escolhida (destrói, HP efetivo 5)", () => {
+    let state = stripBase(freshGame(), "B");
+    const baseId = placeCard(state, "B", GD02_CARD_DEFS["GD02-121"], "baseSection"); // HP 5
+    const moebiusId = placeCard(state, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    state = { ...state, phase: "main" };
+    state = declareAttack(state, moebiusId, "player");
+    state = proceedToBlockStep(state);
+    state = skipBlock(state); // combat.step === "action"
+    expect(state.combat?.step).toBe("action");
+    // Action Step começa com a prioridade do DEFENSOR (events.ts: actionPriority = defendingPlayer) — B passa pra A poder agir.
+    state = applyPlayerAction(state, "B", { kind: "passAction" }, GD02_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+
+    const next = applyPlayerAction(
+      state,
+      "A",
+      { kind: "activateAbility", sourceInstanceId: moebiusId, targets: { target: [baseId] } },
+      GD02_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+
+    expect(next.players.A.trash.some((c) => c.instanceId === moebiusId)).toBe(true); // custo: destruiu a própria Unit
+    expect(next.players.B.baseSection.some((c) => c.instanceId === baseId)).toBe(false);
+    expect(next.players.B.trash.some((c) => c.instanceId === baseId)).toBe(true); // 6 dano >= 5 HP -> destruída
+  });
+
+  it("GD02-011: sem Base, causa dano num Shield escolhido -> Shield sai de shields e vai pra trash direto (não acumula dano, 'tem 1 HP')", () => {
+    let state = stripBase(freshGame(), "B");
+    const moebiusId = placeCard(state, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    const targetShieldId = state.players.B.shields[0].instanceId;
+    const shieldCountBefore = state.players.B.shields.length;
+    state = { ...state, phase: "main" };
+    state = declareAttack(state, moebiusId, "player");
+    state = proceedToBlockStep(state);
+    state = skipBlock(state);
+    state = applyPlayerAction(state, "B", { kind: "passAction" }, GD02_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+
+    const next = applyPlayerAction(
+      state,
+      "A",
+      { kind: "activateAbility", sourceInstanceId: moebiusId, targets: { target: [targetShieldId] } },
+      GD02_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+
+    expect(next.players.B.shields).toHaveLength(shieldCountBefore - 1);
+    expect(next.players.B.shields.some((c) => c.instanceId === targetShieldId)).toBe(false);
+    expect(next.players.B.trash.some((c) => c.instanceId === targetShieldId)).toBe(true);
+  });
+
+  it("GD02-011: atacante se autodestrói no Action Step (custo) — regressão do bug real achado na revalidação: resolveDamageStep NÃO deve causar dano de batalha sem atacante em campo (shield 'de graça' apesar de AP efetivo 0)", () => {
+    let state = stripBase(freshGame(), "B");
+    const moebiusId = placeCard(state, "A", GD02_CARD_DEFS["GD02-011"], "battleArea");
+    const targetShieldId = state.players.B.shields[0].instanceId;
+    const shieldCountBeforeAbility = state.players.B.shields.length;
+    state = { ...state, phase: "main" };
+    state = declareAttack(state, moebiusId, "player");
+    state = proceedToBlockStep(state);
+    state = skipBlock(state);
+    state = applyPlayerAction(state, "B", { kind: "passAction" }, GD02_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+
+    let next = applyPlayerAction(
+      state,
+      "A",
+      { kind: "activateAbility", sourceInstanceId: moebiusId, targets: { target: [targetShieldId] } },
+      GD02_EFFECT_SPECS,
+      defaultPredicateResolver,
+      defaultTargetFilterResolver,
+    );
+    // 1 shield já saiu (a ação em si), atacante já está na lixeira.
+    expect(next.players.B.shields).toHaveLength(shieldCountBeforeAbility - 1);
+    expect(findCard(next, moebiusId).zone).toBe("trash");
+
+    // Bug real achado nesta revalidação, corrigido na causa raiz (combat.ts,
+    // guard `attacker.zone !== "battleArea"`): sem o fix, mesmo um atacante já
+    // destruído (AP efetivo 0 ou não — shieldDamageEvents quebra por CONTAGEM
+    // fixa, nunca proporcional ao AP) ainda estourava 1 Shield "de graça" no
+    // Damage Step seguinte. Alterna prioridade até os 2 passarem em sequência.
+    const shieldsBeforeDamageStep = next.players.B.shields.length;
+    expect(() => {
+      while (next.combat?.step === "action") {
+        const priority = next.combat.actionPriority;
+        next = applyPlayerAction(next, priority, { kind: "passAction" }, GD02_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver);
+      }
+    }).not.toThrow();
+    expect(next.players.B.shields.length).toBe(shieldsBeforeDamageStep);
+  });
+
+  it("GD02-096 Desil Galette (When Linked): deploya a Unit (Vagan) Lv<=2 escolhida da lixeira pagando o CUSTO IMPRESSO dela (variável, não o custo de Desil Galette)", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-096"], "battleArea");
+    const cheapVaganId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Vagan"], level: 2, cost: 3 }, "trash");
+    addActiveResources(state, "A", 5);
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-096" && s.trigger === "When Linked")!;
+    expect(spec).toBeDefined();
+
+    const ctx = { ...ctxFor(state, sourceId, { trashSearch: [cheapVaganId] }), targets: { trashSearch: [cheapVaganId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+
+    expect(state.players.A.battleArea.some((c) => c.instanceId === cheapVaganId)).toBe(true);
+    expect(state.players.A.trash.some((c) => c.instanceId === cheapVaganId)).toBe(false);
+    // pagou EXATAMENTE 3 (custo da carta escolhida), não o custo/nível de Desil Galette
+    expect(state.players.A.resourceArea.filter((r) => !r.rested)).toHaveLength(2);
+  });
+
+  it("GD02-096: sem escolha (declina o 'you may'), nada acontece — nenhum Recurso pago, nada sai da lixeira", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-096"], "battleArea");
+    placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], traits: ["Vagan"], level: 2, cost: 3 }, "trash");
+    addActiveResources(state, "A", 5);
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-096" && s.trigger === "When Linked")!;
+    state = applyEvents(state, resolveEffectSpec(spec, ctxFor(state, sourceId), defaultPredicateResolver));
+
+    expect(state.players.A.resourceArea.filter((r) => !r.rested)).toHaveLength(5);
+  });
+
+  it("GD02-110 Awakened Power (Main): deploya 1 Unit Lv<=5 escolhida da lixeira pagando o custo impresso dela; carta que não casa o filtro (Lv6) lança", () => {
+    let state = freshGame();
+    const sourceId = placeCard(state, "A", GD02_CARD_DEFS["GD02-110"], "hand");
+    const cheapUnitId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-018"], level: 5, cost: 2 }, "trash");
+    addActiveResources(state, "A", 4);
+
+    const spec = GD02_EFFECT_SPECS.find((s) => s.cardCode === "GD02-110" && s.trigger === "Main")!;
+    expect(spec).toBeDefined();
+
+    const ctx = { ...ctxFor(state, sourceId, { trashSearch: [cheapUnitId] }), targets: { trashSearch: [cheapUnitId] } };
+    state = applyEvents(state, resolveEffectSpec(spec, ctx, defaultPredicateResolver));
+    expect(state.players.A.battleArea.some((c) => c.instanceId === cheapUnitId)).toBe(true);
+    expect(state.players.A.resourceArea.filter((r) => !r.rested)).toHaveLength(2);
+
+    let badState = freshGame();
+    const sourceId2 = placeCard(badState, "A", GD02_CARD_DEFS["GD02-110"], "hand");
+    const highLevelUnitId = placeCard(badState, "A", { ...GD02_CARD_DEFS["GD02-018"], level: 6, cost: 1 }, "trash");
+    addActiveResources(badState, "A", 4);
+    const ctx2 = { ...ctxFor(badState, sourceId2, { trashSearch: [highLevelUnitId] }), targets: { trashSearch: [highLevelUnitId] } };
+    expect(() => resolveEffectSpec(spec, ctx2, defaultPredicateResolver)).toThrow(/não casa o filtro do efeito/);
+  });
+
+  it("GD02-071 Gundam Mk-II (AEUG) (achado da revalidação): pairFromHandSearch agora tem entrada de fila real (handChoice) — antes só funcionava via resolveEffectSpec direto de teste", () => {
+    let state = freshGame();
+    state = { ...state, phase: "main" };
+    const mkIIId = placeCard(state, "A", GD02_CARD_DEFS["GD02-071"], "hand");
+    addActiveResources(state, "A", 4); // GD02-071 é Lv.4 — canPayLevel exige resourceArea.length >= 4
+    placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-121"], color: "white" }, "baseSection"); // condição do spec: Base branca em campo
+    const aeugPilotId = placeCard(state, "A", { ...GD02_CARD_DEFS["GD02-099"], traits: ["AEUG"] }, "hand");
+
+    const next = deployCard(state, "A", mkIIId, { specs: GD02_EFFECT_SPECS, predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver });
+
+    const decision = next.pendingDecision.A;
+    expect(decision?.kind).toBe("abilityResolution");
+    if (decision?.kind === "abilityResolution") {
+      const entry = decision.queue.find((q) => q.specId === "GD02-071-Deploy");
+      expect(entry?.handChoice?.legalHandIds).toContain(aeugPilotId);
+    }
+  });
+
+  it("DEFERRED_CLAUSES não tem mais entradas GD02-011/096/110 — Classe G fechada", () => {
+    const stillDeferred = ["GD02-011", "GD02-096", "GD02-110"];
+    expect(DEFERRED_CLAUSES.some((d) => stillDeferred.includes(d.cardCode))).toBe(false);
   });
 });

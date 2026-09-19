@@ -164,6 +164,7 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     ap: 0,
     hp: 1,
     traits: ["Earth Alliance"],
+    triggerKeywords: ["Activate·Action"],
   },
   "GD02-012": {
     code: "GD02-012",

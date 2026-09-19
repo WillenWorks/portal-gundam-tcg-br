@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
@@ -216,6 +216,16 @@ export type PrimitiveCall =
   | { op: "heal"; target: TargetRef; amount: number }
   /** dano direto numa Unit/Base (ex.: "Deal 1 damage to it") — destrói automaticamente se o dano acumulado bater o HP efetivo (Comprehensive Rules 5-5-2), igual à checagem já feita em combat.ts pro dano de batalha */
   | { op: "damageUnit"; target: TargetRef; amount: number }
+  /**
+   * GD02-011 Moebius — "Choose 1 enemy Base/enemy Shield this Unit is battling. Deal 6
+   * damage to it." Alvo sempre vem de `targetScope: "battlingBaseOrShield"`, que só
+   * inclui Base/Shield de verdade — o handler decide a REGRA pela zona atual do alvo
+   * resolvido: Base acumula dano normal (igual `damageUnit`, `DAMAGE_UNIT`/`DAMAGE_BASE`
+   * são o MESMO evento na prática — ver `events.ts`); Shield tem "1 HP" (Comprehensive
+   * Rules — qualquer dano destrói inteiro, mesma regra de `shieldDamageEvents`/
+   * `breachEvents`), então destrói direto, sem acumular/checar `effectiveHp`.
+   */
+  | { op: "damageBattlingBaseOrShield"; target: TargetRef; amount: number }
   /** custo de recurso genérico (docs/18, lacuna #4) — resta N Recursos active do controller (ou os instanceIds dados), EX Resource sai do jogo (mesma regra de deploy.ts/costs.ts). Ex.: ST02-006 Tallgeese "④", ST01-015 White Base "②". */
   | { op: "payResourceCost"; player: PlayerRef; n: number; resourceInstanceIds?: string[] }
   /** cria 1+ instância nova a partir de um CardDef (docs/18, lacuna #3 — "criar instância nova"). Ex.: ST02-002 Wing Gundam (Bird Mode) "Place 1 EX Resource". */
@@ -333,8 +343,25 @@ export type PrimitiveCall =
    * (`filter` garante isso, ex. `{cardType:"PILOT", ...}`).
    */
   | { op: "pairFromTrashSearch"; player: PlayerRef; filter: CardDefFilter; name?: string }
-  /** GD02-071 Gundam Mk-II (AEUG) — "you may pair 1 (AEUG) Pilot card from your hand with this Unit." Mesmo padrão de `pairFromTrashSearch`, zona HAND em vez de trash. */
+  /** GD02-071 Gundam Mk-II (AEUG) — "you may pair 1 (AEUG) Pilot card from your hand with this Unit." Mesmo padrão de `pairFromTrashSearch`, zona HAND em vez de trash. Escolha resolvida pela camada `handChoice` (`ctx.targets.deploy`), mesmo mecanismo de `deployFromHandTriggered` — não `trashSearch`, apesar do nome parecido com `pairFromTrashSearch`. */
   | { op: "pairFromHandSearch"; player: PlayerRef; filter: CardDefFilter; name?: string }
+  /**
+   * GD02-096 Desil Galette / GD02-110 Awakened Power — "Choose 1 <filtro> Unit card
+   * from your trash. Pay its cost to deploy it." Diferente de `deployFromHandTriggered`/
+   * `deployFromTopFilterReveal` (deploy SEM pagar custo, gatilho automático): aqui o
+   * custo é o `CardDef.cost` da carta ESCOLHIDA (variável, só conhecido depois da
+   * escolha) — resta os N primeiros Recursos active do controller (mesmo fallback
+   * determinístico de `payResourceCostEvents`/`deployCard` sem `resourceInstanceIds`
+   * explícito). NÃO checa o nível do jogador (`canPayLevel`) — é um efeito de carta
+   * ("pay its cost to deploy it"), não a jogada normal da Main Phase (Comprehensive
+   * Rules 7 só amarra o requisito de nível à ação de jogar da mão). NÃO encadeia o
+   * 【Deploy】 da carta recém-deployada (mesma simplificação já aceita por
+   * `deployFromHandTriggered`/`deployFromTopFilterReveal` — nenhuma delas dispara
+   * automaticamente). Zona é TRASH (busca em zona inteira, não "topo N") — reusa o
+   * MESMO shape `trashSearch` de `searchTrashToHand`/`pairFromTrashSearch` na camada
+   * de decisão; escolha em `ctx.targets[deployName ?? "trashSearch"]`.
+   */
+  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
   /**
    * Lote 5 — GD01-039 "Look at the top card of your deck. Return it to the top
    * or bottom of your deck." Ao contrário de `moveWithinDeck` (posição FIXA,
@@ -518,6 +545,25 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
           events.push(...pairedPilotFollowEvents(card));
+        }
+      }
+      return events;
+    }
+    case "damageBattlingBaseOrShield": {
+      const events: GameEvent[] = [];
+      for (const instanceId of resolveTargetIds(call.target, ctx)) {
+        const card = findCard(ctx.state, instanceId);
+        if (card.zone === "shields") {
+          // Shield "tem 1 HP" (Comprehensive Rules) — qualquer dano destrói inteiro,
+          // não acumula (mesma regra de shieldDamageEvents/breachEvents em combat.ts).
+          events.push({ type: "DESTROY_CARD", instanceId });
+          continue;
+        }
+        // Base — dano acumulado normal, mesma fórmula/proteções de "damageUnit".
+        if (isProtectedFromEffectDamage(card, ctx)) continue;
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: call.amount });
+        if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
+          events.push({ type: "DESTROY_CARD", instanceId });
         }
       }
       return events;
@@ -730,7 +776,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "pairFromHandSearch": {
       const player = resolvePlayerRef(call.player, ctx.controller);
-      const chosen = ctx.targets[call.name ?? "trashSearch"]?.[0];
+      // Busca em HAND (não trash) — a camada de decisão usa o shape `handChoice`
+      // (mesmo de `deployFromHandTriggered`), que escreve em `ctx.targets.deploy`,
+      // não `trashSearch` (achado da revalidação Sprint 2 Fase 7 — GD02-071 só
+      // funcionava via `resolveEffectSpec` direto de teste, nunca pelo caminho
+      // real da UI, porque `abilityDispatch.ts` não tinha um branch pra este op).
+      const chosen = ctx.targets[call.name ?? "deploy"]?.[0];
       if (!chosen) return [];
       const card = ctx.state.players[player].hand.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`pairFromHandSearch: carta "${chosen}" não está na mão de ${player}`);
@@ -741,6 +792,19 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" },
         { type: "PAIR_CARDS", pilotId: chosen, unitId: ctx.sourceInstanceId, asPilotMode: false },
       ];
+    }
+    case "deployFromTrashPayingCost": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const chosen = ctx.targets[call.deployName ?? "trashSearch"]?.[0];
+      if (!chosen) return [];
+      const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
+      if (!card) throw new Error(`deployFromTrashPayingCost: carta "${chosen}" não está na lixeira de ${player}`);
+      if (card.def.cardType !== "UNIT") throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não é Unit`);
+      if (!matchesCardDefFilter(card.def, call.filter)) {
+        throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
+      }
+      const cost = effectiveCost(card.def, ctx.state, player);
+      return [...payResourceCostEvents(ctx.state, player, cost), { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
     case "moveTopCardToChosenPosition": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -851,7 +915,7 @@ export interface EffectSpec {
    */
   /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
   /** GD02-120 Aspiring Pilot — "Choose 1 of your (AEUG) Units/Bases." (pool = Units E Bases do controller, filtro de trait aplica aos dois.) */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase";
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -940,7 +1004,20 @@ export function computeLegalTargets(
             ? state.players[controller].baseSection
             : scope === "friendlyUnitOrBase"
               ? [...state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT"), ...state.players[controller].baseSection]
-              : state.players[controller].resourceArea;
+              : scope === "battlingBaseOrShield"
+                ? (() => {
+                    // GD02-011 Moebius — "Choose 1 enemy Base/enemy Shield this Unit is
+                    // battling." Só existe pool quando `sourceInstanceId` é o ATACANTE de um
+                    // combate em andamento contra o JOGADOR (não uma Unit rested) — nesse
+                    // caso a Base (se houver) e TODOS os Shields do defensor são elegíveis
+                    // (mesmo par de zonas que `resolveDamageStep` intercepta automaticamente
+                    // no dano de batalha comum: Base absorve antes, senão Shield).
+                    const combat = state.combat;
+                    if (!combat || !sourceInstanceId || combat.attackerId !== sourceInstanceId || combat.currentTarget !== "player") return [];
+                    const defender = state.players[combat.defendingPlayer];
+                    return [...defender.baseSection, ...defender.shields];
+                  })()
+                : state.players[controller].resourceArea;
 
   if (!spec.targetFilter) return pool.map((c) => c.instanceId);
   if (!resolveFilter) {
@@ -994,6 +1071,7 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "searchTrashToHand" }>
   | Extract<PrimitiveCall, { op: "pairFromTrashSearch" }>
   | Extract<PrimitiveCall, { op: "pairFromHandSearch" }>
+  | Extract<PrimitiveCall, { op: "deployFromTrashPayingCost" }>
   | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>;
 
 export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive {
@@ -1006,6 +1084,7 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "searchTrashToHand":
     case "pairFromTrashSearch":
     case "pairFromHandSearch":
+    case "deployFromTrashPayingCost":
     case "moveTopCardToChosenPosition":
       return true;
     case "moveWithinDeck":
