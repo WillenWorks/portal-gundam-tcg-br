@@ -1072,6 +1072,21 @@ export const GD02_120_ASPIRING_PILOT_ACTION: EffectSpec = {
   sourceText: "【Action】Choose 1 of your (AEUG) Units/Bases. It recovers 2 HP.",
 };
 
+// GD02-056 Gundam X — 【During Pair･(Vulture) Pilot】【Destroyed】Choose 1 (Vulture) Unit card
+// that is Lv.5 or higher from your trash. Add it to your hand.
+export const GD02_056_GUNDAM_X_DESTROYED: EffectSpec = {
+  id: "GD02-056-Destroyed",
+  cardCode: "GD02-056",
+  trigger: "Destroyed",
+  duringPair: true,
+  condition: {
+    predicate: "formerPairedPilotHasTrait:Vulture",
+    then: [{ op: "searchTrashToHand", player: "controller", filter: { cardType: "UNIT", anyTrait: ["Vulture"], minLevel: 5 } }],
+  },
+  actions: [],
+  sourceText: "【During Pair･(Vulture) Pilot】【Destroyed】Choose 1 (Vulture) Unit card that is Lv.5 or higher from your trash. Add it to your hand.",
+};
+
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
@@ -1159,5 +1174,6 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN,
   GD02_047_GAZA_C_ACTIVATE_MAIN,
   GD02_105_VALEDICTORIAN_ACTION,
-  GD02_120_ASPIRING_PILOT_ACTION
+  GD02_120_ASPIRING_PILOT_ACTION,
+  GD02_056_GUNDAM_X_DESTROYED
 ];

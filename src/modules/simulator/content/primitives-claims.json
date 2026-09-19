@@ -100,7 +100,8 @@
     "pairedPilotColorIs:<value>": { "description": "A fonte (Unit) tem Pilot pareado com a cor impressa dada — ex. 'When Paired・Purple Pilot'.", "since": "GD02-061 Hyakuri (Sprint 2 Lote 4)" },
     "selfColorIs:<value>": { "description": "'This Unit' tem a cor impressa dada — resolve pra Unit pareada quando a fonte é um Pilot (resolveSelfUnit).", "since": "GD02-091 Haman Karn (Sprint 2 Lote 4)" },
     "selfLevelAtMost:<n>": { "description": "'This Unit' tem nível <= N — resolve pra Unit pareada quando a fonte é um Pilot (resolveSelfUnit).", "since": "GD02-095 Lafter Frankland (Sprint 2 Lote 4)" },
-    "enemyShieldCountAtMost:<n>": { "description": "O oponente tem <= N cartas na shield area.", "since": "GD02-037 Gundam Virsago (Sprint 2 Lote 5)" }
+    "enemyShieldCountAtMost:<n>": { "description": "O oponente tem <= N cartas na shield area.", "since": "GD02-037 Gundam Virsago (Sprint 2 Lote 5)" },
+    "formerPairedPilotHasTrait:<value>": { "description": "O Pilot que estava pareado com a Unit no momento da destruição (alvo implícito ctx.targets.formerPairedPilot, mesmo mecanismo de GD01-005) tem o trait dado.", "since": "GD02-056 Gundam X (Sprint 2 Lote 9)" }
   },
   "targetFilters": {
     "hp<=<n>": { "description": "HP restante do candidato (efetivo menos dano acumulado) <= N.", "since": "ST0x — Guntank / Amuro Ray / Siege Ploy" },

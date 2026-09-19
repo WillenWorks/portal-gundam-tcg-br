@@ -313,6 +313,15 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (enemyShieldCountAtMost) {
     return ctx.state.players[otherPlayer(ctx.controller)].shields.length <= Number(enemyShieldCountAtMost[1]);
   }
+  // GD02-056 Gundam X — "【During Pair･(Vulture) Pilot】【Destroyed】..." — trait do Pilot que
+  // estava pareado no momento da destruição (alvo implícito "formerPairedPilot", injetado pelo
+  // dispatcher em ctx.targets ANTES do DESTROY_CARD, mesmo mecanismo de GD01-005 Unicorn Gundam).
+  const formerPairedPilotHasTrait = predicate.match(/^formerPairedPilotHasTrait:(.+)$/);
+  if (formerPairedPilotHasTrait) {
+    const pilotId = ctx.targets.formerPairedPilot?.[0];
+    if (!pilotId) return false;
+    return (findCard(ctx.state, pilotId).def.traits ?? []).includes(formerPairedPilotHasTrait[1]);
+  }
   return false;
 };
 
