@@ -66,6 +66,8 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     traits: ["Clan"],
     link: {"kind":"trait","values":["Clan"]},
     triggerKeywords: ["During Link"],
+    // "During Link, This Unit gains <High-Maneuver>."
+    staticAbilities: [{ condition: "duringLink", scope: "self", keyword: "High-Maneuver" }],
   },
   "GD02-025": {
     code: "GD02-025",

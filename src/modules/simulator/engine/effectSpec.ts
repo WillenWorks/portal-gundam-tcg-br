@@ -60,7 +60,8 @@ export type TargetRef =
  */
 export type TargetGroup =
   | { kind: "allFriendlyLinkUnits" }
-  | { kind: "allEnemyUnits"; maxLevel?: number }
+  /** GD02-107 All-Range Attack — "Deal 1 damage to all enemy Units other than Link Units". */
+  | { kind: "allEnemyUnits"; maxLevel?: number; excludeLinkUnits?: boolean }
   /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
   | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
   /**
@@ -121,6 +122,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   return opponent.battleArea
     .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+    .filter((u) => !group.excludeLinkUnits || !isLinkUnit(ctx.state, u))
     .map((u) => u.instanceId);
 }
 
@@ -326,11 +328,14 @@ export interface CardDefFilter {
   anyTrait?: string[];
   maxLevel?: number;
   minLevel?: number;
+  /** GD02-112 Momentary Respite — "1 purple Pilot card from your trash". Cor IMPRESSA da carta, não trait. */
+  color?: CardDef["color"];
 }
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
+  if (filter.color && def.color !== filter.color) return false;
   if (filter.anyTrait && filter.anyTrait.length > 0) {
     const traits = def.traits ?? [];
     if (!filter.anyTrait.some((t) => traits.includes(t))) return false;
@@ -716,7 +721,8 @@ export interface EffectSpec {
    * `"anyUnit"` — GD01-014/GD01-058/GD01-110, texto oficial "Choose 1 Unit"
    * (sem "enemy"/"friendly") — pool são as Units dos DOIS lados do tabuleiro.
    */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+  /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -801,7 +807,9 @@ export function computeLegalTargets(
         ? state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT")
         : scope === "anyUnit"
           ? [...state.players.A.battleArea, ...state.players.B.battleArea].filter((c) => c.def.cardType === "UNIT")
-          : state.players[controller].resourceArea;
+          : scope === "friendlyBase"
+            ? state.players[controller].baseSection
+            : state.players[controller].resourceArea;
 
   if (!spec.targetFilter) return pool.map((c) => c.instanceId);
   if (!resolveFilter) {

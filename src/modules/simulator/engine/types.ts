@@ -147,7 +147,9 @@ export interface CardDef {
    * por um efeito pontual tipo ST03-014 The Blue Giant, dura só "esta batalha").
    */
   innateDamageProtection?: {
-    maxAttackerAp: number;
+    maxAttackerAp?: number;
+    /** GD02-006 Forbidden Gundam — "can't receive battle damage from enemy Units that are Lv.2 or lower" (nível do atacante, não AP). Mesma convenção OR de `CombatState.unitDamageProtection` — basta UM dos dois bater. */
+    maxAttackerLevel?: number;
     /** ex. "Breach" — a Unit só está protegida enquanto tiver esta keyword agora (própria ou concedida). */
     requiresOwnKeyword?: string;
     /** "During your turn" — só vale enquanto for o turno do CONTROLLER da Unit (não do atacante). */
@@ -249,7 +251,11 @@ export type StaticBoardCondition =
   /** ST08-001 Xi Gundam: "While you have no Units that are Lv.6 or higher in play" */
   | { kind: "noUnitLevelAtLeast"; maxLevel: number }
   /** ST07-004 Gundam Virtue / ST07-007 Kyrios: "While you have a (CB) Pilot in play" */
-  | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number };
+  | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number }
+  /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
+  | { kind: "trashCountAtLeast"; n: number }
+  /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
+  | { kind: "baseColorInPlay"; color: string };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -280,6 +286,8 @@ export interface StaticAbility {
   duringYourTurnOnly?: boolean;
   boardCondition?: StaticBoardCondition;
   targetCondition?: StaticTargetCondition;
+  /** GD02-053 Gundam X — "all your OTHER (Vulture) Units get AP+2" — exclui a própria fonte do scope `allFriendlyUnits` (que por padrão a inclui). */
+  excludeSelf?: boolean;
 }
 
 /**
@@ -543,6 +551,12 @@ export function isBoardConditionMet(
       ).length >= cond.n
     );
   }
+  if (cond.kind === "trashCountAtLeast") {
+    return state.players[owner].trash.length >= cond.n;
+  }
+  if (cond.kind === "baseColorInPlay") {
+    return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
+  }
   // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
   const ownerState = state.players[owner];
   return (
@@ -576,6 +590,7 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
+      if (ability.excludeSelf && source.instanceId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
       if (includesTarget) bonus += ability.amount;
@@ -831,7 +846,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
-        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
         /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */

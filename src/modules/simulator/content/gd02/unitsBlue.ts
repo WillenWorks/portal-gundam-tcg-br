@@ -81,6 +81,8 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     link: {"kind":"trait","values":["Biological CPU"]},
     effectKeywords: ["Blocker"],
     keywordTags: ["Blocker"],
+    // "During your turn, this Unit can't receive battle damage from enemy Units that are Lv.2 or lower."
+    innateDamageProtection: { maxAttackerLevel: 2, duringYourTurnOnly: true },
   },
   "GD02-007": {
     code: "GD02-007",

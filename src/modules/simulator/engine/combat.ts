@@ -58,7 +58,9 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
     // ex.: ST01-009 Zowort — "This Unit can't choose the enemy player as its attack target." (docs/18, lacuna #6)
-    if (attacker.def.attackTargetRules?.cannotTargetPlayer) {
+    // GD02-069 Zeta Gundam — mesma restrição, mas TEMPORÁRIA ("during this turn") — concedida via
+    // grantKeyword sintético "CannotTargetPlayer" em vez de attackTargetRules (fixo na CardDef).
+    if (attacker.def.attackTargetRules?.cannotTargetPlayer || hasKeyword(attacker, "CannotTargetPlayer", state)) {
       throw new Error(`${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`);
     }
   }
@@ -378,7 +380,8 @@ export function resolveDamageStep(state: GameState): GameState {
       !!innate &&
       (!innate.duringYourTurnOnly || defender.owner === state.activePlayer) &&
       (!innate.requiresOwnKeyword || hasKeyword(defender, innate.requiresOwnKeyword, state)) &&
-      attackerAp <= innate.maxAttackerAp;
+      ((innate.maxAttackerAp !== undefined && attackerAp <= innate.maxAttackerAp) ||
+        (innate.maxAttackerLevel !== undefined && (attacker.def.level ?? 0) <= innate.maxAttackerLevel));
     const defenderDamagePrevented = grantedProtects || innateProtects;
     // GD01-091 também protege O PRÓPRIO ATACANTE do contra-dano do defensor — "during your
     // turn" só é satisfeito enquanto ESTA Unit ataca (defensor nunca age no seu próprio
@@ -388,7 +391,8 @@ export function resolveDamageStep(state: GameState): GameState {
       !!attackerInnate &&
       (!attackerInnate.duringYourTurnOnly || attacker.owner === state.activePlayer) &&
       (!attackerInnate.requiresOwnKeyword || hasKeyword(attacker, attackerInnate.requiresOwnKeyword, state)) &&
-      defenderAp <= attackerInnate.maxAttackerAp;
+      ((attackerInnate.maxAttackerAp !== undefined && defenderAp <= attackerInnate.maxAttackerAp) ||
+        (attackerInnate.maxAttackerLevel !== undefined && (defender.def.level ?? 0) <= attackerInnate.maxAttackerLevel));
     const defenderWillDie = !defenderDamagePrevented && defender.damage + attackerAp >= effectiveHp(defender, state);
     const attackerWillDie = !attackerDamagePrevented && attacker.damage + defenderAp >= effectiveHp(attacker, state);
 

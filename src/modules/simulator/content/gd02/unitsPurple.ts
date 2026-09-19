@@ -13,6 +13,21 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     traits: ["Vulture"],
     link: {"kind":"pilotName","values":["Garrod Ran"]},
     triggerKeywords: ["During Link"],
+    effectKeywords: ["Suppression"],
+    keywordTags: ["Suppression"],
+    // "During Link, during your turn, while there are 7 or more cards in your trash, all your other (Vulture) Units get AP+2."
+    staticAbilities: [
+      {
+        condition: "duringLink",
+        scope: "allFriendlyUnits",
+        stat: "ap",
+        amount: 2,
+        excludeSelf: true,
+        duringYourTurnOnly: true,
+        boardCondition: { kind: "trashCountAtLeast", n: 7 },
+        targetCondition: { kind: "traitIs", trait: "Vulture" },
+      },
+    ],
   },
   "GD02-054": {
     code: "GD02-054",
