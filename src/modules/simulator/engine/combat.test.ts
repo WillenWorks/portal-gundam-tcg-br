@@ -381,7 +381,7 @@ describe("Link Unit ataca no turno em que foi deployada (Comprehensive Rules 3-2
 
 describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
   it("ST03-001 Sinanju — destruir shield inimigo em batalha PAUSA pedindo escolha real entre as Units inimigas legais (docs/47 Fase 6, deferred.ts fechado)", () => {
-    let state = stripBase(freshGame(), "B");
+    const state = stripBase(freshGame(), "B");
     const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
     const enemy1Id = place(state, "B", ST03_CARD_DEFS.ANGELOS_GEARA_ZULU, { rested: true }); // HP3, sobrevive a 2
     const enemy2Id = place(state, "B", ST03_CARD_DEFS.GEARA_ZULU, { rested: true }); // HP2, sobrevive a 2
@@ -414,7 +414,7 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
   });
 
   it("ST03-001 Sinanju — dano do combatTrigger, ao ser resolvido, mata a Unit inimiga escolhida e o Pilot pareado dela também vai pro trash (CR 3-3-6, docs/47 Fase 2 + Fase 6)", () => {
-    let state = stripBase(freshGame(), "B");
+    const state = stripBase(freshGame(), "B");
     const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU); // AP5
     const enemyPilotId = place(state, "B", ST03_CARD_DEFS.CHAR_AZNABLE); // hp:1 impresso -> soma no efetivo da Unit pareada (CR 3-3-5)
     // GEARA_ZULU (HP2) pareada com Char Aznable (HP+1) = HP efetivo 3; 1 de dano prévio + 2 do combatTrigger = letal.
@@ -440,7 +440,7 @@ describe("cláusulas de carta ST03/ST04 no combate (docs/43 §4)", () => {
   });
 
   it("ST03-001 Sinanju — sem Unit inimiga legal: não pausa, combate termina normalmente", () => {
-    let state = stripBase(freshGame(), "B");
+    const state = stripBase(freshGame(), "B");
     const sinanjuId = place(state, "A", ST03_CARD_DEFS.SINANJU);
 
     const afterAction = runToDamageStepViaActions(state, sinanjuId, "player");
@@ -643,7 +643,7 @@ describe("ST05-011 Akihiro Altland — During Link + retrieve de trash via comba
   }
 
   it("destrói inimigo em batalha com Link satisfeito: PAUSA pedindo escolha real na lixeira, resolve movendo a carta pra mão", () => {
-    let state = stripBase(freshSt05Game(), "B");
+    const state = stripBase(freshSt05Game(), "B");
     const pilotId = place(state, "A", ST05_CARD_DEFS.AKIHIRO_ALTLAND);
     const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: pilotId }); // AP3, link com Akihiro Altland
     findCard(state, pilotId).pairedUnitId = attackerId;
@@ -672,7 +672,7 @@ describe("ST05-011 Akihiro Altland — During Link + retrieve de trash via comba
   });
 
   it("sem Link (Piloto errado pareado): não pausa, gatilho não ativa", () => {
-    let state = stripBase(freshSt05Game(), "B");
+    const state = stripBase(freshSt05Game(), "B");
     const wrongPilotId = place(state, "A", ST05_CARD_DEFS.MCGILLIS_FAREED); // não linka com Gundam Gusion Rebake
     const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: wrongPilotId });
     findCard(state, wrongPilotId).pairedUnitId = attackerId;
@@ -687,7 +687,7 @@ describe("ST05-011 Akihiro Altland — During Link + retrieve de trash via comba
   });
 
   it("sem carta elegível na lixeira: não pausa", () => {
-    let state = stripBase(freshSt05Game(), "B");
+    const state = stripBase(freshSt05Game(), "B");
     const pilotId = place(state, "A", ST05_CARD_DEFS.AKIHIRO_ALTLAND);
     const attackerId = place(state, "A", ST05_CARD_DEFS.GUNDAM_GUSION_REBAKE, { pairedPilotId: pilotId });
     findCard(state, pilotId).pairedUnitId = attackerId;

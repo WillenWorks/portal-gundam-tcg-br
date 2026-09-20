@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Calendar, Clock, MapPin, Trophy, Swords, Medal, ExternalLink, ArrowRight, ShieldAlert } from "lucide-react";
+import { Calendar, Clock, MapPin, Trophy, ArrowRight, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

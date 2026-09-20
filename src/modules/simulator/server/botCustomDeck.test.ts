@@ -12,7 +12,6 @@ import {
   UserDeckSimulatorError,
   type UserDeckInput,
 } from "../content/userDeckBuilder";
-import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 
 describe("Decks Customizados do Usuário no Modo Treino Solo", () => {
   const HUMAN = { userId: "user-custom", displayName: "Treinador Gundam" };

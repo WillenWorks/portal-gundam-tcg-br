@@ -20,7 +20,6 @@ import {
   resolvePlayerRef,
   specActiveCalls,
   specChoicePrimitive,
-  specChoicePrimitives,
   specNeedsChoice,
   specNeedsNamedTarget,
 } from "./effectSpec";
@@ -433,12 +432,6 @@ export function dispatchAnyPairingFromEffect(
 export const MAX_CASCADE_DEPTH = 12;
 /** Teto de LARGURA — total de gatilhos processados numa única ação, mesmo sem recursão (ex.: Board Wipe destruindo várias Units pareadas de uma vez). */
 export const MAX_QUEUE_BREADTH = 150;
-
-/** Acesso via `globalThis` pra não exigir os tipos de `node` no `tsconfig.app` (só `vite/client`) — mesmo padrão de `setup.ts#resolveEngineVersion`. */
-function isTestEnv(): boolean {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  return env?.NODE_ENV === "test";
-}
 
 /** Lançada quando o guard anti-loop estoura em ambiente de teste — falha alta e legível em vez de travar o worker/CI. Carrega os últimos eventos do `eventLog` pra facilitar o repro. */
 export class TriggerLoopException extends Error {

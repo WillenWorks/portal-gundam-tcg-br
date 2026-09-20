@@ -1,10 +1,7 @@
-import { Link } from "wouter";
-import { ArrowRight, Globe, Shield, Sparkles, Terminal, Users } from "lucide-react";
+import { Globe, Shield, Sparkles, Terminal, Users } from "lucide-react";
 
 import anaheimLogo from "@/assets/anaheim-logo.png";
 import anaheimLogoTransparent from "@/assets/anaheim-logo-transparent.png";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export function AboutAnaheimHubSection() {
   return (

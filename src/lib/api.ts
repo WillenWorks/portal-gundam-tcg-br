@@ -747,7 +747,6 @@ function computeClientSideDeckConsistency(cards: any[]): ZeroDeckConsistencyResu
   let unitT3Count = 0;
   let pilotCount = 0;
   let blockerCount = 0;
-  let removalCount = 0;
   const colors = new Set<string>();
 
   for (const c of cards || []) {
@@ -770,7 +769,6 @@ function computeClientSideDeckConsistency(cards: any[]): ZeroDeckConsistencyResu
     const nameLower = String(c.name || c.nameEn || "").toLowerCase();
     const effectLower = String(c.effect || "").toLowerCase();
     if (nameLower.includes("blocker") || effectLower.includes("blocker") || effectLower.includes("bloqueador")) blockerCount += qty;
-    if (effectLower.includes("destrua") || effectLower.includes("destroy") || effectLower.includes("dano") || effectLower.includes("damage")) removalCount += qty;
   }
 
   const N = Math.max(50, totalCards || 50);

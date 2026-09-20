@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { ArrowRight, ChevronLeft, ChevronRight, Layers, Package, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 type SetItem = {
   id: string;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createGame } from "../engine/setup";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
-import type { GameState, PlayerId } from "../engine/types";
+import type { GameState } from "../engine/types";
 import type { EffectContext, PredicateResolver } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";

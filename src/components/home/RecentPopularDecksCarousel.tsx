@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Calendar, ChevronLeft, ChevronRight, Eye, Flame, Heart, MessageSquare, TrendingUp, User as UserIcon } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Eye, Heart, MessageSquare, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { api, type PopularRecentDeck } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";

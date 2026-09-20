@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import {
   AlertCircle,
   ArrowRight,
-  Bot,
-  CheckCircle2,
   Lock,
   Mail,
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
   Swords,
   User,
   UserCheck,
@@ -28,7 +23,6 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 
 export function CockpitRegistrationSection() {
   const { user, isAuthenticated, register, loginWithGoogle } = useAuth();
-  const [, navigate] = useLocation();
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");

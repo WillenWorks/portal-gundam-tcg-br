@@ -11,19 +11,10 @@ import {
   GQUUUUUUX_WHEN_LINKED,
   GQUUUUUUX_DEPLOY,
   RED_GUNDAM_ATTACK,
-  ORTEGA_RICK_DOM_DEPLOY,
-  AMATE_YUZURIHA_WHEN_LINKED,
-  SHUJI_ITO_ATTACK,
-  RUTHLESS_TACTICS_MAIN,
-  RUTHLESS_TACTICS_ACTION,
-  SCHOOLGIRL_AND_SMUGGLER_MAIN,
-  FIERCE_UNITY_ACTION,
   CLAN_BATTLE_DEPLOY,
-  CLAN_BATTLE_ACTIVATE_MAIN,
-  KANEBAN_DEPLOY,
   ST06_EFFECT_SPECS,
 } from "./st06";
-import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
+import { defaultPredicateResolver } from "./predicates";
 
 function freshGame(): GameState {
   return createGame(buildSt06DeckList(), buildSt04DeckList(), { seed: 60, firstPlayer: "A" });

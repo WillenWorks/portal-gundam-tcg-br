@@ -191,8 +191,6 @@ export function ZeroCoachHud({
   matchId,
   turnNumber,
   activePlayer,
-  seat,
-  view,
   initialAnalysis,
   className = "",
 }: ZeroCoachHudProps) {

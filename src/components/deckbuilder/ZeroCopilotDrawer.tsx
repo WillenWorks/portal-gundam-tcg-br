@@ -12,13 +12,10 @@ import {
   Target,
   Plus,
   Info,
-  CheckCircle2,
   AlertTriangle,
-  Flame,
   Layers,
   X,
   RefreshCw,
-  ExternalLink,
 } from "lucide-react";
 
 import { api, type ZeroDeckConsistencyResult } from "@/lib/api";
@@ -52,7 +49,6 @@ export function ZeroCopilotDrawer({
   onClose,
   deckCards,
   deckName = "Deck em Edição",
-  colors = [],
   onAddCard,
   onInspectCard,
 }: ZeroCopilotDrawerProps) {

@@ -5,8 +5,6 @@ import {
   applyAction,
   claimAbandonWin,
   submitSideboard,
-  startNextBo3Game,
-  getMatch,
   _resetAllMatchesForTests,
   resignMatch,
 } from "./matchStore";

@@ -5,12 +5,8 @@ import {
   recommendCounterPersona,
   validateGeneratedDeckLegality,
 } from "./zeroCounterDeckBuilder";
-import { buildSt01DeckList } from "../../fixtures/st01Deck";
-import { buildSt02DeckList } from "../../fixtures/st02Deck";
 import { buildSt03DeckList } from "../../fixtures/st03Deck";
-import { buildSt07DeckList } from "../../fixtures/st07Deck";
 import { buildSt08DeckList } from "../../fixtures/st08Deck";
-import type { CardDef } from "../types";
 
 describe("Zero Pilot Nível 4: zeroCounterDeckBuilder", () => {
   it("analisa oponente ST03 (Zeon Rush) e classifica corretamente como aggro", () => {

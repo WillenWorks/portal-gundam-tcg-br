@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useRoute } from "wouter";
+import { Link, useRoute } from "wouter";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -7,11 +7,9 @@ import {
   ShieldAlert,
   CalendarClock,
   MapPin,
-  Swords,
   AlertTriangle,
   ArrowRight,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import { PortalShell } from "@/components/layout/PortalShell";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +66,6 @@ interface EventCheckinPageProps {
 export function EventCheckinPage({ eventId: propEventId }: EventCheckinPageProps = {}) {
   const [, params] = useRoute<{ id: string }>("/eventos/:id/checkin");
   const eventId = propEventId || params?.id;
-  const [, setLocation] = useLocation();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
