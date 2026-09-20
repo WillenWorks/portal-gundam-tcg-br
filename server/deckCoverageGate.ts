@@ -31,9 +31,23 @@ interface OfficialCard {
   effect?: string;
 }
 
-const OFFICIAL_CARDS: OfficialCard[] = JSON.parse(
-  readFileSync(path.join(REPO_ROOT, "data/gcg-official-cards.json"), "utf8"),
-).cards;
+const OFFICIAL_CARDS_PATH = path.join(REPO_ROOT, "data/gcg-official-cards.json");
+
+let OFFICIAL_CARDS: OfficialCard[];
+try {
+  OFFICIAL_CARDS = JSON.parse(readFileSync(OFFICIAL_CARDS_PATH, "utf8")).cards;
+} catch (err) {
+  // Falha aqui derruba o boot do processo inteiro (é dado crítico do gate de
+  // segurança — não dá pra mascarar rodando sem catálogo), mas sem essa
+  // mensagem específica o erro cru (ENOENT/SyntaxError do JSON.parse) chega
+  // ao operador como um stack trace genérico difícil de diagnosticar às
+  // pressas.
+  const reason = err instanceof Error ? err.message : String(err);
+  throw new Error(
+    `Falha ao carregar catálogo oficial de cartas em ${OFFICIAL_CARDS_PATH} — verifique se o arquivo existe e é um JSON válido. Causa: ${reason}`,
+    { cause: err },
+  );
+}
 
 const EFFECT_TEXT_BY_CODE = new Map(OFFICIAL_CARDS.map((c) => [c.code, c.effect ?? ""]));
 const CODES_WITH_SPEC = new Set(ALL_EFFECT_SPECS.map((s) => s.cardCode));
@@ -52,7 +66,7 @@ function hasBespokeText(effect: string): boolean {
     prev = s;
     s = s.replace(/\([^()]*\)/g, " ");
   } while (s !== prev);
-  return s.replace(/[［］\[\]･・、。.,\s]+/g, " ").trim().length > 0;
+  return s.replace(/[［］[\]･・、。.,\s]+/g, " ").trim().length > 0;
 }
 
 /**

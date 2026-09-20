@@ -16,9 +16,7 @@
  *
  * Contrato de eventos: docs/39 §2.2 (não desviar sem atualizar o doc).
  */
-import { randomUUID } from "node:crypto";
 import type { Server as HttpServer } from "node:http";
-import jwt from "jsonwebtoken";
 import { Server, type Socket } from "socket.io";
 
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
@@ -40,11 +38,10 @@ import {
   touchPresence,
 } from "../src/modules/simulator/server/matchStore.ts";
 import { ActionDeduper, ChallengeRegistry } from "../src/modules/simulator/server/socketBridge.ts";
+import { createSocketAuthMiddleware, UserSocketRegistry, type SocketAuthUser } from "./services/socketAuth.ts";
 
 const SOCKET_PATH = "/api/simulator/socket";
 const LOBBY_ROOM = "lobby:global";
-/** Validade do guestId efêmero assinado (convidado sem cadastro). */
-const GUEST_TOKEN_TTL = "12h";
 
 export type SimulatorDeckResolution = { ok: true; key: string; build: () => DeckList } | { ok: false; message: string };
 
@@ -62,14 +59,8 @@ export interface SimulatorSocketDeps {
   resolveDeck: (raw: unknown, userId: string) => Promise<SimulatorDeckResolution>;
 }
 
-interface SocketUser {
-  userId: string;
-  displayName: string;
-  guest: boolean;
-}
-
 type SocketData = {
-  user: SocketUser;
+  user: SocketAuthUser;
   freshGuestToken?: string;
   matchId?: string;
   seat?: PlayerId;
@@ -96,10 +87,10 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
   const challenges = new ChallengeRegistry();
   const deduper = new ActionDeduper();
   /** userId → sockets vivos daquele usuário (pra empurrar `challenge:ready` pro outro lado). */
-  const socketsByUser = new Map<string, Set<Socket>>();
+  const socketsByUser = new UserSocketRegistry<Socket>();
 
   function emitToUser(userId: string, event: string, payload: unknown): void {
-    for (const socket of socketsByUser.get(userId) ?? []) socket.emit(event, payload);
+    for (const socket of socketsByUser.getSockets(userId)) socket.emit(event, payload);
   }
 
   function pushViewUpdate(matchId: string, seat: PlayerId): void {
@@ -117,7 +108,7 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     for (const seat of ["A", "B"] as PlayerId[]) {
       const oppSeat = otherSeat(seat);
       const oppUserId = match.seats[oppSeat]?.userId;
-      const online = oppUserId ? (socketsByUser.get(oppUserId)?.size ?? 0) > 0 : false;
+      const online = oppUserId ? socketsByUser.countFor(oppUserId) > 0 : false;
       const lastSeenMs = match.lastSeenAt[oppSeat] ?? 0;
       io.to(seatRoom(matchId, seat)).emit("match:opponent_status", { online, lastSeenMs });
     }
@@ -130,45 +121,14 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     emitOpponentStatus(matchId);
   });
 
-  // --- Handshake: valida o JWT ou emite um guestId efêmero assinado. ---
-  io.use((socket, next) => {
-    const auth = (socket.handshake.auth ?? {}) as { token?: string; guestToken?: string };
-    const data = socket.data as SocketData;
-
-    if (auth.token) {
-      try {
-        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId: string; username?: string; email?: string };
-        data.user = { userId: payload.userId, displayName: payload.username || payload.email || "Jogador", guest: false };
-        return next();
-      } catch {
-        // token expirado/inválido → cai pro fluxo de convidado abaixo em vez de derrubar a conexão
-      }
-    }
-    if (auth.guestToken) {
-      try {
-        const payload = jwt.verify(auth.guestToken, deps.jwtSecret) as { guestId: string };
-        data.user = { userId: payload.guestId, displayName: "Convidado", guest: true };
-        return next();
-      } catch {
-        // guestToken velho → gera um novo abaixo
-      }
-    }
-    const guestId = `guest:${randomUUID()}`;
-    data.user = { userId: guestId, displayName: "Convidado", guest: true };
-    data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: GUEST_TOKEN_TTL });
-    next();
-  });
+  // --- Handshake: valida o JWT ou emite um guestId efêmero assinado (lógica compartilhada com a Arena 4P — `services/socketAuth.ts`). ---
+  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret }));
 
   io.on("connection", (socket) => {
     const data = socket.data as SocketData;
     const user = data.user;
 
-    let userSet = socketsByUser.get(user.userId);
-    if (!userSet) {
-      userSet = new Set();
-      socketsByUser.set(user.userId, userSet);
-    }
-    userSet.add(socket);
+    socketsByUser.addSocket(user.userId, socket);
 
     void socket.join(LOBBY_ROOM);
     if (data.freshGuestToken) {
@@ -341,11 +301,8 @@ export function attachSimulatorSocket(httpServer: HttpServer, deps: SimulatorSoc
     });
 
     socket.on("disconnect", () => {
-      const set = socketsByUser.get(user.userId);
-      set?.delete(socket);
-      const stillOnline = (set?.size ?? 0) > 0;
-      if (!stillOnline) {
-        socketsByUser.delete(user.userId);
+      const wentOffline = socketsByUser.removeSocket(user.userId, socket);
+      if (wentOffline) {
         leaveQueue(user.userId);
         challenges.cancelByHost(user.userId);
       }

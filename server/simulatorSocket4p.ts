@@ -16,9 +16,7 @@
  * (auto-pass determinístico por queda de conexão) é armado/cancelado aqui,
  * não em `arena4pStore.ts` (que não sabe nada de rede).
  */
-import { randomUUID } from "node:crypto";
 import type { Server as HttpServer } from "node:http";
-import jwt from "jsonwebtoken";
 import { Server, type Socket } from "socket.io";
 
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
@@ -29,6 +27,7 @@ import {
   ARENA_SEAT_IDS,
   activeLaneForSeat,
   applyDisconnectAutoPass,
+  arenaQueueModeFor,
   createLobby,
   createSquadInvite,
   getArenaMatch,
@@ -54,10 +53,10 @@ import {
 } from "../src/modules/simulator/server/arena4pStore.ts";
 import { applyAction, subscribeAllMatches, touchPresence } from "../src/modules/simulator/server/matchStore.ts";
 import { ActionDeduper } from "../src/modules/simulator/server/socketBridge.ts";
+import { createSocketAuthMiddleware, UserSocketRegistry, type SocketAuthUser } from "./services/socketAuth.ts";
 import type { SimulatorDeckResolution } from "./simulatorSocket.ts";
 
 const SOCKET_PATH = "/api/simulator/socket4p";
-const GUEST_TOKEN_TTL = "12h";
 
 export interface SimulatorArenaSocketDeps {
   jwtSecret: string;
@@ -67,14 +66,8 @@ export interface SimulatorArenaSocketDeps {
   disconnectGraceMs?: number;
 }
 
-interface SocketUser {
-  userId: string;
-  displayName: string;
-  guest: boolean;
-}
-
 type SocketData = {
-  user: SocketUser;
+  user: SocketAuthUser;
   freshGuestToken?: string;
 };
 
@@ -101,7 +94,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
 
   const deduper = new ActionDeduper();
   /** userId → sockets vivos daquele usuário — usado pra juntar os 4 assentos nas rooms da Arena quando ela começa. */
-  const socketsByUser = new Map<string, Set<Socket>>();
+  const socketsByUser = new UserSocketRegistry<Socket>();
   const disconnectGraceMs = deps.disconnectGraceMs ?? ARENA_RECONNECT_GRACE_MS;
   /** `${arenaMatchId}:${seat}` → timer de auto-pass por queda de conexão (ver `ARENA_RECONNECT_GRACE_MS`). */
   const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -126,7 +119,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       disconnectTimers.delete(key);
       // Corrida rara: o usuário reconectou entre o disconnect e o estouro do timer sem
       // passar por join_match/ping/action ainda — se já tem socket vivo, não força nada.
-      if ((socketsByUser.get(userId)?.size ?? 0) > 0) return;
+      if (socketsByUser.countFor(userId) > 0) return;
       applyDisconnectAutoPass(arenaMatchId, seat);
     }, disconnectGraceMs);
     disconnectTimers.set(key, handle);
@@ -136,7 +129,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
     for (const seat of ARENA_SEAT_IDS) {
       const occupant = arenaMatch.seats[seat];
       if (!occupant) continue;
-      for (const socket of socketsByUser.get(occupant.userId) ?? []) {
+      for (const socket of socketsByUser.getSockets(occupant.userId)) {
         void socket.join(arenaRoom(arenaMatch.id));
         void socket.join(arenaSeatRoom(arenaMatch.id, seat));
       }
@@ -202,45 +195,14 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
     }
   });
 
-  // --- Handshake: mesmo contrato JWT/guest do socket 1v1 (`simulatorSocket.ts`). ---
-  io.use((socket, next) => {
-    const auth = (socket.handshake.auth ?? {}) as { token?: string; guestToken?: string };
-    const data = socket.data as SocketData;
-
-    if (auth.token) {
-      try {
-        const payload = jwt.verify(auth.token, deps.jwtSecret) as { userId: string; username?: string; email?: string };
-        data.user = { userId: payload.userId, displayName: payload.username || payload.email || "Jogador", guest: false };
-        return next();
-      } catch {
-        // token expirado/inválido → cai pro fluxo de convidado abaixo
-      }
-    }
-    if (auth.guestToken) {
-      try {
-        const payload = jwt.verify(auth.guestToken, deps.jwtSecret) as { guestId: string };
-        data.user = { userId: payload.guestId, displayName: "Convidado", guest: true };
-        return next();
-      } catch {
-        // guestToken velho → gera um novo abaixo
-      }
-    }
-    const guestId = `guest:${randomUUID()}`;
-    data.user = { userId: guestId, displayName: "Convidado", guest: true };
-    data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: GUEST_TOKEN_TTL });
-    next();
-  });
+  // --- Handshake: mesmo contrato JWT/guest do socket 1v1 (`simulatorSocket.ts`) — lógica compartilhada em `services/socketAuth.ts`. ---
+  io.use(createSocketAuthMiddleware({ jwtSecret: deps.jwtSecret }));
 
   io.on("connection", (socket) => {
     const data = socket.data as SocketData;
     const user = data.user;
 
-    let userSet = socketsByUser.get(user.userId);
-    if (!userSet) {
-      userSet = new Set();
-      socketsByUser.set(user.userId, userSet);
-    }
-    userSet.add(socket);
+    socketsByUser.addSocket(user.userId, socket);
 
     if (data.freshGuestToken) {
       socket.emit("session:guest", { guestId: user.userId, guestToken: data.freshGuestToken });
@@ -259,7 +221,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       const failed = deckEntries.find(([, resolved]) => !resolved.ok);
       if (failed) {
         const [seat, resolved] = failed;
-        for (const s of socketsByUser.get(lobby.seats[seat]!.userId) ?? []) {
+        for (const s of socketsByUser.getSockets(lobby.seats[seat]!.userId)) {
           s.emit("arena:error", { code: "bad_deck", message: (resolved as { ok: false; message: string }).message });
         }
         return;
@@ -324,7 +286,7 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
         for (const seat of ARENA_SEAT_IDS) {
           const occupant = result.lobby.seats[seat];
           if (!occupant) continue;
-          for (const s of socketsByUser.get(occupant.userId) ?? []) void s.join(lobbyRoom(result.lobby.id));
+          for (const s of socketsByUser.getSockets(occupant.userId)) void s.join(lobbyRoom(result.lobby.id));
         }
         socket.emit("arena:queue_status", { inQueue: false, position: 0 });
         await tryStartIfReady(result.lobby.id);
@@ -333,10 +295,21 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
       socket.emit("arena:queue_status", { inQueue: true, position: result.position ?? 0 });
     });
 
+    // Jogador só tem UMA entrada na fila por vez (ver `arenaQueueModeFor`) —
+    // `leaveArenaQueue` é mode-agnostic de propósito, não é bug. `payload.mode`
+    // só serve pra detectar client dessincronizado (avisando um modo que não
+    // bate com o que o servidor tem pra este usuário).
     socket.on("arena:queue_leave", (payload: { mode?: ArenaMode } = {}) => {
+      if (payload?.mode) {
+        const currentMode = arenaQueueModeFor(user.userId);
+        if (currentMode && currentMode !== payload.mode) {
+          console.warn(
+            `[arena4p] arena:queue_leave — client informou mode="${payload.mode}" mas a entrada na fila do usuário ${user.userId} é mode="${currentMode}".`,
+          );
+        }
+      }
       leaveArenaQueue(user.userId);
       socket.emit("arena:queue_status", { inQueue: false, position: 0 });
-      void payload;
     });
 
     // ---- arena:ready { lobbyId, ready } ----
@@ -453,10 +426,8 @@ export function attachSimulatorArena4pSocket(httpServer: HttpServer, deps: Simul
     // `socket.rooms` ENQUANTO ele ainda está nelas, que é exatamente o que "disconnecting"
     // garante (é o evento feito pra isso).
     socket.on("disconnecting", () => {
-      const set = socketsByUser.get(user.userId);
-      set?.delete(socket);
-      if ((set?.size ?? 0) > 0) return;
-      socketsByUser.delete(user.userId);
+      const wentOffline = socketsByUser.removeSocket(user.userId, socket);
+      if (!wentOffline) return;
       leaveArenaQueue(user.userId);
       // Assento em sala AINDA NÃO iniciada fica travado sem outra forma de liberar — libera aqui.
       for (const lobbyId of activeLobbyIdsFor(user.userId)) leaveLobby(lobbyId, user.userId);
