@@ -80,7 +80,9 @@ export function checkStateInvariants(state: GameState): string | null {
       }
     }
     const unitCount = state.players[pid].battleArea.filter((c) => c.def.cardType === "UNIT").length;
-    if (unitCount > 6 && !state.pendingDecision[pid]) {
+    // Excesso é transitório enquanto QUALQUER decisão pendente (do próprio ou do oponente) é
+    // resolvida — `enforceZoneLimits` só abre o zoneOverflow quando não há nenhuma pendente.
+    if (unitCount > 6 && !state.pendingDecision.A && !state.pendingDecision.B) {
       return `${pid} com ${unitCount} Units na Battle Area (>6) sem zoneOverflow pendente`;
     }
   }
