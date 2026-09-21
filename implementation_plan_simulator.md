@@ -42,14 +42,17 @@ Este documento detalha o diagnóstico técnico, a arquitetura de solução e a e
     mode: "training",
   });
   ```
-- **Ação**: Tornar dinâmico: se `input.firstPlayer` for passado, respeitá-lo; caso contrário, sortear aleatoriamente entre `"A"` e `"B"` (usando o seed fornecido ou `Math.random() < 0.5`).
+- **Ação**: Tornar dinâmico: se `input.firstPlayer` for passado, respeitá-lo; caso contrário, sortear aleatoriamente entre `"A"` e `"B"`.
+- **Nota (precedente já existente no código)**: O fluxo de matchmaking PvP em [`matchStore.ts`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/server/matchStore.ts#L907) já faz exatamente isso hoje — `firstPlayer: Math.random() < 0.5 ? "A" : "B"` — sem nenhuma derivação a partir do `seed`. Recomenda-se **seguir o mesmo padrão** em `trainingMatch.ts` em vez de derivar o sorteio do `seed` via `createRng(input.seed)`: o `seed` já é reaproveitado (com XOR de nonces distintos) para embaralhar o deck e resolver mulligans (ver `engine/setup.ts`, `engine/actions.ts`), e usar o mesmo `seed` cru para decidir o `firstPlayer` correlacionaria as duas decisões (mesma seed → mesma combinação de "quem começa" + "ordem do baralho" sempre), o que atrapalha exatamente os testes de determinismo que essa mudança pretende viabilizar.
+  - Melhor abordagem: adicionar um campo opcional `firstPlayer?: PlayerId` em `CreateTrainingMatchInput` (hoje inexistente) para os testes fixarem o lado sem tocar no RNG, e usar `Math.random() < 0.5 ? "A" : "B"` como default em produção — mesma receita do matchmaking PvP.
 
 ### 2. Mudança Brusca de Tamanho no Draw / Mulligan / Shields
-- **Causa Raiz**: Em [`DeckDealAnimation.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/DeckDealAnimation.tsx#L125), a largura padrão da carta animada recorre a `anchored ? 84 : 140`. Enquanto isso, o playmat define a escala via `--card-w-std` (`calc(var(--card-w) * 0.66)`), que tipicamente varia entre `40px` e `55px`. Em [`MulliganModal.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/MulliganModal.tsx#L36), o componente usava `size="md"` (`80px`), gerando o contraste imediato.
+- **Causa Raiz (corrigida após checagem no código atual)**: A chamada real de `<DeckDealAnimation>` em [`SimulatorMatchPage.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/pages/SimulatorMatchPage.tsx#L2551) **já** passa `cardW={board.rectOf('deckStation:${seat}')?.width}`, e o `DeckStation` no [`ArenaPlaymat.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/ArenaPlaymat.tsx#L251) é dimensionado exatamente por `STATION_WIDTH = "w-[var(--card-w-std,2.17rem)]"`. Ou seja, o fallback `anchored ? 84 : 140` em [`DeckDealAnimation.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/DeckDealAnimation.tsx#L125) **não é o bug** para `deal-hand` / `mulligan-anim` / `deal-shields` — é só uma defesa para quando `cardW` não é passado, e já recebe o valor certo hoje.
+  - O salto de escala real e confirmado está em [`MulliganModal.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/MulliganModal.tsx#L36): o componente renderiza `<CardFace size="md" />`, que resolve para a classe Tailwind estática `w-20` (80px, ver [`cardArt.ts`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/cardArt.ts#L15) `CARD_FACE_WIDTH`) — sem nenhuma ligação com `--card-w-std`. Isso contrasta com o [`HandFan.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/HandFan.tsx#L178), que já resolve exatamente esse problema sobrescrevendo o tamanho padrão do `CardFace` com `style={{ width: "var(--card-w-std, 2.17rem)" }}`.
 - **Ação**:
-  - Passar a largura exata de `--card-w-std` medida do container do playmat ou do slot alvo.
-  - No [`DeckDealAnimation.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/DeckDealAnimation.tsx), sincronizar `w` e `h` com a proporção exata da mão e dos escudos no momento da aterrissagem.
-  - Ajustar o espaçamento do leque animado para casar com o leque final do [`HandFan.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/HandFan.tsx).
+  - Em `MulliganModal.tsx`, aplicar o mesmo padrão do `HandFan.tsx`: `style={{ width: "var(--card-w-std, 2.17rem)" }}` em cada `<CardFace>` renderizado (mantendo `size="md"` só como fallback de resolução de imagem, não de layout).
+  - Confirmar visualmente que a mão exibida no modal de mulligan bate pixel-a-pixel com o leque real da mão que aparece logo depois.
+  - O `cardW` do `DeckDealAnimation` para `single-draw` também precisa continuar vindo do `deckStation` (já está correto) — não requer mudança adicional além do item 4 abaixo (passar `cards`).
 
 ### 3. Mensagem Centralizada de Fases e Turno Desaparecendo após o Turno 1
 - **Causa Raiz**: Em [`SimulatorMatchPage.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/pages/SimulatorMatchPage.tsx#L2337), o banner só é renderizado na condição:
@@ -61,7 +64,8 @@ Este documento detalha o diagnóstico técnico, a arquitetura de solução e a e
   Assim que a abertura termina, `introStage` é fixado em `"complete"` e nunca mais volta.
 - **Ação**:
   - Renderizar `PhaseAnnouncementBanner` sempre que `phaseBannerQueue.length > 0`, desacoplado do `introStage`.
-  - Escutar mudanças de turno (`turnNumber` e `activePlayer`) em `useEffect` para enfileirar as transições de fase de cada turno: `"SEU TURNO" / "TURNO DO OPONENTE"`, `"FASE DE COMPRA"`, `"FASE DE RECUPERAÇÃO"` e `"FASE PRINCIPAL"`.
+  - **Atenção**: só desacoplar a renderização não basta — `introStage` é uma máquina de estados "de abertura", one-shot: uma vez que chega em `"complete"` (via `handlePhaseBannerDone`), nada mais a tira desse estado. É necessário um `useEffect` **novo e independente** (não dependente de `introStage`) escutando mudanças de `turnNumber`/`activePlayer` para popular `phaseBannerQueue` a cada troca de turno subsequente: `"SEU TURNO" / "TURNO DO OPONENTE"`, `"FASE DE COMPRA"`, `"FASE DE RECUPERAÇÃO"` e `"FASE PRINCIPAL"`.
+  - Cuidado para esse novo efeito não colidir com o efeito de abertura (`handleSetupAnimDone`) durante o Turno 1 — usar uma referência (`prevTurnNumberRef`) para só enfileirar a partir da 2ª mudança de turno detectada, já que o Turno 1 continua sendo tratado pelo fluxo de abertura existente.
 
 ### 4. Animação de Draw Rápida Demais
 - **Causa Raiz**: `SINGLE_DRAW_MS = 400` em [`DeckDealAnimation.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/DeckDealAnimation.tsx#L112) e ausência do objeto `cards` para saque individual.
@@ -70,9 +74,12 @@ Este documento detalha o diagnóstico técnico, a arquitetura de solução e a e
   - Aumentar a duração base do draw para ~750ms e atrelar ao multiplicador de velocidade de animação.
 
 ### 5. Carta Atacando e Retornando ao Lugar (Lunge & Return)
-- **Causa Raiz**: Em [`SimulatorMatchPage.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/pages/SimulatorMatchPage.tsx#L581-L586), `executeAttackStrike` só era disparado se `prevCombat.step === "action"`. Em partidas rápidas ou contra o Bot onde os passos de bloco/ação resolvem diretamente, a condição nunca era satisfeita. Além disso, em [`BattleSlot.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/BattleSlot.tsx#L89), a distância era limitada a 160px com `min(mag * 0.65, 160)`.
+- **Causa Raiz (mecanismo exato confirmado no código)**: Em [`SimulatorMatchPage.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/pages/SimulatorMatchPage.tsx#L581-L586), `executeAttackStrike` só dispara se `prevCombat.step === "action"` **E** a view seguinte tiver `combat` ausente ou `step === "battleEnd"`. O `CombatStep` real é `"attack" | "block" | "action" | "damage" | "battleEnd"` (ver [`types.ts`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/engine/types.ts#L840)) — ou seja, existe um passo `"damage"` intermediário entre `"action"` e `"battleEnd"` que a condição atual não cobre; se o cliente observar esse passo primeiro, a janela de `"action"` já passou e a animação nunca dispara.
+  - Mais grave: em [`matchStore.ts`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/server/matchStore.ts#L1035-L1058), `settleAutoPasses` resolve o Action Step **inteiro, dos dois lados, de forma síncrona no servidor**, antes de qualquer resposta chegar ao cliente, sempre que o assento tem `autoPassActionStep: true` (ou é bot). Em [`trainingMatch.ts`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/server/trainingMatch.ts#L122-L141), **tanto o jogador humano quanto o bot** entram com `autoPassActionStep: true` — então em modo treino o passo `"action"` nunca chega a existir do ponto de vista do cliente: a primeira view que ele recebe após declarar o ataque já está em `"damage"` ou além. É por isso que a animação falha consistentemente contra o Bot, mesmo com a condição atual tecnicamente "correta" para o caso raro em que o passo `"action"` fica visível (ex.: PvP sem auto-pass, onde o padrão é `autoPassActionStep: false` — ver `matchStore.ts:245`).
+  - Além disso, em [`BattleSlot.tsx`](file:///c:/WillenWorks/portal-gundam-tcg-br/src/modules/simulator/ui/BattleSlot.tsx#L89), a distância era limitada a 160px com `min(mag * 0.65, 160)`.
 - **Ação**:
-  - Desencadear a animação de ataque assim que o combate entra em resolução de dano (`damage` / `battleEnd`) ou logo após a declaração.
+  - Trocar a condição de disparo em `SimulatorMatchPage.tsx` de "estava em `action`" para algo como: `prevCombat existe e seu step ∈ {"attack", "block", "action"} && (incoming.view.combat ausente || incoming.view.combat.id !== prevCombat.id || incoming.view.combat.step ∈ {"damage", "battleEnd"})`. Os dados necessários (`attackerId`, `currentTarget`, `defendingPlayer`) já existem em `CombatState` desde o passo `"attack"`, então não há bloqueio técnico para isso.
+  - Alternativamente (mais robusto a passos futuros), disparar a animação comparando a MUDANÇA do par `(attackerId, step)` — sempre que o `attackerId` do combate anterior deixa de existir no combate atual (ou o combate acaba), execute o strike, independentemente de qual era o `step` anterior exato.
   - Implementar uma animação de deslocamento fluida que faça a unidade avançar em direção às coordenadas do alvo (unidade inimiga ou trilha de escudos/base), executar o impacto (com tremor e SFX) e recuar ao slot.
 
 ### 6. Destruição de Shield para o Trash e Revelação de Burst
@@ -161,10 +168,10 @@ Sua missão é corrigir o sorteio de iniciativa nas partidas contra bot e garant
 
 Contexto e Requisitos:
 1. Atualmente em `src/modules/simulator/server/trainingMatch.ts`, a chamada `createMatch` fixa `firstPlayer: "A"`.
-2. Altere `createTrainingMatch` para que o primeiro jogador seja sorteado com 50% de chance para "A" e 50% de chance para "B" (Bot), a menos que explicitamente configurado ou determinado por seed em testes.
-3. Se `input.seed` for informado, use um gerador de números pseudo-aleatórios determinístico (`createRng(input.seed)`) para decidir o `firstPlayer` mantendo a reprodução de testes. Se não houver seed, use `Math.random() < 0.5 ? "A" : "B"`.
-4. Garanta que quando o bot iniciar ("B"), `maybeEnqueueBotTurn` em `matchStore.ts` processe o turno/mulligan do bot corretamente.
-5. Atualize os testes unitários em `src/modules/simulator/server/trainingMatch.test.ts` validando tanto partidas onde o humano começa quanto onde o bot começa.
+2. Adicione um campo opcional `firstPlayer?: PlayerId` em `CreateTrainingMatchInput`. Se informado, respeite-o (uso principal: testes determinísticos). Caso contrário, sorteie com `Math.random() < 0.5 ? "A" : "B"` — mesmo padrão já usado no matchmaking PvP em `matchStore.ts` (função de fila, linha com `firstPlayer: Math.random() < 0.5 ? "A" : "B"`).
+3. NÃO derive o sorteio do `input.seed` — o `seed` já alimenta o RNG de embaralhamento do baralho e de mulligan (`createRng(seed ^ nonce)` em `engine/setup.ts` / `engine/actions.ts`); reutilizar o mesmo seed cru para a decisão de `firstPlayer` correlacionaria as duas coisas e tornaria os testes determinísticos menos confiáveis. Use o novo campo `firstPlayer` explícito para os testes em vez disso.
+4. Garanta que quando o bot iniciar ("B"), `maybeEnqueueBotTurn` em `matchStore.ts` processe o turno/mulligan do bot corretamente — esse caminho (bot com decisão pendente, inclusive mulligan) ainda não foi exercitado em produção porque o bot nunca começou uma partida de treino até hoje, então trate como um caminho novo a validar, não apenas reaproveitar.
+5. Atualize os testes unitários em `src/modules/simulator/server/trainingMatch.test.ts` validando tanto partidas onde o humano começa (`firstPlayer: "A"`) quanto onde o bot começa (`firstPlayer: "B"`), incluindo o fluxo de mulligan do bot indo primeiro.
 6. Execute `pnpm test src/modules/simulator/server/trainingMatch.test.ts` e certifique-se de que todos os testes passem.
 ````
 
@@ -178,12 +185,11 @@ Sua missão:
    - Adicione um seletor no `SettingsMenu.tsx` permitindo ao jogador alternar a velocidade das animações a qualquer momento.
    - Aplique uma variável CSS ou helper `getScaledDuration(ms)` para ajustar durações em JS e CSS.
 2. Tamanho Exato das Cartas (Draw / Mulligan / Shields):
-   - Elimine o salto de tamanho nas cartas ao final do draw e mulligan em `DeckDealAnimation.tsx`.
-   - A animação deve receber e utilizar estritamente a largura de `--card-w-std` medida da arena/mão, sem valores hardcoded como 84px ou 140px.
-   - Ajuste `MulliganModal.tsx` para respeitar as proporções da arena em vez de forçar tamanho estático.
-   - Para o `single-draw`, passe a carta real comprada e aumente o tempo base (de 400ms para ~750ms ajustado pela velocidade), permitindo que o saque seja nítido e fluido.
+   - O `DeckDealAnimation.tsx` já recebe `cardW` correto vindo do `deckStation` em `SimulatorMatchPage.tsx` — não mexa nesse fluxo, exceto se notar alguma regressão pontual.
+   - O bug real está em `MulliganModal.tsx`: as cartas usam `<CardFace size="md">` (fixo em 80px via classe Tailwind `w-20`), sem relação com `--card-w-std`. Corrija adicionando `style={{ width: "var(--card-w-std, 2.17rem)" }}` em cada `<CardFace>`, exatamente como já é feito em `HandFan.tsx` (linha com `style={{ width: "var(--card-w-std, 2.17rem)" }}`).
+   - Para o `single-draw`, passe a carta real comprada (`cards`) e aumente o tempo base (de 400ms para ~750ms ajustado pela velocidade), permitindo que o saque seja nítido e fluido.
 3. Banners Recorrentes de Troca de Turno:
-   - Modifique `SimulatorMatchPage.tsx` para que o `PhaseAnnouncementBanner` seja exibido em TODOS os turnos subsequentes (Turno 2, 3, etc.), e não apenas no turno 1.
+   - `introStage` é uma máquina de estados one-shot de abertura — uma vez em `"complete"` nunca mais volta a `"phase-banner"` sozinha. Desacople a renderização do `PhaseAnnouncementBanner` da condição `introStage === "phase-banner"` (renderize sempre que `phaseBannerQueue.length > 0`) E crie um `useEffect` novo, independente, que observe `turnNumber`/`activePlayer` e popule `phaseBannerQueue` a cada troca de turno a partir do Turno 2 (o Turno 1 já é coberto pelo fluxo de abertura existente — use uma ref pra não duplicar).
    - Sempre que o turno trocar, enfileire: "Seu Turno" / "Turno do Oponente" seguido por "Fase de Compra" -> "Fase de Recuperação" -> "Fase Principal".
 4. Execute `pnpm test src/modules/simulator/ui/DeckDealAnimation.test.tsx` e garanta que a suíte passe com 100% de sucesso.
 ````
@@ -194,7 +200,9 @@ Você é o Desenvolvedor Senior de Front-end responsável pelas animações de g
 
 Sua missão:
 1. Animação de Ataque Físico (Lunge & Return):
-   - Em `SimulatorMatchPage.tsx` e `BattleSlot.tsx`, garanta que a animação de ataque aconteça de forma evidente e confiável sempre que um ataque for declarado/resolvido (inclusive contra bots).
+   - Causa raiz confirmada: em modo treino, tanto o assento humano quanto o bot entram com `autoPassActionStep: true` (`trainingMatch.ts`), e `settleAutoPasses` (`matchStore.ts`) resolve o Action Step dos dois lados de forma síncrona no servidor ANTES de qualquer resposta chegar ao cliente. Isso significa que o cliente nunca observa `combat.step === "action"` — a primeira view que ele recebe já está em `"damage"` ou além. A condição atual em `applyIncomingView` (`SimulatorMatchPage.tsx`), que só dispara a animação quando `prevCombat.step === "action"`, por isso nunca é satisfeita contra o bot.
+   - Corrija ampliando a condição de disparo: dispare `executeAttackStrike` sempre que existia um `prevCombat` com `attackerId` X e o combate atual não tem mais esse `attackerId` ativo (combate ausente, ou trocou de `attackerId`, ou chegou em `"battleEnd"`) — independente de qual era o `step` anterior (`"attack"`, `"block"` ou `"action"`), já que `attackerId`/`currentTarget`/`defendingPlayer` existem em `CombatState` desde o passo `"attack"`.
+   - Garanta que a animação aconteça de forma evidente e confiável sempre que um ataque for declarado/resolvido (inclusive contra bots, que é o caso que hoje falha 100% das vezes em modo treino).
    - A carta deve avançar dinamicamente em direção às coordenadas do alvo (unidade inimiga ou trilha de escudos/base), executar o impacto (com tremor e efeito sonoro) e retornar suavemente para seu slot original.
 2. Destruição de Shield para o Trash:
    - No método `detectDepartures` de `SimulatorMatchPage.tsx`, adicione a detecção de destruição de shields.
