@@ -4,11 +4,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  ArrowDownAZ,
   ArrowUpDown,
   Compass,
   Filter,
-  Flame,
   Layers,
   Plus,
   RotateCcw,
@@ -27,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DeckPreviewCard } from "@/components/deck/DeckPreviewCard";
-import { DeckFiltersModal, type DeckFiltersState } from "@/components/deck/DeckFiltersModal";
+import { DeckFiltersModal } from "@/components/deck/DeckFiltersModal";
 import { api, type ApiDeck } from "@/lib/api";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 

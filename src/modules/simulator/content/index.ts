@@ -7,9 +7,9 @@ import { ST05_EFFECT_SPECS } from "./st05";
 import { ST06_EFFECT_SPECS } from "./st06";
 import { ST07_EFFECT_SPECS } from "./st07";
 import { ST08_EFFECT_SPECS } from "./st08";
-import { GD01_EFFECT_SPECS, GD01_CARD_DEFS } from "./gd01";
-import { GD02_EFFECT_SPECS, GD02_CARD_DEFS } from "./gd02";
-import { GD03_EFFECT_SPECS, GD03_CARD_DEFS } from "./gd03";
+import { GD01_EFFECT_SPECS } from "./gd01";
+import { GD02_EFFECT_SPECS } from "./gd02";
+import { GD03_EFFECT_SPECS } from "./gd03";
 
 export { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 export { DEFERRED_CLAUSES, type DeferredClause } from "./deferred";

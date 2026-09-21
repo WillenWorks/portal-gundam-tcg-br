@@ -354,6 +354,20 @@ export function leaveArenaQueue(userId: string): void {
   if (idx >= 0) queue.splice(idx, 1);
 }
 
+/**
+ * Modo da entrada atual de `userId` na fila, se houver. Um jogador só pode
+ * ter UMA entrada na fila por vez (`joinArenaQueue` sempre chama
+ * `leaveArenaQueue` antes de empurrar a nova) — por isso `leaveArenaQueue`
+ * não precisa (nem deveria) receber `mode`: não existe "fila errada" pra
+ * sair, só a única fila em que o jogador está. Exportado só pra camada de
+ * socket poder avisar (`console.warn`) se o `mode` que o cliente mandou em
+ * `arena:queue_leave` não bate com o que o servidor tem — sinal de bug no
+ * client, não motivo pra mudar o comportamento do servidor.
+ */
+export function arenaQueueModeFor(userId: string): ArenaMode | undefined {
+  return queue.find((e) => e.userId === userId)?.mode;
+}
+
 export function arenaQueuePositionFor(userId: string, mode: ArenaMode): number {
   const pool = queue.filter((e) => e.mode === mode);
   const idx = pool.findIndex((e) => e.userId === userId);

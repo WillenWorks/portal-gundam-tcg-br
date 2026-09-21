@@ -15,24 +15,20 @@ import {
   Save,
   Share2,
   Shield,
-  Sparkles,
   Upload,
 } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
-import { motion } from "framer-motion";
 
-import gundamCardBack from "@/assets/gundam-card-back.png";
 import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, mapApiCard, API_BASE_URL, type ApiDeck, type CardFilters } from "@/lib/api";
+import { api, mapApiCard, type ApiDeck, type CardFilters } from "@/lib/api";
 import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, NON_COUNTED_SECTIONS, computeDeckLegality, type DeckLegalityData } from "@/lib/deck-legality";
 import { computeDeckPilotCoverage } from "@/lib/deck-pilot-coverage";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, groupCardsByType } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { PublicShell } from "@/components/layout/PublicShell";
-import { FeaturedCoverImage } from "@/components/deck/FeaturedCoverImage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +44,6 @@ import type { CardRecord, DeckEntry } from "@/modules/core/types";
 import { LOW_LEVEL_MAX, OPENING_HAND_SIZE, buildLevelCurve, lowLevelUnitStats } from "@/lib/deck-level-stats";
 import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
-import { downloadDeckImage, generateDeckImageBlob, type ExportCardEntry } from "@/utils/deckImageExport";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { ZeroCopilotDrawer } from "@/components/deckbuilder/ZeroCopilotDrawer";
 
@@ -451,10 +446,8 @@ export default function DeckbuilderPage() {
   const [statDetail, setStatDetail] = useState<{ label: string; value: string } | null>(null);
   const [statDetailRows, setStatDetailRows] = useState<DeckRow[]>([]);
   const [handOddsBreakdownOpen, setHandOddsBreakdownOpen] = useState(false);
-  const [deckImagePreviewUrl, setDeckImagePreviewUrl] = useState<string | null>(null);
-  const [deckImageBlob, setDeckImageBlob] = useState<Blob | null>(null);
   const [exportImageModalOpen, setExportImageModalOpen] = useState(false);
-  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingImage] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
@@ -467,10 +460,10 @@ export default function DeckbuilderPage() {
   // principal, já que a busca de destaque agora é própria (pode achar qualquer carta do
   // catálogo, não só o que está na tela). Populado ao carregar um deck existente (via
   // deck.featuredCards, já resolvido pelo back-end) ou ao escolher pela busca dedicada.
-  const [featuredCardDetails, setFeaturedCardDetails] = useState<Record<string, { id: string; name: string; imageUrl: string | null }>>({});
-  const [featuredQuery, setFeaturedQuery] = useState("");
-  const [featuredResults, setFeaturedResults] = useState<CardRecord[]>([]);
-  const [featuredSearching, setFeaturedSearching] = useState(false);
+  const [, setFeaturedCardDetails] = useState<Record<string, { id: string; name: string; imageUrl: string | null }>>({});
+  const [featuredQuery] = useState("");
+  const [, setFeaturedResults] = useState<CardRecord[]>([]);
+  const [, setFeaturedSearching] = useState(false);
   const [poolFilters, setPoolFilters] = useState<PoolFilters>(defaultPoolFilters);
   const [poolQueryDraft, setPoolQueryDraft] = useState("");
   const [poolMeta, setPoolMeta] = useState<PoolMeta>({ colors: [], cardTypes: [], series: [], traits: [], keywords: [], sets: [] });
@@ -1147,15 +1140,6 @@ export default function DeckbuilderPage() {
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar deck no servidor.");
     }
-  };
-
-  const toggleFeaturedCard = (card: { id: string; name: string; imageUrl: string | null }) => {
-    setFeaturedCardIds((current) => {
-      if (current.includes(card.id)) return current.filter((id) => id !== card.id);
-      if (current.length >= 2) { toast.error("Escolha no máximo duas cartas de destaque."); return current; }
-      return [...current, card.id];
-    });
-    setFeaturedCardDetails((current) => ({ ...current, [card.id]: card }));
   };
 
   // Busca dedicada pras cartas de destaque — decoupled da pool principal de propósito,

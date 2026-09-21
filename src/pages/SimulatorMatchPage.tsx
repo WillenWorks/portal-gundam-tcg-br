@@ -1903,24 +1903,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const combatTargetUnit =
     combat && typeof combat.currentTarget === "object" ? findPublicCard(view, combat.currentTarget.unitId) : null;
 
-  // Frente 4 (feedback Willen 4ª rodada) — avanço do atacante em direção ao
-  // alvo (mesma medição de DOM que a seta do `CombatLane` usa). Ativo só nos
-  // steps de declaração/dano; ao sair, o `BattleSlot` volta pro slot via
-  // transição CSS.
-  const attackLunge: { id: string; towardX: number; towardY: number } | null = (() => {
-    if (!combat || (combat.step !== "attack" && combat.step !== "damage")) return null;
-    const a = board.rectOf(combat.attackerId);
-    const tKey =
-      combat.currentTarget === "player" ? playerShieldKey(combat.defendingPlayer) : combat.currentTarget.unitId;
-    const t = board.rectOf(tKey) ?? board.rectOf(playerAreaKey(combat.defendingPlayer));
-    if (!a || !t) return null;
-    return {
-      id: combat.attackerId,
-      towardX: t.left + t.width / 2 - (a.left + a.width / 2),
-      towardY: t.top + t.height / 2 - (a.top + a.height / 2),
-    };
-  })();
-
   // Fase B (plano visual §03) — os ~7 cards de decisão centralizados + o flash de fase
   // viram UM `ActionDock` fixo no canto. Precedência: o 1º que casar vence (1 state por vez).
   // `matchView` já foi estreitado pelo guard de loading acima, mas o narrowing não

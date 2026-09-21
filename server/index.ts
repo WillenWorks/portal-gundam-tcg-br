@@ -12,7 +12,7 @@ import multer from "multer";
 import { PrismaClient, UserRole, Prisma, CardLanguage, CardType, SetKind, TaxonomyKind, CardRelationType, HostedEventStatus, HostedEventRoundStatus, HostedEventMatchResult, TournamentTier, PostStatus, BinderItemTag } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { parseCardEffects } from "../src/lib/gundam-card-effects.ts";
-import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, NON_STATS_CARD_TYPES, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
+import { DECK_MAIN_SIZE, DECK_RESOURCE_SIZE, DECK_MAX_COLORS, DECK_MAX_COPIES_DEFAULT, NON_STATS_SECTIONS, computeDeckLegality, type DeckLegalityData } from "../src/lib/deck-legality.ts";
 import { buildSt01DeckList } from "../src/modules/simulator/fixtures/st01Deck.ts";
 import { buildSt02DeckList } from "../src/modules/simulator/fixtures/st02Deck.ts";
 import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts";
@@ -68,7 +68,6 @@ import {
 } from "../src/modules/simulator/server/trainingMatch.ts";
 import {
   getTacticalTelemetry,
-  analyzeTacticalState,
   analyzeDeckConsistency,
   consultZeroTerminalRAG,
 } from "./services/zeroTerminalService.ts";
@@ -323,7 +322,18 @@ setMatchLogSink((log) => {
 
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 8787);
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const INSECURE_JWT_SECRET_PLACEHOLDER = "change-this-secret";
+// O placeholder acima está documentado publicamente no .env.example — se `JWT_SECRET`
+// não for setado (ou continuar exatamente igual ao placeholder) em produção, qualquer
+// um consegue forjar um JWT com `role: ADMIN` usando esse valor conhecido. Falha o boot
+// cedo em vez de subir a API vulnerável (mesmo padrão do check de schema em boot()).
+if (IS_PRODUCTION && (!process.env.JWT_SECRET || process.env.JWT_SECRET === INSECURE_JWT_SECRET_PLACEHOLDER)) {
+  console.error("Falha ao iniciar API: JWT_SECRET não está definido (ou está igual ao placeholder inseguro do .env.example) em produção.");
+  console.error("Defina uma JWT_SECRET forte e única (NODE_ENV=production) antes de subir o servidor.");
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET || INSECURE_JWT_SECRET_PLACEHOLDER;
 const uploadRootDir = path.resolve(process.cwd(), process.env.LOCAL_UPLOAD_DIR || "public/uploads");
 const cardUploadDir = path.join(uploadRootDir, "cards");
 fs.mkdirSync(cardUploadDir, { recursive: true });
@@ -340,6 +350,13 @@ const MAX_IMAGE_UPLOAD_MB = Number(process.env.MAX_IMAGE_UPLOAD_MB || 8);
 // Em produção, define a lista (separada por vírgula) com o domínio real do front-end,
 // senão o navegador bloqueia as chamadas antes mesmo de chegar aqui.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map((origin) => origin.trim()).filter(Boolean);
+// Em produção, CORS aberto (refletindo qualquer Origin) é perigoso — falha o boot se
+// ALLOWED_ORIGINS não estiver configurado, em vez de logar e subir mesmo assim.
+if (IS_PRODUCTION && allowedOrigins.length === 0) {
+  console.error("Falha ao iniciar API: ALLOWED_ORIGINS não está definido em produção — o CORS ficaria aberto para qualquer origem.");
+  console.error("Defina ALLOWED_ORIGINS com o(s) domínio(s) real(is) do front-end (separados por vírgula) antes de subir o servidor.");
+  process.exit(1);
+}
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
 app.use(express.json({ limit: "4mb" }));
 app.use("/uploads", express.static(uploadRootDir, {
@@ -1192,10 +1209,31 @@ app.post("/api/auth/register", async (req, res) => {
   res.status(201).json({ token, user: serializeUser(user) });
 });
 
+// Rate-limit de tentativas de login/Google (mitiga brute-force e credential stuffing
+// contra /api/auth/login e /api/auth/google). Reaproveita o mesmo limiter in-memory já
+// usado no bug report do simulador (docs/44), só com limite/janela diferentes: 8
+// tentativas / 15min. Chave = IP + identificador (email do corpo, quando disponível) —
+// assim um único IP não esgota a cota de várias contas de uma vez, mas cada IP+conta
+// ainda tem um teto próprio. `record()` roda em toda tentativa (sucesso ou falha), não
+// só nas bem-sucedidas, já que o objetivo é limitar o número de tentativas em si.
+const AUTH_RATE_LIMIT = 8;
+const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000;
+const authRateLimiter = createBugReportRateLimiter(AUTH_RATE_LIMIT, AUTH_RATE_WINDOW_MS);
+
+function authRateLimitKey(req: Request, identifier?: string): string {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  return identifier ? `${ip}:${identifier}` : ip;
+}
+
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body as { email?: string; password?: string };
   const normalizedEmail = String(email || "").trim().toLowerCase();
   const normalizedPassword = String(password || "");
+  const rateLimitKey = authRateLimitKey(req, normalizedEmail || undefined);
+  if (authRateLimiter.isLimited(rateLimitKey)) {
+    return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos antes de tentar de novo." });
+  }
+  authRateLimiter.record(rateLimitKey);
   if (!normalizedEmail || !normalizedPassword) return res.status(400).json({ error: "Email e senha são obrigatórios." });
   const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || !user.isActive) return res.status(401).json({ error: "Credenciais inválidas ou usuário inativo." });
@@ -1213,6 +1251,13 @@ app.post("/api/auth/login", async (req, res) => {
  *  igual, isso aqui é só um caminho adicional. */
 app.post("/api/auth/google", async (req, res) => {
   const { credential } = req.body as { credential?: string };
+  // E-mail só é conhecido depois de verificar o token do Google — chave por IP aqui
+  // (o login por senha acima já soma o identificador de email quando disponível).
+  const rateLimitKey = authRateLimitKey(req);
+  if (authRateLimiter.isLimited(rateLimitKey)) {
+    return res.status(429).json({ error: "Muitas tentativas de login. Aguarde alguns minutos antes de tentar de novo." });
+  }
+  authRateLimiter.record(rateLimitKey);
   if (!credential) return res.status(400).json({ error: "Token do Google ausente." });
   if (!process.env.GOOGLE_CLIENT_ID) return res.status(503).json({ error: "Login com Google não configurado neste ambiente." });
 
@@ -3165,11 +3210,6 @@ app.post("/api/hosted-events/:id/participants/:participantId/deck", authRequired
  * ser reescrito. participantBId nulo = bye, que já nasce com resultado BYE fixo.
  * ------------------------------------------------------------------------- */
 
-// Pontuação padrão de TCG: vitória=3, empate=1, derrota=0. Bye conta como vitória
-// automática (3 pts) sem afetar estatística de mais ninguém, já que não existe um
-// adversário de verdade. Fixo pro MVP (não configurável por evento ainda).
-const HOSTED_EVENT_POINTS = { win: 3, draw: 1, loss: 0 } as const;
-
 async function computeHostedEventStandings(eventId: string) {
   const participants = await prisma.hostedEventParticipant.findMany({
     where: { eventId },
@@ -4328,7 +4368,7 @@ app.get("/api/decks/:id/like-status", authOptional, async (req: RequestWithUser,
       liked = Boolean(existing);
     }
     res.json({ liked, likeCount: deck.likeCount });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: "Erro ao consultar status de curtida." });
   }
 });

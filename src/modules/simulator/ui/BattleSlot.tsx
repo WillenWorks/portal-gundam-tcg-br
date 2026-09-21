@@ -117,6 +117,16 @@ export function BattleSlot({
   onEmptySlotClick,
   emptySlotActive,
 }: BattleSlotProps) {
+  // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
+  // (early return abaixo) — Rules of Hooks.
+  useEffect(() => {
+    if (justDeployed === "light") {
+      sfx.playThrusterBoost();
+    } else if (justDeployed === "heavy") {
+      sfx.playExplosion();
+    }
+  }, [justDeployed]);
+
   if (!unit) {
     return (
       // V6.3 (docs/34): mesma altura total (carta + tira reservada) do slot
@@ -193,14 +203,6 @@ export function BattleSlot({
       (pilot && pilot.def.innateDamageProtection && (!pilot.def.innateDamageProtection.duringYourTurnOnly || isControllersTurn)),
   );
   const isToken = Boolean(unit.def.isToken);
-
-  useEffect(() => {
-    if (justDeployed === "light") {
-      sfx.playThrusterBoost();
-    } else if (justDeployed === "heavy") {
-      sfx.playExplosion();
-    }
-  }, [justDeployed]);
 
   const showAttack = Boolean(actions?.onAttack) && !unit.rested;
   // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a

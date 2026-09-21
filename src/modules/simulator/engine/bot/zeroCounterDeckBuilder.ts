@@ -1,6 +1,6 @@
 import type { CardDef } from "../types";
 import type { DeckList } from "../setup";
-import { ALL_CARD_DEFS, getCardDefByCode } from "../../content/allCardDefs";
+import { getCardDefByCode } from "../../content/allCardDefs";
 import { buildSt01MainDeck } from "../../fixtures/st01Deck";
 import { buildSt02MainDeck } from "../../fixtures/st02Deck";
 import { buildSt03MainDeck } from "../../fixtures/st03Deck";
@@ -170,7 +170,7 @@ export function recommendCounterPersona(profile: OpponentDeckProfile): "amuro" |
  * Constrói o deck de Amuro Ray ("The White Devil / Tactical Defense & Link Mastery").
  * Arquétipo Blue + White centrado em RX-78-2, Blockers e estabilização de campo.
  */
-function buildAmuroCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
+function buildAmuroCounterDeck(_profile?: OpponentDeckProfile): CardDef[] {
   return buildSt01MainDeck();
 }
 
@@ -178,7 +178,7 @@ function buildAmuroCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
  * Constrói o deck de Char Aznable ("The Red Comet / 3x Speed Blitz & Breach Assault").
  * Arquétipo Red + Green focado em agressão fulminante de Zeon e Breach implacável.
  */
-function buildCharCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
+function buildCharCounterDeck(_profile?: OpponentDeckProfile): CardDef[] {
   return buildSt03MainDeck();
 }
 
@@ -186,7 +186,7 @@ function buildCharCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
  * Constrói o deck de Heero Yuy ("Zero System / Surgical Mission Execution").
  * Arquétipo Green + White centrado em Wing Gundam, Operation Meteor e remoção calculada de alvos.
  */
-function buildHeeroCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
+function buildHeeroCounterDeck(_profile?: OpponentDeckProfile): CardDef[] {
   return buildSt02MainDeck();
 }
 
@@ -196,7 +196,7 @@ function buildHeeroCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
  * de elite (Xi Gundam Lv.9, Penelope Lv.7, Gustav Karl, Hathaway e Lane Aim).
  * Esmaga a vanguarda inimiga em combates honrosos com poder de fogo e elegância incomparáveis.
  */
-function buildTreizeCounterDeck(profile?: OpponentDeckProfile): CardDef[] {
+function buildTreizeCounterDeck(_profile?: OpponentDeckProfile): CardDef[] {
   return buildSt08MainDeck();
 }
 

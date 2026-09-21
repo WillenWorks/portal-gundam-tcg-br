@@ -11,14 +11,9 @@ import {
   GUNDAM_EXIA_WHEN_PAIRED,
   GUNDAM_EXIA_END_OF_TURN,
   SETSUNA_ATTACK,
-  TIERIA_DESTROYED,
-  LOCKON_WHEN_PAIRED,
-  ARMED_INTERVENTION_BURST,
-  TACTICAL_VISIONARY_MAIN,
-  PTOLEMAIOS_DEPLOY,
   ST07_EFFECT_SPECS,
 } from "./st07";
-import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
+import { defaultPredicateResolver } from "./predicates";
 
 function freshGame(): GameState {
   return createGame(buildSt07DeckList(), buildSt01DeckList(), { seed: 70, firstPlayer: "A" });

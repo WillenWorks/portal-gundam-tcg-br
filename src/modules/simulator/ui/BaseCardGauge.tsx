@@ -59,7 +59,6 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
   const isEx = Boolean(base.def.isToken);
   const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
 
-  const hasAbility = Boolean(onActivate);
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
   // Frente 4 (docs/38 §3.1) — o botão de "olho" foi eliminado. Inspeção agora
   // é por clique na área neutra da carta (ver `bodyInspects` abaixo). O cluster

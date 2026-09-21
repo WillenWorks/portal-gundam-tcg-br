@@ -12,10 +12,12 @@ primeiro grande lançamento (`v1.0.0`) — esperem ajustes e coisa nova toda sem
 ## [Não lançado]
 
 ### No radar (Ciclo v2.2 — pós Sprint 0/1 de saneamento)
-- Branch protection formal na `dev` (bloqueio de push direto, PR + CI obrigatórios) — pendente de permissão de Administration no token do GitHub CLI.
-- Fechamento do backlog de cobertura de GD02 (69 cartas) e GD03 (76 cartas) no motor — hoje bloqueadas em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores.
-- QA E2E do restante da Arena 4P: resolução completa de partida até o fim de uma lane (bracket, desempate, final), modo Battle Royale (FFA) em uso real, chat/emotes.
-- Fechamento das 2 cláusulas de polish restantes do motor (GD01-001, GD01-066).
+- Fechamento do backlog de cobertura de GD03 no motor (132 cartas, 76 faltando) — ainda bloqueado em runtime (`deckCoverageGate.ts`), sem deck fixo exposto a jogadores. GD02 (130 cartas) já fechou 100% em 2026-09-19 (0 faltando, 0 deferimentos ativos).
+
+### Já resolvido (ficava listado aqui, confirmado no saneamento de 2026-09-18/19)
+- Branch protection formal na `dev` (PR + CI obrigatórios, force-push e deleção bloqueados) — ativada em 2026-09-18.
+- QA E2E do restante da Arena 4P — fechado com testes automatizados (`arena4pStore.test.ts`: avanço de bracket, desempate, final, 2v2 e FFA; `server/simulatorSocket4p.test.ts`: squad real via `socket.io-client`, chat, emote, reconexão com auto-pass). Ressalva que permanece: não cobre uma partida jogada organicamente do início ao fim em navegador real (só engine/socket foram exercitados).
+- As 2 cláusulas de polish do motor (GD01-001, GD01-066) — já estavam implementadas e sem deferimento; item de backlog estava obsoleto.
 
 ---
 

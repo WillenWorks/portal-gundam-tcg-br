@@ -1,14 +1,10 @@
-import { useEffect, useState, useMemo } from "react";
-import { 
-  Activity, 
-  Cpu, 
-  Layers, 
-  ShieldAlert, 
-  Sparkles, 
-  Target, 
+import { useEffect, useState } from "react";
+import {
+  Activity,
+  Cpu,
+  Sparkles,
+  Target,
   Zap,
-  ChevronRight,
-  TrendingUp,
   SlidersHorizontal,
   Info
 } from "lucide-react";
@@ -104,10 +100,6 @@ export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; tok
     setSelectedKey(focusKey.key);
     document.getElementById("atmi-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [focusKey]);
-
-  const activeArchetype = useMemo(() => {
-    return archetypes.find((a) => a.key === selectedKey) || null;
-  }, [archetypes, selectedKey]);
 
   return (
     <div id="atmi-panel" className="space-y-6 scroll-mt-24">

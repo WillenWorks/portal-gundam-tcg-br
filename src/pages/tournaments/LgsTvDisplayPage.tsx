@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useRoute } from "wouter";
+import { useRoute } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Volume2,
@@ -12,11 +12,7 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Plus,
-  Minus,
   RefreshCw,
-  ExternalLink,
-  ChevronRight,
   ShieldAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

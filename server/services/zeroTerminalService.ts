@@ -682,7 +682,7 @@ Responda APENAS o texto da fala do piloto.`;
     if (text) {
       return { tacticalAdvice: text, strategicInsight: `Análise quântica do Gemini 3.8 Flash para ${persona}` };
     }
-  } catch (err) {
+  } catch {
     // Gemini falhou — o orquestrador fará fallback para Claude ou Determinístico
   }
   return null;
@@ -716,7 +716,7 @@ Dê um comando tático conciso (1 a 2 frases) na voz e tom do piloto ${persona.t
     if (block && block.type === "text" && block.text.trim()) {
       return { tacticalAdvice: block.text.trim(), strategicInsight: `Avaliação do Claude 3.5 Sonnet para ${persona}` };
     }
-  } catch (err) {
+  } catch {
     // Claude falhou — fallback determinístico
   }
   return null;
@@ -1212,7 +1212,7 @@ Responda de forma direta e objetiva (2 a 4 frases), explicando o funcionamento m
           provider = "gemini";
           finalAnswer = text;
         }
-      } catch (err) {
+      } catch {
         // Fallback para Claude
       }
     }
@@ -1238,7 +1238,7 @@ Responda de forma direta e objetiva (2 a 4 frases), explicando o funcionamento m
             provider = "claude";
             finalAnswer = block.text.trim();
           }
-        } catch (err) {
+        } catch {
           // Fallback para Determinístico
         }
       }

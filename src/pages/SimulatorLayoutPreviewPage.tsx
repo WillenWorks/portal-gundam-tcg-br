@@ -86,12 +86,6 @@ export interface LayoutPreviewFixture {
   hand: { card: CardInstance; playable: boolean; blockedReason?: string }[];
 }
 
-/** centro (viewport px) de um `DOMRect`, ou `null` — pra ancorar a
- *  `DeckDealAnimation` nas zonas reais. */
-function rectCenter(r: DOMRect | null): { x: number; y: number } | null {
-  return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
-}
-
 /** centro da pilha de deck real dentro da coluna de deck/exílio */
 function deckCenter(r: DOMRect | null, mirrored = false): { x: number; y: number } | null {
   if (!r) return null;

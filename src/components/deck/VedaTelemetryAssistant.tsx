@@ -1,17 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { 
-  Activity, 
-  Cpu, 
-  Sparkles, 
-  Target, 
-  Zap, 
-  ShieldCheck, 
-  Plus, 
-  ChevronRight, 
+import {
+  Cpu,
+  Sparkles,
+  Target,
+  ShieldCheck,
+  Plus,
   RefreshCw,
   SlidersHorizontal,
   Flame,
-  HelpCircle
 } from "lucide-react";
 import { api, type ClassifiedMetaCard, type MetaRecommendationsResponse } from "@/lib/api";
 import type { CardRecord, DeckEntry } from "@/modules/core/types";
@@ -21,7 +17,6 @@ import { NON_COUNTED_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import gundamCardBack from "@/assets/gundam-card-back.png";
 
@@ -430,7 +425,6 @@ function RecommendationList({
 
 function RecommendationCardItem({
   card,
-  type,
   onAdd,
 }: {
   card: ClassifiedMetaCard & { liftScore?: number };

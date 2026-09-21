@@ -46,17 +46,18 @@ function normalizeSetType(value) {
   return SetKind.BOOSTER_PACK;
 }
 
-function buildFlattenedText(card) {
+function buildFlattenedText(card, { preferEn = false } = {}) {
   const parts = [];
   if (Array.isArray(card.textSectionsJson)) {
     for (const section of card.textSectionsJson) {
       if (!section?.textPt && !section?.textEn) continue;
       const label = section.label || section.kind || "effect";
-      parts.push(`[${label}] ${section.textPt || section.textEn}`);
+      const text = preferEn ? (section.textEn || section.textPt) : (section.textPt || section.textEn);
+      parts.push(`[${label}] ${text}`);
     }
   }
   if (parts.length) return parts.join("\n");
-  return card.effectPt || card.effectEn || null;
+  return preferEn ? (card.effectEn || card.effectPt || null) : (card.effectPt || card.effectEn || null);
 }
 
 async function seedUser({ email, displayName, username, password, role, bio, preferredTheme = "dark" }) {
@@ -167,7 +168,7 @@ async function upsertCards(cards, setMap) {
     const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
     const textSectionsJson = Array.isArray(card.textSectionsJson) ? card.textSectionsJson : null;
     const effectPt = buildFlattenedText({ ...card, textSectionsJson });
-    const effectEn = card.effectEn || effectPt;
+    const effectEn = card.effectEn || buildFlattenedText({ ...card, textSectionsJson }, { preferEn: true });
 
     await prisma.card.upsert({
       where: { externalId },

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   computeUnifiedDeckTelemetry,
   getCardMetagameTier,
-  METAGAME_TIERS,
   type DeckCardModel,
 } from "./deck-analytics-engine";
 

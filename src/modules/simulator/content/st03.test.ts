@@ -3,7 +3,7 @@ import { createGame } from "../engine/setup";
 import { placeCard } from "../engine/__testkit__/cardHarness";
 import { buildSt03DeckList, ST03_CARD_DEFS } from "../fixtures/st03Deck";
 import { buildSt04DeckList } from "../fixtures/st04Deck";
-import type { GameState, PlayerId } from "../engine/types";
+import type { GameState } from "../engine/types";
 import { hasKeyword } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";

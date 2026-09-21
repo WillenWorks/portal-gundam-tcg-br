@@ -266,7 +266,7 @@ export function computeSwissStandings(
 export function generateSwissPairings(
   participants: SwissParticipant[],
   previousMatches: SwissMatch[],
-  roundNumber: number,
+  _roundNumber: number,
 ): GeneratedPairing[] {
   // Filtrar apenas jogadores ativos (não dropados)
   const active = participants.filter((p) => !p.isDropped);

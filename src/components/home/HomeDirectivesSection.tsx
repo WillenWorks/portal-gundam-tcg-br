@@ -7,12 +7,9 @@ import {
   ExternalLink,
   Layers,
   ShieldCheck,
-  Sparkles,
   Swords,
   Users,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 

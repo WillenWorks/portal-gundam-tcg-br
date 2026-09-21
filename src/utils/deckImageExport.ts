@@ -492,8 +492,6 @@ export async function generateDeckStatsImageBlob(options: ExportDeckOptions): Pr
     deckName,
     authorName = "Piloto da OZ",
     shareId = "OZ-SPEC",
-    mainCards,
-    colors = [],
     includeOzSeal = true,
     statsSummary,
   } = options;

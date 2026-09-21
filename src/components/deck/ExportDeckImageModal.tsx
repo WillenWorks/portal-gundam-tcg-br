@@ -2,7 +2,7 @@
  * Permite alternar opções (Recursos, Estatísticas, Dados do Piloto, Selo OZ).
  * Quando "Estatísticas" estiver ativado, gera uma 2ª imagem dedicada (Infográfico Tático VEDA). */
 import { useEffect, useState } from "react";
-import { Check, Download, Eye, Layers, Shield, Sparkles, X, BarChart3, Image as ImageIcon } from "lucide-react";
+import { Check, Download, Eye, BarChart3, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";

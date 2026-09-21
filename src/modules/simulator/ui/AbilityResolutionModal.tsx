@@ -410,12 +410,6 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
   );
 }
 
-function withoutKey(map: Record<string, string>, key: string): Record<string, string> {
-  const next = { ...map };
-  delete next[key];
-  return next;
-}
-
 function Toggle({
   active,
   onClick,

@@ -10,15 +10,13 @@ import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
 import {
   XI_GUNDAM_WHEN_PAIRED,
-  XI_GUNDAM_DEPLOY,
-  MESSER_F01_ATTACK,
   PENELOPE_ATTACK,
   JEGAN_DEPLOY,
   VALIANT_DEPLOY,
   DAVAO_ACTIVATE_MAIN,
   ST08_EFFECT_SPECS,
 } from "./st08";
-import { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
+import { defaultPredicateResolver } from "./predicates";
 import { computeStartPhaseEvents } from "../engine/phases";
 
 function freshGame(): GameState {
@@ -83,7 +81,7 @@ describe("ST08 — efeitos em jogo", () => {
   it("ST08-001 Xi Gundam [When Paired] causa 3 de dano na Unit inimiga de maior nível", () => {
     let state = freshGame();
     const xiId = placeCard(state, "A", ST08_CARD_DEFS["ST08-001"], "battleArea");
-    const enemyLv2Id = placeCard(state, "B", ST08_CARD_DEFS["ST08-004"], "battleArea"); // Lv 2, HP 1
+    placeCard(state, "B", ST08_CARD_DEFS["ST08-004"], "battleArea"); // Lv 2, HP 1
     const enemyLv5Id = placeCard(state, "B", ST08_CARD_DEFS["ST08-007"], "battleArea"); // Lv 5, HP 4
 
     // Alvo deve ser enemyLv5Id (maior nível)

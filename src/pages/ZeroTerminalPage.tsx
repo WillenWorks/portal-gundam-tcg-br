@@ -4,26 +4,20 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   BrainCircuit,
   Send,
   Sparkles,
   Zap,
-  Shield,
-  Target,
   RefreshCw,
   Radio,
   BookOpen,
   Sword,
-  Bot,
-  Layers,
   Terminal,
   Cpu,
   CheckCircle2,
-  ExternalLink,
   ChevronRight,
-  Flame,
 } from "lucide-react";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -140,6 +134,10 @@ const SUGGESTED_QUESTIONS = [
   "Como funciona o Sideboard no formato competitivo Bo3?",
 ];
 
+function personaConfigsFallback(p: PilotPersonaId) {
+  return PERSONA_DETAILS[p]?.starterPrompt || "Zero System conectado.";
+}
+
 export default function ZeroTerminalPage() {
   const [activePersona, setActivePersona] = useState<PilotPersonaId>("adaptive");
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -147,7 +145,7 @@ export default function ZeroTerminalPage() {
       id: "msg-welcome",
       sender: "zero",
       persona: "adaptive",
-      text: PERSONA_CONFIGS_FALLBACK("adaptive"),
+      text: personaConfigsFallback("adaptive"),
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       provider: "deterministic",
       references: ["Manual Oficial Bandai GCG", "Glossário Tático Anaheim"],
@@ -156,10 +154,6 @@ export default function ZeroTerminalPage() {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  function PERSONA_CONFIGS_FALLBACK(p: PilotPersonaId) {
-    return PERSONA_DETAILS[p]?.starterPrompt || "Zero System conectado.";
-  }
 
   // Scroll suave ao final da conversa
   useEffect(() => {

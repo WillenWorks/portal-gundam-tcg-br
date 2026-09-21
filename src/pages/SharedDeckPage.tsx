@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import {
-  Activity,
   BarChart3,
   ChevronDown,
   ChevronLeft,
@@ -12,12 +11,9 @@ import {
   Download,
   ExternalLink,
   Eye,
-  Flame,
-  Gauge,
   Heart,
   Layers,
   Shield,
-  ShieldCheck,
   Sparkles,
   Wrench,
   Zap,
@@ -62,7 +58,7 @@ import {
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { MetricTooltip } from "@/components/deck/MetricTooltip";
 import { OpeningHandModal } from "@/components/deck/OpeningHandModal";
-import { StatDetailModal, type StatDetailRow } from "@/components/deck/StatDetailModal";
+import { StatDetailModal } from "@/components/deck/StatDetailModal";
 import { BuildCoreDeckModal, type CoreCardItem } from "@/components/deck/BuildCoreDeckModal";
 import { SourceDecksModal } from "@/components/deck/SourceDecksModal";
 import { VedaTelemetryAssistant } from "@/components/deck/VedaTelemetryAssistant";
@@ -72,7 +68,6 @@ import {
   getCardMetagameTier,
   LOW_COST_MAX,
   LOW_LEVEL_MAX,
-  METAGAME_TIERS,
   type DeckCardModel,
 } from "@/lib/deck-analytics-engine";
 import { detectDeckTokens } from "@/lib/deck-tokens";
@@ -653,17 +648,6 @@ export default function SharedDeckPage() {
     const lines = mainRows.map((r) => `${r.quantity}x ${r.code}`);
     await navigator.clipboard.writeText(lines.join("\n"));
     toast.success("Deck copiado no formato MSA / Exburst!");
-  };
-
-  const exportWingTable = async () => {
-    if (!mainRows.length) return;
-    const lines = [
-      "// Main Deck",
-      ...mainRows.map((r) => `${r.quantity}x ${r.code}`),
-      ...(resourceRows.length ? ["// Resource Deck", ...resourceRows.map((r) => `${r.quantity}x ${r.code}`)] : []),
-    ];
-    await navigator.clipboard.writeText(lines.join("\n"));
-    toast.success("Deck copiado no formato Wing Table!");
   };
 
   // Clonar no Deckbuilder

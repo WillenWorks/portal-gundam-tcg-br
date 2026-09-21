@@ -1154,7 +1154,7 @@ function onSideboardTimeout(matchId: string, expectedDeadline: number): void {
   startNextBo3Game(match);
 }
 
-function handleGameOverTransition(match: MatchRecord, winner: PlayerId | null, reason: string): void {
+function handleGameOverTransition(match: MatchRecord, winner: PlayerId | null, _reason: string): void {
   clearTurnTimer(match.id);
   match.turnDeadlineAt = null;
 

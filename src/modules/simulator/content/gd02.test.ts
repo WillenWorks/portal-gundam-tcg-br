@@ -1375,7 +1375,7 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-19), 11º lote — fecha os 3 
     expect(state.players.A.battleArea.some((c) => c.instanceId === cheapUnitId)).toBe(true);
     expect(state.players.A.resourceArea.filter((r) => !r.rested)).toHaveLength(2);
 
-    let badState = freshGame();
+    const badState = freshGame();
     const sourceId2 = placeCard(badState, "A", GD02_CARD_DEFS["GD02-110"], "hand");
     const highLevelUnitId = placeCard(badState, "A", { ...GD02_CARD_DEFS["GD02-018"], level: 6, cost: 1 }, "trash");
     addActiveResources(badState, "A", 4);

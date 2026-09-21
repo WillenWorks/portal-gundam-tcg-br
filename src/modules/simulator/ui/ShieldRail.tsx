@@ -79,7 +79,11 @@ export function ShieldRail({
         isAreaClickable
           ? (e) => {
               e.stopPropagation();
-              onSelectArea?.() ?? onSelectIndex?.(0);
+              if (onSelectArea) {
+                onSelectArea();
+              } else {
+                onSelectIndex?.(0);
+              }
             }
           : undefined
       }

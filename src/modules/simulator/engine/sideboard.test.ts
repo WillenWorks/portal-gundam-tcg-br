@@ -4,7 +4,7 @@ import {
   applySideboardSwap,
   type DeckListWithSideboard,
 } from "./sideboard";
-import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
+import { buildSt01DeckList } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
 import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
 import { GD02_CARD_DEFS } from "../content/gd02";
