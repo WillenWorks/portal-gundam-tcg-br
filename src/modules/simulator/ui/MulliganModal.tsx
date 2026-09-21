@@ -34,6 +34,11 @@ export function MulliganModal({ hand, art, busy, onResolve }: MulliganModalProps
               code={c.def.code}
               art={art}
               size="md"
+              // docs/56 (revisão do plano de polimento) — `size="md"` só resolve a
+              // ARTE (63x88 vs demais resoluções); o LAYOUT precisa seguir
+              // `--card-w-std` (igual `HandFan.tsx`), senão a carta muda de
+              // tamanho assim que o modal fecha e a mão real aparece.
+              style={{ width: "var(--card-w-std, 2.17rem)" }}
               className="border border-white/10"
             />
           ))}

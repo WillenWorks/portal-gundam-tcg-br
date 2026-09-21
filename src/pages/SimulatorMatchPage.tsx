@@ -447,6 +447,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
+  // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
+  // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
+  // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
+  // (esse já é responsabilidade do `handleSetupAnimDone`).
+  const prevTurnBannerRef = useRef<number | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -1008,6 +1013,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return next;
     });
   }, []);
+
+  // docs/56 (revisão do plano de polimento) — banners de fase recorrentes a
+  // CADA troca de turno (Turno 2, 3, ...), independente da máquina de estados
+  // de abertura (`introStage`), que é one-shot e só cobre o Turno 1. Enfileira
+  // só depois que a abertura já terminou (`introStage === "complete"`) — antes
+  // disso, apenas mantém `prevTurnBannerRef` sincronizado pra não confundir a
+  // 1ª leitura pós-abertura com uma troca de turno real.
+  useEffect(() => {
+    if (!matchView) return;
+    const v = matchView.view;
+    if (introStage !== "complete") {
+      prevTurnBannerRef.current = v.turnNumber;
+      return;
+    }
+    const prevTurn = prevTurnBannerRef.current;
+    prevTurnBannerRef.current = v.turnNumber;
+    if (prevTurn === null || v.turnNumber <= prevTurn || v.gameOver) return;
+
+    const isMyTurn = v.activePlayer === matchView.seat;
+    setPhaseBannerQueue([
+      isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
+      "FASE DE COMPRA",
+      "FASE DE RECUPERAÇÃO",
+      "FASE PRINCIPAL",
+    ]);
+  }, [matchView, introStage]);
 
   // Recuperação de segurança: se a partida já está em andamento (Main Phase, sem mulligan ativo nem animação em curso),
   // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada.
@@ -2334,7 +2365,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }}
         />
       ) : null}
-      {introStage === "phase-banner" && phaseBannerQueue.length > 0 ? (
+      {/* docs/56 (revisão do plano de polimento) — desacoplado de `introStage`:
+          essa era uma máquina de estados ONE-SHOT da abertura (turno 1) que,
+          ao chegar em "complete", nunca mais volta a "phase-banner" sozinha.
+          Renderizar só por `phaseBannerQueue.length > 0` deixa o banner
+          reaparecer nos turnos seguintes, alimentado pelo efeito abaixo. */}
+      {phaseBannerQueue.length > 0 ? (
         <PhaseAnnouncementBanner
           key={phaseBannerQueue[0]}
           phase={phaseBannerQueue[0]}
@@ -2557,7 +2593,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           cards={
             setupAnim === "deal-hand" || setupAnim === "mulligan"
               ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
-              : undefined
+              : setupAnim === "single-draw"
+                ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
+                  // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
+                  // então a última carta visível é sempre a recém-sacada.
+                  (() => {
+                    const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
+                    const last = visible[visible.length - 1];
+                    return last ? [last] : undefined;
+                  })()
+                : undefined
           }
           art={art}
           onDone={handleSetupAnimDone}

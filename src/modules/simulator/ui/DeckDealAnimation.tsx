@@ -4,13 +4,15 @@
  *  - `mulligan`     : as 5 voltam pra pilha → embaralha centralmente → 5 novas saem
  *  - `deal-shields` : 6 cartas completas com moldura dourada e som de impacto de escudo
  *  - `single-draw`  : docs/56 tarefa 2 — 1 carta só, saque normal de Draw Phase
- *    (início de qualquer turno > 1). Rápida (400ms) e nunca bloqueia a mão —
- *    a página não inclui este modo na lista que esvazia a `HandFan`.
+ *    (início de qualquer turno > 1). ~750ms (escalável, ver `animationSettings.ts`)
+ *    e nunca bloqueia a mão — a página não inclui este modo na lista que
+ *    esvazia a `HandFan`.
  *
  * Componente APRESENTACIONAL e auto-contido: renderiza um overlay `fixed`
  * (`pointer-events-none`) com cartas reais e card-backs animados por CSS. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getScaledDuration } from "./animationSettings";
 import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "../audio/soundEffects";
@@ -108,8 +110,11 @@ const HAND_REVEAL_HOLD = 340;
 const SHIELD_STACK_HOLD = 250;
 const RETURN_MS = 340;
 const SHUFFLE_MS = 1300;
-/** docs/56 tarefa 2 — saque de 1 carta por turno: rápido, não segura o jogo. */
-const SINGLE_DRAW_MS = 400;
+/** docs/56 tarefa 2 — saque de 1 carta por turno. Revisão do plano de
+ *  polimento: 400ms cortava a carta antes do jogador conseguir ler o que
+ *  comprou; 750ms (escalado por `getScaledDuration`, ver `animationSettings.ts`)
+ *  dá tempo de ver a face real sem segurar o jogo. */
+const SINGLE_DRAW_BASE_MS = 750;
 
 export function DeckDealAnimation({
   mode,
@@ -121,6 +126,12 @@ export function DeckDealAnimation({
   cards,
   art,
 }: DeckDealAnimationProps) {
+  // lido no corpo (não em const de módulo) pra cada montagem pegar a
+  // velocidade atual — a página remonta este componente (`key={setupAnim}`)
+  // a cada troca de modo, então isso já é "fresco o bastante" sem precisar
+  // reagir a mudanças de configuração no meio de uma animação em curso.
+  const singleDrawMs = useMemo(() => getScaledDuration(SINGLE_DRAW_BASE_MS), []);
+
   const anchored = Boolean(origin && dest);
   const w = cardW && cardW > 0 ? cardW : anchored ? 84 : 140;
   const h = Math.round(w * (88 / 63)); // aspect-[63/88] fixo em pixels para evitar colapso de imagem
@@ -205,7 +216,7 @@ export function DeckDealAnimation({
       timers.push(setTimeout(() => onDoneRef.current(), 6 * SHIELD_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD));
     } else if (mode === "single-draw") {
       sfx.playCardDraw();
-      timers.push(setTimeout(() => onDoneRef.current(), SINGLE_DRAW_MS));
+      timers.push(setTimeout(() => onDoneRef.current(), singleDrawMs));
     } else {
       // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms)
       sfx.playCardDraw();
@@ -230,7 +241,7 @@ export function DeckDealAnimation({
       timers.push(setTimeout(() => onDoneRef.current(), RETURN_MS + SHUFFLE_MS + 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
     }
     return () => timers.forEach(clearTimeout);
-  }, [mode, reduced, base]);
+  }, [mode, reduced, base, singleDrawMs]);
 
   const pts = targets(mode, base, w);
   const shuffling = !reduced && phase === "shuffle";
@@ -343,7 +354,7 @@ export function DeckDealAnimation({
                     "--dy": `${t.dy}px`,
                     zIndex: 40 + i,
                     animationDelay: `${i * travelStagger}ms`,
-                    animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                    animationDuration: mode === "single-draw" ? `${singleDrawMs}ms` : undefined,
                   } as React.CSSProperties
                 }
                 className={cn(
@@ -360,7 +371,7 @@ export function DeckDealAnimation({
                   <div
                     style={{
                       animationDelay: `${i * travelStagger}ms`,
-                      animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                      animationDuration: mode === "single-draw" ? `${singleDrawMs}ms` : undefined,
                     }}
                     className="relative h-full w-full sim-preserve-3d sim-anim-card-flip"
                   >

@@ -176,9 +176,11 @@ describe("DeckDealAnimation", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  // docs/56 tarefa 2 — saque de 1 carta por turno: 1 carta só, som de saque,
-  // onDone em 400ms (rápido, não segura o jogo).
-  it("docs/56 — single-draw: 1 carta viajando, toca playCardDraw e chama onDone em 400ms", () => {
+  // docs/56 tarefa 2 (revisão do plano de polimento) — saque de 1 carta por
+  // turno: 1 carta só, som de saque, onDone em ~750ms (tempo pra ler a carta
+  // real comprada, sem segurar o jogo). Escalável por `getScaledDuration` —
+  // este teste roda sem `localStorage` configurado, então usa o default (1x).
+  it("docs/56 — single-draw: 1 carta viajando, toca playCardDraw e chama onDone em 750ms", () => {
     mockMatchMedia(false);
     const onDone = vi.fn();
     const playCardDrawSpy = vi.spyOn(sfx, "playCardDraw");
@@ -187,7 +189,7 @@ describe("DeckDealAnimation", () => {
     expect(container.querySelectorAll(".sim-anim-deal")).toHaveLength(1);
     expect(playCardDrawSpy).toHaveBeenCalledTimes(1);
 
-    advance(399);
+    advance(749);
     expect(onDone).not.toHaveBeenCalled();
     advance(1);
     expect(onDone).toHaveBeenCalledTimes(1);

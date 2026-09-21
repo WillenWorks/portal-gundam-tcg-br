@@ -3,6 +3,7 @@
  * com estilo HUD mecha/Gundam, brilhos de neon e sincronia de som procedural.
  */
 import { useEffect, useRef, useState } from "react";
+import { getScaledDuration } from "./animationSettings";
 import { sfx } from "../audio/soundEffects";
 
 export interface PhaseAnnouncementBannerProps {
@@ -15,7 +16,9 @@ export interface PhaseAnnouncementBannerProps {
 export function PhaseAnnouncementBanner({
   phase,
   sub = "SISTEMA TÁTICO ATIVO",
-  durationMs = 1200,
+  // docs/56 (revisão do plano) — sem `durationMs` explícito, escala pela
+  // velocidade escolhida em `SettingsMenu` (0.75x segura mais, 2x quase não pausa).
+  durationMs = getScaledDuration(1200),
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const [visible, setVisible] = useState(true);
