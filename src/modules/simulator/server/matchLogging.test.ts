@@ -79,6 +79,7 @@ describe("Simulator Match Logging e Telemetria", () => {
       level: "normal",
       human: USER_A,
       seed: 123,
+      firstPlayer: "A",
     });
 
     resignMatch(matchId, USER_A.userId);
@@ -196,6 +197,7 @@ describe("Simulator Match Logging e Telemetria", () => {
       level: "normal",
       human: USER_A,
       seed: 777,
+      firstPlayer: "A",
     });
 
     const match = getMatch(matchId)!;

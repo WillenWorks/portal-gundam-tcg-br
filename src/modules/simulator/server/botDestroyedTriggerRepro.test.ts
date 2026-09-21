@@ -41,6 +41,7 @@ describe("Resolução de gatilhos 【Destroyed】 pelo Bot (Char's Zaku II e sim
       level: "normal",
       human: HUMAN,
       seed: 1234,
+      firstPlayer: "A",
     });
 
     const m = getMatch(matchId)!;

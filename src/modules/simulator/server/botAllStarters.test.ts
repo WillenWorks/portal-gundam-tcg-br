@@ -31,6 +31,7 @@ describe("Bot no Modo Normal com Todos os Starters (ST01, ST02, ST03, ST04)", ()
         level: "normal",
         human: HUMAN,
         seed,
+        firstPlayer: "A",
       });
 
       const m = getMatch(mId)!;

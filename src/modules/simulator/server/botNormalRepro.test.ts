@@ -20,6 +20,7 @@ describe("Bot no Modo Normal (ST01 vs ST01) — Fluxo de Turno e Priorização d
         level: "normal",
         human: HUMAN,
         seed: testSeed,
+        firstPlayer: "A",
       });
 
       const m = getMatch(mId)!;
