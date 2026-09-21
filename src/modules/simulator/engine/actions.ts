@@ -663,7 +663,10 @@ function applyPlayerActionInner(
 function enforceZoneLimits(state: GameState): GameState {
   let next = state;
   for (const player of ["A", "B"] as PlayerId[]) {
-    if (next.pendingDecision[player]) continue; // já tem outra decisão pendente — resolve essa primeiro, o próximo enforceZoneLimits (na próxima ação) pega o excesso
+    // Só UMA decisão pendente por vez, no jogo inteiro (invariante de checkStateInvariants):
+    // se qualquer um dos dois lados já tem decisão pendente, resolve essa primeiro — o próximo
+    // enforceZoneLimits (depois da ação que resolver a pendente) pega o excesso.
+    if (next.pendingDecision.A || next.pendingDecision.B) continue;
     const units = next.players[player].battleArea.filter((c) => c.def.cardType === "UNIT");
     if (units.length <= 6) continue;
     next = applyEvent(next, {
