@@ -111,6 +111,32 @@ describe("createTrainingMatch", () => {
     const { matchId } = createTrainingMatch({ deckId: "st02", level: "normal", human: HUMAN });
     expect(getMatch(matchId)!.deckKeys.A).toBe("ST02");
   });
+
+  it("sorteia o firstPlayer quando não informado (nunca undefined, sempre A ou B)", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 30; i += 1) {
+      const { matchId } = createTrainingMatch({ deckId: "ST01", level: "facil", human: HUMAN });
+      const state = getMatch(matchId)!.state;
+      seen.add(state.activePlayer);
+    }
+    // Com 30 tentativas e 50/50, a chance de nunca sortear um dos lados é
+    // ~2^-29 — na prática, prova que os dois ramos existem sem travar em RNG mockado.
+    expect(seen).toEqual(new Set(["A", "B"]));
+  });
+
+  it("respeita firstPlayer explícito = A (humano compra no turno 1)", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "facil", human: HUMAN, firstPlayer: "A", seed: 7 });
+    expect(getMatch(matchId)!.state.activePlayer).toBe("A");
+  });
+
+  it("respeita firstPlayer explícito = B (bot compra e faz mulligan no turno 1)", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "facil", human: HUMAN, firstPlayer: "B", seed: 7 });
+    const match = getMatch(matchId)!;
+    expect(match.state.activePlayer).toBe("B");
+    // O mulligan interativo é atribuído ao firstPlayer primeiro (setup.ts) — com o
+    // bot começando, é o assento B que tem a decisão pendente, não o A.
+    expect(decisionOwner(match.state)).toBe("B");
+  });
 });
 
 describe("botSeatFromSeats", () => {
@@ -127,7 +153,7 @@ describe("matchStore — enfileira o turno do bot", () => {
     const calls: BotTurnRequest[] = [];
     setBotTurnSink((req) => calls.push(req));
 
-    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 3 });
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 3, firstPlayer: "A" });
 
     // Resolve o mulligan do humano (e qualquer decisão inicial dele). Enquanto for
     // a vez do humano, nada é enfileirado.
@@ -147,7 +173,21 @@ describe("matchStore — enfileira o turno do bot", () => {
   });
 
   it("não enfileira nada quando não há sink registrado", () => {
-    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 3 });
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 3, firstPlayer: "A" });
     expect(() => driveHumanUntilNotActive(matchId)).not.toThrow();
+  });
+
+  it("bot começando (firstPlayer=B): enfileira o mulligan do bot IMEDIATAMENTE na criação, antes de qualquer ação do humano", () => {
+    const calls: BotTurnRequest[] = [];
+    setBotTurnSink((req) => calls.push(req));
+
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 3, firstPlayer: "B" });
+
+    // `armTurnTimer` roda dentro de `createMatch` — o bot já deve ter sido
+    // enfileirado pra resolver o próprio mulligan sem nenhuma ação prévia do humano.
+    expect(decisionOwner(getMatch(matchId)!.state)).toBe("B");
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    expect(calls[0]).toMatchObject({ matchId, seat: "B", level: "normal" });
+    expect(calls.filter((c) => c.seat === "A")).toHaveLength(0);
   });
 });

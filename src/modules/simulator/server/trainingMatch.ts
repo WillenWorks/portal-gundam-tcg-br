@@ -1,4 +1,5 @@
 import { createMatch, joinMatch, type MatchSeat } from "./matchStore";
+import type { PlayerId } from "../engine/types";
 import { VALIDATED_DECKS, isValidatedDeck } from "../content/validatedDecks";
 
 /**
@@ -61,6 +62,14 @@ export interface CreateTrainingMatchInput {
   human: { userId: string; displayName: string };
   /** default: aleatório — passe um valor fixo só em teste, pra determinismo. */
   seed?: number;
+  /**
+   * Quem começa a partida (compra no turno 1). Default: sorteio 50/50, igual
+   * ao matchmaking PvP (`createMatch` na fila). Passe um valor fixo só em
+   * teste — NÃO deriva do `seed`, que já alimenta o RNG de embaralhamento do
+   * baralho e do mulligan (`createRng(seed ^ nonce)`); reaproveitar o mesmo
+   * seed cru pra essa decisão correlacionaria as duas coisas.
+   */
+  firstPlayer?: PlayerId;
 }
 
 /**
@@ -109,7 +118,7 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
   const match = createMatch({
     deckA,
     deckB,
-    firstPlayer: "A",
+    firstPlayer: input.firstPlayer ?? (Math.random() < 0.5 ? "A" : "B"),
     seed: input.seed,
     mode: "training",
   });
