@@ -127,6 +127,7 @@ import {
   BattleSlot,
   buildBattleLog,
   BurstModal,
+  BurstRevealStage,
   cardBackUrl,
   CardDepartureAnimation,
   type DepartingCard,
@@ -135,6 +136,7 @@ import {
   CenterDecisionModal,
   type LinkedPilot,
   CombatLane,
+  CommandCastAnimation,
   CounterChip,
   DeckDealAnimation,
   type DeckDealMode,
@@ -474,6 +476,24 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   } | null>(null);
   const prevCombatRef = useRef<CombatState | null>(null);
 
+  // "Nova leva de correções" — revelação cinemática do 【Burst】: guarda o
+  // `cardInstanceId` da última decisão de Burst cuja animação de revelação já
+  // rodou. Enquanto `myBurstDecision.cardInstanceId` (calculado mais abaixo)
+  // for diferente disto, mostramos o `BurstRevealStage` em vez do `BurstModal`.
+  const [burstRevealedId, setBurstRevealedId] = useState<string | null>(null);
+
+  // "Nova leva de correções" — lançamento e revelação de Comandos: enquanto
+  // não-nulo, `CommandCastAnimation` é renderizado; `commandCastResolveRef`
+  // permite ao `runAction` (definido mais abaixo) esperar a animação terminar
+  // antes de seguir com o dispatch real, sem precisar transformar isto num
+  // `useEffect` separado.
+  const [commandCast, setCommandCast] = useState<{
+    cardDef: CardDef;
+    origin: { x: number; y: number } | null;
+    dest: { x: number; y: number } | null;
+  } | null>(null);
+  const commandCastResolveRef = useRef<(() => void) | null>(null);
+
   const executeAttackStrike = useCallback(
     async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
       const reduced =
@@ -544,8 +564,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           const wasBase = !wasUnit && prevPlayer.baseSection.some((c) => c.instanceId === id);
           const wasOwnHand =
             !wasUnit && !wasBase && pid === incoming.seat && prevPlayer.hand.some((c) => !isHidden(c) && c.instanceId === id);
-          if (!wasUnit && !wasBase && !wasOwnHand) continue; // sem origem conhecida — nada pra animar
-          const originKey = wasUnit ? id : wasBase ? playerAreaKey(pid) : "hand:self";
+          // Frente "Nova leva" — shield quebrado indo pro Trash/Exílio (dano de batalha
+          // sem Burst, ou Burst recusado): `shields` é sempre `HiddenCard[]` (ver
+          // `viewState.ts`), mas o `instanceId` sobrevive à redação, então dá pra casar
+          // mesmo sem saber a identidade da carta antes dela virar pública no trash.
+          const wasShield = !wasUnit && !wasBase && !wasOwnHand && prevPlayer.shields.some((c) => c.instanceId === id);
+          if (!wasUnit && !wasBase && !wasOwnHand && !wasShield) continue; // sem origem conhecida — nada pra animar
+          const originKey = wasUnit ? id : wasBase ? playerAreaKey(pid) : wasShield ? `shieldRail:${pid}` : "hand:self";
           const originRect = board.rectOf(originKey);
           if (!originRect) continue;
           const destKey = isExileMove.has(id) ? `exileStation:${pid}` : `trashStation:${pid}`;
@@ -583,11 +608,21 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
 
-      // Se o combate anterior estava na fase de ação e a nova visão encerrou/resolveu dano:
+      // Nova leva de correções — causa raiz real do lunge nunca disparar contra o
+      // Bot: em modo treino tanto o assento humano quanto o bot têm
+      // `autoPassActionStep: true` (`trainingMatch.ts`), e `settleAutoPasses`
+      // (`matchStore.ts`) resolve o Action Step dos DOIS lados de forma síncrona no
+      // servidor antes de qualquer resposta chegar aqui — o cliente nunca observa
+      // `combat.step === "action"`. Por isso o gatilho não pode depender de um
+      // `step` intermediário específico: dispara sempre que o combate do MESMO
+      // atacante (attackerId/currentTarget/defendingPlayer já existem desde o
+      // passo "attack") deixou de existir, ou terminou em "battleEnd", ou um novo
+      // combate com atacante diferente já começou no lugar dele.
       if (
         prevCombat &&
-        prevCombat.step === "action" &&
-        (!incoming.view.combat || incoming.view.combat.step === "battleEnd")
+        (!incoming.view.combat ||
+          incoming.view.combat.attackerId !== prevCombat.attackerId ||
+          incoming.view.combat.step === "battleEnd")
       ) {
         executeAttackStrike(prevCombat.attackerId, prevCombat.currentTarget, prevCombat.defendingPlayer).then(() => {
           setMatchView((prev) => {
@@ -695,8 +730,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           sfx.playShieldBlock();
           await new Promise((r) => setTimeout(r, 300));
         } else if (action.kind === "playCommand") {
-          sfx.playNewtypeFlash();
-          await new Promise((r) => setTimeout(r, 120));
+          // "Nova leva de correções" — revelação da carta de Comando antes do
+          // descarte (era só um `setTimeout(120)` sem nenhum feedback visual).
+          const currentView = matchView;
+          const cardInHand = currentView?.view.players[currentView.seat].hand.find(
+            (c) => !isHidden(c) && c.instanceId === action.cardInstanceId,
+          ) as CardInstance | undefined;
+          if (currentView && cardInHand) {
+            const origin = rectCenter(board.rectOf("hand:self"));
+            const dest = rectCenter(board.rectOf(`trashStation:${currentView.seat}`));
+            await new Promise<void>((resolve) => {
+              commandCastResolveRef.current = resolve;
+              setCommandCast({ cardDef: cardInHand.def, origin, dest });
+            });
+          } else {
+            sfx.playNewtypeFlash();
+            await new Promise((r) => setTimeout(r, 120));
+          }
         } else if (action.kind === "finishTurn") {
           sfx.playTurnStartAlert();
           await new Promise((r) => setTimeout(r, 100));
@@ -720,7 +770,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [sendAction, showActionError],
+    [sendAction, showActionError, matchView, board],
   );
 
   const handleSideboardSubmit = useCallback(
@@ -2379,7 +2429,30 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
 
       {/* docs/19, Sessão 2/3 — decisões interativas. */}
-      {myBurstDecision ? (
+      {commandCast ? (
+        <CommandCastAnimation
+          cardDef={commandCast.cardDef}
+          art={art}
+          origin={commandCast.origin}
+          dest={commandCast.dest}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          onDone={() => {
+            setCommandCast(null);
+            commandCastResolveRef.current?.();
+            commandCastResolveRef.current = null;
+          }}
+        />
+      ) : null}
+      {myBurstDecision && myBurstDecision.cardInstanceId !== burstRevealedId ? (
+        <BurstRevealStage
+          key={myBurstDecision.cardInstanceId}
+          cardDef={myBurstDecision.cardDef}
+          art={art}
+          origin={shieldRailCenter(board.rectOf(`shieldRail:${seat}`))}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          onDone={() => setBurstRevealedId(myBurstDecision.cardInstanceId)}
+        />
+      ) : myBurstDecision ? (
         <BurstModal
           decision={myBurstDecision}
           art={art}
