@@ -4,13 +4,15 @@
  *  - `mulligan`     : as 5 voltam pra pilha → embaralha centralmente → 5 novas saem
  *  - `deal-shields` : 6 cartas completas com moldura dourada e som de impacto de escudo
  *  - `single-draw`  : docs/56 tarefa 2 — 1 carta só, saque normal de Draw Phase
- *    (início de qualquer turno > 1). Rápida (400ms) e nunca bloqueia a mão —
- *    a página não inclui este modo na lista que esvazia a `HandFan`.
+ *    (início de qualquer turno > 1). ~750ms (escalável, ver `animationSettings.ts`)
+ *    e nunca bloqueia a mão — a página não inclui este modo na lista que
+ *    esvazia a `HandFan`.
  *
  * Componente APRESENTACIONAL e auto-contido: renderiza um overlay `fixed`
  * (`pointer-events-none`) com cartas reais e card-backs animados por CSS. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { getScaledDuration } from "./animationSettings";
 import { cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import { sfx } from "../audio/soundEffects";
@@ -98,18 +100,24 @@ function targets(
   }));
 }
 
-const DEAL_STAGGER = 90;
+// revisão do plano de polimento, item 2 — valores-base a 1x. Escalados por
+// `getScaledDuration` no CORPO do componente (não aqui: `const` de módulo só
+// roda 1x no import, antes de qualquer velocidade salva existir).
+const DEAL_STAGGER_BASE_MS = 90;
 /** docs/53 — escudos usam um stagger mais lento que a mão: 6 cartas empilhando
  *  em 90ms cada ficavam borradas/quase simultâneas; 160ms deixa cada uma
  *  visivelmente voar e pousar antes da próxima sair da pilha. */
-const SHIELD_STAGGER = 160;
-const FLIGHT_MS = 450;
-const HAND_REVEAL_HOLD = 340;
-const SHIELD_STACK_HOLD = 250;
-const RETURN_MS = 340;
-const SHUFFLE_MS = 1300;
-/** docs/56 tarefa 2 — saque de 1 carta por turno: rápido, não segura o jogo. */
-const SINGLE_DRAW_MS = 400;
+const SHIELD_STAGGER_BASE_MS = 160;
+const FLIGHT_BASE_MS = 450;
+const HAND_REVEAL_HOLD_BASE_MS = 340;
+const SHIELD_STACK_HOLD_BASE_MS = 250;
+const RETURN_BASE_MS = 340;
+const SHUFFLE_BASE_MS = 1300;
+/** docs/56 tarefa 2 — saque de 1 carta por turno. Revisão do plano de
+ *  polimento: 400ms cortava a carta antes do jogador conseguir ler o que
+ *  comprou; 750ms (escalado por `getScaledDuration`, ver `animationSettings.ts`)
+ *  dá tempo de ver a face real sem segurar o jogo. */
+const SINGLE_DRAW_BASE_MS = 750;
 
 export function DeckDealAnimation({
   mode,
@@ -121,6 +129,19 @@ export function DeckDealAnimation({
   cards,
   art,
 }: DeckDealAnimationProps) {
+  // lido no corpo (não em const de módulo) pra cada montagem pegar a
+  // velocidade atual — a página remonta este componente (`key={setupAnim}`)
+  // a cada troca de modo, então isso já é "fresco o bastante" sem precisar
+  // reagir a mudanças de configuração no meio de uma animação em curso.
+  const singleDrawMs = useMemo(() => getScaledDuration(SINGLE_DRAW_BASE_MS), []);
+  const dealStagger = useMemo(() => getScaledDuration(DEAL_STAGGER_BASE_MS), []);
+  const shieldStagger = useMemo(() => getScaledDuration(SHIELD_STAGGER_BASE_MS), []);
+  const flightMs = useMemo(() => getScaledDuration(FLIGHT_BASE_MS), []);
+  const handRevealHold = useMemo(() => getScaledDuration(HAND_REVEAL_HOLD_BASE_MS), []);
+  const shieldStackHold = useMemo(() => getScaledDuration(SHIELD_STACK_HOLD_BASE_MS), []);
+  const returnMs = useMemo(() => getScaledDuration(RETURN_BASE_MS), []);
+  const shuffleMs = useMemo(() => getScaledDuration(SHUFFLE_BASE_MS), []);
+
   const anchored = Boolean(origin && dest);
   const w = cardW && cardW > 0 ? cardW : anchored ? 84 : 140;
   const h = Math.round(w * (88 / 63)); // aspect-[63/88] fixo em pixels para evitar colapso de imagem
@@ -180,63 +201,63 @@ export function DeckDealAnimation({
     if (mode === "shuffle") {
       // Riffle rítmico de cartas durante o embaralhamento
       [100, 320, 560, 800, 1040].forEach((ms) => {
-        timers.push(setTimeout(() => sfx.playCardDraw(), ms));
+        timers.push(setTimeout(() => sfx.playCardDraw(), getScaledDuration(ms)));
       });
-      timers.push(setTimeout(() => onDoneRef.current(), SHUFFLE_MS));
+      timers.push(setTimeout(() => onDoneRef.current(), shuffleMs));
     } else if (mode === "deal-hand") {
       // Som individual de saque para cada uma das 5 cartas
       for (let i = 0; i < 5; i++) {
-        timers.push(setTimeout(() => sfx.playCardDraw(), i * DEAL_STAGGER));
+        timers.push(setTimeout(() => sfx.playCardDraw(), i * dealStagger));
       }
       // Última carta aterrissa e vira em 4 * 120 + 560 = 1040ms.
       // Sfx suave de confirmação de mão pronta:
-      timers.push(setTimeout(() => sfx.playCardDraw(), 4 * DEAL_STAGGER + FLIGHT_MS));
+      timers.push(setTimeout(() => sfx.playCardDraw(), 4 * dealStagger + flightMs));
       // Hold para o jogador ver as cartas compradas antes de passar o controle à mão:
-      timers.push(setTimeout(() => onDoneRef.current(), 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
+      timers.push(setTimeout(() => onDoneRef.current(), 4 * dealStagger + flightMs + handRevealHold));
     } else if (mode === "deal-shields") {
       // Som individual de saída para cada um dos 6 escudos, no stagger mais
       // lento (docs/53) pra cada um ficar visivelmente audível ao sair da pilha.
       for (let i = 0; i < 6; i++) {
-        timers.push(setTimeout(() => sfx.playCardDraw(), i * SHIELD_STAGGER));
+        timers.push(setTimeout(() => sfx.playCardDraw(), i * shieldStagger));
       }
       // O 6º escudo (índice 5) pousa e trava — impacto de escudo!
-      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * SHIELD_STAGGER + FLIGHT_MS));
+      timers.push(setTimeout(() => sfx.playShieldBlock(), 5 * shieldStagger + flightMs));
       // Hold com os 6 escudos empilhados e visíveis antes de liberar pro ShieldRail real:
-      timers.push(setTimeout(() => onDoneRef.current(), 6 * SHIELD_STAGGER + FLIGHT_MS + SHIELD_STACK_HOLD));
+      timers.push(setTimeout(() => onDoneRef.current(), 6 * shieldStagger + flightMs + shieldStackHold));
     } else if (mode === "single-draw") {
       sfx.playCardDraw();
-      timers.push(setTimeout(() => onDoneRef.current(), SINGLE_DRAW_MS));
+      timers.push(setTimeout(() => onDoneRef.current(), singleDrawMs));
     } else {
-      // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms)
+      // Mulligan: return (460ms) → shuffle (1300ms) → deal (1790ms) — a 1x; escala com a velocidade.
       sfx.playCardDraw();
       timers.push(
         setTimeout(() => {
           setPhase("shuffle");
           sfx.playNewtypeFlash();
           [200, 480, 760, 1020].forEach((ms) => {
-            timers.push(setTimeout(() => sfx.playCardDraw(), ms));
+            timers.push(setTimeout(() => sfx.playCardDraw(), getScaledDuration(ms)));
           });
-        }, RETURN_MS),
+        }, returnMs),
       );
       timers.push(
         setTimeout(() => {
           setPhase("deal");
           for (let i = 0; i < 5; i++) {
-            timers.push(setTimeout(() => sfx.playCardDraw(), i * DEAL_STAGGER));
+            timers.push(setTimeout(() => sfx.playCardDraw(), i * dealStagger));
           }
-          timers.push(setTimeout(() => sfx.playCardDraw(), 4 * DEAL_STAGGER + FLIGHT_MS));
-        }, RETURN_MS + SHUFFLE_MS),
+          timers.push(setTimeout(() => sfx.playCardDraw(), 4 * dealStagger + flightMs));
+        }, returnMs + shuffleMs),
       );
-      timers.push(setTimeout(() => onDoneRef.current(), RETURN_MS + SHUFFLE_MS + 4 * DEAL_STAGGER + FLIGHT_MS + HAND_REVEAL_HOLD));
+      timers.push(setTimeout(() => onDoneRef.current(), returnMs + shuffleMs + 4 * dealStagger + flightMs + handRevealHold));
     }
     return () => timers.forEach(clearTimeout);
-  }, [mode, reduced, base]);
+  }, [mode, reduced, base, singleDrawMs, dealStagger, shieldStagger, flightMs, handRevealHold, shieldStackHold, returnMs, shuffleMs]);
 
   const pts = targets(mode, base, w);
   const shuffling = !reduced && phase === "shuffle";
   const showTravel = !reduced && (phase === "deal" || phase === "return");
-  // docs/53 — escudos usam o stagger mais lento (SHIELD_STAGGER); mão/mulligan seguem no DEAL_STAGGER de sempre.
-  const travelStagger = mode === "deal-shields" ? SHIELD_STAGGER : DEAL_STAGGER;
+  // docs/53 — escudos usam o stagger mais lento; mão/mulligan seguem no dealStagger de sempre.
+  const travelStagger = mode === "deal-shields" ? shieldStagger : dealStagger;
 
   return (
     <div
@@ -343,7 +364,7 @@ export function DeckDealAnimation({
                     "--dy": `${t.dy}px`,
                     zIndex: 40 + i,
                     animationDelay: `${i * travelStagger}ms`,
-                    animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                    animationDuration: mode === "single-draw" ? `${singleDrawMs}ms` : undefined,
                   } as React.CSSProperties
                 }
                 className={cn(
@@ -360,7 +381,7 @@ export function DeckDealAnimation({
                   <div
                     style={{
                       animationDelay: `${i * travelStagger}ms`,
-                      animationDuration: mode === "single-draw" ? `${SINGLE_DRAW_MS}ms` : undefined,
+                      animationDuration: mode === "single-draw" ? `${singleDrawMs}ms` : undefined,
                     }}
                     className="relative h-full w-full sim-preserve-3d sim-anim-card-flip"
                   >

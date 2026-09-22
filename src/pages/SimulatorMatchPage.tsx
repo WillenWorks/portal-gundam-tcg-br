@@ -114,6 +114,8 @@ import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } fro
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
+import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
+import { shouldAnimateAttackStrike, shouldWaitForBurstReveal } from "@/modules/simulator/ui/viewAnimationQueue";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -127,6 +129,7 @@ import {
   BattleSlot,
   buildBattleLog,
   BurstModal,
+  BurstRevealStage,
   cardBackUrl,
   CardDepartureAnimation,
   type DepartingCard,
@@ -135,6 +138,7 @@ import {
   CenterDecisionModal,
   type LinkedPilot,
   CombatLane,
+  CommandCastAnimation,
   CounterChip,
   DeckDealAnimation,
   type DeckDealMode,
@@ -149,6 +153,11 @@ import {
   TriggerOrderModal,
   useBoardElements,
   AbilityResolutionModal,
+  pickSingleTarget,
+  pickSecondaryTarget,
+  toggleMultiTarget,
+  usesBoardTargetingForPrimary,
+  usesBoardTargetingForSecondary,
   ZoneOverflowModal,
   BugReportModal,
   GameOverOverlay,
@@ -190,6 +199,14 @@ const MOBILE_QUERY = "(max-width: 1023px)";
 const EXIT_ROUTE = "/portal";
 /** Ao encerrar a partida (fim de jogo por qualquer motivo), o jogador é levado de volta ao site depois disso. */
 const GAME_OVER_REDIRECT_MS = 8_000;
+/** "Nova leva de correções" (item 3, plano v2) — rede de segurança da fila de
+ *  reprodução de views: se uma animação (lunge de ataque, revelação de Burst)
+ *  nunca chamar seu callback de conclusão por causa de algum bug, a fila força
+ *  o avanço pro próximo item em vez de travar a partida pra sempre. NÃO é
+ *  escalada por `getScaledDuration` — é uma rede de segurança contra bug, não
+ *  uma duração de animação de verdade (não deve variar com a velocidade
+ *  escolhida pelo jogador). */
+const VIEW_QUEUE_ITEM_TIMEOUT_MS = 5_000;
 
 function isHidden(card: ViewCardInstance): card is HiddenCard {
   return "hidden" in card && (card as HiddenCard).hidden === true;
@@ -364,6 +381,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  /** "Nova leva de correções" (item 4, plano v2) — alvo(s) de uma decisão
+   *  `abilityResolution` em andamento (ex.: ST05-010 Mikazuki Augus), agora
+   *  controlado aqui (não mais dentro do `AbilityResolutionModal`) porque o
+   *  clique direto na Unit no tabuleiro (glow inline) precisa escrever no
+   *  MESMO estado que o modal lê — se cada um tivesse sua própria cópia,
+   *  clicar no tabuleiro não refletiria no modal (e vice-versa). specId →
+   *  lista de instanceIds selecionados; `abilityActivate` é o toggle
+   *  Ativar/Pular de cada item da fila (default `true`, só relevante pra
+   *  efeitos `optional`). */
+  const [abilityTargets, setAbilityTargets] = useState<Record<string, string[]>>({});
+  const [abilitySecondaryTargets, setAbilitySecondaryTargets] = useState<Record<string, string[]>>({});
+  const [abilityActivate, setAbilityActivate] = useState<Record<string, boolean>>({});
+  /** assinatura (specIds concatenados) da última decisão `abilityResolution`
+   *  vista — só reseta os 3 estados acima quando essa assinatura MUDA (nova
+   *  decisão), não a cada `matchView` novo (ping/relógio geram views novas
+   *  sem trocar de decisão, e resetar ali apagaria a seleção no meio do clique). */
+  const abilityDecisionSignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    const decision = matchView?.view.pendingDecision[matchView.seat];
+    const signature = decision?.kind === "abilityResolution" ? decision.queue.map((q) => q.specId).join(",") : null;
+    if (signature === abilityDecisionSignatureRef.current) return;
+    abilityDecisionSignatureRef.current = signature;
+    setAbilityTargets({});
+    setAbilitySecondaryTargets({});
+    setAbilityActivate(
+      signature && decision?.kind === "abilityResolution"
+        ? Object.fromEntries(decision.queue.map((q) => [q.specId, true]))
+        : {},
+    );
+  }, [matchView]);
   /** instanceIds dos Recursos ativos escolhidos pra restar/pagar o custo da carta em `pending` (seleção manual — 2026-09-01). */
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -447,6 +494,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
+  // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
+  // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
+  // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
+  // (esse já é responsabilidade do `handleSetupAnimDone`).
+  const prevTurnBannerRef = useRef<number | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -469,6 +521,59 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   } | null>(null);
   const prevCombatRef = useRef<CombatState | null>(null);
 
+  // "Nova leva de correções" — revelação cinemática do 【Burst】: guarda o
+  // `cardInstanceId` da última decisão de Burst cuja animação de revelação já
+  // rodou. Enquanto `myBurstDecision.cardInstanceId` (calculado mais abaixo)
+  // for diferente disto, mostramos o `BurstRevealStage` em vez do `BurstModal`.
+  const [burstRevealedId, setBurstRevealedId] = useState<string | null>(null);
+  // Espelha `burstRevealedId` num ref (lido de dentro de `processIncomingView`,
+  // que não pode depender do valor de state "congelado" do fechamento do
+  // `useCallback` — precisa do valor mais recente a cada view processada).
+  const burstRevealedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    burstRevealedIdRef.current = burstRevealedId;
+  }, [burstRevealedId]);
+  // "Nova leva de correções" (item 3, plano v2) — ponte entre a fila de views
+  // (assíncrona, dentro de `processIncomingView`) e o `BurstRevealStage`
+  // (disparado pelo RENDER, não por essa função): quando a view processada
+  // introduz um Burst ainda não revelado, a fila registra aqui um resolver e
+  // ESPERA — o efeito abaixo dispara esse resolver assim que `burstRevealedId`
+  // alcançar o `cardInstanceId` esperado (ou o timeout de segurança estoura).
+  const burstRevealWaiterRef = useRef<{ cardInstanceId: string; resolve: () => void } | null>(null);
+  useEffect(() => {
+    const waiter = burstRevealWaiterRef.current;
+    if (waiter && waiter.cardInstanceId === burstRevealedId) {
+      burstRevealWaiterRef.current = null;
+      waiter.resolve();
+    }
+  }, [burstRevealedId]);
+  const waitForBurstReveal = useCallback((cardInstanceId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      burstRevealWaiterRef.current = { cardInstanceId, resolve };
+      // Rede de segurança (docs/plano v2, item 3): se o `BurstRevealStage` nunca
+      // chamar `onDone` por algum bug, a fila não pode travar pra sempre.
+      setTimeout(() => {
+        if (burstRevealWaiterRef.current?.cardInstanceId === cardInstanceId) {
+          console.warn(`[simulador] BurstRevealStage de ${cardInstanceId} não terminou a tempo — liberando a fila.`);
+          burstRevealWaiterRef.current = null;
+          resolve();
+        }
+      }, VIEW_QUEUE_ITEM_TIMEOUT_MS);
+    });
+  }, []);
+
+  // "Nova leva de correções" — lançamento e revelação de Comandos: enquanto
+  // não-nulo, `CommandCastAnimation` é renderizado; `commandCastResolveRef`
+  // permite ao `runAction` (definido mais abaixo) esperar a animação terminar
+  // antes de seguir com o dispatch real, sem precisar transformar isto num
+  // `useEffect` separado.
+  const [commandCast, setCommandCast] = useState<{
+    cardDef: CardDef;
+    origin: { x: number; y: number } | null;
+    dest: { x: number; y: number } | null;
+  } | null>(null);
+  const commandCastResolveRef = useRef<(() => void) | null>(null);
+
   const executeAttackStrike = useCallback(
     async (attackerId: string, currentTarget: AttackTarget, defendingPlayer: PlayerId) => {
       const reduced =
@@ -486,7 +591,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       // 1. Avanço/lunge tático contra o alvo inimigo
       setActiveStrike({ attackerId, towardX, towardY, phase: "advance" });
-      await new Promise((r) => setTimeout(r, 260));
+      await new Promise((r) => setTimeout(r, getScaledDuration(260)));
 
       // 2. Disparo de feixe / impacto no alvo — ataque direto (jogador) ganha
       // tremor visual na trilha de shields do lado atingido (docs/55 tarefa 5).
@@ -501,11 +606,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         phase: "strike",
         shieldsOf: currentTarget === "player" ? defendingPlayer : undefined,
       });
-      await new Promise((r) => setTimeout(r, 220));
+      await new Promise((r) => setTimeout(r, getScaledDuration(220)));
 
       // 3. Recuo suave de volta para a sua área
       setActiveStrike({ attackerId, towardX, towardY, phase: "return" });
-      await new Promise((r) => setTimeout(r, 280));
+      await new Promise((r) => setTimeout(r, getScaledDuration(280)));
 
       // 4. Conclui animação
       setActiveStrike(null);
@@ -539,8 +644,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           const wasBase = !wasUnit && prevPlayer.baseSection.some((c) => c.instanceId === id);
           const wasOwnHand =
             !wasUnit && !wasBase && pid === incoming.seat && prevPlayer.hand.some((c) => !isHidden(c) && c.instanceId === id);
-          if (!wasUnit && !wasBase && !wasOwnHand) continue; // sem origem conhecida — nada pra animar
-          const originKey = wasUnit ? id : wasBase ? playerAreaKey(pid) : "hand:self";
+          // Frente "Nova leva" — shield quebrado indo pro Trash/Exílio (dano de batalha
+          // sem Burst, ou Burst recusado): `shields` é sempre `HiddenCard[]` (ver
+          // `viewState.ts`), mas o `instanceId` sobrevive à redação, então dá pra casar
+          // mesmo sem saber a identidade da carta antes dela virar pública no trash.
+          const wasShield = !wasUnit && !wasBase && !wasOwnHand && prevPlayer.shields.some((c) => c.instanceId === id);
+          if (!wasUnit && !wasBase && !wasOwnHand && !wasShield) continue; // sem origem conhecida — nada pra animar
+          const originKey = wasUnit ? id : wasBase ? playerAreaKey(pid) : wasShield ? `shieldRail:${pid}` : "hand:self";
           const originRect = board.rectOf(originKey);
           if (!originRect) continue;
           const destKey = isExileMove.has(id) ? `exileStation:${pid}` : `trashStation:${pid}`;
@@ -566,9 +676,28 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     [board],
   );
 
-  // Aplica uma visão que chegou (SSE ou resposta de POST ou resync REST)
-  const applyIncomingView = useCallback(
-    (incoming: SimulatorMatchView) => {
+  // "Nova leva de correções" (item 3, plano v2) — fila de reprodução
+  // serializada. Causa raiz do bot "atropelando" as próprias animações: em
+  // modo treino, `settleAutoPasses` (`matchStore.ts`) resolve várias ações do
+  // bot de forma síncrona no servidor, e o cliente pode receber várias
+  // `match:view_update` quase juntas — sem fila, cada uma processava por
+  // conta própria (correndo em paralelo com a animação da anterior), e só a
+  // que por acaso encontrava uma promise pendente esperava. Agora TODA view
+  // recebida entra numa fila; um único "drenador" processa uma de cada vez,
+  // esperando a coreografia INTEIRA daquela transição (lunge de ataque,
+  // revelação de Burst) terminar antes de aplicar a próxima.
+  //
+  // `detectDepartures` (clones voando pro Trash/Exílio) fica DE FORA da
+  // espera de propósito: cada ghost já é autocontido (array que cresce,
+  // cada item com seu próprio `onDone` que só remove a si mesmo), então pode
+  // sobrepor com o próximo item da fila sem corromper nenhum estado
+  // compartilhado — travar a fila por causa dele só atrasaria sem necessidade.
+  const viewQueueRef = useRef<SimulatorMatchView[]>([]);
+  const isDrainingViewQueueRef = useRef(false);
+  const hasAppliedFirstViewRef = useRef(false);
+
+  const processIncomingView = useCallback(
+    async (incoming: SimulatorMatchView) => {
       if (typeof incoming.serverNow === "number") {
         clockOffsetRef.current = incoming.serverNow - Date.now();
       }
@@ -578,27 +707,76 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
 
-      // Se o combate anterior estava na fase de ação e a nova visão encerrou/resolveu dano:
-      if (
-        prevCombat &&
-        prevCombat.step === "action" &&
-        (!incoming.view.combat || incoming.view.combat.step === "battleEnd")
-      ) {
-        executeAttackStrike(prevCombat.attackerId, prevCombat.currentTarget, prevCombat.defendingPlayer).then(() => {
-          setMatchView((prev) => {
-            if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
-            return incoming;
-          });
-        });
-        return;
+      // Nova leva de correções — causa raiz real do lunge nunca disparar contra o
+      // Bot: em modo treino tanto o assento humano quanto o bot têm
+      // `autoPassActionStep: true` (`trainingMatch.ts`), e `settleAutoPasses`
+      // (`matchStore.ts`) resolve o Action Step dos DOIS lados de forma síncrona no
+      // servidor antes de qualquer resposta chegar aqui — o cliente nunca observa
+      // `combat.step === "action"`. Por isso o gatilho não pode depender de um
+      // `step` intermediário específico: dispara sempre que o combate do MESMO
+      // atacante (attackerId/currentTarget/defendingPlayer já existem desde o
+      // passo "attack") deixou de existir, ou terminou em "battleEnd", ou um novo
+      // combate com atacante diferente já começou no lugar dele.
+      if (prevCombat && shouldAnimateAttackStrike(prevCombat, incoming.view.combat)) {
+        await Promise.race([
+          executeAttackStrike(prevCombat.attackerId, prevCombat.currentTarget, prevCombat.defendingPlayer),
+          new Promise<void>((resolve) => setTimeout(resolve, VIEW_QUEUE_ITEM_TIMEOUT_MS)),
+        ]);
       }
 
       setMatchView((prev) => {
         if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
         return incoming;
       });
+
+      // Só DEPOIS de aplicar a view é que `myBurstDecision` (derivado dela)
+      // passa a existir pro render — por isso a espera do reveal vem depois do
+      // `setMatchView`, nunca antes (não tem o que esperar até a view aplicar).
+      const myDecision = incoming.view.pendingDecision[incoming.seat];
+      if (shouldWaitForBurstReveal(myDecision, burstRevealedIdRef.current) && myDecision?.kind === "burst") {
+        await waitForBurstReveal(myDecision.cardInstanceId);
+      }
     },
-    [executeAttackStrike, detectDepartures],
+    [executeAttackStrike, detectDepartures, waitForBurstReveal],
+  );
+
+  const drainViewQueue = useCallback(async () => {
+    if (isDrainingViewQueueRef.current) return;
+    isDrainingViewQueueRef.current = true;
+    try {
+      while (viewQueueRef.current.length > 0) {
+        const next = viewQueueRef.current.shift()!;
+        await processIncomingView(next);
+        // Fim de jogo: não faz sentido continuar animando um backlog de
+        // eventos de uma partida que já acabou — descarta o resto da fila.
+        if (next.view.gameOver) {
+          viewQueueRef.current = [];
+          break;
+        }
+      }
+    } finally {
+      isDrainingViewQueueRef.current = false;
+    }
+  }, [processIncomingView]);
+
+  const applyIncomingView = useCallback(
+    (incoming: SimulatorMatchView) => {
+      // A 1ª view de todas (entrada na partida) não tem um "antes" coerente
+      // pra animar a transição — aplica direto, sem passar pela fila. Ainda
+      // assim chama `detectDepartures` (ela mesma não faz nada sem uma view
+      // anterior pra comparar) só pra plantar a referência corretamente —
+      // senão a 2ª view (já pela fila) achava que também era "a primeira".
+      if (!hasAppliedFirstViewRef.current) {
+        hasAppliedFirstViewRef.current = true;
+        detectDepartures(incoming);
+        prevCombatRef.current = incoming.view.combat;
+        setMatchView(incoming);
+        return;
+      }
+      viewQueueRef.current.push(incoming);
+      void drainViewQueue();
+    },
+    [drainViewQueue, detectDepartures],
   );
 
   // Frente 5 (docs/39) — transporte da partida: `simulatorSocket` como caminho
@@ -682,22 +860,37 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         if (action.kind === "declareAttack") {
           // O feixe de ataque e o impacto sonoro acontecem no strike pós-passo de ação
           sfx.playClick();
-          await new Promise((r) => setTimeout(r, 60));
+          await new Promise((r) => setTimeout(r, getScaledDuration(60)));
         } else if (action.kind === "activateBlocker") {
           // docs/55 tarefa 3 — 300ms de confirmação visual (a seta de combate
           // já redireciona pro blocker assim que a nova view chegar) antes de
           // avançar pro Passo de Ação.
           sfx.playShieldBlock();
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, getScaledDuration(300)));
         } else if (action.kind === "playCommand") {
-          sfx.playNewtypeFlash();
-          await new Promise((r) => setTimeout(r, 120));
+          // "Nova leva de correções" — revelação da carta de Comando antes do
+          // descarte (era só um `setTimeout(120)` sem nenhum feedback visual).
+          const currentView = matchView;
+          const cardInHand = currentView?.view.players[currentView.seat].hand.find(
+            (c) => !isHidden(c) && c.instanceId === action.cardInstanceId,
+          ) as CardInstance | undefined;
+          if (currentView && cardInHand) {
+            const origin = rectCenter(board.rectOf("hand:self"));
+            const dest = rectCenter(board.rectOf(`trashStation:${currentView.seat}`));
+            await new Promise<void>((resolve) => {
+              commandCastResolveRef.current = resolve;
+              setCommandCast({ cardDef: cardInHand.def, origin, dest });
+            });
+          } else {
+            sfx.playNewtypeFlash();
+            await new Promise((r) => setTimeout(r, getScaledDuration(120)));
+          }
         } else if (action.kind === "finishTurn") {
           sfx.playTurnStartAlert();
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else if (action.kind === "deployCard") {
           sfx.playDeploy();
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else {
           sfx.playClick();
         }
@@ -715,7 +908,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setBusy(false);
       }
     },
-    [sendAction, showActionError],
+    [sendAction, showActionError, matchView, board],
   );
 
   const handleSideboardSubmit = useCallback(
@@ -1008,6 +1201,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return next;
     });
   }, []);
+
+  // docs/56 (revisão do plano de polimento) — banners de fase recorrentes a
+  // CADA troca de turno (Turno 2, 3, ...), independente da máquina de estados
+  // de abertura (`introStage`), que é one-shot e só cobre o Turno 1. Enfileira
+  // só depois que a abertura já terminou (`introStage === "complete"`) — antes
+  // disso, apenas mantém `prevTurnBannerRef` sincronizado pra não confundir a
+  // 1ª leitura pós-abertura com uma troca de turno real.
+  useEffect(() => {
+    if (!matchView) return;
+    const v = matchView.view;
+    if (introStage !== "complete") {
+      prevTurnBannerRef.current = v.turnNumber;
+      return;
+    }
+    const prevTurn = prevTurnBannerRef.current;
+    prevTurnBannerRef.current = v.turnNumber;
+    if (prevTurn === null || v.turnNumber <= prevTurn || v.gameOver) return;
+
+    const isMyTurn = v.activePlayer === matchView.seat;
+    setPhaseBannerQueue([
+      isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
+      "FASE DE COMPRA",
+      "FASE DE RECUPERAÇÃO",
+      "FASE PRINCIPAL",
+    ]);
+  }, [matchView, introStage]);
 
   // Recuperação de segurança: se a partida já está em andamento (Main Phase, sem mulligan ativo nem animação em curso),
   // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada.
@@ -1553,6 +1772,47 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     iAmDefending,
   );
 
+  /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
+   *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
+   *  tabuleiro em vez de lista de pills no `AbilityResolutionModal`. Só ativa
+   *  quando `targetScope` do item da fila é de Unit (enemyUnit/friendlyUnit/
+   *  anyUnit) — Recurso/Base/mão/deck/lixeira continuam só no modal (ver
+   *  `usesBoardTargetingForPrimary`/`usesBoardTargetingForSecondary`). */
+  const abilityDecision = myPendingDecision?.kind === "abilityResolution" ? myPendingDecision : null;
+
+  function sideOfUnit(instanceId: string): "ally" | "enemy" | null {
+    if (publicUnits(view.players[seat]).some((u) => u.instanceId === instanceId)) return "ally";
+    if (publicUnits(view.players[opponentSeat]).some((u) => u.instanceId === instanceId)) return "enemy";
+    return null;
+  }
+
+  /** instanceId → quem pediu esse alvo (specId), se é o pool primário ou
+   *  secundário, e `max` (pra saber se é seleção múltipla). Se 2 itens da fila
+   *  competirem pelo mesmo alvo (raro — múltiplos gatilhos simultâneos), o
+   *  último processado vence; não é um caso coberto nesta 1ª rodada. */
+  const abilityUnitTargetsByInstance = new Map<
+    string,
+    { specId: string; pool: "primary" | "secondary"; side: "ally" | "enemy"; max: number }
+  >();
+  if (abilityDecision) {
+    for (const q of abilityDecision.queue) {
+      const isOn = abilityActivate[q.specId] ?? true;
+      if (!isOn) continue;
+      if (usesBoardTargetingForPrimary(q)) {
+        for (const id of q.legalTargets) {
+          const side = sideOfUnit(id);
+          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "primary", side, max: q.targetCount?.max ?? 1 });
+        }
+      }
+      if (usesBoardTargetingForSecondary(q)) {
+        for (const id of q.secondaryTarget!.legalTargets) {
+          const side = sideOfUnit(id);
+          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "secondary", side, max: 1 });
+        }
+      }
+    }
+  }
+
   /** Os 6 slots fixos de uma Battle Area (fragmento — o `ArenaPlaymat` monta o grid).
    *  Só Units; Pilots pareados aparecem acoplados via `DockedPilot`. */
   function renderBattleSlots(player: ViewPlayerState, isSelf: boolean) {
@@ -1649,6 +1909,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         pendingCard?.def.cardType === "UNIT" &&
         !pendingCard.def.pilotMode;
 
+      const abilityTarget = unit ? abilityUnitTargetsByInstance.get(unit.instanceId) : undefined;
+      const isAbilitySelected = Boolean(
+        unit &&
+          abilityTarget &&
+          (abilityTarget.pool === "primary" ? abilityTargets[abilityTarget.specId] : abilitySecondaryTargets[abilityTarget.specId])?.includes(
+            unit.instanceId,
+          ),
+      );
+
       return (
         <BattleSlot
           key={unit?.instanceId ?? `empty-${i}`}
@@ -1668,7 +1937,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           busy={busy}
           state={boardForStats}
+          abilityTargetPool={abilityTarget?.side ?? null}
+          abilitySelected={isAbilitySelected}
           onSelect={(u) => {
+            // "Nova leva de correções" (item 4) — clique num alvo de habilidade
+            // (glow verde/vermelho) tem prioridade sobre qualquer outro modo de
+            // seleção: escreve direto no estado controlado que o
+            // `AbilityResolutionModal` também lê, igual clicar numa pill lá dentro.
+            if (abilityTarget) {
+              if (abilityTarget.pool === "secondary") {
+                setAbilitySecondaryTargets((s) => pickSecondaryTarget(s, abilityTarget.specId, u.instanceId));
+              } else if (abilityTarget.max > 1) {
+                setAbilityTargets((s) => toggleMultiTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
+              } else {
+                setAbilityTargets((s) => pickSingleTarget(s, abilityTarget.specId, u.instanceId));
+              }
+              return;
+            }
             // docs/55 tarefa 2 — clicar direto no corpo da Unit inimiga (halo
             // verde) declara o ataque na hora, sem precisar do corner button.
             if (canBeTargeted && isLegal) {
@@ -2319,6 +2604,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           hand={myHandCards}
           art={art}
           busy={busy}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onResolve={(keep) => {
             if (keep) {
               mulliganDidMulliganRef.current = false;
@@ -2334,7 +2620,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }}
         />
       ) : null}
-      {introStage === "phase-banner" && phaseBannerQueue.length > 0 ? (
+      {/* docs/56 (revisão do plano de polimento) — desacoplado de `introStage`:
+          essa era uma máquina de estados ONE-SHOT da abertura (turno 1) que,
+          ao chegar em "complete", nunca mais volta a "phase-banner" sozinha.
+          Renderizar só por `phaseBannerQueue.length > 0` deixa o banner
+          reaparecer nos turnos seguintes, alimentado pelo efeito abaixo. */}
+      {phaseBannerQueue.length > 0 ? (
         <PhaseAnnouncementBanner
           key={phaseBannerQueue[0]}
           phase={phaseBannerQueue[0]}
@@ -2343,7 +2634,30 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ) : null}
 
       {/* docs/19, Sessão 2/3 — decisões interativas. */}
-      {myBurstDecision ? (
+      {commandCast ? (
+        <CommandCastAnimation
+          cardDef={commandCast.cardDef}
+          art={art}
+          origin={commandCast.origin}
+          dest={commandCast.dest}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          onDone={() => {
+            setCommandCast(null);
+            commandCastResolveRef.current?.();
+            commandCastResolveRef.current = null;
+          }}
+        />
+      ) : null}
+      {myBurstDecision && myBurstDecision.cardInstanceId !== burstRevealedId ? (
+        <BurstRevealStage
+          key={myBurstDecision.cardInstanceId}
+          cardDef={myBurstDecision.cardDef}
+          art={art}
+          origin={shieldRailCenter(board.rectOf(`shieldRail:${seat}`))}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
+          onDone={() => setBurstRevealedId(myBurstDecision.cardInstanceId)}
+        />
+      ) : myBurstDecision ? (
         <BurstModal
           decision={myBurstDecision}
           art={art}
@@ -2400,6 +2714,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             return "Carta";
           }}
           busy={busy}
+          targets={abilityTargets}
+          setTargets={setAbilityTargets}
+          secondaryTargets={abilitySecondaryTargets}
+          setSecondaryTargets={setAbilitySecondaryTargets}
+          activate={abilityActivate}
+          setActivate={setAbilityActivate}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
         />
       ) : null}
@@ -2557,7 +2877,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           cards={
             setupAnim === "deal-hand" || setupAnim === "mulligan"
               ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
-              : undefined
+              : setupAnim === "single-draw"
+                ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
+                  // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
+                  // então a última carta visível é sempre a recém-sacada.
+                  (() => {
+                    const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
+                    const last = visible[visible.length - 1];
+                    return last ? [last] : undefined;
+                  })()
+                : undefined
           }
           art={art}
           onDone={handleSetupAnimDone}

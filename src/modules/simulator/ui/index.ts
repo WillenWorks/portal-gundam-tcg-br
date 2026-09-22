@@ -13,10 +13,18 @@ export { CounterChip } from "./CounterChip";
 export { PileTray } from "./PileTray";
 export { HandFan } from "./HandFan";
 export { BurstModal } from "./BurstModal";
+export { BurstRevealStage, type BurstRevealOrigin } from "./BurstRevealStage";
 export { MulliganModal } from "./MulliganModal";
 export { FirstPlayerReveal } from "./FirstPlayerReveal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
-export { AbilityResolutionModal } from "./AbilityResolutionModal";
+export {
+  AbilityResolutionModal,
+  pickSingleTarget,
+  pickSecondaryTarget,
+  toggleMultiTarget,
+  usesBoardTargetingForPrimary,
+  usesBoardTargetingForSecondary,
+} from "./AbilityResolutionModal";
 export { ZoneOverflowModal } from "./ZoneOverflowModal";
 export { BugReportModal } from "./BugReportModal";
 export { SideboardModal, type SideboardModalProps } from "./SideboardModal";
@@ -27,6 +35,7 @@ export { RotateDevicePrompt } from "./RotateDevicePrompt";
 export { CombatLane } from "./CombatLane";
 export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
 export { CardDepartureAnimation, type DepartingCard, type DepartureDest } from "./CardDepartureAnimation";
+export { CommandCastAnimation, type CommandCastPoint } from "./CommandCastAnimation";
 export { HandDrawer } from "./HandDrawer";
 export { ActionDock, type ActionDockState } from "./ActionDock";
 export { CenterDecisionModal, type CenterDecisionModalProps } from "./CenterDecisionModal";

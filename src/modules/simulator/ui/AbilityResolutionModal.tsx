@@ -8,14 +8,83 @@
  * docs/56 tarefa 3 — reancorado no topo (era centralizado com `bg-black/85`
  * cobrindo a tela). Listas de alvo usam SCROLL HORIZONTAL compacto (não mais
  * `flex-wrap`, que crescia verticalmente e podia empurrar o painel até cobrir
- * a mão) — a Battle Area, Recursos e mão do jogador continuam visíveis. */
-import { useState, type ReactNode } from "react";
+ * a mão) — a Battle Area, Recursos e mão do jogador continuam visíveis.
+ *
+ * "Nova leva de correções" (item 4, plano v2) — alvo em UNIT (targetScope
+ * "enemyUnit"/"friendlyUnit"/"anyUnit") não usa mais lista de pills aqui: o
+ * jogador seleciona clicando direto na Unit no tabuleiro (glow verde =
+ * aliado legal, vermelho = inimigo legal — ver `BattleSlot.tsx`
+ * `abilityTargetPool`/`abilitySelected`). Por isso `targets`/`secondaryTargets`/
+ * `activate` agora são CONTROLADOS pelo pai (`SimulatorMatchPage.tsx`), que
+ * também escreve neles a partir do clique no tabuleiro — sem isso, o clique
+ * no tabuleiro e o clique aqui dentro do modal escreveriam em cópias
+ * diferentes do estado. Alvo em Recurso/Base/mão/deck/lixeira continua
+ * exatamente como antes (pills aqui dentro, sem equivalente de glow). */
+import { type Dispatch, type ReactNode, type SetStateAction, useState } from "react";
 import { ArrowDown, ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
 
 type Decision = Extract<PendingDecision, { kind: "abilityResolution" }>;
+type QueueItem = Decision["queue"][number];
+
+/** `targetScope`s que representam uma Unit no tabuleiro (têm glow inline em
+ *  `BattleSlot`) — o resto (`ownResource`/`friendlyBase`/etc.) não tem
+ *  equivalente visual ainda, continua resolvendo via pills no modal. */
+const UNIT_TARGET_SCOPES = new Set(["enemyUnit", "friendlyUnit", "anyUnit"]);
+
+export function isUnitTargetScope(scope: string): boolean {
+  return UNIT_TARGET_SCOPES.has(scope);
+}
+
+/** `true` quando o alvo PRIMÁRIO deste item da fila é resolvido via glow no
+ *  tabuleiro (em vez de pills) — usado tanto aqui quanto pelo pai pra decidir
+ *  o que desenhar. */
+export function usesBoardTargetingForPrimary(q: QueueItem): boolean {
+  return q.needsTarget && isUnitTargetScope(q.targetScope);
+}
+
+export function usesBoardTargetingForSecondary(q: QueueItem): boolean {
+  return Boolean(q.secondaryTarget && isUnitTargetScope(q.secondaryTarget.targetScope));
+}
+
+/** alterna um alvo de escolha única (substitui a seleção anterior; clicar de
+ *  novo no mesmo desfaz). Pura — usada tanto pelo modal quanto pelo clique
+ *  direto no tabuleiro, pra nunca divergir a lógica dos dois caminhos. */
+export function pickSingleTarget(
+  targets: Record<string, string[]>,
+  specId: string,
+  instanceId: string,
+): Record<string, string[]> {
+  return { ...targets, [specId]: targets[specId]?.[0] === instanceId ? [] : [instanceId] };
+}
+
+export function pickSecondaryTarget(
+  secondaryTargets: Record<string, string[]>,
+  specId: string,
+  instanceId: string,
+): Record<string, string[]> {
+  return { ...secondaryTargets, [specId]: secondaryTargets[specId]?.[0] === instanceId ? [] : [instanceId] };
+}
+
+/** alterna um alvo de escolha múltipla (até `max`) — clicar de novo remove;
+ *  clicar num novo adiciona até o teto. */
+export function toggleMultiTarget(
+  targets: Record<string, string[]>,
+  specId: string,
+  instanceId: string,
+  max: number,
+): Record<string, string[]> {
+  const cur = targets[specId] ?? [];
+  if (cur.includes(instanceId)) {
+    return { ...targets, [specId]: cur.filter((id) => id !== instanceId) };
+  }
+  if (cur.length < max) {
+    return { ...targets, [specId]: [...cur, instanceId] };
+  }
+  return targets;
+}
 
 interface AbilityResolutionModalProps {
   decision: Decision;
@@ -36,6 +105,13 @@ interface AbilityResolutionModalProps {
    */
   resolveHandLabel?: (instanceId: string) => string;
   busy?: boolean;
+  /** controlado pelo pai — o clique no tabuleiro (alvo em Unit) escreve aqui direto. */
+  targets: Record<string, string[]>;
+  setTargets: Dispatch<SetStateAction<Record<string, string[]>>>;
+  secondaryTargets: Record<string, string[]>;
+  setSecondaryTargets: Dispatch<SetStateAction<Record<string, string[]>>>;
+  activate: Record<string, boolean>;
+  setActivate: Dispatch<SetStateAction<Record<string, boolean>>>;
   onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>) => void;
 }
 
@@ -47,14 +123,20 @@ const TRIGGER_LABEL: Record<string, string> = {
   Action: "Comando — 【Action】",
 };
 
-export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabel, busy, onResolve }: AbilityResolutionModalProps) {
+export function AbilityResolutionModal({
+  decision,
+  resolveLabel,
+  resolveHandLabel,
+  busy,
+  targets,
+  setTargets,
+  secondaryTargets,
+  setSecondaryTargets,
+  activate,
+  setActivate,
+  onResolve,
+}: AbilityResolutionModalProps) {
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
-  const [activate, setActivate] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
-  );
-  const [targets, setTargets] = useState<Record<string, string[]>>({});
-  /** docs/47 Fase 5 — escolha do 2º pool de alvo (`q.secondaryTarget`), ex. ST05-010 Mikazuki Augus. */
-  const [secondaryTargets, setSecondaryTargets] = useState<Record<string, string[]>>({});
   /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
   const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
 
@@ -77,29 +159,13 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
     return q.optional && !q.deckTopReveal && !q.handDiscard && !q.deckReorder && !q.enumChoice && !q.trashSearch;
   };
 
-  const pickSingle = (specId: string, instanceId: string) =>
-    setTargets((s) => ({
-      ...s,
-      [specId]: s[specId]?.[0] === instanceId ? [] : [instanceId],
-    }));
+  const pickSingle = (specId: string, instanceId: string) => setTargets((s) => pickSingleTarget(s, specId, instanceId));
 
   const pickSecondary = (specId: string, instanceId: string) =>
-    setSecondaryTargets((s) => ({
-      ...s,
-      [specId]: s[specId]?.[0] === instanceId ? [] : [instanceId],
-    }));
+    setSecondaryTargets((s) => pickSecondaryTarget(s, specId, instanceId));
 
   const toggleMulti = (specId: string, instanceId: string, max: number) =>
-    setTargets((s) => {
-      const cur = s[specId] ?? [];
-      if (cur.includes(instanceId)) {
-        return { ...s, [specId]: cur.filter((id) => id !== instanceId) };
-      }
-      if (cur.length < max) {
-        return { ...s, [specId]: [...cur, instanceId] };
-      }
-      return s;
-    });
+    setTargets((s) => toggleMultiTarget(s, specId, instanceId, max));
 
   const move = (index: number, dir: -1 | 1) => {
     setOrder((current) => {
@@ -210,28 +276,36 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
 
                 {on && q.needsTarget ? (
                   opts.length > 0 ? (
-                    <div className="mt-2 space-y-1">
-                      {q.targetCount && q.targetCount.max > 1 ? (
-                        <p className="text-[10px] text-amber-300">
-                          Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
-                        </p>
-                      ) : null}
-                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                        {opts.map((opt) => {
-                          const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
-                          const maxTargets = q.targetCount?.max ?? 1;
-                          return (
-                            <Toggle
-                              key={opt.instanceId}
-                              active={isSelected}
-                              onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
-                            >
-                              {opt.label}
-                            </Toggle>
-                          );
-                        })}
+                    usesBoardTargetingForPrimary(q) ? (
+                      <BoardTargetHint
+                        side={q.targetScope === "friendlyUnit" ? "ally" : q.targetScope === "enemyUnit" ? "enemy" : "both"}
+                        count={(targets[specId] ?? []).length}
+                        max={q.targetCount?.max ?? 1}
+                      />
+                    ) : (
+                      <div className="mt-2 space-y-1">
+                        {q.targetCount && q.targetCount.max > 1 ? (
+                          <p className="text-[10px] text-amber-300">
+                            Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
+                          </p>
+                        ) : null}
+                        <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
+                          {opts.map((opt) => {
+                            const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
+                            const maxTargets = q.targetCount?.max ?? 1;
+                            return (
+                              <Toggle
+                                key={opt.instanceId}
+                                active={isSelected}
+                                onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
+                              >
+                                {opt.label}
+                              </Toggle>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
                   )
@@ -239,20 +313,29 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
 
                 {on && q.secondaryTarget ? (
                   q.secondaryTarget.legalTargets.length > 0 ? (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-[10px] text-amber-300">E também:</p>
-                      <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                        {q.secondaryTarget.legalTargets.map((instanceId) => (
-                          <Toggle
-                            key={instanceId}
-                            active={(secondaryTargets[specId] ?? []).includes(instanceId)}
-                            onClick={() => pickSecondary(specId, instanceId)}
-                          >
-                            {resolveLabel(instanceId)}
-                          </Toggle>
-                        ))}
+                    usesBoardTargetingForSecondary(q) ? (
+                      <BoardTargetHint
+                        side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
+                        count={(secondaryTargets[specId] ?? []).length}
+                        max={1}
+                        label="E também:"
+                      />
+                    ) : (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] text-amber-300">E também:</p>
+                        <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
+                          {q.secondaryTarget.legalTargets.map((instanceId) => (
+                            <Toggle
+                              key={instanceId}
+                              active={(secondaryTargets[specId] ?? []).includes(instanceId)}
+                              onClick={() => pickSecondary(specId, instanceId)}
+                            >
+                              {resolveLabel(instanceId)}
+                            </Toggle>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
                   )
@@ -407,6 +490,53 @@ export function AbilityResolutionModal({ decision, resolveLabel, resolveHandLabe
         </Button>
       </div>
     </div>
+  );
+}
+
+/** substitui a lista de pills quando o alvo é Unit no tabuleiro (item 4, plano
+ *  v2): só um lembrete de qual glow procurar — a seleção em si acontece
+ *  clicando na `BattleSlot` (verde = aliado legal, vermelho = inimigo legal,
+ *  ver `abilityTargetPool`/`abilitySelected`). Clicar de novo no mesmo alvo
+ *  desfaz; clicar em outro troca (ou soma, até `max`, se `targetCount.max > 1`). */
+function BoardTargetHint({
+  side,
+  count,
+  max,
+  label = "Selecione no tabuleiro:",
+}: {
+  side: "ally" | "enemy" | "both";
+  count: number;
+  max: number;
+  label?: string;
+}) {
+  const swatch =
+    side === "ally" ? (
+      <span className="inline-flex items-center gap-1">
+        <span className="size-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+      </span>
+    ) : side === "enemy" ? (
+      <span className="inline-flex items-center gap-1">
+        <span className="size-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center gap-1">
+          <span className="size-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="size-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+        </span>
+      </span>
+    );
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-portal">
+      {label} {swatch}
+      {max > 1 ? (
+        <span className="text-amber-300">
+          ({count}/{max} selecionado{max === 1 ? "" : "s"})
+        </span>
+      ) : null}
+    </p>
   );
 }
 

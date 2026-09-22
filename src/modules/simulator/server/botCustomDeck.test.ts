@@ -93,6 +93,7 @@ describe("Decks Customizados do Usuário no Modo Treino Solo", () => {
       level: "normal",
       human: HUMAN,
       seed: 99,
+      firstPlayer: "A",
     });
 
     const m = getMatch(mId)!;
@@ -147,6 +148,7 @@ describe("Decks Customizados do Usuário no Modo Treino Solo", () => {
       level: "normal",
       human: HUMAN,
       seed: 123,
+      firstPlayer: "A",
     });
 
     const m = getMatch(mId)!;

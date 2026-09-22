@@ -1,18 +1,108 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { CardInstance, PendingDecision } from "@/modules/simulator/engine/types";
-import { AbilityResolutionModal } from "./AbilityResolutionModal";
+import {
+  AbilityResolutionModal,
+  pickSecondaryTarget,
+  pickSingleTarget,
+  toggleMultiTarget,
+  usesBoardTargetingForPrimary,
+  usesBoardTargetingForSecondary,
+} from "./AbilityResolutionModal";
 
 afterEach(cleanup);
 
 type AR = Extract<PendingDecision, { kind: "abilityResolution" }>;
+type ResolveArgs = Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>;
 
 // V0 (docs/25): as opções já vêm prontas em `legalTargets` (calculadas no
 // servidor) — o teste só precisa de um `resolveLabel` fixo pra mapear id -> nome.
 const LABELS: Record<string, string> = { e1: "Zaku II", e2: "Guncannon", r1: "Recurso 1 (gasto)" };
 const resolveLabel = (id: string) => LABELS[id] ?? id;
+
+/** "Nova leva de correções" (item 4, plano v2) — o modal agora é CONTROLADO
+ * (`targets`/`secondaryTargets`/`activate` vêm de fora, igual em produção onde
+ * quem escreve neles é o clique no tabuleiro). Este harness monta o estado
+ * localmente com `useState`, igual `SimulatorMatchPage.tsx` faz de verdade —
+ * e, pros itens de alvo em Unit (que não têm mais pills aqui dentro), expõe
+ * botões de teste equivalentes ao clique na `BattleSlot` real, chamando as
+ * MESMAS funções puras exportadas (`pickSingleTarget`/`toggleMultiTarget`/
+ * `pickSecondaryTarget`) que o clique no tabuleiro chamaria. */
+function Harness({
+  decision,
+  resolveLabel: resolveLabelProp,
+  resolveHandLabel,
+  busy,
+  onResolve,
+}: {
+  decision: AR;
+  resolveLabel?: (id: string) => string;
+  resolveHandLabel?: (id: string) => string;
+  busy?: boolean;
+  onResolve: (resolutions: ResolveArgs) => void;
+}) {
+  const resolveLabelFn = resolveLabelProp ?? resolveLabel;
+  const [targets, setTargets] = useState<Record<string, string[]>>({});
+  const [secondaryTargets, setSecondaryTargets] = useState<Record<string, string[]>>({});
+  const [activate, setActivate] = useState<Record<string, boolean>>(
+    Object.fromEntries(decision.queue.map((q) => [q.specId, true])),
+  );
+
+  return (
+    <>
+      {decision.queue.map((q) => (
+        <div key={q.specId}>
+          {usesBoardTargetingForPrimary(q)
+            ? q.legalTargets.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={`[tabuleiro] ${resolveLabelFn(id)}`}
+                  onClick={() =>
+                    setTargets((s) =>
+                      q.targetCount && q.targetCount.max > 1
+                        ? toggleMultiTarget(s, q.specId, id, q.targetCount.max)
+                        : pickSingleTarget(s, q.specId, id),
+                    )
+                  }
+                >
+                  [tabuleiro] {resolveLabelFn(id)}
+                </button>
+              ))
+            : null}
+          {usesBoardTargetingForSecondary(q)
+            ? q.secondaryTarget!.legalTargets.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={`[tabuleiro 2º] ${resolveLabelFn(id)}`}
+                  onClick={() => setSecondaryTargets((s) => pickSecondaryTarget(s, q.specId, id))}
+                >
+                  [tabuleiro 2º] {resolveLabelFn(id)}
+                </button>
+              ))
+            : null}
+        </div>
+      ))}
+      <AbilityResolutionModal
+        decision={decision}
+        resolveLabel={resolveLabelFn}
+        resolveHandLabel={resolveHandLabel}
+        busy={busy}
+        targets={targets}
+        setTargets={setTargets}
+        secondaryTargets={secondaryTargets}
+        setSecondaryTargets={setSecondaryTargets}
+        activate={activate}
+        setActivate={setActivate}
+        onResolve={onResolve}
+      />
+    </>
+  );
+}
 
 const whenPaired: AR = {
   kind: "abilityResolution",
@@ -31,12 +121,15 @@ const whenPaired: AR = {
 };
 
 describe("AbilityResolutionModal", () => {
-  it("mandatório + alvo (enemyUnit): confirma só depois de escolher; envia o targetId", () => {
+  it("mandatório + alvo em Unit (enemyUnit): sem pills aqui dentro — glow é no tabuleiro; confirma só depois do clique no tabuleiro", () => {
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={whenPaired} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={whenPaired} onResolve={onResolve} />);
+    // não tem mais pill de alvo aqui dentro pra um targetScope de Unit — só o hint.
+    expect(screen.queryByRole("button", { name: "Guncannon" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Selecione no tabuleiro/)).toBeInTheDocument();
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Guncannon" }));
     fireEvent.click(confirm);
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: ["e2"] }]);
   });
@@ -44,13 +137,13 @@ describe("AbilityResolutionModal", () => {
   it("sem alvo legal (legalTargets vazio): confirma direto (efeito não faz nada)", () => {
     const noLegalTarget: AR = { ...whenPaired, queue: [{ ...whenPaired.queue[0], legalTargets: [] }] };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={noLegalTarget} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={noLegalTarget} onResolve={onResolve} />);
     expect(screen.getByText(/Nenhum alvo legal/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }]);
   });
 
-  it("docs/47 Fase 5 — secondaryTarget (ST05-010 Mikazuki Augus): exige os 2 alvos antes de confirmar; envia secondaryTargetIds", () => {
+  it("docs/47 Fase 5 — secondaryTarget (ST05-010 Mikazuki Augus): 2 pools em Unit, ambos via tabuleiro; exige os 2 antes de confirmar", () => {
     const mikazuki: AR = {
       kind: "abilityResolution",
       trigger: "When Paired",
@@ -68,14 +161,18 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={mikazuki} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={mikazuki} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
+    // ambos os pools (aliado e inimigo) são Unit — sem pills, só o hint com as 2 cores.
+    expect(screen.queryByRole("button", { name: "Recurso 1 (gasto)" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/aliado/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/inimigo/).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Recurso 1 (gasto)" }));
     expect(confirm).toBeDisabled(); // ainda falta o 2º alvo
 
-    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro 2º] Guncannon" }));
     expect(confirm).not.toBeDisabled();
     fireEvent.click(confirm);
     expect(onResolve).toHaveBeenCalledWith([
@@ -101,8 +198,8 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={mikazukiNoEnemy} resolveLabel={resolveLabel} onResolve={onResolve} />);
-    fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
+    render(<Harness decision={mikazukiNoEnemy} onResolve={onResolve} />);
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Recurso 1 (gasto)" }));
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).not.toBeDisabled();
     fireEvent.click(confirm);
@@ -111,7 +208,7 @@ describe("AbilityResolutionModal", () => {
     ]);
   });
 
-  it("Attack + ownResource: mostra o cabeçalho do 【Attack】 e os recursos como alvo", () => {
+  it("Attack + ownResource: NÃO é Unit — continua com pills aqui dentro (Recurso não tem glow no tabuleiro ainda)", () => {
     const attack: AR = {
       kind: "abilityResolution",
       trigger: "Attack",
@@ -128,7 +225,7 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={attack} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={attack} onResolve={onResolve} />);
     expect(screen.getByText(/【Attack】/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Recurso 1 (gasto)" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
@@ -155,9 +252,8 @@ describe("AbilityResolutionModal", () => {
   it("handChoice (Full Frontal): escolhe carta da mão e envia como targetIds", () => {
     const onResolve = vi.fn();
     render(
-      <AbilityResolutionModal
+      <Harness
         decision={handChoiceDecision}
-        resolveLabel={resolveLabel}
         resolveHandLabel={(id) => ({ h1: "Geara Zulu", h2: "Dra-C" })[id] ?? id}
         onResolve={onResolve}
       />,
@@ -171,14 +267,7 @@ describe("AbilityResolutionModal", () => {
 
   it("handChoice (Full Frontal): 'Pular' → activate false, sem carta", () => {
     const onResolve = vi.fn();
-    render(
-      <AbilityResolutionModal
-        decision={handChoiceDecision}
-        resolveLabel={resolveLabel}
-        resolveHandLabel={(id) => id}
-        onResolve={onResolve}
-      />,
-    );
+    render(<Harness decision={handChoiceDecision} resolveHandLabel={(id) => id} onResolve={onResolve} />);
     fireEvent.click(screen.getByRole("button", { name: "Pular" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-010-WhenPaired", activate: false, targetIds: [] }]);
@@ -223,7 +312,7 @@ describe("AbilityResolutionModal", () => {
 
   it("deckTopReveal (Char's Zaku Ⅱ): sem Ativar/Pular; revela 1 Unit e envia", () => {
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={deckRevealDecision} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={deckRevealDecision} onResolve={onResolve} />);
     expect(screen.queryByRole("button", { name: "Pular" })).not.toBeInTheDocument();
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeEnabled(); // "revelar 1 ou nenhuma" é sempre válido
@@ -235,7 +324,7 @@ describe("AbilityResolutionModal", () => {
 
   it("deckTopReveal (Char's Zaku Ⅱ): 'Não revelar' → targetIds vazio, activate true", () => {
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={deckRevealDecision} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={deckRevealDecision} onResolve={onResolve} />);
     fireEvent.click(screen.getByRole("button", { name: "Não revelar" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST03-006-Destroyed", activate: true, targetIds: [] }]);
@@ -259,9 +348,7 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(
-      <AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} resolveHandLabel={(id) => (id === "h1" ? "Ginn" : "Aegis")} onResolve={onResolve} />,
-    );
+    render(<Harness decision={dec} resolveHandLabel={(id) => (id === "h1" ? "Ginn" : "Aegis")} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Aegis" }));
@@ -296,7 +383,7 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={dec} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
     // Leo → topo, Wing → fundo
@@ -333,7 +420,7 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={dec} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={dec} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Launcher Strike" }));
@@ -358,13 +445,13 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={optional} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={optional} onResolve={onResolve} />);
     fireEvent.click(screen.getByRole("button", { name: "Pular" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     expect(onResolve).toHaveBeenCalledWith([{ specId: "X-1", activate: false, targetIds: [] }]);
   });
 
-  it("multi-alvo (targetCount max: 2): permite selecionar até 2 alvos e envia ambos", () => {
+  it("multi-alvo em Unit (targetCount max: 2): sem pills aqui — 2 cliques no tabuleiro selecionam os 2 alvos", () => {
     const multiTarget: AR = {
       kind: "abilityResolution",
       trigger: "When Paired",
@@ -382,16 +469,17 @@ describe("AbilityResolutionModal", () => {
       ],
     };
     const onResolve = vi.fn();
-    render(<AbilityResolutionModal decision={multiTarget} resolveLabel={resolveLabel} onResolve={onResolve} />);
+    render(<Harness decision={multiTarget} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
+    expect(screen.getByText(/0\/2 selecionado/)).toBeInTheDocument();
 
-    // Clica no 1º alvo
-    fireEvent.click(screen.getByRole("button", { name: "Zaku II" }));
+    // Clica no 1º alvo no tabuleiro
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Zaku II" }));
     expect(confirm).toBeEnabled();
 
     // Clica no 2º alvo (agora 2 selecionados)
-    fireEvent.click(screen.getByRole("button", { name: "Guncannon" }));
+    fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Guncannon" }));
     fireEvent.click(confirm);
     expect(onResolve).toHaveBeenCalledWith([
       { specId: "GD01-044-WhenPaired", activate: true, targetIds: ["e1", "e2"] },
@@ -420,7 +508,7 @@ describe("AbilityResolutionModal", () => {
     };
     const onResolve = vi.fn();
     render(
-      <AbilityResolutionModal
+      <Harness
         decision={trashDecision}
         resolveLabel={(id) => (id === "c1" ? "Signs of a Revolution" : id)}
         onResolve={onResolve}

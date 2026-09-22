@@ -1,11 +1,12 @@
 /* SettingsMenu v9.0 — configurações de partida com skins de tabuleiro,
  * controle de efeitos sonoros táticos e ações de jogo. */
 import { useState } from "react";
-import { LogOut, Palette, Settings, Volume2, VolumeX } from "lucide-react";
+import { Gauge, LogOut, Palette, Settings, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { sfx } from "../audio/soundEffects";
+import { ANIM_SPEED_LABELS, ANIM_SPEEDS, getSavedAnimSpeed, saveAnimSpeed, type AnimSpeed } from "./animationSettings";
 import { getSavedPlaymatSkin, PLAYMAT_SKINS, savePlaymatSkin, type PlaymatSkinId } from "./playmatSkins";
 
 interface SettingsMenuProps {
@@ -20,6 +21,12 @@ interface SettingsMenuProps {
 export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, busy }: SettingsMenuProps) {
   const [currentSkin, setCurrentSkin] = useState<PlaymatSkinId>(getSavedPlaymatSkin);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => sfx.isEnabled());
+  const [animSpeed, setAnimSpeed] = useState<AnimSpeed>(getSavedAnimSpeed);
+
+  const handleAnimSpeedChange = (speed: AnimSpeed) => {
+    setAnimSpeed(speed);
+    saveAnimSpeed(speed);
+  };
 
   const handleSkinChange = (skinId: PlaymatSkinId) => {
     setCurrentSkin(skinId);
@@ -66,6 +73,25 @@ export function SettingsMenu({ autoPass, onToggleAutoPass, onLeave, gameOver, bu
               {Object.values(PLAYMAT_SKINS).map((skin) => (
                 <option key={skin.id} value={skin.id}>
                   {skin.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Velocidade das Animações */}
+          <div className="space-y-1.5 border-b border-white/10 pb-3">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+              <Gauge className="size-3.5 text-accent" />
+              Velocidade das Animações
+            </label>
+            <select
+              value={animSpeed}
+              onChange={(e) => handleAnimSpeedChange(Number(e.target.value) as AnimSpeed)}
+              className="field-shell h-8 w-full px-2 text-xs"
+            >
+              {ANIM_SPEEDS.map((speed) => (
+                <option key={speed} value={speed}>
+                  {ANIM_SPEED_LABELS[speed]}
                 </option>
               ))}
             </select>
