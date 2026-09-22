@@ -226,7 +226,7 @@ export function AbilityResolutionModal({
     );
 
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
+    <div className="fixed inset-0 z-[61] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
       <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,40rem)] max-h-[70vh] overflow-y-auto border border-amber-400/50 p-4 shadow-2xl backdrop-blur-md">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-300">
           <Sparkles className="size-4" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}

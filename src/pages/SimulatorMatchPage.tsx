@@ -746,7 +746,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     try {
       while (viewQueueRef.current.length > 0) {
         const next = viewQueueRef.current.shift()!;
-        await processIncomingView(next);
+        try {
+          await processIncomingView(next);
+        } catch (err) {
+          console.error("[ViewQueue] processIncomingView falhou", err, next);
+          setMatchView(next);
+        }
         // Fim de jogo: não faz sentido continuar animando um backlog de
         // eventos de uma partida que já acabou — descarta o resto da fila.
         if (next.view.gameOver) {
