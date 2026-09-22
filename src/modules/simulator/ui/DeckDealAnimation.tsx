@@ -142,8 +142,37 @@ export function DeckDealAnimation({
   const returnMs = useMemo(() => getScaledDuration(RETURN_BASE_MS), []);
   const shuffleMs = useMemo(() => getScaledDuration(SHUFFLE_BASE_MS), []);
 
+  // fases pro mulligan: return → shuffle → deal. Outros modos têm 1 fase só.
+  const [phase, setPhase] = useState<"return" | "shuffle" | "deal">(
+    mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal",
+  );
+
+  const isShufflePhase = mode === "shuffle" || (mode === "mulligan" && phase === "shuffle");
+
+  // Validação defensiva de origin: coordenadas devem ser numéricas e > 0
+  // Protege contra layout não medido no 1º paint da abertura da partida (0, 0 ou null/undefined)
+  const hasValidOrigin = Boolean(
+    origin &&
+    typeof origin.x === "number" &&
+    typeof origin.y === "number" &&
+    (origin.x > 0 || origin.y > 0),
+  );
+
+  // Fallback robusto para o centro do viewport se origin for nulo, indefinido ou (0, 0)
+  const fallbackCenter = useMemo(() => {
+    const width = typeof window !== "undefined" && window.innerWidth > 0 ? window.innerWidth : 1000;
+    const height = typeof window !== "undefined" && window.innerHeight > 0 ? window.innerHeight : 700;
+    return {
+      x: Math.round(width / 2),
+      y: Math.round(height / 2),
+    };
+  }, []);
+
+  // Ponto efetivo de ancoragem do palco / origem (deck do jogador ou fallback central)
+  const stageOrigin = hasValidOrigin && origin ? origin : fallbackCenter;
+
   const anchored = Boolean(origin && dest);
-  const w = cardW && cardW > 0 ? cardW : anchored ? 84 : 140;
+  const w = cardW && cardW > 0 ? cardW : (anchored || isShufflePhase) ? 84 : 140;
   const h = Math.round(w * (88 / 63)); // aspect-[63/88] fixo em pixels para evitar colapso de imagem
   const ox = origin?.x ?? null;
   const oy = origin?.y ?? null;
@@ -160,11 +189,6 @@ export function DeckDealAnimation({
     [],
   );
 
-  // fases pro mulligan: return → shuffle → deal. Outros modos têm 1 fase só.
-  const [phase, setPhase] = useState<"return" | "shuffle" | "deal">(
-    mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal",
-  );
-
   // docs/53 — bug real: a página reusa a MESMA instância de `DeckDealAnimation`
   // conforme `setupAnim` muda de valor (shuffle → deal-hand → deal-shields),
   // sem desmontar. Como `phase` só era inicializado no `useState` (roda 1x, no
@@ -175,6 +199,7 @@ export function DeckDealAnimation({
   // mantém `mode === "mulligan"` do início ao fim, os `setPhase` internos do
   // temporizador abaixo (return → shuffle → deal) não são pisados por aqui.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPhase(mode === "mulligan" ? "return" : mode === "shuffle" ? "shuffle" : "deal");
   }, [mode]);
 
@@ -183,10 +208,10 @@ export function DeckDealAnimation({
     onDoneRef.current = onDone;
   });
 
-  // Embaralhamento (ou fase shuffle do mulligan) se destaca de forma cinematográfica no centro do palco
-  const isCenteredStage = !anchored || mode === "shuffle" || (mode === "mulligan" && phase === "shuffle");
+  // Palco central flex apenas se NÃO for fase de shuffle E não for ancorado
+  const isCenteredStage = !isShufflePhase && !anchored;
 
-  // Largura cinematográfica das cartas durante o palco central
+  // Largura cinematográfica das cartas apenas durante palco central não-ancorado
   const stageCardW = isCenteredStage ? Math.max(w, 140) : w;
   const stageCardH = Math.round(stageCardW * (88 / 63));
 
@@ -273,7 +298,7 @@ export function DeckDealAnimation({
             ? "relative flex h-80 w-96 flex-col items-center justify-center"
             : "absolute h-0 w-0"
         }
-        style={!isCenteredStage && anchored && origin ? { left: origin.x, top: origin.y } : undefined}
+        style={!isCenteredStage ? { left: stageOrigin.x, top: stageOrigin.y } : undefined}
       >
         {/* Moldura tática Gundam HUD para o palco central de embaralhamento */}
         {isCenteredStage && (
@@ -299,8 +324,13 @@ export function DeckDealAnimation({
               "whitespace-nowrap rounded-arena border font-mono font-black uppercase tracking-[0.16em] shadow-lg",
               isCenteredStage
                 ? "relative z-20 -top-8 border-cyan-400/80 bg-slate-900/90 px-4 py-1.5 text-xs text-cyan-300 shadow-[0_0_16px_rgba(6,182,212,0.5)]"
-                : "absolute -top-4 left-1/2 -translate-x-1/2 border-primary/40 bg-slate-950/90 px-3 py-1 text-xs text-primary shadow-md",
+                : "absolute left-1/2 -translate-x-1/2 border-primary/40 bg-slate-950/90 px-3 py-1 text-xs text-primary shadow-md",
             )}
+            style={
+              !isCenteredStage
+                ? { top: `${-Math.round(stageCardH / 2) - 28}px` }
+                : undefined
+            }
           >
             {label}
           </p>
