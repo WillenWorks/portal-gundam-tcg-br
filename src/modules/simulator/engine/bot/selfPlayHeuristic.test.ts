@@ -120,6 +120,8 @@ describe("self-play do bot heurístico (decks validados)", () => {
       expect(rate).toBeGreaterThan(0.5);
     },
     // Mesma razão do bump acima (wave ST05, docs/50): 10 -> 15 pares, 800 -> 1200 partidas.
-    300_000,
+    // Bump 300s -> 600s (2026-09-21): estava estourando mesmo isolado nesta máquina,
+    // sem relação com nenhuma mudança de código — só falta de folga de CPU.
+    600_000,
   );
 });
