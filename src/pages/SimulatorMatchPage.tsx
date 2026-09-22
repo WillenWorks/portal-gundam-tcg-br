@@ -490,6 +490,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     | "deal-hand"
     | "hand-revealed"
     | "mulligan-decision"
+    | "waiting-opponent-mulligan"
     | "mulligan-anim"
     | "deal-shields"
     | "phase-banner"
@@ -1220,8 +1221,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-hand") {
       setIntroStage("hand-revealed");
     } else if (introStage === "mulligan-anim") {
-      setIntroStage("deal-shields");
-      setSetupAnim("deal-shields");
+      const v = matchView?.view;
+      const oppSeat = matchView ? otherPlayer(matchView.seat) : null;
+      const oppHasMulligan = oppSeat && v ? v.pendingDecision[oppSeat]?.kind === "mulligan" : false;
+      if (oppHasMulligan) {
+        setIntroStage("waiting-opponent-mulligan");
+      } else {
+        setIntroStage("deal-shields");
+        setSetupAnim("deal-shields");
+      }
     } else if (introStage === "deal-shields") {
       if (mulliganDidMulliganRef.current) {
         setPhaseBannerQueue(["FASE DE COMPRA", "FASE DE RECUPERAÇÃO", "FASE PRINCIPAL"]);
@@ -1230,7 +1238,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
       setIntroStage("phase-banner");
     }
-  }, [introStage]);
+  }, [introStage, matchView]);
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {
@@ -1242,6 +1250,45 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return next;
     });
   }, []);
+
+  // Sincronização de Mulligan: quando o oponente conclui o mulligan dele,
+  // se o jogador local estava em waiting-opponent-mulligan, avança para deal-shields
+  useEffect(() => {
+    if (introStage !== "waiting-opponent-mulligan" || !matchView) return;
+    const v = matchView.view;
+    const oppSeat = otherPlayer(matchView.seat);
+    const oppHasMulligan = v.pendingDecision[oppSeat]?.kind === "mulligan";
+    if (!oppHasMulligan) {
+      setIntroStage("deal-shields");
+      setSetupAnim("deal-shields");
+    }
+  }, [introStage, matchView]);
+
+  // Banner condicional de End Phase (Fase de Ações vs Fim de Turno):
+  // Dispara quando o turno ativo entra na End Phase (v.phase === "end" ou v.endPhaseAction !== null).
+  const endPhaseBannerShownTurnRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!matchView || introStage !== "complete") return;
+    const v = matchView.view;
+    if (v.gameOver) return;
+
+    const isEndPhase = v.phase === "end" || v.endPhaseAction !== null;
+    if (!isEndPhase) return;
+
+    if (endPhaseBannerShownTurnRef.current === v.turnNumber) return;
+    endPhaseBannerShownTurnRef.current = v.turnNumber;
+
+    const standbyPlayer = otherPlayer(v.activePlayer);
+    const standbyHasPlay = playerHasActionStepPlay(v as unknown as GameState, standbyPlayer, ALL_EFFECT_SPECS);
+    const activeHasPlay = playerHasActionStepPlay(v as unknown as GameState, v.activePlayer, ALL_EFFECT_SPECS);
+    const hasAnyPlay = standbyHasPlay || activeHasPlay;
+
+    setPhaseBannerQueue((prev) => [
+      ...prev,
+      hasAnyPlay ? "FASE DE AÇÕES" : "FIM DE TURNO",
+    ]);
+  }, [matchView, introStage]);
 
   // docs/56 (revisão do plano de polimento) — banners de fase recorrentes a
   // CADA troca de turno (Turno 2, 3, ...), independente da máquina de estados
@@ -1261,7 +1308,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (prevTurn === null || v.turnNumber <= prevTurn || v.gameOver) return;
 
     const isMyTurn = v.activePlayer === matchView.seat;
-    setPhaseBannerQueue([
+    setPhaseBannerQueue((prev) => [
+      ...prev,
       isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
       "FASE DE COMPRA",
       "FASE DE RECUPERAÇÃO",
@@ -1301,8 +1349,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const iHaveEndPhasePriorityNow = v.endPhaseAction !== null && v.endPhaseAction.priority === meSeat;
     if (!iHavePriorityNow && !iHaveEndPhasePriorityNow) return;
     if (playerHasActionStepPlay(v as unknown as GameState, meSeat, ALL_EFFECT_SPECS)) return;
+    if (phaseBannerQueue.length > 0) return;
     runAction(iHavePriorityNow ? { kind: "passAction" } : { kind: "passEndPhaseAction" });
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, runAction, phaseBannerQueue.length]);
 
   // docs/55 tarefa 3 — Auto-pass do Passo de Bloqueio: se o defensor não tem
   // NENHUMA Unit ativa com <Blocker>, pula sozinho — não trava o jogo
@@ -2653,10 +2702,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           busy={busy}
           cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onResolve={(keep) => {
+            const oppSeat = otherPlayer(seat);
+            const oppHasMulligan = view.pendingDecision[oppSeat]?.kind === "mulligan";
             if (keep) {
               mulliganDidMulliganRef.current = false;
-              setIntroStage("deal-shields");
-              setSetupAnim("deal-shields");
+              if (oppHasMulligan) {
+                setIntroStage("waiting-opponent-mulligan");
+              } else {
+                setIntroStage("deal-shields");
+                setSetupAnim("deal-shields");
+              }
               runAction({ kind: "resolveMulligan", keep: true });
             } else {
               mulliganDidMulliganRef.current = true;
@@ -2666,6 +2721,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           }}
         />
+      ) : null}
+
+      {/* Indicador de espera: quando o oponente está decidindo o Mulligan */}
+      {introStage === "waiting-opponent-mulligan" ||
+      (introStage === "mulligan-decision" && myPendingDecision?.kind !== "mulligan" && view.pendingDecision[opponentSeat]?.kind === "mulligan") ? (
+        <div className="fixed inset-x-0 top-20 z-[48] flex justify-center pointer-events-none">
+          <div className="flex items-center gap-2 rounded-arena border border-cyan-400/40 bg-slate-950/90 px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md animate-pulse">
+            <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
+            Aguardando decisão de Mulligan do oponente...
+          </div>
+        </div>
       ) : null}
       {/* docs/56 (revisão do plano de polimento) — desacoplado de `introStage`:
           essa era uma máquina de estados ONE-SHOT da abertura (turno 1) que,
@@ -2907,37 +2973,57 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
-      {/* Frente 4 (feedback Willen 4ª rodada) — animação de setup ancorada nas
-          zonas reais: sai da pilha do deck e viaja até a mão / zona de escudos. */}
+      {/* Animação de setup ancorada nas zonas reais:
+          Na abertura (shuffle, deal-hand, deal-shields), roda simultaneamente no jogador local e no oponente */}
       {setupAnim ? (
-        <DeckDealAnimation
-          key={setupAnim}
-          mode={setupAnim}
-          label={SETUP_ANIM_LABEL[setupAnim]}
-          origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
-          cardW={board.rectOf(`deckStation:${seat}`)?.width}
-          dest={
-            setupAnim === "deal-shields"
-              ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
-              : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
-          }
-          cards={
-            setupAnim === "deal-hand" || setupAnim === "mulligan"
-              ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
-              : setupAnim === "single-draw"
-                ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
-                  // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
-                  // então a última carta visível é sempre a recém-sacada.
-                  (() => {
-                    const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
-                    const last = visible[visible.length - 1];
-                    return last ? [last] : undefined;
-                  })()
-                : undefined
-          }
-          art={art}
-          onDone={handleSetupAnimDone}
-        />
+        <>
+          <DeckDealAnimation
+            key={`self-${setupAnim}`}
+            mode={setupAnim}
+            label={SETUP_ANIM_LABEL[setupAnim]}
+            origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
+            cardW={board.rectOf(`deckStation:${seat}`)?.width}
+            dest={
+              setupAnim === "deal-shields"
+                ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
+                : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
+            }
+            cards={
+              setupAnim === "deal-hand" || setupAnim === "mulligan"
+                ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
+                : setupAnim === "single-draw"
+                  ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
+                    // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
+                    // então a última carta visível é sempre a recém-sacada.
+                    (() => {
+                      const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
+                      const last = visible[visible.length - 1];
+                      return last ? [last] : undefined;
+                    })()
+                  : undefined
+            }
+            art={art}
+            onDone={handleSetupAnimDone}
+          />
+
+          {setupAnim === "shuffle" || setupAnim === "deal-hand" || setupAnim === "deal-shields" ? (
+            <DeckDealAnimation
+              key={`opp-${setupAnim}`}
+              mode={setupAnim}
+              origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+              cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+              dest={
+                setupAnim === "deal-shields"
+                  ? shieldRailCenter(board.rectOf(`shieldRail:${opponentSeat}`))
+                  : handCenter(
+                      board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
+                      board.rectOf(`deckStation:${opponentSeat}`)?.width,
+                    )
+              }
+              onDone={() => {}}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {/* docs/56 tarefa 1 — clones voando pro Trash/Exílio (Unit destruída,

@@ -180,3 +180,70 @@ describe("SimulatorMatchPage — Animação de Comando do Oponente / Bot", () =>
     expect(viewApplied).toBe(true);
   });
 });
+
+describe("SimulatorMatchPage — Banner Condicional de End Phase & Orquestração de Abertura", () => {
+  it("avalia corretamente se há jogada legal no Action Step de End Phase", async () => {
+    const { playerHasActionStepPlay } = await import("../modules/simulator/engine/actions");
+    const { ALL_EFFECT_SPECS } = await import("../modules/simulator/content");
+    const { createGame } = await import("../modules/simulator/engine/setup");
+
+    const sampleCard = {
+      code: "ST01-001",
+      nameEn: "Gundam",
+      cardType: "UNIT" as const,
+      color: "blue" as const,
+      cost: 2,
+      level: 1,
+      ap: 3,
+      hp: 3,
+    };
+    const sampleResource = {
+      code: "ST01-RES",
+      nameEn: "Resource",
+      cardType: "RESOURCE" as const,
+      color: "blue" as const,
+    };
+    const deck = {
+      main: Array(50).fill(sampleCard),
+      resources: Array(10).fill(sampleResource),
+    };
+
+    const state = createGame(deck, deck, { seed: 100, firstPlayer: "A" });
+
+    // Sem cartas de comando Action na mão nem Activate·Action no campo:
+    const hasPlayA = playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS);
+    const hasPlayB = playerHasActionStepPlay(state, "B", ALL_EFFECT_SPECS);
+    expect(hasPlayA).toBe(false);
+    expect(hasPlayB).toBe(false);
+
+    // Adiciona um Comando Action jogável na mão de B
+    state.players.B.hand.push({
+      instanceId: "action-cmd-b",
+      owner: "B",
+      zone: "hand",
+      def: {
+        code: "ST01-014",
+        nameEn: "Overflag Maneuver",
+        cardType: "COMMAND",
+        color: "blue",
+        triggerKeywords: ["Action"],
+        cost: 0,
+        level: 0,
+      },
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: 1,
+    });
+
+    const hasPlayBAfter = playerHasActionStepPlay(state, "B", ALL_EFFECT_SPECS);
+    expect(hasPlayBAfter).toBe(true);
+
+    // Avaliação mútua para decisão de banner
+    const hasAnyPlay = hasPlayA || hasPlayBAfter;
+    expect(hasAnyPlay).toBe(true);
+  });
+});
+
