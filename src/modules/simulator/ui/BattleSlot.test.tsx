@@ -124,6 +124,34 @@ describe("BattleSlot", () => {
     expect(onInspect).not.toHaveBeenCalled();
   });
 
+  // "Nova leva de correções" (item 4, plano v2) — glow inline de alvo de
+  // habilidade (Mikazuki e similares), independente do glow de ataque acima.
+  it("abilityTargetPool='ally': glow verde, clicável, independente de legalTarget", () => {
+    const onSelect = vi.fn();
+    const u = unit();
+    render(<BattleSlot unit={u} pilot={null} art={{}} abilityTargetPool="ally" onSelect={onSelect} />);
+    expect(screen.getByLabelText("Selecionar como alvo: Gundam")).toBeInTheDocument();
+    const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
+    expect(body.parentElement!.className).toMatch(/border-emerald-400/);
+    body.click();
+    expect(onSelect).toHaveBeenCalledWith(u);
+  });
+
+  it("abilityTargetPool='enemy': glow vermelho, distinto do verde de aliado", () => {
+    const u = unit();
+    render(<BattleSlot unit={u} pilot={null} art={{}} abilityTargetPool="enemy" onSelect={vi.fn()} />);
+    const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
+    expect(body.parentElement!.className).toMatch(/border-rose-500/);
+  });
+
+  it("abilityTargetPool + abilitySelected: vira check sólido (sem pulso) e rótulo muda pra 'Desfazer alvo'", () => {
+    const u = unit();
+    render(<BattleSlot unit={u} pilot={null} art={{}} abilityTargetPool="enemy" abilitySelected onSelect={vi.fn()} />);
+    expect(screen.getByLabelText("Desfazer alvo: Gundam")).toBeInTheDocument();
+    const body = document.querySelector('[role="button"][tabindex="0"]') as HTMLElement;
+    expect(body.parentElement!.className).not.toMatch(/animate-pulse/);
+  });
+
   it("Frente 4 (feedback Willen 4ª rodada): Link Unit ganha selo curto 'LINK' na arte; o chip do piloto NÃO tem número de bônus nenhum", () => {
     const u = unit({ link: { kind: "pilotName", values: ["Amuro"] } }, { pairedPilotId: "p-amuro" });
     const pilot = inst({ nameEn: "Amuro Ray", cardType: "PILOT", ap: 2, hp: 1 }, { instanceId: "p-amuro" });

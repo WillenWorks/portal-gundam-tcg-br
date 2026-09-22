@@ -152,6 +152,11 @@ import {
   TriggerOrderModal,
   useBoardElements,
   AbilityResolutionModal,
+  pickSingleTarget,
+  pickSecondaryTarget,
+  toggleMultiTarget,
+  usesBoardTargetingForPrimary,
+  usesBoardTargetingForSecondary,
   ZoneOverflowModal,
   BugReportModal,
   GameOverOverlay,
@@ -367,6 +372,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  /** "Nova leva de correções" (item 4, plano v2) — alvo(s) de uma decisão
+   *  `abilityResolution` em andamento (ex.: ST05-010 Mikazuki Augus), agora
+   *  controlado aqui (não mais dentro do `AbilityResolutionModal`) porque o
+   *  clique direto na Unit no tabuleiro (glow inline) precisa escrever no
+   *  MESMO estado que o modal lê — se cada um tivesse sua própria cópia,
+   *  clicar no tabuleiro não refletiria no modal (e vice-versa). specId →
+   *  lista de instanceIds selecionados; `abilityActivate` é o toggle
+   *  Ativar/Pular de cada item da fila (default `true`, só relevante pra
+   *  efeitos `optional`). */
+  const [abilityTargets, setAbilityTargets] = useState<Record<string, string[]>>({});
+  const [abilitySecondaryTargets, setAbilitySecondaryTargets] = useState<Record<string, string[]>>({});
+  const [abilityActivate, setAbilityActivate] = useState<Record<string, boolean>>({});
+  /** assinatura (specIds concatenados) da última decisão `abilityResolution`
+   *  vista — só reseta os 3 estados acima quando essa assinatura MUDA (nova
+   *  decisão), não a cada `matchView` novo (ping/relógio geram views novas
+   *  sem trocar de decisão, e resetar ali apagaria a seleção no meio do clique). */
+  const abilityDecisionSignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    const decision = matchView?.view.pendingDecision[matchView.seat];
+    const signature = decision?.kind === "abilityResolution" ? decision.queue.map((q) => q.specId).join(",") : null;
+    if (signature === abilityDecisionSignatureRef.current) return;
+    abilityDecisionSignatureRef.current = signature;
+    setAbilityTargets({});
+    setAbilitySecondaryTargets({});
+    setAbilityActivate(
+      signature && decision?.kind === "abilityResolution"
+        ? Object.fromEntries(decision.queue.map((q) => [q.specId, true]))
+        : {},
+    );
+  }, [matchView]);
   /** instanceIds dos Recursos ativos escolhidos pra restar/pagar o custo da carta em `pending` (seleção manual — 2026-09-01). */
   const [selectedResources, setSelectedResources] = useState<string[]>([]);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -1635,6 +1670,47 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     iAmDefending,
   );
 
+  /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
+   *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
+   *  tabuleiro em vez de lista de pills no `AbilityResolutionModal`. Só ativa
+   *  quando `targetScope` do item da fila é de Unit (enemyUnit/friendlyUnit/
+   *  anyUnit) — Recurso/Base/mão/deck/lixeira continuam só no modal (ver
+   *  `usesBoardTargetingForPrimary`/`usesBoardTargetingForSecondary`). */
+  const abilityDecision = myPendingDecision?.kind === "abilityResolution" ? myPendingDecision : null;
+
+  function sideOfUnit(instanceId: string): "ally" | "enemy" | null {
+    if (publicUnits(view.players[seat]).some((u) => u.instanceId === instanceId)) return "ally";
+    if (publicUnits(view.players[opponentSeat]).some((u) => u.instanceId === instanceId)) return "enemy";
+    return null;
+  }
+
+  /** instanceId → quem pediu esse alvo (specId), se é o pool primário ou
+   *  secundário, e `max` (pra saber se é seleção múltipla). Se 2 itens da fila
+   *  competirem pelo mesmo alvo (raro — múltiplos gatilhos simultâneos), o
+   *  último processado vence; não é um caso coberto nesta 1ª rodada. */
+  const abilityUnitTargetsByInstance = new Map<
+    string,
+    { specId: string; pool: "primary" | "secondary"; side: "ally" | "enemy"; max: number }
+  >();
+  if (abilityDecision) {
+    for (const q of abilityDecision.queue) {
+      const isOn = abilityActivate[q.specId] ?? true;
+      if (!isOn) continue;
+      if (usesBoardTargetingForPrimary(q)) {
+        for (const id of q.legalTargets) {
+          const side = sideOfUnit(id);
+          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "primary", side, max: q.targetCount?.max ?? 1 });
+        }
+      }
+      if (usesBoardTargetingForSecondary(q)) {
+        for (const id of q.secondaryTarget!.legalTargets) {
+          const side = sideOfUnit(id);
+          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "secondary", side, max: 1 });
+        }
+      }
+    }
+  }
+
   /** Os 6 slots fixos de uma Battle Area (fragmento — o `ArenaPlaymat` monta o grid).
    *  Só Units; Pilots pareados aparecem acoplados via `DockedPilot`. */
   function renderBattleSlots(player: ViewPlayerState, isSelf: boolean) {
@@ -1731,6 +1807,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         pendingCard?.def.cardType === "UNIT" &&
         !pendingCard.def.pilotMode;
 
+      const abilityTarget = unit ? abilityUnitTargetsByInstance.get(unit.instanceId) : undefined;
+      const isAbilitySelected = Boolean(
+        unit &&
+          abilityTarget &&
+          (abilityTarget.pool === "primary" ? abilityTargets[abilityTarget.specId] : abilitySecondaryTargets[abilityTarget.specId])?.includes(
+            unit.instanceId,
+          ),
+      );
+
       return (
         <BattleSlot
           key={unit?.instanceId ?? `empty-${i}`}
@@ -1750,7 +1835,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           busy={busy}
           state={boardForStats}
+          abilityTargetPool={abilityTarget?.side ?? null}
+          abilitySelected={isAbilitySelected}
           onSelect={(u) => {
+            // "Nova leva de correções" (item 4) — clique num alvo de habilidade
+            // (glow verde/vermelho) tem prioridade sobre qualquer outro modo de
+            // seleção: escreve direto no estado controlado que o
+            // `AbilityResolutionModal` também lê, igual clicar numa pill lá dentro.
+            if (abilityTarget) {
+              if (abilityTarget.pool === "secondary") {
+                setAbilitySecondaryTargets((s) => pickSecondaryTarget(s, abilityTarget.specId, u.instanceId));
+              } else if (abilityTarget.max > 1) {
+                setAbilityTargets((s) => toggleMultiTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
+              } else {
+                setAbilityTargets((s) => pickSingleTarget(s, abilityTarget.specId, u.instanceId));
+              }
+              return;
+            }
             // docs/55 tarefa 2 — clicar direto no corpo da Unit inimiga (halo
             // verde) declara o ataque na hora, sem precisar do corner button.
             if (canBeTargeted && isLegal) {
@@ -2511,6 +2612,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             return "Carta";
           }}
           busy={busy}
+          targets={abilityTargets}
+          setTargets={setAbilityTargets}
+          secondaryTargets={abilitySecondaryTargets}
+          setSecondaryTargets={setAbilitySecondaryTargets}
+          activate={abilityActivate}
+          setActivate={setAbilityActivate}
           onResolve={(resolutions) => runAction({ kind: "resolveAbility", resolutions })}
         />
       ) : null}

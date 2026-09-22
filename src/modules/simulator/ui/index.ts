@@ -17,7 +17,14 @@ export { BurstRevealStage, type BurstRevealOrigin } from "./BurstRevealStage";
 export { MulliganModal } from "./MulliganModal";
 export { FirstPlayerReveal } from "./FirstPlayerReveal";
 export { TriggerOrderModal } from "./TriggerOrderModal";
-export { AbilityResolutionModal } from "./AbilityResolutionModal";
+export {
+  AbilityResolutionModal,
+  pickSingleTarget,
+  pickSecondaryTarget,
+  toggleMultiTarget,
+  usesBoardTargetingForPrimary,
+  usesBoardTargetingForSecondary,
+} from "./AbilityResolutionModal";
 export { ZoneOverflowModal } from "./ZoneOverflowModal";
 export { BugReportModal } from "./BugReportModal";
 export { SideboardModal, type SideboardModalProps } from "./SideboardModal";

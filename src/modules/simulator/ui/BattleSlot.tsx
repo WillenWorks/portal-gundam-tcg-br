@@ -10,7 +10,7 @@
  * esquerda dele quando a jogada é possível. Sem badge "BLK" na carta — o botão
  * de escudo só aparece quando é hora de bloquear. */
 import { useEffect } from "react";
-import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
+import { CheckCircle2, Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
@@ -68,6 +68,15 @@ interface BattleSlotProps {
   onEmptySlotClick?: () => void;
   /** Se o slot vazio está ativo como destino válido para posicionamento */
   emptySlotActive?: boolean;
+  /** "Nova leva de correções" (item 4, plano v2) — alvo legal de uma decisão de
+   *  habilidade em andamento (ex.: ST05-010 Mikazuki Augus 【When Paired】),
+   *  INDEPENDENTE de `legalTarget`/`selected` (aqueles são do targeting de
+   *  ataque e não podem mudar de cor/comportamento). "ally" = glow verde,
+   *  "enemy" = glow vermelho. */
+  abilityTargetPool?: "ally" | "enemy" | null;
+  /** já escolhida como alvo da decisão de habilidade em andamento — glow por
+   *  cima da carta inteira, distinto de `selected` (que é do targeting geral). */
+  abilitySelected?: boolean;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -117,6 +126,8 @@ export function BattleSlot({
   attacking,
   onEmptySlotClick,
   emptySlotActive,
+  abilityTargetPool,
+  abilitySelected,
 }: BattleSlotProps) {
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
@@ -217,7 +228,8 @@ export function BattleSlot({
   if (showBlocker) cornerActions.push({ key: "blocker", icon: ShieldCheck, label: "Ativar Blocker", tone: "emerald", disabled: busy, onClick: () => actions!.onBlocker!(unit) });
 
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
-  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
+  const isAbilityTarget = Boolean(abilityTargetPool);
+  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget && !isAbilityTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -243,11 +255,22 @@ export function BattleSlot({
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
         legalTarget
           ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
-          : selected || isAttacker
-            ? "border-primary shadow-[0_0_10px_rgba(56,189,248,0.5)]"
-            : isInvalidTarget
-              ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
-              : "border-primary/20",
+          : abilitySelected
+            ? cn(
+                "z-20 scale-[1.03]",
+                abilityTargetPool === "enemy"
+                  ? "border-rose-300 ring-4 ring-rose-300 shadow-[0_0_22px_rgba(244,63,94,0.95)]"
+                  : "border-emerald-300 ring-4 ring-emerald-300 shadow-[0_0_22px_rgba(52,211,153,0.95)]",
+              )
+            : abilityTargetPool === "ally"
+              ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
+              : abilityTargetPool === "enemy"
+                ? "z-20 border-rose-500 ring-2 ring-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.85)] animate-pulse scale-[1.02]"
+                : selected || isAttacker
+                  ? "border-primary shadow-[0_0_10px_rgba(56,189,248,0.5)]"
+                  : isInvalidTarget
+                    ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
+                    : "border-primary/20",
       )}
     >
       {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
@@ -258,15 +281,24 @@ export function BattleSlot({
           `aspect-[63/88]` sozinha (só a carta), e o Piloto ganha uma tira
           RESERVADA logo abaixo (nunca mais rouba espaço de dentro da arte). */}
       <div
-        role={legalTarget || bodyInspects ? "button" : undefined}
-        tabIndex={legalTarget || bodyInspects ? 0 : undefined}
-        aria-label={bodyInspects ? `Ver ${unit.def.nameEn}` : undefined}
+        role={legalTarget || isAbilityTarget || bodyInspects ? "button" : undefined}
+        tabIndex={legalTarget || isAbilityTarget || bodyInspects ? 0 : undefined}
+        aria-label={
+          isAbilityTarget
+            ? `${abilitySelected ? "Desfazer alvo" : "Selecionar como alvo"}: ${unit.def.nameEn}`
+            : bodyInspects
+              ? `Ver ${unit.def.nameEn}`
+              : undefined
+        }
+        aria-pressed={isAbilityTarget ? abilitySelected : undefined}
         onClick={
           legalTarget && onSelect
             ? () => onSelect(unit)
-            : bodyInspects && onInspect
-              ? () => onInspect(unit)
-              : undefined
+            : isAbilityTarget && onSelect
+              ? () => onSelect(unit)
+              : bodyInspects && onInspect
+                ? () => onInspect(unit)
+                : undefined
         }
         onKeyDown={
           legalTarget && onSelect
@@ -276,18 +308,25 @@ export function BattleSlot({
                   onSelect(unit);
                 }
               }
-            : bodyInspects && onInspect
+            : isAbilityTarget && onSelect
               ? (e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onInspect(unit);
+                    onSelect(unit);
                   }
                 }
-              : undefined
+              : bodyInspects && onInspect
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onInspect(unit);
+                    }
+                  }
+                : undefined
         }
         className={cn(
           "relative block aspect-[63/88] w-full",
-          legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
+          legalTarget || isAbilityTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
           justDeployed === "light" && "sim-anim-land-soft",
           justDeployed === "heavy" && "sim-anim-drop-heavy",
         )}
@@ -318,6 +357,28 @@ export function BattleSlot({
                 className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
               >
                 <Crosshair className="size-3/4" />
+              </span>
+            </div>
+          ) : null}
+          {/* "Nova leva de correções" (item 4) — marcador de alvo de habilidade,
+              independente do de ataque acima: verde/vermelho conforme o pool,
+              vira check sólido (sem pulso) quando já selecionado. */}
+          {isAbilityTarget ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border",
+                  abilitySelected
+                    ? abilityTargetPool === "enemy"
+                      ? "border-rose-300 bg-rose-950/80 text-rose-200 shadow-[0_0_16px_rgba(244,63,94,0.9)]"
+                      : "border-emerald-300 bg-emerald-950/80 text-emerald-200 shadow-[0_0_16px_rgba(52,211,153,0.9)]"
+                    : abilityTargetPool === "enemy"
+                      ? "border-rose-500 bg-rose-950/70 text-rose-300 shadow-[0_0_14px_rgba(244,63,94,0.75)] animate-pulse"
+                      : "border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse",
+                )}
+              >
+                {abilitySelected ? <CheckCircle2 className="size-3/4" /> : <Crosshair className="size-3/4" />}
               </span>
             </div>
           ) : null}
