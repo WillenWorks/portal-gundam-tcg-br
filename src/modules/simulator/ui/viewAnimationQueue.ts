@@ -11,7 +11,14 @@
  * várias ações em sequência. Sem fila, cada mensagem processava por conta
  * própria, e só a que por acaso encontrava uma animação pendente esperava —
  * as outras aplicavam o estado final na hora, sem nenhuma animação visível. */
-import type { CombatState, PendingDecision } from "../engine/types";
+import type {
+  CardDef,
+  CardInstance,
+  CombatState,
+  PendingDecision,
+  PlayerId,
+} from "../engine/types";
+import type { ViewCardInstance, ViewGameState } from "../engine/viewState";
 
 /**
  * Decide se a transição de `prevCombat` pra `incomingCombat` deve disparar o
@@ -41,3 +48,97 @@ export function shouldWaitForBurstReveal(
 ): boolean {
   return Boolean(pendingDecision && pendingDecision.kind === "burst" && pendingDecision.cardInstanceId !== revealedId);
 }
+
+function isCardInstance(card: ViewCardInstance): card is CardInstance {
+  return !("hidden" in card && (card as { hidden?: boolean }).hidden === true);
+}
+
+/**
+ * Decide se a transição de `prevView` pra `incomingView` representa um Comando
+ * jogado pelo oponente (que saiu da mão dele e foi parar no Trash dele com
+ * cardType "COMMAND"). Retorna a `CardDef` do comando se detectado, ou `null`.
+ */
+export function detectOpponentCommandCast(
+  prevView: ViewGameState | null,
+  incomingView: ViewGameState,
+  viewerSeat: PlayerId,
+): CardDef | null {
+  if (!prevView) return null;
+  const opponentSeat: PlayerId = viewerSeat === "A" ? "B" : "A";
+  const prevOpponent = prevView.players[opponentSeat];
+  const curOpponent = incomingView.players[opponentSeat];
+  if (!prevOpponent || !curOpponent) return null;
+
+  const prevHandIds = new Set(prevOpponent.hand.map((c) => c.instanceId));
+  const prevTrashIds = new Set(prevOpponent.trash.map((c) => c.instanceId));
+
+  for (const c of curOpponent.trash) {
+    if (prevTrashIds.has(c.instanceId)) continue;
+    if (!prevHandIds.has(c.instanceId)) continue;
+    if (curOpponent.hand.some((h) => h.instanceId === c.instanceId)) continue;
+    if (isCardInstance(c) && c.def?.cardType === "COMMAND") {
+      return c.def;
+    }
+  }
+
+  return null;
+}
+
+export interface Point2D {
+  x: number;
+  y: number;
+}
+
+export function getSafePoint(
+  rect: DOMRect | null | undefined,
+  fallbackCenter: Point2D,
+): Point2D {
+  if (!rect || (rect.width === 0 && rect.height === 0)) {
+    return fallbackCenter;
+  }
+  const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  if (center.x === 0 && center.y === 0) {
+    return fallbackCenter;
+  }
+  return center;
+}
+
+export function resolveCommandAnimationPoints(
+  board: { rectOf: (key: string) => DOMRect | null },
+  opponentSeat: PlayerId,
+  fallbackCenter: Point2D,
+): { origin: Point2D; dest: Point2D } {
+  const oppHandRect = board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`);
+  const origin = getSafePoint(oppHandRect, fallbackCenter);
+
+  const oppTrashRect = board.rectOf(`trashStation:${opponentSeat}`);
+  const dest = getSafePoint(oppTrashRect, fallbackCenter);
+
+  return { origin, dest };
+}
+
+export async function handleOpponentCommandCast({
+  prevView,
+  incomingView,
+  viewerSeat,
+  board,
+  fallbackCenter,
+  animateCommand,
+}: {
+  prevView: ViewGameState | null;
+  incomingView: ViewGameState;
+  viewerSeat: PlayerId;
+  board: { rectOf: (key: string) => DOMRect | null };
+  fallbackCenter: Point2D;
+  animateCommand: (params: { cardDef: CardDef; origin: Point2D; dest: Point2D }) => Promise<void>;
+}): Promise<boolean> {
+  const commandDef = detectOpponentCommandCast(prevView, incomingView, viewerSeat);
+  if (!commandDef) return false;
+
+  const opponentSeat: PlayerId = viewerSeat === "A" ? "B" : "A";
+  const { origin, dest } = resolveCommandAnimationPoints(board, opponentSeat, fallbackCenter);
+
+  await animateCommand({ cardDef: commandDef, origin, dest });
+  return true;
+}
+

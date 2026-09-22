@@ -115,7 +115,11 @@ import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simul
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
-import { shouldAnimateAttackStrike, shouldWaitForBurstReveal } from "@/modules/simulator/ui/viewAnimationQueue";
+import {
+  handleOpponentCommandCast,
+  shouldAnimateAttackStrike,
+  shouldWaitForBurstReveal,
+} from "@/modules/simulator/ui/viewAnimationQueue";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -695,6 +699,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const viewQueueRef = useRef<SimulatorMatchView[]>([]);
   const isDrainingViewQueueRef = useRef(false);
   const hasAppliedFirstViewRef = useRef(false);
+  const prevViewForQueueRef = useRef<ViewGameState | null>(null);
 
   const processIncomingView = useCallback(
     async (incoming: SimulatorMatchView) => {
@@ -703,6 +708,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
 
       detectDepartures(incoming);
+
+      // Animação de Comando jogado pelo oponente/bot: deve rodar e esperar antes
+      // de setMatchView para que o efeito do Comando na arena só apareça resolvido após o onDone.
+      const fallbackCenter = {
+        x: typeof window !== "undefined" && window.innerWidth ? window.innerWidth / 2 : 500,
+        y: typeof window !== "undefined" && window.innerHeight ? window.innerHeight / 2 : 350,
+      };
+      const prevView = prevViewForQueueRef.current;
+      prevViewForQueueRef.current = incoming.view;
+
+      await handleOpponentCommandCast({
+        prevView,
+        incomingView: incoming.view,
+        viewerSeat: incoming.seat,
+        board,
+        fallbackCenter,
+        animateCommand: ({ cardDef, origin, dest }) =>
+          new Promise<void>((resolve) => {
+            let timer: ReturnType<typeof setTimeout> | null = null;
+            const finish = () => {
+              if (timer) clearTimeout(timer);
+              setCommandCast(null);
+              commandCastResolveRef.current = null;
+              resolve();
+            };
+            commandCastResolveRef.current = finish;
+            timer = setTimeout(finish, VIEW_QUEUE_ITEM_TIMEOUT_MS);
+            setCommandCast({ cardDef, origin, dest });
+          }),
+      });
 
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
@@ -737,7 +772,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         await waitForBurstReveal(myDecision.cardInstanceId);
       }
     },
-    [executeAttackStrike, detectDepartures, waitForBurstReveal],
+    [executeAttackStrike, detectDepartures, waitForBurstReveal, board],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -773,6 +808,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // senão a 2ª view (já pela fila) achava que também era "a primeira".
       if (!hasAppliedFirstViewRef.current) {
         hasAppliedFirstViewRef.current = true;
+        prevViewForQueueRef.current = incoming.view;
         detectDepartures(incoming);
         prevCombatRef.current = incoming.view.combat;
         setMatchView(incoming);
@@ -2033,9 +2069,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  resto da arena — sempre pequeno demais, e ficou pior ainda no modo
    *  expandido (tudo cresce, MENOS isto). Proporcional a `--card-w` agora,
    *  como toda outra peça da arena. */
-  function opponentHandBacks(count: number) {
+  function opponentHandBacks(count: number, pid?: PlayerId) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div
+        ref={(el) => {
+          board.register("hand:opponent")(el);
+          if (pid) board.register(`hand:${pid}`)(el);
+        }}
+        className="flex items-center gap-1.5"
+      >
         <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
@@ -2178,7 +2220,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       shieldRailRef: board.register(`shieldRail:${pid}`),
       deckStationRef: board.register(`deckStation:${pid}`),
       handRef: isSelf ? board.register("hand:self") : undefined,
-      handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
+      handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length, pid),
     };
   }
 
