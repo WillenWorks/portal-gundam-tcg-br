@@ -226,8 +226,8 @@ export function AbilityResolutionModal({
     );
 
   return (
-    <div className="fixed inset-0 z-[61] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
-      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,40rem)] max-h-[70vh] overflow-y-auto border border-amber-400/50 p-4 shadow-2xl backdrop-blur-md">
+    <div className="fixed inset-0 z-[61] pointer-events-none flex justify-center px-3 pt-2 sm:pt-3 animate-in fade-in duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,34rem)] max-h-[50vh] overflow-y-auto border border-amber-400/50 p-3.5 shadow-2xl backdrop-blur-md">
         <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-300">
           <Sparkles className="size-4" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
         </p>
@@ -276,36 +276,44 @@ export function AbilityResolutionModal({
 
                 {on && q.needsTarget ? (
                   opts.length > 0 ? (
-                    usesBoardTargetingForPrimary(q) ? (
-                      <BoardTargetHint
-                        side={q.targetScope === "friendlyUnit" ? "ally" : q.targetScope === "enemyUnit" ? "enemy" : "both"}
-                        count={(targets[specId] ?? []).length}
-                        max={q.targetCount?.max ?? 1}
-                      />
-                    ) : (
-                      <div className="mt-2 space-y-1">
-                        {q.targetCount && q.targetCount.max > 1 ? (
-                          <p className="text-[10px] text-amber-300">
-                            Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
-                          </p>
-                        ) : null}
-                        <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                          {opts.map((opt) => {
-                            const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
-                            const maxTargets = q.targetCount?.max ?? 1;
-                            return (
-                              <Toggle
-                                key={opt.instanceId}
-                                active={isSelected}
-                                onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
-                              >
+                    <div className="mt-2 space-y-1">
+                      {usesBoardTargetingForPrimary(q) ? (
+                        <BoardTargetHint
+                          side={q.targetScope === "friendlyUnit" ? "ally" : q.targetScope === "enemyUnit" ? "enemy" : "both"}
+                          count={(targets[specId] ?? []).length}
+                          max={q.targetCount?.max ?? 1}
+                          label="Selecione no tabuleiro ou abaixo:"
+                        />
+                      ) : q.targetCount && q.targetCount.max > 1 ? (
+                        <p className="text-[10px] text-amber-300">
+                          Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
+                        </p>
+                      ) : null}
+                      <div className="scrollbar-ghost flex flex-wrap gap-1 pb-1">
+                        {opts.map((opt) => {
+                          const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
+                          const maxTargets = q.targetCount?.max ?? 1;
+                          const isAlly = q.targetScope === "friendlyUnit";
+                          const isEnemy = q.targetScope === "enemyUnit";
+                          return (
+                            <Toggle
+                              key={opt.instanceId}
+                              active={isSelected}
+                              onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                {isAlly ? (
+                                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                                ) : isEnemy ? (
+                                  <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)]" />
+                                ) : null}
                                 {opt.label}
-                              </Toggle>
-                            );
-                          })}
-                        </div>
+                              </span>
+                            </Toggle>
+                          );
+                        })}
                       </div>
-                    )
+                    </div>
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
                   )
@@ -313,29 +321,41 @@ export function AbilityResolutionModal({
 
                 {on && q.secondaryTarget ? (
                   q.secondaryTarget.legalTargets.length > 0 ? (
-                    usesBoardTargetingForSecondary(q) ? (
-                      <BoardTargetHint
-                        side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
-                        count={(secondaryTargets[specId] ?? []).length}
-                        max={1}
-                        label="E também:"
-                      />
-                    ) : (
-                      <div className="mt-2 space-y-1">
+                    <div className="mt-2 space-y-1">
+                      {usesBoardTargetingForSecondary(q) ? (
+                        <BoardTargetHint
+                          side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
+                          count={(secondaryTargets[specId] ?? []).length}
+                          max={1}
+                          label="E também (no tabuleiro ou abaixo):"
+                        />
+                      ) : (
                         <p className="text-[10px] text-amber-300">E também:</p>
-                        <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                          {q.secondaryTarget.legalTargets.map((instanceId) => (
+                      )}
+                      <div className="scrollbar-ghost flex flex-wrap gap-1 pb-1">
+                        {q.secondaryTarget.legalTargets.map((instanceId) => {
+                          const isSelected = (secondaryTargets[specId] ?? []).includes(instanceId);
+                          const isAlly = q.secondaryTarget!.targetScope === "friendlyUnit";
+                          const isEnemy = q.secondaryTarget!.targetScope === "enemyUnit";
+                          return (
                             <Toggle
                               key={instanceId}
-                              active={(secondaryTargets[specId] ?? []).includes(instanceId)}
+                              active={isSelected}
                               onClick={() => pickSecondary(specId, instanceId)}
                             >
-                              {resolveLabel(instanceId)}
+                              <span className="inline-flex items-center gap-1">
+                                {isAlly ? (
+                                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                                ) : isEnemy ? (
+                                  <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_5px_rgba(244,63,94,0.8)]" />
+                                ) : null}
+                                {resolveLabel(instanceId)}
+                              </span>
                             </Toggle>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    )
+                    </div>
                   ) : (
                     <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
                   )

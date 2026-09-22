@@ -499,6 +499,22 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
+  const phaseBannerQueueRef = useRef<string[]>([]);
+  phaseBannerQueueRef.current = phaseBannerQueue;
+  const phaseBannerResolveRef = useRef<(() => void) | null>(null);
+
+  const waitForPhaseBanners = useCallback(() => {
+    if (phaseBannerQueueRef.current.length === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const prev = phaseBannerResolveRef.current;
+      phaseBannerResolveRef.current = () => {
+        prev?.();
+        resolve();
+      };
+      // Timeout de segurança pra nunca travar a fila de views
+      setTimeout(resolve, 3000);
+    });
+  }, []);
   // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
   // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
   // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
@@ -781,6 +797,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     isDrainingViewQueueRef.current = true;
     try {
       while (viewQueueRef.current.length > 0) {
+        if (phaseBannerQueueRef.current.length > 0) {
+          await waitForPhaseBanners();
+        }
         const next = viewQueueRef.current.shift()!;
         try {
           await processIncomingView(next);
@@ -798,7 +817,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } finally {
       isDrainingViewQueueRef.current = false;
     }
-  }, [processIncomingView]);
+  }, [processIncomingView, waitForPhaseBanners]);
 
   const applyIncomingView = useCallback(
     (incoming: SimulatorMatchView) => {
@@ -1246,6 +1265,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       const next = prev.slice(1);
       if (next.length === 0) {
         setIntroStage("complete");
+        phaseBannerResolveRef.current?.();
+        phaseBannerResolveRef.current = null;
       }
       return next;
     });
@@ -1311,9 +1332,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setPhaseBannerQueue((prev) => [
       ...prev,
       isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-      "FASE DE COMPRA",
-      "FASE DE RECUPERAÇÃO",
-      "FASE PRINCIPAL",
     ]);
   }, [matchView, introStage]);
 
@@ -1861,6 +1879,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     (attackerId !== null && combat === null) ||
     iAmDefending,
   );
+  const isPhaseBannerActive = phaseBannerQueue.length > 0;
 
   /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
    *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
@@ -2025,11 +2044,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
               : undefined
           }
-          busy={busy}
+          busy={busy || isPhaseBannerActive}
           state={boardForStats}
           abilityTargetPool={abilityTarget?.side ?? null}
           abilitySelected={isAbilitySelected}
           onSelect={(u) => {
+            if (isPhaseBannerActive) return;
             // "Nova leva de correções" (item 4) — clique num alvo de habilidade
             // (glow verde/vermelho) tem prioridade sobre qualquer outro modo de
             // seleção: escreve direto no estado controlado que o
@@ -2599,6 +2619,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }
                 art={art}
                 onPeek={(c) => {
+                  if (busy || isPhaseBannerActive) return;
                   const { modes, blockedReason } = describeHandCard(c);
                   // "Jogar" (Sprint 5) — modo único: joga direto (o TopTacticalHUD guia alvo/custo).
                   if (modes.length === 1) {
@@ -2615,6 +2636,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   setHandModeChoice({ card: c, modes });
                 }}
                 onInspect={(c) => {
+                  if (isPhaseBannerActive) return;
                   // clicar no corpo da carta abre a modal de zoom pra leitura; se
                   // a carta for jogável, o footer de ação continua disponível.
                   const { modes, blockedReason } = describeHandCard(c);
@@ -2911,7 +2933,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       <MatchPrompt
         message={matchPrompt}
         tone={combat || iAmDefending || inActionStep ? "warn" : "info"}
-        busy={busy}
+        busy={busy || isPhaseBannerActive}
         onConfirm={hudConfirm}
         canConfirm={hudCanConfirm}
         onCancel={hudCancel}
@@ -3051,7 +3073,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           timerSeconds={turnSecondsLeft}
           turnNumber={view.turnNumber}
-          busy={busy}
+          busy={busy || isPhaseBannerActive}
           autoPass={dockAutoPass}
           pingMs={transportKind === "socket" ? lastPingMs : null}
           logOpen={logOpen}

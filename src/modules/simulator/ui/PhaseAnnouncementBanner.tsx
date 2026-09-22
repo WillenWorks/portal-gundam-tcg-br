@@ -18,7 +18,7 @@ export function PhaseAnnouncementBanner({
   sub = "SISTEMA TÁTICO ATIVO",
   // docs/56 (revisão do plano) — sem `durationMs` explícito, escala pela
   // velocidade escolhida em `SettingsMenu` (0.75x segura mais, 2x quase não pausa).
-  durationMs = getScaledDuration(1200),
+  durationMs = getScaledDuration(900),
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const [visible, setVisible] = useState(true);
@@ -82,7 +82,7 @@ export function PhaseAnnouncementBanner({
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]"
+      className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]"
       aria-live="assertive"
     >
       <div className="relative flex flex-col items-center px-10 py-5 text-center animate-in zoom-in-95 fade-in duration-200">
