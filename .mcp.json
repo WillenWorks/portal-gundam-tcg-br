@@ -3,6 +3,10 @@
     "gundam": {
       "command": "node",
       "args": ["scripts/mcp-gundam/server.mjs"]
+    },
+    "ia-debate": {
+      "command": "node",
+      "args": ["C:/WillenWorks/mcp-ia-debate/src/server.mjs"]
     }
   }
 }
