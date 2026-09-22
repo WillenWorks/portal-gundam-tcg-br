@@ -4,13 +4,13 @@
  * classes `sim-preserve-3d`/`sim-anim-card-flip` do `DeckDealAnimation`), só
  * então o modal de decisão abre. Fases controladas em JS (mesmo padrão de
  * `executeAttackStrike` em `SimulatorMatchPage.tsx`) em vez de 1 keyframe
- * monolítico, pra facilitar escalar por velocidade quando `animationSettings.ts`
- * existir (Agente 2 — ainda não integrado aqui).
+ * monolítico, pra facilitar escalar por velocidade (`animationSettings.ts`).
  *
  * Componente APRESENTACIONAL e auto-contido: overlay `fixed` (`pointer-events-none`). */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CardDef } from "@/modules/simulator/engine/types";
+import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
 
@@ -29,13 +29,15 @@ interface BurstRevealStageProps {
   onDone: () => void;
 }
 
-// TODO: escalar por getScaledDuration quando animationSettings.ts existir (Agente 2, item 8 do plano).
-const FLY_MS = 420;
-const FLIP_MS = 500;
-const HOLD_MS = 550;
+const FLY_BASE_MS = 420;
+const FLIP_BASE_MS = 500;
+const HOLD_BASE_MS = 550;
 
 export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstRevealStageProps) {
   const [phase, setPhase] = useState<"fly" | "flip" | "hold">("fly");
+  const flyMs = useMemo(() => getScaledDuration(FLY_BASE_MS), []);
+  const flipMs = useMemo(() => getScaledDuration(FLIP_BASE_MS), []);
+  const holdMs = useMemo(() => getScaledDuration(HOLD_BASE_MS), []);
 
   useEffect(() => {
     const reduced =
@@ -45,10 +47,10 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
       return;
     }
     sfx.playCardDraw();
-    const t1 = setTimeout(() => setPhase("flip"), FLY_MS);
-    const t2 = setTimeout(() => sfx.playShieldBurst(), FLY_MS + FLIP_MS * 0.3);
-    const t3 = setTimeout(() => setPhase("hold"), FLY_MS + FLIP_MS);
-    const t4 = setTimeout(() => onDone(), FLY_MS + FLIP_MS + HOLD_MS);
+    const t1 = setTimeout(() => setPhase("flip"), flyMs);
+    const t2 = setTimeout(() => sfx.playShieldBurst(), flyMs + flipMs * 0.3);
+    const t3 = setTimeout(() => setPhase("hold"), flyMs + flipMs);
+    const t4 = setTimeout(() => onDone(), flyMs + flipMs + holdMs);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -85,13 +87,13 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
           transform: `translate3d(${centerX - originX}px, ${centerY - originY}px, 0) scale(${scale})`,
           transition:
             phase === "fly"
-              ? `transform ${FLY_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
-              : `transform ${FLIP_MS}ms ease-out`,
+              ? `transform ${flyMs}ms cubic-bezier(0.16, 1, 0.3, 1)`
+              : `transform ${flipMs}ms ease-out`,
         }}
       >
         <div
           className={cn("relative h-full w-full sim-preserve-3d", phase !== "fly" && "sim-anim-card-flip")}
-          style={phase !== "fly" ? ({ animationDuration: `${FLIP_MS}ms` } as React.CSSProperties) : undefined}
+          style={phase !== "fly" ? ({ animationDuration: `${flipMs}ms` } as React.CSSProperties) : undefined}
         >
           {/* Verso — visível durante o voo, antes do giro */}
           <div

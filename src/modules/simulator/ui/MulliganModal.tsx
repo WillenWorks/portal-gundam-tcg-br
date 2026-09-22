@@ -12,10 +12,15 @@ interface MulliganModalProps {
   hand: CardInstance[];
   art: ArtLookup;
   busy?: boolean;
+  /** largura real da carta (px), medida em `deckStation:${seat}` pelo pai —
+   *  `--card-w-std` só existe dentro da subtree do `<ArenaPlaymat>`; este modal
+   *  é um `fixed inset-0` irmão, fora dela, então a CSS var nunca resolve pro
+   *  valor real (revisão do plano de polimento, item 1). */
+  cardW: number;
   onResolve: (keep: boolean) => void;
 }
 
-export function MulliganModal({ hand, art, busy, onResolve }: MulliganModalProps) {
+export function MulliganModal({ hand, art, busy, cardW, onResolve }: MulliganModalProps) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4">
       <div className="panel-cut hero-surface w-full max-w-md border border-primary/45 p-4">
@@ -34,11 +39,11 @@ export function MulliganModal({ hand, art, busy, onResolve }: MulliganModalProps
               code={c.def.code}
               art={art}
               size="md"
-              // docs/56 (revisão do plano de polimento) — `size="md"` só resolve a
-              // ARTE (63x88 vs demais resoluções); o LAYOUT precisa seguir
-              // `--card-w-std` (igual `HandFan.tsx`), senão a carta muda de
-              // tamanho assim que o modal fecha e a mão real aparece.
-              style={{ width: "var(--card-w-std, 2.17rem)" }}
+              // `size="md"` só resolve a ARTE (63x88 vs demais resoluções); o
+              // LAYOUT usa `cardW` medido pelo pai (mesma fonte do
+              // `DeckDealAnimation`), senão a carta muda de tamanho assim que
+              // o modal fecha e a mão real aparece.
+              style={{ width: cardW || undefined }}
               className="border border-white/10"
             />
           ))}

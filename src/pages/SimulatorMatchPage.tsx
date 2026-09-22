@@ -114,6 +114,7 @@ import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } fro
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
+import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -511,7 +512,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       // 1. Avanço/lunge tático contra o alvo inimigo
       setActiveStrike({ attackerId, towardX, towardY, phase: "advance" });
-      await new Promise((r) => setTimeout(r, 260));
+      await new Promise((r) => setTimeout(r, getScaledDuration(260)));
 
       // 2. Disparo de feixe / impacto no alvo — ataque direto (jogador) ganha
       // tremor visual na trilha de shields do lado atingido (docs/55 tarefa 5).
@@ -526,11 +527,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         phase: "strike",
         shieldsOf: currentTarget === "player" ? defendingPlayer : undefined,
       });
-      await new Promise((r) => setTimeout(r, 220));
+      await new Promise((r) => setTimeout(r, getScaledDuration(220)));
 
       // 3. Recuo suave de volta para a sua área
       setActiveStrike({ attackerId, towardX, towardY, phase: "return" });
-      await new Promise((r) => setTimeout(r, 280));
+      await new Promise((r) => setTimeout(r, getScaledDuration(280)));
 
       // 4. Conclui animação
       setActiveStrike(null);
@@ -722,13 +723,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         if (action.kind === "declareAttack") {
           // O feixe de ataque e o impacto sonoro acontecem no strike pós-passo de ação
           sfx.playClick();
-          await new Promise((r) => setTimeout(r, 60));
+          await new Promise((r) => setTimeout(r, getScaledDuration(60)));
         } else if (action.kind === "activateBlocker") {
           // docs/55 tarefa 3 — 300ms de confirmação visual (a seta de combate
           // já redireciona pro blocker assim que a nova view chegar) antes de
           // avançar pro Passo de Ação.
           sfx.playShieldBlock();
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, getScaledDuration(300)));
         } else if (action.kind === "playCommand") {
           // "Nova leva de correções" — revelação da carta de Comando antes do
           // descarte (era só um `setTimeout(120)` sem nenhum feedback visual).
@@ -745,14 +746,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             });
           } else {
             sfx.playNewtypeFlash();
-            await new Promise((r) => setTimeout(r, 120));
+            await new Promise((r) => setTimeout(r, getScaledDuration(120)));
           }
         } else if (action.kind === "finishTurn") {
           sfx.playTurnStartAlert();
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else if (action.kind === "deployCard") {
           sfx.playDeploy();
-          await new Promise((r) => setTimeout(r, 100));
+          await new Promise((r) => setTimeout(r, getScaledDuration(100)));
         } else {
           sfx.playClick();
         }
@@ -2400,6 +2401,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           hand={myHandCards}
           art={art}
           busy={busy}
+          cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onResolve={(keep) => {
             if (keep) {
               mulliganDidMulliganRef.current = false;

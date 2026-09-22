@@ -14,6 +14,7 @@ import { Crosshair, ShieldCheck, Swords, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "@/modules/simulator/engine/types";
+import { getScaledDuration } from "./animationSettings";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
@@ -80,7 +81,7 @@ function lungeStyle(v: { towardX: number; towardY: number; phase?: "advance" | "
   if (v.phase === "return") {
     return {
       transform: "translate(0px, 0px) rotate(0deg) scale(1)",
-      transition: "transform 260ms cubic-bezier(0.25, 1, 0.5, 1)",
+      transition: `transform ${getScaledDuration(260)}ms cubic-bezier(0.25, 1, 0.5, 1)`,
       zIndex: 35,
     };
   }
@@ -91,7 +92,7 @@ function lungeStyle(v: { towardX: number; towardY: number; phase?: "advance" | "
   const angle = Math.max(-9, Math.min(9, (v.towardX / mag) * 9));
   return {
     transform: `translate(${(v.towardX * k).toFixed(1)}px, ${(v.towardY * k).toFixed(1)}px) rotate(${angle.toFixed(1)}deg) scale(1.05)`,
-    transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.25, 1.2)",
+    transition: `transform ${getScaledDuration(240)}ms cubic-bezier(0.2, 0.8, 0.25, 1.2)`,
     zIndex: 45,
   };
 }

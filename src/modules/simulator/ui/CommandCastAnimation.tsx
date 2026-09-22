@@ -2,13 +2,13 @@
  * da mão, fica em destaque no centro da arena ("Ativando Comando") por um
  * intervalo, e então viaja até o Trash. Fases controladas em JS (mesmo padrão
  * de `executeAttackStrike`/`BurstRevealStage`), não 1 keyframe monolítico, pra
- * facilitar escalar por velocidade quando `animationSettings.ts` existir
- * (Agente 2 — ainda não integrado aqui).
+ * facilitar escalar por velocidade (`animationSettings.ts`).
  *
  * Componente APRESENTACIONAL e auto-contido: overlay `fixed` (`pointer-events-none`). */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CardDef } from "@/modules/simulator/engine/types";
+import { getScaledDuration } from "./animationSettings";
 import { artSrc, cardBackUrl, isGenericArtCard, type ArtLookup } from "./cardArt";
 import { sfx } from "../audio/soundEffects";
 
@@ -28,13 +28,17 @@ interface CommandCastAnimationProps {
   onDone: () => void;
 }
 
-// TODO: escalar por getScaledDuration quando animationSettings.ts existir (Agente 2, item 8 do plano).
-const RISE_MS = 320;
-const HOLD_MS = 700;
-const FLY_MS = 360;
+const RISE_BASE_MS = 320;
+const HOLD_BASE_MS = 700;
+const FLY_BASE_MS = 360;
+const HOLD_SETTLE_BASE_MS = 160;
 
 export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone }: CommandCastAnimationProps) {
   const [phase, setPhase] = useState<"rise" | "hold" | "fly">("rise");
+  const riseMs = useMemo(() => getScaledDuration(RISE_BASE_MS), []);
+  const holdMs = useMemo(() => getScaledDuration(HOLD_BASE_MS), []);
+  const flyMs = useMemo(() => getScaledDuration(FLY_BASE_MS), []);
+  const holdSettleMs = useMemo(() => getScaledDuration(HOLD_SETTLE_BASE_MS), []);
 
   useEffect(() => {
     const reduced =
@@ -44,9 +48,9 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
       return;
     }
     sfx.playNewtypeFlash();
-    const t1 = setTimeout(() => setPhase("hold"), RISE_MS);
-    const t2 = setTimeout(() => setPhase("fly"), RISE_MS + HOLD_MS);
-    const t3 = setTimeout(() => onDone(), RISE_MS + HOLD_MS + FLY_MS);
+    const t1 = setTimeout(() => setPhase("hold"), riseMs);
+    const t2 = setTimeout(() => setPhase("fly"), riseMs + holdMs);
+    const t3 = setTimeout(() => onDone(), riseMs + holdMs + flyMs);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -90,10 +94,10 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
           opacity: phase === "fly" ? 0 : 1,
           transition:
             phase === "rise"
-              ? `transform ${RISE_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+              ? `transform ${riseMs}ms cubic-bezier(0.16, 1, 0.3, 1)`
               : phase === "hold"
-                ? "transform 160ms ease-out"
-                : `transform ${FLY_MS}ms cubic-bezier(0.4, 0, 0.6, 1), opacity ${FLY_MS}ms ease-in`,
+                ? `transform ${holdSettleMs}ms ease-out`
+                : `transform ${flyMs}ms cubic-bezier(0.4, 0, 0.6, 1), opacity ${flyMs}ms ease-in`,
         }}
         className={cn(
           "overflow-hidden rounded-arena border-2 border-cyan-300 bg-slate-950",
