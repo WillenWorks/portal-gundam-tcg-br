@@ -21,9 +21,9 @@ export function inspectorStats(
   state?: GameState,
 ): { ap?: number; hp?: number; isModifier: boolean } {
   const { def } = card;
-  const isUnit = def.cardType === "UNIT";
-  const isBase = def.cardType === "BASE";
-  const actsAsPilot = def.cardType === "PILOT" || card.asPilot === true;
+  const isUnit = def?.cardType === "UNIT";
+  const isBase = def?.cardType === "BASE";
+  const actsAsPilot = def?.cardType === "PILOT" || card.asPilot === true;
   if (isUnit) {
     return {
       ap: inPlay ? effectiveAp(card, state) : def.ap,
@@ -195,8 +195,8 @@ export function CardInspectorModal({
           <aside className="panel-cut surface-panel ml-8 flex max-h-[80vh] w-72 flex-col overflow-y-auto border border-primary/25 p-3">
             <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>
             <p className="text-[10px] text-muted-portal">
-              {def.code} · {def.cardType}
-              {def.color ? ` · ${def.color}` : ""}
+              {def?.code} · {def?.cardType}
+              {def?.color ? ` · ${def.color}` : ""}
             </p>
 
             <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">

@@ -498,6 +498,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   >("field-ready");
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
+  const introStageRef = useRef(introStage);
+  introStageRef.current = introStage;
+  const introStageResolveRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (introStage === "complete") {
+      introStageResolveRef.current?.();
+      introStageResolveRef.current = null;
+    }
+  }, [introStage]);
+
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
   const phaseBannerQueueRef = useRef<string[]>([]);
   phaseBannerQueueRef.current = phaseBannerQueue;
@@ -825,6 +836,28 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     isDrainingViewQueueRef.current = true;
     try {
       while (viewQueueRef.current.length > 0) {
+        const peekNext = viewQueueRef.current[0];
+        // Se a próxima view já é pós-setup (Fase Principal, jogadas de turno 1, ou bot agindo),
+        // mas a abertura inicial ainda não foi concluída (mulligan, deal-shields, phase-banner),
+        // aguarda a abertura cinematográfica terminar para não atropelar a distribuição de shields!
+        const hasMulliganPending =
+          peekNext.view.pendingDecision.A?.kind === "mulligan" ||
+          peekNext.view.pendingDecision.B?.kind === "mulligan";
+        const isPostSetupView = peekNext.view.phase !== "setup" && !hasMulliganPending;
+
+        if (isPostSetupView && introStageRef.current !== "complete") {
+          await Promise.race([
+            new Promise<void>((resolve) => {
+              const prev = introStageResolveRef.current;
+              introStageResolveRef.current = () => {
+                prev?.();
+                resolve();
+              };
+            }),
+            new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+          ]);
+        }
+
         if (phaseBannerQueueRef.current.length > 0) {
           await waitForPhaseBanners();
         }
@@ -1372,13 +1405,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     ]);
   }, [matchView, introStage, enqueuePhaseBanners]);
 
-  // Recuperação de segurança: se a partida já está em andamento (Main Phase, sem mulligan ativo nem animação em curso),
-  // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada.
+  // Recuperação de segurança: se a partida já está em andamento avançado (Turno 2+, sem mulligan ativo nem animação em curso),
+  // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada (ex: reconexão).
   useEffect(() => {
     if (!matchView || introStage === "complete") return;
     const v = matchView.view;
     const hasMulligan = v.pendingDecision.A?.kind === "mulligan" || v.pendingDecision.B?.kind === "mulligan";
-    if (!hasMulligan && v.turnNumber >= 1 && setupAnim === null && phaseBannerQueue.length === 0) {
+    if (!hasMulligan && v.turnNumber > 1 && setupAnim === null && phaseBannerQueue.length === 0) {
       const t = setTimeout(() => {
         setIntroStage("complete");
       }, 1200);
@@ -1744,8 +1777,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const myBattleArea = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
     if (pending.kind === "deploy") {
       const ownBattleUnits = myBattleArea
-        .filter((c) => c.def.cardType === "UNIT")
-        .map((u) => ({ instanceId: u.instanceId, code: u.def.code, paired: !!u.pairedPilotId }));
+        .filter((c) => c.def?.cardType === "UNIT")
+        .map((u) => ({ instanceId: u.instanceId, code: u.def?.code, paired: !!u.pairedPilotId }));
       const sel = resolveDeploySelection({ card: pendingCard, selected, ownBattleUnits });
       if (sel.error) {
         showActionError(sel.error);
@@ -1800,7 +1833,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       inActionStep,
       activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
       totalResources: mine.counts.resourceArea,
-      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def.cardType === "UNIT" && !u.pairedPilotId),
+      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId),
       state: boardForStats,
       controller: seat,
     };
@@ -1819,7 +1852,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         fn(c, sacId);
       },
     });
-    const isDual = c.def.cardType === "COMMAND" && !!c.def.pilotMode;
+    const isDual = c.def?.cardType === "COMMAND" && !!c.def?.pilotMode;
 
     if (isDual) {
       const out: HandPlayMode[] = [];
@@ -1827,7 +1860,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (modes.includes("deploy")) out.push(asPilot);
       return out;
     }
-    if (c.def.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
+    if (c.def?.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
 
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
     const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
@@ -1883,7 +1916,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   }
 
   const publicUnits = (player: ViewPlayerState): CardInstance[] =>
-    player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def.cardType === "UNIT") as CardInstance[];
+    player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT") as CardInstance[];
 
   /** Pilotos que satisfazem o link `pilotName` desta Unit — resolve arte via catálogo
    *  e marca (best-effort) se a carta está visível nas tuas zonas (Sprint 5.3). */
@@ -1976,14 +2009,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean => {
       if (targetUnit.rested) return true;
-      const staticRelax = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-      if (staticRelax >= 0 && (targetUnit.def.level ?? 999) <= staticRelax) return true;
+      const staticRelax = attacker.def?.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
+      if (staticRelax >= 0 && (targetUnit.def?.level ?? 999) <= staticRelax) return true;
       const granted =
         attacker.attackTargetRelaxUntilTurn?.turn === view.turnNumber
           ? attacker.attackTargetRelaxUntilTurn
           : undefined;
-      if (granted?.maxLevel !== undefined && (targetUnit.def.level ?? 999) <= granted.maxLevel) return true;
-      if (granted?.maxAp !== undefined && (targetUnit.def.ap ?? 999) <= granted.maxAp) return true;
+      if (granted?.maxLevel !== undefined && (targetUnit.def?.level ?? 999) <= granted.maxLevel) return true;
+      if (granted?.maxAp !== undefined && (targetUnit.def?.ap ?? 999) <= granted.maxAp) return true;
       return false;
     };
 
@@ -2007,7 +2040,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
       const justDeployed: "light" | "heavy" | undefined =
         unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
-          ? (unit.def.cost ?? 0) <= 3
+          ? (unit.def?.cost ?? 0) <= 3
             ? "light"
             : "heavy"
           : undefined;
@@ -2026,7 +2059,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     const opponent = view.players[opponentPid];
                     const enemyUnits = publicUnits(opponent);
                     const hasLegalEnemyUnit = enemyUnits.some((eu) => canAttackerTargetEnemyUnit(u, eu));
-                    const cannotTargetPlayer = Boolean(u.def.attackTargetRules?.cannotTargetPlayer);
+                    const cannotTargetPlayer = Boolean(u.def?.attackTargetRules?.cannotTargetPlayer);
 
                     // Se não há unidades inimigas que possam ser alvos legais, o único alvo válido é o jogador:
                     if (!hasLegalEnemyUnit && !cannotTargetPlayer) {
@@ -2052,8 +2085,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         isSelf &&
         !unit &&
         pending?.kind === "deploy" &&
-        pendingCard?.def.cardType === "UNIT" &&
-        !pendingCard.def.pilotMode;
+        pendingCard?.def?.cardType === "UNIT" &&
+        !pendingCard?.def?.pilotMode;
 
       const abilityTarget = unit ? abilityUnitTargetsByInstance.get(unit.instanceId) : undefined;
       const isAbilitySelected = Boolean(
@@ -2138,25 +2171,25 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** Classifica uma carta da mão: jogável? por quê não? quais modos de jogo?
    *  Usado tanto pra montar o `HandFan` quanto no `onPeek` dele (Fase D). */
   function describeHandCard(c: CardInstance) {
-    const isCommand = c.def.cardType === "COMMAND";
-    const isDual = isCommand && !!c.def.pilotMode;
+    const isCommand = c.def?.cardType === "COMMAND";
+    const isDual = isCommand && !!c.def?.pilotMode;
     const modes = handPlayModes(c);
     const playable = modes.length > 0;
     const ctx = playabilityCtx();
     const effCost = effectiveCost(c.def, ctx.state, ctx.controller);
     const shortOnResources = ctx.activeResources < effCost;
-    const shortOnLevel = ctx.totalResources < (c.def.level ?? 0);
+    const shortOnLevel = ctx.totalResources < (c.def?.level ?? 0);
     const blockedReason = playable
       ? undefined
       : shortOnLevel
-        ? `Nível insuficiente — precisa de ${c.def.level} recursos em campo.`
+        ? `Nível insuficiente — precisa de ${c.def?.level} recursos em campo.`
         : shortOnResources
           ? `Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`
           : isDual
             ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
             : isCommand
               ? "Este Comando não tem gatilho disponível agora."
-              : c.def.cardType === "PILOT" || c.def.pilotMode
+              : c.def?.cardType === "PILOT" || c.def?.pilotMode
                 ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
                 : notMainPhaseReason;
     return { modes, playable, blockedReason, effectiveCost: effCost };

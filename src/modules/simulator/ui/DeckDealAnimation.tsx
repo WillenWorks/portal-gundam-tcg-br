@@ -443,15 +443,15 @@ export function DeckDealAnimation({
                       {card ? (
                         <>
                           <CardFace
-                            nameEn={card.def.nameEn}
-                            code={card.def.code}
+                            nameEn={card.def?.nameEn ?? ""}
+                            code={card.def?.code ?? ""}
                             art={art ?? {}}
                             size="md"
                             className="!h-full !w-full"
                             style={{ width: "100%", height: "100%" }}
-                            backFallback={card.def.cardType ? isGenericArtCard(card.def.cardType, card.def.isToken) : false}
+                            backFallback={card.def?.cardType ? isGenericArtCard(card.def.cardType, card.def.isToken) : false}
                           />
-                          {card.def.cost !== undefined ? (
+                          {card.def?.cost !== undefined ? (
                             <span
                               className="absolute left-0.5 top-0.5 z-10 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-black shadow-sm"
                               title={`Custo ${card.def.cost}`}

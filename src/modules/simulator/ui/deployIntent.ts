@@ -45,7 +45,7 @@ export function resolveDeploySelection(opts: {
   ownBattleUnits: OwnBattleUnit[];
 }): DeploySelection {
   const { card, selected, ownBattleUnits } = opts;
-  const isPilot = card?.def.cardType === "PILOT" || !!card?.def.pilotMode;
+  const isPilot = card?.def?.cardType === "PILOT" || !!card?.def?.pilotMode;
   if (!isPilot) return { needsWhenPairedTarget: false };
 
   const pairWithUnitId = selected.find((id) => ownBattleUnits.some((u) => u.instanceId === id && !u.paired));
@@ -59,6 +59,6 @@ export function resolveDeploySelection(opts: {
   const pairedUnitCode = ownBattleUnits.find((u) => u.instanceId === pairWithUnitId)?.code;
   return {
     pairWithUnitId,
-    needsWhenPairedTarget: pairingNeedsExtraTarget(card?.def.code, pairedUnitCode),
+    needsWhenPairedTarget: pairingNeedsExtraTarget(card?.def?.code, pairedUnitCode),
   };
 }

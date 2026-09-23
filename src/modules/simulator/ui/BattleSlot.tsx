@@ -342,13 +342,13 @@ export function BattleSlot({
           </div>
         )}
         <CardFace
-          nameEn={unit.def.nameEn}
-          code={unit.def.code}
+          nameEn={unit.def?.nameEn ?? ""}
+          code={unit.def?.code ?? ""}
           art={art}
           size="sm"
           className="h-full w-full"
           dimmed={unit.rested}
-          backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
+          backFallback={unit.def?.cardType ? isGenericArtCard(unit.def.cardType, unit.def.isToken) : false}
         >
           {legalTarget ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">

@@ -47,9 +47,9 @@ export function findEligibleSacrifices(def: CardDef, ctx: PlayabilityContext): C
   const player = ctx.state.players[ctx.controller];
   if (!player) return [];
   return player.battleArea.filter((u) => {
-    if (u.def.cardType !== "UNIT") return false;
-    if (u.def.level !== altSac.level) return false;
-    if (!u.def.nameEn.includes(altSac.nameContains)) return false;
+    if (u.def?.cardType !== "UNIT") return false;
+    if (u.def?.level !== altSac.level) return false;
+    if (!u.def?.nameEn.includes(altSac.nameContains)) return false;
     if (!u.pairedPilotId) return false;
     try {
       const pilot = findCard(ctx.state, u.pairedPilotId);
@@ -73,19 +73,19 @@ export function playableModes(def: CardDef, ctx: PlayabilityContext): Array<"dep
   if (!canAffordCard(def, ctx)) return [];
 
   const modes: Array<"deploy" | "commandMain" | "commandAction"> = [];
-  const isPilotLike = def.cardType === "PILOT" || !!def.pilotMode;
+  const isPilotLike = def?.cardType === "PILOT" || !!def?.pilotMode;
 
-  if (def.cardType === "UNIT" && ctx.myTurnMain) modes.push("deploy");
+  if (def?.cardType === "UNIT" && ctx.myTurnMain) modes.push("deploy");
   // V6.3 (docs/34) — achado real: BASE nunca teve branch aqui, então nenhuma
   // Base na mão aparecia jogável (nem cinza-com-motivo — a ação nunca era
   // sequer oferecida), mesmo com recurso/nível suficiente. O motor
   // (`deployCard`) já substitui a Base em campo (inclusive a EX Base)
   // corretamente e dispara o 【Deploy】 dela — só faltava isto.
-  if (def.cardType === "BASE" && ctx.myTurnMain) modes.push("deploy");
+  if (def?.cardType === "BASE" && ctx.myTurnMain) modes.push("deploy");
   // Parear Piloto (nativo ou Command/Pilot no modo Piloto) — precisa de Unit amiga livre.
   if (isPilotLike && ctx.myTurnMain && ctx.hasUnpairedFriendlyUnit) modes.push("deploy");
 
-  if (def.cardType === "COMMAND") {
+  if (def?.cardType === "COMMAND") {
     const kw = def.triggerKeywords ?? [];
     if (kw.includes("Main") && ctx.myTurnMain && !blockedByMissingTarget(def.code, "Main", ctx)) modes.push("commandMain");
     if (kw.includes("Action") && ctx.inActionStep && !blockedByMissingTarget(def.code, "Action", ctx)) modes.push("commandAction");

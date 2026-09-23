@@ -90,7 +90,7 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
               art={art}
               size="sm"
               className="w-full"
-              backFallback={topCard.def.cardType ? isGenericArtCard(topCard.def.cardType, topCard.def.isToken) : false}
+              backFallback={topCard.def?.cardType ? isGenericArtCard(topCard.def.cardType, topCard.def.isToken) : false}
             />
           ) : undefined
         }

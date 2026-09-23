@@ -138,12 +138,12 @@ function PanelBody({
           aumentar ainda mais a amostra + as infos no widescreen (a asa em si
           também cresceu, 22rem → 28rem, ver `SimulatorMatchPage.tsx`). */}
       <CardFace
-        nameEn={def.nameEn}
-        code={def.code}
+        nameEn={def?.nameEn ?? ""}
+        code={def?.code ?? ""}
         art={art}
         size="lg"
         className="mx-auto w-full max-w-[17rem] border border-white/10"
-        backFallback={isGenericArtCard(def.cardType, def.isToken)}
+        backFallback={def?.cardType ? isGenericArtCard(def.cardType, def.isToken) : false}
       />
 
       {/* V6.4 (docs/36) — pedido do Willen: "as informações textuais podem
@@ -151,10 +151,10 @@ function PanelBody({
           28rem). Um degrau pra cima em cada texto (nome, código/tipo, stats,
           traits/link, badges) — mantém a hierarquia relativa entre eles. */}
       <div>
-        <p className="font-heading text-base font-bold leading-tight text-soft">{def.nameEn}</p>
+        <p className="font-heading text-base font-bold leading-tight text-soft">{def?.nameEn}</p>
         <p className="text-xs text-muted-portal">
-          {def.code} · {def.cardType}
-          {def.color ? ` · ${def.color}` : ""}
+          {def?.code} · {def?.cardType}
+          {def?.color ? ` · ${def.color}` : ""}
         </p>
       </div>
 

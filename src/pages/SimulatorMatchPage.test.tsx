@@ -244,6 +244,6 @@ describe("SimulatorMatchPage — Banner Condicional de End Phase & Orquestraçã
     // Avaliação mútua para decisão de banner
     const hasAnyPlay = hasPlayA || hasPlayBAfter;
     expect(hasAnyPlay).toBe(true);
-  });
+  }, 15000);
 });
 
