@@ -259,6 +259,143 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
   };
 }
 
+export function buildTurnStagedViews(
+  prevView: ViewGameState,
+  incoming: SimulatorMatchView,
+): {
+  viewAnnounced: SimulatorMatchView;
+  viewRecovery: SimulatorMatchView;
+  viewDraw: SimulatorMatchView;
+  viewMain: SimulatorMatchView;
+} {
+  const active = incoming.view.activePlayer;
+  const prevActivePlayer = prevView.players[active];
+  const incomingActivePlayer = incoming.view.players[active];
+
+  // 1. viewAnnounced: mantém as unidades descansadas (rested) e mão/deck do turno anterior
+  const viewAnnounced: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "start",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea,
+          baseSection: prevActivePlayer.baseSection,
+          resourceArea: prevActivePlayer.resourceArea,
+          hand: prevActivePlayer.hand,
+          deck: prevActivePlayer.deck,
+          counts: {
+            ...incomingActivePlayer.counts,
+            hand: prevActivePlayer.counts.hand,
+            deck: prevActivePlayer.counts.deck,
+          },
+        },
+      },
+    },
+  };
+
+  // 2. viewRecovery: unidades destombam (rested: false), mas a mão/deck continuam antes da compra
+  const viewRecovery: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "start",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          baseSection: prevActivePlayer.baseSection.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          resourceArea: prevActivePlayer.resourceArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          hand: prevActivePlayer.hand,
+          deck: prevActivePlayer.deck,
+          counts: {
+            ...incomingActivePlayer.counts,
+            hand: prevActivePlayer.counts.hand,
+            deck: prevActivePlayer.counts.deck,
+          },
+        },
+      },
+    },
+  };
+
+  // 3. viewDraw: mão recebe a carta recém-comprada de incomingView, deck decrementa
+  const viewDraw: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "draw",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          baseSection: prevActivePlayer.baseSection.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          resourceArea: prevActivePlayer.resourceArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          hand: incomingActivePlayer.hand,
+          deck: incomingActivePlayer.deck,
+          counts: incomingActivePlayer.counts,
+        },
+      },
+    },
+  };
+
+  // 4. viewMain: visão completa pós-recursos e Main Phase
+  const viewMain = incoming;
+
+  return { viewAnnounced, viewRecovery, viewDraw, viewMain };
+}
+
+export function buildTurn1StagedViews(current: SimulatorMatchView): {
+  viewAnnounced: SimulatorMatchView;
+  viewRecovery: SimulatorMatchView;
+  viewDraw: SimulatorMatchView;
+  viewMain: SimulatorMatchView;
+} {
+  const active = current.view.activePlayer;
+  const pState = current.view.players[active];
+  const handBeforeDraw = pState.hand.slice(0, 5);
+  const countsBeforeDraw = {
+    ...pState.counts,
+    hand: Math.min(5, pState.counts.hand),
+    deck: pState.counts.deck + (pState.hand.length > 5 ? 1 : 0),
+  };
+
+  const viewBeforeDraw: SimulatorMatchView = {
+    ...current,
+    view: {
+      ...current.view,
+      phase: "start",
+      players: {
+        ...current.view.players,
+        [active]: {
+          ...pState,
+          hand: handBeforeDraw,
+          counts: countsBeforeDraw,
+        },
+      },
+    },
+  };
+
+  const viewDraw: SimulatorMatchView = {
+    ...current,
+    view: {
+      ...current.view,
+      phase: "draw",
+    },
+  };
+
+  return {
+    viewAnnounced: viewBeforeDraw,
+    viewRecovery: viewBeforeDraw,
+    viewDraw,
+    viewMain: current,
+  };
+}
+
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
@@ -535,6 +672,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setTimeout(resolve, safetyMs);
     });
   }, []);
+
+  interface TurnStagedViews {
+    actingPlayer: PlayerId;
+    viewRecovery: SimulatorMatchView;
+    viewDraw: SimulatorMatchView;
+    viewMain: SimulatorMatchView;
+  }
+  const turnStagedViewsRef = useRef<TurnStagedViews | null>(null);
+
   // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
   // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
   // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
@@ -808,10 +954,35 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         ]);
       }
 
-      setMatchView((prev) => {
-        if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
-        return incoming;
-      });
+      const isTurnChange =
+        prevView !== null &&
+        !incoming.view.gameOver &&
+        (incoming.view.turnNumber > prevView.turnNumber || incoming.view.activePlayer !== prevView.activePlayer);
+
+      if (isTurnChange) {
+        const staged = buildTurnStagedViews(prevView, incoming);
+        turnStagedViewsRef.current = {
+          actingPlayer: incoming.view.activePlayer,
+          viewRecovery: staged.viewRecovery,
+          viewDraw: staged.viewDraw,
+          viewMain: staged.viewMain,
+        };
+        setMatchView(staged.viewAnnounced);
+        const isMyTurn = incoming.view.activePlayer === incoming.seat;
+        if (isMyTurn) sfx.playNewtypeFlash();
+        enqueuePhaseBanners([
+          isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
+          "FASE DE RECUPERAÇÃO",
+          "FASE DE COMPRA",
+          "FASE PRINCIPAL",
+        ]);
+        await waitForPhaseBanners();
+      } else {
+        setMatchView((prev) => {
+          if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
+          return incoming;
+        });
+      }
 
       // Só DEPOIS de aplicar a view é que `myBurstDecision` (derivado dela)
       // passa a existir pro render — por isso a espera do reveal vem depois do
@@ -828,7 +999,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         });
       }
     },
-    [executeAttackStrike, detectDepartures, waitForBurstReveal, board],
+    [executeAttackStrike, detectDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -1237,17 +1408,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setSetupAnim("mulligan");
     } else if ((prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) || (prev.handLen < cur.handLen && cur.turnNumber === 1)) {
       setSetupAnim("deal-hand");
-    } else if (
-      // docs/56 tarefa 2 — saque de 1 carta ao INÍCIO do meu turno (Draw Phase,
-      // já resolvida junto com Manutenção/Recurso/Main pelo servidor numa
-      // transição só — ver cabeçalho do arquivo). Não bloqueia nada: `single-draw`
-      // não entra na lista que esvazia a `HandFan` (só "deal-hand"/"mulligan" entram).
-      cur.turnNumber > 1 &&
-      prev.activePlayer !== cur.activePlayer &&
-      cur.activePlayer === matchView.seat &&
-      prev.handLen === cur.handLen - 1
-    ) {
-      setSetupAnim("single-draw");
     }
   }, [matchView, introStage]);
 
@@ -1316,11 +1476,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setSetupAnim("deal-shields");
       }
     } else if (introStage === "deal-shields") {
-      const isMyTurn = matchView?.view.activePlayer === matchView?.seat;
+      const postSetupView = viewQueueRef.current.find((item) => item.view.phase !== "setup") ?? matchView;
+      if (postSetupView) {
+        const staged = buildTurn1StagedViews(postSetupView);
+        turnStagedViewsRef.current = {
+          actingPlayer: postSetupView.view.activePlayer,
+          viewRecovery: staged.viewRecovery,
+          viewDraw: staged.viewDraw,
+          viewMain: staged.viewMain,
+        };
+        setMatchView(staged.viewAnnounced);
+      }
+      const isMyTurn = (postSetupView?.view ?? matchView?.view)?.activePlayer === matchView?.seat;
+      if (isMyTurn) sfx.playNewtypeFlash();
       enqueuePhaseBanners([
         isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-        "FASE DE COMPRA",
         "FASE DE RECUPERAÇÃO",
+        "FASE DE COMPRA",
         "FASE PRINCIPAL",
       ]);
       setIntroStage("phase-banner");
@@ -1332,7 +1504,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setPhaseBannerQueue((prev) => {
       const next = prev.slice(1);
       phaseBannerQueueRef.current = next;
+
+      if (next.length > 0 && turnStagedViewsRef.current) {
+        const nextPhase = next[0];
+        if (nextPhase === "FASE DE RECUPERAÇÃO") {
+          setMatchView(turnStagedViewsRef.current.viewRecovery);
+          sfx.playDeploy();
+        } else if (nextPhase === "FASE DE COMPRA") {
+          setMatchView(turnStagedViewsRef.current.viewDraw);
+          setSetupAnim("single-draw");
+          sfx.playCardDraw();
+        } else if (nextPhase === "FASE PRINCIPAL") {
+          setMatchView(turnStagedViewsRef.current.viewMain);
+        }
+      }
+
       if (next.length === 0) {
+        turnStagedViewsRef.current = null;
         setIntroStage("complete");
         phaseBannerResolveRef.current?.();
         phaseBannerResolveRef.current = null;
@@ -1379,31 +1567,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     ]);
   }, [matchView, introStage, enqueuePhaseBanners]);
 
-  // docs/56 (revisão do plano de polimento) — banners de fase recorrentes a
-  // CADA troca de turno (Turno 2, 3, ...), independente da máquina de estados
-  // de abertura (`introStage`), que é one-shot e só cobre o Turno 1. Enfileira
-  // só depois que a abertura já terminou (`introStage === "complete"`) — antes
-  // disso, apenas mantém `prevTurnBannerRef` sincronizado pra não confundir a
-  // 1ª leitura pós-abertura com uma troca de turno real.
-  useEffect(() => {
-    if (!matchView) return;
-    const v = matchView.view;
-    if (introStage !== "complete") {
-      prevTurnBannerRef.current = v.turnNumber;
-      return;
-    }
-    const prevTurn = prevTurnBannerRef.current;
-    prevTurnBannerRef.current = v.turnNumber;
-    if (prevTurn === null || v.turnNumber <= prevTurn || v.gameOver) return;
-
-    const isMyTurn = v.activePlayer === matchView.seat;
-    enqueuePhaseBanners([
-      isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-      "FASE DE COMPRA",
-      "FASE DE RECUPERAÇÃO",
-      "FASE PRINCIPAL",
-    ]);
-  }, [matchView, introStage, enqueuePhaseBanners]);
 
   // Recuperação de segurança: se a partida já está em andamento avançado (Turno 2+, sem mulligan ativo nem animação em curso),
   // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada (ex: reconexão).
@@ -3069,52 +3232,78 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           Na abertura (shuffle, deal-hand, deal-shields), roda simultaneamente no jogador local e no oponente */}
       {setupAnim ? (
         <>
-          <DeckDealAnimation
-            key={`self-${setupAnim}`}
-            mode={setupAnim}
-            label={SETUP_ANIM_LABEL[setupAnim]}
-            origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
-            cardW={board.rectOf(`deckStation:${seat}`)?.width}
-            dest={
-              setupAnim === "deal-shields"
-                ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
-                : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
-            }
-            cards={
-              setupAnim === "deal-hand" || setupAnim === "mulligan"
-                ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
-                : setupAnim === "single-draw"
-                  ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
-                    // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
-                    // então a última carta visível é sempre a recém-sacada.
-                    (() => {
-                      const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
-                      const last = visible[visible.length - 1];
-                      return last ? [last] : undefined;
-                    })()
-                  : undefined
-            }
-            art={art}
-            onDone={handleSetupAnimDone}
-          />
+          {setupAnim === "single-draw" ? (
+            view.activePlayer === seat ? (
+              <DeckDealAnimation
+                key="self-single-draw"
+                mode="single-draw"
+                label={SETUP_ANIM_LABEL["single-draw"]}
+                origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
+                cardW={board.rectOf(`deckStation:${seat}`)?.width}
+                dest={handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)}
+                cards={(() => {
+                  const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
+                  const last = visible[visible.length - 1];
+                  return last ? [last] : undefined;
+                })()}
+                art={art}
+                onDone={handleSetupAnimDone}
+              />
+            ) : (
+              <DeckDealAnimation
+                key="opp-single-draw"
+                mode="single-draw"
+                label="Oponente comprando…"
+                origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+                cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+                dest={handCenter(
+                  board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
+                  board.rectOf(`deckStation:${opponentSeat}`)?.width,
+                )}
+                onDone={handleSetupAnimDone}
+              />
+            )
+          ) : (
+            <>
+              <DeckDealAnimation
+                key={`self-${setupAnim}`}
+                mode={setupAnim}
+                label={SETUP_ANIM_LABEL[setupAnim]}
+                origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
+                cardW={board.rectOf(`deckStation:${seat}`)?.width}
+                dest={
+                  setupAnim === "deal-shields"
+                    ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
+                    : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
+                }
+                cards={
+                  setupAnim === "deal-hand" || setupAnim === "mulligan"
+                    ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
+                    : undefined
+                }
+                art={art}
+                onDone={handleSetupAnimDone}
+              />
 
-          {setupAnim === "shuffle" || setupAnim === "deal-hand" || setupAnim === "deal-shields" ? (
-            <DeckDealAnimation
-              key={`opp-${setupAnim}`}
-              mode={setupAnim}
-              origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
-              cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
-              dest={
-                setupAnim === "deal-shields"
-                  ? shieldRailCenter(board.rectOf(`shieldRail:${opponentSeat}`))
-                  : handCenter(
-                      board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
-                      board.rectOf(`deckStation:${opponentSeat}`)?.width,
-                    )
-              }
-              onDone={() => {}}
-            />
-          ) : null}
+              {setupAnim === "shuffle" || setupAnim === "deal-hand" || setupAnim === "deal-shields" ? (
+                <DeckDealAnimation
+                  key={`opp-${setupAnim}`}
+                  mode={setupAnim}
+                  origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+                  cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+                  dest={
+                    setupAnim === "deal-shields"
+                      ? shieldRailCenter(board.rectOf(`shieldRail:${opponentSeat}`))
+                      : handCenter(
+                          board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
+                          board.rectOf(`deckStation:${opponentSeat}`)?.width,
+                        )
+                  }
+                  onDone={() => {}}
+                />
+              ) : null}
+            </>
+          )}
         </>
       ) : null}
 
