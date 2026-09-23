@@ -246,6 +246,60 @@ describe("SimulatorMatchPage — Banner Condicional de End Phase & Orquestraçã
     const hasAnyPlay = hasPlayA || hasPlayBAfter;
     expect(hasAnyPlay).toBe(true);
   }, 15000);
+
+  it("playerHasActionStepPlay não lança erro com cartas ocultas (ViewGameState do oponente sem def.cardType)", async () => {
+    const { playerHasActionStepPlay } = await import("../modules/simulator/engine/actions");
+    const { ALL_EFFECT_SPECS } = await import("../modules/simulator/content");
+
+    // Simula a ViewGameState do ponto de vista do jogador A, onde a mão de B é composta por cartas ocultas (sem def)
+    const viewState = {
+      turnNumber: 5,
+      activePlayer: "A" as const,
+      phase: "end" as const,
+      combat: null,
+      endPhaseAction: null,
+      pendingDecision: { A: null, B: null },
+      winner: null,
+      gameOver: null,
+      players: {
+        A: {
+          id: "A" as const,
+          hand: [],
+          resourceArea: [],
+          battleArea: [],
+          baseSection: [],
+          trash: [],
+          exile: [],
+          deck: [],
+          resourceDeck: [],
+          shields: [],
+          counts: { deck: 0, resourceDeck: 0, shields: 0, resourceArea: 0, battleArea: 0, baseSection: 0, trash: 0, exile: 0, hand: 0 },
+        },
+        B: {
+          id: "B" as const,
+          hand: [
+            { hidden: true, instanceId: "bh-1", owner: "B", zone: "hand" },
+            { hidden: true, instanceId: "bh-2", owner: "B", zone: "hand" },
+          ],
+          resourceArea: [{ instanceId: "r-1", owner: "B", rested: false, zone: "resourceArea" } as any],
+          battleArea: [],
+          baseSection: [],
+          trash: [],
+          exile: [],
+          deck: [],
+          resourceDeck: [],
+          shields: [],
+          counts: { deck: 0, resourceDeck: 0, shields: 0, resourceArea: 1, battleArea: 0, baseSection: 0, trash: 0, exile: 0, hand: 2 },
+        },
+      },
+    };
+
+    // Anteriormente, isso lançava: TypeError: Cannot read properties of undefined (reading 'cardType')
+    expect(() => {
+      const hasPlayB = playerHasActionStepPlay(viewState as any, "B", ALL_EFFECT_SPECS);
+      expect(hasPlayB).toBe(false);
+    }).not.toThrow();
+  });
 });
 
 describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recuperação", () => {

@@ -1,4 +1,5 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import type { ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { deployCard, playCommand } from "./deploy";
@@ -686,23 +687,34 @@ function enforceZoneLimits(state: GameState): GameState {
  * timer do Action Step. "Jogada real" = Command 【Action】 jogável agora (nível +
  * custo pagáveis) ou 【Activate·Action】 de carta em campo ainda não usado.
  */
-export function playerHasActionStepPlay(state: GameState, player: PlayerId, specs: EffectSpec[]): boolean {
+export function playerHasActionStepPlay(
+  state: GameState | ViewGameState,
+  player: PlayerId,
+  specs: EffectSpec[],
+): boolean {
   const p = state.players[player];
-  const activeResources = p.resourceArea.filter((r) => !r.rested).length;
+  if (!p) return false;
+  const activeResources = p.resourceArea.filter((r) => !("rested" in r && r.rested)).length;
   const totalResources = p.resourceArea.length;
 
   for (const card of p.hand) {
-    if (card.def.cardType !== "COMMAND") continue;
-    if (!card.def.triggerKeywords?.includes("Action")) continue;
-    if (totalResources < (card.def.level ?? 0)) continue;
-    if (activeResources < (card.def.cost ?? 0)) continue;
+    if (!card || ("hidden" in card && card.hidden)) continue;
+    const def = "def" in card ? card.def : undefined;
+    if (!def) continue;
+    if (def.cardType !== "COMMAND") continue;
+    if (!def.triggerKeywords?.includes("Action")) continue;
+    if (totalResources < (def.level ?? 0)) continue;
+    if (activeResources < (def.cost ?? 0)) continue;
     return true;
   }
 
   for (const zone of ["battleArea", "baseSection"] as const) {
     for (const card of p[zone]) {
-      if (findTriggerSpecs(specs, card.def.code, "Activate·Action").length === 0) continue;
-      if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Activate·Action")) continue;
+      if (!card || ("hidden" in card && card.hidden)) continue;
+      const def = "def" in card ? card.def : undefined;
+      if (!def) continue;
+      if (findTriggerSpecs(specs, def.code, "Activate·Action").length === 0) continue;
+      if (def.oncePerTurn && "usedKeywordsThisTurn" in card && card.usedKeywordsThisTurn?.includes("Activate·Action")) continue;
       return true;
     }
   }

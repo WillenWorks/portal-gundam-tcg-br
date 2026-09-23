@@ -1558,8 +1558,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     endPhaseBannerShownTurnRef.current = v.turnNumber;
 
     const standbyPlayer = otherPlayer(v.activePlayer);
-    const standbyHasPlay = playerHasActionStepPlay(v as unknown as GameState, standbyPlayer, ALL_EFFECT_SPECS);
-    const activeHasPlay = playerHasActionStepPlay(v as unknown as GameState, v.activePlayer, ALL_EFFECT_SPECS);
+    const standbyHasPlay = playerHasActionStepPlay(v, standbyPlayer, ALL_EFFECT_SPECS);
+    const activeHasPlay = playerHasActionStepPlay(v, v.activePlayer, ALL_EFFECT_SPECS);
     const hasAnyPlay = standbyHasPlay || activeHasPlay;
 
     enqueuePhaseBanners([
@@ -1599,7 +1599,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const iHavePriorityNow = combatNow?.step === "action" && combatNow.actionPriority === meSeat;
     const iHaveEndPhasePriorityNow = v.endPhaseAction !== null && v.endPhaseAction.priority === meSeat;
     if (!iHavePriorityNow && !iHaveEndPhasePriorityNow) return;
-    if (playerHasActionStepPlay(v as unknown as GameState, meSeat, ALL_EFFECT_SPECS)) return;
+    if (playerHasActionStepPlay(v, meSeat, ALL_EFFECT_SPECS)) return;
     if (phaseBannerQueue.length > 0) return;
     runAction(iHavePriorityNow ? { kind: "passAction" } : { kind: "passEndPhaseAction" });
   }, [matchView, introStage, busy, runAction, phaseBannerQueue.length]);
