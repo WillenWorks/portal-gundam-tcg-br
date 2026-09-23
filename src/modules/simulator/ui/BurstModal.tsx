@@ -1,14 +1,7 @@
-/* docs/19, Sessão 3 — modal imersivo de 【Burst】 (extraído de
- * SimulatorMatchPage.tsx, onde nasceu na Sessão 2). Arte ampliada da shield
- * quebrada + botões claros. Indica a fila quando mais de uma shield com
- * Burst caiu no mesmo Damage Step.
- *
- * docs/56 tarefa 3 — reancorado no TERÇO SUPERIOR (era centralizado com
- * `bg-black/85` cobrindo a tela inteira): o wrapper `fixed inset-0` continua
- * captando clique em qualquer lugar (decisão obrigatória, não dá pra ignorar
- * clicando no board por trás), mas SEM fundo escuro — só o painel em si tem
- * cor, então a Battle Area, os Recursos e a mão do próprio jogador continuam
- * 100% visíveis por baixo. */
+/* docs/19, Sessão 3 / Refinamento — Top Tactical Dock de 【Burst】
+ * Em vez de uma modal central gigante bloqueando a visão do campo de batalha,
+ * o Burst é apresentado como uma fita tática compacta ancorada no topo da tela.
+ * O tabuleiro inteiro permanece 100% visível e interativo para alvos e inspeção. */
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ArtLookup } from "./cardArt";
@@ -24,31 +17,49 @@ interface BurstModalProps {
 
 export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) {
   return (
-    <div className="fixed inset-0 z-[60] flex justify-center px-3 pt-3 sm:pt-5 animate-in fade-in duration-200 motion-reduce:animate-none">
-      {/* Frente 4 (docs/38 §4.2) — revelação de escudo/Burst: o painel entra
-          com "pop" (zoom) e a carta ganha pulso de luz neon dourado. */}
-      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,36rem)] max-h-[70vh] overflow-y-auto border border-amber-500/50 p-4 shadow-2xl backdrop-blur-md animate-in zoom-in-90 fade-in duration-300 ease-out motion-reduce:animate-none">
-        <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.2em] text-amber-300">
-          <Sparkles className="size-4" /> Burst
-        </p>
-        <CardFace
-          nameEn={decision.cardDef.nameEn}
-          code={decision.cardDef.code}
-          art={art}
-          size="lg"
-          className="mx-auto my-3 border border-amber-400/60 shadow-[0_0_28px_rgba(251,191,36,0.65)] animate-pulse motion-reduce:animate-none"
-        />
-        <p className="text-center text-sm font-semibold text-soft">{decision.cardDef.nameEn}</p>
-        <p className="text-center text-[10px] text-muted-portal">
-          Sua shield foi quebrada — o 【Burst】 pode ser ativado agora.
-          {decision.queuedInstanceIds.length > 0 ? ` (+${decision.queuedInstanceIds.length} na fila)` : ""}
-        </p>
-        <div className="mt-4 flex flex-col gap-2">
-          <Button className="h-11 rounded-arena bg-amber-500 text-black hover:bg-amber-400" disabled={busy} onClick={() => onResolve(true)}>
+    <div className="pointer-events-none fixed top-3 inset-x-0 z-[80] flex justify-center px-3 animate-in slide-in-from-top-3 fade-in duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto flex w-[min(96vw,44rem)] items-center justify-between gap-3.5 border-2 border-amber-400 bg-slate-950/95 px-4 py-2.5 shadow-[0_4px_28px_rgba(0,0,0,0.9),0_0_30px_rgba(251,191,36,0.45)] backdrop-blur-md">
+        {/* Lado Esquerdo: Miniatura da carta + Informação Tática */}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-12 w-9 shrink-0 overflow-hidden rounded border border-amber-400/80 shadow-[0_0_12px_rgba(251,191,36,0.5)]">
+            <CardFace
+              nameEn={decision.cardDef?.nameEn ?? ""}
+              code={decision.cardDef?.code ?? ""}
+              art={art}
+              size="sm"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded border border-amber-400/40 bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300">
+                <Sparkles className="size-3 text-amber-400" /> Burst
+              </span>
+              <p className="truncate text-xs font-bold text-white">{decision.cardDef?.nameEn ?? "Carta"}</p>
+            </div>
+            <p className="mt-0.5 truncate text-[10px] text-amber-200/80">
+              Sua shield foi quebrada. Ativar o efeito de Burst?
+              {decision.queuedInstanceIds?.length > 0 ? ` (+${decision.queuedInstanceIds.length} na fila)` : ""}
+            </p>
+          </div>
+        </div>
+
+        {/* Lado Direito: Ações Imediatas */}
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            className="h-8 rounded-arena bg-amber-400 px-3.5 text-xs font-black text-black shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:bg-amber-300"
+            disabled={busy}
+            onClick={() => onResolve(true)}
+          >
             Ativar efeito
           </Button>
-          <Button variant="outline" className="h-11 rounded-arena" disabled={busy} onClick={() => onResolve(false)}>
-            Enviar ao descarte
+          <Button
+            variant="outline"
+            className="h-8 rounded-arena border-white/20 px-3 text-xs text-slate-300 hover:border-white/40 hover:bg-white/5"
+            disabled={busy}
+            onClick={() => onResolve(false)}
+          >
+            Mandar pro trash
           </Button>
         </div>
       </div>

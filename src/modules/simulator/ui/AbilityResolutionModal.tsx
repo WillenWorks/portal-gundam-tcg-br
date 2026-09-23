@@ -226,18 +226,28 @@ export function AbilityResolutionModal({
     );
 
   return (
-    <div className="fixed inset-0 z-[61] pointer-events-none flex justify-center px-3 pt-2 sm:pt-3 animate-in fade-in duration-200 motion-reduce:animate-none">
-      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(94vw,34rem)] max-h-[50vh] overflow-y-auto border border-amber-400/50 p-3.5 shadow-2xl backdrop-blur-md">
-        <p className="flex items-center justify-center gap-1.5 text-center text-sm font-black uppercase tracking-[0.16em] text-amber-300">
-          <Sparkles className="size-4" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
-        </p>
-        {order.length > 1 ? (
-          <p className="mt-1 text-center text-[10px] text-muted-portal">
-            Vários efeitos dispararam juntos — escolha a ordem (de cima pra baixo).
+    <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(96vw,44rem)] max-h-[38vh] overflow-y-auto border border-amber-400/70 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-md">
+        <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+            <Sparkles className="size-3.5" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
           </p>
-        ) : null}
+          <div className="flex items-center gap-2">
+            {order.length > 1 ? (
+              <span className="text-[10px] text-muted-portal">Ordene e escolha os alvos:</span>
+            ) : null}
+            <Button
+              size="sm"
+              className="h-7 rounded-arena bg-amber-400 px-3 text-xs font-bold text-black hover:bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.4)]"
+              disabled={busy || !canConfirm}
+              onClick={confirm}
+            >
+              Confirmar
+            </Button>
+          </div>
+        </div>
 
-        <ol className="mt-3 space-y-2">
+        <ol className="mt-2 space-y-1.5">
           {order.map((specId, i) => {
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
@@ -500,14 +510,6 @@ export function AbilityResolutionModal({
             );
           })}
         </ol>
-
-        <Button
-          className="mt-4 h-10 w-full rounded-arena bg-amber-400 text-black hover:bg-amber-300"
-          disabled={busy || !canConfirm}
-          onClick={confirm}
-        >
-          Confirmar
-        </Button>
       </div>
     </div>
   );

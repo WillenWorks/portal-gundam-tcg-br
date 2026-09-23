@@ -15,10 +15,10 @@ export interface PhaseAnnouncementBannerProps {
 
 export function PhaseAnnouncementBanner({
   phase,
-  sub = "SISTEMA TÁTICO ATIVO",
+  sub,
   // docs/56 (revisão do plano) — sem `durationMs` explícito, escala pela
   // velocidade escolhida em `SettingsMenu` (0.75x segura mais, 2x quase não pausa).
-  durationMs = getScaledDuration(900),
+  durationMs = getScaledDuration(750),
   onDone,
 }: PhaseAnnouncementBannerProps) {
   const [visible, setVisible] = useState(true);
@@ -31,7 +31,7 @@ export function PhaseAnnouncementBanner({
     sfx.playTurnStartAlert();
     const hideTimer = setTimeout(() => {
       setVisible(false);
-    }, Math.max(300, durationMs - 250));
+    }, Math.max(250, durationMs - 200));
 
     const doneTimer = setTimeout(() => {
       onDoneRef.current?.();
@@ -46,11 +46,15 @@ export function PhaseAnnouncementBanner({
   if (!visible) return null;
 
   let displaySub = sub;
-  if (sub === "SISTEMA TÁTICO ATIVO") {
+  if (!displaySub) {
     if (phase === "FASE DE AÇÕES") displaySub = "PASSO DE INTERVENÇÃO / RESPOSTA";
     else if (phase === "FIM DE TURNO") displaySub = "ENCERRAMENTO DE TURNO";
     else if (phase === "SEU TURNO") displaySub = "INICIATIVA DE COMBATE";
     else if (phase === "TURNO DO OPONENTE") displaySub = "POSTURA DEFENSIVA";
+    else if (phase === "FASE DE COMPRA") displaySub = "DRAW PHASE · SACAR DO DECK";
+    else if (phase === "FASE DE RECUPERAÇÃO") displaySub = "RECOVERY PHASE · DESTOMBAR & RECUPERAR";
+    else if (phase === "FASE PRINCIPAL") displaySub = "MAIN PHASE · AÇÕES TÁTICAS";
+    else displaySub = "SISTEMA TÁTICO ATIVO";
   }
 
   const isActionPhase = phase === "FASE DE AÇÕES";
