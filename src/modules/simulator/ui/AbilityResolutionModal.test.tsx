@@ -533,4 +533,66 @@ describe("AbilityResolutionModal", () => {
       { specId: "GD01-067-WhenPaired", activate: true, targetIds: ["c1"] },
     ]);
   });
+
+  it("efeito único usa layout compacto (max-h-[24vh]), enquanto múltiplos efeitos mantêm a modal com ordenação (max-h-[38vh])", () => {
+    const singleDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "spec-single",
+          label: "Single effect label",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+
+    const { container: singleContainer } = render(
+      <Harness decision={singleDecision} onResolve={vi.fn()} />,
+    );
+    const singlePanel = singleContainer.querySelector(".hero-surface");
+    expect(singlePanel).toHaveClass("max-h-[24vh]");
+    expect(singlePanel).toHaveClass("py-1.5");
+    expect(screen.queryByText("Ordene e escolha os alvos:")).not.toBeInTheDocument();
+
+    cleanup();
+
+    const multiDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "spec-1",
+          label: "Effect 1",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+        {
+          sourceInstanceId: "p2",
+          specId: "spec-2",
+          label: "Effect 2",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+
+    const { container: multiContainer } = render(
+      <Harness decision={multiDecision} onResolve={vi.fn()} />,
+    );
+    const multiPanel = multiContainer.querySelector(".hero-surface");
+    expect(multiPanel).toHaveClass("max-h-[38vh]");
+    expect(multiPanel).toHaveClass("p-3");
+    expect(screen.getByText("Ordene e escolha os alvos:")).toBeInTheDocument();
+  });
 });
+

@@ -225,20 +225,32 @@ export function AbilityResolutionModal({
       }),
     );
 
+  const isSingle = order.length === 1;
+
   return (
     <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
-      <div className="pointer-events-auto panel-cut hero-surface mx-auto w-[min(96vw,44rem)] max-h-[38vh] overflow-y-auto border border-amber-400/70 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-md">
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-1.5">
+      <div
+        className={cn(
+          "pointer-events-auto panel-cut hero-surface mx-auto overflow-y-auto border border-amber-400/70 bg-slate-950/95 shadow-2xl backdrop-blur-md transition-all duration-200",
+          isSingle
+            ? "w-[min(96vw,50rem)] max-h-[24vh] py-1.5 px-3"
+            : "w-[min(96vw,44rem)] max-h-[38vh] p-3",
+        )}
+      >
+        <div className={cn("flex items-center justify-between gap-2 border-b border-white/10", isSingle ? "pb-1" : "pb-1.5")}>
           <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300">
             <Sparkles className="size-3.5" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
           </p>
           <div className="flex items-center gap-2">
-            {order.length > 1 ? (
+            {!isSingle ? (
               <span className="text-[10px] text-muted-portal">Ordene e escolha os alvos:</span>
             ) : null}
             <Button
               size="sm"
-              className="h-7 rounded-arena bg-amber-400 px-3 text-xs font-bold text-black hover:bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.4)]"
+              className={cn(
+                "rounded-arena bg-amber-400 font-bold text-black hover:bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.4)]",
+                isSingle ? "h-6 px-2.5 text-[11px]" : "h-7 px-3 text-xs",
+              )}
               disabled={busy || !canConfirm}
               onClick={confirm}
             >
@@ -247,21 +259,30 @@ export function AbilityResolutionModal({
           </div>
         </div>
 
-        <ol className="mt-2 space-y-1.5">
+        <ol className={cn(isSingle ? "mt-1 space-y-1" : "mt-2 space-y-1.5")}>
           {order.map((specId, i) => {
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
             const opts = optionsFor(specId);
             return (
-              <li key={specId} className="border border-white/10 bg-black/40 p-2">
+              <li
+                key={specId}
+                className={cn(
+                  isSingle
+                    ? "border border-white/10 bg-black/40 px-2 py-1.5"
+                    : "border border-white/10 bg-black/40 p-2",
+                )}
+              >
                 <div className="flex items-center gap-2">
-                  {order.length > 1 ? (
+                  {!isSingle ? (
                     <span className="flex size-5 shrink-0 items-center justify-center bg-amber-400/20 text-[10px] font-black text-amber-300">
                       {i + 1}
                     </span>
                   ) : null}
-                  <span className="min-w-0 flex-1 text-xs leading-snug text-soft">{q.label}</span>
-                  {order.length > 1 ? (
+                  <span className={cn("min-w-0 flex-1 text-soft", isSingle ? "text-[11px] leading-tight" : "text-xs leading-snug")}>
+                    {q.label}
+                  </span>
+                  {!isSingle ? (
                     <span className="flex shrink-0">
                       <button type="button" className="p-1 text-slate-400 hover:text-amber-300 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)}>
                         <ArrowUp className="size-4" />
@@ -274,11 +295,11 @@ export function AbilityResolutionModal({
                 </div>
 
                 {showActivateToggle(specId) ? (
-                  <div className="mt-2 flex gap-1">
-                    <Toggle active={on} onClick={() => setActivate((s) => ({ ...s, [specId]: true }))}>
+                  <div className={cn("flex gap-1", isSingle ? "mt-1" : "mt-2")}>
+                    <Toggle compact={isSingle} active={on} onClick={() => setActivate((s) => ({ ...s, [specId]: true }))}>
                       Ativar
                     </Toggle>
-                    <Toggle active={!on} onClick={() => setActivate((s) => ({ ...s, [specId]: false }))}>
+                    <Toggle compact={isSingle} active={!on} onClick={() => setActivate((s) => ({ ...s, [specId]: false }))}>
                       Pular
                     </Toggle>
                   </div>
@@ -286,20 +307,21 @@ export function AbilityResolutionModal({
 
                 {on && q.needsTarget ? (
                   opts.length > 0 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className={cn(isSingle ? "mt-1 flex flex-wrap items-center gap-1.5" : "mt-2 space-y-1")}>
                       {usesBoardTargetingForPrimary(q) ? (
                         <BoardTargetHint
                           side={q.targetScope === "friendlyUnit" ? "ally" : q.targetScope === "enemyUnit" ? "enemy" : "both"}
                           count={(targets[specId] ?? []).length}
                           max={q.targetCount?.max ?? 1}
                           label="Selecione no tabuleiro ou abaixo:"
+                          compact={isSingle}
                         />
                       ) : q.targetCount && q.targetCount.max > 1 ? (
-                        <p className="text-[10px] text-amber-300">
+                        <span className="text-[10px] text-amber-300 shrink-0">
                           Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
-                        </p>
+                        </span>
                       ) : null}
-                      <div className="scrollbar-ghost flex flex-wrap gap-1 pb-1">
+                      <div className="scrollbar-ghost flex flex-wrap items-center gap-1">
                         {opts.map((opt) => {
                           const isSelected = (targets[specId] ?? []).includes(opt.instanceId);
                           const maxTargets = q.targetCount?.max ?? 1;
@@ -308,6 +330,7 @@ export function AbilityResolutionModal({
                           return (
                             <Toggle
                               key={opt.instanceId}
+                              compact={isSingle}
                               active={isSelected}
                               onClick={() => (maxTargets > 1 ? toggleMulti(specId, opt.instanceId, maxTargets) : pickSingle(specId, opt.instanceId))}
                             >
@@ -325,24 +348,25 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhum alvo legal — o efeito não faz nada.</p>
                   )
                 ) : null}
 
                 {on && q.secondaryTarget ? (
                   q.secondaryTarget.legalTargets.length > 0 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className={cn(isSingle ? "mt-1 flex flex-wrap items-center gap-1.5" : "mt-2 space-y-1")}>
                       {usesBoardTargetingForSecondary(q) ? (
                         <BoardTargetHint
                           side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
                           count={(secondaryTargets[specId] ?? []).length}
                           max={1}
                           label="E também (no tabuleiro ou abaixo):"
+                          compact={isSingle}
                         />
                       ) : (
-                        <p className="text-[10px] text-amber-300">E também:</p>
+                        <span className="text-[10px] text-amber-300 shrink-0">E também:</span>
                       )}
-                      <div className="scrollbar-ghost flex flex-wrap gap-1 pb-1">
+                      <div className="scrollbar-ghost flex flex-wrap items-center gap-1">
                         {q.secondaryTarget.legalTargets.map((instanceId) => {
                           const isSelected = (secondaryTargets[specId] ?? []).includes(instanceId);
                           const isAlly = q.secondaryTarget!.targetScope === "friendlyUnit";
@@ -350,6 +374,7 @@ export function AbilityResolutionModal({
                           return (
                             <Toggle
                               key={instanceId}
+                              compact={isSingle}
                               active={isSelected}
                               onClick={() => pickSecondary(specId, instanceId)}
                             >
@@ -367,18 +392,19 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[10px] text-muted-portal">Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
                   )
                 ) : null}
 
                 {on && q.handChoice ? (
                   q.handChoice.legalHandIds.length > 0 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                       <p className="text-[10px] text-muted-portal">Escolha 1 Unidade da sua mão pra implantar sem custo:</p>
                       <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handChoice.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
+                            compact={isSingle}
                             active={(targets[specId] ?? []).includes(instanceId)}
                             onClick={() => pickSingle(specId, instanceId)}
                           >
@@ -388,12 +414,12 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[10px] text-muted-portal">Nenhuma Unidade elegível na mão — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhuma Unidade elegível na mão — o efeito não faz nada.</p>
                   )
                 ) : null}
 
                 {q.deckTopReveal ? (
-                  <div className="mt-2 space-y-1">
+                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
                       Topo do deck ({q.deckTopReveal.count}) — revele 1 Unidade (Zeon)/(Neo Zeon) ou nenhuma. O resto vai
                       pro fundo.
@@ -404,6 +430,7 @@ export function AbilityResolutionModal({
                         return (
                           <Toggle
                             key={card.instanceId}
+                            compact={isSingle}
                             active={(targets[specId] ?? []).includes(card.instanceId)}
                             disabled={!revealable}
                             onClick={() => pickSingle(specId, card.instanceId)}
@@ -413,7 +440,7 @@ export function AbilityResolutionModal({
                           </Toggle>
                         );
                       })}
-                      <Toggle active={(targets[specId] ?? []).length === 0} onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}>
+                      <Toggle compact={isSingle} active={(targets[specId] ?? []).length === 0} onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}>
                         Não revelar
                       </Toggle>
                     </div>
@@ -422,12 +449,13 @@ export function AbilityResolutionModal({
 
                 {q.handDiscard ? (
                   q.handDiscard.legalHandIds.length > 0 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                       <p className="text-[10px] text-muted-portal">Escolha 1 carta da mão pra descartar:</p>
                       <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handDiscard.legalHandIds.map((instanceId) => (
                           <Toggle
                             key={instanceId}
+                            compact={isSingle}
                             active={(targets[specId] ?? []).includes(instanceId)}
                             onClick={() => pickSingle(specId, instanceId)}
                           >
@@ -437,12 +465,12 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[10px] text-muted-portal">Mão vazia — nada pra descartar.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Mão vazia — nada pra descartar.</p>
                   )
                 ) : null}
 
                 {q.deckReorder ? (
-                  <div className="mt-2 space-y-1">
+                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
                       Topo do deck — coloque 1 no topo e 1 no fundo:
                     </p>
@@ -453,6 +481,7 @@ export function AbilityResolutionModal({
                           {q.deckReorder!.slots.map((slot) => (
                             <Toggle
                               key={slot.name}
+                              compact={isSingle}
                               active={(reorder[specId] ?? {})[slot.name] === card.instanceId}
                               onClick={() => assignReorder(specId, slot.name, card.instanceId)}
                             >
@@ -466,12 +495,13 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.enumChoice ? (
-                  <div className="mt-2 space-y-1">
+                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">Escolha:</p>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.enumChoice.options.map((opt) => (
                         <Toggle
                           key={opt.value}
+                          compact={isSingle}
                           active={(targets[specId] ?? []).includes(opt.value)}
                           onClick={() => pickSingle(specId, opt.value)}
                         >
@@ -483,7 +513,7 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.trashSearch ? (
-                  <div className="mt-2 space-y-1">
+                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
                       Lixeira ({q.trashSearch.legalTrashIds.length} cartas) — escolha 1 carta (ou nenhuma):
                     </p>
@@ -491,6 +521,7 @@ export function AbilityResolutionModal({
                       {q.trashSearch.legalTrashIds.map((instanceId) => (
                         <Toggle
                           key={instanceId}
+                          compact={isSingle}
                           active={(targets[specId] ?? []).includes(instanceId)}
                           onClick={() => pickSingle(specId, instanceId)}
                         >
@@ -498,6 +529,7 @@ export function AbilityResolutionModal({
                         </Toggle>
                       ))}
                       <Toggle
+                        compact={isSingle}
                         active={(targets[specId] ?? []).length === 0}
                         onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}
                       >
@@ -525,40 +557,42 @@ function BoardTargetHint({
   count,
   max,
   label = "Selecione no tabuleiro:",
+  compact = false,
 }: {
   side: "ally" | "enemy" | "both";
   count: number;
   max: number;
   label?: string;
+  compact?: boolean;
 }) {
   const swatch =
     side === "ally" ? (
-      <span className="inline-flex items-center gap-1">
-        <span className="size-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+      <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+        <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
       </span>
     ) : side === "enemy" ? (
-      <span className="inline-flex items-center gap-1">
-        <span className="size-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+      <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+        <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
       </span>
     ) : (
       <span className="inline-flex items-center gap-2">
-        <span className="inline-flex items-center gap-1">
-          <span className="size-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+          <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="size-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+        <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+          <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
         </span>
       </span>
     );
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-portal">
+    <span className={cn("inline-flex items-center gap-1.5 text-[10px] text-muted-portal shrink-0", !compact && "mt-2")}>
       {label} {swatch}
       {max > 1 ? (
         <span className="text-amber-300">
           ({count}/{max} selecionado{max === 1 ? "" : "s"})
         </span>
       ) : null}
-    </p>
+    </span>
   );
 }
 
@@ -566,11 +600,13 @@ function Toggle({
   active,
   onClick,
   disabled,
+  compact = false,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   disabled?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -580,8 +616,13 @@ function Toggle({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "min-h-8 shrink-0 rounded-arena border px-2 text-[10px] font-bold uppercase tracking-wide transition-colors",
-        active ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-black/40 text-slate-300 hover:border-amber-400/50",
+        compact
+          ? "h-6 px-2 text-[10px]"
+          : "min-h-8 px-2 text-[10px]",
+        "shrink-0 rounded-arena border font-bold uppercase tracking-wide transition-colors flex items-center justify-center",
+        active
+          ? "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+          : "border-white/10 bg-black/40 text-slate-300 hover:border-amber-400/50",
         disabled && "cursor-not-allowed opacity-40 hover:border-white/10",
       )}
     >
