@@ -134,3 +134,21 @@ Escada `ladder-2026-09-24-plan.json` (40 partidas/par, difícil com 8 rollouts; 
 
 normal_plan sobre normal 77,5%; **difícil sobre normal_plan 40%** — o planejador supera o MCTS e
 custa uma fração do tempo.
+
+## Topo da escada: MCTS com âncora alternativa — 2026-09-24
+
+`mctsPolicy` aceita `anchor`: `zero_mcts` = MCTS do difícil ancorado nas personas do zero_system;
+`dificil_plan` = MCTS ancorado no planejador. Escada `ladder-2026-09-24-topo.json` (30 partidas/par,
+8 rollouts; âncora = normal_plan):
+
+| Nível | Elo (normal_plan = 0) | IC 95% |
+|---|---|---|
+| normal_plan | 0 | — |
+| zero_mcts | −24 | [−127, 65] |
+| dificil_plan | **144** | [46, 255] |
+
+- dificil_plan sobre normal_plan 63,3% (19/30); sobre zero_mcts 80% (24/30).
+- zero_mcts ≈ normal_plan (53,3%): MCTS sobre as personas não passa do planejador — a âncora pesa
+  mais que a busca por cima dela.
+- Somando as escadas (mesma âncora `normal` no elo anterior): normal 0 → normal_plan ~+167 →
+  dificil_plan ~+310. O difícil atual (MCTS sobre a heurística) fica em ~+66.
