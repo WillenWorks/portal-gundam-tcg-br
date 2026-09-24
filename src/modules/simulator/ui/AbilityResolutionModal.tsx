@@ -249,7 +249,7 @@ export function AbilityResolutionModal({
               size="sm"
               className={cn(
                 "rounded-arena bg-amber-400 font-bold text-black hover:bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.4)]",
-                isSingle ? "h-6 px-2.5 text-[11px]" : "h-7 px-3 text-xs",
+                isSingle ? "min-h-11 px-2.5 text-[11px] sm:h-6 sm:min-h-0" : "min-h-11 px-3 text-xs sm:h-7 sm:min-h-0",
               )}
               disabled={busy || !canConfirm}
               onClick={confirm}
@@ -617,8 +617,8 @@ function Toggle({
       aria-pressed={active}
       className={cn(
         compact
-          ? "h-6 px-2 text-[10px]"
-          : "min-h-8 px-2 text-[10px]",
+          ? "min-h-11 px-2 text-[10px] sm:h-6 sm:min-h-0"
+          : "min-h-11 px-2 text-[10px] sm:min-h-8",
         "shrink-0 rounded-arena border font-bold uppercase tracking-wide transition-colors flex items-center justify-center",
         active
           ? "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.3)]"

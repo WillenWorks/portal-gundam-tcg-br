@@ -1,6 +1,7 @@
 import type { GameEvent, GameState, PlayerId } from "./types";
 import { findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
+import type { EffectSpec } from "./effectSpec";
 
 /**
  * "Pagar N recursos active" — vocabulário compartilhado entre `deployCard`/
@@ -63,4 +64,25 @@ export function payResourceCostEvents(
       ? { type: "REMOVE_CARD_FROM_GAME", instanceId: id }
       : { type: "REST_CARD", instanceId: id };
   });
+}
+
+/**
+ * `true` se `spec.cost` inclui "Rest this Unit/Base:" (`{op:"rest", target:{kind:"self"}}`)
+ * — achado no fuzzing da wave GD01 (`GD01-130`, heurístico vs heurístico travava
+ * reativando a mesma habilidade pra sempre): resting uma carta JÁ rested é um
+ * no-op silencioso (`REST_CARD` só seta `rested = true`, que já era true), então
+ * "pagar" esse custo nunca fica impossível por si só. Compartilhado entre
+ * `legalActions` (enumeração) e `playerHasActionStepPlay` (auto-pass) pra que
+ * os dois nunca divirjam sobre o que é pagável.
+ */
+export function costRestsSelf(spec: EffectSpec): boolean {
+  return (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "self");
+}
+
+/** Soma dos `payResourceCost` do PRÓPRIO controlador em `spec.cost` (ex. ST01-015 White Base "②"). */
+export function specResourceCost(spec: EffectSpec): number {
+  return (spec.cost ?? []).reduce(
+    (sum, c) => (c.op === "payResourceCost" && c.player === "controller" ? sum + c.n : sum),
+    0,
+  );
 }

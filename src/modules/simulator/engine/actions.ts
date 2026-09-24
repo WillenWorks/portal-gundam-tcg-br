@@ -1,8 +1,9 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
-import type { ViewGameState } from "./viewState";
+import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { deployCard, playCommand } from "./deploy";
+import { canPayLevel, deployCard, playCommand } from "./deploy";
+import { costRestsSelf, specResourceCost } from "./costs";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
@@ -16,7 +17,7 @@ import {
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
-import { effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
+import { effectiveCost, effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -681,41 +682,54 @@ function enforceZoneLimits(state: GameState): GameState {
 
 /**
  * `player` tem alguma jogada REAL disponível no Action Step atual (combate ou
- * fim de turno)? Usado pelo auto-pass inteligente (docs/19, Sessão 2, tarefa
- * 4 — CR 7-6 / 8-4): se o jogador com prioridade optou por `autoPassActionStep`
- * E não tem nada pra fazer aqui, o servidor passa na hora, sem esperar o
- * timer do Action Step. "Jogada real" = Command 【Action】 jogável agora (nível +
- * custo pagáveis) ou 【Activate·Action】 de carta em campo ainda não usado.
+ * fim de turno)? Usado pelo auto-pass (docs/19, Sessão 2, tarefa 4 — CR 7-6 /
+ * 8-4): no servidor (`settleAutoPasses`, opt-in) e no cliente (auto-pass
+ * incondicional quando não há jogada nenhuma). "Jogada real" = Command
+ * 【Action】 jogável agora ou 【Activate·Action】 de carta em campo pagável.
+ *
+ * Direção do erro: esta função NUNCA pode dizer "não há jogada" quando há —
+ * isso faria o auto-pass tirar uma jogada legal do jogador. Por isso nível e
+ * custo usam `canPayLevel`/`effectiveCost` (os mesmos de `playCommand`), que
+ * já aplicam reduções dinâmicas (`dynamicCost`/`dynamicLevel`, ex. GD01-016,
+ * ST08-001). Toda redução nova de custo/nível TEM que entrar por esses dois
+ * helpers, senão o auto-pass diverge do motor. O que não é checado aqui
+ * (alvos legais, custos não-recurso como descarte/destruição) erra pro lado
+ * seguro: conta como "tem jogada".
+ *
+ * Aceita `ViewGameState` (cliente): cartas ocultas são puladas — no cliente
+ * só a mão do próprio viewer é conhecida, então chamar isto pro OPONENTE a
+ * partir de uma view dá resposta incompleta (nunca vê a mão dele). As
+ * condições de `dynamicCost`/`dynamicLevel` (`isBoardConditionMet`) só leem
+ * zonas públicas (battleArea/baseSection/trash/combat), então o cast pra
+ * `GameState` abaixo é seguro.
  */
 export function playerHasActionStepPlay(
   state: GameState | ViewGameState,
   player: PlayerId,
   specs: EffectSpec[],
 ): boolean {
+  const rulesState = state as GameState;
   const p = state.players[player];
   if (!p) return false;
-  const activeResources = p.resourceArea.filter((r) => !("rested" in r && r.rested)).length;
-  const totalResources = p.resourceArea.length;
+  const activeResources = p.resourceArea.filter((r) => !isHiddenCard(r) && !r.rested).length;
 
   for (const card of p.hand) {
-    if (!card || ("hidden" in card && card.hidden)) continue;
-    const def = "def" in card ? card.def : undefined;
-    if (!def) continue;
-    if (def.cardType !== "COMMAND") continue;
-    if (!def.triggerKeywords?.includes("Action")) continue;
-    if (totalResources < (def.level ?? 0)) continue;
-    if (activeResources < (def.cost ?? 0)) continue;
+    if (isHiddenCard(card)) continue;
+    if (card.def.cardType !== "COMMAND") continue;
+    if (!card.def.triggerKeywords?.includes("Action")) continue;
+    if (!canPayLevel(rulesState, player, card.def)) continue;
+    if (activeResources < effectiveCost(card.def, rulesState, player)) continue;
     return true;
   }
 
   for (const zone of ["battleArea", "baseSection"] as const) {
     for (const card of p[zone]) {
-      if (!card || ("hidden" in card && card.hidden)) continue;
-      const def = "def" in card ? card.def : undefined;
-      if (!def) continue;
-      if (findTriggerSpecs(specs, def.code, "Activate·Action").length === 0) continue;
-      if (def.oncePerTurn && "usedKeywordsThisTurn" in card && card.usedKeywordsThisTurn?.includes("Activate·Action")) continue;
-      return true;
+      if (isHiddenCard(card)) continue;
+      if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Activate·Action")) continue;
+      const payable = findTriggerSpecs(specs, card.def.code, "Activate·Action").some(
+        (spec) => !(costRestsSelf(spec) && card.rested) && activeResources >= specResourceCost(spec),
+      );
+      if (payable) return true;
     }
   }
 

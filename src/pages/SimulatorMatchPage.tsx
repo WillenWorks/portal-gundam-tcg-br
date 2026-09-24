@@ -107,7 +107,7 @@ import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
-import { otherPlayer, hasKeyword, effectiveCost, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
@@ -680,12 +680,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     viewMain: SimulatorMatchView;
   }
   const turnStagedViewsRef = useRef<TurnStagedViews | null>(null);
-
-  // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
-  // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
-  // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
-  // (esse já é responsabilidade do `handleSetupAnimDone`).
-  const prevTurnBannerRef = useRef<number | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -1542,8 +1536,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   }, [introStage, matchView]);
 
-  // Banner condicional de End Phase (Fase de Ações vs Fim de Turno):
-  // Dispara quando o turno ativo entra na End Phase (v.phase === "end" ou v.endPhaseAction !== null).
+  // Banner da End Phase: o Action Step da End Phase SEMPRE existe pelas regras
+  // (CR — End Phase: Action Step → End Step → Hand Step → Cleanup), então o
+  // banner anuncia "FASE DE AÇÕES" sempre. Não dá pra decidir "FIM DE TURNO"
+  // por "ninguém tem jogada": o cliente só conhece a própria mão (a do
+  // oponente chega como `HiddenCard`), e o servidor mandar esse booleano
+  // vazaria informação oculta. Quem não tem jogada é passado pelo auto-pass.
   const endPhaseBannerShownTurnRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -1557,14 +1555,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (endPhaseBannerShownTurnRef.current === v.turnNumber) return;
     endPhaseBannerShownTurnRef.current = v.turnNumber;
 
-    const standbyPlayer = otherPlayer(v.activePlayer);
-    const standbyHasPlay = playerHasActionStepPlay(v, standbyPlayer, ALL_EFFECT_SPECS);
-    const activeHasPlay = playerHasActionStepPlay(v, v.activePlayer, ALL_EFFECT_SPECS);
-    const hasAnyPlay = standbyHasPlay || activeHasPlay;
-
-    enqueuePhaseBanners([
-      hasAnyPlay ? "FASE DE AÇÕES" : "FIM DE TURNO",
-    ]);
+    enqueuePhaseBanners(["FASE DE AÇÕES"]);
   }, [matchView, introStage, enqueuePhaseBanners]);
 
 
@@ -2028,7 +2019,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
     const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
     const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
-    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= (c.def.level ?? 0) && ctx.myTurnMain;
+    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller) && ctx.myTurnMain;
 
     const out: HandPlayMode[] = [];
     if (normalAffordable && modes.includes("deploy")) {
@@ -2341,11 +2332,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const ctx = playabilityCtx();
     const effCost = effectiveCost(c.def, ctx.state, ctx.controller);
     const shortOnResources = ctx.activeResources < effCost;
-    const shortOnLevel = ctx.totalResources < (c.def?.level ?? 0);
+    const effLevel = effectiveLevel(c.def, ctx.state, ctx.controller);
+    const shortOnLevel = ctx.totalResources < effLevel;
     const blockedReason = playable
       ? undefined
       : shortOnLevel
-        ? `Nível insuficiente — precisa de ${c.def?.level} recursos em campo.`
+        ? `Nível insuficiente — precisa de ${effLevel} recursos em campo.`
         : shortOnResources
           ? `Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`
           : isDual

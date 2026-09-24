@@ -12,7 +12,7 @@
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "../content";
 import { computeLegalTargets, specNeedsNamedTarget } from "../engine/effectSpec";
 import type { CardDef, CardInstance, GameState, PlayerId } from "../engine/types";
-import { effectiveCost, effectivePilotDef, satisfiesLinkCondition } from "../engine/types";
+import { effectiveCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition } from "../engine/types";
 
 export interface PlayabilityContext {
   /** Main Phase própria, sem combate. */
@@ -63,7 +63,7 @@ export function findEligibleSacrifices(def: CardDef, ctx: PlayabilityContext): C
 /** Checa se o jogador pode bancar a carta: ou pelo custo efetivo + nível, ou via deploy alternativo por sacrifício. */
 export function canAffordCard(def: CardDef, ctx: PlayabilityContext): boolean {
   const cost = effectiveCost(def, ctx.state, ctx.controller);
-  const normalAffordable = ctx.activeResources >= cost && ctx.totalResources >= (def.level ?? 0);
+  const normalAffordable = ctx.activeResources >= cost && ctx.totalResources >= effectiveLevel(def, ctx.state, ctx.controller);
   if (normalAffordable) return true;
   return findEligibleSacrifices(def, ctx).length > 0;
 }
