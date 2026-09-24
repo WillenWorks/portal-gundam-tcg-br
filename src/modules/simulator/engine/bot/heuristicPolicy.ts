@@ -4,6 +4,7 @@ import type { ViewCardInstance, ViewGameState, ViewPlayerState } from "../viewSt
 import type { LegalAction } from "../legalActions";
 import type { Rng } from "../rng";
 import type { SelfPlayPolicy } from "../selfPlay";
+import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
 
 /**
  * Bot heurístico (docs/44, Fase 2 — §4.1). `chooseAction` é PURA e
@@ -30,6 +31,14 @@ export type HeuristicLevel = "facil" | "normal";
 
 export interface HeuristicPolicyOptions {
   level?: HeuristicLevel;
+  /**
+   * Liga o lookahead de efeitos (spec bot-lookahead-efeitos): `playCommand`/
+   * `activateAbility` passam a ser avaliados por simulação em vez de "só remoção
+   * em Unit inimiga". Opt-in: esta policy também é a de ROLLOUT do MCTS e dos
+   * testes de self-play, onde o custo por decisão tem que continuar baixo.
+   * Ignorado no nível `facil` (fraco de propósito).
+   */
+  lookahead?: EffectLookaheadConfig;
 }
 
 const LATE_GAME_TURN = 8;
@@ -75,9 +84,10 @@ interface Ctx {
   myBase: CardInstance | null;
   myHand: CardInstance[];
   myShieldCount: number;
+  lookahead: EffectLookahead | null;
 }
 
-function buildCtx(view: ViewGameState): Ctx {
+function buildCtx(view: ViewGameState, lookahead: EffectLookahead | null = null): Ctx {
   const me = view.viewer;
   const opp = otherPlayer(me);
   const myPlayer = view.players[me];
@@ -92,6 +102,7 @@ function buildCtx(view: ViewGameState): Ctx {
     myBase: myPlayer.baseSection.filter(isReal)[0] ?? null,
     myHand: myPlayer.hand.filter(isReal),
     myShieldCount: myPlayer.counts.shields,
+    lookahead,
   };
 }
 
@@ -271,8 +282,8 @@ function scoreNormal(action: LegalAction, _index: number, ctx: Ctx): number {
       // (pumps, <Support>) e prendem o bot num laço de ação dentro do mesmo turno.
       const id = actionTargetId(action);
       const enemy = id ? byId(ctx.oppUnits, id) : undefined;
-      if (!enemy) return -1;
-      return 6 + unitValue(enemy, ctx.state);
+      const legacy = enemy ? 6 + unitValue(enemy, ctx.state) : -1;
+      return ctx.lookahead ? ctx.lookahead.score(ctx.view, action, legacy) : legacy;
     }
     default:
       return 0;
@@ -323,13 +334,15 @@ export function chooseAction(
   legal: LegalAction[],
   rng: Rng,
   level: HeuristicLevel = "normal",
+  lookahead: EffectLookahead | null = null,
 ): LegalAction {
   if (legal.length === 0) {
     throw new Error("heuristicPolicy: lista de ações legais vazia");
   }
   if (legal.length === 1) return legal[0];
 
-  const ctx = buildCtx(view);
+  lookahead?.beginDecision();
+  const ctx = buildCtx(view, level === "facil" ? null : lookahead);
   const score = level === "facil" ? scoreFacil : scoreNormal;
 
   let best: LegalAction[] = [];
@@ -349,5 +362,13 @@ export function chooseAction(
 
 export function heuristicPolicy(options: HeuristicPolicyOptions = {}): SelfPlayPolicy {
   const level = options.level ?? "normal";
-  return (view, legal, rng) => chooseAction(view, legal, rng, level);
+  const lookahead =
+    options.lookahead && level !== "facil"
+      ? new EffectLookahead(options.lookahead, heuristicPolicy({ level: "normal" }))
+      : null;
+  return (view, legal, rng) => {
+    const choice = chooseAction(view, legal, rng, level, lookahead);
+    lookahead?.record(view.turnNumber, choice);
+    return choice;
+  };
 }

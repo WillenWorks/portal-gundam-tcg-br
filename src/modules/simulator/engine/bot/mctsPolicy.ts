@@ -8,6 +8,7 @@ import type { ViewGameState } from "../viewState";
 import { chooseAction as heuristicChoose, heuristicPolicy } from "./heuristicPolicy";
 import { simulateToEnd } from "./simulateToEnd";
 import { applyForEval, deriveRng, determinize, positionValue } from "./evaluation";
+import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
 
 /**
  * Bot MCTS raso — o nível "difícil" do produto (docs/44, Fase 5 — §7.2). O
@@ -84,6 +85,12 @@ export interface MctsPolicyOptions {
   specs?: EffectSpec[];
   predicateResolver?: PredicateResolver;
   targetFilterResolver?: TargetFilterResolver;
+  /**
+   * Lookahead de efeitos na ÂNCORA (a escolha da heurística que o MCTS só troca
+   * por margem). Os rollouts continuam com a heurística SEM lookahead — senão
+   * cada passo de cada rollout pagaria a simulação do efeito.
+   */
+  lookahead?: EffectLookaheadConfig;
 }
 
 const DEFAULT_ROLLOUTS = 32;
@@ -128,6 +135,7 @@ export function chooseAction(
   legal: LegalAction[],
   rng: Rng,
   options: MctsPolicyOptions = {},
+  lookahead: EffectLookahead | null = null,
 ): LegalAction {
   if (legal.length === 0) {
     throw new Error("mctsPolicy: lista de ações legais vazia");
@@ -135,7 +143,7 @@ export function chooseAction(
   if (legal.length === 1) return legal[0];
 
   // âncora: o que a heurística normal jogaria aqui (rng derivado — não perturba a sequência principal)
-  const heuristicPick = heuristicChoose(view, legal, deriveRng(rng), "normal");
+  const heuristicPick = heuristicChoose(view, legal, deriveRng(rng), "normal", lookahead);
 
   const maxBranching = options.maxBranching ?? DEFAULT_MAX_BRANCHING;
   if (legal.length > maxBranching) return heuristicPick;
@@ -190,5 +198,10 @@ export function chooseAction(
 }
 
 export function mctsPolicy(options: MctsPolicyOptions = {}): SelfPlayPolicy {
-  return (view, legal, rng) => chooseAction(view, legal, rng, options);
+  const lookahead = options.lookahead ? new EffectLookahead(options.lookahead, heuristicPolicy({ level: "normal" })) : null;
+  return (view, legal, rng) => {
+    const choice = chooseAction(view, legal, rng, options, lookahead);
+    lookahead?.record(view.turnNumber, choice);
+    return choice;
+  };
 }

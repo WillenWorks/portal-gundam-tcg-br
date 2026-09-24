@@ -248,3 +248,59 @@ describe("heuristicPolicy — nível facil", () => {
     expect(facil(v, legal, rng)).toEqual({ kind: "declareAttack", attackerId: "mine", target: "player" });
   });
 });
+
+describe("heuristicPolicy — lookahead de efeitos (opt-in)", () => {
+  // import tardio: fixtures usam o motor real (pesado), só este bloco precisa
+  const load = async () => {
+    const fx = await import("./lookaheadTestFixtures");
+    const { enumerateLegalActions } = await import("../legalActions");
+    const { viewStateFor } = await import("../viewState");
+    const legalFor = (state: Parameters<typeof viewStateFor>[0], seat: "A" | "B") =>
+      enumerateLegalActions(state, seat, fx.SPECS, {});
+    return { fx, legalFor, viewStateFor };
+  };
+
+  it("sem lookahead: não joga Comando sem alvo inimigo (comportamento atual preservado)", async () => {
+    const { fx, legalFor, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    fx.put(state, "A", "hand", fx.DRAW);
+    const legal = legalFor(state, "A");
+    const chosen = heuristicPolicy({ level: "normal" })(viewStateFor(state, "A"), legal, rng);
+    expect(chosen.kind).not.toBe("playCommand");
+  });
+
+  it("com lookahead: joga Comando de compra quando não há jogada melhor", async () => {
+    const { fx, legalFor, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    const cmd = fx.put(state, "A", "hand", fx.DRAW);
+    const legal = legalFor(state, "A");
+    const chosen = heuristicPolicy({ level: "normal", lookahead: { specs: fx.SPECS } })(viewStateFor(state, "A"), legal, rng);
+    expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: cmd.instanceId });
+  });
+
+  it("com lookahead: não joga efeito que prejudica o próprio bot", async () => {
+    const { fx, legalFor, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    fx.put(state, "A", "hand", fx.SELF_BURN);
+    const legal = legalFor(state, "A");
+    const chosen = heuristicPolicy({ level: "normal", lookahead: { specs: fx.SPECS } })(viewStateFor(state, "A"), legal, rng);
+    expect(chosen.kind).not.toBe("playCommand");
+  });
+
+  it("com lookahead: no Action Step joga o pump que vira a batalha", async () => {
+    const { fx, legalFor, viewStateFor } = await load();
+    const { state, attacker, pump } = fx.combatWithPriorityA(3);
+    const legal = legalFor(state, "A");
+    const chosen = heuristicPolicy({ level: "normal", lookahead: { specs: fx.SPECS } })(viewStateFor(state, "A"), legal, rng);
+    expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: pump.instanceId, targets: { target: [attacker.instanceId] } });
+  });
+
+  it("com lookahead: nível facil continua sem jogar Comando de compra", async () => {
+    const { fx, legalFor, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    fx.put(state, "A", "hand", fx.DRAW);
+    const legal = legalFor(state, "A");
+    const chosen = heuristicPolicy({ level: "facil", lookahead: { specs: fx.SPECS } })(viewStateFor(state, "A"), legal, rng);
+    expect(chosen.kind).not.toBe("playCommand");
+  });
+});

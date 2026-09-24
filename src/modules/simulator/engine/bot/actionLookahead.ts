@@ -132,3 +132,60 @@ export class EffectActionBudget {
     if (key !== null) this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
   }
 }
+
+/** nota de um efeito que vale a pena = BASE + SCALE × delta (escala das notas da heurística: deploy ~25, atacar ~14) */
+export const LOOKAHEAD_SCORE_BASE = 4;
+export const LOOKAHEAD_SCORE_SCALE = 4;
+
+/** configuração que as policies aceitam em `lookahead` — o `settlePolicy` a própria policy fornece */
+export interface EffectLookaheadConfig extends EvalDeps {
+  /** orçamento POR DECISÃO (todas as candidatas somadas); default `DECISION_BUDGET_MS` */
+  budgetMs?: number;
+  seed?: number;
+  now?: () => number;
+  maxActivationsPerSourcePerTurn?: number;
+}
+
+/**
+ * Estado do lookahead dentro de UMA instância de policy: orçamento de tempo da
+ * decisão corrente e o contador de ativações repetíveis. Quem usa: `beginDecision`
+ * no início de cada escolha, `score` por candidata, `record` na ação escolhida.
+ */
+export class EffectLookahead {
+  private readonly config: EffectLookaheadConfig;
+  private readonly settlePolicy: SelfPlayPolicy;
+  private readonly budget: EffectActionBudget;
+  private readonly now: () => number;
+  private deadline = 0;
+
+  constructor(config: EffectLookaheadConfig, settlePolicy: SelfPlayPolicy) {
+    this.config = config;
+    this.settlePolicy = settlePolicy;
+    this.budget = new EffectActionBudget(config.maxActivationsPerSourcePerTurn);
+    this.now = config.now ?? Date.now;
+  }
+
+  beginDecision(): void {
+    this.deadline = this.now() + (this.config.budgetMs ?? DECISION_BUDGET_MS);
+  }
+
+  /** nota de `action` pra policy; `fallback` = nota antiga (usada se não avaliável ou sem tempo) */
+  score(view: ViewGameState, action: LegalAction, fallback: number): number {
+    if (action.kind !== "playCommand" && action.kind !== "activateAbility") return fallback;
+    if (!this.budget.allows(view.turnNumber, action)) return -1;
+    const remaining = this.deadline - this.now();
+    if (remaining <= 0) return fallback;
+    const evaluation = evaluateAction(view, action, {
+      ...this.config,
+      settlePolicy: this.settlePolicy,
+      budgetMs: remaining,
+      now: this.now,
+    });
+    if (!evaluation) return fallback;
+    return evaluation.delta > MIN_GAIN ? LOOKAHEAD_SCORE_BASE + LOOKAHEAD_SCORE_SCALE * evaluation.delta : -1;
+  }
+
+  record(turn: number, action: LegalAction): void {
+    this.budget.record(turn, action);
+  }
+}
