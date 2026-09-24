@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, GameState, PlayerId, PlayerState, StatKey, Zone } from "../types";
-import { effectiveAp, effectiveHp, otherPlayer } from "../types";
+import { effectiveAp, effectiveHp, hasKeyword, otherPlayer } from "../types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "../effectSpec";
 import type { LegalAction } from "../legalActions";
 import type { Rng } from "../rng";
@@ -166,16 +166,22 @@ export function applyForEval(action: LegalAction, determinized: GameState, seat:
  * Pesos da avaliação estendida (lookahead de efeitos). Mesma escala de
  * `sideStrength` (shield = 3). Calibrados no benchmark — mexer aqui muda o
  * quanto o bot valoriza cada coisa ao decidir se um efeito vale a pena.
+ *
+ * Recurso ativo NÃO entra de propósito: ele desvira todo turno, então gastá-lo
+ * no Action Step/fim de turno/turno do oponente não custa nada, e na Main o custo
+ * de oportunidade já vem da ordem das notas da policy (deploy > Comando pega os
+ * recursos primeiro). Pesar recurso aqui fazia "Draw 2" por ③ parecer ruim mesmo
+ * com os recursos sobrando.
  */
 export const EVAL_WEIGHTS = {
   shield: 3,
   baseHp: 1.2,
   durableBoard: 0.5,
   handCard: 0.25,
-  // Recurso desvira todo turno: gastar só custa a oportunidade DENTRO do turno — por
-  // isso vale bem menos que uma carta na mão (senão "compre 2" por ① sairia negativo).
-  activeResource: 0.1,
   attackReadyAp: 0.4,
+  // <Blocker> ativo do lado que DEFENDE (não é o jogador ativo): é a defesa que o
+  // ataque deste turno encontra — sem isto, dar rest num bloqueador valeria 0.
+  readyBlockerHp: 0.3,
 } as const;
 
 /** fim de jogo domina qualquer diferença de tabuleiro; finito pra `delta` entre dois fins de jogo nunca virar NaN */
@@ -189,6 +195,16 @@ function durableStat(card: CardInstance, stat: StatKey, effective: number): numb
   return Math.max(0, effective - temporary);
 }
 
+/**
+ * AP ATUAL (com pump) das Units de `pid` que ainda podem atacar neste turno — é o
+ * que dá valor a um pump de Main Phase e zera o de uma Unit que já atacou.
+ */
+function attackReadyApOf(state: GameState, pid: PlayerId): number {
+  return state.players[pid].battleArea
+    .filter((c) => c.def.cardType === "UNIT" && attackIneligibilityReason(state, c) === null)
+    .reduce((s, c) => s + effectiveAp(c, state), 0);
+}
+
 function extendedStrength(state: GameState, pid: PlayerId): number {
   const p = state.players[pid];
   const shields = p.shields.length;
@@ -200,19 +216,24 @@ function extendedStrength(state: GameState, pid: PlayerId): number {
     (s, c) => s + durableStat(c, "ap", effectiveAp(c, state)) + Math.max(0, durableStat(c, "hp", effectiveHp(c, state)) - c.damage),
     0,
   );
-  // O AP ATUAL (com pump) só conta enquanto a Unit ainda pode atacar neste turno —
-  // é o que dá valor a um pump de Main Phase e zera o de uma Unit que já atacou.
-  const attackReadyAp = units
-    .filter((c) => attackIneligibilityReason(state, c) === null)
-    .reduce((s, c) => s + effectiveAp(c, state), 0);
-  const activeResources = p.resourceArea.filter((r) => !r.rested).length;
+  const attackReadyAp = attackReadyApOf(state, pid);
+  const readyBlockerHp =
+    pid === state.activePlayer
+      ? 0
+      : Math.min(
+          units
+            .filter((c) => !c.rested && hasKeyword(c, "Blocker", state))
+            .reduce((s, c) => s + Math.max(0, effectiveHp(c, state) - c.damage), 0),
+          // bloqueador só "defende" o que existe pra ser bloqueado neste turno
+          attackReadyApOf(state, state.activePlayer),
+        );
   return (
     shields * EVAL_WEIGHTS.shield +
     baseHp * EVAL_WEIGHTS.baseHp +
     durableBoard * EVAL_WEIGHTS.durableBoard +
     p.hand.length * EVAL_WEIGHTS.handCard +
-    activeResources * EVAL_WEIGHTS.activeResource +
-    attackReadyAp * EVAL_WEIGHTS.attackReadyAp
+    attackReadyAp * EVAL_WEIGHTS.attackReadyAp +
+    readyBlockerHp * EVAL_WEIGHTS.readyBlockerHp
   );
 }
 

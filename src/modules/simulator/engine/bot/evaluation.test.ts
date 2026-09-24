@@ -91,12 +91,12 @@ describe("evaluation — evaluatePosition (avaliação estendida)", () => {
     expect(evaluatePosition(state, "A")).toBeGreaterThan(before);
   });
 
-  it("recurso active vale mais que rested (gastar recurso tem custo)", () => {
+  it("recurso active x rested não muda o valor (desvira todo turno; custo de oportunidade é da policy)", () => {
     const state = emptyBoard();
     const res = put(state, "A", "resourceArea", RESOURCE);
     const active = evaluatePosition(state, "A");
     res.rested = true;
-    expect(evaluatePosition(state, "A")).toBeLessThan(active);
+    expect(evaluatePosition(state, "A")).toBeCloseTo(active, 5);
   });
 
   it("pump 'durante este turno' só vale em Unit que ainda pode atacar", () => {
@@ -121,6 +121,20 @@ describe("evaluation — evaluatePosition (avaliação estendida)", () => {
     const base = evaluatePosition(state, "A");
     unit.statModifiers.push({ stat: "hp", amount: 2, duration: "permanent", appliedOnTurn: state.turnNumber });
     expect(evaluatePosition(state, "A")).toBeGreaterThan(base);
+  });
+
+  it("dar rest num <Blocker> ativo do defensor melhora a posição do atacante", () => {
+    const state = emptyBoard();
+    expect(state.activePlayer).toBe("A");
+    const blocker = put(state, "B", "battleArea", { ...UNIT, code: "EVAL-BLK", effectKeywords: ["Blocker"] });
+    const noAttacker = evaluatePosition(state, "A");
+    blocker.rested = true;
+    expect(evaluatePosition(state, "A")).toBeCloseTo(noAttacker, 5); // sem atacante, bloqueador não "defende" nada
+    blocker.rested = false;
+    put(state, "A", "battleArea", UNIT);
+    const withReadyBlocker = evaluatePosition(state, "A");
+    blocker.rested = true;
+    expect(evaluatePosition(state, "A")).toBeGreaterThan(withReadyBlocker);
   });
 
   it("é antissimétrica: valor pra A = −valor pra B", () => {
