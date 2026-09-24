@@ -7,7 +7,7 @@ import {
 } from "../modules/simulator/ui/viewAnimationQueue";
 import type { CardDef, CardInstance } from "../modules/simulator/engine/types";
 import type { ViewGameState, ViewPlayerState } from "../modules/simulator/engine/viewState";
-import { buildTurnStagedViews, buildTurn1StagedViews } from "./SimulatorMatchPage";
+import { buildTurnStagedViews, buildTurn1StagedViews, endOfTurnBanners } from "./SimulatorMatchPage";
 
 describe("SimulatorMatchPage — Animação de Comando do Oponente / Bot", () => {
   const commandDef: CardDef = {
@@ -61,6 +61,23 @@ describe("SimulatorMatchPage — Animação de Comando do Oponente / Bot", () =>
       ...overrides,
     } as ViewGameState;
   }
+
+  describe("endOfTurnBanners — virada de turno (Action Step da End Phase já encerrado)", () => {
+    it("FASE DE AÇÕES já anunciada (view anterior na End Phase) → só FIM DE TURNO", () => {
+      const prev = createView({ phase: "end", endPhaseAction: { passes: { A: false, B: true }, priority: "A" } });
+      expect(endOfTurnBanners(prev)).toEqual(["FIM DE TURNO"]);
+    });
+
+    it("End Phase resolvida inteira no servidor (auto-pass dos dois) → FASE DE AÇÕES e FIM DE TURNO", () => {
+      const prev = createView({ phase: "main" });
+      expect(endOfTurnBanners(prev)).toEqual(["FASE DE AÇÕES", "FIM DE TURNO"]);
+    });
+
+    it("Hand Step pendente (endPhaseAction já null, phase ainda end) → só FIM DE TURNO", () => {
+      const prev = createView({ phase: "end", endPhaseAction: null });
+      expect(endOfTurnBanners(prev)).toEqual(["FIM DE TURNO"]);
+    });
+  });
 
   it("detecta Comando jogado pelo oponente via diff de mão para trash", () => {
     const prev = createView();

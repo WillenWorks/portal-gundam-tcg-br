@@ -57,6 +57,24 @@ function loadPromotedArtifacts(modelDir) {
 const DEFAULT_MAX_ACTIONS = 400;
 
 /**
+ * "Tempo de pensar" do bot entre ações (1–2s) — só ritmo de apresentação, pra
+ * partida contra o bot parecer contra uma pessoa. NÃO afeta a decisão da
+ * policy, por isso pode usar `Math.random` (a policy continua seedada).
+ */
+export const BOT_THINK_DELAY_MIN_MS = 1000;
+export const BOT_THINK_DELAY_MAX_MS = 2000;
+
+/** @param {() => number} [random] */
+export function humanizedThinkDelayMs(random = Math.random) {
+  return Math.round(BOT_THINK_DELAY_MIN_MS + random() * (BOT_THINK_DELAY_MAX_MS - BOT_THINK_DELAY_MIN_MS));
+}
+
+/** Espera um `humanizedThinkDelayMs()` — passar como `beforeCommit` nos drivers reais (servidor/worker). */
+export function humanizedThinkDelay() {
+  return new Promise((resolve) => setTimeout(resolve, humanizedThinkDelayMs()));
+}
+
+/**
  * @param {object} opts
  * @param {import("../../src/modules/simulator/engine/types.ts").GameState} opts.initialState
  * @param {"A"|"B"} opts.seat
@@ -64,10 +82,11 @@ const DEFAULT_MAX_ACTIONS = 400;
  * @param {"amuro"|"char"|"heero"|"treize"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
  * @param {(action: unknown) => (void | Promise<void>)} opts.commit
+ * @param {() => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`); testes omitem
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}
  */
-export async function driveBotTurn({ initialState, seat, level, persona = "adaptive", seed, commit, maxActions = DEFAULT_MAX_ACTIONS }) {
+export async function driveBotTurn({ initialState, seat, level, persona = "adaptive", seed, commit, beforeCommit, maxActions = DEFAULT_MAX_ACTIONS }) {
   let policy;
   let neuralHandle = null;
 
@@ -123,6 +142,7 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
     const view = viewStateFor(state, seat);
     const action = policy(view, legal, rng);
 
+    if (beforeCommit) await beforeCommit();
     const committedState = await commit(action); // caminho autoritativo — pode lançar (motor recusou / rede)
     if (committedState && typeof committedState === "object" && committedState.players) {
       state = committedState;

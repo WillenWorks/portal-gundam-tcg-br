@@ -259,6 +259,21 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
   };
 }
 
+/**
+ * Banners de encerramento do turno anterior, mostrados na virada de turno. O
+ * turno só muda depois que o Action Step da End Phase terminou com os dois
+ * jogadores passando (`passEndPhaseAction` -> `END_END_PHASE_ACTION_STEP` ->
+ * `finishEndPhaseAndAdvance`), então "FIM DE TURNO" aqui é fato público — o
+ * cliente não precisa (nem pode) saber se o oponente tinha jogada. Se a view
+ * anterior já estava na End Phase, "FASE DE AÇÕES" já foi anunciada pelo
+ * efeito da End Phase; senão (auto-pass dos dois resolvido inteiro no
+ * servidor numa resposta só) ela é anunciada aqui, antes do fim.
+ */
+export function endOfTurnBanners(prevView: ViewGameState): string[] {
+  const actionStepAlreadyAnnounced = prevView.phase === "end" || prevView.endPhaseAction !== null;
+  return actionStepAlreadyAnnounced ? ["FIM DE TURNO"] : ["FASE DE AÇÕES", "FIM DE TURNO"];
+}
+
 export function buildTurnStagedViews(
   prevView: ViewGameState,
   incoming: SimulatorMatchView,
@@ -961,6 +976,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           viewDraw: staged.viewDraw,
           viewMain: staged.viewMain,
         };
+        // Fecha o turno anterior ANTES de mostrar a mesa do novo turno.
+        enqueuePhaseBanners(endOfTurnBanners(prevView));
+        await waitForPhaseBanners();
         setMatchView(staged.viewAnnounced);
         const isMyTurn = incoming.view.activePlayer === incoming.seat;
         if (isMyTurn) sfx.playNewtypeFlash();

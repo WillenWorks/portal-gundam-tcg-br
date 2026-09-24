@@ -76,7 +76,7 @@ import {
   UserDeckSimulatorError,
 } from "../src/modules/simulator/content/userDeckBuilder.ts";
 import { isValidatedDeck, VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
-import { driveBotTurn } from "../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay } from "../services/sim-bot/driveBotTurn.mjs";
 import {
   buildGithubDispatchRequest,
   canSubmitBugReport,
@@ -261,12 +261,9 @@ setBotTurnSink(({ matchId, seat, level }) => {
             seat,
             level: (level as "facil" | "normal" | "dificil") || "normal",
             seed: Math.floor(Math.random() * 1_000_000),
-            commit: async (action: unknown) => {
-              const updated = applyAction(matchId, SIM_BOT_USER_ID, action as never);
-              // Delay suave de 400ms para permitir renderização fluida e visibilidade no frontend
-              await new Promise((r) => setTimeout(r, 400));
-              return updated.state;
-            },
+            // "Tempo de pensar" de 1–2s antes de cada ação — humaniza o ritmo e dá ao cliente tempo de animar.
+            beforeCommit: humanizedThinkDelay,
+            commit: async (action: unknown) => applyAction(matchId, SIM_BOT_USER_ID, action as never).state,
           });
         }
 
