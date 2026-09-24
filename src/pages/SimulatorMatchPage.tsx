@@ -165,6 +165,8 @@ import {
   ZoneOverflowModal,
   BugReportModal,
   GameOverOverlay,
+  ZeroCounterDeckSummary,
+  zeroCounterNotice,
   gameOverReasonLabel,
   MatchPrompt,
   SettingsMenu,
@@ -1299,16 +1301,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // stream e devolve o jogador ao site depois de GAME_OVER_REDIRECT_MS (com botão
   // pra voltar na hora). Sem isso o jogador ficava preso na tela de "Fim de jogo".
   const gameOver = matchView?.view.gameOver ?? null;
+  // Contra o Zero System com counter, o fim de jogo mostra a lista do bot pra estudo:
+  // sem redirect automático (o jogador sai pelo botão).
+  const hasBotDeckList = Boolean(matchView?.botDeckList?.length);
   useEffect(() => {
     if (!gameOver) {
       setRedirectAt(null);
       return;
     }
     teardownTransport();
+    if (hasBotDeckList) {
+      setRedirectAt(null);
+      return;
+    }
     setRedirectAt(Date.now() + GAME_OVER_REDIRECT_MS);
     const timer = setTimeout(() => setLocation(EXIT_ROUTE), GAME_OVER_REDIRECT_MS);
     return () => clearTimeout(timer);
-  }, [gameOver, setLocation, teardownTransport]);
+  }, [gameOver, hasBotDeckList, setLocation, teardownTransport]);
+
+  // Aviso do counter do Zero System — uma vez por partida, na primeira view que o traz.
+  const botCounter = matchView?.botCounter;
+  const counterNoticeShownRef = useRef(false);
+  useEffect(() => {
+    if (!botCounter || counterNoticeShownRef.current || matchView?.view.gameOver) return;
+    counterNoticeShownRef.current = true;
+    toast.info(zeroCounterNotice(botCounter), { duration: 8_000 });
+  }, [botCounter, matchView?.view.gameOver]);
 
   // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
   // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
@@ -3379,7 +3397,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           reason={gameOverResult.reason}
           redirectSeconds={redirectSecondsLeft}
           onLeave={leaveMatchScreen}
-        />
+        >
+          {matchView?.botCounter && matchView.botDeckList?.length ? (
+            <ZeroCounterDeckSummary counter={matchView.botCounter} entries={matchView.botDeckList} />
+          ) : null}
+        </GameOverOverlay>
       ) : null}
     </div>
   );
