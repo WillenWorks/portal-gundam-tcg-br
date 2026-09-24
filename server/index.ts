@@ -19,6 +19,7 @@ import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
 import { buildSt05DeckList } from "../src/modules/simulator/fixtures/st05Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
+import { META_DECKS_GD02_ERA } from "../src/modules/simulator/fixtures/metaDecksGd02Era.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import {
   computeSwissStandings,
@@ -4794,6 +4795,7 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST04: buildSt04DeckList,
   ST05: buildSt05DeckList,
   ...Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(META_DECKS_GD02_ERA).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
@@ -4945,6 +4947,10 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (GD01_TEST_DECKS[upper]) {
         return { key: upper, list: GD01_TEST_DECKS[upper].build() };
       }
+      // Decks meta da época GD02 + ST06 (receitas oficiais) — benchmark do bot e treino.
+      if (Object.hasOwn(META_DECKS_GD02_ERA, upper)) {
+        return { key: upper, list: META_DECKS_GD02_ERA[upper].build() };
+      }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
         where: { id, userId: req.user!.userId },
@@ -4952,7 +4958,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS)].sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);
