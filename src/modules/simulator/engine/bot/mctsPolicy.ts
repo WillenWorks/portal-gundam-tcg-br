@@ -97,7 +97,17 @@ export interface MctsPolicyOptions {
    * `lookahead` acima é ignorado. Os rollouts seguem com a heurística normal.
    */
   anchor?: SelfPlayPolicy;
+  /**
+   * Teto de tempo da decisão inteira (âncora + rollouts), em ms. Estourou: para de
+   * simular e fica com a melhor jogada JÁ confirmada (ou a âncora). Um rollout em
+   * andamento termina antes da checagem, então pode passar um pouco. Sem valor = sem teto.
+   */
+  budgetMs?: number;
+  /** relógio injetável (teste); default `Date.now` */
+  now?: () => number;
 }
+
+class MctsBudgetExceeded extends Error {}
 
 const DEFAULT_ROLLOUTS = 32;
 const DEFAULT_DEPTH_TURNS = 8;
@@ -112,6 +122,7 @@ interface RolloutCfg {
   predicateResolver?: PredicateResolver;
   targetFilterResolver?: TargetFilterResolver;
   rolloutPolicy: SelfPlayPolicy;
+  checkBudget: () => void;
 }
 
 /** média de `n` rollouts a partir de `afterAction`: 1 vitória / 0 derrota / `positionValue` se truncado */
@@ -122,6 +133,7 @@ function rolloutMean(afterAction: GameState, horizon: number, seat: PlayerId, n:
   };
   let score = 0;
   for (let r = 0; r < n; r++) {
+    cfg.checkBudget();
     const result = simulateToEnd(afterAction, seat, cfg.specs, resolvers, {
       policyA: cfg.rolloutPolicy,
       policyB: cfg.rolloutPolicy,
@@ -147,6 +159,8 @@ export function chooseAction(
     throw new Error("mctsPolicy: lista de ações legais vazia");
   }
   if (legal.length === 1) return legal[0];
+  const now = options.now ?? Date.now;
+  const deadline = options.budgetMs === undefined ? Number.POSITIVE_INFINITY : now() + options.budgetMs;
 
   // âncora: o que a heurística normal (ou a `anchor`) jogaria aqui (rng derivado — não perturba a sequência principal)
   const heuristicPick = options.anchor
@@ -163,6 +177,9 @@ export function chooseAction(
     predicateResolver: options.predicateResolver,
     targetFilterResolver: options.targetFilterResolver,
     rolloutPolicy: options.rolloutPolicy === "random" ? randomLegal : heuristicPolicy({ level: "normal" }),
+    checkBudget: () => {
+      if (now() > deadline) throw new MctsBudgetExceeded();
+    },
   };
   const overrideMargin = options.overrideMargin ?? DEFAULT_OVERRIDE_MARGIN;
 
@@ -174,32 +191,43 @@ export function chooseAction(
   //    especulado (efeito de zona oculta), confia na heurística e sai.
   const anchorState = applyForEval(heuristicPick, determinized, seat, cfg);
   if (anchorState === null) return heuristicPick;
-  const heuristicEv = rolloutMean(anchorState, horizon, seat, cfg.rollouts, cfg, rng);
-
-  // 2) triagem das outras candidatas (1/3 dos rollouts); as promissoras passam
-  const screenN = Math.max(10, Math.round(cfg.rollouts / 3));
-  const contenders: Array<{ action: LegalAction; ev: number }> = [];
-  for (const action of legal) {
-    if (action === heuristicPick) continue;
-    const state = applyForEval(action, determinized, seat, cfg);
-    if (state === null) continue; // não avaliável no estado especulado
-    const ev = rolloutMean(state, horizon, seat, screenN, cfg, rng);
-    // só vale confirmar se a triagem já a colocou perto de superar a âncora
-    if (ev >= heuristicEv - overrideMargin) contenders.push({ action, ev });
+  let heuristicEv: number;
+  try {
+    heuristicEv = rolloutMean(anchorState, horizon, seat, cfg.rollouts, cfg, rng);
+  } catch (err) {
+    if (err instanceof MctsBudgetExceeded) return heuristicPick;
+    throw err;
   }
-  contenders.sort((a, b) => b.ev - a.ev);
 
-  // 3) confirma as 2 melhores com EV cheio; troca a âncora só se superar por margem
   let bestAction = heuristicPick;
   let bestEv = heuristicEv;
-  for (const c of contenders.slice(0, 2)) {
-    const state = applyForEval(c.action, determinized, seat, cfg);
-    if (state === null) continue;
-    const ev = rolloutMean(state, horizon, seat, cfg.rollouts, cfg, rng);
-    if (ev > bestEv + 1e-9) {
-      bestEv = ev;
-      bestAction = c.action;
+  try {
+    // 2) triagem das outras candidatas (1/3 dos rollouts); as promissoras passam
+    const screenN = Math.max(10, Math.round(cfg.rollouts / 3));
+    const contenders: Array<{ action: LegalAction; ev: number }> = [];
+    for (const action of legal) {
+      if (action === heuristicPick) continue;
+      const state = applyForEval(action, determinized, seat, cfg);
+      if (state === null) continue; // não avaliável no estado especulado
+      const ev = rolloutMean(state, horizon, seat, screenN, cfg, rng);
+      // só vale confirmar se a triagem já a colocou perto de superar a âncora
+      if (ev >= heuristicEv - overrideMargin) contenders.push({ action, ev });
     }
+    contenders.sort((a, b) => b.ev - a.ev);
+
+    // 3) confirma as 2 melhores com EV cheio; troca a âncora só se superar por margem
+    for (const c of contenders.slice(0, 2)) {
+      const state = applyForEval(c.action, determinized, seat, cfg);
+      if (state === null) continue;
+      const ev = rolloutMean(state, horizon, seat, cfg.rollouts, cfg, rng);
+      if (ev > bestEv + 1e-9) {
+        bestEv = ev;
+        bestAction = c.action;
+      }
+    }
+  } catch (err) {
+    // sem tempo: vale só o que já foi confirmado com EV cheio
+    if (!(err instanceof MctsBudgetExceeded)) throw err;
   }
 
   return bestEv >= heuristicEv + overrideMargin ? bestAction : heuristicPick;

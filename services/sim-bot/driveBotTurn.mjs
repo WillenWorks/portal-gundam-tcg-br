@@ -70,9 +70,15 @@ export function humanizedThinkDelayMs(random = Math.random) {
   return Math.round(BOT_THINK_DELAY_MIN_MS + random() * (BOT_THINK_DELAY_MAX_MS - BOT_THINK_DELAY_MIN_MS));
 }
 
-/** Espera um `humanizedThinkDelayMs()` — passar como `beforeCommit` nos drivers reais (servidor/worker). */
-export function humanizedThinkDelay() {
-  return new Promise((resolve) => setTimeout(resolve, humanizedThinkDelayMs()));
+/**
+ * Espera um `humanizedThinkDelayMs()` MENOS o tempo que a policy já gastou decidindo
+ * (`thinkingMs`) — o difícil calcula ~1,5s e não deve somar outros 1–2s de espera.
+ * Passar como `beforeCommit` nos drivers reais (servidor/worker).
+ * @param {{ thinkingMs?: number }} [ctx]
+ */
+export function humanizedThinkDelay(ctx) {
+  const remaining = Math.max(0, humanizedThinkDelayMs() - (ctx?.thinkingMs ?? 0));
+  return new Promise((resolve) => setTimeout(resolve, remaining));
 }
 
 /**
@@ -83,7 +89,7 @@ export function humanizedThinkDelay() {
  * @param {"amuro"|"char"|"heero"|"treize"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
  * @param {(action: unknown) => unknown} opts.commit — pode devolver o `GameState` autoritativo atualizado
- * @param {() => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`); testes omitem
+ * @param {(ctx: { thinkingMs: number }) => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`, que desconta `thinkingMs`); testes omitem
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}
  */
@@ -136,9 +142,10 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
     if (legal.length === 0) break;
 
     const view = viewStateFor(state, seat);
+    const thinkStart = Date.now();
     const action = policy(view, legal, rng);
 
-    if (beforeCommit) await beforeCommit();
+    if (beforeCommit) await beforeCommit({ thinkingMs: Date.now() - thinkStart });
     const committedState = await commit(action); // caminho autoritativo — pode lançar (motor recusou / rede)
     if (committedState && typeof committedState === "object" && committedState.players) {
       state = committedState;

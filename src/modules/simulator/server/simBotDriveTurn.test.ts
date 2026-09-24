@@ -8,7 +8,7 @@ import {
   getMatch,
 } from "./matchStore";
 import { SIM_BOT_USER_ID, createTrainingMatch } from "./trainingMatch";
-import { driveBotTurn, humanizedThinkDelayMs } from "../../../../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs } from "../../../../services/sim-bot/driveBotTurn.mjs";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -37,7 +37,8 @@ describe("driveBotTurn — worker sim-bot", () => {
       seat: "B",
       level: "normal",
       seed: 1,
-      beforeCommit: async () => {
+      beforeCommit: async (ctx: { thinkingMs: number }) => {
+        expect(ctx.thinkingMs).toBeGreaterThanOrEqual(0);
         timeline.push("think");
       },
       commit: async (action: unknown) => {
@@ -48,6 +49,12 @@ describe("driveBotTurn — worker sim-bot", () => {
 
     expect(result.actionsApplied).toBeGreaterThanOrEqual(1);
     expect(timeline).toEqual(Array.from({ length: result.actionsApplied }, () => ["think", "commit"]).flat());
+  });
+
+  it("humanizedThinkDelay desconta o tempo de cálculo (não espera se já pensou ≥ 2s)", async () => {
+    const t0 = Date.now();
+    await humanizedThinkDelay({ thinkingMs: 5_000 });
+    expect(Date.now() - t0).toBeLessThan(200);
   });
 
   it("humanizedThinkDelayMs fica sempre entre 1s e 2s", () => {
