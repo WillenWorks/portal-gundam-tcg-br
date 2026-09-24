@@ -122,6 +122,8 @@ export function determinize(view: ViewGameState): GameState {
 }
 
 /** força de um lado: shields e Base pesam (é como se ganha/perde), tabuleiro e mão entram diluídos */
+// Pesos iguais aos de `EVAL_WEIGHTS` hoje, mas INDEPENDENTES de propósito (isto alimenta os
+// rollouts do MCTS): calibrar um não muda o outro — conferir os dois ao mexer.
 export function sideStrength(state: GameState, pid: PlayerId): number {
   const p = state.players[pid];
   const shields = p.shields.length;

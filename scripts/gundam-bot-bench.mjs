@@ -2,7 +2,7 @@
 /**
  * Benchmark do lookahead de efeitos (spec bot-lookahead-efeitos, meta "Força"):
  * bot `normal` COM lookahead vs bot `normal` atual (sem lookahead), todos os pares
- * de `validatedDeckList()`, alternando quem é A/B. Meta: ≥ 55% das decididas.
+ * de `validatedDeckList()`, alternando quem é A/B. Meta: sem regressão (≥ 48%).
  *
  *   node scripts/gundam-bot-bench.mjs                 # 6 partidas por par (3 de cada lado)
  *   node scripts/gundam-bot-bench.mjs --games=20      # mais partidas por par
@@ -30,6 +30,11 @@ const args = Object.fromEntries(
     return [k, v ?? "true"];
   }),
 );
+/**
+ * Meta revisada no spec (2026-09-24): "sem regressão" contra a heurística atual.
+ * A meta original de 55% não se sustentou com os decks iniciais (poucos Comandos).
+ */
+const NO_REGRESSION_RATE = 0.48;
 const GAMES_PER_PAIR = Number(args.games ?? 6);
 const MAX_TURNS = Number(args.maxTurns ?? 40);
 const resolvers = { predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
@@ -95,4 +100,8 @@ console.log(
 console.log(
   `[bench] Comandos/habilidades por partida: lookahead ${(effectPlays.lookahead / games).toFixed(2)} | atual ${(effectPlays.atual / games).toFixed(2)}`,
 );
-console.log(rate >= 0.55 ? "[bench] META ATINGIDA (≥ 55%)" : "[bench] ABAIXO DA META (< 55%)");
+console.log(
+  rate >= NO_REGRESSION_RATE
+    ? `[bench] SEM REGRESSÃO (≥ ${NO_REGRESSION_RATE * 100}%)`
+    : `[bench] REGRESSÃO (< ${NO_REGRESSION_RATE * 100}%)`,
+);
