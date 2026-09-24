@@ -32,7 +32,7 @@ import {
 } from "./services/swissTournamentEngine.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
-import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
+import type { GameState, PlayerId } from "../src/modules/simulator/engine/types.ts";
 import {
   applyAction,
   claimAbandonWin,
@@ -302,7 +302,8 @@ setMatchLogSink((log) => {
         deckB: log.deckB ? (log.deckB as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         playerAId: log.playerAId ?? null,
         playerBId: log.playerBId ?? null,
-        winner: log.winner,
+        // `winner: null` = sem vencedor (ex. GAME_OVER por trigger_loop_guard); coluna é NOT NULL.
+        winner: log.winner ?? "draw",
         winReason: log.winReason,
         turns: log.turns,
         durationMs: log.durationMs ?? null,
@@ -742,7 +743,7 @@ function normalizeArtVariants(card: CardInput) {
     }))
     .filter((item) => item.url || item.thumbUrl || item.sourceUrl || item.label || item.isPrimary);
 
-  if (!seeded.length) return { artVariants: [], primary: null as null | { url: string | null; thumbUrl: string | null; sourceUrl: string | null } };
+  if (!seeded.length) return { artVariants: [], primary: null as null | (typeof seeded)[number] };
 
   let primaryIndex = seeded.findIndex((item) => item.isPrimary);
   if (primaryIndex < 0) primaryIndex = seeded.findIndex((item) => Boolean(item.url));
@@ -849,7 +850,7 @@ async function upsertSets(items: SetInput[]) {
 async function upsertCards(items: CardInput[], setMap = new Map<string, string>(), fallbackSetId?: string) {
   for (const card of items) {
     const setId = card.setId ?? (card.setCode ? setMap.get(card.setCode) || null : fallbackSetId || null);
-    const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
+    const traits = (Array.isArray(card.traits) && card.traits.length ? card.traits : [card.trait]).filter((t): t is string => Boolean(t));
     const normalizedEffects = normalizeCardEffectPayload(card);
     const { effectPt, effectEn } = buildEffectText({ ...card, textSectionsJson: normalizedEffects.textSectionsJson });
     const metadata = normalizedEffects.metadataJson && typeof normalizedEffects.metadataJson === "object" && !Array.isArray(normalizedEffects.metadataJson)
@@ -1028,7 +1029,8 @@ async function upsertTournaments(items: TournamentImportInput[]) {
 async function applyImageManifest(items: ImageManifestInput[]) {
   for (const item of items) {
     if (item.entity === "card") {
-      await prisma.card.update({
+      // `code` não é único em Card (mesma carta em várias coleções) — atualiza todas as impressões.
+      await prisma.card.updateMany({
         where: { code: item.code },
         data: {
           imageUrl: normalizeAssetUrl(item.imageUrl, "images/cards"),
@@ -2977,7 +2979,7 @@ const hostedEventParticipantInclude = {
   user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
   deck: { select: { id: true, name: true, shareId: true } },
   deckSnapshot: { include: { items: { include: { card: true } } } },
-} as const;
+} satisfies Prisma.HostedEventParticipantInclude;
 
 // Fase C: participante enxuto (só id + usuário) pra exibir num confronto -- os dados
 // completos (deck/deckSnapshot) já vêm pela lista de participants do próprio evento,
@@ -2985,18 +2987,18 @@ const hostedEventParticipantInclude = {
 const hostedEventMatchInclude = {
   participantA: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
   participantB: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
-} as const;
+} satisfies Prisma.HostedEventMatchInclude;
 
 const hostedEventRoundInclude = {
-  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" as const }, { createdAt: "asc" as const }] },
-} as const;
+  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" }, { createdAt: "asc" }] },
+} satisfies Prisma.HostedEventRoundInclude;
 
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
   seasonRef: true,
-  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
-  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
-} as const;
+  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" }] },
+  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" }] },
+} satisfies Prisma.HostedEventInclude;
 
 async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
   const event = await prisma.hostedEvent.findFirst({ where: { id, isActive: true }, include: hostedEventOwnerInclude });
@@ -3558,7 +3560,7 @@ app.post("/api/hosted-events/:id/top-cut/generate", authRequired, hosterRequired
 
   let bracket: TopCutBracket;
   try {
-    bracket = generateTopCutBracket(standings, requestedSize as 4 | 8 | 16);
+    bracket = generateTopCutBracket(standings, swissParticipants, requestedSize as 4 | 8 | 16);
   } catch (err: any) {
     return res.status(400).json({ error: err?.message || "Erro ao gerar chave de Top Cut." });
   }
@@ -3773,9 +3775,9 @@ app.post("/api/hosted-events/:id/checkin", authRequired, async (req: RequestWith
     legalityData,
   );
 
-  if (!legality.isLegal) {
+  if (!legality.valid) {
     return res.status(400).json({
-      error: `Deck ilegal para torneio: ${legality.reasons.join("; ")}`,
+      error: `Deck ilegal para torneio: ${legality.issues.map((issue) => issue.message).join("; ")}`,
     });
   }
 
@@ -4796,7 +4798,8 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
   const key = typeof raw === "string" ? raw.toUpperCase() : "";
-  const build = SIMULATOR_DECKS[key];
+  // `hasOwn`: chave vem do corpo HTTP — nunca resolver herança do protótipo.
+  const build = Object.hasOwn(SIMULATOR_DECKS, key) ? SIMULATOR_DECKS[key] : undefined;
   return build ? { key, build } : null;
 }
 
@@ -4924,6 +4927,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
     playerDeckId?: unknown;
     botDeckId?: unknown;
     level?: unknown;
+    persona?: unknown;
   };
 
   const rawPlayerId = String(body.playerDeckId || body.deckId || "").trim();
@@ -5040,7 +5044,7 @@ app.post("/api/simulator/zero/chat", authRequired, async (req: RequestWithUser, 
   if (!message || typeof message !== "string" || !message.trim()) {
     return res.status(400).json({ error: "O campo 'message' (string) é obrigatório." });
   }
-  let state = undefined;
+  let state: GameState | undefined;
   if (matchId) {
     await loadMatch(String(matchId));
     const match = getMatch(String(matchId));

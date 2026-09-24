@@ -81,7 +81,7 @@ export function humanizedThinkDelay() {
  * @param {"facil"|"normal"|"dificil"|"zero_system"} opts.level
  * @param {"amuro"|"char"|"heero"|"treize"|"adaptive"} [opts.persona]
  * @param {number} opts.seed
- * @param {(action: unknown) => (void | Promise<void>)} opts.commit
+ * @param {(action: unknown) => unknown} opts.commit — pode devolver o `GameState` autoritativo atualizado
  * @param {() => (void | Promise<void>)} [opts.beforeCommit] — "tempo de pensar" antes de cada commit (ex. `humanizedThinkDelay`); testes omitem
  * @param {number} [opts.maxActions]
  * @returns {Promise<{ actionsApplied: number, finalState: object, done: boolean }>}

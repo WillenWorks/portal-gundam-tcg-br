@@ -57,7 +57,7 @@ type ArchetypeEntryRow = {
  *  maior custo, mesma heurística usada em identifyDeckArchetype (metaAnalyticsService) --
  *  reimplementada aqui (não exportada de lá) pra evitar acoplar os dois motores de
  *  arquétipo, que respondem a perguntas diferentes (deck público vs. resultado real). */
-function pickSignatureCard(items: ArchetypeEntryRow["deckSnapshot"] extends infer T ? NonNullable<T>["items"] : never): PowerRankingSignatureCard | null {
+function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>["items"]): PowerRankingSignatureCard | null {
   const units = items
     .filter((item) => item.card.cardType === "UNIT")
     .sort((a, b) => {

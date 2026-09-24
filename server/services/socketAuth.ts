@@ -18,7 +18,7 @@
  * código, não muda regra de negócio.
  */
 import { randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 import type { Socket } from "socket.io";
 
 /** TTL padrão do guestId efêmero assinado — mesmo valor usado hoje pelos dois sockets (1v1 e Arena 4P). */
@@ -86,7 +86,7 @@ export function createSocketAuthMiddleware(
     }
     const guestId = `guest:${randomUUID()}`;
     data.user = { userId: guestId, displayName: "Convidado", guest: true };
-    data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: guestTokenTtl });
+    data.freshGuestToken = jwt.sign({ guestId, guest: true }, deps.jwtSecret, { expiresIn: guestTokenTtl as SignOptions["expiresIn"] });
     next();
   };
 }
