@@ -16,9 +16,10 @@ import { buildDeckListFromUserDeck } from "../content/userDeckBuilder";
  * Resource deck: as receitas não trazem; completa com 10 recursos da cor
  * principal (mesma regra de `buildDeckListFromUserDeck`).
  *
- * `knownGaps`: cartas do deck cujo texto de efeito AINDA não tem EffectSpec
- * (jogam como corpo sem efeito). Conferido em 2026-09-24 com `gundam_coverage`:
- * só GD02-001 (Titans) e GD02-002 (AGE × Wing) — o resto é EffectSpec ou vanilla.
+ * `knownGaps`: cartas do deck com efeito AINDA não implementado no motor (jogam
+ * como corpo sem efeito). Hoje nenhuma: GD02-001 e GD02-002 aparecem como
+ * "faltando" no `gundam_coverage` (que só enxerga EffectSpec), mas são modeladas
+ * via `allyCombatTriggers` no CardDef e têm teste em `engine/combat.test.ts`.
  */
 
 export interface MetaDeck {
@@ -144,7 +145,7 @@ export const META_DECKS_GD02_ERA: Record<string, MetaDeck> = {
   }),
   "META-GD02-AGE-WING": metaDeck({
     id: "META-GD02-AGE-WING",
-    knownGaps: ["GD02-002"],
+    knownGaps: [],
     label: "AGE × Wing (GD02, oficial)",
     archetype: "Green-White Wing / Blue-White Epyon",
     source: `${OFFICIAL}/deck-014.php`,
@@ -168,7 +169,7 @@ export const META_DECKS_GD02_ERA: Record<string, MetaDeck> = {
   }),
   "META-GD02-TITANS": metaDeck({
     id: "META-GD02-TITANS",
-    knownGaps: ["GD02-001"],
+    knownGaps: [],
     label: "Titans × Cyber-Newtype (GD02, oficial)",
     archetype: "Blue-Red Kshatriya / Titans",
     source: `${OFFICIAL}/deck-015.php`,
