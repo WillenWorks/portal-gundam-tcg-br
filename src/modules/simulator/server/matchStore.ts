@@ -1027,7 +1027,10 @@ function clearTurnTimer(matchId: string): void {
  * Auto-pass inteligente do Action Step (docs/19, Sessão 2, tarefa 4): se o
  * jogador com prioridade num Action Step (combate OU fim de turno) ligou
  * `autoPassActionStep` e não tem nenhuma jogada 【Action】 real, passa na
- * hora — sem cobrar o timer do Action Step. Loop limitado: cada passe ou vira a
+ * hora — sem cobrar o timer do Action Step. O bot segue a MESMA regra
+ * (sempre com auto-pass ligado): só é passado aqui quando não tem jogada;
+ * se tiver, a vez fica com ele e a policy decide jogar ou passar
+ * (`maybeEnqueueBotTurn`), como um jogador real. Loop limitado: cada passe ou vira a
  * prioridade uma vez ou encerra o step, então converge em poucas iterações
  * (e para assim que o outro lado não tem auto-pass ligado, ou surge uma
  * decisão de Burst, ou o step termina).
@@ -1043,7 +1046,7 @@ function settleAutoPasses(match: MatchRecord): void {
     if (!inCombatActionStep && !inEndPhaseActionStep) return;
     const isBot = Boolean(match.seats[owner]?.bot);
     if (!isBot && !match.seats[owner]?.autoPassActionStep) return;
-    if (!isBot && playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
+    if (playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
 
     const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
     try {
