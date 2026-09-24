@@ -3,6 +3,7 @@ import type { SelfPlayPolicy } from "../selfPlay";
 import { randomLegal } from "../selfPlay";
 import { heuristicPolicy } from "./heuristicPolicy";
 import { mctsPolicy } from "./mctsPolicy";
+import { turnPlannerPolicy } from "./turnPlanner";
 import { zeroSystemPolicy, type ZeroSystemPersona } from "./zeroSystemPolicy";
 
 /**
@@ -13,7 +14,11 @@ import { zeroSystemPolicy, type ZeroSystemPersona } from "./zeroSystemPolicy";
  * arquivo) continua no `driveBotTurn`.
  */
 export const BOT_LEVELS = ["random", "facil", "normal", "dificil", "zero_system"] as const;
-export type BotLevel = (typeof BOT_LEVELS)[number];
+/** níveis em avaliação na escada/banco — fora do produto até a medição decidir */
+export const EXPERIMENTAL_LEVELS = ["normal_plan"] as const;
+export type BotLevel = (typeof BOT_LEVELS)[number] | (typeof EXPERIMENTAL_LEVELS)[number];
+/** todo nível aceito pelos scripts de medição */
+export const MEASURABLE_LEVELS: readonly BotLevel[] = [...BOT_LEVELS, ...EXPERIMENTAL_LEVELS];
 
 /** config do MCTS do nível difícil no produto */
 export const DIFICIL_ROLLOUTS = 16;
@@ -52,6 +57,9 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
         targetFilterResolver: opts.targetFilterResolver,
         lookahead,
       });
+    case "normal_plan":
+      // spec bot-planejamento-turno: normal + planejador de turno na Main Phase
+      return turnPlannerPolicy(heuristicPolicy({ level: "normal", lookahead }), lookahead);
     case "zero_system":
       return zeroSystemPolicy({ persona: opts.persona ?? "adaptive", lookahead });
     default:

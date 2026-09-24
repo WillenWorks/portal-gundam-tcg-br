@@ -24,7 +24,7 @@ const sim = (p) => pathToFileURL(path.join(ROOT, "src/modules/simulator", p)).hr
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { ALL_PUZZLES } = await import(sim("engine/bot/puzzles/index.ts"));
 const { runPuzzleSuite } = await import(sim("engine/bot/puzzleRunner.ts"));
-const { BOT_LEVELS, DIFICIL_ROLLOUTS, policyForLevel } = await import(sim("engine/bot/levelPolicies.ts"));
+const { BOT_LEVELS, MEASURABLE_LEVELS, DIFICIL_ROLLOUTS, policyForLevel } = await import(sim("engine/bot/levelPolicies.ts"));
 
 const GOAL = 0.9;
 const args = Object.fromEntries(
@@ -34,9 +34,9 @@ const args = Object.fromEntries(
   }),
 );
 const levels = String(args.levels ?? BOT_LEVELS.join(",")).split(",");
-const unknown = levels.filter((l) => !BOT_LEVELS.includes(l));
+const unknown = levels.filter((l) => !MEASURABLE_LEVELS.includes(l));
 if (unknown.length) {
-  console.error(`[puzzles] nível desconhecido: ${unknown.join(", ")} — use ${BOT_LEVELS.join(", ")}`);
+  console.error(`[puzzles] nível desconhecido: ${unknown.join(", ")} — use ${MEASURABLE_LEVELS.join(", ")}`);
   process.exit(2);
 }
 const rollouts = args.rollouts ? Number(args.rollouts) : undefined;
