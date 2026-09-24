@@ -5,7 +5,7 @@ import type { SelfPlayPolicy } from "../selfPlay";
 import { createRng } from "../rng";
 import type { ViewGameState } from "../viewState";
 import { viewStateFor } from "../viewState";
-import { applyForEval, determinize, evaluatePosition, type EvalDeps } from "./evaluation";
+import { applyForEval, determinize, evaluatePosition, type EvalDeps, type EvalWeights } from "./evaluation";
 import { EffectActionBudget } from "./actionLookahead";
 import { heuristicPolicy } from "./heuristicPolicy";
 
@@ -42,6 +42,8 @@ export interface TurnPlannerOptions extends EvalDeps {
   onPlan?: (plan: TurnPlan) => void;
   /** a jogada que a policy base faria — avaliada primeiro e mantida em empate */
   preferred?: LegalAction;
+  /** pesos da avaliação da posição final (default `EVAL_WEIGHTS`; o Zero System passa os calibrados) */
+  weights?: EvalWeights;
 }
 
 export interface RankedAction {
@@ -101,7 +103,7 @@ function rollout(
     if (!next) break;
     state = next;
   }
-  return evaluatePosition(state, seat);
+  return evaluatePosition(state, seat, opts.weights);
 }
 
 /** `null` fora da Main Phase do bot, com uma jogada só, ou sem nada avaliado no orçamento */

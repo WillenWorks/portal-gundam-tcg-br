@@ -4,7 +4,7 @@ import { advanceToMainPhase } from "../phases";
 import { viewStateFor } from "../viewState";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "../types";
 import { ALL_EFFECT_SPECS, validatedDeckList } from "../../content/index";
-import { applyForEval, determinize, evaluatePosition, positionValue } from "./evaluation";
+import { applyForEval, determinize, evaluatePosition, EVAL_WEIGHTS, positionValue } from "./evaluation";
 
 const decks = validatedDeckList();
 const deckBuild = (id: string) => decks.find((d) => d.id === id)!.build;
@@ -142,5 +142,27 @@ describe("evaluation — evaluatePosition (avaliação estendida)", () => {
     put(state, "A", "battleArea", UNIT);
     put(state, "B", "hand", UNIT);
     expect(evaluatePosition(state, "A")).toBeCloseTo(-evaluatePosition(state, "B"), 5);
+  });
+});
+
+describe("pesos de avaliação parametrizáveis (spec bot-zero-system-forte, fase A)", () => {
+  function sampleState() {
+    const s = freshMain();
+    put(s, "A", "battleArea", { code: "W-UNIT", nameEn: "W", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 3, hp: 3 });
+    return s;
+  }
+
+  it("sem pesos = EVAL_WEIGHTS (comportamento atual intacto)", () => {
+    const s = sampleState();
+    expect(evaluatePosition(s, "A", EVAL_WEIGHTS)).toBe(evaluatePosition(s, "A"));
+    expect(positionValue(s, "A", EVAL_WEIGHTS)).toBe(positionValue(s, "A"));
+  });
+
+  it("mudar um peso muda a avaliação na direção esperada", () => {
+    const s = sampleState();
+    const heavierBoard = { ...EVAL_WEIGHTS, durableBoard: EVAL_WEIGHTS.durableBoard * 4 };
+    // A tem uma Unit a mais que B: pesar mais o tabuleiro melhora a posição de A
+    expect(evaluatePosition(s, "A", heavierBoard)).toBeGreaterThan(evaluatePosition(s, "A"));
+    expect(positionValue(s, "A", heavierBoard)).toBeGreaterThan(positionValue(s, "A"));
   });
 });

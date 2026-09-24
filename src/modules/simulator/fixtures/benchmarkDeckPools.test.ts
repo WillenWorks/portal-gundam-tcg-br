@@ -31,6 +31,13 @@ describe("benchmarkDeckPools", () => {
 
   it("pool desconhecido lança listando os válidos", () => {
     expect(() => deckPool("nope" as never)).toThrow(/meta-gd02/);
-    expect(BENCHMARK_POOLS).toEqual(["starters", "meta-gd02", "all"]);
+    expect(BENCHMARK_POOLS).toEqual(["starters", "meta-gd02", "all", "calib", "valid"]);
+  });
+
+  it("calib e valid são disjuntos e cobrem o pool all", () => {
+    const calib = deckPool("calib").map((d) => d.id);
+    const valid = deckPool("valid").map((d) => d.id);
+    expect(calib.filter((id) => valid.includes(id))).toEqual([]);
+    expect([...calib, ...valid].sort()).toEqual(deckPool("all").map((d) => d.id).sort());
   });
 });

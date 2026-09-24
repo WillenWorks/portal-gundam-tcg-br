@@ -87,7 +87,8 @@
     "banlist:dry-run": "node prisma/apply-official-banlist.mjs",
     "banlist:apply": "node prisma/apply-official-banlist.mjs --apply",
     "gundam:bot:matchups": "node scripts/gundam-bot-matchups.mjs",
-    "gundam:bot:counter": "node scripts/gundam-bot-counter.mjs"
+    "gundam:bot:counter": "node scripts/gundam-bot-counter.mjs",
+    "gundam:bot:calibrate": "node scripts/gundam-bot-calibrate.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

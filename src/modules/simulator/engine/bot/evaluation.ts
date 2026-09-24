@@ -122,9 +122,8 @@ export function determinize(view: ViewGameState): GameState {
 }
 
 /** força de um lado: shields e Base pesam (é como se ganha/perde), tabuleiro e mão entram diluídos */
-// Pesos iguais aos de `EVAL_WEIGHTS` hoje, mas INDEPENDENTES de propósito (isto alimenta os
-// rollouts do MCTS): calibrar um não muda o outro — conferir os dois ao mexer.
-export function sideStrength(state: GameState, pid: PlayerId): number {
+// Mesmos pesos de `EVAL_WEIGHTS` (os 4 primeiros); o Zero System passa os calibrados.
+export function sideStrength(state: GameState, pid: PlayerId, weights: EvalWeights = EVAL_WEIGHTS): number {
   const p = state.players[pid];
   const shields = p.shields.length;
   const baseHp = p.baseSection
@@ -133,12 +132,12 @@ export function sideStrength(state: GameState, pid: PlayerId): number {
   const board = p.battleArea
     .filter((c) => c.def.cardType === "UNIT")
     .reduce((s, c) => s + effectiveAp(c, state) + Math.max(0, effectiveHp(c, state) - c.damage), 0);
-  return shields * 3 + baseHp * 1.2 + board * 0.5 + p.hand.length * 0.25;
+  return shields * weights.shield + baseHp * weights.baseHp + board * weights.durableBoard + p.hand.length * weights.handCard;
 }
 
 /** valor da posição pro `seat` em [0,1] — usado quando o rollout é truncado sem vencedor */
-export function positionValue(state: GameState, seat: PlayerId): number {
-  const diff = sideStrength(state, seat) - sideStrength(state, otherPlayer(seat));
+export function positionValue(state: GameState, seat: PlayerId, weights: EvalWeights = EVAL_WEIGHTS): number {
+  const diff = sideStrength(state, seat, weights) - sideStrength(state, otherPlayer(seat), weights);
   return 0.5 + 0.5 * Math.tanh(diff / 9);
 }
 
@@ -175,7 +174,16 @@ export function applyForEval(action: LegalAction, determinized: GameState, seat:
  * recursos primeiro). Pesar recurso aqui fazia "Draw 2" por ③ parecer ruim mesmo
  * com os recursos sobrando.
  */
-export const EVAL_WEIGHTS = {
+export interface EvalWeights {
+  shield: number;
+  baseHp: number;
+  durableBoard: number;
+  handCard: number;
+  attackReadyAp: number;
+  readyBlockerHp: number;
+}
+
+export const EVAL_WEIGHTS: EvalWeights = {
   shield: 3,
   baseHp: 1.2,
   durableBoard: 0.5,
@@ -184,7 +192,7 @@ export const EVAL_WEIGHTS = {
   // <Blocker> ativo do lado que DEFENDE (não é o jogador ativo): é a defesa que o
   // ataque deste turno encontra — sem isto, dar rest num bloqueador valeria 0.
   readyBlockerHp: 0.3,
-} as const;
+};
 
 /** fim de jogo domina qualquer diferença de tabuleiro; finito pra `delta` entre dois fins de jogo nunca virar NaN */
 export const GAME_OVER_VALUE = 1_000_000;
@@ -207,7 +215,7 @@ function attackReadyApOf(state: GameState, pid: PlayerId): number {
     .reduce((s, c) => s + effectiveAp(c, state), 0);
 }
 
-function extendedStrength(state: GameState, pid: PlayerId): number {
+function extendedStrength(state: GameState, pid: PlayerId, w: EvalWeights): number {
   const p = state.players[pid];
   const shields = p.shields.length;
   const baseHp = p.baseSection
@@ -230,12 +238,12 @@ function extendedStrength(state: GameState, pid: PlayerId): number {
           attackReadyApOf(state, state.activePlayer),
         );
   return (
-    shields * EVAL_WEIGHTS.shield +
-    baseHp * EVAL_WEIGHTS.baseHp +
-    durableBoard * EVAL_WEIGHTS.durableBoard +
-    p.hand.length * EVAL_WEIGHTS.handCard +
-    attackReadyAp * EVAL_WEIGHTS.attackReadyAp +
-    readyBlockerHp * EVAL_WEIGHTS.readyBlockerHp
+    shields * w.shield +
+    baseHp * w.baseHp +
+    durableBoard * w.durableBoard +
+    p.hand.length * w.handCard +
+    attackReadyAp * w.attackReadyAp +
+    readyBlockerHp * w.readyBlockerHp
   );
 }
 
@@ -244,11 +252,11 @@ function extendedStrength(state: GameState, pid: PlayerId): number {
  * deltas pequenos e precisa de sensibilidade linear). Positivo = melhor pro `seat`.
  * Diferente de `positionValue` (usado nos rollouts do MCTS, que não muda aqui).
  */
-export function evaluatePosition(state: GameState, seat: PlayerId): number {
+export function evaluatePosition(state: GameState, seat: PlayerId, weights: EvalWeights = EVAL_WEIGHTS): number {
   if (state.gameOver) {
     if (state.gameOver.winner === seat) return GAME_OVER_VALUE;
     if (state.gameOver.winner === otherPlayer(seat)) return -GAME_OVER_VALUE;
     return 0;
   }
-  return extendedStrength(state, seat) - extendedStrength(state, otherPlayer(seat));
+  return extendedStrength(state, seat, weights) - extendedStrength(state, otherPlayer(seat), weights);
 }
