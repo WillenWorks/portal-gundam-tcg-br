@@ -172,7 +172,9 @@ export const EVAL_WEIGHTS = {
   baseHp: 1.2,
   durableBoard: 0.5,
   handCard: 0.25,
-  activeResource: 0.3,
+  // Recurso desvira todo turno: gastar só custa a oportunidade DENTRO do turno — por
+  // isso vale bem menos que uma carta na mão (senão "compre 2" por ① sairia negativo).
+  activeResource: 0.1,
   attackReadyAp: 0.4,
 } as const;
 
