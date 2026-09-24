@@ -26,3 +26,14 @@ describe("banco de situações — integridade", () => {
     });
   }
 });
+
+describe("banco de situações — fumaça do runner no pnpm test", () => {
+  it("nível normal roda o banco inteiro sem quebradas e acima do acaso", async () => {
+    const { runPuzzleSuite } = await import("../puzzleRunner");
+    const { policyForLevel } = await import("../levelPolicies");
+    const opts = { specs: ALL_EFFECT_SPECS, ...resolvers };
+    const summary = runPuzzleSuite(ALL_PUZZLES, { normal: () => policyForLevel("normal", opts) }, opts);
+    expect(summary.normal.broken).toBe(0);
+    expect(summary.normal.rate).toBeGreaterThan(summary.normal.chanceRate);
+  }, 60_000);
+});
