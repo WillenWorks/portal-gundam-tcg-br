@@ -69,8 +69,10 @@ describe("planejador de turno — contrato", () => {
     const { state, seat } = restAndAttack();
     const view = viewStateFor(state, seat);
     const legal = enumerateLegalActions(state, seat, opts.specs, opts);
-    const p1 = planTurn(view, legal, { ...opts, budgetMs: 5_000, seed: 7 });
-    const p2 = planTurn(view, legal, { ...opts, budgetMs: 5_000, seed: 7 });
+    // relógio fixo: isola o algoritmo do orçamento de tempo (única fonte de não-determinismo)
+    const now = () => 0;
+    const p1 = planTurn(view, legal, { ...opts, budgetMs: 5_000, seed: 7, now });
+    const p2 = planTurn(view, legal, { ...opts, budgetMs: 5_000, seed: 7, now });
     expect(p1?.ranked.map((r) => r.value)).toEqual(p2?.ranked.map((r) => r.value));
   });
 
