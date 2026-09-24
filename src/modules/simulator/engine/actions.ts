@@ -301,15 +301,20 @@ function applyPlayerActionInner(
       const source = findCard(state, action.sourceInstanceId);
       if (source.owner !== actingPlayer) throw new Error("Só dá pra ativar habilidade de uma carta própria");
 
-      // 【Activate·Main】 (fora de combate) ou 【Activate·Action】 (no Action Step de combate).
-      const inActionStep = state.combat?.step === "action";
+      // 【Activate·Main】 (Main Phase, fora de combate) ou 【Activate·Action】 no
+      // Action Step — de uma batalha OU da End Phase (Comprehensive Rules: os dois
+      // Action Steps aceitam as mesmas jogadas, mesmo critério de `playCommand`).
+      const inBattleActionStep = state.combat?.step === "action";
+      const inEndPhaseActionStep = state.endPhaseAction !== null;
+      const inActionStep = inBattleActionStep || inEndPhaseActionStep;
       const trigger = inActionStep ? "Activate·Action" : "Activate·Main";
       if (!inActionStep) {
         if (state.phase !== "main") throw new Error("【Activate·Main】 só pode ser ativado na Main Phase");
         if (state.combat) throw new Error("【Activate·Main】 não pode ser ativado durante um combate");
         if (state.activePlayer !== actingPlayer) throw new Error("Só o jogador ativo pode ativar 【Activate·Main】");
-      } else if (state.combat!.actionPriority !== actingPlayer) {
-        throw new Error("Não é a prioridade desse jogador no Action Step");
+      } else {
+        const priority = inBattleActionStep ? state.combat!.actionPriority : state.endPhaseAction!.priority;
+        if (priority !== actingPlayer) throw new Error("Não é a prioridade desse jogador no Action Step");
       }
 
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
@@ -344,13 +349,14 @@ function applyPlayerActionInner(
       }
 
       // Sem EffectSpec de 【Activate·Main】 — cai em `<Support N>` (keyword de motor).
-      if (hasKeyword(source, "Support", state)) {
+      // <Support> é 【Activate·Main】: nunca vale em Action Step (batalha ou End Phase).
+      if (trigger === "Activate·Main" && hasKeyword(source, "Support", state)) {
         const supportTargetId = action.targets?.target?.[0];
         if (!supportTargetId) throw new Error("<Support> precisa de uma Unit amiga alvo (targets.target[0])");
         return activateSupport(state, action.sourceInstanceId, supportTargetId);
       }
 
-      throw new Error(`${source.def.code} não tem 【Activate·Main】 nem <Support> pra ativar`);
+      throw new Error(`${source.def.code} não tem ${trigger === "Activate·Main" ? "【Activate·Main】 nem <Support>" : "【Activate·Action】"} pra ativar`);
     }
 
     case "resolveBurstDecision": {

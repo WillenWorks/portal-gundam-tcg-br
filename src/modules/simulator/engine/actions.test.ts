@@ -315,3 +315,73 @@ describe("playerHasActionStepPlay — auto-pass nunca pode esconder jogada legal
     expect(playerHasActionStepPlay(viewA, "B", ALL_EFFECT_SPECS)).toBe(false);
   });
 });
+
+describe("activateAbility — 【Activate·Action】 no Action Step do fim de turno", () => {
+  // Comprehensive Rules: o Action Step da End Phase aceita os mesmos tipos de
+  // jogada que o de batalha (Command 【Action】 e 【Activate·Action】).
+  const ACTIVATOR: CardDef = { code: "EPA-UNIT", nameEn: "End Phase Activator", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 1 };
+  const SPEC = {
+    id: "EPA-UNIT-Activate·Action",
+    cardCode: "EPA-UNIT",
+    trigger: "Activate·Action",
+    actions: [{ op: "draw" as const, player: "controller" as const, n: 1 }],
+    sourceText: "",
+  };
+
+  function endPhaseWithPriorityA(): { state: GameState; unitId: string } {
+    let state = freshGame();
+    const unitId = `A-epa-${seq++}`;
+    state.players.A.battleArea.push({
+      instanceId: unitId,
+      def: ACTIVATOR,
+      owner: "A",
+      zone: "battleArea",
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: state.turnNumber - 1,
+    });
+    state = applyPlayerAction(state, "A", { kind: "finishTurn" }, [SPEC]);
+    expect(state.endPhaseAction?.priority).toBe("B");
+    state = applyPlayerAction(state, "B", { kind: "passEndPhaseAction" }, [SPEC]);
+    expect(state.endPhaseAction?.priority).toBe("A");
+    return { state, unitId };
+  }
+
+  it("jogador com prioridade ativa a habilidade e o efeito resolve", () => {
+    const { state, unitId } = endPhaseWithPriorityA();
+    const handBefore = state.players.A.hand.length;
+    const next = applyPlayerAction(state, "A", { kind: "activateAbility", sourceInstanceId: unitId }, [SPEC]);
+    expect(next.players.A.hand.length).toBe(handBefore + 1);
+  });
+
+  it("<Support> (【Activate·Main】) não pode ser usado no Action Step do fim de turno", () => {
+    const { state } = endPhaseWithPriorityA();
+    const supportId = `A-sup-${seq++}`;
+    state.players.A.battleArea.push({
+      instanceId: supportId,
+      def: { code: "EPA-SUP", nameEn: "Support Unit", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 1, effectKeywords: ["Support"], keywordTags: ["Support 1"] },
+      owner: "A",
+      zone: "battleArea",
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: state.turnNumber - 1,
+    });
+    const target = state.players.A.battleArea[0].instanceId;
+    expect(() =>
+      applyPlayerAction(state, "A", { kind: "activateAbility", sourceInstanceId: supportId, targets: { target: [target] } }, [SPEC]),
+    ).toThrow(/Activate·Action/);
+  });
+
+  it("sem a prioridade, recusa", () => {
+    const { state, unitId } = endPhaseWithPriorityA();
+    const bUnit = { ...state.players.A.battleArea.find((c) => c.instanceId === unitId)!, instanceId: "B-epa", owner: "B" as const };
+    state.players.B.battleArea.push(bUnit);
+    expect(() => applyPlayerAction(state, "B", { kind: "activateAbility", sourceInstanceId: "B-epa" }, [SPEC])).toThrow();
+  });
+});
