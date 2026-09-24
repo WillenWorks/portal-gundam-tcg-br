@@ -16,9 +16,10 @@ import { zeroSystemPolicy, type ZeroSystemPersona } from "./zeroSystemPolicy";
 export const BOT_LEVELS = ["random", "facil", "normal", "dificil", "zero_system"] as const;
 /**
  * Níveis em avaliação na escada/banco — fora do produto. `*_v1` = configuração do
- * produto antes do planejador de turno (2026-09-24), mantida pra comparação.
+ * produto antes do planejador de turno (2026-09-24), mantida pra comparação;
+ * `zero_personas` = o Zero System jogando com as personas (antes do counter).
  */
-export const EXPERIMENTAL_LEVELS = ["normal_v1", "dificil_v1", "zero_mcts", "dificil_32"] as const;
+export const EXPERIMENTAL_LEVELS = ["normal_v1", "dificil_v1", "zero_personas", "zero_mcts", "dificil_32"] as const;
 export type BotLevel = (typeof BOT_LEVELS)[number] | (typeof EXPERIMENTAL_LEVELS)[number];
 /** todo nível aceito pelos scripts de medição */
 export const MEASURABLE_LEVELS: readonly BotLevel[] = [...BOT_LEVELS, ...EXPERIMENTAL_LEVELS];
@@ -68,9 +69,12 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
     case "normal":
       return planner();
     case "dificil":
-      // MCTS ancorado no planejador (docs/bot/README.md: ~+310 Elo sobre o normal v1)
-      return mctsPolicy({ ...mcts, anchor: planner(DIFICIL_PLAN_BUDGET_MS), budgetMs: DIFICIL_BUDGET_MS });
     case "zero_system":
+      // MCTS ancorado no planejador (docs/bot/README.md: ~+310 Elo sobre o normal v1).
+      // O Zero System joga igual ao difícil; o diferencial dele é o counter do deck
+      // do jogador (spec bot-zero-system-forte). A persona só orienta o counter/aviso.
+      return mctsPolicy({ ...mcts, anchor: planner(DIFICIL_PLAN_BUDGET_MS), budgetMs: DIFICIL_BUDGET_MS });
+    case "zero_personas":
       return zeroSystemPolicy({ persona: opts.persona ?? "adaptive", lookahead });
     case "normal_v1":
       return heuristicPolicy({ level: "normal", lookahead });

@@ -7,6 +7,7 @@ import {
   decisionOwner,
   defaultActionFor,
   getMatch,
+  matchViewFor,
   resignMatch,
   setBotTurnSink,
   type BotTurnRequest,
@@ -16,7 +17,9 @@ import {
   TrainingMatchError,
   botSeatFromSeats,
   createTrainingMatch,
+  resolveZeroCounter,
 } from "./trainingMatch";
+import { VALIDATED_DECKS } from "../content/validatedDecks";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -189,5 +192,62 @@ describe("matchStore — enfileira o turno do bot", () => {
     expect(calls.length).toBeGreaterThanOrEqual(1);
     expect(calls[0]).toMatchObject({ matchId, seat: "B", level: "normal" });
     expect(calls.filter((c) => c.seat === "A")).toHaveLength(0);
+  });
+});
+
+describe("createTrainingMatch — counter do Zero System (spec bot-zero-system-forte)", () => {
+  const COUNTER = {
+    counterDeckId: "ST03",
+    nearestDeckId: "ST01",
+    baselineDeckId: "ST03",
+    expectedRate: 0.62,
+    fallback: true,
+    persona: "amuro" as const,
+    archetype: "aggro" as const,
+  };
+
+  it("guarda o resumo e mostra na view, mas a lista do bot só com a partida encerrada", () => {
+    const { matchId } = createTrainingMatch({
+      playerDeckId: "ST01",
+      botDeckId: "ST03",
+      level: "zero_system",
+      botCounter: COUNTER,
+      human: HUMAN,
+      seed: 5,
+    });
+    const match = getMatch(matchId)!;
+    const during = matchViewFor(match, "A");
+    expect(during.botCounter).toEqual(COUNTER);
+    expect(during.botDeckList).toBeUndefined();
+
+    resignMatch(matchId, HUMAN.userId);
+    const after = matchViewFor(getMatch(matchId)!, "A");
+    const total = after.botDeckList?.reduce((s, e) => s + e.count, 0);
+    expect(total).toBe(50);
+    expect(after.botDeckList?.every((e) => e.code && e.name && e.count > 0)).toBe(true);
+  });
+
+  it("sem counter a view não traz nada novo", () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "dificil", human: HUMAN, seed: 5 });
+    const view = matchViewFor(getMatch(matchId)!, "A");
+    expect(view.botCounter).toBeUndefined();
+    expect(view.botDeckList).toBeUndefined();
+  });
+});
+
+describe("resolveZeroCounter", () => {
+  const table = { decks: ["ST01", "ST02", "ST03"], rate: [[null, 0.8, 0.4], [0.2, null, 0.5], [0.6, 0.5, null]] };
+  const playerDeck = VALIDATED_DECKS.ST02.build();
+
+  it("zero_system sem deck do bot → counter do deck do jogador", () => {
+    const counter = resolveZeroCounter({ level: "zero_system", botDeckId: undefined, playerDeck, table });
+    expect(counter?.summary.nearestDeckId).toBe("ST02");
+    expect(counter?.summary.counterDeckId).toBe("ST01");
+  });
+
+  it("deck do bot explícito, outro nível ou matriz vazia → sem counter", () => {
+    expect(resolveZeroCounter({ level: "zero_system", botDeckId: "ST03", playerDeck, table })).toBeNull();
+    expect(resolveZeroCounter({ level: "dificil", botDeckId: "", playerDeck, table })).toBeNull();
+    expect(resolveZeroCounter({ level: "zero_system", botDeckId: "  ", playerDeck, table: { decks: [], rate: [] } })).toBeNull();
   });
 });

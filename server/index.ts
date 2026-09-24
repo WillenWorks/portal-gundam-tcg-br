@@ -64,6 +64,7 @@ import {
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
+  resolveZeroCounter,
   SIM_BOT_USER_ID,
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
@@ -78,6 +79,7 @@ import {
 } from "../src/modules/simulator/content/userDeckBuilder.ts";
 import { isValidatedDeck, VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
 import { driveBotTurn, humanizedThinkDelay } from "../services/sim-bot/driveBotTurn.mjs";
+import { ZERO_COUNTER_MATCHUPS } from "../src/modules/simulator/fixtures/zeroCounterMatchups.ts";
 import {
   buildGithubDispatchRequest,
   canSubmitBugReport,
@@ -4981,16 +4983,35 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       }
     }
 
+    // Zero System sem deck do bot escolhido: counter do deck do jogador (spec
+    // bot-zero-system-forte). Todo deck do pool já é legal e coberto pelo motor;
+    // o gate abaixo confere mesmo assim.
+    const counter = resolveZeroCounter({ level: body.level, botDeckId: body.botDeckId, playerDeck: resolvedA.list, table: ZERO_COUNTER_MATCHUPS });
+    const botDeck = counter ? { key: counter.summary.counterDeckId, list: counter.deck } : resolvedB;
+    if (counter) {
+      const validation = validateDeckPayload(counter.deck);
+      if (!validation.valid) {
+        throw new TrainingMatchError(`Counter "${counter.summary.counterDeckId}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.`);
+      }
+    }
+
     const { matchId } = createTrainingMatch({
       playerDeckId: resolvedA.key,
-      botDeckId: resolvedB.key,
+      botDeckId: botDeck.key,
       playerDeckList: resolvedA.list,
-      botDeckList: resolvedB.list,
+      botDeckList: botDeck.list,
       level: body.level,
       persona: body.persona,
+      botCounter: counter?.summary,
       human: { userId: req.user!.userId, displayName: req.user!.username },
     });
-    res.status(201).json({ matchId });
+    // a lista do counter NÃO vai aqui — só no fim da partida (`botDeckList` da view)
+    res.status(201).json({
+      matchId,
+      counterDeck: counter
+        ? { persona: counter.summary.persona, archetype: counter.summary.archetype, fallback: counter.summary.fallback }
+        : undefined,
+    });
   } catch (err) {
     if (err instanceof TrainingMatchError || err instanceof UserDeckSimulatorError) {
       return res.status(err.status).json({ error: err.message });

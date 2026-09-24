@@ -31,3 +31,15 @@ describe("policyForLevel — mesma config do bot do produto", () => {
     expect(() => policyForLevel("impossivel" as never, { specs: SPECS })).toThrow(/nível/);
   });
 });
+
+describe("policyForLevel — Zero System", () => {
+  it("joga igual ao difícil (mesma escolha no mesmo ponto)", () => {
+    const state = mainBoard();
+    put(state, "A", "hand", DRAW);
+    const legal = enumerateLegalActions(state, "A", SPECS, {});
+    const view = viewStateFor(state, "A");
+    const zero = policyForLevel("zero_system", { specs: SPECS, mctsRollouts: 2 })(view, legal, () => 0.42);
+    const dificil = policyForLevel("dificil", { specs: SPECS, mctsRollouts: 2 })(view, legal, () => 0.42);
+    expect(zero).toEqual(dificil);
+  });
+});
