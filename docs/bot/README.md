@@ -61,7 +61,8 @@ Erros que se repetem (alvos de correção):
   Corrigido — ver abaixo.
 - **Sequência no turno** (todos os níveis): "rest na Unit e depois atacá-la" e "remover o <Blocker> e
   dar o letal" — spec `bot-planejamento-turno`.
-- **zero_system**: não bloqueia pra salvar a Base e ataca com o <Blocker> que segura a Base.
+- ~~**zero_system**: não bloqueia pra salvar a Base e ataca com o <Blocker> que segura a Base.~~
+  Corrigido — ver abaixo.
 
 ## Correção do letal — 2026-09-24
 
@@ -81,3 +82,23 @@ Escada sem o difícil, 100 partidas por par (`ladder-2026-09-24-letal-sem-difici
 | facil sobre random | 97% | 97% |
 | normal sobre facil | 73% | 76% |
 | zero_system sobre normal | 51% | 52% (segue empate) |
+
+## zero_system: regras de segurança em toda persona — 2026-09-24
+
+Cada persona tinha sua própria regra de bloqueio/ataque e só o Amuro protegia a Base. Agora, no
+despacho (vale pra todas): bloquear quando o ataque ao jogador perderia a partida (sem escudo e sem
+Base) ou destruiria a Base; nunca atacar com o <Blocker> que segura a Base contra o contra-ataque.
+Teste: `zeroSystemSafety.test.ts` roda as 5 personas nas situações do banco.
+
+Banco (`puzzles-2026-09-24-zero.json`): zero_system **90,9%** (era 81,8%); só restam os 2 erros de
+sequência no turno (spec `bot-planejamento-turno`).
+
+Escada sem o difícil (`ladder-2026-09-24-zero-sem-dificil.json`): **idêntica** à anterior — zero_system
+sobre normal segue 52%. Medição em 100 partidas zero × normal: o zero_system pôde bloquear só 123 vezes
+(~1 por partida), nenhuma com derrota em jogo. As regras estão certas mas as situações são raras; não
+são a causa do empate.
+
+**Por que o zero_system não é um degrau:** as personas são a mesma heurística com pesos diferentes — o
+mesmo conhecimento, sem busca. O que separa o difícil (+190 Elo) é o MCTS. Para o zero_system ser o topo
+da escada ele precisa de busca (ex.: MCTS com as personas como âncora) ou do planejamento de turno;
+reponderar não basta.
