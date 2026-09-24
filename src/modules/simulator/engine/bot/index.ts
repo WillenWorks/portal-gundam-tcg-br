@@ -24,10 +24,11 @@ export {
 
 export {
   mctsPolicy,
-  determinize,
   chooseAction as chooseMctsAction,
   type MctsPolicyOptions,
 } from "./mctsPolicy";
+
+export { applyForEval, determinize, positionValue, type EvalDeps } from "./evaluation";
 
 export {
   simulateToEnd,

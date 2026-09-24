@@ -28,17 +28,22 @@ function requireCombat(state: GameState) {
 // 1. Attack Step
 // ---------------------------------------------------------------------------
 
-export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
-  const attacker = findCard(state, attackerId);
-  if (attacker.zone !== "battleArea") throw new Error("Só Units na Battle Area podem atacar");
-  if (attacker.owner !== state.activePlayer) throw new Error("Só o jogador ativo pode declarar ataque");
-  if (attacker.rested) throw new Error("Unit rested não pode atacar");
+/**
+ * Por que `attacker` NÃO pode declarar ataque agora (independente do alvo), ou
+ * `null` se pode. Extraído de `declareAttack` (mesmas regras, mesmas mensagens)
+ * pra que avaliadores de bot saibam "quem ainda ataca neste turno" sem duplicar
+ * a regra.
+ */
+export function attackIneligibilityReason(state: GameState, attacker: CardInstance): string | null {
+  if (attacker.zone !== "battleArea") return "Só Units na Battle Area podem atacar";
+  if (attacker.owner !== state.activePlayer) return "Só o jogador ativo pode declarar ataque";
+  if (attacker.rested) return "Unit rested não pode atacar";
   if (attacker.cannotAttackUntilTurn === state.turnNumber) {
     // ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
-    throw new Error(`${attacker.def.code}: esta Unit não pode atacar neste turno`);
+    return `${attacker.def.code}: esta Unit não pode atacar neste turno`;
   }
-  if (state.phase !== "main") throw new Error("Ataque só pode ser declarado na Main Phase");
-  if (state.combat) throw new Error("Já existe um combate em andamento");
+  if (state.phase !== "main") return "Ataque só pode ser declarado na Main Phase";
+  if (state.combat) return "Já existe um combate em andamento";
   if (attacker.enteredZoneOnTurn === state.turnNumber) {
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
     // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3), ou
@@ -49,11 +54,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
     const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
     const hasDeployTurnGrant = hasKeyword(attacker, "AttackOnDeployTurn", state);
     if (!isLinkUnit && !hasDeployTurnGrant) {
-      throw new Error(
-        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito",
-      );
+      return "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito";
     }
   }
+  return null;
+}
+
+export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
+  const attacker = findCard(state, attackerId);
+  const ineligible = attackIneligibilityReason(state, attacker);
+  if (ineligible) throw new Error(ineligible);
 
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
