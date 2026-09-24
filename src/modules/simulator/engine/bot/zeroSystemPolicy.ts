@@ -6,6 +6,7 @@ import type { Rng } from "../rng";
 import type { SelfPlayPolicy } from "../selfPlay";
 import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
 import { heuristicPolicy } from "./heuristicPolicy";
+import { hasLethalLine, LETHAL_ATTACK_SCORE } from "./lethal";
 
 export type ZeroSystemPersona = "amuro" | "char" | "heero" | "treize" | "adaptive";
 
@@ -66,6 +67,8 @@ interface ZeroCtx {
   myReadyAp: number;
   oppReadyAp: number;
   resolvedPersona: "amuro" | "char" | "heero" | "treize";
+  /** há linha letal neste turno (`hasLethalLine`), em qualquer persona */
+  lethal: boolean;
   lookahead: EffectLookahead | null;
 }
 
@@ -96,7 +99,12 @@ function resolveAdaptivePersona(
   return "heero";
 }
 
-function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptive", lookahead: EffectLookahead | null = null): ZeroCtx {
+function buildZeroCtx(
+  view: ViewGameState,
+  legal: LegalAction[],
+  persona: ZeroSystemPersona = "adaptive",
+  lookahead: EffectLookahead | null = null,
+): ZeroCtx {
   const me = view.viewer;
   const opp = otherPlayer(me);
   const myPlayer = view.players[me];
@@ -138,6 +146,7 @@ function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptiv
     myReadyAp,
     oppReadyAp,
     resolvedPersona,
+    lethal: hasLethalLine(view, legal),
     lookahead,
   };
 }
@@ -339,12 +348,6 @@ function scoreAttackHeero(ctx: ZeroCtx, attackerId: string, target: AttackTarget
   const atkAp = effectiveAp(attacker, ctx.state);
   const atkHpRem = remHp(attacker, ctx.state);
 
-  // Verificação de linha letal
-  const oppTotalEffectiveLife = (ctx.oppBase ? remHp(ctx.oppBase, ctx.state) : 0) + ctx.oppShieldCount;
-  if (ctx.myReadyAp >= oppTotalEffectiveLife && target === "player") {
-    return 100 + atkAp; // Linha de vitória calculada!
-  }
-
   if (target === "player") {
     return 18 + 2 * atkAp;
   }
@@ -497,6 +500,10 @@ function scoreZeroAction(action: LegalAction, _index: number, ctx: ZeroCtx): num
       return scoreBlockHeero(ctx, action.blockerId);
     }
     case "declareAttack": {
+      if (ctx.lethal && action.target === "player") {
+        const attacker = byId(ctx.myUnits, action.attackerId);
+        return LETHAL_ATTACK_SCORE + (attacker ? effectiveAp(attacker, ctx.state) : 0);
+      }
       if (ctx.resolvedPersona === "amuro") return scoreAttackAmuro(ctx, action.attackerId, action.target);
       if (ctx.resolvedPersona === "char") return scoreAttackChar(ctx, action.attackerId, action.target);
       if (ctx.resolvedPersona === "treize") return scoreAttackTreize(ctx, action.attackerId, action.target);
@@ -529,7 +536,7 @@ export function chooseZeroSystemAction(
   if (legal.length === 1) return legal[0];
 
   lookahead?.beginDecision();
-  const ctx = buildZeroCtx(view, options.persona ?? "adaptive", lookahead);
+  const ctx = buildZeroCtx(view, legal, options.persona ?? "adaptive", lookahead);
 
   let best: LegalAction[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
