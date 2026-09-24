@@ -150,7 +150,11 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
 
   joinMatch(match.id, "B", {
     userId: SIM_BOT_USER_ID,
-    displayName: input.level === "zero_system" ? `Zero System (${resolvedPersona.toUpperCase()})` : SIM_BOT_DISPLAY_NAME,
+    // com counter, a persona que vale é a do counter (a mesma do aviso da UI)
+    displayName:
+      input.level === "zero_system"
+        ? `Zero System (${(input.botCounter?.persona ?? resolvedPersona).toUpperCase()})`
+        : SIM_BOT_DISPLAY_NAME,
     autoPassActionStep: true,
     bot: botSeatConfig,
   });

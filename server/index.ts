@@ -59,6 +59,7 @@ import {
   touchPresence,
   submitSideboard,
   generateBugShortCode,
+  publicDeckKeys,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
@@ -4862,7 +4863,7 @@ function matchSummary(match: ReturnType<typeof getMatch>) {
       A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
       B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
     },
-    deckKeys: match.deckKeys,
+    deckKeys: publicDeckKeys(match),
     turnNumber: match.state.turnNumber,
     activePlayer: match.state.activePlayer,
     phase: match.state.phase,

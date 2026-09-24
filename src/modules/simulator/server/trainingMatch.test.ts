@@ -219,12 +219,16 @@ describe("createTrainingMatch — counter do Zero System (spec bot-zero-system-f
     const during = matchViewFor(match, "A");
     expect(during.botCounter).toEqual(COUNTER);
     expect(during.botDeckList).toBeUndefined();
+    // a chave do deck do bot é o id do counter (receita pública) — escondida até o fim
+    expect(during.deckKeys.B).not.toBe("ST03");
+    expect(match.seats.B?.displayName).toBe("Zero System (AMURO)");
 
     resignMatch(matchId, HUMAN.userId);
     const after = matchViewFor(getMatch(matchId)!, "A");
     const total = after.botDeckList?.reduce((s, e) => s + e.count, 0);
     expect(total).toBe(50);
     expect(after.botDeckList?.every((e) => e.code && e.name && e.count > 0)).toBe(true);
+    expect(after.deckKeys.B).toBe("ST03");
   });
 
   it("sem counter a view não traz nada novo", () => {

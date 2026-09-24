@@ -252,7 +252,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     view: viewStateFor(match.state, seat),
     matchId: match.id,
     seat,
-    deckKeys: match.deckKeys,
+    deckKeys: publicDeckKeys(match),
     turnDeadlineAt: match.turnDeadlineAt,
     lastSeenAt: match.lastSeenAt,
     version: match.version,
@@ -268,6 +268,19 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     botCounter: match.botCounter,
     botDeckList: match.botCounter && match.state.gameOver ? botDeckEntries(match) : undefined,
   };
+}
+
+/** rótulo do deck do bot enquanto o counter do Zero System está escondido */
+export const HIDDEN_COUNTER_DECK_KEY = "ZERO-SYSTEM";
+
+/**
+ * `deckKeys` que pode sair pra rede. Com counter do Zero System, a chave do deck do
+ * bot É o id do deck escolhido (receita pública) — só aparece com a partida encerrada.
+ */
+export function publicDeckKeys(match: MatchRecord): MatchRecord["deckKeys"] {
+  if (!match.botCounter || match.state.gameOver) return match.deckKeys;
+  const botSeat = match.seats.A?.bot ? "A" : match.seats.B?.bot ? "B" : null;
+  return botSeat ? { ...match.deckKeys, [botSeat]: HIDDEN_COUNTER_DECK_KEY } : match.deckKeys;
 }
 
 function botDeckEntries(match: MatchRecord): BotDeckEntry[] | undefined {
