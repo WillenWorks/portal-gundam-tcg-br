@@ -7,7 +7,22 @@ import {
 } from "../modules/simulator/ui/viewAnimationQueue";
 import type { CardDef, CardInstance } from "../modules/simulator/engine/types";
 import type { ViewGameState, ViewPlayerState } from "../modules/simulator/engine/viewState";
+import type { SimulatorMatchView } from "@/lib/api";
 import { buildTurnStagedViews, buildTurn1StagedViews, endOfTurnBanners } from "./SimulatorMatchPage";
+
+function createMatchView(view: ViewGameState): SimulatorMatchView {
+  return {
+    view,
+    matchId: "m-1",
+    seat: "A",
+    deckKeys: {},
+    turnDeadlineAt: null,
+    lastSeenAt: {},
+    version: 1,
+    serverNow: 0,
+    autoPassActionStep: false,
+  };
+}
 
 describe("SimulatorMatchPage — Animação de Comando do Oponente / Bot", () => {
   const commandDef: CardDef = {
@@ -251,7 +266,6 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     const restedUnit: CardInstance = {
       instanceId: "u-1",
       owner: "A",
-      controller: "A",
       zone: "battleArea",
       rested: true,
       damage: 0,
@@ -302,11 +316,7 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     incomingGameState.players.A.counts.hand = 5;
     incomingGameState.players.A.counts.deck = 39;
 
-    const incomingMatchView = {
-      seat: "A" as const,
-      perspective: "A" as const,
-      view: incomingGameState,
-    };
+    const incomingMatchView = createMatchView(incomingGameState);
 
     const staged = buildTurnStagedViews(prevView, incomingMatchView);
 
@@ -355,7 +365,6 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     const oppRestedUnit: CardInstance = {
       instanceId: "u-bot-1",
       owner: "B",
-      controller: "B",
       zone: "battleArea",
       rested: true,
       damage: 0,
@@ -403,11 +412,7 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     incomingGameState.players.B.counts.hand = 4;
     incomingGameState.players.B.counts.deck = 41;
 
-    const incomingMatchView = {
-      seat: "A" as const, // Viewer é o player humano A
-      perspective: "A" as const,
-      view: incomingGameState,
-    };
+    const incomingMatchView = createMatchView(incomingGameState); // viewer = humano A
 
     const staged = buildTurnStagedViews(prevView, incomingMatchView);
 
@@ -452,11 +457,7 @@ describe("SimulatorMatchPage — Fases de Turno e Sincronização de Draw e Recu
     currentGameState.players.A.counts.hand = 6;
     currentGameState.players.A.counts.deck = 44;
 
-    const currentMatchView = {
-      seat: "A" as const,
-      perspective: "A" as const,
-      view: currentGameState,
-    };
+    const currentMatchView = createMatchView(currentGameState);
 
     const staged = buildTurn1StagedViews(currentMatchView);
 

@@ -260,6 +260,14 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
 }
 
 /**
+ * View já saiu da preparação (mulligan). `Phase` não tem valor "setup" — a
+ * preparação é só o período com mulligan pendente em algum assento.
+ */
+function isPostSetupView(view: ViewGameState): boolean {
+  return view.pendingDecision.A?.kind !== "mulligan" && view.pendingDecision.B?.kind !== "mulligan";
+}
+
+/**
  * Banners de encerramento do turno anterior, mostrados na virada de turno. O
  * turno só muda depois que o Action Step da End Phase terminou com os dois
  * jogadores passando (`passEndPhaseAction` -> `END_END_PHASE_ACTION_STEP` ->
@@ -1023,12 +1031,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // Se a próxima view já é pós-setup (Fase Principal, jogadas de turno 1, ou bot agindo),
         // mas a abertura inicial ainda não foi concluída (mulligan, deal-shields, phase-banner),
         // aguarda a abertura cinematográfica terminar para não atropelar a distribuição de shields!
-        const hasMulliganPending =
-          peekNext.view.pendingDecision.A?.kind === "mulligan" ||
-          peekNext.view.pendingDecision.B?.kind === "mulligan";
-        const isPostSetupView = peekNext.view.phase !== "setup" && !hasMulliganPending;
-
-        if (isPostSetupView && introStageRef.current !== "complete") {
+        if (isPostSetupView(peekNext.view) && introStageRef.current !== "complete") {
           await Promise.race([
             new Promise<void>((resolve) => {
               const prev = introStageResolveRef.current;
@@ -1488,7 +1491,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         setSetupAnim("deal-shields");
       }
     } else if (introStage === "deal-shields") {
-      const postSetupView = viewQueueRef.current.find((item) => item.view.phase !== "setup") ?? matchView;
+      const postSetupView = viewQueueRef.current.find((item) => isPostSetupView(item.view)) ?? matchView;
       if (postSetupView) {
         const staged = buildTurn1StagedViews(postSetupView);
         turnStagedViewsRef.current = {
