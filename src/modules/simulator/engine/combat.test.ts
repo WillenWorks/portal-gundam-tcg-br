@@ -23,6 +23,7 @@ import { applyPlayerAction } from "./actions";
 import { defaultPredicateResolver, defaultTargetFilterResolver } from "../content/predicates";
 import { ST05_CARD_DEFS, buildSt05DeckList } from "../fixtures/st05Deck";
 import { placeCard } from "./__testkit__/cardHarness";
+import { getCardDefByCode } from "../content/allCardDefs";
 
 let seq = 0;
 /**
@@ -227,6 +228,94 @@ describe("sequência de combate (Comprehensive Rules seção 8 / docs/18)", () =
     // que recebe 1+ de dano é destruído inteiro -- por isso sempre 1 shield cai,
     // nunca N, não importa quão alto for N.
     expect(state.players.B.shields).toHaveLength(before - 1);
+  });
+
+  // Glossário (docs/17): <Breach X> causa X de dano na PRIMEIRA carta da área de escudo
+  // (a Base, se houver; senão o escudo do topo). Sem Base nem escudo, não ativa.
+  it("<Breach N> com Base em campo: a Base recebe N de dano (escudos intactos)", () => {
+    let state = freshGame();
+    state.players.B.baseSection = [];
+    const baseDef: CardDef = { code: "BR-BASE", nameEn: "Base", cardType: "BASE", color: "white", level: 1, cost: 1, hp: 5 };
+    const baseId = placeCard(state, "B", baseDef, "baseSection");
+    const attackerId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_01);
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true });
+    state = applyEvent(state, {
+      type: "GRANT_KEYWORD",
+      instanceId: attackerId,
+      grant: { keyword: "Breach 3", duration: "endOfTurn", appliedOnTurn: state.turnNumber },
+    });
+    const shieldsBefore = state.players.B.shields.length;
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
+    expect(findCard(state, baseId).damage).toBe(3);
+    expect(state.players.B.shields).toHaveLength(shieldsBefore);
+  });
+
+  it("<Breach N> sem Base e sem escudo: não ativa e NÃO encerra a partida", () => {
+    let state = stripBase(freshGame(), "B");
+    state = { ...state, players: { ...state.players, B: { ...state.players.B, shields: [] } } };
+    const attackerId = place(state, "A", VANILLA_CARD_DEFS.BREACH_01);
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true });
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
+    expect(state.gameOver).toBeNull();
+  });
+
+  it("GD02-001 Psycho Gundam (During Pair Cyber-Newtype): escudo destruído pelo próprio <Breach 3> → recupera 2 HP", () => {
+    let state = stripBase(freshGame(), "B");
+    const pilotId = place(state, "A", getCardDefByCode("GD02-085")!); // Four Murasame (Titans, Cyber-Newtype)
+    const psychoId = place(state, "A", getCardDefByCode("GD02-001")!, { pairedPilotId: pilotId, damage: 3 });
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true });
+    const shieldsBefore = state.players.B.shields.length;
+
+    state = runToDamageStep(state, psychoId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.shields).toHaveLength(shieldsBefore - 1);
+    // tomou 1 do defensor (AP1) e curou 2: 3 + 1 − 2 = 2
+    expect(findCard(state, psychoId).damage).toBe(2);
+  });
+
+  it("GD02-001 Psycho Gundam: Unit (Titans) aliada que destrói a Base inimiga (carta da área de escudo) também cura", () => {
+    let state = freshGame();
+    state.players.B.baseSection = [];
+    placeCard(state, "B", { code: "BR-BASE-1", nameEn: "Base", cardType: "BASE", color: "white", level: 1, cost: 1, hp: 1 }, "baseSection");
+    const pilotId = place(state, "A", getCardDefByCode("GD02-085")!);
+    const psychoId = place(state, "A", getCardDefByCode("GD02-001")!, { pairedPilotId: pilotId, damage: 3, rested: true });
+    const titansId = place(state, "A", { ...VANILLA_CARD_DEFS.VANILLA_01, code: "BR-TITANS", traits: ["Titans"] });
+
+    state = runToDamageStep(state, titansId, "player");
+    state = resolveDamageStep(state);
+
+    expect(state.players.B.baseSection).toHaveLength(0);
+    expect(findCard(state, psychoId).damage).toBe(1);
+  });
+
+  it("GD02-002 Gundam Epyon (During Link, Once per Turn): Unit aliada destrói Unit inimiga em batalha no seu turno → Epyon fica active (só 1×)", () => {
+    let state = stripBase(freshGame(), "B");
+    const zechsId = place(state, "A", getCardDefByCode("ST02-011")!);
+    const epyonId = place(state, "A", getCardDefByCode("GD02-002")!, { pairedPilotId: zechsId, rested: true });
+    const attackerId = place(state, "A", VANILLA_CARD_DEFS.BREACH_01); // AP3/HP3
+    const defenderId = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true });
+
+    state = runToDamageStep(state, attackerId, { unitId: defenderId });
+    state = resolveDamageStep(state);
+    state = resolveBattleEndStep(state);
+
+    expect(findCard(state, epyonId).rested).toBe(false);
+    // 【Once per Turn】: segunda destruição no mesmo turno não reativa de novo
+    state = applyEvent(state, { type: "REST_CARD", instanceId: epyonId });
+    const second = place(state, "A", VANILLA_CARD_DEFS.BREACH_01);
+    const defender2 = place(state, "B", VANILLA_CARD_DEFS.VANILLA_01, { rested: true });
+    state = runToDamageStep(state, second, { unitId: defender2 });
+    state = resolveDamageStep(state);
+    expect(findCard(state, epyonId).rested).toBe(true);
   });
 
   it("jogador sem shield e sem Base perde ao receber dano de batalha (Comprehensive Rules 1-2-2-1)", () => {

@@ -232,7 +232,9 @@ describe("ST03-006 Char's Zaku Ⅱ — 【Destroyed】 no motor de combate (paus
     });
     // defensor de B: Char's Zaku Ⅱ rested (morre pros 3 de Breach) -> 【Destroyed】 de B
     const zakuId = place(state, "B", ST03_CARD_DEFS.CHARS_ZAKU_II, "battleArea", { rested: true });
-    // 1 único shield de B, com 【Burst】 real (Full Frontal)
+    // 1 único shield de B, com 【Burst】 real (Full Frontal). Sem Base: <Breach> acerta a
+    // 1ª carta da área de escudo, que seria a Base se houvesse (glossário docs/17).
+    state.players.B.baseSection = [];
     state.players.B.shields = [];
     place(state, "B", ST03_CARD_DEFS.FULL_FRONTAL, "shields");
     const { zakuIId } = forceTop(state, "B"); // o 【Destroyed】 revela do deck de B (dono da Char's Zaku Ⅱ)
