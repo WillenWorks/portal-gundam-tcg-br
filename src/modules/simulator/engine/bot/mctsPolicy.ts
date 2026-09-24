@@ -91,6 +91,12 @@ export interface MctsPolicyOptions {
    * cada passo de cada rollout pagaria a simulação do efeito.
    */
   lookahead?: EffectLookaheadConfig;
+  /**
+   * Âncora alternativa (ex.: personas do zero_system, planejador de turno) no lugar
+   * da heurística normal. Ela cuida do próprio lookahead — com `anchor`, o
+   * `lookahead` acima é ignorado. Os rollouts seguem com a heurística normal.
+   */
+  anchor?: SelfPlayPolicy;
 }
 
 const DEFAULT_ROLLOUTS = 32;
@@ -142,8 +148,10 @@ export function chooseAction(
   }
   if (legal.length === 1) return legal[0];
 
-  // âncora: o que a heurística normal jogaria aqui (rng derivado — não perturba a sequência principal)
-  const heuristicPick = heuristicChoose(view, legal, deriveRng(rng), "normal", lookahead);
+  // âncora: o que a heurística normal (ou a `anchor`) jogaria aqui (rng derivado — não perturba a sequência principal)
+  const heuristicPick = options.anchor
+    ? options.anchor(view, legal, deriveRng(rng))
+    : heuristicChoose(view, legal, deriveRng(rng), "normal", lookahead);
 
   const maxBranching = options.maxBranching ?? DEFAULT_MAX_BRANCHING;
   if (legal.length > maxBranching) return heuristicPick;
@@ -198,7 +206,7 @@ export function chooseAction(
 }
 
 export function mctsPolicy(options: MctsPolicyOptions = {}): SelfPlayPolicy {
-  const lookahead = options.lookahead ? new EffectLookahead(options.lookahead, heuristicPolicy({ level: "normal" })) : null;
+  const lookahead = options.lookahead && !options.anchor ? new EffectLookahead(options.lookahead, heuristicPolicy({ level: "normal" })) : null;
   return (view, legal, rng) => {
     const choice = chooseAction(view, legal, rng, options, lookahead);
     lookahead?.record(view.turnNumber, choice);

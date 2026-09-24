@@ -15,7 +15,7 @@ import { zeroSystemPolicy, type ZeroSystemPersona } from "./zeroSystemPolicy";
  */
 export const BOT_LEVELS = ["random", "facil", "normal", "dificil", "zero_system"] as const;
 /** níveis em avaliação na escada/banco — fora do produto até a medição decidir */
-export const EXPERIMENTAL_LEVELS = ["normal_plan"] as const;
+export const EXPERIMENTAL_LEVELS = ["normal_plan", "zero_mcts", "dificil_plan"] as const;
 export type BotLevel = (typeof BOT_LEVELS)[number] | (typeof EXPERIMENTAL_LEVELS)[number];
 /** todo nível aceito pelos scripts de medição */
 export const MEASURABLE_LEVELS: readonly BotLevel[] = [...BOT_LEVELS, ...EXPERIMENTAL_LEVELS];
@@ -60,6 +60,26 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
     case "normal_plan":
       // spec bot-planejamento-turno: normal + planejador de turno na Main Phase
       return turnPlannerPolicy(heuristicPolicy({ level: "normal", lookahead }), lookahead);
+    case "zero_mcts":
+      // MCTS do difícil ancorado nas personas do zero_system
+      return mctsPolicy({
+        rollouts: opts.mctsRollouts ?? DIFICIL_ROLLOUTS,
+        depthTurns: DIFICIL_DEPTH_TURNS,
+        specs: opts.specs,
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        anchor: zeroSystemPolicy({ persona: opts.persona ?? "adaptive", lookahead }),
+      });
+    case "dificil_plan":
+      // MCTS do difícil ancorado no planejador de turno
+      return mctsPolicy({
+        rollouts: opts.mctsRollouts ?? DIFICIL_ROLLOUTS,
+        depthTurns: DIFICIL_DEPTH_TURNS,
+        specs: opts.specs,
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        anchor: turnPlannerPolicy(heuristicPolicy({ level: "normal", lookahead }), lookahead),
+      });
     case "zero_system":
       return zeroSystemPolicy({ persona: opts.persona ?? "adaptive", lookahead });
     default:
