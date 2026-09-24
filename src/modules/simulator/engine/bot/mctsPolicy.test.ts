@@ -133,3 +133,17 @@ describe("mctsPolicy — sanidade (amostra pequena)", () => {
     1_200_000,
   );
 });
+
+describe("mctsPolicy — lookahead de efeitos na âncora", () => {
+  it("com lookahead: no Action Step a âncora já escolhe o pump que vira a batalha", async () => {
+    const fx = await import("./lookaheadTestFixtures");
+    const { state, attacker, pump } = fx.combatWithPriorityA(3);
+    const legal = enumerateLegalActions(state, "A", fx.SPECS, {});
+    const chosen = mctsPolicy({ rollouts: 4, depthTurns: 2, specs: fx.SPECS, lookahead: { specs: fx.SPECS } })(
+      viewStateFor(state, "A"),
+      legal,
+      createRng(3),
+    );
+    expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: pump.instanceId, targets: { target: [attacker.instanceId] } });
+  }, 60_000);
+});
