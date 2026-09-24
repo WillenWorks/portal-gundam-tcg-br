@@ -152,3 +152,26 @@ custa uma fração do tempo.
   mais que a busca por cima dela.
 - Somando as escadas (mesma âncora `normal` no elo anterior): normal 0 → normal_plan ~+167 →
   dificil_plan ~+310. O difícil atual (MCTS sobre a heurística) fica em ~+66.
+
+## Produto após o planejador — confirmação (2026-09-24)
+
+Níveis do produto: **normal** = heurística + planejador de turno; **difícil** = MCTS (16 rollouts)
+ancorado no planejador, teto de **1,5 s** por decisão (planejador até 0,5 s). Configurações antigas:
+`normal_v1`/`dificil_v1` (experimentais). O "tempo de pensar" de 1–2 s desconta o tempo de cálculo.
+
+Escada `ladder-2026-09-24-produto.json` (30 partidas/par, configuração real do produto, 95 min,
+0 excluídas):
+
+| Nível | Elo (normal = 0) | IC 95% |
+|---|---|---|
+| normal | 0 | — |
+| dificil | 86 | [−17, 197] |
+| dificil_32 | 148 | [59, 257] |
+
+- difícil sobre normal: 60% (Wilson [42,3%, 75,4%]) — mesmo patamar do `dificil_plan` sem teto
+  sobre `normal_plan` (63,3%): o teto de 1,5 s não tirou força visível.
+- `dificil_32` (dobro de rollouts e de orçamento) sobre difícil: 56,7% (Wilson [39,2%, 72,6%]) —
+  **não conclusivo**. Pela regra combinada (só com Wilson > 50%), o zero_system **não** vira
+  `dificil_32`; segue com as personas (mais fraco que o difícil).
+- Com 30 partidas por par os degraus normal → difícil → difícil_32 não fecham a meta de Wilson; só
+  `dificil_32` sobre normal (73,3%, Wilson [55,6%, 85,8%]) é significativo.
