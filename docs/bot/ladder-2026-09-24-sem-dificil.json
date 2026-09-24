@@ -1,0 +1,178 @@
+{
+  "date": "2026-09-24",
+  "commit": "2e13dbb",
+  "params": {
+    "levels": [
+      "random",
+      "facil",
+      "normal",
+      "zero_system"
+    ],
+    "pool": "all",
+    "decks": [
+      {
+        "id": "ST01",
+        "knownGaps": []
+      },
+      {
+        "id": "ST02",
+        "knownGaps": []
+      },
+      {
+        "id": "ST03",
+        "knownGaps": []
+      },
+      {
+        "id": "ST04",
+        "knownGaps": []
+      },
+      {
+        "id": "ST05",
+        "knownGaps": []
+      },
+      {
+        "id": "ST06",
+        "knownGaps": []
+      },
+      {
+        "id": "ST07",
+        "knownGaps": []
+      },
+      {
+        "id": "ST08",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AEUG-EA",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TEKKADAN-VAGAN",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-QUBELEY",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AGE-WING",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TITANS",
+        "knownGaps": []
+      },
+      {
+        "id": "META-ST06-GQUUUUUUX",
+        "knownGaps": []
+      }
+    ],
+    "gamesPerLevelPair": 100,
+    "maxTurns": 40,
+    "seed": 1,
+    "dificilRollouts": 16
+  },
+  "durationSeconds": 77,
+  "elo": {
+    "random": 0,
+    "facil": 563.7497499826866,
+    "normal": 740.445162185072,
+    "zero_system": 752.6461835359523
+  },
+  "ci": {
+    "facil": {
+      "low": 455.74647416388893,
+      "high": 709.5430496251947
+    },
+    "normal": {
+      "low": 631.6241744303506,
+      "high": 916.5060011046613
+    },
+    "random": {
+      "low": 0,
+      "high": 0
+    },
+    "zero_system": {
+      "low": 645.4682431837555,
+      "high": 934.5917637149988
+    }
+  },
+  "steps": [
+    {
+      "lower": "random",
+      "upper": "facil",
+      "upperScore": 97,
+      "games": 100,
+      "rate": 0.97,
+      "wilson": {
+        "low": 0.9154806351014251,
+        "high": 0.9897454760557185
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "facil",
+      "upper": "normal",
+      "upperScore": 73,
+      "games": 100,
+      "rate": 0.73,
+      "wilson": {
+        "low": 0.6356788315330401,
+        "high": 0.8073041590332216
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "normal",
+      "upper": "zero_system",
+      "upperScore": 51,
+      "games": 100,
+      "rate": 0.51,
+      "wilson": {
+        "low": 0.41348011860427875,
+        "high": 0.6057800114203413
+      },
+      "meetsGoal": false
+    }
+  ],
+  "vsRandom": [
+    {
+      "lower": "random",
+      "upper": "facil",
+      "upperScore": 97,
+      "games": 100,
+      "rate": 0.97,
+      "wilson": {
+        "low": 0.9154806351014251,
+        "high": 0.9897454760557185
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "random",
+      "upper": "normal",
+      "upperScore": 99,
+      "games": 100,
+      "rate": 0.99,
+      "wilson": {
+        "low": 0.9455138032509935,
+        "high": 0.9982325679553905
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "random",
+      "upper": "zero_system",
+      "upperScore": 99,
+      "games": 100,
+      "rate": 0.99,
+      "wilson": {
+        "low": 0.9455138032509935,
+        "high": 0.9982325679553905
+      },
+      "meetsGoal": true
+    }
+  ],
+  "excluded": [],
+  "undecided": 0
+}
