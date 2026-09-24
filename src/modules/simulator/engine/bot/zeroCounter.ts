@@ -18,7 +18,16 @@ import { analyzeOpponentDeck, recommendCounterPersona, type OpponentDeckProfile 
 export interface MatchupTable {
   decks: string[];
   rate: (number | null)[][];
+  /**
+   * partidas por par na matriz. Com ele, a escolha do counter encolhe cada taxa
+   * em direção à média do candidato (`SHRINK_PRIOR_GAMES`): com ~10 partidas por
+   * par, o melhor de 13 candidatos pela taxa crua tende a ser sorte.
+   */
+  gamesPerPair?: number;
 }
+
+/** peso (em partidas) da média do candidato na taxa ajustada do confronto */
+export const SHRINK_PRIOR_GAMES = 10;
 
 export interface ZeroCounterSummary {
   counterDeckId: string;
@@ -117,17 +126,24 @@ export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, 
     if (averageRate(table, row) > averageRate(table, baselineRow) + 1e-12) baselineRow = row;
   }
 
-  // counter: maior taxa contra o deck do jogador; em empate fica o baseline
+  // counter: maior taxa AJUSTADA contra o deck do jogador; em empate fica o baseline
+  const n = table.gamesPerPair;
+  const adjusted = (row: number): number | null => {
+    const r = table.rate[row][col];
+    if (r === null) return null;
+    return n === undefined ? r : (n * r + SHRINK_PRIOR_GAMES * averageRate(table, row)) / (n + SHRINK_PRIOR_GAMES);
+  };
   let counterRow = baselineRow;
-  let counterRate = table.rate[baselineRow][col];
+  let counterScore = adjusted(baselineRow);
   for (const d of inTable) {
     const row = table.decks.indexOf(d.id);
-    const r = table.rate[row][col];
-    if (r !== null && (counterRate === null || r > counterRate + 1e-12)) {
+    const a = adjusted(row);
+    if (a !== null && (counterScore === null || a > counterScore + 1e-12)) {
       counterRow = row;
-      counterRate = r;
+      counterScore = a;
     }
   }
+  const counterRate = table.rate[counterRow][col];
 
   const counterId = table.decks[counterRow];
   const counterDeck = inTable.find((d) => d.id === counterId);

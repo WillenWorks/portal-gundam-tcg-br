@@ -42,7 +42,7 @@ if (args.matrix) {
  * a partir de ${path.basename(String(args.matrix))} (nível ${matrix.params.level},
  * ${matrix.params.gamesPerPair} partidas/par, commit ${matrix.commit}) — não editar à mão.
  */
-export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))) }, null, 2)};
+export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, gamesPerPair: matrix.params.gamesPerPair, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))) }, null, 2)};
 `;
   if (args["write-fixture"]) {
     fs.writeFileSync(FIXTURE, body);

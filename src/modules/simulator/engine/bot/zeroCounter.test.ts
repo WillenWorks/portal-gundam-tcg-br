@@ -64,4 +64,15 @@ describe("counterForPlayerDeck", () => {
     expect(["amuro", "char", "heero", "treize"]).toContain(summary.persona);
     expect(["aggro", "control", "midrange_synergy", "tempo"]).toContain(summary.archetype);
   });
+
+  it("com gamesPerPair, taxa extrema num confronto só não vence um deck forte no geral", () => {
+    // ST02 fraco no geral (0,3) mas 0,8 contra o ST05; ST03 forte (0,6 contra todos)
+    const t = table();
+    const i = (id: string) => t.decks.indexOf(id);
+    for (let c = 0; c < t.decks.length; c++) if (t.rate[i("ST02")][c] !== null) t.rate[i("ST02")][c] = 0.3;
+    t.rate[i("ST02")][i("ST05")] = 0.8;
+    expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST02");
+    t.gamesPerPair = 2;
+    expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST03");
+  });
 });
