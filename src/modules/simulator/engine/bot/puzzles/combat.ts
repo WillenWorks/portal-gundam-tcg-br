@@ -36,7 +36,7 @@ export const COMBAT_PUZZLES: Puzzle[] = [
     id: "troca-favoravel",
     title: "Atacar a Unit que morre sem matar o atacante",
     category: "combate",
-    why: "5/5 contra a 3/3 rested: destrói sem sofrer baixa; contra a 6/6, morre.",
+    why: "5/5 contra a 3/3 rested: destrói de graça (ela desvira no turno do oponente e deixa de ser alvo). Atacar o jogador só quebra 1 escudo; atacar a 6/6 morre.",
     build: () => {
       const state = board("A");
       put(state, "A", "battleArea", unit("PZ-BIG", 5, 5));
@@ -46,7 +46,6 @@ export const COMBAT_PUZZLES: Puzzle[] = [
     },
     accepted: [
       { describe: "ataca a 3/3", match: (a, r) => a.kind === "declareAttack" && a.target !== "player" && a.target.unitId === r.weak },
-      { describe: "ataca o jogador", match: (a) => a.kind === "declareAttack" && a.target === "player" },
     ],
   },
   {
@@ -157,7 +156,7 @@ export const COMBAT_PUZZLES: Puzzle[] = [
     id: "ataque-com-quem-tem-breach",
     title: "Com Breach, atacar a Unit que morre (dano extra na Base/escudo)",
     category: "combate",
-    why: "O <Breach 2> só ativa destruindo Unit: 4/4 contra a 2/2 rested destrói e ainda causa dano extra.",
+    why: "O <Breach 2> só ativa destruindo Unit: 4/4 contra a 2/2 rested destrói de graça E quebra 1 escudo — estritamente melhor que só atacar o jogador.",
     build: () => {
       const state = board("A");
       put(state, "A", "battleArea", unit("PZ-BREACH", 4, 4, { effectKeywords: ["Breach"], keywordTags: ["Breach 2"] }));
@@ -166,7 +165,6 @@ export const COMBAT_PUZZLES: Puzzle[] = [
     },
     accepted: [
       { describe: "ataca a 2/2", match: (a, r) => a.kind === "declareAttack" && a.target !== "player" && a.target.unitId === r.prey },
-      { describe: "ataca o jogador", match: (a) => a.kind === "declareAttack" && a.target === "player" },
     ],
   },
 ];
