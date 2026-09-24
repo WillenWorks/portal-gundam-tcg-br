@@ -175,3 +175,28 @@ Escada `ladder-2026-09-24-produto.json` (30 partidas/par, configuração real do
   `dificil_32`; segue com as personas (mais fraco que o difícil).
 - Com 30 partidas por par os degraus normal → difícil → difícil_32 não fecham a meta de Wilson; só
   `dificil_32` sobre normal (73,3%, Wilson [55,6%, 85,8%]) é significativo.
+
+## Zero System — fase B: counter do deck do jogador (2026-09-24)
+
+Spec `bot-zero-system-forte`. O Zero System joga com a policy do difícil (MCTS + planejador) e
+escolhe o deck do bot contra o do jogador: `engine/bot/zeroCounter.ts` acha o deck do pool mais
+parecido com o do jogador e usa o que mais o vence numa matriz de confrontos, com a taxa encolhida
+em direção à média do candidato (10 partidas de peso — contra "vencedor por sorte"). O builder
+temático antigo devolvia um starter fixo por arquétipo e foi aposentado aqui.
+
+Matriz `matchups-2026-09-24.json`: 14 decks, 10 partidas/par, 910 partidas, 0 excluídas.
+**Limitação:** gerada com o nível **normal** nos dois lados (~5 s/partida; com o difícil seria ~60 s).
+Taxa média contra o pool — topo: GQuuuuuuX (ST06 meta) 73,8%, ST04 65,4%, Qubeley 64,6%.
+
+Validação `counter-2026-09-24.json` (policy do **difícil** nos dois lados, seeds novas, 8 partidas
+por deck do jogador, 112 partidas):
+
+| | Taxa | Wilson |
+|---|---|---|
+| counter × deck do jogador | **62,5%** (70/112) | [53,3%, 70,9%] |
+| baseline (GQuuuuuuX fixo) × deck do jogador | 61,6% (69/112) | [52,4%, 70,1%] |
+
+A meta do spec (≥ 60%, Wilson > 50%, acima do baseline) **passa**, mas a diferença pro baseline é
+1 partida em 112 — empate. Em 10 dos 14 decks o counter escolhido É o baseline; o ganho do Zero
+System vem de jogar com o deck mais forte do pool, não da escolha por confronto. Para o counter
+render mais: matriz com mais partidas por par (ou com o difícil) e um pool maior/mais variado.
