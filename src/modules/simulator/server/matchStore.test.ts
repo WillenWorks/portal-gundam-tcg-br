@@ -378,6 +378,65 @@ describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (reg
     const action = defaultActionFor(stateWithWhenPaired(true));
     expect(action.kind === "resolveAbility" && action.resolutions[0].activate).toBe(false);
   });
+
+  // descarte / reordenação / escolha de opção são MANDATÓRIOS: `targetIds: []` fazia o
+  // `resolveAbility` lançar, o timeout engolia o erro e a partida rearmava o timer em loop
+  function stateWithChoice(extra: Record<string, unknown>): GameState {
+    const state = stateWithWhenPaired(false);
+    const pending = state.pendingDecision.A;
+    if (pending?.kind !== "abilityResolution") throw new Error("setup");
+    Object.assign(pending.queue[0], { needsTarget: false, ...extra });
+    return state;
+  }
+  const topCard = (id: string) => ({ instanceId: id }) as unknown as GameState["players"]["A"]["hand"][number];
+  function firstResolution(state: GameState) {
+    const action = defaultActionFor(state);
+    if (action.kind !== "resolveAbility") throw new Error(`esperava resolveAbility, veio ${action.kind}`);
+    return action.resolutions[0];
+  }
+
+  it("handDiscard AFK: descarta as primeiras N cartas elegíveis (quantidade exata que o motor exige)", () => {
+    const r = firstResolution(stateWithChoice({ handDiscard: { n: 1, legalHandIds: ["h1", "h2"], label: "descarte 1" } }));
+    expect(r.targetIds).toEqual(["h1"]);
+  });
+
+  it("handDiscard AFK com menos cartas que N: descarta as que houver", () => {
+    const r = firstResolution(stateWithChoice({ handDiscard: { n: 2, legalHandIds: ["h1"], label: "descarte 2" } }));
+    expect(r.targetIds).toEqual(["h1"]);
+  });
+
+  it("deckReorder AFK: mantém a ordem do topo, uma carta por slot", () => {
+    const r = firstResolution(
+      stateWithChoice({
+        deckReorder: {
+          topCards: [topCard("t1"), topCard("t2")],
+          slots: [
+            { name: "top", position: "top" },
+            { name: "bottom", position: "bottom" },
+          ],
+          label: "reordene",
+        },
+      }),
+    );
+    expect(r.targetIds).toEqual(["t1", "t2"]);
+  });
+
+  it("descarte OPCIONAL ('you may discard') AFK: pula sem descartar e o motor aceita", () => {
+    const state = stateWithChoice({ optional: true, handDiscard: { n: 1, legalHandIds: ["h1"], label: "pode descartar 1" } });
+    const action = defaultActionFor(state);
+    expect(action.kind === "resolveAbility" && action.resolutions[0].activate).toBe(false);
+    const next = applyPlayerAction(state, "A", action, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
+  it("enumChoice AFK: fica com a primeira opção", () => {
+    const r = firstResolution(
+      stateWithChoice({
+        enumChoice: { key: "token", options: [{ value: "sword", label: "Sword" }, { value: "launcher", label: "Launcher" }], label: "escolha" },
+      }),
+    );
+    expect(r.targetIds).toEqual(["sword"]);
+  });
 });
 
 describe("claimAbandonWin (W.O. por abandono, 3min sem sinal de vida do oponente)", () => {
