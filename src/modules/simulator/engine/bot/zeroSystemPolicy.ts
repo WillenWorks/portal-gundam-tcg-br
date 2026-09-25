@@ -173,7 +173,8 @@ function targetBonus(ctx: ZeroCtx, id: string): number {
   return 0;
 }
 
-function playerAttackWouldDoomBase(ctx: ZeroCtx, attacker: CardInstance): boolean {
+/** atacar (qualquer alvo) dá rest no <Blocker> que segura a Base contra o contra-ataque */
+function attackWouldDoomBase(ctx: ZeroCtx, attacker: CardInstance): boolean {
   if (ctx.view.turnNumber >= LATE_GAME_TURN) return false;
   if (!ctx.myBase) return false;
   if (ctx.myShieldCount < 3) return false;
@@ -188,6 +189,27 @@ function playerAttackWouldDoomBase(ctx: ZeroCtx, attacker: CardInstance): boolea
   const survivesIfHeld = oppApTotal < baseHpRem + otherBlockerHp + remHp(attacker, ctx.state);
   const diesIfAttacks = oppApTotal >= baseHpRem + otherBlockerHp;
   return survivesIfHeld && diesIfAttacks;
+}
+
+/** bloquear evita perder a partida (sem escudo e sem Base) — vale em toda persona */
+const BLOCK_PREVENTS_LOSS_SCORE = 100;
+/** bloquear evita a destruição da Base — vale em toda persona */
+const BLOCK_SAVES_BASE_SCORE = 20;
+/** atacar com o <Blocker> que segura a Base — vale em toda persona */
+const ATTACK_DOOMS_BASE_SCORE = -10;
+
+function safetyBlockScore(ctx: ZeroCtx, blockerId: string): number | null {
+  const combat = ctx.view.combat;
+  if (!combat || combat.currentTarget !== "player") return null;
+  const attacker = byId(ctx.oppUnits, combat.attackerId);
+  const blocker = byId(ctx.myUnits, blockerId);
+  if (!attacker || !blocker) return null;
+  const atkAp = effectiveAp(attacker, ctx.state);
+  if (atkAp <= 0) return null;
+  const survives = remHp(blocker, ctx.state) > atkAp ? 5 : 0;
+  if (!ctx.myBase && ctx.myShieldCount === 0) return BLOCK_PREVENTS_LOSS_SCORE + survives;
+  if (ctx.myBase && remHp(ctx.myBase, ctx.state) <= atkAp) return BLOCK_SAVES_BASE_SCORE + survives;
+  return null;
 }
 
 // --- AMURO RAY (Controle, Preservação, Auras, Blocker) ---
@@ -233,7 +255,6 @@ function scoreAttackAmuro(ctx: ZeroCtx, attackerId: string, target: AttackTarget
   const atkHpRem = remHp(attacker, ctx.state);
 
   if (target === "player") {
-    if (playerAttackWouldDoomBase(ctx, attacker)) return -10;
     // Se o atacante for blocker e o inimigo tem muitas unidades prontas, guarda
     if (hasKeyword(attacker, "Blocker", ctx.state) && ctx.oppUnits.length > ctx.myUnits.length) {
       return 4;
@@ -494,16 +515,24 @@ function scoreZeroAction(action: LegalAction, _index: number, ctx: ZeroCtx): num
       return score;
     }
     case "activateBlocker": {
-      if (ctx.resolvedPersona === "amuro") return scoreBlockAmuro(ctx, action.blockerId);
-      if (ctx.resolvedPersona === "char") return scoreBlockChar(ctx, action.blockerId);
-      if (ctx.resolvedPersona === "treize") return scoreBlockTreize(ctx, action.blockerId);
-      return scoreBlockHeero(ctx, action.blockerId);
+      const persona =
+        ctx.resolvedPersona === "amuro"
+          ? scoreBlockAmuro(ctx, action.blockerId)
+          : ctx.resolvedPersona === "char"
+            ? scoreBlockChar(ctx, action.blockerId)
+            : ctx.resolvedPersona === "treize"
+              ? scoreBlockTreize(ctx, action.blockerId)
+              : scoreBlockHeero(ctx, action.blockerId);
+      const safety = safetyBlockScore(ctx, action.blockerId);
+      return safety === null ? persona : Math.max(persona, safety);
     }
     case "declareAttack": {
       if (ctx.lethal && action.target === "player") {
         const attacker = byId(ctx.myUnits, action.attackerId);
         return LETHAL_ATTACK_SCORE + (attacker ? effectiveAp(attacker, ctx.state) : 0);
       }
+      const guard = byId(ctx.myUnits, action.attackerId);
+      if (guard && attackWouldDoomBase(ctx, guard)) return ATTACK_DOOMS_BASE_SCORE;
       if (ctx.resolvedPersona === "amuro") return scoreAttackAmuro(ctx, action.attackerId, action.target);
       if (ctx.resolvedPersona === "char") return scoreAttackChar(ctx, action.attackerId, action.target);
       if (ctx.resolvedPersona === "treize") return scoreAttackTreize(ctx, action.attackerId, action.target);
