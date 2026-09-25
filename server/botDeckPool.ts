@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { UserDeckInput } from "../src/modules/simulator/content/userDeckBuilder.ts";
 import type { PoolFileDeck } from "../src/modules/simulator/fixtures/benchmarkDeckPools.ts";
@@ -12,6 +13,7 @@ import { checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
  */
 
 export interface DbDeckCandidate {
+  /** id interno (só pra relatório de rejeição local; não sai no pool) */
   id: string;
   label: string;
   source: "tournament" | "public";
@@ -30,6 +32,15 @@ export interface BotDeckPoolResult {
   decks: PoolFileDeck[];
   rejected: RejectedDeck[];
   duplicates: number;
+}
+
+/**
+ * id público do deck no pool: hash da lista, estável e opaco. NUNCA o id do banco
+ * (`TournamentEntry`/`Deck`): ele vai pra fixture no git e o jogador vê o id do
+ * deck do bot no fim da partida.
+ */
+export function publicPoolDeckId(list: DeckList): string {
+  return `POOL-${createHash("sha256").update(signature(list)).digest("hex").slice(0, 10).toUpperCase()}`;
 }
 
 function signature(list: DeckList): string {
@@ -68,7 +79,7 @@ export function buildBotDeckPool(candidates: DbDeckCandidate[], opts: { max: num
   }
 
   const decks = [...bySignature.values()].slice(0, opts.max).map(({ candidate, list }) => ({
-    id: candidate.id,
+    id: publicPoolDeckId(list),
     label: candidate.label,
     source: candidate.source,
     archetype: candidate.archetype ?? null,

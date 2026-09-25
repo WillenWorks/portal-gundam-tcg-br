@@ -3,8 +3,9 @@
  * Pool de decks do bot a partir do banco (spec bot-dados-pool) — SÓ LEITURA.
  * Listas de torneio (`TournamentEntry → DeckSnapshot`) + decks `PUBLIC`, com o
  * mesmo gate de cobertura do Treino Solo; dedupe por lista; opcionalmente soma os
- * pools fixos. Grava `docs/bot/pool-db-AAAA-MM-DD.json` (entrada de
- * `gundam:bot:matchups --pool-file=` e da fixture do counter).
+ * pools fixos. Nenhum id do banco nem nome de jogador sai no arquivo: cada deck recebe
+ * um id opaco (hash da lista). Grava `docs/bot/pool-db-AAAA-MM-DD.json` (entrada de
+ * `gundam:bot:matchups --pool=<arquivo>` e da fixture do counter).
  *
  *   pnpm gundam:bot:pool-export
  *   pnpm gundam:bot:pool-export -- --max=40 --with-fixed --no-public
@@ -38,6 +39,7 @@ let candidates = [];
 try {
   const entries = await prisma.tournamentEntry.findMany({
     where: { deckSnapshotId: { not: null }, tournament: { deletedAt: null } },
+    orderBy: { id: "asc" },
     include: { tournament: { select: { name: true } }, deckSnapshot: { include: itemInclude } },
   });
   for (const e of entries) {
@@ -52,7 +54,7 @@ try {
     });
   }
   if (includePublic) {
-    const decks = await prisma.deck.findMany({ where: { visibility: "PUBLIC" }, include: itemInclude });
+    const decks = await prisma.deck.findMany({ where: { visibility: "PUBLIC" }, orderBy: { id: "asc" }, include: itemInclude });
     for (const d of decks) candidates.push({ id: `D-${d.id}`, label: d.name, source: "public", deck: { name: d.name, items: d.items } });
   }
 } catch (err) {
@@ -72,5 +74,5 @@ console.log(`[pool-export] matriz: ${decks.length} decks → ${pairs} pares (10 
 const date = new Date().toISOString().slice(0, 10);
 const outPath = path.resolve(ROOT, String(args.out ?? `docs/bot/pool-db-${date}.json`));
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
-fs.writeFileSync(outPath, `${JSON.stringify({ date, decks, rejected: result.rejected, duplicates: result.duplicates }, null, 2)}\n`);
+fs.writeFileSync(outPath, `${JSON.stringify({ date, decks, rejected: result.rejected.map(({ label, reason }) => ({ label, reason })), duplicates: result.duplicates }, null, 2)}\n`);
 console.log(`[pool-export] relatório: ${path.relative(ROOT, outPath)}`);

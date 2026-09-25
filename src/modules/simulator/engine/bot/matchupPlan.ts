@@ -16,6 +16,8 @@ export interface GameResult {
   index: number;
   a: number;
   b: number;
+  /** seed da partida — pra reproduzir uma excluída */
+  seed?: number;
   /** pontos do deck do assento A (1 vitória, 0,5 empate/sem vencedor); ausente se excluída */
   scoreA?: number;
   error?: string;

@@ -37,7 +37,7 @@ export function runPlannedGames({ poolSpec, level, maxTurns, games }, onResult) 
       ...opts,
     });
     if (result.crashed || result.illegalState) {
-      onResult({ index: g.index, a: g.a, b: g.b, error: result.crashed?.error ?? result.illegalState });
+      onResult({ index: g.index, a: g.a, b: g.b, seed: g.seed, error: result.crashed?.error ?? result.illegalState });
     } else {
       onResult({ index: g.index, a: g.a, b: g.b, scoreA: result.winner === "A" ? 1 : result.winner === "B" ? 0 : 0.5 });
     }

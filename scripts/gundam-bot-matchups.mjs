@@ -70,11 +70,13 @@ if (parts.length === 1) {
   runPlannedGames({ poolSpec, level, maxTurns, games: plan }, onResult);
 } else {
   const workerUrl = new URL(pathToFileURL(path.join(ROOT, "scripts/lib/matchupWorker.mjs")));
+  const workerList = [];
   await Promise.all(
     parts.map(
       (part) =>
         new Promise((resolve, reject) => {
           const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, level, maxTurns, games: part } });
+          workerList.push(worker);
           worker.on("message", (msg) => {
             if (msg.type === "result") onResult(msg.result);
             else if (msg.type === "done") resolve();
@@ -83,10 +85,18 @@ if (parts.length === 1) {
           worker.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`worker saiu com código ${code}`))));
         }),
     ),
-  );
+  ).catch(async (err) => {
+    // um worker falhou: para os outros em vez de deixá-los gastando CPU
+    await Promise.all(workerList.map((w) => w.terminate()));
+    console.error(`[matchups] ${err instanceof Error ? err.message : err}`);
+    process.exit(1);
+  });
 }
 
-const { wins, played, rate, excluded } = aggregateMatchups(ids.length, results);
+const aggregate = aggregateMatchups(ids.length, results);
+const { wins, played, rate } = aggregate;
+// no relatório, decks pelo id (não pelo índice) + seed, como a escada faz
+const excluded = aggregate.excluded.map((r) => ({ deckA: ids[r.a], deckB: ids[r.b], seed: r.seed, error: r.error }));
 const average = ids.map((id, i) => {
   const rates = rate[i].filter((r) => r !== null);
   return { id, average: rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : null };

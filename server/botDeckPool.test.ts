@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
 import type { UserDeckInput } from "../src/modules/simulator/content/userDeckBuilder.ts";
-import { buildBotDeckPool, type DbDeckCandidate } from "./botDeckPool.ts";
+import { buildBotDeckPool, publicPoolDeckId, type DbDeckCandidate } from "./botDeckPool.ts";
 
 /** deck validado → formato do banco (itens agrupados por código) */
 function asUserDeck(id: keyof typeof VALIDATED_DECKS): UserDeckInput {
@@ -41,7 +41,8 @@ describe("buildBotDeckPool", () => {
       ],
       { max: 10 },
     );
-    expect(decks.map((d) => d.id)).toEqual(["t-1"]);
+    expect(decks).toHaveLength(1);
+    expect(decks[0].placement).toBe(1);
     expect(duplicates).toBe(2);
   });
 
@@ -62,6 +63,27 @@ describe("buildBotDeckPool", () => {
       ],
       { max: 1 },
     );
-    expect(decks.map((d) => d.id)).toEqual(["t"]);
+    expect(decks.map((d) => d.source)).toEqual(["tournament"]);
+  });
+
+  it("id público é hash da lista, sem o id do banco, e estável", () => {
+    const { decks } = buildBotDeckPool([candidate({ id: "cuid-secreto-123", label: "Deck do torneio X", deck: asUserDeck("ST01") })], { max: 10 });
+    expect(decks[0].id).toMatch(/^POOL-[0-9A-F]{10}$/);
+    expect(JSON.stringify(decks)).not.toContain("cuid-secreto-123");
+    expect(decks[0].id).toBe(publicPoolDeckId(VALIDATED_DECKS.ST01.build()));
+  });
+
+  it("lista ilegal (5 cópias) → rejeitada com motivo de legalidade", () => {
+    const deck = asUserDeck("ST01");
+    const main = deck.items.filter((i) => i.section === "main");
+    // tira 1 cópia de outra carta e dá 1 a mais pra primeira até ela ter 5 (mantém 50 cartas)
+    while (main[0].quantity < 5) {
+      const donor = main.find((i, k) => k > 0 && i.quantity > 1) ?? main[1];
+      donor.quantity--;
+      main[0].quantity++;
+    }
+    const { decks, rejected } = buildBotDeckPool([candidate({ id: "ilegal", deck })], { max: 10 });
+    expect(decks).toEqual([]);
+    expect(rejected[0].reason).toMatch(/ilegal|cópias|copies|4/i);
   });
 });
