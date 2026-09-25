@@ -183,7 +183,7 @@ export interface EvalWeights {
   readyBlockerHp: number;
 }
 
-export const EVAL_WEIGHTS: EvalWeights = {
+export const EVAL_WEIGHTS: Readonly<EvalWeights> = {
   shield: 3,
   baseHp: 1.2,
   durableBoard: 0.5,
