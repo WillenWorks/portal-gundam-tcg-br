@@ -140,3 +140,28 @@ describe("E12 — 'another Unit' com fonte Pilot", () => {
     expect(isBoardConditionMet(state, "A", cond, pilotId)).toBe(true);
   });
 });
+
+describe("E5 — descarte depois de compra dentro de condition.then", () => {
+  it("as cartas compradas no 'then' entram como candidatas ao descarte", async () => {
+    const { discardCandidateHandIds } = await import("./effectSpec");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const spec = {
+      id: "X-DRAW",
+      cardCode: "X-DRAW",
+      trigger: "Deploy",
+      condition: {
+        predicate: "always",
+        then: [
+          { op: "draw" as const, player: "controller" as const, n: 2 },
+          { op: "discardNamed" as const, player: "controller" as const, name: "discard", n: 1 },
+        ],
+      },
+      actions: [],
+      sourceText: "x",
+    };
+    const top2 = state.players.A.deck.slice(0, 2).map((c) => c.instanceId);
+    // `specActiveCalls` devolve actions + ramo; aqui actions é vazio
+    const ids = discardCandidateHandIds(spec, state, "A", undefined, [...spec.actions, ...spec.condition.then]);
+    expect(ids).toEqual(expect.arrayContaining(top2));
+  });
+});

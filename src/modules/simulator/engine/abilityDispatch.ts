@@ -114,7 +114,7 @@ function buildQueueEntry(
   }
 
   if (choice.op === "discardNamed") {
-    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets);
+    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls);
     // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
     // (custo com filtro): restringe os candidatos, se o spec pedir.
     const legalHandIds = choice.filter ? rawCandidates.filter((id) => matchesCardDefFilter(findCard(state, id).def, choice.filter!)) : rawCandidates;
