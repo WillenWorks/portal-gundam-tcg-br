@@ -1,6 +1,6 @@
 import type { CardDef } from "../types";
 import type { DeckList } from "../setup";
-import { deckPool, type BenchmarkDeck } from "../../fixtures/benchmarkDeckPools";
+import { deckPool, poolFromFile, type BenchmarkDeck } from "../../fixtures/benchmarkDeckPools";
 import { analyzeOpponentDeck, recommendCounterPersona, type OpponentDeckProfile } from "./zeroCounterDeckBuilder";
 
 /**
@@ -24,6 +24,21 @@ export interface MatchupTable {
    * par, o melhor de 13 candidatos pela taxa crua tende a ser sorte.
    */
   gamesPerPair?: number;
+  /**
+   * listas (em códigos) dos decks da matriz quando ela veio de um pool de arquivo
+   * (decks do banco): o servidor não conhece esses decks de outro jeito
+   */
+  lists?: Record<string, { main: string[]; resources: string[] }>;
+}
+
+/** pool que a tabela descreve: as listas embutidas ou, sem elas, o pool fixo `all` */
+export function poolForTable(table: MatchupTable): BenchmarkDeck[] {
+  if (!table.lists) return deckPool("all");
+  const lists = table.lists;
+  return poolFromFile({
+    date: "",
+    decks: table.decks.filter((id) => lists[id]).map((id) => ({ id, label: id, source: "fixed" as const, list: lists[id] })),
+  });
 }
 
 /** peso (em partidas) da média do candidato na taxa ajustada do confronto */
@@ -112,7 +127,7 @@ function averageRate(table: MatchupTable, row: number): number {
   return rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
 }
 
-export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, pool: BenchmarkDeck[] = deckPool("all")): ZeroCounterResult {
+export function counterForPlayerDeck(playerDeck: DeckList, table: MatchupTable, pool: BenchmarkDeck[] = poolForTable(table)): ZeroCounterResult {
   const inTable = pool.filter((d) => table.decks.includes(d.id));
   if (inTable.length === 0) throw new Error("counterForPlayerDeck: nenhum deck do pool está na matriz de confrontos");
   const profile = analyzeOpponentDeck(playerDeck);

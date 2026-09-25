@@ -1,30 +1,33 @@
 #!/usr/bin/env node
 /**
- * Matriz de confrontos entre os decks do pool (spec bot-zero-system-forte): para
- * cada par de decks, N partidas com o mesmo nível nos dois lados (assento
- * alternado), taxa do deck da linha contra o da coluna. Base do counter do Zero
- * System (escolhe o melhor deck contra o deck do jogador) e do baseline "melhor
- * deck meta fixo". Grava `docs/bot/matchups-AAAA-MM-DD.json`.
+ * Matriz de confrontos entre os decks do pool (spec bot-zero-system-forte /
+ * bot-dados-pool): para cada par de decks, N partidas com o mesmo nível nos dois
+ * lados (assento alternado), taxa do deck da linha contra o da coluna. Base do
+ * counter do Zero System. Em paralelo com `--workers` — mesmo resultado que em
+ * série (cada partida tem seed e assento fixos). Grava `docs/bot/matchups-AAAA-MM-DD.json`.
  *
  *   pnpm gundam:bot:matchups
- *   pnpm gundam:bot:matchups -- --level=normal --games=10 --pool=all --seed=1
+ *   pnpm gundam:bot:matchups -- --pool=all --games=10 --workers=4
+ *   pnpm gundam:bot:matchups -- --pool=docs/bot/pool-db-2026-09-25.json
  */
 import { register } from "tsx/esm/api";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { Worker } from "node:worker_threads";
 
 register();
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const sim = (p) => pathToFileURL(path.join(ROOT, "src/modules/simulator", p)).href;
+const runnerUrl = pathToFileURL(path.join(ROOT, "scripts/lib/matchupRunner.mjs")).href;
 
-const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
-const { deckPool, BENCHMARK_POOLS } = await import(sim("fixtures/benchmarkDeckPools.ts"));
-const { runSelfPlay } = await import(sim("engine/selfPlay.ts"));
-const { MEASURABLE_LEVELS, policyForLevel } = await import(sim("engine/bot/levelPolicies.ts"));
+const { MEASURABLE_LEVELS } = await import(sim("engine/bot/levelPolicies.ts"));
+const { planMatchupGames, splitForWorkers, aggregateMatchups, defaultWorkerCount } = await import(sim("engine/bot/matchupPlan.ts"));
+const { resolvePool, runPlannedGames } = await import(runnerUrl);
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -33,72 +36,65 @@ const args = Object.fromEntries(
   }),
 );
 const level = String(args.level ?? "normal");
-const pool = String(args.pool ?? "all");
+const poolSpec = String(args.pool ?? "all");
 const games = Number(args.games ?? 10);
 const seed = Number(args.seed ?? 1);
 const maxTurns = Number(args.maxTurns ?? 40);
+const workers = args.workers ? Number(args.workers) : defaultWorkerCount({ cpus: os.cpus().length, freeMemBytes: os.freemem() });
 if (!MEASURABLE_LEVELS.includes(level)) {
   console.error(`[matchups] nível desconhecido "${level}" — use ${MEASURABLE_LEVELS.join(", ")}`);
   process.exit(2);
 }
-if (!BENCHMARK_POOLS.includes(pool)) {
-  console.error(`[matchups] pool desconhecido "${pool}" — use ${BENCHMARK_POOLS.join(", ")}`);
+
+let decks;
+try {
+  decks = resolvePool(poolSpec);
+} catch (err) {
+  console.error(`[matchups] ${err instanceof Error ? err.message : err}`);
   process.exit(2);
 }
-
-const opts = { specs: ALL_EFFECT_SPECS, predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
-const decks = deckPool(pool);
 const ids = decks.map((d) => d.id);
-// wins[i][j] = vitórias do deck i contra o j (empate = 0,5); games[i][j] = partidas válidas
-const wins = ids.map(() => ids.map(() => 0));
-const played = ids.map(() => ids.map(() => 0));
-const excluded = [];
-const pairs = (ids.length * (ids.length - 1)) / 2;
-const total = pairs * games;
+const plan = planMatchupGames({ decks: ids.length, gamesPerPair: games, seed });
+const parts = splitForWorkers(plan, workers);
 const started = Date.now();
-let done = 0;
-let gameIndex = 0;
-console.log(`[matchups] nível=${level} pool=${pool} (${ids.length} decks) partidas/par=${games} total=${total}`);
-
-for (let i = 0; i < ids.length; i++) {
-  for (let j = i + 1; j < ids.length; j++) {
-    for (let g = 0; g < games; g++) {
-      // assento alternado: metade das partidas o deck i começa como A
-      const iIsA = g % 2 === 0;
-      const [a, b] = iIsA ? [i, j] : [j, i];
-      const s = seed * 100_003 + gameIndex++;
-      const result = runSelfPlay({
-        deckA: decks[a].build(),
-        deckB: decks[b].build(),
-        seed: s,
-        maxTurns,
-        policyA: policyForLevel(level, opts),
-        policyB: policyForLevel(level, opts),
-        ...opts,
-      });
-      done++;
-      if (result.crashed || result.illegalState) {
-        excluded.push({ a: ids[a], b: ids[b], seed: s, error: result.crashed?.error ?? result.illegalState });
-      } else {
-        const scoreA = result.winner === "A" ? 1 : result.winner === "B" ? 0 : 0.5;
-        wins[a][b] += scoreA;
-        wins[b][a] += 1 - scoreA;
-        played[a][b]++;
-        played[b][a]++;
-      }
-      if (done % 20 === 0 || done === total) console.log(`[matchups] ${done}/${total} — ${((Date.now() - started) / 1000).toFixed(0)}s`);
-    }
+const results = [];
+const onResult = (r) => {
+  results.push(r);
+  if (results.length % 20 === 0 || results.length === plan.length) {
+    console.log(`[matchups] ${results.length}/${plan.length} — ${((Date.now() - started) / 1000).toFixed(0)}s`);
   }
+};
+console.log(`[matchups] nível=${level} pool=${poolSpec} (${ids.length} decks) partidas/par=${games} total=${plan.length} workers=${parts.length}`);
+
+if (parts.length === 1) {
+  runPlannedGames({ poolSpec, level, maxTurns, games: plan }, onResult);
+} else {
+  const workerUrl = new URL(pathToFileURL(path.join(ROOT, "scripts/lib/matchupWorker.mjs")));
+  await Promise.all(
+    parts.map(
+      (part) =>
+        new Promise((resolve, reject) => {
+          const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, level, maxTurns, games: part } });
+          worker.on("message", (msg) => {
+            if (msg.type === "result") onResult(msg.result);
+            else if (msg.type === "done") resolve();
+          });
+          worker.on("error", reject);
+          worker.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`worker saiu com código ${code}`))));
+        }),
+    ),
+  );
 }
 
-const rate = ids.map((_, i) => ids.map((_, j) => (i === j || played[i][j] === 0 ? null : wins[i][j] / played[i][j])));
+const { wins, played, rate, excluded } = aggregateMatchups(ids.length, results);
 const average = ids.map((id, i) => {
   const rates = rate[i].filter((r) => r !== null);
-  return { id, average: rates.reduce((s, r) => s + r, 0) / rates.length };
+  return { id, average: rates.length ? rates.reduce((s, r) => s + r, 0) / rates.length : null };
 });
-average.sort((x, y) => y.average - x.average);
+average.sort((x, y) => (y.average ?? -1) - (x.average ?? -1));
 console.log("\n[matchups] taxa média contra o pool:");
-for (const a of average) console.log(`  ${a.id.padEnd(28)} ${(a.average * 100).toFixed(1)}%`);
+for (const a of average) console.log(`  ${a.id.padEnd(28)} ${a.average === null ? "-" : `${(a.average * 100).toFixed(1)}%`}`);
+if (excluded.length) console.log(`[matchups] ${excluded.length} partida(s) excluída(s) (crash/estado ilegal)`);
 
 let commit = "desconhecido";
 try {
@@ -111,6 +107,6 @@ const outPath = path.resolve(ROOT, String(args.out ?? `docs/bot/matchups-${date}
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(
   outPath,
-  `${JSON.stringify({ date, commit, params: { level, pool, gamesPerPair: games, seed, maxTurns }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded }, null, 2)}\n`,
+  `${JSON.stringify({ date, commit, params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded }, null, 2)}\n`,
 );
 console.log(`\n[matchups] relatório: ${path.relative(ROOT, outPath)}`);

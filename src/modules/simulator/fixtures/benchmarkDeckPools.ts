@@ -1,6 +1,7 @@
 import type { DeckList } from "../engine/setup";
 import { validatedDeckList } from "../content/validatedDecks";
 import { META_DECKS_GD02_ERA } from "./metaDecksGd02Era";
+import { getCardDefByCode } from "../content/allCardDefs";
 
 /**
  * Pools de decks das réguas de força do bot (spec bot-avaliacao-forca):
@@ -55,4 +56,45 @@ export function deckPool(pool: BenchmarkPool): BenchmarkDeck[] {
     default:
       throw new Error(`Pool de decks desconhecido "${String(pool)}" — use ${BENCHMARK_POOLS.join(", ")}`);
   }
+}
+
+/** deck de um arquivo de pool (`gundam:bot:pool-export`): lista em códigos de carta */
+export interface PoolFileDeck {
+  id: string;
+  label: string;
+  /** de onde veio: torneio, deck público do site ou pool fixo */
+  source: "tournament" | "public" | "fixed";
+  archetype?: string | null;
+  /** melhor colocação em torneio (quando veio de um) */
+  placement?: number | null;
+  list: { main: string[]; resources: string[] };
+}
+
+export interface PoolFile {
+  date: string;
+  decks: PoolFileDeck[];
+}
+
+function defsFromCodes(codes: string[], deckId: string) {
+  return codes.map((code) => {
+    const def = getCardDefByCode(code);
+    if (!def) throw new Error(`deck ${deckId}: carta ${code} fora do catálogo do simulador`);
+    return def;
+  });
+}
+
+/** pool a partir do JSON exportado (decks do banco) — mesmo formato dos pools nomeados */
+export function poolFromFile(file: PoolFile): BenchmarkDeck[] {
+  return file.decks.map((d) => ({
+    id: d.id,
+    label: d.label,
+    knownGaps: [],
+    build: () => ({ main: defsFromCodes(d.list.main, d.id), resources: defsFromCodes(d.list.resources, d.id) }),
+  }));
+}
+
+/** deck do pool → formato de arquivo (pra incluir os pools fixos num export e na fixture do counter) */
+export function toPoolFileDeck(deck: BenchmarkDeck, source: PoolFileDeck["source"] = "fixed"): PoolFileDeck {
+  const list = deck.build();
+  return { id: deck.id, label: deck.label, source, list: { main: list.main.map((c) => c.code), resources: list.resources.map((c) => c.code) } };
 }

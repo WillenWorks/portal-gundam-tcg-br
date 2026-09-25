@@ -229,3 +229,28 @@ o candidato × planejador com os pesos atuais, 60 partidas por candidato no pool
 num ótimo local para variações de ×0,5 / ×1,6 — pela regra do spec a fase A **não liga nada** no
 Zero System. O ganho de força do Zero System não está nos pesos da avaliação: próximos candidatos são
 avaliação aprendida (features × resultado de self-play) ou mais busca com orçamento maior.
+
+## Dados cadastrados → counter do Zero System (preparo, 2026-09-25)
+
+Spec `bot-dados-pool`. Pronto pra quando houver mais decks e torneios no site:
+
+```
+pnpm gundam:bot:refresh                      # banco → pool → matriz (paralelo) → fixture
+pnpm gundam:bot:refresh -- --validate=8      # + validação com o difícil (horas)
+pnpm gundam:bot:refresh -- --pool=<arquivo>  # sem ler o banco
+```
+
+- `gundam:bot:pool-export` (só leitura): listas de torneio (`TournamentEntry → DeckSnapshot`) +
+  decks `PUBLIC`, com o mesmo gate de cobertura do Treino Solo e legalidade; mesma lista em vários
+  lugares vira uma (fica a melhor colocação); `--with-fixed` soma os 14 decks fixos; `--max` (40).
+- `gundam:bot:matchups --pool=<nome|arquivo> --workers=N`: default `min(núcleos−1, memória livre /
+  1,5 GB, 6)`. Mede **sem tetos de tempo** (`policyForLevel(..., { timeBudgets: false })`): a decisão
+  não depende da carga da máquina, então série e paralelo dão a **mesma matriz** (conferido: starters,
+  2 partidas/par, 383 s em série × 268 s com 2 workers, matrizes idênticas). O produto segue com os tetos.
+- A fixture do counter leva as **listas** quando a matriz vem de arquivo (`MatchupTable.lists`): o
+  servidor monta o counter a partir delas, sem depender dos decks fixos.
+- A fixture só muda no produto num commit revisado — o refresh não publica nada sozinho.
+
+**Partidas reais já são dataset:** `SimulatorMatchLog` guarda, por partida encerrada, os dois decks, a
+seed, a versão do motor e todas as ações — dá pra reproduzir lance a lance e treinar uma avaliação
+aprendida no futuro (nada novo a gravar).

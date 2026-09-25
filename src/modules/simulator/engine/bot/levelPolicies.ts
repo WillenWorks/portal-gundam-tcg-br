@@ -42,16 +42,25 @@ export interface LevelPolicyOptions {
   persona?: ZeroSystemPersona;
   /** sobrescreve os rollouts do difícil (a escada usa menos pra caber no tempo; o relatório registra) */
   mctsRollouts?: number;
+  /**
+   * `false` desliga os tetos de tempo (lookahead, planejador, MCTS): a decisão passa a
+   * depender só do estado e da seed, não da carga da máquina. Pra MEDIÇÃO (matriz em
+   * paralelo); o produto usa os tetos (default).
+   */
+  timeBudgets?: boolean;
 }
 
 export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfPlayPolicy {
   // Lookahead de efeitos (spec bot-lookahead-efeitos) nos níveis que o bot real usa;
   // cada chamada cria uma instância nova (o contador de ativações é por instância).
+  const unbounded = opts.timeBudgets === false;
   const lookahead = {
     specs: opts.specs,
     predicateResolver: opts.predicateResolver,
     targetFilterResolver: opts.targetFilterResolver,
+    ...(unbounded ? { budgetMs: Number.POSITIVE_INFINITY } : {}),
   };
+  const mctsBudget = (ms: number): number | undefined => (unbounded ? undefined : ms);
   const mcts = {
     rollouts: opts.mctsRollouts ?? DIFICIL_ROLLOUTS,
     depthTurns: DIFICIL_DEPTH_TURNS,
@@ -60,7 +69,8 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
     targetFilterResolver: opts.targetFilterResolver,
   };
   // spec bot-planejamento-turno: heurística normal + planejador de turno na Main Phase
-  const planner = (budgetMs?: number) => turnPlannerPolicy(heuristicPolicy({ level: "normal", lookahead }), { ...lookahead, budgetMs });
+  const planner = (budgetMs?: number) =>
+    turnPlannerPolicy(heuristicPolicy({ level: "normal", lookahead }), { ...lookahead, budgetMs: unbounded ? Number.POSITIVE_INFINITY : budgetMs });
   switch (level) {
     case "random":
       return randomLegal;
@@ -73,7 +83,7 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
       // MCTS ancorado no planejador (docs/bot/README.md: ~+310 Elo sobre o normal v1).
       // O Zero System joga igual ao difícil; o diferencial dele é o counter do deck
       // do jogador (spec bot-zero-system-forte). A persona só orienta o counter/aviso.
-      return mctsPolicy({ ...mcts, anchor: planner(DIFICIL_PLAN_BUDGET_MS), budgetMs: DIFICIL_BUDGET_MS });
+      return mctsPolicy({ ...mcts, anchor: planner(DIFICIL_PLAN_BUDGET_MS), budgetMs: mctsBudget(DIFICIL_BUDGET_MS) });
     case "zero_personas":
       return zeroSystemPolicy({ persona: opts.persona ?? "adaptive", lookahead });
     case "normal_v1":
@@ -89,7 +99,7 @@ export function policyForLevel(level: BotLevel, opts: LevelPolicyOptions): SelfP
         ...mcts,
         rollouts: 2 * (opts.mctsRollouts ?? DIFICIL_ROLLOUTS),
         anchor: planner(DIFICIL_PLAN_BUDGET_MS),
-        budgetMs: 2 * DIFICIL_BUDGET_MS,
+        budgetMs: mctsBudget(2 * DIFICIL_BUDGET_MS),
       });
     default:
       throw new Error(`policyForLevel: nível desconhecido "${String(level)}"`);

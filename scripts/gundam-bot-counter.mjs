@@ -34,6 +34,14 @@ const args = Object.fromEntries(
 const FIXTURE = path.join(ROOT, "src/modules/simulator/fixtures/zeroCounterMatchups.ts");
 if (args.matrix) {
   const matrix = JSON.parse(fs.readFileSync(path.resolve(ROOT, String(args.matrix)), "utf8"));
+  // matriz de um pool de arquivo (decks do banco): a fixture leva as listas, senão o
+  // servidor não tem como montar esses decks
+  const { BENCHMARK_POOLS } = await import(pathToFileURL(path.join(ROOT, "src/modules/simulator/fixtures/benchmarkDeckPools.ts")).href);
+  let lists;
+  if (!BENCHMARK_POOLS.includes(matrix.params.pool)) {
+    const poolFile = JSON.parse(fs.readFileSync(path.resolve(ROOT, matrix.params.pool), "utf8"));
+    lists = Object.fromEntries(poolFile.decks.filter((d) => matrix.decks.includes(d.id)).map((d) => [d.id, d.list]));
+  }
   const body = `import type { MatchupTable } from "../engine/bot/zeroCounter";
 
 /**
@@ -42,7 +50,7 @@ if (args.matrix) {
  * a partir de ${path.basename(String(args.matrix))} (nível ${matrix.params.level},
  * ${matrix.params.gamesPerPair} partidas/par, commit ${matrix.commit}) — não editar à mão.
  */
-export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, gamesPerPair: matrix.params.gamesPerPair, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))) }, null, 2)};
+export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: matrix.decks, gamesPerPair: matrix.params.gamesPerPair, rate: matrix.rate.map((row) => row.map((r) => (r === null ? null : Math.round(r * 1000) / 1000))), ...(lists ? { lists } : {}) }, null, 2)};
 `;
   if (args["write-fixture"]) {
     fs.writeFileSync(FIXTURE, body);
@@ -52,9 +60,8 @@ export const ZERO_COUNTER_MATCHUPS: MatchupTable = ${JSON.stringify({ decks: mat
 }
 
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
-const { deckPool } = await import(sim("fixtures/benchmarkDeckPools.ts"));
 const { ZERO_COUNTER_MATCHUPS } = await import(sim("fixtures/zeroCounterMatchups.ts"));
-const { counterForPlayerDeck } = await import(sim("engine/bot/zeroCounter.ts"));
+const { counterForPlayerDeck, poolForTable } = await import(sim("engine/bot/zeroCounter.ts"));
 const { wilsonInterval } = await import(sim("engine/bot/ladder.ts"));
 const { runSelfPlay } = await import(sim("engine/selfPlay.ts"));
 const { MEASURABLE_LEVELS, policyForLevel } = await import(sim("engine/bot/levelPolicies.ts"));
@@ -72,7 +79,8 @@ const games = Number(args.games ?? 8);
 const seed = Number(args.seed ?? 7);
 const maxTurns = Number(args.maxTurns ?? 40);
 const opts = { specs: ALL_EFFECT_SPECS, predicateResolver: defaultPredicateResolver, targetFilterResolver: defaultTargetFilterResolver };
-const pool = deckPool("all");
+// os decks da matriz (pool fixo ou listas embutidas na fixture)
+const pool = poolForTable(ZERO_COUNTER_MATCHUPS);
 const byId = new Map(pool.map((d) => [d.id, d]));
 let gameIndex = 0;
 const started = Date.now();
