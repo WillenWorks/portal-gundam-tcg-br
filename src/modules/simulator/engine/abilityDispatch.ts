@@ -321,17 +321,20 @@ export function deferOrDispatchAbilities(
 export function collectDestroyed(before: GameState, after: GameState): DestroyedInBattle[] {
   const out: DestroyedInBattle[] = [];
   for (const pid of ["A", "B"] as PlayerId[]) {
-    const stillInPlay = new Set(after.players[pid].battleArea.map((c) => c.instanceId));
+    const stillInPlay = new Set([...after.players[pid].battleArea, ...after.players[pid].baseSection].map((c) => c.instanceId));
     const inTrashNow = new Set(after.players[pid].trash.map((c) => c.instanceId));
-    for (const card of before.players[pid].battleArea) {
+    // Base também tem 【Destroyed】 (GD02-126/127) — antes só a Battle Area era vista
+    for (const card of [...before.players[pid].battleArea, ...before.players[pid].baseSection]) {
       if (stillInPlay.has(card.instanceId)) continue;
       if (!inTrashNow.has(card.instanceId)) continue;
-      const pilot = card.pairedPilotId ? findCard(before, card.pairedPilotId) : undefined;
-      const wasLinkUnit = !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), card.def);
+      // Pilot destruído: o par é pelo `pairedUnitId` (o `pairedPilotId` só existe na Unit)
+      const pilot = card.pairedPilotId ? findCard(before, card.pairedPilotId) : card.pairedUnitId ? card : undefined;
+      const unit = card.pairedUnitId ? findCard(before, card.pairedUnitId) : card;
+      const wasLinkUnit = !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
       out.push({
         instanceId: card.instanceId,
         owner: pid,
-        wasPaired: !!card.pairedPilotId,
+        wasPaired: !!card.pairedPilotId || !!card.pairedUnitId,
         wasLinkUnit,
         formerPairedPilotId: card.pairedPilotId,
       });

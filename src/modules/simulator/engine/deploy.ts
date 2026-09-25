@@ -274,15 +274,19 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       );
       if (next.pendingDecision.A || next.pendingDecision.B) return next;
       // 【When Linked】 (ST04-011 Athrun Zala) — dispara só quando o pareamento
-      // resultante forma uma Link Unit (3-2-6). "this Unit" no texto do Pilot =
-      // a Unit pareada; a fonte do EffectSpec é o próprio Pilot.
+      // resultante forma uma Link Unit (3-2-6). O texto pode estar no Pilot ("this Unit" =
+      // a Unit pareada) OU na própria Unit (ST06-001 GQuuuuuuX) — as duas são fonte, igual
+      // ao 【When Paired】 acima (antes só o Pilot era despachado e o da Unit nunca disparava).
       const pairedUnit = findCard(next, options.pairWithUnitId);
       if (satisfiesLinkCondition(effectivePilotDef(findCard(next, cardInstanceId)), pairedUnit.def)) {
         next = deferOrDispatchAbilities(
           next,
           player,
           "When Linked",
-          [{ code: def.code, instanceId: cardInstanceId }],
+          [
+            { code: pairedUnit.def.code, instanceId: options.pairWithUnitId },
+            { code: def.code, instanceId: cardInstanceId },
+          ],
           specs,
           { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
         );
