@@ -89,9 +89,17 @@ export function humanizedThinkDelay() {
 export async function driveBotTurn({ initialState, seat, level, persona = "adaptive", seed, commit, beforeCommit, maxActions = DEFAULT_MAX_ACTIONS }) {
   let policy;
   let neuralHandle = null;
+  // Lookahead de efeitos (spec bot-lookahead-efeitos): o bot avalia Comandos e
+  // 【Activate】 simulando o resultado. Só aqui (bot de verdade) — rollouts e
+  // self-play usam as policies sem lookahead pra continuar baratos.
+  const lookahead = {
+    specs: ALL_EFFECT_SPECS,
+    predicateResolver: defaultPredicateResolver,
+    targetFilterResolver: defaultTargetFilterResolver,
+  };
 
   if (level === "zero_system" || level === "adaptive") {
-    policy = zeroSystemPolicy({ persona });
+    policy = zeroSystemPolicy({ persona, lookahead });
   } else if (level === "dificil") {
     policy = mctsPolicy({
       rollouts: 16,
@@ -99,6 +107,7 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
       specs: ALL_EFFECT_SPECS,
       predicateResolver: defaultPredicateResolver,
       targetFilterResolver: defaultTargetFilterResolver,
+      lookahead,
     });
   } else if (level === "normal") {
     // Machine Learning fica restrito ao ambiente de desenvolvimento sob flag explícita
@@ -120,7 +129,7 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
     }
 
     if (!policy) {
-      policy = heuristicPolicy({ level: "normal" });
+      policy = heuristicPolicy({ level: "normal", lookahead });
     }
   } else {
     policy = heuristicPolicy({ level: "facil" });

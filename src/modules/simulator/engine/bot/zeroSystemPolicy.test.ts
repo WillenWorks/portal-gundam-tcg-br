@@ -228,3 +228,32 @@ describe("zeroSystemPolicy — Personas e IA Tática", () => {
     expect(chosen).toEqual({ kind: "passAction" });
   });
 });
+
+describe("zeroSystemPolicy — lookahead de efeitos (opt-in)", () => {
+  const load = async () => {
+    const fx = await import("./lookaheadTestFixtures");
+    const { enumerateLegalActions } = await import("../legalActions");
+    const { viewStateFor } = await import("../viewState");
+    return { fx, enumerateLegalActions, viewStateFor };
+  };
+  const rng = () => 0.42;
+
+  it("sem lookahead: não joga Comando sem alvo inimigo", async () => {
+    const { fx, enumerateLegalActions, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    fx.put(state, "A", "hand", fx.DRAW);
+    const chosen = zeroSystemPolicy()(viewStateFor(state, "A"), enumerateLegalActions(state, "A", fx.SPECS, {}), rng);
+    expect(chosen.kind).not.toBe("playCommand");
+  });
+
+  it("com lookahead: no Action Step joga o pump que vira a batalha", async () => {
+    const { fx, enumerateLegalActions, viewStateFor } = await load();
+    const { state, attacker, pump } = fx.combatWithPriorityA(3);
+    const chosen = zeroSystemPolicy({ lookahead: { specs: fx.SPECS } })(
+      viewStateFor(state, "A"),
+      enumerateLegalActions(state, "A", fx.SPECS, {}),
+      rng,
+    );
+    expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: pump.instanceId, targets: { target: [attacker.instanceId] } });
+  });
+});

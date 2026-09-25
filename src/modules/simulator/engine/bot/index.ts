@@ -24,10 +24,20 @@ export {
 
 export {
   mctsPolicy,
-  determinize,
   chooseAction as chooseMctsAction,
   type MctsPolicyOptions,
 } from "./mctsPolicy";
+
+export { applyForEval, determinize, evaluatePosition, positionValue, type EvalDeps } from "./evaluation";
+
+export {
+  EffectLookahead,
+  evaluateAction,
+  MIN_GAIN,
+  type ActionEvaluation,
+  type EffectLookaheadConfig,
+  type LookaheadOptions,
+} from "./actionLookahead";
 
 export {
   simulateToEnd,

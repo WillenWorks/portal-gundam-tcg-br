@@ -4,12 +4,16 @@ import type { ViewCardInstance, ViewGameState, ViewPlayerState } from "../viewSt
 import type { LegalAction } from "../legalActions";
 import type { Rng } from "../rng";
 import type { SelfPlayPolicy } from "../selfPlay";
+import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
+import { heuristicPolicy } from "./heuristicPolicy";
 
 export type ZeroSystemPersona = "amuro" | "char" | "heero" | "treize" | "adaptive";
 
 export interface ZeroSystemPolicyOptions {
   persona?: ZeroSystemPersona;
   threatMultiplier?: number;
+  /** lookahead de efeitos por simulação — mesmo contrato de `HeuristicPolicyOptions.lookahead` */
+  lookahead?: EffectLookaheadConfig;
 }
 
 const LATE_GAME_TURN = 7;
@@ -62,6 +66,7 @@ interface ZeroCtx {
   myReadyAp: number;
   oppReadyAp: number;
   resolvedPersona: "amuro" | "char" | "heero" | "treize";
+  lookahead: EffectLookahead | null;
 }
 
 function resolveAdaptivePersona(
@@ -91,7 +96,7 @@ function resolveAdaptivePersona(
   return "heero";
 }
 
-function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptive"): ZeroCtx {
+function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptive", lookahead: EffectLookahead | null = null): ZeroCtx {
   const me = view.viewer;
   const opp = otherPlayer(me);
   const myPlayer = view.players[me];
@@ -133,6 +138,7 @@ function buildZeroCtx(view: ViewGameState, persona: ZeroSystemPersona = "adaptiv
     myReadyAp,
     oppReadyAp,
     resolvedPersona,
+    lookahead,
   };
 }
 
@@ -502,9 +508,8 @@ function scoreZeroAction(action: LegalAction, _index: number, ctx: ZeroCtx): num
     case "activateAbility": {
       const id = actionTargetId(action);
       const enemy = id ? byId(ctx.oppUnits, id) : undefined;
-      if (!enemy) return -1;
-      const threatScore = unitValue(enemy, ctx.state);
-      return 10 + threatScore * 1.5;
+      const legacy = enemy ? 10 + unitValue(enemy, ctx.state) * 1.5 : -1;
+      return ctx.lookahead ? ctx.lookahead.score(ctx.view, action, legacy) : legacy;
     }
     default:
       return 0;
@@ -516,13 +521,15 @@ export function chooseZeroSystemAction(
   legal: LegalAction[],
   rng: Rng,
   options: ZeroSystemPolicyOptions = {},
+  lookahead: EffectLookahead | null = null,
 ): LegalAction {
   if (legal.length === 0) {
     throw new Error("zeroSystemPolicy: lista de ações legais vazia");
   }
   if (legal.length === 1) return legal[0];
 
-  const ctx = buildZeroCtx(view, options.persona ?? "adaptive");
+  lookahead?.beginDecision();
+  const ctx = buildZeroCtx(view, options.persona ?? "adaptive", lookahead);
 
   let best: LegalAction[] = [];
   let bestScore = Number.NEGATIVE_INFINITY;
@@ -541,5 +548,10 @@ export function chooseZeroSystemAction(
 }
 
 export function zeroSystemPolicy(options: ZeroSystemPolicyOptions = {}): SelfPlayPolicy {
-  return (view, legal, rng) => chooseZeroSystemAction(view, legal, rng, options);
+  const lookahead = options.lookahead ? new EffectLookahead(options.lookahead, heuristicPolicy({ level: "normal" })) : null;
+  return (view, legal, rng) => {
+    const choice = chooseZeroSystemAction(view, legal, rng, options, lookahead);
+    lookahead?.record(view.turnNumber, choice);
+    return choice;
+  };
 }
