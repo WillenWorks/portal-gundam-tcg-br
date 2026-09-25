@@ -1,4 +1,5 @@
 import type { EffectSpec } from "../../engine/effectSpec";
+import { stdAddToHandBurst } from "../standardSpecs";
 
 /**
  * Wave GD03 "Crossfire" — Catálogo de EffectSpecs Oficiais.
@@ -36,16 +37,8 @@ for (const code of BASE_CODES) {
 
 export const GD03_PILOT_BURST_SPECS: EffectSpec[] = [];
 
-for (let i = 84; i <= 100; i++) {
-  const code = `GD03-0${i}`;
-  GD03_PILOT_BURST_SPECS.push({
-    id: `${code}-Burst`,
-    cardCode: code,
-    trigger: "Burst",
-    actions: [{ op: "moveZone", target: { kind: "self" }, toZone: "hand" }],
-    sourceText: "【Burst】Add this card to your hand.",
-  });
-}
+// `GD03-0${i}` gerava "GD03-0100" pro último piloto — o Burst da GD03-100 nunca existia
+for (let i = 84; i <= 100; i++) GD03_PILOT_BURST_SPECS.push(stdAddToHandBurst(`GD03-${String(i).padStart(3, "0")}`));
 
 // —————————————————————————— Commands: Burst ——————————————————————————
 

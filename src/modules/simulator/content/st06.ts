@@ -1,4 +1,5 @@
 import type { EffectSpec } from "../engine/effectSpec";
+import { stdAddToHandBurst, stdDeployThisBurst } from "./standardSpecs";
 
 /**
  * Wave ST06 "GQuuuuuuX / Red Gundam" — Efeitos oficiais autorados
@@ -221,6 +222,9 @@ export const KANEBAN_DEPLOY: EffectSpec = {
 };
 
 export const ST06_EFFECT_SPECS: EffectSpec[] = [
+  // auditoria por cláusula (W0.3): 【Burst】 padrão que faltava
+  ...["ST06-009", "ST06-010"].map(stdAddToHandBurst),
+  ...["ST06-014", "ST06-015"].map(stdDeployThisBurst),
   GQUUUUUUX_WHEN_LINKED,
   GQUUUUUUX_DEPLOY,
   RED_GUNDAM_ATTACK,

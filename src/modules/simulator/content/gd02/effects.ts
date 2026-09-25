@@ -1,6 +1,7 @@
 import type { EffectSpec } from "../../engine/effectSpec";
 import type { CardDef } from "../../engine/types";
 import { EX_RESOURCE_TOKEN } from "../../engine/setup";
+import { stdAddToHandBurst, stdDeployThisBurst } from "../standardSpecs";
 
 /**
  * Wave GD02 "Dual Impact" — Catálogo de EffectSpecs Oficiais.
@@ -1278,6 +1279,9 @@ export const GD02_110_AWAKENED_POWER_MAIN: EffectSpec = {
 };
 
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
+  // auditoria por cláusula (W0.3): 【Burst】 padrão que faltava (pilotos e Bases)
+  ...["GD02-086", "GD02-088", "GD02-090", "GD02-092", "GD02-094", "GD02-096", "GD02-097", "GD02-098"].map(stdAddToHandBurst),
+  ...["GD02-121", "GD02-122", "GD02-123", "GD02-124", "GD02-125", "GD02-126", "GD02-127", "GD02-128", "GD02-129", "GD02-130"].map(stdDeployThisBurst),
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
   GD02_020_ELMETH_DEPLOY,
