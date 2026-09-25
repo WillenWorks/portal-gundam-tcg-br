@@ -250,6 +250,9 @@ pnpm gundam:bot:refresh -- --pool=<arquivo>  # sem ler o banco
 - A fixture do counter leva as **listas** quando a matriz vem de arquivo (`MatchupTable.lists`): o
   servidor monta o counter a partir delas, sem depender dos decks fixos.
 - A fixture só muda no produto num commit revisado — o refresh não publica nada sozinho.
+- Privacidade: nenhum id do banco nem nome de jogador sai do export; cada deck vira `POOL-<hash da lista>`
+  e a fixture guarda só id + códigos das cartas. O relatório `docs/bot/pool-db-*.json` tem rótulos
+  (deck/torneio/colocação) e fica fora do git (`.gitignore`).
 
 **Partidas reais já são dataset:** `SimulatorMatchLog` guarda, por partida encerrada, os dois decks, a
 seed, a versão do motor e todas as ações — dá pra reproduzir lance a lance e treinar uma avaliação

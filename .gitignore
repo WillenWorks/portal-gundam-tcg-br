@@ -84,3 +84,6 @@ docs/debates/
 /implementation_plan_GD01_deck_test.md
 /PLANO_METAGAME_TORNEIOS_TELEMETRIA.md
 .worktrees/
+
+# relatório local do pool do banco (rótulos de torneio/deck) — só a fixture vai pro git
+docs/bot/pool-db-*.json
