@@ -28,7 +28,7 @@ const sim = (p) => pathToFileURL(path.join(ROOT, "src/modules/simulator", p)).hr
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { deckPool, BENCHMARK_POOLS } = await import(sim("fixtures/benchmarkDeckPools.ts"));
 const { runLadder } = await import(sim("engine/bot/ladder.ts"));
-const { BOT_LEVELS, DIFICIL_ROLLOUTS } = await import(sim("engine/bot/levelPolicies.ts"));
+const { BOT_LEVELS, MEASURABLE_LEVELS, DIFICIL_ROLLOUTS } = await import(sim("engine/bot/levelPolicies.ts"));
 
 const DEFAULTS = { levels: BOT_LEVELS.join(","), pool: "all", games: 20, maxTurns: 40, seed: 1 };
 const STEP_GOAL = 0.6;
@@ -41,9 +41,9 @@ const args = Object.fromEntries(
   }),
 );
 const levels = String(args.levels ?? DEFAULTS.levels).split(",");
-const unknown = levels.filter((l) => !BOT_LEVELS.includes(l));
+const unknown = levels.filter((l) => !MEASURABLE_LEVELS.includes(l));
 if (unknown.length) {
-  console.error(`[ladder] nível desconhecido: ${unknown.join(", ")} — use ${BOT_LEVELS.join(", ")}`);
+  console.error(`[ladder] nível desconhecido: ${unknown.join(", ")} — use ${MEASURABLE_LEVELS.join(", ")}`);
   process.exit(2);
 }
 const pool = String(args.pool ?? DEFAULTS.pool);

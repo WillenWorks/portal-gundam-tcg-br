@@ -102,3 +102,76 @@ são a causa do empate.
 mesmo conhecimento, sem busca. O que separa o difícil (+190 Elo) é o MCTS. Para o zero_system ser o topo
 da escada ele precisa de busca (ex.: MCTS com as personas como âncora) ou do planejamento de turno;
 reponderar não basta.
+
+## Planejador de turno (`normal_plan`) — 2026-09-24
+
+Spec `bot-planejamento-turno`. `engine/bot/turnPlanner.ts`: na Main Phase do bot, cada jogada legal
+é aplicada na view determinizada e o resto do turno **+ o turno seguinte do oponente** é jogado pela
+heurística pelos dois lados; a melhor posição (`evaluatePosition`) decide e a próxima decisão
+replaneja. Nível experimental `normal_plan` (normal + planejador), fora do produto.
+
+Horizonte: parando no fim do meu turno, quebrar um escudo sempre parecia melhor que destruir uma
+Unit ou segurar o <Blocker> que protege a Base (o contra-ataque não aparece). Com o turno do
+oponente, o planejador acerta essas situações.
+
+Banco (`puzzles-2026-09-24-plan.json`): `normal_plan` **100% (22/22)** — incluindo as de sequência
+(rest→ataque, remover <Blocker>→letal); normal e zero_system 90,9%.
+
+`nao-atacar-base-com-blocker-segurando` mudou de premissa: 2/5 contra 6/6 era ambígua (o bloqueio
+custava a Unit, ou 6 de dano que persiste, pra salvar a Base; pelos pesos, atacar saía melhor).
+Agora 5/7 contra 4/4 — segurar protege a Base e ameaça destruir o atacante; resposta inequívoca.
+
+`normal_plan` × `normal`, 100 partidas: **73%** (Wilson [63,6%, 80,7%]), 0 excluídas; decisão na
+Main Phase p50 49 ms, **p95 284 ms**, máx. 717 ms (orçamento 700 ms).
+
+Escada `ladder-2026-09-24-plan.json` (40 partidas/par, difícil com 8 rollouts; âncora = normal):
+
+| Nível | Elo | IC 95% |
+|---|---|---|
+| normal | 0 | — |
+| normal_plan | **167** | [83, 272] |
+| dificil | 66 | [−23, 164] |
+
+normal_plan sobre normal 77,5%; **difícil sobre normal_plan 40%** — o planejador supera o MCTS e
+custa uma fração do tempo.
+
+## Topo da escada: MCTS com âncora alternativa — 2026-09-24
+
+`mctsPolicy` aceita `anchor`: `zero_mcts` = MCTS do difícil ancorado nas personas do zero_system;
+`dificil_plan` = MCTS ancorado no planejador. Escada `ladder-2026-09-24-topo.json` (30 partidas/par,
+8 rollouts; âncora = normal_plan):
+
+| Nível | Elo (normal_plan = 0) | IC 95% |
+|---|---|---|
+| normal_plan | 0 | — |
+| zero_mcts | −24 | [−127, 65] |
+| dificil_plan | **144** | [46, 255] |
+
+- dificil_plan sobre normal_plan 63,3% (19/30); sobre zero_mcts 80% (24/30).
+- zero_mcts ≈ normal_plan (53,3%): MCTS sobre as personas não passa do planejador — a âncora pesa
+  mais que a busca por cima dela.
+- Somando as escadas (mesma âncora `normal` no elo anterior): normal 0 → normal_plan ~+167 →
+  dificil_plan ~+310. O difícil atual (MCTS sobre a heurística) fica em ~+66.
+
+## Produto após o planejador — confirmação (2026-09-24)
+
+Níveis do produto: **normal** = heurística + planejador de turno; **difícil** = MCTS (16 rollouts)
+ancorado no planejador, teto de **1,5 s** por decisão (planejador até 0,5 s). Configurações antigas:
+`normal_v1`/`dificil_v1` (experimentais). O "tempo de pensar" de 1–2 s desconta o tempo de cálculo.
+
+Escada `ladder-2026-09-24-produto.json` (30 partidas/par, configuração real do produto, 95 min,
+0 excluídas):
+
+| Nível | Elo (normal = 0) | IC 95% |
+|---|---|---|
+| normal | 0 | — |
+| dificil | 86 | [−17, 197] |
+| dificil_32 | 148 | [59, 257] |
+
+- difícil sobre normal: 60% (Wilson [42,3%, 75,4%]) — mesmo patamar do `dificil_plan` sem teto
+  sobre `normal_plan` (63,3%): o teto de 1,5 s não tirou força visível.
+- `dificil_32` (dobro de rollouts e de orçamento) sobre difícil: 56,7% (Wilson [39,2%, 72,6%]) —
+  **não conclusivo**. Pela regra combinada (só com Wilson > 50%), o zero_system **não** vira
+  `dificil_32`; segue com as personas (mais fraco que o difícil).
+- Com 30 partidas por par os degraus normal → difícil → difícil_32 não fecham a meta de Wilson; só
+  `dificil_32` sobre normal (73,3%, Wilson [55,6%, 85,8%]) é significativo.

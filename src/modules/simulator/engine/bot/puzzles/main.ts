@@ -184,12 +184,13 @@ export const MAIN_PUZZLES: Puzzle[] = [
     id: "nao-atacar-base-com-blocker-segurando",
     title: "Não abrir a guarda: manter o <Blocker> que segura a Base",
     category: "combate",
-    why: "Oponente tem 6 AP prontos; a Base (4 HP) só sobrevive ao contra-ataque se o <Blocker> 2/5 ficar em pé.",
+    why: "A 4/4 do oponente destrói a Base (4 HP) se o <Blocker> 5/7 estiver rested; em pé, ele bloqueia e destrói a 4/4 sobrevivendo. Atacar com ele só quebra 1 escudo e entrega a Base de graça.",
     build: () => {
       const state = board("A");
       put(state, "A", "baseSection", base("PZ-BASE", 4));
-      const blocker = put(state, "A", "battleArea", unit("PZ-BLK", 2, 5, { effectKeywords: ["Blocker"] }));
-      put(state, "B", "battleArea", unit("PZ-THREAT", 6, 6));
+      // a versão anterior (2/5 contra 6/6) era ambígua: o bloqueio custava a Unit (ou 6 de dano, que persiste) pra salvar a Base
+      const blocker = put(state, "A", "battleArea", unit("PZ-BLK", 5, 7, { effectKeywords: ["Blocker"] }));
+      put(state, "B", "battleArea", unit("PZ-THREAT", 4, 4));
       setShields(state, "A", 5);
       return { state, seat: "A", refs: { blocker } };
     },

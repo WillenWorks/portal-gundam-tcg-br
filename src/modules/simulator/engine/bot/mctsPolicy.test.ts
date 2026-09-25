@@ -147,3 +147,32 @@ describe("mctsPolicy — lookahead de efeitos na âncora", () => {
     expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: pump.instanceId, targets: { target: [attacker.instanceId] } });
   }, 60_000);
 });
+
+describe("mctsPolicy — âncora alternativa", () => {
+  it("usa a jogada da `anchor` quando nenhuma outra supera a margem", () => {
+    const { view, legal } = advanceToDecision(11, "A", 3);
+    // âncora que escolhe a ÚLTIMA ação legal; margem impossível → o MCTS nunca troca
+    const anchor = (_v: typeof view, l: typeof legal) => l[l.length - 1];
+    const choice = chooseAction(view, legal, createRng(1), { ...specs, rollouts: 2, depthTurns: 1, overrideMargin: 2, anchor });
+    expect(choice).toEqual(legal[legal.length - 1]);
+  });
+});
+
+describe("mctsPolicy — orçamento de tempo", () => {
+  it("sem tempo nem pra EV da âncora, joga a âncora", () => {
+    const { view, legal } = advanceToDecision(11, "A", 3);
+    const anchor = (_v: typeof view, l: typeof legal) => l[l.length - 1];
+    let t = 0;
+    const now = () => (t += 1_000); // cada leitura do relógio avança 1s
+    const choice = chooseAction(view, legal, createRng(1), { ...specs, rollouts: 4, depthTurns: 1, overrideMargin: 0, anchor, budgetMs: 500, now });
+    expect(choice).toEqual(legal[legal.length - 1]);
+  });
+
+  it("orçamento folgado decide igual a sem orçamento", () => {
+    const { view, legal } = advanceToDecision(4, "A", 3);
+    const base = { ...specs, rollouts: 4, depthTurns: 2 };
+    const unbounded = chooseAction(view, legal, createRng(9), base);
+    const bounded = chooseAction(view, legal, createRng(9), { ...base, budgetMs: 1_000, now: () => 0 });
+    expect(bounded).toEqual(unbounded);
+  }, 30_000);
+});
