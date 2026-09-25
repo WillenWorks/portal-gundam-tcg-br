@@ -1753,8 +1753,8 @@
       "counts": {
         "vanilla": 4,
         "full": 10,
-        "partial": 0,
-        "missing": 1,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -2049,7 +2049,7 @@
         },
         {
           "code": "ST06-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2077,8 +2077,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:reactive-trigger-bus (C1)"
+              ],
               "text": "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
             }
           ]
@@ -2089,8 +2091,8 @@
       "counts": {
         "vanilla": 4,
         "full": 10,
-        "partial": 0,
-        "missing": 1,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -2365,7 +2367,7 @@
         },
         {
           "code": "ST07-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2393,8 +2395,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:damage-modification-layer (C2)"
+              ],
               "text": "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens."
             }
           ]
@@ -2405,8 +2409,8 @@
       "counts": {
         "vanilla": 3,
         "full": 11,
-        "partial": 0,
-        "missing": 1,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -2574,7 +2578,7 @@
         },
         {
           "code": "ST08-011",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2591,8 +2595,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:reactive-trigger-bus (C1)"
+              ],
               "text": "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
             }
           ]
@@ -5345,7 +5351,7 @@
         "full": 87,
         "partial": 0,
         "missing": 17,
-        "withErrors": 1
+        "withErrors": 10
       },
       "cards": [
         {
@@ -5880,7 +5886,9 @@
         {
           "code": "GD02-036",
           "status": "missing",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-036-When Linked-GrantSUPPRESSION"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -6695,7 +6703,9 @@
         {
           "code": "GD02-086",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-086-Main"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -6752,7 +6762,9 @@
         {
           "code": "GD02-088",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-088-When Linked"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -6866,7 +6878,9 @@
         {
           "code": "GD02-092",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-092-Attack"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -6923,7 +6937,9 @@
         {
           "code": "GD02-094",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-094-When Paired"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -6982,7 +6998,9 @@
         {
           "code": "GD02-096",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-096-WhenLinked"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -7012,7 +7030,9 @@
         {
           "code": "GD02-097",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-097-Main"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -7040,7 +7060,9 @@
         {
           "code": "GD02-098",
           "status": "full",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-098-WhenLinked"
+          ],
           "clauses": [
             {
               "i": 0,
@@ -7559,7 +7581,9 @@
         {
           "code": "GD02-117",
           "status": "missing",
-          "errors": [],
+          "errors": [
+            "multiClauseSpec: GD02-117-Burst"
+          ],
           "clauses": [
             {
               "i": 0,

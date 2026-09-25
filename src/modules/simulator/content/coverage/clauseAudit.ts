@@ -261,6 +261,9 @@ export function auditCard(input: CardAuditInput): CardAudit {
 
   specs.forEach((s, i) => {
     if (!usedSpecs.has(i)) errors.push(`orphanSpec: ${s.id}`);
+    // texto de 2+ cláusulas num spec só (cópia da carta inteira): as ações quase sempre fazem uma delas só
+    const swallowed = clauses.filter((c) => c.kind === "bespoke" && compact(c.body) && bodies[i].includes(compact(c.body)));
+    if (swallowed.length > 1) errors.push(`multiClauseSpec: ${s.id}`);
   });
 
   let status: CardAuditStatus;

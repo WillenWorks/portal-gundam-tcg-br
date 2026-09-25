@@ -147,4 +147,26 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   //   jogador (não é a jogada normal da Main Phase, CR 7 só amarra nível à
   //   jogada da mão) e sem reusar `deployCard`.
   // ─────────────────────────────────────────────────────────────────────────
+
+  // Achados da auditoria por cláusula (W0.3) — cláusulas que nunca tiveram efeito no motor e
+  // dependem dos pacotes de capacidade do plano "simulador até GD05" (C1 gatilhos reativos,
+  // C2 camada de dano). Registradas aqui em vez de parecer "cobertas" por outro spec da carta.
+  {
+    cardCode: "ST06-015",
+    clause: "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn.",
+    reason: "não há gatilho reativo de \"quando uma Unit aliada linka\" — o efeito não acontece",
+    blockedBy: "engine:reactive-trigger-bus (C1)",
+  },
+  {
+    cardCode: "ST07-015",
+    clause: "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
+    reason: "proteção de dano condicional para Base ainda não existe — a Base recebe o dano normalmente",
+    blockedBy: "engine:damage-modification-layer (C2)",
+  },
+  {
+    cardCode: "ST08-011",
+    clause: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
+    reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
+    blockedBy: "engine:reactive-trigger-bus (C1)",
+  },
 ] as const;
