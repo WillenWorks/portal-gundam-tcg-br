@@ -1,0 +1,158 @@
+{
+  "date": "2026-09-24",
+  "commit": "2b95c28",
+  "params": {
+    "level": "dificil",
+    "games": 8,
+    "seed": 7,
+    "maxTurns": 40
+  },
+  "durationSeconds": 8351,
+  "counter": {
+    "rate": 0.625,
+    "score": 70,
+    "games": 112,
+    "wilson": {
+      "low": 0.5325974054703195,
+      "high": 0.7091122576364952
+    }
+  },
+  "baseline": {
+    "rate": 0.6160714285714286,
+    "score": 69,
+    "games": 112,
+    "wilson": {
+      "low": 0.5235748193368341,
+      "high": 0.7008698678337797
+    }
+  },
+  "meetsGoal": true,
+  "rows": [
+    {
+      "deck": "ST01",
+      "counter": "META-GD02-QUBELEY",
+      "fallback": false,
+      "expected": 1,
+      "counterRate": 0.5,
+      "baselineRate": 0.625,
+      "games": 8
+    },
+    {
+      "deck": "ST02",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.9,
+      "counterRate": 0.875,
+      "baselineRate": 0.875,
+      "games": 8
+    },
+    {
+      "deck": "ST03",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.5,
+      "counterRate": 0.75,
+      "baselineRate": 0.75,
+      "games": 8
+    },
+    {
+      "deck": "ST04",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.6,
+      "counterRate": 0.25,
+      "baselineRate": 0.25,
+      "games": 8
+    },
+    {
+      "deck": "ST05",
+      "counter": "META-GD02-QUBELEY",
+      "fallback": false,
+      "expected": 0.9,
+      "counterRate": 0.75,
+      "baselineRate": 0.75,
+      "games": 8
+    },
+    {
+      "deck": "ST06",
+      "counter": "META-GD02-AEUG-EA",
+      "fallback": false,
+      "expected": 0.8,
+      "counterRate": 0.625,
+      "baselineRate": 0.375,
+      "games": 8
+    },
+    {
+      "deck": "ST07",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.9,
+      "counterRate": 0.75,
+      "baselineRate": 0.75,
+      "games": 8
+    },
+    {
+      "deck": "ST08",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.8,
+      "counterRate": 0.75,
+      "baselineRate": 0.75,
+      "games": 8
+    },
+    {
+      "deck": "META-GD02-AEUG-EA",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.9,
+      "counterRate": 0.375,
+      "baselineRate": 0.375,
+      "games": 8
+    },
+    {
+      "deck": "META-GD02-TEKKADAN-VAGAN",
+      "counter": "ST04",
+      "fallback": false,
+      "expected": 0.8,
+      "counterRate": 0.75,
+      "baselineRate": 0.75,
+      "games": 8
+    },
+    {
+      "deck": "META-GD02-QUBELEY",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.7,
+      "counterRate": 0.5,
+      "baselineRate": 0.5,
+      "games": 8
+    },
+    {
+      "deck": "META-GD02-AGE-WING",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 1,
+      "counterRate": 0.875,
+      "baselineRate": 0.875,
+      "games": 8
+    },
+    {
+      "deck": "META-GD02-TITANS",
+      "counter": "META-ST06-GQUUUUUUX",
+      "fallback": true,
+      "expected": 0.8,
+      "counterRate": 0.375,
+      "baselineRate": 0.375,
+      "games": 8
+    },
+    {
+      "deck": "META-ST06-GQUUUUUUX",
+      "counter": "ST03",
+      "fallback": false,
+      "expected": 0.5,
+      "counterRate": 0.625,
+      "baselineRate": 0.625,
+      "games": 8
+    }
+  ]
+}

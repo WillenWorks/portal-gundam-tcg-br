@@ -1,3 +1,5 @@
+import type { ZeroCounterSummary } from "@/modules/simulator/engine/bot/zeroCounter";
+import type { BotDeckEntryView } from "@/modules/simulator/ui/ZeroCounterDeckSummary";
 import type { CardRecord, RuleEntry } from "@/modules/core/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import type { PlayerId } from "@/modules/simulator/engine/types";
@@ -642,6 +644,10 @@ export type SimulatorMatchView = {
   sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
   sideboardDeadlineAt?: number | null;
   sideboardDeck?: DeckListWithSideboard;
+  /** counter do Zero System (spec bot-zero-system-forte) — resumo, sem a lista */
+  botCounter?: ZeroCounterSummary;
+  /** lista do deck do bot — só com a partida encerrada e quando houve counter */
+  botDeckList?: BotDeckEntryView[];
 };
 
 export type SimulatorMatchState = ({ seated: false } & SimulatorMatchSummary) | ({ seated: true } & SimulatorMatchView);
@@ -1124,7 +1130,7 @@ export const api = {
   // partida com o jogador no assento A e o bot no B; a UI de partida é a mesma
   // (`/simulador/partida/:matchId`), o bot joga sozinho via worker `sim-bot`.
   startSimulatorTraining: (payload: { deckId?: string; playerDeckId?: string; botDeckId?: string; level: SimulatorTrainingLevel }) =>
-    request<{ matchId: string }>("/simulator/training/new", { method: "POST", body: JSON.stringify(payload) }),
+    request<{ matchId: string; counterDeck?: Pick<ZeroCounterSummary, "persona" | "archetype" | "fallback"> }>("/simulator/training/new", { method: "POST", body: JSON.stringify(payload) }),
   getSimulatorTraining: (id: string) =>
     request<{ seated: true } & SimulatorMatchView>(`/simulator/training/${id}`, undefined, { bypassCache: true }),
   /** Heartbeat de presença -- chamar periodicamente enquanto a aba está visível (alimenta o W.O. por abandono). */

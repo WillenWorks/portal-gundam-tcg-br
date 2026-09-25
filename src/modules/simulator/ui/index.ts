@@ -41,6 +41,8 @@ export { ActionDock, type ActionDockState } from "./ActionDock";
 export { CenterDecisionModal, type CenterDecisionModalProps } from "./CenterDecisionModal";
 export { PhaseAnnouncementBanner, type PhaseAnnouncementBannerProps } from "./PhaseAnnouncementBanner";
 export { GameOverOverlay } from "./GameOverOverlay";
+export { ZeroCounterDeckSummary } from "./ZeroCounterDeckSummary";
+export { zeroCounterNotice } from "./zeroCounterText";
 export { gameOverReasonLabel } from "./gameOverReason";
 export { MatchPrompt } from "./MatchPrompt";
 export { SettingsMenu } from "./SettingsMenu";
