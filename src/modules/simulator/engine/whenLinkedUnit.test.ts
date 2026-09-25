@@ -115,3 +115,28 @@ describe("E9 — 【During Pair】/【During Link】 em gatilho que não é 【D
     expect(dispatchTrigger(state, unitId, "Attack", [spec]).players.A.hand.length).toBe(hand + 1);
   });
 });
+
+describe("E10 — Command jogada como Pilot conta como '(X) Pilot in play'", () => {
+  it("controllerHasPilotWithTrait enxerga a Command com asPilot", async () => {
+    const { defaultPredicateResolver: resolve } = await import("../content");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const ctx = { state, controller: "A" as const, sourceInstanceId: undefined, turnNumber: state.turnNumber, targets: {} };
+    expect(resolve("controllerHasPilotWithTrait:CB", ctx as never)).toBe(false);
+    place(state, "A", { code: "X-CMD", nameEn: "Cmd", cardType: "COMMAND", color: "green", traits: ["CB"], pilotMode: { pilotName: "X", ap: 1, hp: 0 } }, "battleArea", { asPilot: true });
+    expect(resolve("controllerHasPilotWithTrait:CB", ctx as never)).toBe(true);
+  });
+});
+
+describe("E12 — 'another Unit' com fonte Pilot", () => {
+  it("a Unit pareada com o Pilot-fonte não conta como 'outra'", async () => {
+    const { isBoardConditionMet } = await import("./types");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const unitId = place(state, "A", GAIAS_RICK_DOM, "battleArea"); // (Clan)
+    const pilotId = place(state, "A", AMATE_YUZURIHA, "battleArea", { pairedUnitId: unitId });
+    findCard(state, unitId).pairedPilotId = pilotId;
+    const cond = { kind: "friendlyOtherUnitTraitCountAtLeast" as const, trait: "Clan", n: 1 };
+    expect(isBoardConditionMet(state, "A", cond, pilotId)).toBe(false);
+    place(state, "A", GAIAS_RICK_DOM, "battleArea");
+    expect(isBoardConditionMet(state, "A", cond, pilotId)).toBe(true);
+  });
+});

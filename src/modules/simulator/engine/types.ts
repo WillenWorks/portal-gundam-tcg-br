@@ -644,11 +644,13 @@ export function isBoardConditionMet(
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
   // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
+  // Fonte Pilot: "this Unit" é a Unit pareada, que também não conta como "outra" (E12).
   const ownerState = state.players[owner];
+  const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
+  const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));
   return (
-    ownerState.battleArea.filter(
-      (c) => c.instanceId !== excludeInstanceId && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait),
-    ).length >= cond.n
+    ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait))
+      .length >= cond.n
   );
 }
 
