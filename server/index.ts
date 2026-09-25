@@ -102,6 +102,7 @@ import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceServ
 import { getMetagameStats } from "./metagameTrendsService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
+import { engineShaFromEnv } from "./engineSha.ts";
 
 const prisma = new PrismaClient();
 
@@ -5357,12 +5358,16 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 async function boot() {
   // docs/44 §8.4 — `GameState.engineVersion` (setup.ts `resolveEngineVersion`) lê
-  // `process.env.ENGINE_SHA`. Deriva do git sha curto no boot; "dev" fora de um checkout.
-  if (!process.env.ENGINE_SHA) {
+  // `process.env.ENGINE_SHA`. Env (ENGINE_SHA / RENDER_GIT_COMMIT) → git sha curto → "dev".
+  const envSha = engineShaFromEnv(process.env);
+  if (envSha) {
+    process.env.ENGINE_SHA = envSha;
+  } else {
     try {
       const { execSync } = await import("node:child_process");
       process.env.ENGINE_SHA = execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim() || "dev";
-    } catch {
+    } catch (err) {
+      console.warn("[boot] versão do motor indisponível (sem ENGINE_SHA/RENDER_GIT_COMMIT nem git) — usando 'dev'", err);
       process.env.ENGINE_SHA = "dev";
     }
   }

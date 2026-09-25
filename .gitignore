@@ -87,3 +87,18 @@ docs/debates/
 
 # relatório local do pool do banco (rótulos de torneio/deck) — só a fixture vai pro git
 docs/bot/pool-db-*.json
+
+# Documentação, planos, checklists e instruções pra agentes de IA ficam só locais
+# (o CHANGELOG.md fica: a página "Novidades" importa ele):
+# as branches online levam só o que o sistema usa.
+/docs/
+/.claude/
+/tutoriais/
+/documentacao/
+/*.md
+!/CHANGELOG.md
+/iniciar-fase3.bat
+/scripts/prompts/
+/scripts/iniciar-*.ps1
+/services/*/README.md
+/src/modules/simulator/repro/README.md
