@@ -66,6 +66,9 @@ describe("Decks Customizados do Usuário no Modo Treino Solo", () => {
     } catch (err: any) {
       expect(err.message).toContain("UNKNOWN-999");
       expect(err.message).toContain("ainda não implementadas no simulador");
+      // o motor joga bem mais que os starters ST01–ST04; a mensagem não pode mandar o jogador se limitar a eles
+      expect(err.message).not.toContain("ST01 a ST04");
+      expect(err.message).toContain("remova ou troque");
     }
   });
 
