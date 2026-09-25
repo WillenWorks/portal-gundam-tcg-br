@@ -5,7 +5,8 @@ import { applyPlayerAction } from "../../src/modules/simulator/engine/actions.ts
 import { actionOwner, enumerateLegalActions } from "../../src/modules/simulator/engine/legalActions.ts";
 import { viewStateFor } from "../../src/modules/simulator/engine/viewState.ts";
 import { createRng } from "../../src/modules/simulator/engine/rng.ts";
-import { heuristicPolicy, mctsPolicy, neuralPolicy, zeroSystemPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
+import { neuralPolicy } from "../../src/modules/simulator/engine/bot/index.ts";
+import { policyForLevel } from "../../src/modules/simulator/engine/bot/levelPolicies.ts";
 import {
   ALL_EFFECT_SPECS,
   defaultPredicateResolver,
@@ -89,30 +90,18 @@ export function humanizedThinkDelay() {
 export async function driveBotTurn({ initialState, seat, level, persona = "adaptive", seed, commit, beforeCommit, maxActions = DEFAULT_MAX_ACTIONS }) {
   let policy;
   let neuralHandle = null;
-  // Lookahead de efeitos (spec bot-lookahead-efeitos): o bot avalia Comandos e
-  // 【Activate】 simulando o resultado. Só aqui (bot de verdade) — rollouts e
-  // self-play usam as policies sem lookahead pra continuar baratos.
-  const lookahead = {
+  // Config por nível vem de `policyForLevel` (fonte única, também usada pela escada
+  // de Elo). Só o modo neural do `normal` (dev, lê arquivo) fica aqui.
+  const levelOpts = {
     specs: ALL_EFFECT_SPECS,
     predicateResolver: defaultPredicateResolver,
     targetFilterResolver: defaultTargetFilterResolver,
+    persona,
   };
 
-  if (level === "zero_system" || level === "adaptive") {
-    policy = zeroSystemPolicy({ persona, lookahead });
-  } else if (level === "dificil") {
-    policy = mctsPolicy({
-      rollouts: 16,
-      depthTurns: 8,
-      specs: ALL_EFFECT_SPECS,
-      predicateResolver: defaultPredicateResolver,
-      targetFilterResolver: defaultTargetFilterResolver,
-      lookahead,
-    });
-  } else if (level === "normal") {
+  if (level === "normal") {
     // Machine Learning fica restrito ao ambiente de desenvolvimento sob flag explícita
     // para treinamento e testes práticos antes da promoção definitiva.
-    // Em produção (e por padrão sem a flag), usa a política heurística testada e estável.
     const enableNeural =
       process.env.NODE_ENV !== "production" &&
       process.env.SIM_BOT_ENABLE_ML === "true";
@@ -127,12 +116,10 @@ export async function driveBotTurn({ initialState, seat, level, persona = "adapt
         policy = (view, legal, rng) => neuralHandle.chooseAction(view, legal, rng);
       }
     }
-
-    if (!policy) {
-      policy = heuristicPolicy({ level: "normal", lookahead });
-    }
-  } else {
-    policy = heuristicPolicy({ level: "facil" });
+  }
+  if (!policy) {
+    const productLevel = level === "adaptive" ? "zero_system" : level === "normal" || level === "dificil" || level === "zero_system" ? level : "facil";
+    policy = policyForLevel(productLevel, levelOpts);
   }
   const rng = createRng((seed ?? 1) >>> 0);
   let state = initialState;
