@@ -14,6 +14,7 @@ import type { SimulatorMatchView } from "@/lib/api";
 
 const SOCKET_PATH = "/api/simulator/socket4p";
 const GUEST_TOKEN_KEY = "portal-gundam-tcg-br:sim-guest-token";
+const SERVER_DROP_RECONNECT_DELAY_MS = 500;
 
 export type ArenaMode = "2v2" | "ffa";
 export type ArenaSeatId = "seatA" | "seatB" | "seatC" | "seatD";
@@ -126,6 +127,7 @@ function writeGuestToken(token: string): void {
 
 class Arena4pSocketClient {
   private socket: Socket | null = null;
+  private serverDropTimer: ReturnType<typeof setTimeout> | null = null;
   private status: EventMap["status"] = "idle";
   private actionSeq = 0;
   private readonly listeners = new Map<EventName, Set<(payload: unknown) => void>>();
@@ -169,6 +171,10 @@ class Arena4pSocketClient {
   }
 
   disconnect(): void {
+    if (this.serverDropTimer) {
+      clearTimeout(this.serverDropTimer);
+      this.serverDropTimer = null;
+    }
     this.socket?.disconnect();
     this.socket = null;
     this.setStatus("idle");
@@ -177,7 +183,17 @@ class Arena4pSocketClient {
   private wire(socket: Socket): void {
     socket.on("connect", () => this.setStatus("connected"));
     socket.io.on("reconnect_attempt", () => this.setStatus("reconnecting"));
-    socket.on("disconnect", (reason) => this.setStatus(reason === "io client disconnect" ? "idle" : "reconnecting"));
+    socket.on("disconnect", (reason) => {
+      this.setStatus(reason === "io client disconnect" ? "idle" : "reconnecting");
+      // "io server disconnect" não re-tenta sozinho no socket.io — sem isto ficava "reconnecting" pra sempre
+      if (reason === "io server disconnect") {
+        if (this.serverDropTimer) clearTimeout(this.serverDropTimer);
+        this.serverDropTimer = setTimeout(() => {
+          this.serverDropTimer = null;
+          if (this.socket === socket) socket.connect();
+        }, SERVER_DROP_RECONNECT_DELAY_MS);
+      }
+    });
     socket.on("connect_error", () => this.setStatus(socket.active ? "reconnecting" : "dead"));
     socket.on("session:guest", (payload: { guestToken?: string }) => {
       if (payload?.guestToken) writeGuestToken(payload.guestToken);
