@@ -5,6 +5,7 @@ import type { LegalAction } from "../legalActions";
 import type { Rng } from "../rng";
 import type { SelfPlayPolicy } from "../selfPlay";
 import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
+import { hasLethalLine, LETHAL_ATTACK_SCORE } from "./lethal";
 
 /**
  * Bot heurístico (docs/44, Fase 2 — §4.1). `chooseAction` é PURA e
@@ -84,10 +85,12 @@ interface Ctx {
   myBase: CardInstance | null;
   myHand: CardInstance[];
   myShieldCount: number;
+  /** há linha letal neste turno (`hasLethalLine`): todo ataque ao jogador vira a melhor jogada */
+  lethal: boolean;
   lookahead: EffectLookahead | null;
 }
 
-function buildCtx(view: ViewGameState, lookahead: EffectLookahead | null = null): Ctx {
+function buildCtx(view: ViewGameState, legal: LegalAction[], lookahead: EffectLookahead | null = null): Ctx {
   const me = view.viewer;
   const opp = otherPlayer(me);
   const myPlayer = view.players[me];
@@ -102,6 +105,7 @@ function buildCtx(view: ViewGameState, lookahead: EffectLookahead | null = null)
     myBase: myPlayer.baseSection.filter(isReal)[0] ?? null,
     myHand: myPlayer.hand.filter(isReal),
     myShieldCount: myPlayer.counts.shields,
+    lethal: hasLethalLine(view, legal),
     lookahead,
   };
 }
@@ -194,6 +198,7 @@ function scoreAttack(ctx: Ctx, attackerId: string, target: AttackTarget): number
   const atkHpRem = remHp(attacker, ctx.state);
 
   if (target === "player") {
+    if (ctx.lethal) return LETHAL_ATTACK_SCORE + atkAp;
     if (playerAttackWouldDoomBase(ctx, attacker)) return -1;
     return 14 + 2 * atkAp;
   }
@@ -342,7 +347,7 @@ export function chooseAction(
   if (legal.length === 1) return legal[0];
 
   lookahead?.beginDecision();
-  const ctx = buildCtx(view, level === "facil" ? null : lookahead);
+  const ctx = buildCtx(view, legal, level === "facil" ? null : lookahead);
   const score = level === "facil" ? scoreFacil : scoreNormal;
 
   let best: LegalAction[] = [];

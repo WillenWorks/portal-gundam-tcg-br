@@ -56,8 +56,28 @@ Banco: `puzzles-2026-09-24.json` — acaso 43,1%.
 
 Erros que se repetem (alvos de correção):
 
-- **Letal** (normal e difícil): com o oponente sem escudo nem Base, ataca uma Unit rested em vez do
-  jogador — a nota de "destruir e sobreviver" (35+) supera a de "atacar o jogador" (14+2·AP).
+- ~~**Letal** (normal e difícil): com o oponente sem escudo nem Base, ataca uma Unit rested em vez do
+  jogador — a nota de "destruir e sobreviver" (35+) supera a de "atacar o jogador" (14+2·AP).~~
+  Corrigido — ver abaixo.
 - **Sequência no turno** (todos os níveis): "rest na Unit e depois atacá-la" e "remover o <Blocker> e
   dar o letal" — spec `bot-planejamento-turno`.
 - **zero_system**: não bloqueia pra salvar a Base e ataca com o <Blocker> que segura a Base.
+
+## Correção do letal — 2026-09-24
+
+`engine/bot/lethal.ts` (`hasLethalLine`): conta os atacantes que o motor deixa atacar o jogador agora,
+descarta os mais fortes pelos <Blocker> ativos do oponente, gasta atacantes na Base (dano acumula) e
+um por escudo; sobrando um, é letal e todo ataque ao jogador vira a melhor jogada — na heurística
+(normal, e por tabela a âncora do difícil) e em todas as personas do zero_system (a checagem antiga do
+Heero, "AP pronto ≥ Base + escudos", dava letal falso com 1 atacante e 1 escudo).
+
+Banco (`puzzles-2026-09-24-letal.json`): normal **90,9%** e difícil **90,9%** (eram 81,8%) — meta
+batida; zero_system segue 81,8% (erros de bloqueio/guarda da Base, não de letal).
+
+Escada sem o difícil, 100 partidas por par (`ladder-2026-09-24-letal-sem-dificil.json`), sem regressão:
+
+| Degrau | Antes | Depois |
+|---|---|---|
+| facil sobre random | 97% | 97% |
+| normal sobre facil | 73% | 76% |
+| zero_system sobre normal | 51% | 52% (segue empate) |

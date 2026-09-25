@@ -141,14 +141,14 @@ describe("zeroSystemPolicy — Personas e IA Tática", () => {
     expect(chosen).toEqual({ kind: "declareAttack", attackerId: "sazabi", target: "player" });
   });
 
-  it("Persona Heero: calcula letal exato e ataca o jogador para fechar a partida", () => {
+  it("Persona Heero: com letal (oponente sem escudo nem Base) ataca o jogador para fechar a partida", () => {
     const wingZero = card("wing0", "A", def({ code: "XXXG-00W0", cardType: "UNIT", ap: 6, hp: 5 }));
     const enemyUnit = card("leo", "B", def({ code: "OZ-06MS", cardType: "UNIT", ap: 3, hp: 3 }));
 
     const v = view({
       viewer: "A",
       A: { battleArea: [wingZero], shields: 3 },
-      B: { battleArea: [enemyUnit], shields: 1 }, // Inimigo com 1 escudo e vida vulnerável
+      B: { battleArea: [enemyUnit], shields: 0 },
     });
 
     const actions: LegalAction[] = [
