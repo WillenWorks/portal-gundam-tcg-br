@@ -7,7 +7,7 @@ import { randomLegal } from "../selfPlay";
 import type { ViewGameState } from "../viewState";
 import { chooseAction as heuristicChoose, heuristicPolicy } from "./heuristicPolicy";
 import { simulateToEnd } from "./simulateToEnd";
-import { applyForEval, deriveRng, determinize, positionValue } from "./evaluation";
+import { applyForEval, deriveRng, determinize, positionValue, type EvalWeights } from "./evaluation";
 import { EffectLookahead, type EffectLookaheadConfig } from "./actionLookahead";
 
 /**
@@ -105,6 +105,8 @@ export interface MctsPolicyOptions {
   budgetMs?: number;
   /** relógio injetável (teste); default `Date.now` */
   now?: () => number;
+  /** pesos do valor de posição nos rollouts truncados (default `EVAL_WEIGHTS`) */
+  weights?: EvalWeights;
 }
 
 class MctsBudgetExceeded extends Error {}
@@ -123,6 +125,7 @@ interface RolloutCfg {
   targetFilterResolver?: TargetFilterResolver;
   rolloutPolicy: SelfPlayPolicy;
   checkBudget: () => void;
+  weights?: EvalWeights;
 }
 
 /** média de `n` rollouts a partir de `afterAction`: 1 vitória / 0 derrota / `positionValue` se truncado */
@@ -142,7 +145,7 @@ function rolloutMean(afterAction: GameState, horizon: number, seat: PlayerId, n:
       fastLegal: true,
     });
     if (result.winner === seat) score += 1;
-    else if (result.winner === null) score += positionValue(result.finalState, seat);
+    else if (result.winner === null) score += positionValue(result.finalState, seat, cfg.weights);
     // derrota = 0
   }
   return score / n;
@@ -180,6 +183,7 @@ export function chooseAction(
     checkBudget: () => {
       if (now() > deadline) throw new MctsBudgetExceeded();
     },
+    weights: options.weights,
   };
   const overrideMargin = options.overrideMargin ?? DEFAULT_OVERRIDE_MARGIN;
 

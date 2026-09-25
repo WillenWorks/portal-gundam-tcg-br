@@ -105,3 +105,21 @@ describe("planejador de turno — contrato", () => {
     expect(seen[0]).toBeGreaterThan(1);
   });
 });
+
+describe("planejador de turno — pesos", () => {
+  it("usa os pesos passados na avaliação final", () => {
+    const { state, seat } = byId("rest-e-ataque").build();
+    const view = viewStateFor(state, seat);
+    const legal = enumerateLegalActions(state, seat, opts.specs, opts);
+    const now = () => 0;
+    const base = planTurn(view, legal, { ...opts, budgetMs: 5_000, now });
+    const doubled = planTurn(view, legal, {
+      ...opts,
+      budgetMs: 5_000,
+      now,
+      weights: { shield: 6, baseHp: 2.4, durableBoard: 1, handCard: 0.5, attackReadyAp: 0.8, readyBlockerHp: 0.6 },
+    });
+    // todos os pesos em dobro → todos os valores em dobro, mesma ordem
+    expect(doubled?.ranked.map((r) => r.value)).toEqual(base?.ranked.map((r) => r.value * 2));
+  });
+});

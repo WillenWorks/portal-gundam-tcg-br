@@ -200,3 +200,32 @@ A meta do spec (≥ 60%, Wilson > 50%, acima do baseline) **passa**, mas a difer
 1 partida em 112 — empate. Em 10 dos 14 decks o counter escolhido É o baseline; o ganho do Zero
 System vem de jogar com o deck mais forte do pool, não da escolha por confronto. Para o counter
 render mais: matriz com mais partidas por par (ou com o difícil) e um pool maior/mais variado.
+
+## Zero System — fase A: avaliação calibrada (2026-09-25) — sem ganho, não ligada
+
+Spec `bot-zero-system-forte`, fase A. `EvalWeights` virou parâmetro de `evaluatePosition` /
+`sideStrength` / `positionValue` (default = `EVAL_WEIGHTS`, golden intacto); planejador e MCTS aceitam
+`weights`. Pools disjuntos `calib` / `valid` (7 + 7 decks, alternados pela taxa média da matriz).
+
+Calibração `calib-2026-09-25.json` (`pnpm gundam:bot:calibrate`): busca por coordenadas, planejador com
+o candidato × planejador com os pesos atuais, 60 partidas por candidato no pool `calib`, aceite ≥ 57%.
+
+| Peso | Fator | Candidato × atual |
+|---|---|---|
+| shield | ×0.5 | 45.0% |
+| shield | ×1.6 | 45.0% |
+| baseHp | ×0.5 | 51.7% |
+| baseHp | ×1.6 | 43.3% |
+| durableBoard | ×0.5 | 45.0% |
+| durableBoard | ×1.6 | 48.3% |
+| handCard | ×0.5 | 55.0% |
+| handCard | ×1.6 | 51.7% |
+| attackReadyAp | ×0.5 | 46.7% |
+| attackReadyAp | ×1.6 | 46.7% |
+| readyBlockerHp | ×0.5 | 43.3% |
+| readyBlockerHp | ×1.6 | 48.3% |
+
+**Nenhum candidato passou** (média ≈ 48%; melhor 55% = ruído com 60 partidas). Os pesos atuais estão
+num ótimo local para variações de ×0,5 / ×1,6 — pela regra do spec a fase A **não liga nada** no
+Zero System. O ganho de força do Zero System não está nos pesos da avaliação: próximos candidatos são
+avaliação aprendida (features × resultado de self-play) ou mais busca com orçamento maior.
