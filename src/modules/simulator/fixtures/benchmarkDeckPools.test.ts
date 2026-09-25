@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BENCHMARK_POOLS, deckPool } from "./benchmarkDeckPools";
+import { BENCHMARK_POOLS, deckPool, poolFromFile, toPoolFileDeck } from "./benchmarkDeckPools";
 
 describe("benchmarkDeckPools", () => {
   it("meta-gd02 = as 6 receitas oficiais, com knownGaps", () => {
@@ -39,5 +39,18 @@ describe("benchmarkDeckPools", () => {
     const valid = deckPool("valid").map((d) => d.id);
     expect(calib.filter((id) => valid.includes(id))).toEqual([]);
     expect([...calib, ...valid].sort()).toEqual(deckPool("all").map((d) => d.id).sort());
+  });
+
+  it("poolFromFile ↔ toPoolFileDeck: ida e volta preserva a lista", () => {
+    const original = deckPool("starters")[0];
+    const [back] = poolFromFile({ date: "2026-09-25", decks: [toPoolFileDeck(original)] });
+    expect(back.id).toBe(original.id);
+    expect(back.build().main.map((c) => c.code)).toEqual(original.build().main.map((c) => c.code));
+    expect(back.build().resources).toHaveLength(10);
+  });
+
+  it("poolFromFile rejeita carta fora do catálogo", () => {
+    const [bad] = poolFromFile({ date: "x", decks: [{ id: "X", label: "X", source: "public", list: { main: ["NAO-EXISTE"], resources: [] } }] });
+    expect(() => bad.build()).toThrow(/NAO-EXISTE/);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deckPool } from "../../fixtures/benchmarkDeckPools";
-import { counterForPlayerDeck, deckSignature, type MatchupTable } from "./zeroCounter";
+import { counterForPlayerDeck, deckSignature, poolForTable, type MatchupTable } from "./zeroCounter";
+import { toPoolFileDeck } from "../../fixtures/benchmarkDeckPools";
 import { validateGeneratedDeckLegality } from "./zeroCounterDeckBuilder";
 
 const pool = deckPool("all");
@@ -74,5 +75,20 @@ describe("counterForPlayerDeck", () => {
     expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST02");
     t.gamesPerPair = 2;
     expect(counterForPlayerDeck(byId("ST05").build(), t).summary.counterDeckId).toBe("ST03");
+  });
+
+  it("tabela com listas embutidas (decks do banco): o counter sai dessas listas", () => {
+    const st01 = toPoolFileDeck(byId("ST01"));
+    const st02 = toPoolFileDeck(byId("ST02"));
+    const t: MatchupTable = {
+      decks: ["DB-A", "DB-B"],
+      rate: [[null, 0.7], [0.3, null]],
+      lists: { "DB-A": st01.list, "DB-B": st02.list },
+    };
+    expect(poolForTable(t).map((d) => d.id)).toEqual(["DB-A", "DB-B"]);
+    const { deck, summary } = counterForPlayerDeck(byId("ST02").build(), t);
+    expect(summary.nearestDeckId).toBe("DB-B");
+    expect(summary.counterDeckId).toBe("DB-A");
+    expect(deck.main.map((c) => c.code)).toEqual(st01.list.main);
   });
 });
