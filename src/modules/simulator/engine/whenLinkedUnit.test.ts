@@ -165,3 +165,20 @@ describe("E5 — descarte depois de compra dentro de condition.then", () => {
     expect(ids).toEqual(expect.arrayContaining(top2));
   });
 });
+
+describe("E6 — pareamento feito por efeito dispara 【When Paired】/【When Linked】", () => {
+  it("PAIR_CARDS vindo de efeito despacha o 【When Paired】 da Unit", async () => {
+    const { dispatchPairingTriggersFromEffect } = await import("./abilityDispatch");
+    const before = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const unitDef: CardDef = { ...GAIAS_RICK_DOM, code: "X-WP" };
+    const unitId = place(before, "A", unitDef, "battleArea");
+    const pilotId = place(before, "A", AMATE_YUZURIHA, "battleArea");
+    const after = structuredClone(before);
+    findCard(after, unitId).pairedPilotId = pilotId;
+    findCard(after, pilotId).pairedUnitId = unitId;
+    const spec = { id: "X-WP-WhenPaired", cardCode: "X-WP", trigger: "When Paired", actions: [{ op: "draw" as const, player: "controller" as const, n: 1 }], sourceText: "【When Paired】Draw 1." };
+    const hand = after.players.A.hand.length;
+    const next = dispatchPairingTriggersFromEffect(before, after, [spec]);
+    expect(next.players.A.hand.length).toBe(hand + 1);
+  });
+});

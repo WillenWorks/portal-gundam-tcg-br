@@ -423,6 +423,41 @@ export function dispatchAnyPairingFromEffect(
 }
 
 /**
+ * E6 — pareamento feito por EFEITO (`pairFromHandSearch`/`pairFromTrashSearch`) dispara os
+ * mesmos 【When Paired】 (Unit + Pilot) e 【When Linked】 (se formou Link Unit) que o
+ * pareamento da jogada normal (`deploy.ts`). Antes só o "AnyPairing" reativo disparava.
+ */
+export function dispatchPairingTriggersFromEffect(
+  before: GameState,
+  after: GameState,
+  specs: EffectSpec[],
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  let next = after;
+  for (const np of collectNewPairings(before, after)) {
+    const unit = findCard(next, np.unitInstanceId);
+    if (!unit.pairedPilotId) continue;
+    const pilot = findCard(next, unit.pairedPilotId);
+    const sources = [
+      { code: unit.def.code, instanceId: unit.instanceId },
+      { code: pilot.def.code, instanceId: pilot.instanceId },
+    ];
+    next = deferOrDispatchAbilities(next, np.owner, "When Paired", sources, specs, opts);
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (satisfiesLinkCondition(effectivePilotDef(pilot), unit.def)) {
+      next = deferOrDispatchAbilities(next, np.owner, "When Linked", sources, specs, opts);
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    }
+  }
+  return next;
+}
+
+/**
  * docs/debates/2026-09-12 e 2026-09-13 — incidente real de travamento de ~4h
  * num playtest manual: a guarda `MAX_TRIGGER_CHUNKS` tinha sido consensuada
  * (95%) e nunca chegou a virar código; o único guard existente

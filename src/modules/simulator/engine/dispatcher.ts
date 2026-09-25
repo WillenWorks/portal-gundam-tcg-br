@@ -3,7 +3,13 @@ import { otherPlayer, specPairGateOpen } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { resolveEffectSpec } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { checkTriggerLoopGuard, deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect } from "./abilityDispatch";
+import {
+  checkTriggerLoopGuard,
+  deferOrDispatchAbilities,
+  dispatchAnyPairingFromEffect,
+  dispatchDestroyedFromEffect,
+  dispatchPairingTriggersFromEffect,
+} from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
 
 /**
@@ -127,6 +133,14 @@ export function dispatchTrigger(
       queueBudget,
     });
     if (next.gameOver || next.pendingDecision[current.owner]) break;
+    // E6 — e o 【When Paired】/【When Linked】 das próprias cartas pareadas
+    next = dispatchPairingTriggersFromEffect(before, next, allSpecs, {
+      predicateResolver: opts.predicateResolver,
+      targetFilterResolver: opts.targetFilterResolver,
+      cascadeDepth: cascadeDepth + 1,
+      queueBudget,
+    });
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
 
     // docs/47 Fase 4 — 【Burst】Deploy this card: a `deployThisCard` acabou de pôr
     // a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token /
