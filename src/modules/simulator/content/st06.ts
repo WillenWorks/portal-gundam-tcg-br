@@ -51,7 +51,7 @@ export const RED_GUNDAM_ATTACK: EffectSpec = {
   targetScope: "friendlyUnit",
   targetFilter: "trait:Clan",
   targetCount: { min: 1, max: 2 },
-  sourceText: "【Attack】Choose 1 or 2 friendly (Clan) Units. They get AP+2 during this turn.",
+  sourceText: "【Attack】Choose 1 to 2 friendly (Clan) Units. They get AP+2 during this turn.",
 };
 
 // ST06-007 Ortega's Rick Dom (GQ) — 【Deploy】Choose 1 of your other (Clan) Units.
@@ -208,7 +208,7 @@ export const CLAN_BATTLE_ACTIVATE_MAIN: EffectSpec = {
   },
   actions: [{ op: "rest", target: { kind: "self" } }],
   targetScope: "friendlyUnit",
-  sourceText: "【Activate: Main】Rest this Base: If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn.",
+  sourceText: "【Activate·Main】Rest this Base:If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn.",
 };
 
 // ST06-015 Kaneban Co., Ltd. — 【Deploy】Add 1 of your Shields to your hand.

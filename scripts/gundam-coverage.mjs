@@ -17,6 +17,7 @@
  *   node scripts/gundam-coverage.mjs --sets=ST01,ST03    # só esses
  *   node scripts/gundam-coverage.mjs --all               # todos os sets do dataset (GD/EB…)
  *   node scripts/gundam-coverage.mjs --gate              # exit != 0 se houver `faltando` nos sets pedidos
+ *   node scripts/gundam-coverage.mjs --gate --strict     # idem, e também por cláusula sem cobertura (clauseAudit.ts)
  *   node scripts/gundam-coverage.mjs --out=docs/_generated/coverage.md
  *
  * O CI (.github/workflows/ci.yml) roda com `--gate` sobre ST01..ST05.
@@ -44,10 +45,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01"];
 
 function parseArgs(argv) {
-  const out = { sets: GATED_SETS, all: false, gate: false, outFile: null };
+  const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };
   for (const a of argv) {
     if (a === "--all") out.all = true;
     else if (a === "--gate") out.gate = true;
+    else if (a === "--strict") out.strict = true;
     else if (a.startsWith("--sets=")) out.sets = a.slice(7).split(",").map((s) => s.trim()).filter(Boolean);
     else if (a.startsWith("--out=")) out.outFile = a.slice(6);
   }
@@ -197,62 +199,14 @@ console.log(`[coverage] governança de primitivas: OK (vocabulário do motor 100
 
 const official = JSON.parse(readFileSync(path.join(REPO_ROOT, "data/gcg-official-cards.json"), "utf8")).cards;
 
-/**
- * `true` se o texto oficial tem alguma regra bespoke além de:
- *  - keyword automática (`<X>` ou `【trigger】<X>` + lembrete `(...)`)
- *  - `【Pilot】[Nome]` (pilotMode)
- *  - vazio / "-"
- */
-function hasBespokeText(effect) {
-  if (!effect || effect.trim() === "-" || effect.trim() === "") return false;
-  let s = effect
-    .replace(/【Pilot】\s*\[[^\]]*\]/g, " ") // modo Pilot alternativo → pilotMode
-    .replace(/【[^】]*】/g, " ") // marcadores de gatilho
-    .replace(/<[^>]+>/g, " "); // tokens de keyword
-  // lembretes entre parênteses (inclui aninhados: roda até estabilizar)
-  let prev;
-  do {
-    prev = s;
-    s = s.replace(/\([^()]*\)/g, " ");
-  } while (s !== prev);
-  s = s.replace(/[［］\[\]･・、。.,\s]+/g, " ").trim();
-  return s.length > 0;
-}
+// critério por carta: o MESMO do gate de runtime (server/deckCoverageGate.ts) — vem do módulo compartilhado
+const { legacyCoverageStatus } = await import("../src/modules/simulator/content/coverage/clauseAudit.ts");
 
 function classify(code) {
   const card = official.find((c) => c.code === code);
-  const effect = card?.effect ?? "";
-  const def = DEF_BY_CODE.get(code);
   const specs = SPECS_BY_CODE.get(code) ?? [];
   const deferrals = DEFERRALS_BY_CODE.get(code) ?? [];
-
-  const bespoke = hasBespokeText(effect);
-  const hasStructured = Boolean(
-    def &&
-      (def.staticAbilities?.length ||
-        def.combatTriggers?.length ||
-        def.allyCombatTriggers?.length ||
-        def.attackTargetRules ||
-        def.dynamicCost ||
-        def.onSupportUsed ||
-        def.innateStatReductionImmunity ||
-        def.innateDamageProtection ||
-        def.innateEffectDamageProtection ||
-        def.onApReducedByEnemy ||
-        def.onEffectDamageReceived ||
-        def.onExResourcePlaced ||
-        def.onSelfHeal ||
-        def.alternateDeploySacrifice ||
-        def.onAnyPairing),
-  );
-  const hasSpec = specs.length > 0;
-
-  let status;
-  if (!bespoke) status = "vanilla";
-  else if (hasSpec || hasStructured) status = deferrals.length ? "implementada*" : "implementada";
-  else if (deferrals.length) status = "deferida";
-  else status = "faltando";
-
+  const status = legacyCoverageStatus({ effect: card?.effect ?? "", def: DEF_BY_CODE.get(code), specs, deferrals });
   return { code, name: card?.name ?? "?", type: card?.cardType ?? "?", status, specs: specs.length, deferrals: deferrals.length };
 }
 
@@ -353,6 +307,78 @@ writeFileSync(
   "utf8",
 );
 
+// ── Auditoria cláusula a cláusula (W0.2 — content/coverage/clauseAudit.ts) ──────
+// O `classify` acima só vê "existe spec ou campo estruturado"; aqui cada cláusula do
+// texto oficial precisa estar coberta (texto + TODOS os gatilhos). Grava sempre
+// `content/_index/clause-coverage.json` (versionado, determinístico) sobre os sets
+// do gate + GD02/GD03. `--strict` faz o gate falhar também por cláusula.
+const { auditCard } = await import("../src/modules/simulator/content/coverage/clauseAudit.ts");
+function auditCode(code) {
+  const card = official.find((c) => c.code === code);
+  return auditCard({
+    code,
+    effect: card?.effect ?? "",
+    def: DEF_BY_CODE.get(code),
+    specs: SPECS_BY_CODE.get(code) ?? [],
+    deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
+  });
+}
+const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03"])];
+const clauseTotalsBySet = {};
+const clauseJsonSets = {};
+for (const set of [...new Set([...CLAUSE_AUDIT_SETS, ...sets])]) {
+  const codes = official.filter((c) => c.code.startsWith(`${set}-`)).map((c) => c.code).sort();
+  if (codes.length === 0) continue;
+  const audits = codes.map(auditCode);
+  const counts = { vanilla: 0, full: 0, partial: 0, missing: 0, withErrors: 0 };
+  for (const a of audits) {
+    counts[a.status]++;
+    if (a.errors.some((e) => e !== "unknownCode")) counts.withErrors++;
+  }
+  clauseTotalsBySet[set] = { counts, audits };
+  if (CLAUSE_AUDIT_SETS.includes(set)) {
+    clauseJsonSets[set] = {
+      counts,
+      cards: audits.map((a) => ({
+        code: a.code,
+        status: a.status,
+        errors: a.errors,
+        clauses: a.clauses.map((c) => ({
+          i: c.index,
+          triggers: c.triggers,
+          by: c.by,
+          refs: c.refs,
+          ...(c.missingTriggers ? { missingTriggers: c.missingTriggers } : {}),
+          text: c.text,
+        })),
+      })),
+    };
+  }
+}
+writeFileSync(
+  path.join(REPO_ROOT, "src/modules/simulator/content/_index/clause-coverage.json"),
+  `${JSON.stringify({ sets: clauseJsonSets }, null, 2)}\n`,
+  "utf8",
+);
+const clauseLines = ["", "## Auditoria por cláusula", "", "| Carta | Status | Cláusulas sem cobertura / erros |", "|---|---|---|"];
+for (const set of sets) {
+  for (const a of clauseTotalsBySet[set]?.audits ?? []) {
+    const issues = [
+      ...a.clauses.filter((c) => c.by === "missing").map((c) => `${c.missingTriggers ? `falta ${c.missingTriggers.join("/")}: ` : ""}${c.text.slice(0, 80)}`),
+      ...a.errors,
+    ];
+    if (issues.length) clauseLines.push(`| ${a.code} | ${a.status} | ${issues.join("<br>").replace(/\|/g, "\\|")} |`);
+  }
+}
+writeFileSync(path.join(REPO_ROOT, outFile), `${report}\n${clauseLines.join("\n")}\n`, "utf8");
+let clauseProblems = 0;
+for (const set of sets) {
+  const t = clauseTotalsBySet[set]?.counts;
+  if (!t) continue;
+  clauseProblems += t.missing + t.withErrors;
+  console.log(`[coverage:cláusulas] ${set}: ${t.full} full · ${t.partial} partial · ${t.vanilla} vanilla · ${t.missing} missing · ${t.withErrors} com erro${t.missing + t.withErrors ? " ⚠️" : ""}`);
+}
+
 // console
 for (const set of sets) {
   const t = totals[set];
@@ -368,7 +394,10 @@ if (badDeferrals.length > 0) {
   console.error(`[coverage] deferred.ts: cláusula(s) que NÃO são trecho literal do texto EN oficial:\n  ${badDeferrals.join("\n  ")}`);
 }
 
-if (args.gate && (missing > 0 || badDeferrals.length > 0)) {
+if (args.gate && (missing > 0 || badDeferrals.length > 0 || (args.strict && clauseProblems > 0))) {
   if (missing > 0) console.error(`[coverage] FALHA: ${missing} carta(s) 'faltando' nos sets ${sets.join(",")}.`);
+  if (args.strict && clauseProblems > 0) {
+    console.error(`[coverage] FALHA (--strict): ${clauseProblems} carta(s) com cláusula sem cobertura ou erro — ver "Auditoria por cláusula" em ${outFile}.`);
+  }
   process.exit(1);
 }
