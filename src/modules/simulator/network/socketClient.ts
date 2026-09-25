@@ -97,6 +97,7 @@ class SimulatorSocketClient {
   private readonly pendingActions: QueuedAction[] = [];
   private lastPingMs: number | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private serverDropTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly listeners = new Map<EventName, Set<(payload: unknown) => void>>();
 
   getStatus(): SimulatorSocketStatus {
@@ -143,6 +144,10 @@ class SimulatorSocketClient {
   }
 
   disconnect(): void {
+    if (this.serverDropTimer) {
+      clearTimeout(this.serverDropTimer);
+      this.serverDropTimer = null;
+    }
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
@@ -165,6 +170,13 @@ class SimulatorSocketClient {
     socket.on("disconnect", (reason) => {
       // "io server disconnect" / "io client disconnect" não re-tentam sozinhos
       this.setStatus(reason === "io client disconnect" ? "idle" : "reconnecting");
+      // o servidor derrubou a conexão: sem isto o status ficava "reconnecting" pra sempre
+      if (reason === "io server disconnect") {
+        this.serverDropTimer = setTimeout(() => {
+          this.serverDropTimer = null;
+          if (this.socket === socket) socket.connect();
+        }, RECONNECT_DELAY_MS);
+      }
     });
     socket.on("connect_error", () => {
       this.setStatus(socket.active ? "reconnecting" : "dead");

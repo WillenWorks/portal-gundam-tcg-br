@@ -1025,6 +1025,16 @@ export function decisionOwner(state: GameState): PlayerId | null {
   return null;
 }
 
+type AbilityQueueItem = Extract<NonNullable<GameState["pendingDecision"]["A"]>, { kind: "abilityResolution" }>["queue"][number];
+
+/** a escolha mínima que o `resolveAbility` aceita pras decisões mandatórias (mesmas regras de validação de lá) */
+function defaultChoiceIds(q: AbilityQueueItem): string[] {
+  if (q.handDiscard) return q.handDiscard.legalHandIds.slice(0, q.handDiscard.n);
+  if (q.deckReorder) return q.deckReorder.topCards.slice(0, q.deckReorder.slots.length).map((c) => c.instanceId);
+  if (q.enumChoice) return q.enumChoice.options.slice(0, 1).map((o) => o.value);
+  return [];
+}
+
 /** A ação que o timer executa sozinho quando estoura, pro passo atual — sempre a opção "não fazer nada de especial" de cada passo. */
 /** exportado só pra teste — a ação-padrão que o timer executa pro passo atual. */
 export function defaultActionFor(state: GameState): PlayerAction {
@@ -1039,10 +1049,11 @@ export function defaultActionFor(state: GameState): PlayerAction {
     if (pending?.kind === "abilityResolution") {
       // AFK durante a resolução de habilidade (When Paired / Attack / …): pula os
       // optativos e resolve os mandatórios sem alvo (o motor trata `targetIds: []`
-      // como "nada acontece").
+      // como "nada acontece"). Descarte / reordenação / escolha de opção não têm o
+      // caminho "nada acontece" — o `resolveAbility` exige a escolha exata.
       return {
         kind: "resolveAbility",
-        resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: [] })),
+        resolutions: pending.queue.map((q) => ({ specId: q.specId, activate: !q.optional, targetIds: defaultChoiceIds(q) })),
       };
     }
     if (pending?.kind === "mulligan") {
@@ -1166,8 +1177,10 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
         notify(match);
         return;
       }
-    } catch {
-      // a ação-padrão do passo virou ilegal por algum motivo inesperado (não deveria acontecer) — não trava o relógio, só rearma abaixo.
+    } catch (err) {
+      // a ação-padrão do passo virou ilegal (não deveria acontecer) — não trava o relógio, só rearma abaixo;
+      // o log é o que deixa achar o caso: sem ele a partida ficava presa em silêncio até o W.O.
+      console.warn(`[simulator] ação-padrão do timeout falhou (partida ${matchId}, decisão de ${actingPlayer})`, err);
     }
   }
 
