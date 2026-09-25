@@ -421,6 +421,14 @@ describe("defaultActionFor — ação-padrão do timer NÃO trava a partida (reg
     expect(r.targetIds).toEqual(["t1", "t2"]);
   });
 
+  it("descarte OPCIONAL ('you may discard') AFK: pula sem descartar e o motor aceita", () => {
+    const state = stateWithChoice({ optional: true, handDiscard: { n: 1, legalHandIds: ["h1"], label: "pode descartar 1" } });
+    const action = defaultActionFor(state);
+    expect(action.kind === "resolveAbility" && action.resolutions[0].activate).toBe(false);
+    const next = applyPlayerAction(state, "A", action, ALL_EFFECT_SPECS, defaultPredicateResolver);
+    expect(next.pendingDecision.A).toBeNull();
+  });
+
   it("enumChoice AFK: fica com a primeira opção", () => {
     const r = firstResolution(
       stateWithChoice({

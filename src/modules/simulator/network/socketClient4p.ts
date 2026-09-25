@@ -187,6 +187,7 @@ class Arena4pSocketClient {
       this.setStatus(reason === "io client disconnect" ? "idle" : "reconnecting");
       // "io server disconnect" não re-tenta sozinho no socket.io — sem isto ficava "reconnecting" pra sempre
       if (reason === "io server disconnect") {
+        if (this.serverDropTimer) clearTimeout(this.serverDropTimer);
         this.serverDropTimer = setTimeout(() => {
           this.serverDropTimer = null;
           if (this.socket === socket) socket.connect();

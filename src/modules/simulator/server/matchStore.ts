@@ -1031,6 +1031,7 @@ type AbilityQueueItem = Extract<NonNullable<GameState["pendingDecision"]["A"]>, 
 function defaultChoiceIds(q: AbilityQueueItem): string[] {
   if (q.handDiscard) return q.handDiscard.legalHandIds.slice(0, q.handDiscard.n);
   if (q.deckReorder) return q.deckReorder.topCards.slice(0, q.deckReorder.slots.length).map((c) => c.instanceId);
+  // (enumChoice sempre vem com opções — `spawnTokenChoice`/`moveTopCardToChosenPosition` montam a lista)
   if (q.enumChoice) return q.enumChoice.options.slice(0, 1).map((o) => o.value);
   return [];
 }
@@ -1180,7 +1181,7 @@ function onTurnTimeout(matchId: string, expectedDeadline: number): void {
     } catch (err) {
       // a ação-padrão do passo virou ilegal (não deveria acontecer) — não trava o relógio, só rearma abaixo;
       // o log é o que deixa achar o caso: sem ele a partida ficava presa em silêncio até o W.O.
-      console.warn(`[simulator] ação-padrão do timeout falhou (partida ${matchId}, decisão de ${actingPlayer})`, err);
+      console.warn(`[SIMULADOR] ação-padrão do timeout falhou (partida ${matchId}, decisão de ${actingPlayer})`, err);
     }
   }
 

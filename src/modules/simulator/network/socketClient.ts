@@ -172,6 +172,7 @@ class SimulatorSocketClient {
       this.setStatus(reason === "io client disconnect" ? "idle" : "reconnecting");
       // o servidor derrubou a conexão: sem isto o status ficava "reconnecting" pra sempre
       if (reason === "io server disconnect") {
+        if (this.serverDropTimer) clearTimeout(this.serverDropTimer);
         this.serverDropTimer = setTimeout(() => {
           this.serverDropTimer = null;
           if (this.socket === socket) socket.connect();
