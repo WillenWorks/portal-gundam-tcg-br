@@ -87,7 +87,7 @@ export function buildDeckListFromUserDeck(deck: UserDeckInput): DeckList {
   if (unsupportedCodes.size > 0) {
     const list = Array.from(unsupportedCodes).sort().join(", ");
     throw new UserDeckSimulatorError(
-      `O deck "${deck.name}" contém cartas ainda não implementadas no simulador: ${list}. Decks para treino devem conter apenas cartas dos starter decks (ST01 a ST04).`,
+      `O deck "${deck.name}" contém cartas ainda não implementadas no simulador: ${list}. Para jogar no simulador, remova ou troque essas cartas.`,
       400,
       Array.from(unsupportedCodes),
     );
