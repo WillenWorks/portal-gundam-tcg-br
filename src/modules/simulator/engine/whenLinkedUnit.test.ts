@@ -86,3 +86,32 @@ describe("E7 — collectDestroyed", () => {
     expect(d?.wasLinkUnit).toBe(true);
   });
 });
+
+describe("E8 — estático de Base", () => {
+  it("staticAbilities de uma Base na Base Section valem (antes só a Battle Area era lida)", async () => {
+    const { effectiveAp } = await import("./types");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const unitId = place(state, "A", GAIAS_RICK_DOM, "battleArea");
+    const apBefore = effectiveAp(findCard(state, unitId), state);
+    place(state, "A", {
+      code: "X-BASE", nameEn: "Base de teste", cardType: "BASE", color: "red", hp: 5,
+      staticAbilities: [{ condition: "always", scope: "allFriendlyUnits", stat: "ap", amount: 1 }],
+    }, "baseSection");
+    expect(effectiveAp(findCard(state, unitId), state)).toBe(apBefore + 1);
+  });
+});
+
+describe("E9 — 【During Pair】/【During Link】 em gatilho que não é 【Destroyed】", () => {
+  it("spec com duringPair não dispara com a Unit sem Piloto, dispara pareada", async () => {
+    const { dispatchTrigger } = await import("./dispatcher");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const unitDef: CardDef = { ...GAIAS_RICK_DOM, code: "X-PAIR" };
+    const unitId = place(state, "A", unitDef, "battleArea");
+    const spec = { id: "X-PAIR-Attack", cardCode: "X-PAIR", trigger: "Attack", duringPair: true, actions: [{ op: "draw" as const, player: "controller" as const, n: 1 }], sourceText: "【During Pair】【Attack】Draw 1." };
+    const hand = state.players.A.hand.length;
+    expect(dispatchTrigger(state, unitId, "Attack", [spec]).players.A.hand.length).toBe(hand);
+    const pilotId = place(state, "A", AMATE_YUZURIHA, "battleArea", { pairedUnitId: unitId });
+    findCard(state, unitId).pairedPilotId = pilotId;
+    expect(dispatchTrigger(state, unitId, "Attack", [spec]).players.A.hand.length).toBe(hand + 1);
+  });
+});

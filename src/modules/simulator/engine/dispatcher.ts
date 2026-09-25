@@ -1,5 +1,5 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
-import { otherPlayer } from "./types";
+import { otherPlayer, specPairGateOpen } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { resolveEffectSpec } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
@@ -89,6 +89,7 @@ export function dispatchTrigger(
 
     const current = findCard(next, sourceInstanceId);
     if (current.def.oncePerTurn && current.usedKeywordsThisTurn.includes(trigger)) continue;
+    if (!specPairGateOpen(next, current, spec)) continue;
 
     const ctx: EffectContext = {
       state: next,

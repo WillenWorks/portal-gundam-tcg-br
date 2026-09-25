@@ -562,6 +562,18 @@ function findInBattleArea(state: GameState, owner: PlayerId, instanceId: string)
   return state.players[owner].battleArea.find((c) => c.instanceId === instanceId);
 }
 
+/**
+ * Gate de `EffectSpec.duringPair`/`duringLink` pra qualquer gatilho (E9 — antes só o 【Destroyed】
+ * olhava; GD02-057 disparava sem Piloto). Fonte fora de campo (ex. 【Destroyed】, já no trash) passa:
+ * quem despacha esse caso decide pelo snapshot de antes (`DestroyedInBattle.wasPaired`).
+ */
+export function specPairGateOpen(state: GameState, source: CardInstance, spec: { duringPair?: boolean; duringLink?: boolean }): boolean {
+  if (!spec.duringPair && !spec.duringLink) return true;
+  if (source.zone !== "battleArea") return true;
+  if (spec.duringLink) return isStaticAbilityActive(state, source, "duringLink");
+  return isStaticAbilityActive(state, source, "duringPair");
+}
+
 function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
   if (condition === "always") return true;
   if (condition === "duringPair") {
@@ -658,7 +670,8 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
 function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
   let bonus = 0;
   const owner = state.players[target.owner];
-  for (const source of owner.battleArea) {
+  // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
+  for (const source of [...owner.battleArea, ...owner.baseSection]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -780,7 +793,8 @@ export function effectiveLevel(def: CardDef, state?: GameState, controller?: Pla
 /** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */
 function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, state: GameState): StaticAbility | undefined {
   const owner = state.players[card.owner];
-  for (const source of owner.battleArea) {
+  // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
+  for (const source of [...owner.battleArea, ...owner.baseSection]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;

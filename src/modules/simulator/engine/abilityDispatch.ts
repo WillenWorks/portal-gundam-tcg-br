@@ -26,7 +26,7 @@ import {
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
 import type { DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId } from "./types";
-import { effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
+import { effectivePilotDef, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -225,7 +225,9 @@ export function deferOrDispatchAbilities(
   if (guarded) return guarded;
 
   const entries = sources.flatMap((s) =>
-    findTriggerSpecs(specs, s.code, trigger).map((spec) => ({ spec, sourceInstanceId: s.instanceId, implicitTargets: s.implicitTargets })),
+    findTriggerSpecs(specs, s.code, trigger)
+      .filter((spec) => specPairGateOpen(state, findCard(state, s.instanceId), spec))
+      .map((spec) => ({ spec, sourceInstanceId: s.instanceId, implicitTargets: s.implicitTargets })),
   );
   if (entries.length === 0) return state;
 
