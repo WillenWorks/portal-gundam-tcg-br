@@ -103,6 +103,7 @@ import { getMetagameStats } from "./metagameTrendsService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
+import { purgeStaleSimulatorMatches, SIMULATOR_MATCH_PURGE_INTERVAL_MS } from "./simulatorMatchCleanup.ts";
 
 const prisma = new PrismaClient();
 
@@ -5420,6 +5421,13 @@ async function boot() {
   httpServer.listen(PORT, () => {
     console.log(`API pronta em http://localhost:${PORT} (HTTP + WebSocket)`);
   });
+  // linhas de `SimulatorMatch` que ninguém mais vai abrir (terminadas / abandonadas) — no boot e a cada 6 h
+  const purgeMatches = async () => {
+    const count = await purgeStaleSimulatorMatches(prisma.simulatorMatch);
+    if (count > 0) console.log(`[simulator] ${count} partida(s) antiga(s) removida(s) do banco`);
+  };
+  void purgeMatches();
+  setInterval(() => void purgeMatches(), SIMULATOR_MATCH_PURGE_INTERVAL_MS).unref();
 }
 
 boot();
