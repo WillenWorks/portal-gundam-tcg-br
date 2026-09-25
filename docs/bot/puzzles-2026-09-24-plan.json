@@ -1,0 +1,81 @@
+{
+  "date": "2026-09-24",
+  "commit": "0e2041c",
+  "params": {
+    "levels": [
+      "normal",
+      "normal_plan",
+      "zero_system"
+    ],
+    "dificilRollouts": 16,
+    "puzzles": 22
+  },
+  "durationSeconds": 0,
+  "goal": 0.9,
+  "chanceRate": 0.4310606060606061,
+  "levels": {
+    "normal": {
+      "rate": 0.9090909090909091,
+      "correct": 20,
+      "valid": 22,
+      "broken": 0,
+      "misses": [
+        {
+          "id": "rest-e-ataque",
+          "status": "erro",
+          "chosen": {
+            "kind": "declareAttack",
+            "attackerId": "A-pz-74",
+            "target": "player"
+          },
+          "reason": null
+        },
+        {
+          "id": "remove-bloqueador-e-letal",
+          "status": "erro",
+          "chosen": {
+            "kind": "declareAttack",
+            "attackerId": "A-pz-79",
+            "target": "player"
+          },
+          "reason": null
+        }
+      ]
+    },
+    "normal_plan": {
+      "rate": 1,
+      "correct": 22,
+      "valid": 22,
+      "broken": 0,
+      "misses": []
+    },
+    "zero_system": {
+      "rate": 0.9090909090909091,
+      "correct": 20,
+      "valid": 22,
+      "broken": 0,
+      "misses": [
+        {
+          "id": "rest-e-ataque",
+          "status": "erro",
+          "chosen": {
+            "kind": "declareAttack",
+            "attackerId": "A-pz-242",
+            "target": "player"
+          },
+          "reason": null
+        },
+        {
+          "id": "remove-bloqueador-e-letal",
+          "status": "erro",
+          "chosen": {
+            "kind": "declareAttack",
+            "attackerId": "A-pz-247",
+            "target": "player"
+          },
+          "reason": null
+        }
+      ]
+    }
+  }
+}

@@ -6,6 +6,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { GameOverInfo } from "@/modules/simulator/engine/types";
+import type { ReactNode } from "react";
 import { gameOverReasonLabel } from "./gameOverReason";
 
 interface GameOverOverlayProps {
@@ -14,9 +15,11 @@ interface GameOverOverlayProps {
   /** segundos até o redirect automático pro lobby (`null` = sem contagem). */
   redirectSeconds: number | null;
   onLeave: () => void;
+  /** conteúdo extra abaixo do resultado (ex.: deck do Zero System) */
+  children?: ReactNode;
 }
 
-export function GameOverOverlay({ won, reason, redirectSeconds, onLeave }: GameOverOverlayProps) {
+export function GameOverOverlay({ won, reason, redirectSeconds, onLeave, children }: GameOverOverlayProps) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/85 backdrop-blur-sm"
@@ -33,6 +36,7 @@ export function GameOverOverlay({ won, reason, redirectSeconds, onLeave }: GameO
           {won ? "Você venceu" : "Você perdeu"}
         </p>
         <p className="text-sm text-muted-portal sm:text-base">{gameOverReasonLabel(reason, won)}</p>
+        {children}
         <Button
           className="mt-3 rounded-arena bg-primary px-6 text-primary-foreground hover:bg-primary/90"
           onClick={onLeave}

@@ -24,10 +24,20 @@ export {
 
 export {
   mctsPolicy,
-  determinize,
   chooseAction as chooseMctsAction,
   type MctsPolicyOptions,
 } from "./mctsPolicy";
+
+export { applyForEval, determinize, evaluatePosition, positionValue, type EvalDeps } from "./evaluation";
+
+export {
+  EffectLookahead,
+  evaluateAction,
+  MIN_GAIN,
+  type ActionEvaluation,
+  type EffectLookaheadConfig,
+  type LookaheadOptions,
+} from "./actionLookahead";
 
 export {
   simulateToEnd,
@@ -52,3 +62,34 @@ export {
   type ZeroCounterDeckOptions,
   type ZeroCounterDeckResult,
 } from "./zeroCounterDeckBuilder";
+
+export {
+  BOT_LEVELS,
+  DIFICIL_DEPTH_TURNS,
+  DIFICIL_ROLLOUTS,
+  policyForLevel,
+  type BotLevel,
+  type LevelPolicyOptions,
+} from "./levelPolicies";
+
+export {
+  bootstrapEloIntervals,
+  bradleyTerryElo,
+  headToHead,
+  runLadder,
+  wilsonInterval,
+  type GameRecord,
+  type LadderGame,
+  type LadderOptions,
+  type LadderResult,
+  type NeighborRate,
+} from "./ladder";
+
+export {
+  runPuzzle,
+  runPuzzleSuite,
+  type PuzzleLevelSummary,
+  type PuzzleResult,
+  type PuzzleRunOptions,
+  type PuzzleStatus,
+} from "./puzzleRunner";

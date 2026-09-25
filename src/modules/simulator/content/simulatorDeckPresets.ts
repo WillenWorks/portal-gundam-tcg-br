@@ -25,4 +25,11 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "GD01-ZEON", label: "Zeon Legion (GD01)" },
   { key: "GD01-NEWTYPE", label: "Newtype Corps (GD01)" },
   { key: "GD01-SLEEVES", label: "Sleeves Uprising (GD01)" },
+  // Decks meta da época GD02 + ST06 (receitas oficiais, out/2025) — `fixtures/metaDecksGd02Era.ts`
+  { key: "META-GD02-AEUG-EA", label: "Meta GD02 · AEUG / Earth Alliance" },
+  { key: "META-GD02-TEKKADAN-VAGAN", label: "Meta GD02 · Tekkadan × Vagan" },
+  { key: "META-GD02-QUBELEY", label: "Meta GD02 · Qubeley Control" },
+  { key: "META-GD02-AGE-WING", label: "Meta GD02 · AGE × Wing" },
+  { key: "META-GD02-TITANS", label: "Meta GD02 · Titans × Cyber-Newtype" },
+  { key: "META-ST06-GQUUUUUUX", label: "Meta ST06 × GD02 · GQuuuuuuX" },
 ];

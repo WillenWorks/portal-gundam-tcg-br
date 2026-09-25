@@ -5,7 +5,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { hydrateMatch } from "../../src/modules/simulator/server/hydrateMatch.ts";
 import { botSeatFromSeats } from "../../src/modules/simulator/server/trainingMatch.ts";
-import { driveBotTurn } from "./driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay } from "./driveBotTurn.mjs";
 
 /**
  * Worker do bot de treino (docs/44 Fase 2 §10.2). Faz polling da tabela
@@ -100,6 +100,7 @@ async function processTurn(turn) {
     level,
     persona,
     seed: turnSeed(turn.matchId, state.turnNumber, turn.attempts),
+    beforeCommit: humanizedThinkDelay,
     commit: (action) => commitAction(turn.matchId, action),
   });
 

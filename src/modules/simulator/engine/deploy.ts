@@ -162,7 +162,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
 
   if (!freeDeploy && !canPayLevel(base, player, def)) {
     throw new Error(
-      `Nível insuficiente pra jogar ${def.code}: precisa de ${def.level ?? 0} recursos em campo, tem ${base.players[player].resourceArea.length}`,
+      `Nível insuficiente pra jogar ${def.code}: precisa de ${effectiveLevel(def, base, player)} recursos em campo, tem ${base.players[player].resourceArea.length}`,
     );
   }
 
@@ -341,7 +341,7 @@ export function playCommand(
   }
 
   if (!canPayLevel(state, player, card.def)) {
-    throw new Error(`Nível insuficiente pra jogar ${card.def.code}: precisa de ${card.def.level ?? 0} recursos em campo`);
+    throw new Error(`Nível insuficiente pra jogar ${card.def.code}: precisa de ${effectiveLevel(card.def, state, player)} recursos em campo`);
   }
 
   const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);

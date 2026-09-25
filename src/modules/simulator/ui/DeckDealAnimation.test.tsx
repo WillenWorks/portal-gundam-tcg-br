@@ -209,4 +209,56 @@ describe("DeckDealAnimation", () => {
     expect(travelling.style.getPropertyValue("--dx")).toBe("-300px");
     expect(travelling.style.getPropertyValue("--dy")).toBe("520px");
   });
+
+  it("shuffle ancorado: posiciona o palco no origin do deck e usa cardW", () => {
+    mockMatchMedia(false);
+    const { container } = render(
+      <DeckDealAnimation
+        mode="shuffle"
+        onDone={vi.fn()}
+        label="Embaralhando…"
+        origin={{ x: 880, y: 640 }}
+        cardW={86}
+      />,
+    );
+    const stage = container.querySelector("[aria-hidden] > div") as HTMLElement;
+    expect(stage.style.left).toBe("880px");
+    expect(stage.style.top).toBe("640px");
+
+    // Cartas do shuffle dimensionadas com a largura fornecida
+    const shuffleCard = container.querySelector(".sim-anim-shuffle") as HTMLElement;
+    expect(shuffleCard).not.toBeNull();
+    expect(shuffleCard.style.width).toBe("86px");
+
+    // Não deve exibir a moldura tática HUD centralizada
+    expect(screen.queryByText("TACTICAL_DECK_SYNC")).toBeNull();
+  });
+
+  it("shuffle defensivo (abertura da partida): fallback robusto para o centro se origin for nulo ou (0, 0)", () => {
+    mockMatchMedia(false);
+    // Cenário 1: origin indefinido / nulo (board ainda não montou)
+    const { container, rerender } = render(
+      <DeckDealAnimation mode="shuffle" onDone={vi.fn()} origin={undefined} />,
+    );
+    const stage1 = container.querySelector("[aria-hidden] > div") as HTMLElement;
+    const expectedCenterX = `${Math.round(window.innerWidth / 2)}px`;
+    const expectedCenterY = `${Math.round(window.innerHeight / 2)}px`;
+    expect(stage1.style.left).toBe(expectedCenterX);
+    expect(stage1.style.top).toBe(expectedCenterY);
+    expect(stage1.style.left).not.toBe("0px");
+    expect(stage1.style.top).not.toBe("0px");
+
+    // Cenário 2: origin com coords (0, 0) de elemento não pintado
+    rerender(<DeckDealAnimation mode="shuffle" onDone={vi.fn()} origin={{ x: 0, y: 0 }} />);
+    const stage2 = container.querySelector("[aria-hidden] > div") as HTMLElement;
+    expect(stage2.style.left).toBe(expectedCenterX);
+    expect(stage2.style.top).toBe(expectedCenterY);
+
+    // Cenário 3: quando o layout faz o primeiro paint e mede a área do deck, re-ancora no ponto real
+    rerender(<DeckDealAnimation mode="shuffle" onDone={vi.fn()} origin={{ x: 920, y: 580 }} />);
+    const stage3 = container.querySelector("[aria-hidden] > div") as HTMLElement;
+    expect(stage3.style.left).toBe("920px");
+    expect(stage3.style.top).toBe("580px");
+  });
 });
+

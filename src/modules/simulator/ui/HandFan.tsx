@@ -171,12 +171,12 @@ export function HandFan({
                 )}
               >
                 <CardFace
-                  nameEn={card.def.nameEn}
-                  code={card.def.code}
+                  nameEn={card.def?.nameEn ?? ""}
+                  code={card.def?.code ?? ""}
                   art={art}
                   size="md"
                   style={{ width: "var(--card-w-std, 2.17rem)" }}
-                  backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+                  backFallback={card.def?.cardType ? isGenericArtCard(card.def.cardType, card.def.isToken) : false}
                 >
                   {cost !== undefined ? (
                     <span
@@ -191,10 +191,10 @@ export function HandFan({
                       {displayCost}
                     </span>
                   ) : null}
-                  {card.def.cardType === "UNIT" ? (
+                  {card.def?.cardType === "UNIT" ? (
                     <div className="absolute inset-x-0 bottom-0 flex text-[9px] font-black">
-                      <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def.ap ?? 0}</span>
-                      <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def.hp ?? 0}</span>
+                      <span className="flex-1 bg-cyan-600/90 py-0.5 text-center text-white">{card.def?.ap ?? 0}</span>
+                      <span className="flex-1 bg-slate-700/90 py-0.5 text-center text-white">{card.def?.hp ?? 0}</span>
                     </div>
                   ) : null}
                 </CardFace>

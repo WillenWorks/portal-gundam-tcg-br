@@ -5,6 +5,7 @@ import { computeLegalTargets, specNeedsNamedTarget } from "./effectSpec";
 import { findTriggerSpecs } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
+import { costRestsSelf } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 
 /**
@@ -111,7 +112,7 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
   for (const card of state.players[seat].hand) {
     if (card.def.cardType !== "COMMAND") continue;
     if (!card.def.triggerKeywords?.includes("Action")) continue;
-    if (state.players[seat].resourceArea.length < (card.def.level ?? 0)) continue;
+    if (!canPayLevel(state, seat, card.def)) continue;
     if (!canAfford(state, seat, effectiveCost(card.def, state, seat))) continue;
     const { ids, someSpecNeeds, targetCount } = neededTargetIds(
       state,
@@ -135,18 +136,6 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
     // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
   }
   return out;
-}
-
-/**
- * `true` se `spec.cost` inclui "Rest this Unit/Base:" (`{op:"rest", target:{kind:"self"}}`)
- * — achado no fuzzing da wave GD01 (`GD01-130`, heurístico vs heurístico travava
- * reativando a mesma habilidade pra sempre): resting uma carta JÁ rested é um
- * no-op silencioso (`REST_CARD` só seta `rested = true`, que já era true), então
- * "pagar" esse custo nunca fica impossível por si só. O mesmo padrão existe em
- * ST01-016/ST04-016 (só nunca travou lá) — por isso o gate abaixo vale pros 2.
- */
-function costRestsSelf(spec: EffectSpec): boolean {
-  return (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "self");
 }
 
 function activateAbilityCandidates(

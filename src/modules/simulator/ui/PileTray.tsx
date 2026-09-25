@@ -83,14 +83,14 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
         variant="stack"
         onClick={() => setOpen(true)}
         face={
-          topCard ? (
+          topCard && topCard.def ? (
             <CardFace
               nameEn={topCard.def.nameEn}
               code={topCard.def.code}
               art={art}
               size="sm"
               className="w-full"
-              backFallback={isGenericArtCard(topCard.def.cardType, topCard.def.isToken)}
+              backFallback={topCard.def?.cardType ? isGenericArtCard(topCard.def.cardType, topCard.def.isToken) : false}
             />
           ) : undefined
         }
@@ -127,16 +127,16 @@ export function PileTray({ label, count, icon, tone, cards, art, onInspect }: Pi
                     key={card.instanceId}
                     type="button"
                     onClick={() => onInspect?.(card)}
-                    aria-label={card.def.nameEn}
+                    aria-label={card.def?.nameEn ?? "Carta"}
                     className="block rounded-arena border border-white/10 transition-colors duration-100 hover:border-primary/70 motion-reduce:transition-none"
                   >
                     <CardFace
-                      nameEn={card.def.nameEn}
-                      code={card.def.code}
+                      nameEn={card.def?.nameEn ?? ""}
+                      code={card.def?.code ?? ""}
                       art={art}
                       size="sm"
                       className="w-full"
-                      backFallback={isGenericArtCard(card.def.cardType, card.def.isToken)}
+                      backFallback={card.def?.cardType ? isGenericArtCard(card.def.cardType, card.def.isToken) : false}
                     />
                   </button>
                 ))}

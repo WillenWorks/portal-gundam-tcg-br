@@ -50,15 +50,14 @@ function createTestState(overrides: {
   return {
     turnNumber: 3,
     activePlayer: "A",
-    firstPlayer: "A",
     phase: "main",
-    step: "action",
     combat: null,
     endPhaseAction: null,
     pendingDecision: { A: null, B: null },
     gameOver: null,
     eventLog: [],
     nextInstanceSeq: 1,
+    seed: 1,
     players: {
       A: {
         id: "A",

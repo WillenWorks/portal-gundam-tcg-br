@@ -152,6 +152,21 @@ describe("isPlayableNow", () => {
 });
 
 describe("playableModes — GD01 dynamicCost e alternateDeploySacrifice", () => {
+  it("dynamicLevel (ex. ST08-001 Xi Gundam) reduz o nível exigido — igual a canPayLevel do motor", () => {
+    const xi = def({
+      code: "TEST-DYNAMIC-LEVEL",
+      cardType: "UNIT",
+      cost: 2,
+      level: 5,
+      dynamicLevel: { condition: { kind: "enemyUnitCountAtLeast", n: 1 }, amount: -2 },
+    });
+    const state = freshState();
+    state.players.B.battleArea = [];
+    expect(playableModes(xi, ctx({ state, controller: "A", activeResources: 3, totalResources: 3 }))).toEqual([]);
+    place(state, "B", def({ code: "ENEMY", cardType: "UNIT" }));
+    expect(playableModes(xi, ctx({ state, controller: "A", activeResources: 3, totalResources: 3 }))).toEqual(["deploy"]);
+  });
+
   it("GD01-016 Jegan (custo 3) é jogável com 2 recursos quando há 2+ Earth Federation em campo", () => {
     const jegan = def({
       code: "GD01-016",

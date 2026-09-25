@@ -19,12 +19,13 @@ export class UserDeckSimulatorError extends Error {
 
 export interface UserDeckItemInput {
   quantity: number;
-  section?: string;
+  section?: string | null;
+  // `null` aceito: é o formato que o Prisma devolve pra colunas opcionais.
   card: {
     code: string;
-    nameEn?: string;
-    cardType?: string;
-    color?: string;
+    nameEn?: string | null;
+    cardType?: string | null;
+    color?: string | null;
   };
 }
 

@@ -25,6 +25,9 @@
     "test:smoke:regional-meta": "vitest run server/services/regionalMetaService.smoke.test.ts",
     "gundam:fuzz": "node scripts/gundam-fuzz.mjs",
     "gundam:fuzz:tokens": "node scripts/gundam-fuzz.mjs --pool=GD01,ST08 --totalGames=5000 --policyA=heuristic --policyB=random",
+    "gundam:bot:bench": "node scripts/gundam-bot-bench.mjs",
+    "gundam:bot:ladder": "node scripts/gundam-bot-ladder.mjs",
+    "gundam:bot:puzzles": "node scripts/gundam-bot-puzzles.mjs",
     "gundam:golden": "node scripts/gundam-golden.mjs",
     "gundam:golden:update": "node scripts/gundam-golden.mjs --update",
     "gundam:selfplay": "node scripts/gundam-fuzz.mjs --policyA=heuristic --policyB=random --games=200 --maxTurns=40",
@@ -82,7 +85,12 @@
     "cardmodel:migrate:apply": "node prisma/migrate-card-model-data.mjs --apply",
     "cardmodel:validate": "node prisma/validate-card-model-migration.mjs",
     "banlist:dry-run": "node prisma/apply-official-banlist.mjs",
-    "banlist:apply": "node prisma/apply-official-banlist.mjs --apply"
+    "banlist:apply": "node prisma/apply-official-banlist.mjs --apply",
+    "gundam:bot:matchups": "node scripts/gundam-bot-matchups.mjs",
+    "gundam:bot:counter": "node scripts/gundam-bot-counter.mjs",
+    "gundam:bot:calibrate": "node scripts/gundam-bot-calibrate.mjs",
+    "gundam:bot:pool-export": "node scripts/gundam-bot-pool-export.mjs",
+    "gundam:bot:refresh": "node scripts/gundam-bot-refresh.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",

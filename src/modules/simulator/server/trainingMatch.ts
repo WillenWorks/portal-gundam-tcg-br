@@ -43,6 +43,7 @@ export class TrainingMatchError extends Error {
 }
 
 import type { DeckList } from "../engine/setup";
+import { counterForPlayerDeck, type MatchupTable, type ZeroCounterResult, type ZeroCounterSummary } from "../engine/bot/zeroCounter";
 
 export interface CreateTrainingMatchInput {
   /** Legado: define o deck para ambos os lados caso playerDeckId / botDeckId não sejam passados. */
@@ -59,6 +60,8 @@ export interface CreateTrainingMatchInput {
   level: unknown;
   /** Persona tática do Zero System (opcional para level zero_system). */
   persona?: unknown;
+  /** resumo do counter quando o deck do bot foi escolhido contra o do jogador (Zero System) */
+  botCounter?: ZeroCounterSummary;
   human: { userId: string; displayName: string };
   /** default: aleatório — passe um valor fixo só em teste, pra determinismo. */
   seed?: number;
@@ -125,6 +128,7 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
   const keyA = isValidatedDeck(upperPlayer) ? upperPlayer : rawPlayerId;
   const keyB = isValidatedDeck(upperBot) ? upperBot : rawBotId;
   match.deckKeys = { A: keyA, B: keyB };
+  if (input.botCounter) match.botCounter = input.botCounter;
   joinMatch(match.id, "A", {
     userId: input.human.userId,
     displayName: input.human.displayName,
@@ -146,7 +150,11 @@ export function createTrainingMatch(input: CreateTrainingMatchInput): { matchId:
 
   joinMatch(match.id, "B", {
     userId: SIM_BOT_USER_ID,
-    displayName: input.level === "zero_system" ? `Zero System (${resolvedPersona.toUpperCase()})` : SIM_BOT_DISPLAY_NAME,
+    // com counter, a persona que vale é a do counter (a mesma do aviso da UI)
+    displayName:
+      input.level === "zero_system"
+        ? `Zero System (${(input.botCounter?.persona ?? resolvedPersona).toUpperCase()})`
+        : SIM_BOT_DISPLAY_NAME,
     autoPassActionStep: true,
     bot: botSeatConfig,
   });
@@ -160,4 +168,21 @@ export function botSeatFromSeats(seats: unknown): "A" | "B" | null {
   if (record.A?.bot) return "A";
   if (record.B?.bot) return "B";
   return null;
+}
+
+/**
+ * Zero System sem deck do bot escolhido → counter do deck do jogador (spec
+ * bot-zero-system-forte). `botDeckId` explícito, outro nível ou matriz vazia → `null`
+ * (o bot usa o deck pedido).
+ */
+export function resolveZeroCounter(input: {
+  level: unknown;
+  botDeckId: unknown;
+  playerDeck: DeckList;
+  table: MatchupTable;
+}): ZeroCounterResult | null {
+  if (input.level !== "zero_system") return null;
+  if (String(input.botDeckId ?? "").trim()) return null;
+  if (input.table.decks.length === 0) return null;
+  return counterForPlayerDeck(input.playerDeck, input.table);
 }

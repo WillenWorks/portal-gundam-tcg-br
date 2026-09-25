@@ -70,8 +70,8 @@ export function BurstRevealStage({ cardDef, art, origin, cardW, onDone }: BurstR
   const w = Math.max(cardW, 1);
   const h = Math.round(w * (88 / 63));
   const scale = phase === "fly" ? 1 : 2.6;
-  const face = artSrc(art, cardDef.code, "lg");
-  const showFace = Boolean(face && cardDef.cardType && !isGenericArtCard(cardDef.cardType, cardDef.isToken));
+  const face = cardDef?.code ? artSrc(art, cardDef.code, "lg") : null;
+  const showFace = Boolean(face && cardDef?.cardType && !isGenericArtCard(cardDef.cardType, cardDef.isToken));
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[58] sim-perspective" aria-hidden>

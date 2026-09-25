@@ -50,15 +50,15 @@ export interface FieldAbility {
  * se tivesse, o efeito bespoke é o que o texto descreve.
  */
 export function fieldAbilityFor(card: CardInstance): FieldAbility | null {
-  const spec = findActivateMainSpec(card.def.code);
+  const spec = card.def ? findActivateMainSpec(card.def.code) : null;
   if (spec) {
-    if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes(ACTIVATE_MAIN)) return null;
+    if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(ACTIVATE_MAIN)) return null;
     if (card.rested && costRestsSelf(spec)) return null;
     return { kind: "activateMain", cost: abilityResourceCost(spec), needsTarget: specNeedsNamedTarget(spec) };
   }
 
-  if (hasKeyword(card, SUPPORT) && card.def.cardType === "UNIT" && !card.rested) {
-    if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes(SUPPORT)) return null;
+  if (hasKeyword(card, SUPPORT) && card.def?.cardType === "UNIT" && !card.rested) {
+    if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(SUPPORT)) return null;
     return { kind: "support", cost: 0, needsTarget: true };
   }
 

@@ -8,14 +8,6 @@ import {
 } from "../../content/index";
 import { heuristicPolicy } from "./heuristicPolicy";
 
-function envGames(): number {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  const raw = env?.HEURISTIC_SELFPLAY_GAMES;
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : 40;
-}
-
-const GAMES = envGames();
 const MAX_TURNS = 40;
 
 const specs = {
@@ -29,6 +21,26 @@ const pairs: Array<[string, string]> = [];
 for (let i = 0; i < decks.length; i++) {
   for (let j = i; j < decks.length; j++) pairs.push([decks[i].id, decks[j].id]);
 }
+
+/**
+ * Orçamento TOTAL de partidas heurístico-vs-heurístico no `pnpm test`, dividido
+ * entre os pares. Antes era fixo por par (40), então cada deck validado novo
+ * crescia o teste quadraticamente (8 decks = 36 pares = 1440 + 2880 partidas,
+ * estourando o timeout). Todo par continua coberto (mínimo `MIN_GAMES_PER_PAIR`
+ * seeds). Pra rodada profunda: `HEURISTIC_SELFPLAY_GAMES=<n por par>`.
+ */
+const TOTAL_GAMES_BUDGET = 360;
+const MIN_GAMES_PER_PAIR = 6;
+
+function envGames(): number {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  const raw = env?.HEURISTIC_SELFPLAY_GAMES;
+  const n = raw ? Number(raw) : NaN;
+  if (Number.isFinite(n) && n > 0) return n;
+  return Math.max(MIN_GAMES_PER_PAIR, Math.ceil(TOTAL_GAMES_BUDGET / pairs.length));
+}
+
+const GAMES = envGames();
 
 interface Tally {
   games: number;
@@ -87,10 +99,9 @@ describe("self-play do bot heurístico (decks validados)", () => {
       }
       console.log(`[selfplay] heurístico vs heurístico: ${games} partidas, média ${(turns / games).toFixed(1)} turnos`);
     },
-    // Timeout escala com o nº de pares de `validatedDeckList()` (i<=j) — wave ST05
-    // (docs/50) subiu de 4 pra 5 decks validados (10 -> 15 pares, 400 -> 600 partidas
-    // neste teste). Bump proporcional + folga.
-    420_000,
+    // Volume limitado por `TOTAL_GAMES_BUDGET` (não cresce com novos decks). O arquivo
+    // inteiro leva ~130s isolado nesta máquina; folga pra suíte rodando em paralelo.
+    300_000,
   );
 
   it(
@@ -119,9 +130,7 @@ describe("self-play do bot heurístico (decks validados)", () => {
       );
       expect(rate).toBeGreaterThan(0.5);
     },
-    // Mesma razão do bump acima (wave ST05, docs/50): 10 -> 15 pares, 800 -> 1200 partidas.
-    // Bump 300s -> 600s (2026-09-21): estava estourando mesmo isolado nesta máquina,
-    // sem relação com nenhuma mudança de código — só falta de folga de CPU.
-    600_000,
+    // 2× o volume do teste acima (heurístico como A e como B).
+    300_000,
   );
 });

@@ -19,6 +19,7 @@ import { buildSt03DeckList } from "../src/modules/simulator/fixtures/st03Deck.ts
 import { buildSt04DeckList } from "../src/modules/simulator/fixtures/st04Deck.ts";
 import { buildSt05DeckList } from "../src/modules/simulator/fixtures/st05Deck.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
+import { META_DECKS_GD02_ERA } from "../src/modules/simulator/fixtures/metaDecksGd02Era.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import {
   computeSwissStandings,
@@ -32,7 +33,7 @@ import {
 } from "./services/swissTournamentEngine.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { PlayerAction } from "../src/modules/simulator/engine/actions.ts";
-import type { PlayerId } from "../src/modules/simulator/engine/types.ts";
+import type { GameState, PlayerId } from "../src/modules/simulator/engine/types.ts";
 import {
   applyAction,
   claimAbandonWin,
@@ -58,11 +59,13 @@ import {
   touchPresence,
   submitSideboard,
   generateBugShortCode,
+  publicDeckKeys,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
+  resolveZeroCounter,
   SIM_BOT_USER_ID,
   TrainingMatchError,
 } from "../src/modules/simulator/server/trainingMatch.ts";
@@ -76,7 +79,8 @@ import {
   UserDeckSimulatorError,
 } from "../src/modules/simulator/content/userDeckBuilder.ts";
 import { isValidatedDeck, VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
-import { driveBotTurn } from "../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay } from "../services/sim-bot/driveBotTurn.mjs";
+import { ZERO_COUNTER_MATCHUPS } from "../src/modules/simulator/fixtures/zeroCounterMatchups.ts";
 import {
   buildGithubDispatchRequest,
   canSubmitBugReport,
@@ -261,12 +265,9 @@ setBotTurnSink(({ matchId, seat, level }) => {
             seat,
             level: (level as "facil" | "normal" | "dificil") || "normal",
             seed: Math.floor(Math.random() * 1_000_000),
-            commit: async (action: unknown) => {
-              const updated = applyAction(matchId, SIM_BOT_USER_ID, action as never);
-              // Delay suave de 400ms para permitir renderização fluida e visibilidade no frontend
-              await new Promise((r) => setTimeout(r, 400));
-              return updated.state;
-            },
+            // "Tempo de pensar" de 1–2s antes de cada ação — humaniza o ritmo e dá ao cliente tempo de animar.
+            beforeCommit: humanizedThinkDelay,
+            commit: async (action: unknown) => applyAction(matchId, SIM_BOT_USER_ID, action as never).state,
           });
         }
 
@@ -305,7 +306,8 @@ setMatchLogSink((log) => {
         deckB: log.deckB ? (log.deckB as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         playerAId: log.playerAId ?? null,
         playerBId: log.playerBId ?? null,
-        winner: log.winner,
+        // `winner: null` = sem vencedor (ex. GAME_OVER por trigger_loop_guard); coluna é NOT NULL.
+        winner: log.winner ?? "draw",
         winReason: log.winReason,
         turns: log.turns,
         durationMs: log.durationMs ?? null,
@@ -745,7 +747,7 @@ function normalizeArtVariants(card: CardInput) {
     }))
     .filter((item) => item.url || item.thumbUrl || item.sourceUrl || item.label || item.isPrimary);
 
-  if (!seeded.length) return { artVariants: [], primary: null as null | { url: string | null; thumbUrl: string | null; sourceUrl: string | null } };
+  if (!seeded.length) return { artVariants: [], primary: null as null | (typeof seeded)[number] };
 
   let primaryIndex = seeded.findIndex((item) => item.isPrimary);
   if (primaryIndex < 0) primaryIndex = seeded.findIndex((item) => Boolean(item.url));
@@ -852,7 +854,7 @@ async function upsertSets(items: SetInput[]) {
 async function upsertCards(items: CardInput[], setMap = new Map<string, string>(), fallbackSetId?: string) {
   for (const card of items) {
     const setId = card.setId ?? (card.setCode ? setMap.get(card.setCode) || null : fallbackSetId || null);
-    const traits = Array.isArray(card.traits) && card.traits.length ? card.traits.filter(Boolean) : [card.trait].filter(Boolean);
+    const traits = (Array.isArray(card.traits) && card.traits.length ? card.traits : [card.trait]).filter((t): t is string => Boolean(t));
     const normalizedEffects = normalizeCardEffectPayload(card);
     const { effectPt, effectEn } = buildEffectText({ ...card, textSectionsJson: normalizedEffects.textSectionsJson });
     const metadata = normalizedEffects.metadataJson && typeof normalizedEffects.metadataJson === "object" && !Array.isArray(normalizedEffects.metadataJson)
@@ -1031,7 +1033,8 @@ async function upsertTournaments(items: TournamentImportInput[]) {
 async function applyImageManifest(items: ImageManifestInput[]) {
   for (const item of items) {
     if (item.entity === "card") {
-      await prisma.card.update({
+      // `code` não é único em Card (mesma carta em várias coleções) — atualiza todas as impressões.
+      await prisma.card.updateMany({
         where: { code: item.code },
         data: {
           imageUrl: normalizeAssetUrl(item.imageUrl, "images/cards"),
@@ -2980,7 +2983,7 @@ const hostedEventParticipantInclude = {
   user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
   deck: { select: { id: true, name: true, shareId: true } },
   deckSnapshot: { include: { items: { include: { card: true } } } },
-} as const;
+} satisfies Prisma.HostedEventParticipantInclude;
 
 // Fase C: participante enxuto (só id + usuário) pra exibir num confronto -- os dados
 // completos (deck/deckSnapshot) já vêm pela lista de participants do próprio evento,
@@ -2988,18 +2991,18 @@ const hostedEventParticipantInclude = {
 const hostedEventMatchInclude = {
   participantA: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
   participantB: { select: { id: true, user: { select: { id: true, username: true, displayName: true } } } },
-} as const;
+} satisfies Prisma.HostedEventMatchInclude;
 
 const hostedEventRoundInclude = {
-  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" as const }, { createdAt: "asc" as const }] },
-} as const;
+  matches: { include: hostedEventMatchInclude, orderBy: [{ tableNumber: "asc" }, { createdAt: "asc" }] },
+} satisfies Prisma.HostedEventRoundInclude;
 
 const hostedEventOwnerInclude = {
   hoster: { select: { id: true, username: true, displayName: true } },
   seasonRef: true,
-  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" as const }] },
-  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" as const }] },
-} as const;
+  participants: { include: hostedEventParticipantInclude, orderBy: [{ createdAt: "asc" }] },
+  rounds: { include: hostedEventRoundInclude, orderBy: [{ roundNumber: "asc" }] },
+} satisfies Prisma.HostedEventInclude;
 
 async function loadOwnedHostedEvent(req: RequestWithUser, res: Response, id: string) {
   const event = await prisma.hostedEvent.findFirst({ where: { id, isActive: true }, include: hostedEventOwnerInclude });
@@ -3561,7 +3564,7 @@ app.post("/api/hosted-events/:id/top-cut/generate", authRequired, hosterRequired
 
   let bracket: TopCutBracket;
   try {
-    bracket = generateTopCutBracket(standings, requestedSize as 4 | 8 | 16);
+    bracket = generateTopCutBracket(standings, swissParticipants, requestedSize as 4 | 8 | 16);
   } catch (err: any) {
     return res.status(400).json({ error: err?.message || "Erro ao gerar chave de Top Cut." });
   }
@@ -3776,9 +3779,9 @@ app.post("/api/hosted-events/:id/checkin", authRequired, async (req: RequestWith
     legalityData,
   );
 
-  if (!legality.isLegal) {
+  if (!legality.valid) {
     return res.status(400).json({
-      error: `Deck ilegal para torneio: ${legality.reasons.join("; ")}`,
+      error: `Deck ilegal para torneio: ${legality.issues.map((issue) => issue.message).join("; ")}`,
     });
   }
 
@@ -4795,11 +4798,13 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ST04: buildSt04DeckList,
   ST05: buildSt05DeckList,
   ...Object.fromEntries(Object.entries(GD01_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(META_DECKS_GD02_ERA).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
   const key = typeof raw === "string" ? raw.toUpperCase() : "";
-  const build = SIMULATOR_DECKS[key];
+  // `hasOwn`: chave vem do corpo HTTP — nunca resolver herança do protótipo.
+  const build = Object.hasOwn(SIMULATOR_DECKS, key) ? SIMULATOR_DECKS[key] : undefined;
   return build ? { key, build } : null;
 }
 
@@ -4858,7 +4863,7 @@ function matchSummary(match: ReturnType<typeof getMatch>) {
       A: match.seats.A ? { userId: match.seats.A.userId, displayName: match.seats.A.displayName } : null,
       B: match.seats.B ? { userId: match.seats.B.userId, displayName: match.seats.B.displayName } : null,
     },
-    deckKeys: match.deckKeys,
+    deckKeys: publicDeckKeys(match),
     turnNumber: match.state.turnNumber,
     activePlayer: match.state.activePlayer,
     phase: match.state.phase,
@@ -4927,6 +4932,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
     playerDeckId?: unknown;
     botDeckId?: unknown;
     level?: unknown;
+    persona?: unknown;
   };
 
   const rawPlayerId = String(body.playerDeckId || body.deckId || "").trim();
@@ -4944,6 +4950,10 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (GD01_TEST_DECKS[upper]) {
         return { key: upper, list: GD01_TEST_DECKS[upper].build() };
       }
+      // Decks meta da época GD02 + ST06 (receitas oficiais) — benchmark do bot e treino.
+      if (Object.hasOwn(META_DECKS_GD02_ERA, upper)) {
+        return { key: upper, list: META_DECKS_GD02_ERA[upper].build() };
+      }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
         where: { id, userId: req.user!.userId },
@@ -4951,7 +4961,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS)].sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);
@@ -4974,16 +4984,35 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       }
     }
 
+    // Zero System sem deck do bot escolhido: counter do deck do jogador (spec
+    // bot-zero-system-forte). Todo deck do pool já é legal e coberto pelo motor;
+    // o gate abaixo confere mesmo assim.
+    const counter = resolveZeroCounter({ level: body.level, botDeckId: body.botDeckId, playerDeck: resolvedA.list, table: ZERO_COUNTER_MATCHUPS });
+    const botDeck = counter ? { key: counter.summary.counterDeckId, list: counter.deck } : resolvedB;
+    if (counter) {
+      const validation = validateDeckPayload(counter.deck);
+      if (!validation.valid) {
+        throw new TrainingMatchError(`Counter "${counter.summary.counterDeckId}" tem carta(s) sem cobertura no motor: ${validation.unplayableCards.join(", ")}.`);
+      }
+    }
+
     const { matchId } = createTrainingMatch({
       playerDeckId: resolvedA.key,
-      botDeckId: resolvedB.key,
+      botDeckId: botDeck.key,
       playerDeckList: resolvedA.list,
-      botDeckList: resolvedB.list,
+      botDeckList: botDeck.list,
       level: body.level,
       persona: body.persona,
+      botCounter: counter?.summary,
       human: { userId: req.user!.userId, displayName: req.user!.username },
     });
-    res.status(201).json({ matchId });
+    // a lista do counter NÃO vai aqui — só no fim da partida (`botDeckList` da view)
+    res.status(201).json({
+      matchId,
+      counterDeck: counter
+        ? { persona: counter.summary.persona, archetype: counter.summary.archetype, fallback: counter.summary.fallback }
+        : undefined,
+    });
   } catch (err) {
     if (err instanceof TrainingMatchError || err instanceof UserDeckSimulatorError) {
       return res.status(err.status).json({ error: err.message });
@@ -5043,7 +5072,7 @@ app.post("/api/simulator/zero/chat", authRequired, async (req: RequestWithUser, 
   if (!message || typeof message !== "string" || !message.trim()) {
     return res.status(400).json({ error: "O campo 'message' (string) é obrigatório." });
   }
-  let state = undefined;
+  let state: GameState | undefined;
   if (matchId) {
     await loadMatch(String(matchId));
     const match = getMatch(String(matchId));

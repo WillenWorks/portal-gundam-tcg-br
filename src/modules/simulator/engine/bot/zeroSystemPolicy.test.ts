@@ -141,14 +141,14 @@ describe("zeroSystemPolicy — Personas e IA Tática", () => {
     expect(chosen).toEqual({ kind: "declareAttack", attackerId: "sazabi", target: "player" });
   });
 
-  it("Persona Heero: calcula letal exato e ataca o jogador para fechar a partida", () => {
+  it("Persona Heero: com letal (oponente sem escudo nem Base) ataca o jogador para fechar a partida", () => {
     const wingZero = card("wing0", "A", def({ code: "XXXG-00W0", cardType: "UNIT", ap: 6, hp: 5 }));
     const enemyUnit = card("leo", "B", def({ code: "OZ-06MS", cardType: "UNIT", ap: 3, hp: 3 }));
 
     const v = view({
       viewer: "A",
       A: { battleArea: [wingZero], shields: 3 },
-      B: { battleArea: [enemyUnit], shields: 1 }, // Inimigo com 1 escudo e vida vulnerável
+      B: { battleArea: [enemyUnit], shields: 0 },
     });
 
     const actions: LegalAction[] = [
@@ -226,5 +226,34 @@ describe("zeroSystemPolicy — Personas e IA Tática", () => {
     const actions: LegalAction[] = [{ kind: "passAction" }];
     const chosen = policy(v, actions, rng);
     expect(chosen).toEqual({ kind: "passAction" });
+  });
+});
+
+describe("zeroSystemPolicy — lookahead de efeitos (opt-in)", () => {
+  const load = async () => {
+    const fx = await import("./lookaheadTestFixtures");
+    const { enumerateLegalActions } = await import("../legalActions");
+    const { viewStateFor } = await import("../viewState");
+    return { fx, enumerateLegalActions, viewStateFor };
+  };
+  const rng = () => 0.42;
+
+  it("sem lookahead: não joga Comando sem alvo inimigo", async () => {
+    const { fx, enumerateLegalActions, viewStateFor } = await load();
+    const state = fx.mainBoard();
+    fx.put(state, "A", "hand", fx.DRAW);
+    const chosen = zeroSystemPolicy()(viewStateFor(state, "A"), enumerateLegalActions(state, "A", fx.SPECS, {}), rng);
+    expect(chosen.kind).not.toBe("playCommand");
+  });
+
+  it("com lookahead: no Action Step joga o pump que vira a batalha", async () => {
+    const { fx, enumerateLegalActions, viewStateFor } = await load();
+    const { state, attacker, pump } = fx.combatWithPriorityA(3);
+    const chosen = zeroSystemPolicy({ lookahead: { specs: fx.SPECS } })(
+      viewStateFor(state, "A"),
+      enumerateLegalActions(state, "A", fx.SPECS, {}),
+      rng,
+    );
+    expect(chosen).toMatchObject({ kind: "playCommand", cardInstanceId: pump.instanceId, targets: { target: [attacker.instanceId] } });
   });
 });

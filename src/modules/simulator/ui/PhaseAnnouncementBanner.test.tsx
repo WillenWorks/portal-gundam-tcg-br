@@ -51,4 +51,15 @@ describe("PhaseAnnouncementBanner", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
+
+  it("exibe legendas temáticas contextuais para FASE DE AÇÕES e FIM DE TURNO", () => {
+    const { rerender } = render(<PhaseAnnouncementBanner phase="FASE DE AÇÕES" />);
+    expect(screen.getByText("FASE DE AÇÕES")).toBeInTheDocument();
+    expect(screen.getByText("PASSO DE INTERVENÇÃO / RESPOSTA")).toBeInTheDocument();
+
+    rerender(<PhaseAnnouncementBanner phase="FIM DE TURNO" />);
+    expect(screen.getByText("FIM DE TURNO")).toBeInTheDocument();
+    expect(screen.getByText("ENCERRAMENTO DE TURNO")).toBeInTheDocument();
+  });
 });
+

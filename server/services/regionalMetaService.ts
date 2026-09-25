@@ -149,6 +149,7 @@ interface CardFields {
   nameEn: string;
   namePt: string | null;
   color: string | null;
+  setId: string | null;
   cardType: string;
 }
 type ItemRow = { deckSnapshotId: string; quantity: number; card: CardFields | null };

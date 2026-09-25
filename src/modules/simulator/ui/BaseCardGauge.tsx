@@ -139,13 +139,13 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
         className={cn("relative block aspect-[63/88] w-full", legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
-          nameEn={base.def.nameEn}
-          code={base.def.code}
+          nameEn={base.def?.nameEn ?? ""}
+          code={base.def?.code ?? ""}
           art={art}
           size="sm"
           className="h-full w-full"
           dimmed={base.rested}
-          backFallback={isGenericArtCard(base.def.cardType, base.def.isToken)}
+          backFallback={base.def?.cardType ? isGenericArtCard(base.def.cardType, base.def.isToken) : false}
         >
           {legalTarget ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">

@@ -1,7 +1,9 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
-import { deployCard, playCommand } from "./deploy";
+import { canPayLevel, deployCard, playCommand } from "./deploy";
+import { costRestsSelf, specResourceCost } from "./costs";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
@@ -15,7 +17,7 @@ import {
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
-import { effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
+import { effectiveCost, effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -299,15 +301,20 @@ function applyPlayerActionInner(
       const source = findCard(state, action.sourceInstanceId);
       if (source.owner !== actingPlayer) throw new Error("Só dá pra ativar habilidade de uma carta própria");
 
-      // 【Activate·Main】 (fora de combate) ou 【Activate·Action】 (no Action Step de combate).
-      const inActionStep = state.combat?.step === "action";
+      // 【Activate·Main】 (Main Phase, fora de combate) ou 【Activate·Action】 no
+      // Action Step — de uma batalha OU da End Phase (Comprehensive Rules: os dois
+      // Action Steps aceitam as mesmas jogadas, mesmo critério de `playCommand`).
+      const inBattleActionStep = state.combat?.step === "action";
+      const inEndPhaseActionStep = state.endPhaseAction !== null;
+      const inActionStep = inBattleActionStep || inEndPhaseActionStep;
       const trigger = inActionStep ? "Activate·Action" : "Activate·Main";
       if (!inActionStep) {
         if (state.phase !== "main") throw new Error("【Activate·Main】 só pode ser ativado na Main Phase");
         if (state.combat) throw new Error("【Activate·Main】 não pode ser ativado durante um combate");
         if (state.activePlayer !== actingPlayer) throw new Error("Só o jogador ativo pode ativar 【Activate·Main】");
-      } else if (state.combat!.actionPriority !== actingPlayer) {
-        throw new Error("Não é a prioridade desse jogador no Action Step");
+      } else {
+        const priority = inBattleActionStep ? state.combat!.actionPriority : state.endPhaseAction!.priority;
+        if (priority !== actingPlayer) throw new Error("Não é a prioridade desse jogador no Action Step");
       }
 
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
@@ -342,13 +349,14 @@ function applyPlayerActionInner(
       }
 
       // Sem EffectSpec de 【Activate·Main】 — cai em `<Support N>` (keyword de motor).
-      if (hasKeyword(source, "Support", state)) {
+      // <Support> é 【Activate·Main】: nunca vale em Action Step (batalha ou End Phase).
+      if (trigger === "Activate·Main" && hasKeyword(source, "Support", state)) {
         const supportTargetId = action.targets?.target?.[0];
         if (!supportTargetId) throw new Error("<Support> precisa de uma Unit amiga alvo (targets.target[0])");
         return activateSupport(state, action.sourceInstanceId, supportTargetId);
       }
 
-      throw new Error(`${source.def.code} não tem 【Activate·Main】 nem <Support> pra ativar`);
+      throw new Error(`${source.def.code} não tem ${trigger === "Activate·Main" ? "【Activate·Main】 nem <Support>" : "【Activate·Action】"} pra ativar`);
     }
 
     case "resolveBurstDecision": {
@@ -680,30 +688,54 @@ function enforceZoneLimits(state: GameState): GameState {
 
 /**
  * `player` tem alguma jogada REAL disponível no Action Step atual (combate ou
- * fim de turno)? Usado pelo auto-pass inteligente (docs/19, Sessão 2, tarefa
- * 4 — CR 7-6 / 8-4): se o jogador com prioridade optou por `autoPassActionStep`
- * E não tem nada pra fazer aqui, o servidor passa na hora, sem esperar o
- * timer do Action Step. "Jogada real" = Command 【Action】 jogável agora (nível +
- * custo pagáveis) ou 【Activate·Action】 de carta em campo ainda não usado.
+ * fim de turno)? Usado pelo auto-pass (docs/19, Sessão 2, tarefa 4 — CR 7-6 /
+ * 8-4): no servidor (`settleAutoPasses`, opt-in) e no cliente (auto-pass
+ * incondicional quando não há jogada nenhuma). "Jogada real" = Command
+ * 【Action】 jogável agora ou 【Activate·Action】 de carta em campo pagável.
+ *
+ * Direção do erro: esta função NUNCA pode dizer "não há jogada" quando há —
+ * isso faria o auto-pass tirar uma jogada legal do jogador. Por isso nível e
+ * custo usam `canPayLevel`/`effectiveCost` (os mesmos de `playCommand`), que
+ * já aplicam reduções dinâmicas (`dynamicCost`/`dynamicLevel`, ex. GD01-016,
+ * ST08-001). Toda redução nova de custo/nível TEM que entrar por esses dois
+ * helpers, senão o auto-pass diverge do motor. O que não é checado aqui
+ * (alvos legais, custos não-recurso como descarte/destruição) erra pro lado
+ * seguro: conta como "tem jogada".
+ *
+ * Aceita `ViewGameState` (cliente): cartas ocultas são puladas — no cliente
+ * só a mão do próprio viewer é conhecida, então chamar isto pro OPONENTE a
+ * partir de uma view dá resposta incompleta (nunca vê a mão dele). As
+ * condições de `dynamicCost`/`dynamicLevel` (`isBoardConditionMet`) só leem
+ * zonas públicas (battleArea/baseSection/trash/combat), então o cast pra
+ * `GameState` abaixo é seguro.
  */
-export function playerHasActionStepPlay(state: GameState, player: PlayerId, specs: EffectSpec[]): boolean {
+export function playerHasActionStepPlay(
+  state: GameState | ViewGameState,
+  player: PlayerId,
+  specs: EffectSpec[],
+): boolean {
+  const rulesState = state as GameState;
   const p = state.players[player];
-  const activeResources = p.resourceArea.filter((r) => !r.rested).length;
-  const totalResources = p.resourceArea.length;
+  if (!p) return false;
+  const activeResources = p.resourceArea.filter((r) => !isHiddenCard(r) && !r.rested).length;
 
   for (const card of p.hand) {
+    if (isHiddenCard(card)) continue;
     if (card.def.cardType !== "COMMAND") continue;
     if (!card.def.triggerKeywords?.includes("Action")) continue;
-    if (totalResources < (card.def.level ?? 0)) continue;
-    if (activeResources < (card.def.cost ?? 0)) continue;
+    if (!canPayLevel(rulesState, player, card.def)) continue;
+    if (activeResources < effectiveCost(card.def, rulesState, player)) continue;
     return true;
   }
 
   for (const zone of ["battleArea", "baseSection"] as const) {
     for (const card of p[zone]) {
-      if (findTriggerSpecs(specs, card.def.code, "Activate·Action").length === 0) continue;
+      if (isHiddenCard(card)) continue;
       if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Activate·Action")) continue;
-      return true;
+      const payable = findTriggerSpecs(specs, card.def.code, "Activate·Action").some(
+        (spec) => !(costRestsSelf(spec) && card.rested) && activeResources >= specResourceCost(spec),
+      );
+      if (payable) return true;
     }
   }
 

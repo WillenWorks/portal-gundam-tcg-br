@@ -1,0 +1,148 @@
+{
+  "date": "2026-09-24",
+  "commit": "c13a7cd",
+  "params": {
+    "levels": [
+      "normal",
+      "dificil",
+      "dificil_32"
+    ],
+    "pool": "all",
+    "decks": [
+      {
+        "id": "ST01",
+        "knownGaps": []
+      },
+      {
+        "id": "ST02",
+        "knownGaps": []
+      },
+      {
+        "id": "ST03",
+        "knownGaps": []
+      },
+      {
+        "id": "ST04",
+        "knownGaps": []
+      },
+      {
+        "id": "ST05",
+        "knownGaps": []
+      },
+      {
+        "id": "ST06",
+        "knownGaps": []
+      },
+      {
+        "id": "ST07",
+        "knownGaps": []
+      },
+      {
+        "id": "ST08",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AEUG-EA",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TEKKADAN-VAGAN",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-QUBELEY",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AGE-WING",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TITANS",
+        "knownGaps": []
+      },
+      {
+        "id": "META-ST06-GQUUUUUUX",
+        "knownGaps": []
+      }
+    ],
+    "gamesPerLevelPair": 30,
+    "maxTurns": 40,
+    "seed": 1,
+    "dificilRollouts": 16
+  },
+  "durationSeconds": 5711,
+  "elo": {
+    "normal": 0,
+    "dificil": 85.9085672174999,
+    "dificil_32": 148.35682683886583
+  },
+  "ci": {
+    "normal": {
+      "low": 0,
+      "high": 0
+    },
+    "dificil_32": {
+      "low": 59.49997120111914,
+      "high": 257.00419134562503
+    },
+    "dificil": {
+      "low": -16.570100876945578,
+      "high": 197.08343715635425
+    }
+  },
+  "steps": [
+    {
+      "lower": "normal",
+      "upper": "dificil",
+      "upperScore": 18,
+      "games": 30,
+      "rate": 0.6,
+      "wilson": {
+        "low": 0.42320360121215705,
+        "high": 0.7540937198355525
+      },
+      "meetsGoal": false
+    },
+    {
+      "lower": "dificil",
+      "upper": "dificil_32",
+      "upperScore": 17,
+      "games": 30,
+      "rate": 0.5666666666666667,
+      "wilson": {
+        "low": 0.39197306873128,
+        "high": 0.7262251453005263
+      },
+      "meetsGoal": false
+    }
+  ],
+  "vsRandom": [
+    {
+      "lower": "normal",
+      "upper": "dificil",
+      "upperScore": 18,
+      "games": 30,
+      "rate": 0.6,
+      "wilson": {
+        "low": 0.42320360121215705,
+        "high": 0.7540937198355525
+      },
+      "meetsGoal": false
+    },
+    {
+      "lower": "normal",
+      "upper": "dificil_32",
+      "upperScore": 22,
+      "games": 30,
+      "rate": 0.7333333333333333,
+      "wilson": {
+        "low": 0.5555203815871325,
+        "high": 0.8581733675241899
+      },
+      "meetsGoal": false
+    }
+  ],
+  "excluded": [],
+  "undecided": 0
+}

@@ -748,6 +748,30 @@ describe("persistência (docs/23) — write-through + re-hidratação", () => {
     expect(getMatch(match.id)?.turnDeadlineAt).not.toBeNull();
   });
 
+  it("o counter do Zero System sobrevive à re-hidratação (não remonta)", async () => {
+    const p = fakePersistence();
+    setMatchPersistence(p.impl);
+    const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
+    match.botCounter = {
+      counterDeckId: "ST02",
+      nearestDeckId: "ST01",
+      baselineDeckId: "ST03",
+      expectedRate: 0.7,
+      fallback: false,
+      persona: "heero",
+      archetype: "tempo",
+    };
+    joinMatch(match.id, "A", { userId: "u1", displayName: "A" });
+    await Promise.resolve();
+    const stored = p.rows.get(match.id)!;
+    deleteMatch(match.id);
+    p.rows.set(match.id, stored);
+
+    const rehydrated = await loadMatch(match.id);
+    expect(rehydrated?.botCounter?.counterDeckId).toBe("ST02");
+    setMatchPersistence(null);
+  });
+
   it("sem persistência injetada (default), loadMatch só olha o Map", async () => {
     const match = createMatch({ deckA: buildSt01DeckList(), deckB: buildSt02DeckList(), seed: 1, firstPlayer: "A", skipMulligan: true });
     expect(await loadMatch(match.id)).toBe(getMatch(match.id));

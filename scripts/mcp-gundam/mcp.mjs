@@ -172,6 +172,9 @@ export const TOOL_NAMES = [
  * NÃO é chamado pelo `server/index.ts` nesta fase — ver `docs/46`. Pra plugar:
  *   import { attachMcpHttp } from "../scripts/mcp-gundam/mcp.mjs";
  *   attachMcpHttp(app); // atrás de authRequired
+ *
+ * @param {import("express").Express} app
+ * @param {{ route?: string, middleware?: import("express").RequestHandler[] }} [opts]
  */
 export async function attachMcpHttp(app, { route = "/mcp", middleware = [] } = {}) {
   const { StreamableHTTPServerTransport } = await import("@modelcontextprotocol/sdk/server/streamableHttp.js");

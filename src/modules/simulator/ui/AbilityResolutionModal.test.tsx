@@ -121,15 +121,25 @@ const whenPaired: AR = {
 };
 
 describe("AbilityResolutionModal", () => {
-  it("mandatório + alvo em Unit (enemyUnit): sem pills aqui dentro — glow é no tabuleiro; confirma só depois do clique no tabuleiro", () => {
+  it("mandatório + alvo em Unit (enemyUnit): pills presentes na modal e glow no tabuleiro; confirma após seleção no tabuleiro", () => {
     const onResolve = vi.fn();
     render(<Harness decision={whenPaired} onResolve={onResolve} />);
-    // não tem mais pill de alvo aqui dentro pra um targetScope de Unit — só o hint.
-    expect(screen.queryByRole("button", { name: "Guncannon" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guncannon" })).toBeInTheDocument();
     expect(screen.getByText(/Selecione no tabuleiro/)).toBeInTheDocument();
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "[tabuleiro] Guncannon" }));
+    fireEvent.click(confirm);
+    expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: ["e2"] }]);
+  });
+
+  it("mandatório + alvo em Unit (enemyUnit): clicar na pill dentro da modal também seleciona o alvo", () => {
+    const onResolve = vi.fn();
+    render(<Harness decision={whenPaired} onResolve={onResolve} />);
+    const guncannonPill = screen.getByRole("button", { name: "Guncannon" });
+    fireEvent.click(guncannonPill);
+    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirm).not.toBeDisabled();
     fireEvent.click(confirm);
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: ["e2"] }]);
   });
@@ -143,7 +153,7 @@ describe("AbilityResolutionModal", () => {
     expect(onResolve).toHaveBeenCalledWith([{ specId: "ST01-010-WhenPaired", activate: true, targetIds: [] }]);
   });
 
-  it("docs/47 Fase 5 — secondaryTarget (ST05-010 Mikazuki Augus): 2 pools em Unit, ambos via tabuleiro; exige os 2 antes de confirmar", () => {
+  it("docs/47 Fase 5 — secondaryTarget (ST05-010 Mikazuki Augus): 2 pools em Unit, disponíveis via tabuleiro e pills; exige os 2 antes de confirmar", () => {
     const mikazuki: AR = {
       kind: "abilityResolution",
       trigger: "When Paired",
@@ -164,8 +174,8 @@ describe("AbilityResolutionModal", () => {
     render(<Harness decision={mikazuki} onResolve={onResolve} />);
     const confirm = screen.getByRole("button", { name: "Confirmar" });
     expect(confirm).toBeDisabled();
-    // ambos os pools (aliado e inimigo) são Unit — sem pills, só o hint com as 2 cores.
-    expect(screen.queryByRole("button", { name: "Recurso 1 (gasto)" })).not.toBeInTheDocument();
+    // ambos os pools (aliado e inimigo) são Unit — pills visíveis e hints com as 2 cores.
+    expect(screen.getByRole("button", { name: "Recurso 1 (gasto)" })).toBeInTheDocument();
     expect(screen.getAllByText(/aliado/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/inimigo/).length).toBeGreaterThan(0);
 
@@ -523,4 +533,66 @@ describe("AbilityResolutionModal", () => {
       { specId: "GD01-067-WhenPaired", activate: true, targetIds: ["c1"] },
     ]);
   });
+
+  it("efeito único usa layout compacto (max-h-[24vh]), enquanto múltiplos efeitos mantêm a modal com ordenação (max-h-[38vh])", () => {
+    const singleDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "spec-single",
+          label: "Single effect label",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+
+    const { container: singleContainer } = render(
+      <Harness decision={singleDecision} onResolve={vi.fn()} />,
+    );
+    const singlePanel = singleContainer.querySelector(".hero-surface");
+    expect(singlePanel).toHaveClass("max-h-[24vh]");
+    expect(singlePanel).toHaveClass("py-1.5");
+    expect(screen.queryByText("Ordene e escolha os alvos:")).not.toBeInTheDocument();
+
+    cleanup();
+
+    const multiDecision: AR = {
+      kind: "abilityResolution",
+      trigger: "When Paired",
+      queue: [
+        {
+          sourceInstanceId: "p1",
+          specId: "spec-1",
+          label: "Effect 1",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+        {
+          sourceInstanceId: "p2",
+          specId: "spec-2",
+          label: "Effect 2",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+
+    const { container: multiContainer } = render(
+      <Harness decision={multiDecision} onResolve={vi.fn()} />,
+    );
+    const multiPanel = multiContainer.querySelector(".hero-surface");
+    expect(multiPanel).toHaveClass("max-h-[38vh]");
+    expect(multiPanel).toHaveClass("p-3");
+    expect(screen.getByText("Ordene e escolha os alvos:")).toBeInTheDocument();
+  });
 });
+

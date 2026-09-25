@@ -325,7 +325,8 @@ export function BattleSlot({
                 : undefined
         }
         className={cn(
-          "relative block aspect-[63/88] w-full",
+          "relative block aspect-[63/88] w-full transition-transform duration-300",
+          unit.rested ? "rotate-6 scale-[0.96]" : "rotate-0 scale-100",
           legalTarget || isAbilityTarget || bodyInspects ? "cursor-pointer" : "cursor-default",
           justDeployed === "light" && "sim-anim-land-soft",
           justDeployed === "heavy" && "sim-anim-drop-heavy",
@@ -342,13 +343,13 @@ export function BattleSlot({
           </div>
         )}
         <CardFace
-          nameEn={unit.def.nameEn}
-          code={unit.def.code}
+          nameEn={unit.def?.nameEn ?? ""}
+          code={unit.def?.code ?? ""}
           art={art}
           size="sm"
           className="h-full w-full"
           dimmed={unit.rested}
-          backFallback={isGenericArtCard(unit.def.cardType, unit.def.isToken)}
+          backFallback={unit.def?.cardType ? isGenericArtCard(unit.def.cardType, unit.def.isToken) : false}
         >
           {legalTarget ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">

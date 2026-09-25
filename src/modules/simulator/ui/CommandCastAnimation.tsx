@@ -70,8 +70,8 @@ export function CommandCastAnimation({ cardDef, art, origin, dest, cardW, onDone
 
   const w = Math.max(cardW, 1);
   const h = Math.round(w * (88 / 63));
-  const face = artSrc(art, cardDef.code, "lg");
-  const showFace = Boolean(face && cardDef.cardType && !isGenericArtCard(cardDef.cardType, cardDef.isToken));
+  const face = cardDef?.code ? artSrc(art, cardDef.code, "lg") : null;
+  const showFace = Boolean(face && cardDef?.cardType && !isGenericArtCard(cardDef.cardType, cardDef.isToken));
 
   const targetX = phase === "fly" ? destX : centerX;
   const targetY = phase === "fly" ? destY : centerY;

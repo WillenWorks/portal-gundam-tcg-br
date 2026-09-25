@@ -1,0 +1,208 @@
+{
+  "date": "2026-09-24",
+  "commit": "44c3e48",
+  "params": {
+    "levels": [
+      "random",
+      "facil",
+      "normal",
+      "dificil",
+      "zero_system"
+    ],
+    "pool": "all",
+    "decks": [
+      {
+        "id": "ST01",
+        "knownGaps": []
+      },
+      {
+        "id": "ST02",
+        "knownGaps": []
+      },
+      {
+        "id": "ST03",
+        "knownGaps": []
+      },
+      {
+        "id": "ST04",
+        "knownGaps": []
+      },
+      {
+        "id": "ST05",
+        "knownGaps": []
+      },
+      {
+        "id": "ST06",
+        "knownGaps": []
+      },
+      {
+        "id": "ST07",
+        "knownGaps": []
+      },
+      {
+        "id": "ST08",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AEUG-EA",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TEKKADAN-VAGAN",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-QUBELEY",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-AGE-WING",
+        "knownGaps": []
+      },
+      {
+        "id": "META-GD02-TITANS",
+        "knownGaps": []
+      },
+      {
+        "id": "META-ST06-GQUUUUUUX",
+        "knownGaps": []
+      }
+    ],
+    "gamesPerLevelPair": 30,
+    "maxTurns": 40,
+    "seed": 1,
+    "dificilRollouts": 8
+  },
+  "durationSeconds": 4249,
+  "elo": {
+    "random": 0,
+    "facil": 434.352227683623,
+    "normal": 616.8810105356646,
+    "dificil": 806.3886854432635,
+    "zero_system": 718.2575351799585
+  },
+  "ci": {
+    "facil": {
+      "low": 316.46605564584615,
+      "high": 578.1635273406898
+    },
+    "zero_system": {
+      "low": 620.0120751677804,
+      "high": 900.619295538198
+    },
+    "random": {
+      "low": 0,
+      "high": 0
+    },
+    "dificil": {
+      "low": 688.3498215956696,
+      "high": 1015.2933293798734
+    },
+    "normal": {
+      "low": 514.5899485194379,
+      "high": 775.2730657356167
+    }
+  },
+  "steps": [
+    {
+      "lower": "random",
+      "upper": "facil",
+      "upperScore": 28,
+      "games": 30,
+      "rate": 0.9333333333333333,
+      "wilson": {
+        "low": 0.7867654148312584,
+        "high": 0.9815229763754831
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "facil",
+      "upper": "normal",
+      "upperScore": 22,
+      "games": 30,
+      "rate": 0.7333333333333333,
+      "wilson": {
+        "low": 0.5555203815871325,
+        "high": 0.8581733675241899
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "normal",
+      "upper": "dificil",
+      "upperScore": 23,
+      "games": 30,
+      "rate": 0.7666666666666667,
+      "wilson": {
+        "low": 0.5907167369328042,
+        "high": 0.8820761191944214
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "dificil",
+      "upper": "zero_system",
+      "upperScore": 10,
+      "games": 30,
+      "rate": 0.3333333333333333,
+      "wilson": {
+        "low": 0.19230497996726426,
+        "high": 0.5121994849532198
+      },
+      "meetsGoal": false
+    }
+  ],
+  "vsRandom": [
+    {
+      "lower": "random",
+      "upper": "facil",
+      "upperScore": 28,
+      "games": 30,
+      "rate": 0.9333333333333333,
+      "wilson": {
+        "low": 0.7867654148312584,
+        "high": 0.9815229763754831
+      },
+      "meetsGoal": false
+    },
+    {
+      "lower": "random",
+      "upper": "normal",
+      "upperScore": 30,
+      "games": 30,
+      "rate": 1,
+      "wilson": {
+        "low": 0.886486605238548,
+        "high": 1
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "random",
+      "upper": "dificil",
+      "upperScore": 30,
+      "games": 30,
+      "rate": 1,
+      "wilson": {
+        "low": 0.886486605238548,
+        "high": 1
+      },
+      "meetsGoal": true
+    },
+    {
+      "lower": "random",
+      "upper": "zero_system",
+      "upperScore": 30,
+      "games": 30,
+      "rate": 1,
+      "wilson": {
+        "low": 0.886486605238548,
+        "high": 1
+      },
+      "meetsGoal": true
+    }
+  ],
+  "excluded": [],
+  "undecided": 0
+}

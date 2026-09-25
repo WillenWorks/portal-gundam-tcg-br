@@ -107,7 +107,7 @@ import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
-import { otherPlayer, hasKeyword, effectiveCost, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
@@ -115,7 +115,11 @@ import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simul
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
 import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
-import { shouldAnimateAttackStrike, shouldWaitForBurstReveal } from "@/modules/simulator/ui/viewAnimationQueue";
+import {
+  handleOpponentCommandCast,
+  shouldAnimateAttackStrike,
+  shouldWaitForBurstReveal,
+} from "@/modules/simulator/ui/viewAnimationQueue";
 import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulator/content";
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
@@ -161,6 +165,8 @@ import {
   ZoneOverflowModal,
   BugReportModal,
   GameOverOverlay,
+  ZeroCounterDeckSummary,
+  zeroCounterNotice,
   gameOverReasonLabel,
   MatchPrompt,
   SettingsMenu,
@@ -252,6 +258,166 @@ function handCenter(r: DOMRect | null, cardW?: number | null): { x: number; y: n
   return {
     x: r.left + r.width / 2,
     y: r.bottom - 4 - cardH / 2,
+  };
+}
+
+/**
+ * View já saiu da preparação (mulligan). `Phase` não tem valor "setup" — a
+ * preparação é só o período com mulligan pendente em algum assento.
+ */
+function isPostSetupView(view: ViewGameState): boolean {
+  return view.pendingDecision.A?.kind !== "mulligan" && view.pendingDecision.B?.kind !== "mulligan";
+}
+
+/**
+ * Banners de encerramento do turno anterior, mostrados na virada de turno. O
+ * turno só muda depois que o Action Step da End Phase terminou com os dois
+ * jogadores passando (`passEndPhaseAction` -> `END_END_PHASE_ACTION_STEP` ->
+ * `finishEndPhaseAndAdvance`), então "FIM DE TURNO" aqui é fato público — o
+ * cliente não precisa (nem pode) saber se o oponente tinha jogada. Se a view
+ * anterior já estava na End Phase, "FASE DE AÇÕES" já foi anunciada pelo
+ * efeito da End Phase; senão (auto-pass dos dois resolvido inteiro no
+ * servidor numa resposta só) ela é anunciada aqui, antes do fim.
+ */
+export function endOfTurnBanners(prevView: ViewGameState): string[] {
+  const actionStepAlreadyAnnounced = prevView.phase === "end" || prevView.endPhaseAction !== null;
+  return actionStepAlreadyAnnounced ? ["FIM DE TURNO"] : ["FASE DE AÇÕES", "FIM DE TURNO"];
+}
+
+export function buildTurnStagedViews(
+  prevView: ViewGameState,
+  incoming: SimulatorMatchView,
+): {
+  viewAnnounced: SimulatorMatchView;
+  viewRecovery: SimulatorMatchView;
+  viewDraw: SimulatorMatchView;
+  viewMain: SimulatorMatchView;
+} {
+  const active = incoming.view.activePlayer;
+  const prevActivePlayer = prevView.players[active];
+  const incomingActivePlayer = incoming.view.players[active];
+
+  // 1. viewAnnounced: mantém as unidades descansadas (rested) e mão/deck do turno anterior
+  const viewAnnounced: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "start",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea,
+          baseSection: prevActivePlayer.baseSection,
+          resourceArea: prevActivePlayer.resourceArea,
+          hand: prevActivePlayer.hand,
+          deck: prevActivePlayer.deck,
+          counts: {
+            ...incomingActivePlayer.counts,
+            hand: prevActivePlayer.counts.hand,
+            deck: prevActivePlayer.counts.deck,
+          },
+        },
+      },
+    },
+  };
+
+  // 2. viewRecovery: unidades destombam (rested: false), mas a mão/deck continuam antes da compra
+  const viewRecovery: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "start",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          baseSection: prevActivePlayer.baseSection.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          resourceArea: prevActivePlayer.resourceArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          hand: prevActivePlayer.hand,
+          deck: prevActivePlayer.deck,
+          counts: {
+            ...incomingActivePlayer.counts,
+            hand: prevActivePlayer.counts.hand,
+            deck: prevActivePlayer.counts.deck,
+          },
+        },
+      },
+    },
+  };
+
+  // 3. viewDraw: mão recebe a carta recém-comprada de incomingView, deck decrementa
+  const viewDraw: SimulatorMatchView = {
+    ...incoming,
+    view: {
+      ...incoming.view,
+      phase: "draw",
+      players: {
+        ...incoming.view.players,
+        [active]: {
+          ...incomingActivePlayer,
+          battleArea: prevActivePlayer.battleArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          baseSection: prevActivePlayer.baseSection.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          resourceArea: prevActivePlayer.resourceArea.map((c) => (isHidden(c) ? c : { ...c, rested: false })),
+          hand: incomingActivePlayer.hand,
+          deck: incomingActivePlayer.deck,
+          counts: incomingActivePlayer.counts,
+        },
+      },
+    },
+  };
+
+  // 4. viewMain: visão completa pós-recursos e Main Phase
+  const viewMain = incoming;
+
+  return { viewAnnounced, viewRecovery, viewDraw, viewMain };
+}
+
+export function buildTurn1StagedViews(current: SimulatorMatchView): {
+  viewAnnounced: SimulatorMatchView;
+  viewRecovery: SimulatorMatchView;
+  viewDraw: SimulatorMatchView;
+  viewMain: SimulatorMatchView;
+} {
+  const active = current.view.activePlayer;
+  const pState = current.view.players[active];
+  const handBeforeDraw = pState.hand.slice(0, 5);
+  const countsBeforeDraw = {
+    ...pState.counts,
+    hand: Math.min(5, pState.counts.hand),
+    deck: pState.counts.deck + (pState.hand.length > 5 ? 1 : 0),
+  };
+
+  const viewBeforeDraw: SimulatorMatchView = {
+    ...current,
+    view: {
+      ...current.view,
+      phase: "start",
+      players: {
+        ...current.view.players,
+        [active]: {
+          ...pState,
+          hand: handBeforeDraw,
+          counts: countsBeforeDraw,
+        },
+      },
+    },
+  };
+
+  const viewDraw: SimulatorMatchView = {
+    ...current,
+    view: {
+      ...current.view,
+      phase: "draw",
+    },
+  };
+
+  return {
+    viewAnnounced: viewBeforeDraw,
+    viewRecovery: viewBeforeDraw,
+    viewDraw,
+    viewMain: current,
   };
 }
 
@@ -486,6 +652,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     | "deal-hand"
     | "hand-revealed"
     | "mulligan-decision"
+    | "waiting-opponent-mulligan"
     | "mulligan-anim"
     | "deal-shields"
     | "phase-banner"
@@ -493,12 +660,51 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   >("field-ready");
   const introInitializedRef = useRef(false);
   const mulliganDidMulliganRef = useRef(false);
+  const introStageRef = useRef(introStage);
+  introStageRef.current = introStage;
+  const introStageResolveRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (introStage === "complete") {
+      introStageResolveRef.current?.();
+      introStageResolveRef.current = null;
+    }
+  }, [introStage]);
+
   const [phaseBannerQueue, setPhaseBannerQueue] = useState<string[]>([]);
-  // docs/56 (revisão do plano de polimento) — último `turnNumber` observado
-  // DEPOIS que a sequência de abertura terminou; usado só pelo efeito de
-  // banners recorrentes (turno 2+), que não pode reagir ao próprio turno 1
-  // (esse já é responsabilidade do `handleSetupAnimDone`).
-  const prevTurnBannerRef = useRef<number | null>(null);
+  const phaseBannerQueueRef = useRef<string[]>([]);
+  phaseBannerQueueRef.current = phaseBannerQueue;
+  const phaseBannerResolveRef = useRef<(() => void) | null>(null);
+
+  const enqueuePhaseBanners = useCallback((banners: string[]) => {
+    setPhaseBannerQueue((prev) => {
+      const next = [...prev, ...banners];
+      phaseBannerQueueRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const waitForPhaseBanners = useCallback(() => {
+    if (phaseBannerQueueRef.current.length === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const prev = phaseBannerResolveRef.current;
+      phaseBannerResolveRef.current = () => {
+        prev?.();
+        resolve();
+      };
+      // Timeout de segurança proporcional à fila pra nunca travar
+      const safetyMs = Math.max(3500, phaseBannerQueueRef.current.length * 1200);
+      setTimeout(resolve, safetyMs);
+    });
+  }, []);
+
+  interface TurnStagedViews {
+    actingPlayer: PlayerId;
+    viewRecovery: SimulatorMatchView;
+    viewDraw: SimulatorMatchView;
+    viewMain: SimulatorMatchView;
+  }
+  const turnStagedViewsRef = useRef<TurnStagedViews | null>(null);
 
   // Confirmação explícita de encerramento de turno sob demanda (não trava a tela no idle)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false);
@@ -561,6 +767,18 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }, VIEW_QUEUE_ITEM_TIMEOUT_MS);
     });
   }, []);
+
+  // Resolver para pausar a drenagem de views enquanto o jogador decide o Burst
+  const burstDecisionResolveRef = useRef<(() => void) | null>(null);
+
+  // Se a decisão de burst for resolvida ou sumir do matchView, garante que a fila desocupe
+  useEffect(() => {
+    const decision = matchView?.view.pendingDecision[matchView.seat];
+    if (decision?.kind !== "burst") {
+      burstDecisionResolveRef.current?.();
+      burstDecisionResolveRef.current = null;
+    }
+  }, [matchView]);
 
   // "Nova leva de correções" — lançamento e revelação de Comandos: enquanto
   // não-nulo, `CommandCastAnimation` é renderizado; `commandCastResolveRef`
@@ -662,10 +880,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             dest: rectCenter(board.rectOf(destKey)),
             cardW: originRect.width,
             kind: wasUnit ? "destroyed" : "discarded",
-            code: !isHidden(departed) ? (departed as CardInstance).def.code : undefined,
-            nameEn: !isHidden(departed) ? (departed as CardInstance).def.nameEn : undefined,
-            cardType: !isHidden(departed) ? (departed as CardInstance).def.cardType : undefined,
-            isToken: !isHidden(departed) ? (departed as CardInstance).def.isToken : undefined,
+            code: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.code : undefined,
+            nameEn: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.nameEn : undefined,
+            cardType: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.cardType : undefined,
+            isToken: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.isToken : undefined,
           });
         }
       }
@@ -695,6 +913,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const viewQueueRef = useRef<SimulatorMatchView[]>([]);
   const isDrainingViewQueueRef = useRef(false);
   const hasAppliedFirstViewRef = useRef(false);
+  const prevViewForQueueRef = useRef<ViewGameState | null>(null);
 
   const processIncomingView = useCallback(
     async (incoming: SimulatorMatchView) => {
@@ -703,6 +922,36 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       }
 
       detectDepartures(incoming);
+
+      // Animação de Comando jogado pelo oponente/bot: deve rodar e esperar antes
+      // de setMatchView para que o efeito do Comando na arena só apareça resolvido após o onDone.
+      const fallbackCenter = {
+        x: typeof window !== "undefined" && window.innerWidth ? window.innerWidth / 2 : 500,
+        y: typeof window !== "undefined" && window.innerHeight ? window.innerHeight / 2 : 350,
+      };
+      const prevView = prevViewForQueueRef.current;
+      prevViewForQueueRef.current = incoming.view;
+
+      await handleOpponentCommandCast({
+        prevView,
+        incomingView: incoming.view,
+        viewerSeat: incoming.seat,
+        board,
+        fallbackCenter,
+        animateCommand: ({ cardDef, origin, dest }) =>
+          new Promise<void>((resolve) => {
+            let timer: ReturnType<typeof setTimeout> | null = null;
+            const finish = () => {
+              if (timer) clearTimeout(timer);
+              setCommandCast(null);
+              commandCastResolveRef.current = null;
+              resolve();
+            };
+            commandCastResolveRef.current = finish;
+            timer = setTimeout(finish, VIEW_QUEUE_ITEM_TIMEOUT_MS);
+            setCommandCast({ cardDef, origin, dest });
+          }),
+      });
 
       const prevCombat = prevCombatRef.current;
       prevCombatRef.current = incoming.view.combat;
@@ -724,20 +973,55 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         ]);
       }
 
-      setMatchView((prev) => {
-        if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
-        return incoming;
-      });
+      const isTurnChange =
+        prevView !== null &&
+        !incoming.view.gameOver &&
+        (incoming.view.turnNumber > prevView.turnNumber || incoming.view.activePlayer !== prevView.activePlayer);
+
+      if (isTurnChange) {
+        const staged = buildTurnStagedViews(prevView, incoming);
+        turnStagedViewsRef.current = {
+          actingPlayer: incoming.view.activePlayer,
+          viewRecovery: staged.viewRecovery,
+          viewDraw: staged.viewDraw,
+          viewMain: staged.viewMain,
+        };
+        // Fecha o turno anterior ANTES de mostrar a mesa do novo turno.
+        enqueuePhaseBanners(endOfTurnBanners(prevView));
+        await waitForPhaseBanners();
+        setMatchView(staged.viewAnnounced);
+        const isMyTurn = incoming.view.activePlayer === incoming.seat;
+        if (isMyTurn) sfx.playNewtypeFlash();
+        enqueuePhaseBanners([
+          isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
+          "FASE DE RECUPERAÇÃO",
+          "FASE DE COMPRA",
+          "FASE PRINCIPAL",
+        ]);
+        await waitForPhaseBanners();
+      } else {
+        setMatchView((prev) => {
+          if (prev && prev.matchId === incoming.matchId && incoming.version < prev.version) return prev;
+          return incoming;
+        });
+      }
 
       // Só DEPOIS de aplicar a view é que `myBurstDecision` (derivado dela)
       // passa a existir pro render — por isso a espera do reveal vem depois do
       // `setMatchView`, nunca antes (não tem o que esperar até a view aplicar).
       const myDecision = incoming.view.pendingDecision[incoming.seat];
-      if (shouldWaitForBurstReveal(myDecision, burstRevealedIdRef.current) && myDecision?.kind === "burst") {
-        await waitForBurstReveal(myDecision.cardInstanceId);
+      if (myDecision?.kind === "burst") {
+        if (shouldWaitForBurstReveal(myDecision, burstRevealedIdRef.current)) {
+          await waitForBurstReveal(myDecision.cardInstanceId);
+        }
+        // Trava a drenagem de views subsequentes enquanto o jogador decide o Burst
+        await new Promise<void>((resolve) => {
+          burstDecisionResolveRef.current = resolve;
+          setTimeout(resolve, 30_000);
+        });
       }
     },
-    [executeAttackStrike, detectDepartures, waitForBurstReveal],
+    [executeAttackStrike, detectDepartures, waitForBurstReveal, board, enqueuePhaseBanners, waitForPhaseBanners],
   );
 
   const drainViewQueue = useCallback(async () => {
@@ -745,8 +1029,33 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     isDrainingViewQueueRef.current = true;
     try {
       while (viewQueueRef.current.length > 0) {
+        const peekNext = viewQueueRef.current[0];
+        // Se a próxima view já é pós-setup (Fase Principal, jogadas de turno 1, ou bot agindo),
+        // mas a abertura inicial ainda não foi concluída (mulligan, deal-shields, phase-banner),
+        // aguarda a abertura cinematográfica terminar para não atropelar a distribuição de shields!
+        if (isPostSetupView(peekNext.view) && introStageRef.current !== "complete") {
+          await Promise.race([
+            new Promise<void>((resolve) => {
+              const prev = introStageResolveRef.current;
+              introStageResolveRef.current = () => {
+                prev?.();
+                resolve();
+              };
+            }),
+            new Promise<void>((resolve) => setTimeout(resolve, 15_000)),
+          ]);
+        }
+
+        if (phaseBannerQueueRef.current.length > 0) {
+          await waitForPhaseBanners();
+        }
         const next = viewQueueRef.current.shift()!;
-        await processIncomingView(next);
+        try {
+          await processIncomingView(next);
+        } catch (err) {
+          console.error("[ViewQueue] processIncomingView falhou", err, next);
+          setMatchView(next);
+        }
         // Fim de jogo: não faz sentido continuar animando um backlog de
         // eventos de uma partida que já acabou — descarta o resto da fila.
         if (next.view.gameOver) {
@@ -757,7 +1066,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } finally {
       isDrainingViewQueueRef.current = false;
     }
-  }, [processIncomingView]);
+  }, [processIncomingView, waitForPhaseBanners]);
 
   const applyIncomingView = useCallback(
     (incoming: SimulatorMatchView) => {
@@ -768,6 +1077,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // senão a 2ª view (já pela fila) achava que também era "a primeira".
       if (!hasAppliedFirstViewRef.current) {
         hasAppliedFirstViewRef.current = true;
+        prevViewForQueueRef.current = incoming.view;
         detectDepartures(incoming);
         prevCombatRef.current = incoming.view.combat;
         setMatchView(incoming);
@@ -895,6 +1205,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           sfx.playClick();
         }
 
+        if (action.kind === "resolveBurstDecision") {
+          burstDecisionResolveRef.current?.();
+          burstDecisionResolveRef.current = null;
+        }
+
         // Modo socket: o eco vem pelo broadcast `match:view_update` (o hook
         // resolve quando chega). Modo SSE: `sendAction` faz o POST e aplica a
         // resposta. Nos dois casos a view já está aplicada quando isto resolve.
@@ -986,16 +1301,32 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // stream e devolve o jogador ao site depois de GAME_OVER_REDIRECT_MS (com botão
   // pra voltar na hora). Sem isso o jogador ficava preso na tela de "Fim de jogo".
   const gameOver = matchView?.view.gameOver ?? null;
+  // Contra o Zero System com counter, o fim de jogo mostra a lista do bot pra estudo:
+  // sem redirect automático (o jogador sai pelo botão).
+  const hasBotDeckList = Boolean(matchView?.botDeckList?.length);
   useEffect(() => {
     if (!gameOver) {
       setRedirectAt(null);
       return;
     }
     teardownTransport();
+    if (hasBotDeckList) {
+      setRedirectAt(null);
+      return;
+    }
     setRedirectAt(Date.now() + GAME_OVER_REDIRECT_MS);
     const timer = setTimeout(() => setLocation(EXIT_ROUTE), GAME_OVER_REDIRECT_MS);
     return () => clearTimeout(timer);
-  }, [gameOver, setLocation, teardownTransport]);
+  }, [gameOver, hasBotDeckList, setLocation, teardownTransport]);
+
+  // Aviso do counter do Zero System — uma vez por partida, na primeira view que o traz.
+  const botCounter = matchView?.botCounter;
+  const counterNoticeShownRef = useRef(false);
+  useEffect(() => {
+    if (!botCounter || counterNoticeShownRef.current || matchView?.view.gameOver) return;
+    counterNoticeShownRef.current = true;
+    toast.info(zeroCounterNotice(botCounter), { duration: 8_000 });
+  }, [botCounter, matchView?.view.gameOver]);
 
   // Avisos do relógio de turno (pedido do Willen, 2026-09-04): sem isso o turno
   // (300s) podia acabar "sem aviso" e o jogador só percebia quando o servidor já
@@ -1110,17 +1441,6 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       setSetupAnim("mulligan");
     } else if ((prev.handLen === 0 && cur.handLen >= 5 && cur.turnNumber <= 1) || (prev.handLen < cur.handLen && cur.turnNumber === 1)) {
       setSetupAnim("deal-hand");
-    } else if (
-      // docs/56 tarefa 2 — saque de 1 carta ao INÍCIO do meu turno (Draw Phase,
-      // já resolvida junto com Manutenção/Recurso/Main pelo servidor numa
-      // transição só — ver cabeçalho do arquivo). Não bloqueia nada: `single-draw`
-      // não entra na lista que esvazia a `HandFan` (só "deal-hand"/"mulligan" entram).
-      cur.turnNumber > 1 &&
-      prev.activePlayer !== cur.activePlayer &&
-      cur.activePlayer === matchView.seat &&
-      prev.handLen === cur.handLen - 1
-    ) {
-      setSetupAnim("single-draw");
     }
   }, [matchView, introStage]);
 
@@ -1179,62 +1499,112 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     } else if (introStage === "deal-hand") {
       setIntroStage("hand-revealed");
     } else if (introStage === "mulligan-anim") {
-      setIntroStage("deal-shields");
-      setSetupAnim("deal-shields");
-    } else if (introStage === "deal-shields") {
-      if (mulliganDidMulliganRef.current) {
-        setPhaseBannerQueue(["FASE DE COMPRA", "FASE DE RECUPERAÇÃO", "FASE PRINCIPAL"]);
+      const v = matchView?.view;
+      const oppSeat = matchView ? otherPlayer(matchView.seat) : null;
+      const oppHasMulligan = oppSeat && v ? v.pendingDecision[oppSeat]?.kind === "mulligan" : false;
+      if (oppHasMulligan) {
+        setIntroStage("waiting-opponent-mulligan");
       } else {
-        setPhaseBannerQueue(["FASE PRINCIPAL"]);
+        setIntroStage("deal-shields");
+        setSetupAnim("deal-shields");
       }
+    } else if (introStage === "deal-shields") {
+      const postSetupView = viewQueueRef.current.find((item) => isPostSetupView(item.view)) ?? matchView;
+      if (postSetupView) {
+        const staged = buildTurn1StagedViews(postSetupView);
+        turnStagedViewsRef.current = {
+          actingPlayer: postSetupView.view.activePlayer,
+          viewRecovery: staged.viewRecovery,
+          viewDraw: staged.viewDraw,
+          viewMain: staged.viewMain,
+        };
+        setMatchView(staged.viewAnnounced);
+      }
+      const isMyTurn = (postSetupView?.view ?? matchView?.view)?.activePlayer === matchView?.seat;
+      if (isMyTurn) sfx.playNewtypeFlash();
+      enqueuePhaseBanners([
+        isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
+        "FASE DE RECUPERAÇÃO",
+        "FASE DE COMPRA",
+        "FASE PRINCIPAL",
+      ]);
       setIntroStage("phase-banner");
     }
-  }, [introStage]);
+  }, [introStage, matchView, enqueuePhaseBanners]);
 
   // Callback de término de cada banner de fase
   const handlePhaseBannerDone = useCallback(() => {
     setPhaseBannerQueue((prev) => {
       const next = prev.slice(1);
+      phaseBannerQueueRef.current = next;
+
+      if (next.length > 0 && turnStagedViewsRef.current) {
+        const nextPhase = next[0];
+        if (nextPhase === "FASE DE RECUPERAÇÃO") {
+          setMatchView(turnStagedViewsRef.current.viewRecovery);
+          sfx.playDeploy();
+        } else if (nextPhase === "FASE DE COMPRA") {
+          setMatchView(turnStagedViewsRef.current.viewDraw);
+          setSetupAnim("single-draw");
+          sfx.playCardDraw();
+        } else if (nextPhase === "FASE PRINCIPAL") {
+          setMatchView(turnStagedViewsRef.current.viewMain);
+        }
+      }
+
       if (next.length === 0) {
+        turnStagedViewsRef.current = null;
         setIntroStage("complete");
+        phaseBannerResolveRef.current?.();
+        phaseBannerResolveRef.current = null;
       }
       return next;
     });
   }, []);
 
-  // docs/56 (revisão do plano de polimento) — banners de fase recorrentes a
-  // CADA troca de turno (Turno 2, 3, ...), independente da máquina de estados
-  // de abertura (`introStage`), que é one-shot e só cobre o Turno 1. Enfileira
-  // só depois que a abertura já terminou (`introStage === "complete"`) — antes
-  // disso, apenas mantém `prevTurnBannerRef` sincronizado pra não confundir a
-  // 1ª leitura pós-abertura com uma troca de turno real.
+  // Sincronização de Mulligan: quando o oponente conclui o mulligan dele,
+  // se o jogador local estava em waiting-opponent-mulligan, avança para deal-shields
   useEffect(() => {
-    if (!matchView) return;
+    if (introStage !== "waiting-opponent-mulligan" || !matchView) return;
     const v = matchView.view;
-    if (introStage !== "complete") {
-      prevTurnBannerRef.current = v.turnNumber;
-      return;
+    const oppSeat = otherPlayer(matchView.seat);
+    const oppHasMulligan = v.pendingDecision[oppSeat]?.kind === "mulligan";
+    if (!oppHasMulligan) {
+      setIntroStage("deal-shields");
+      setSetupAnim("deal-shields");
     }
-    const prevTurn = prevTurnBannerRef.current;
-    prevTurnBannerRef.current = v.turnNumber;
-    if (prevTurn === null || v.turnNumber <= prevTurn || v.gameOver) return;
+  }, [introStage, matchView]);
 
-    const isMyTurn = v.activePlayer === matchView.seat;
-    setPhaseBannerQueue([
-      isMyTurn ? "SEU TURNO" : "TURNO DO OPONENTE",
-      "FASE DE COMPRA",
-      "FASE DE RECUPERAÇÃO",
-      "FASE PRINCIPAL",
-    ]);
-  }, [matchView, introStage]);
+  // Banner da End Phase: o Action Step da End Phase SEMPRE existe pelas regras
+  // (CR — End Phase: Action Step → End Step → Hand Step → Cleanup), então o
+  // banner anuncia "FASE DE AÇÕES" sempre. Não dá pra decidir "FIM DE TURNO"
+  // por "ninguém tem jogada": o cliente só conhece a própria mão (a do
+  // oponente chega como `HiddenCard`), e o servidor mandar esse booleano
+  // vazaria informação oculta. Quem não tem jogada é passado pelo auto-pass.
+  const endPhaseBannerShownTurnRef = useRef<number | null>(null);
 
-  // Recuperação de segurança: se a partida já está em andamento (Main Phase, sem mulligan ativo nem animação em curso),
-  // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada.
+  useEffect(() => {
+    if (!matchView || introStage !== "complete") return;
+    const v = matchView.view;
+    if (v.gameOver) return;
+
+    const isEndPhase = v.phase === "end" || v.endPhaseAction !== null;
+    if (!isEndPhase) return;
+
+    if (endPhaseBannerShownTurnRef.current === v.turnNumber) return;
+    endPhaseBannerShownTurnRef.current = v.turnNumber;
+
+    enqueuePhaseBanners(["FASE DE AÇÕES"]);
+  }, [matchView, introStage, enqueuePhaseBanners]);
+
+
+  // Recuperação de segurança: se a partida já está em andamento avançado (Turno 2+, sem mulligan ativo nem animação em curso),
+  // garante que os controles do jogador fiquem liberados caso a máquina de estados tenha ficado desincronizada (ex: reconexão).
   useEffect(() => {
     if (!matchView || introStage === "complete") return;
     const v = matchView.view;
     const hasMulligan = v.pendingDecision.A?.kind === "mulligan" || v.pendingDecision.B?.kind === "mulligan";
-    if (!hasMulligan && v.turnNumber >= 1 && setupAnim === null && phaseBannerQueue.length === 0) {
+    if (!hasMulligan && v.turnNumber > 1 && setupAnim === null && phaseBannerQueue.length === 0) {
       const t = setTimeout(() => {
         setIntroStage("complete");
       }, 1200);
@@ -1259,9 +1629,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const iHavePriorityNow = combatNow?.step === "action" && combatNow.actionPriority === meSeat;
     const iHaveEndPhasePriorityNow = v.endPhaseAction !== null && v.endPhaseAction.priority === meSeat;
     if (!iHavePriorityNow && !iHaveEndPhasePriorityNow) return;
-    if (playerHasActionStepPlay(v as unknown as GameState, meSeat, ALL_EFFECT_SPECS)) return;
+    if (playerHasActionStepPlay(v, meSeat, ALL_EFFECT_SPECS)) return;
+    if (phaseBannerQueue.length > 0) return;
     runAction(iHavePriorityNow ? { kind: "passAction" } : { kind: "passEndPhaseAction" });
-  }, [matchView, introStage, busy, runAction]);
+  }, [matchView, introStage, busy, runAction, phaseBannerQueue.length]);
 
   // docs/55 tarefa 3 — Auto-pass do Passo de Bloqueio: se o defensor não tem
   // NENHUMA Unit ativa com <Blocker>, pula sozinho — não trava o jogo
@@ -1366,7 +1737,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const resourceHighlightTone: "cyan" | "amber" | null = !pending
     ? null
     : pending.kind === "deploy"
-      ? (pendingCard?.def.cardType === "PILOT" || pendingCard?.def.pilotMode ? "amber" : "cyan")
+      ? (pendingCard?.def?.cardType === "PILOT" || pendingCard?.def?.pilotMode ? "amber" : "cyan")
       : pending.kind === "command" || pending.kind === "activateAbility"
         ? "amber"
         : null;
@@ -1378,16 +1749,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  não atirar cedo demais assim que 1 alvo é clicado. */
   const { legalTargetInstanceIds, requiredTargetCount } = ((): { legalTargetInstanceIds: Set<string>; requiredTargetCount: number } => {
     const none = { legalTargetInstanceIds: new Set<string>(), requiredTargetCount: 0 };
-    if (!pending || !pendingCard) return none;
+    if (!pending || !pendingCard || !pendingCard.def) return none;
 
     if (pending.kind === "deploy") {
-      const isPilot = pendingCard.def.cardType === "PILOT" || Boolean(pendingCard.def.pilotMode);
+      const isPilot = pendingCard.def?.cardType === "PILOT" || Boolean(pendingCard.def?.pilotMode);
       if (isPilot) {
         // Piloto pareia com Unit amiga livre (sem piloto acoplado)
         const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         return {
           legalTargetInstanceIds: new Set(
-            myUnits.filter((u) => u.def.cardType === "UNIT" && !u.pairedPilotId).map((u) => u.instanceId),
+            myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
         };
@@ -1403,7 +1774,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         return {
           legalTargetInstanceIds: new Set(
-            myUnits.filter((u) => u.def.cardType === "UNIT" && u.instanceId !== pendingCard.instanceId).map((u) => u.instanceId),
+            myUnits.filter((u) => u.def?.cardType === "UNIT" && u.instanceId !== pendingCard.instanceId).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
         };
@@ -1466,12 +1837,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (!costMet) return;
 
     if (pending.kind === "deploy") {
-      const isPilot = pendingCard.def.cardType === "PILOT" || Boolean(pendingCard.def.pilotMode);
+      const isPilot = pendingCard?.def?.cardType === "PILOT" || Boolean(pendingCard?.def?.pilotMode);
       if (isPilot) {
         const myBattleArea = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         const ownBattleUnits = myBattleArea
-          .filter((c) => c.def.cardType === "UNIT")
-          .map((u) => ({ instanceId: u.instanceId, code: u.def.code, paired: !!u.pairedPilotId }));
+          .filter((c) => c.def?.cardType === "UNIT")
+          .map((u) => ({ instanceId: u.instanceId, code: u.def?.code, paired: !!u.pairedPilotId }));
         const sel = resolveDeploySelection({ card: pendingCard, selected: nextSelected, ownBattleUnits });
         if (sel.error || !sel.pairWithUnitId) return;
         executeDeploy(pending.cardInstanceId, sel.pairWithUnitId, pending.sacrificeInstanceId, nextResources.length > 0 ? nextResources : undefined);
@@ -1538,7 +1909,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const startDeploy = (card: CardInstance, sacrificeInstanceId?: string) => {
     // docs/54 tarefa 4 — Base é invocação direta (sem alvo), igual Unit simples:
     // mesma janela de "custo 0 invoca na hora" se aplica às duas.
-    const isDirect = (card.def.cardType === "UNIT" || card.def.cardType === "BASE") && !card.def.pilotMode;
+    const isDirect = (card.def?.cardType === "UNIT" || card.def?.cardType === "BASE") && !card.def?.pilotMode;
     const effCost = sacrificeInstanceId ? 0 : effectiveCost(card.def, view as unknown as GameState, seat);
 
     // Se for Unit/Base simples de custo 0 (ou com sacrifício já escolhido), invoca na hora
@@ -1599,8 +1970,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     const myBattleArea = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
     if (pending.kind === "deploy") {
       const ownBattleUnits = myBattleArea
-        .filter((c) => c.def.cardType === "UNIT")
-        .map((u) => ({ instanceId: u.instanceId, code: u.def.code, paired: !!u.pairedPilotId }));
+        .filter((c) => c.def?.cardType === "UNIT")
+        .map((u) => ({ instanceId: u.instanceId, code: u.def?.code, paired: !!u.pairedPilotId }));
       const sel = resolveDeploySelection({ card: pendingCard, selected, ownBattleUnits });
       if (sel.error) {
         showActionError(sel.error);
@@ -1655,7 +2026,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       inActionStep,
       activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
       totalResources: mine.counts.resourceArea,
-      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def.cardType === "UNIT" && !u.pairedPilotId),
+      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId),
       state: boardForStats,
       controller: seat,
     };
@@ -1674,7 +2045,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         fn(c, sacId);
       },
     });
-    const isDual = c.def.cardType === "COMMAND" && !!c.def.pilotMode;
+    const isDual = c.def?.cardType === "COMMAND" && !!c.def?.pilotMode;
 
     if (isDual) {
       const out: HandPlayMode[] = [];
@@ -1682,12 +2053,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (modes.includes("deploy")) out.push(asPilot);
       return out;
     }
-    if (c.def.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
+    if (c.def?.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
 
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
     const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);
     const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
-    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= (c.def.level ?? 0) && ctx.myTurnMain;
+    const normalAffordable = ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller) && ctx.myTurnMain;
 
     const out: HandPlayMode[] = [];
     if (normalAffordable && modes.includes("deploy")) {
@@ -1738,7 +2109,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   }
 
   const publicUnits = (player: ViewPlayerState): CardInstance[] =>
-    player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def.cardType === "UNIT") as CardInstance[];
+    player.battleArea.filter((c) => !isHidden(c) && (c as CardInstance).def?.cardType === "UNIT") as CardInstance[];
 
   /** Pilotos que satisfazem o link `pilotName` desta Unit — resolve arte via catálogo
    *  e marca (best-effort) se a carta está visível nas tuas zonas (Sprint 5.3). */
@@ -1771,6 +2142,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     (attackerId !== null && combat === null) ||
     iAmDefending,
   );
+  const isPhaseBannerActive = phaseBannerQueue.length > 0;
 
   /** "Nova leva de correções" (item 4, plano v2) — decisão `abilityResolution`
    *  pendente com alvo em Unit (ex.: ST05-010 Mikazuki Augus): glow inline no
@@ -1830,14 +2202,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean => {
       if (targetUnit.rested) return true;
-      const staticRelax = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-      if (staticRelax >= 0 && (targetUnit.def.level ?? 999) <= staticRelax) return true;
+      const staticRelax = attacker.def?.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
+      if (staticRelax >= 0 && (targetUnit.def?.level ?? 999) <= staticRelax) return true;
       const granted =
         attacker.attackTargetRelaxUntilTurn?.turn === view.turnNumber
           ? attacker.attackTargetRelaxUntilTurn
           : undefined;
-      if (granted?.maxLevel !== undefined && (targetUnit.def.level ?? 999) <= granted.maxLevel) return true;
-      if (granted?.maxAp !== undefined && (targetUnit.def.ap ?? 999) <= granted.maxAp) return true;
+      if (granted?.maxLevel !== undefined && (targetUnit.def?.level ?? 999) <= granted.maxLevel) return true;
+      if (granted?.maxAp !== undefined && (targetUnit.def?.ap ?? 999) <= granted.maxAp) return true;
       return false;
     };
 
@@ -1861,7 +2233,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // ainda não tocou a animação de pouso: `light` até custo 3, `heavy` acima.
       const justDeployed: "light" | "heavy" | undefined =
         unit && unit.enteredZoneOnTurn === view.turnNumber && !deployedSeenRef.current.has(unit.instanceId)
-          ? (unit.def.cost ?? 0) <= 3
+          ? (unit.def?.cost ?? 0) <= 3
             ? "light"
             : "heavy"
           : undefined;
@@ -1880,7 +2252,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                     const opponent = view.players[opponentPid];
                     const enemyUnits = publicUnits(opponent);
                     const hasLegalEnemyUnit = enemyUnits.some((eu) => canAttackerTargetEnemyUnit(u, eu));
-                    const cannotTargetPlayer = Boolean(u.def.attackTargetRules?.cannotTargetPlayer);
+                    const cannotTargetPlayer = Boolean(u.def?.attackTargetRules?.cannotTargetPlayer);
 
                     // Se não há unidades inimigas que possam ser alvos legais, o único alvo válido é o jogador:
                     if (!hasLegalEnemyUnit && !cannotTargetPlayer) {
@@ -1906,8 +2278,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         isSelf &&
         !unit &&
         pending?.kind === "deploy" &&
-        pendingCard?.def.cardType === "UNIT" &&
-        !pendingCard.def.pilotMode;
+        pendingCard?.def?.cardType === "UNIT" &&
+        !pendingCard?.def?.pilotMode;
 
       const abilityTarget = unit ? abilityUnitTargetsByInstance.get(unit.instanceId) : undefined;
       const isAbilitySelected = Boolean(
@@ -1935,11 +2307,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
               ? { towardX: activeStrike.towardX, towardY: activeStrike.towardY, phase: activeStrike.phase }
               : undefined
           }
-          busy={busy}
+          busy={busy || isPhaseBannerActive}
           state={boardForStats}
           abilityTargetPool={abilityTarget?.side ?? null}
           abilitySelected={isAbilitySelected}
           onSelect={(u) => {
+            if (isPhaseBannerActive) return;
             // "Nova leva de correções" (item 4) — clique num alvo de habilidade
             // (glow verde/vermelho) tem prioridade sobre qualquer outro modo de
             // seleção: escreve direto no estado controlado que o
@@ -1991,25 +2364,26 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   /** Classifica uma carta da mão: jogável? por quê não? quais modos de jogo?
    *  Usado tanto pra montar o `HandFan` quanto no `onPeek` dele (Fase D). */
   function describeHandCard(c: CardInstance) {
-    const isCommand = c.def.cardType === "COMMAND";
-    const isDual = isCommand && !!c.def.pilotMode;
+    const isCommand = c.def?.cardType === "COMMAND";
+    const isDual = isCommand && !!c.def?.pilotMode;
     const modes = handPlayModes(c);
     const playable = modes.length > 0;
     const ctx = playabilityCtx();
     const effCost = effectiveCost(c.def, ctx.state, ctx.controller);
     const shortOnResources = ctx.activeResources < effCost;
-    const shortOnLevel = ctx.totalResources < (c.def.level ?? 0);
+    const effLevel = effectiveLevel(c.def, ctx.state, ctx.controller);
+    const shortOnLevel = ctx.totalResources < effLevel;
     const blockedReason = playable
       ? undefined
       : shortOnLevel
-        ? `Nível insuficiente — precisa de ${c.def.level} recursos em campo.`
+        ? `Nível insuficiente — precisa de ${effLevel} recursos em campo.`
         : shortOnResources
           ? `Recursos insuficientes — custo ${effCost}, você tem ${ctx.activeResources} ativos.`
           : isDual
             ? "Nem o modo Comando nem o modo Piloto estão disponíveis agora."
             : isCommand
               ? "Este Comando não tem gatilho disponível agora."
-              : c.def.cardType === "PILOT" || c.def.pilotMode
+              : c.def?.cardType === "PILOT" || c.def?.pilotMode
                 ? (ctx.myTurnMain ? "Nenhuma Unit amiga sem Piloto pra parear." : notMainPhaseReason)
                 : notMainPhaseReason;
     return { modes, playable, blockedReason, effectiveCost: effCost };
@@ -2028,9 +2402,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  resto da arena — sempre pequeno demais, e ficou pior ainda no modo
    *  expandido (tudo cresce, MENOS isto). Proporcional a `--card-w` agora,
    *  como toda outra peça da arena. */
-  function opponentHandBacks(count: number) {
+  function opponentHandBacks(count: number, pid?: PlayerId) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div
+        ref={(el) => {
+          board.register("hand:opponent")(el);
+          if (pid) board.register(`hand:${pid}`)(el);
+        }}
+        className="flex items-center gap-1.5"
+      >
         <p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mão ({count})</p>
         <div className="flex">
           {Array.from({ length: Math.min(count, 10) }).map((_, i) => (
@@ -2173,7 +2553,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       shieldRailRef: board.register(`shieldRail:${pid}`),
       deckStationRef: board.register(`deckStation:${pid}`),
       handRef: isSelf ? board.register("hand:self") : undefined,
-      handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length),
+      handSummary: isSelf ? undefined : opponentHandBacks(player.hand.length, pid),
     };
   }
 
@@ -2197,12 +2577,12 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   // Sprint 6 · PROMPT 1 — dica dinâmica: parear um Piloto cujo 【When Paired】
   // (ou o da Unit escolhida) exige alvo pede um 2º clique numa Unit inimiga.
   const pendingDeployHint: string | undefined = (() => {
-    if (pending?.kind !== "deploy" || !pendingCard) return undefined;
-    const isPilot = pendingCard.def.cardType === "PILOT" || !!pendingCard.def.pilotMode;
+    if (pending?.kind !== "deploy" || !pendingCard || !pendingCard.def) return undefined;
+    const isPilot = pendingCard.def?.cardType === "PILOT" || !!pendingCard.def?.pilotMode;
     if (!isPilot) return undefined;
     const selectedOwnUnitCodes = (view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[])
-      .filter((u) => u.def.cardType === "UNIT" && selected.includes(u.instanceId))
-      .map((u) => u.def.code);
+      .filter((u) => u.def?.cardType === "UNIT" && selected.includes(u.instanceId))
+      .map((u) => u.def?.code);
     const needs =
       pairingNeedsExtraTarget(pendingCard.def.code) ||
       selectedOwnUnitCodes.some((code) => pairingNeedsExtraTarget(undefined, code));
@@ -2227,8 +2607,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return pending.abilityNeedsTarget ? "Escolha o alvo e os recursos pra pagar o custo" : "Escolha os recursos pra pagar o custo";
     }
     if (pending) {
-      const isUnit = pendingCard?.def.cardType === "UNIT" && !pendingCard.def.pilotMode;
-      const isPilot = pendingCard?.def.cardType === "PILOT" || !!pendingCard?.def.pilotMode;
+      const isUnit = pendingCard?.def?.cardType === "UNIT" && !pendingCard?.def?.pilotMode;
+      const isPilot = pendingCard?.def?.cardType === "PILOT" || !!pendingCard?.def?.pilotMode;
       if (isPilot) {
         if (pendingCost > 0 && !resourcesReady) {
           return `Pague o custo: ${selectedResources.length}/${pendingCost} recurso(s) e escolha a Unit para parear`;
@@ -2503,6 +2883,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                 }
                 art={art}
                 onPeek={(c) => {
+                  if (busy || isPhaseBannerActive) return;
                   const { modes, blockedReason } = describeHandCard(c);
                   // "Jogar" (Sprint 5) — modo único: joga direto (o TopTacticalHUD guia alvo/custo).
                   if (modes.length === 1) {
@@ -2519,6 +2900,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
                   setHandModeChoice({ card: c, modes });
                 }}
                 onInspect={(c) => {
+                  if (isPhaseBannerActive) return;
                   // clicar no corpo da carta abre a modal de zoom pra leitura; se
                   // a carta for jogável, o footer de ação continua disponível.
                   const { modes, blockedReason } = describeHandCard(c);
@@ -2606,10 +2988,16 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           busy={busy}
           cardW={board.rectOf(`deckStation:${seat}`)?.width ?? 60}
           onResolve={(keep) => {
+            const oppSeat = otherPlayer(seat);
+            const oppHasMulligan = view.pendingDecision[oppSeat]?.kind === "mulligan";
             if (keep) {
               mulliganDidMulliganRef.current = false;
-              setIntroStage("deal-shields");
-              setSetupAnim("deal-shields");
+              if (oppHasMulligan) {
+                setIntroStage("waiting-opponent-mulligan");
+              } else {
+                setIntroStage("deal-shields");
+                setSetupAnim("deal-shields");
+              }
               runAction({ kind: "resolveMulligan", keep: true });
             } else {
               mulliganDidMulliganRef.current = true;
@@ -2619,6 +3007,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           }}
         />
+      ) : null}
+
+      {/* Indicador de espera: quando o oponente está decidindo o Mulligan */}
+      {introStage === "waiting-opponent-mulligan" ||
+      (introStage === "mulligan-decision" && myPendingDecision?.kind !== "mulligan" && view.pendingDecision[opponentSeat]?.kind === "mulligan") ? (
+        <div className="fixed inset-x-0 top-20 z-[48] flex justify-center pointer-events-none">
+          <div className="flex items-center gap-2 rounded-arena border border-cyan-400/40 bg-slate-950/90 px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md animate-pulse">
+            <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
+            Aguardando decisão de Mulligan do oponente...
+          </div>
+        </div>
       ) : null}
       {/* docs/56 (revisão do plano de polimento) — desacoplado de `introStage`:
           essa era uma máquina de estados ONE-SHOT da abertura (turno 1) que,
@@ -2798,7 +3197,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       <MatchPrompt
         message={matchPrompt}
         tone={combat || iAmDefending || inActionStep ? "warn" : "info"}
-        busy={busy}
+        busy={busy || isPhaseBannerActive}
         onConfirm={hudConfirm}
         canConfirm={hudCanConfirm}
         onCancel={hudCancel}
@@ -2860,37 +3259,83 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         </div>
       ) : null}
 
-      {/* Frente 4 (feedback Willen 4ª rodada) — animação de setup ancorada nas
-          zonas reais: sai da pilha do deck e viaja até a mão / zona de escudos. */}
+      {/* Animação de setup ancorada nas zonas reais:
+          Na abertura (shuffle, deal-hand, deal-shields), roda simultaneamente no jogador local e no oponente */}
       {setupAnim ? (
-        <DeckDealAnimation
-          key={setupAnim}
-          mode={setupAnim}
-          label={SETUP_ANIM_LABEL[setupAnim]}
-          origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
-          cardW={board.rectOf(`deckStation:${seat}`)?.width}
-          dest={
-            setupAnim === "deal-shields"
-              ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
-              : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
-          }
-          cards={
-            setupAnim === "deal-hand" || setupAnim === "mulligan"
-              ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
-              : setupAnim === "single-draw"
-                ? // docs/56 (revisão do plano) — o motor sempre `push()`a a carta
-                  // comprada no fim de `player.hand` (engine/events.ts DRAW_CARD),
-                  // então a última carta visível é sempre a recém-sacada.
-                  (() => {
-                    const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
-                    const last = visible[visible.length - 1];
-                    return last ? [last] : undefined;
-                  })()
-                : undefined
-          }
-          art={art}
-          onDone={handleSetupAnimDone}
-        />
+        <>
+          {setupAnim === "single-draw" ? (
+            view.activePlayer === seat ? (
+              <DeckDealAnimation
+                key="self-single-draw"
+                mode="single-draw"
+                label={SETUP_ANIM_LABEL["single-draw"]}
+                origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
+                cardW={board.rectOf(`deckStation:${seat}`)?.width}
+                dest={handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)}
+                cards={(() => {
+                  const visible = view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[];
+                  const last = visible[visible.length - 1];
+                  return last ? [last] : undefined;
+                })()}
+                art={art}
+                onDone={handleSetupAnimDone}
+              />
+            ) : (
+              <DeckDealAnimation
+                key="opp-single-draw"
+                mode="single-draw"
+                label="Oponente comprando…"
+                origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+                cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+                dest={handCenter(
+                  board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
+                  board.rectOf(`deckStation:${opponentSeat}`)?.width,
+                )}
+                onDone={handleSetupAnimDone}
+              />
+            )
+          ) : (
+            <>
+              <DeckDealAnimation
+                key={`self-${setupAnim}`}
+                mode={setupAnim}
+                label={SETUP_ANIM_LABEL[setupAnim]}
+                origin={deckCenter(board.rectOf(`deckStation:${seat}`), false)}
+                cardW={board.rectOf(`deckStation:${seat}`)?.width}
+                dest={
+                  setupAnim === "deal-shields"
+                    ? shieldRailCenter(board.rectOf(`shieldRail:${seat}`))
+                    : handCenter(board.rectOf("hand:self"), board.rectOf(`deckStation:${seat}`)?.width)
+                }
+                cards={
+                  setupAnim === "deal-hand" || setupAnim === "mulligan"
+                    ? (view.players[seat].hand.filter((c) => !isHidden(c)) as CardInstance[])
+                    : undefined
+                }
+                art={art}
+                onDone={handleSetupAnimDone}
+              />
+
+              {setupAnim === "shuffle" || setupAnim === "deal-hand" || setupAnim === "deal-shields" ? (
+                <DeckDealAnimation
+                  key={`opp-${setupAnim}`}
+                  mode={setupAnim}
+                  origin={deckCenter(board.rectOf(`deckStation:${opponentSeat}`), true)}
+                  cardW={board.rectOf(`deckStation:${opponentSeat}`)?.width}
+                  dest={
+                    setupAnim === "deal-shields"
+                      ? shieldRailCenter(board.rectOf(`shieldRail:${opponentSeat}`))
+                      : handCenter(
+                          board.rectOf("hand:opponent") ?? board.rectOf(`hand:${opponentSeat}`),
+                          board.rectOf(`deckStation:${opponentSeat}`)?.width,
+                        )
+                  }
+                  onDone={() => {}}
+                />
+              ) : null}
+            </>
+          )}
+        </>
       ) : null}
 
       {/* docs/56 tarefa 1 — clones voando pro Trash/Exílio (Unit destruída,
@@ -2918,7 +3363,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           }
           timerSeconds={turnSecondsLeft}
           turnNumber={view.turnNumber}
-          busy={busy}
+          busy={busy || isPhaseBannerActive}
           autoPass={dockAutoPass}
           pingMs={transportKind === "socket" ? lastPingMs : null}
           logOpen={logOpen}
@@ -2952,7 +3397,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           reason={gameOverResult.reason}
           redirectSeconds={redirectSecondsLeft}
           onLeave={leaveMatchScreen}
-        />
+        >
+          {matchView?.botCounter && matchView.botDeckList?.length ? (
+            <ZeroCounterDeckSummary counter={matchView.botCounter} entries={matchView.botDeckList} />
+          ) : null}
+        </GameOverOverlay>
       ) : null}
     </div>
   );

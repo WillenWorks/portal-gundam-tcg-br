@@ -28,17 +28,22 @@ function requireCombat(state: GameState) {
 // 1. Attack Step
 // ---------------------------------------------------------------------------
 
-export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
-  const attacker = findCard(state, attackerId);
-  if (attacker.zone !== "battleArea") throw new Error("Só Units na Battle Area podem atacar");
-  if (attacker.owner !== state.activePlayer) throw new Error("Só o jogador ativo pode declarar ataque");
-  if (attacker.rested) throw new Error("Unit rested não pode atacar");
+/**
+ * Por que `attacker` NÃO pode declarar ataque agora (independente do alvo), ou
+ * `null` se pode. Extraído de `declareAttack` (mesmas regras, mesmas mensagens)
+ * pra que avaliadores de bot saibam "quem ainda ataca neste turno" sem duplicar
+ * a regra.
+ */
+export function attackIneligibilityReason(state: GameState, attacker: CardInstance): string | null {
+  if (attacker.zone !== "battleArea") return "Só Units na Battle Area podem atacar";
+  if (attacker.owner !== state.activePlayer) return "Só o jogador ativo pode declarar ataque";
+  if (attacker.rested) return "Unit rested não pode atacar";
   if (attacker.cannotAttackUntilTurn === state.turnNumber) {
     // ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
-    throw new Error(`${attacker.def.code}: esta Unit não pode atacar neste turno`);
+    return `${attacker.def.code}: esta Unit não pode atacar neste turno`;
   }
-  if (state.phase !== "main") throw new Error("Ataque só pode ser declarado na Main Phase");
-  if (state.combat) throw new Error("Já existe um combate em andamento");
+  if (state.phase !== "main") return "Ataque só pode ser declarado na Main Phase";
+  if (state.combat) return "Já existe um combate em andamento";
   if (attacker.enteredZoneOnTurn === state.turnNumber) {
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
     // que entrou em campo — exceto se virou Link Unit ao ser pareada (3-2-6-3), ou
@@ -49,11 +54,16 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
     const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
     const hasDeployTurnGrant = hasKeyword(attacker, "AttackOnDeployTurn", state);
     if (!isLinkUnit && !hasDeployTurnGrant) {
-      throw new Error(
-        "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito",
-      );
+      return "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito";
     }
   }
+  return null;
+}
+
+export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
+  const attacker = findCard(state, attackerId);
+  const ineligible = attackIneligibilityReason(state, attacker);
+  if (ineligible) throw new Error(ineligible);
 
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
@@ -194,16 +204,30 @@ function shieldDamageEvents(defendingPlayer: PlayerId, count: number, state: Gam
   return [{ type: "DAMAGE_SHIELD", player: defendingPlayer, count }];
 }
 
-function breachEvents(attacker: CardInstance, defendingPlayer: PlayerId, state: GameState): GameEvent[] {
+/**
+ * <Breach N> (glossário docs/17): N de dano na PRIMEIRA carta da área de escudo do
+ * oponente — a Base, se houver (N de dano normal, destrói se chegar ao HP); senão o
+ * escudo do topo (Shield tem "1 HP": cai 1, nunca N). Sem Base nem escudo o efeito
+ * não ativa — NÃO é "dano de batalha no jogador sem escudo" (isso é derrota só pro
+ * dano de batalha comum, `shieldDamageEvents`). `destroyedShieldAreaCard` alimenta
+ * gatilhos "destrói uma carta da área de escudo com dano" (GD02-001 Psycho Gundam).
+ */
+function breachEvents(
+  attacker: CardInstance,
+  defendingPlayer: PlayerId,
+  state: GameState,
+): { events: GameEvent[]; destroyedShieldAreaCard: boolean } {
   const breachValue = keywordValue(attacker, "Breach", state);
-  if (breachValue === null || breachValue <= 0) return [];
-  // Comprehensive Rules: <Breach N> causa N de dano no 1º shield — mas um
-  // Shield que recebe 1+ de dano é destruído inteiro (Shield tem "1 HP"),
-  // então o valor de N nunca importa pra quantos shields caem: é sempre
-  // exatamente 1, igual ao dano de batalha comum sem Breach. N shields
-  // caírem de uma vez só (bug corrigido aqui) exigiria a carta dizer
-  // explicitamente algo como "descarte N shields" — não é o caso de Breach.
-  return shieldDamageEvents(defendingPlayer, 1, state);
+  if (breachValue === null || breachValue <= 0) return { events: [], destroyedShieldAreaCard: false };
+  const base = state.players[defendingPlayer].baseSection[0];
+  if (base) {
+    const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: breachValue }];
+    const destroyed = base.damage + breachValue >= effectiveHp(base, state);
+    if (destroyed) events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+    return { events, destroyedShieldAreaCard: destroyed };
+  }
+  if (state.players[defendingPlayer].shields.length === 0) return { events: [], destroyedShieldAreaCard: false };
+  return { events: [{ type: "DAMAGE_SHIELD", player: defendingPlayer, count: 1 }], destroyedShieldAreaCard: true };
 }
 
 /**
@@ -360,6 +384,13 @@ function allyCombatTriggerEvents(actor: CardInstance, state: GameState, on: Comb
   return events;
 }
 
+/** <Breach> + o gatilho de aliados "destrói carta da área de escudo com dano" (GD02-001) quando o Breach destrói uma. */
+function breachWithTriggers(attacker: CardInstance, defendingPlayer: PlayerId, state: GameState): GameEvent[] {
+  const breach = breachEvents(attacker, defendingPlayer, state);
+  if (!breach.destroyedShieldAreaCard) return breach.events;
+  return [...breach.events, ...allyCombatTriggerEvents(attacker, state, "destroyEnemyShieldInBattle")];
+}
+
 export function resolveDamageStep(state: GameState): GameState {
   const combat = requireCombat(state);
   if (combat.step !== "damage") throw new Error("Não é o Damage Step");
@@ -394,6 +425,10 @@ export function resolveDamageStep(state: GameState): GameState {
       const projectedDamage = base.damage + effectiveAp(attacker, state);
       if (projectedDamage >= effectiveHp(base, state)) {
         events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+        // A Base fica na área de escudo: destruí-la com dano de batalha conta como
+        // "destroys an enemy shield area card" (ST03-001 Sinanju, GD02-001 Psycho Gundam).
+        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyShieldInBattle"));
+        events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyShieldInBattle"));
       }
     } else {
       const suppression = hasKeyword(attacker, "Suppression", state);
@@ -471,7 +506,7 @@ export function resolveDamageStep(state: GameState): GameState {
       if (defenderWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
-        events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+        events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
         pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
         // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
@@ -498,7 +533,7 @@ export function resolveDamageStep(state: GameState): GameState {
         if (defenderWillDie) {
           events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
           events.push(...pairedPilotFollowEvents(defender));
-          events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+          events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
           pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
           events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
         }
@@ -514,7 +549,7 @@ export function resolveDamageStep(state: GameState): GameState {
       if (defenderWillDie) {
         events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
         events.push(...pairedPilotFollowEvents(defender));
-        events.push(...breachEvents(attacker, combat.defendingPlayer, state));
+        events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
         pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
         events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
       }

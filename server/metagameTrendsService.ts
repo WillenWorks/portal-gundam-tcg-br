@@ -111,17 +111,18 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
   }
 
   const snapshotIds = Array.from(snapshotOutcome.keys());
+  // `never[]` (não `unknown[]`): no retorno união com os arrays reais, o tipo do item é preservado.
   const empty = {
     setId: setId ?? null,
     totalDecks: 0,
-    topCards: [] as unknown[],
-    colorDistribution: [] as unknown[],
-    colorCombos: [] as unknown[],
-    traitDistribution: [] as unknown[],
-    seriesDistribution: [] as unknown[],
+    topCards: [] as never[],
+    colorDistribution: [] as never[],
+    colorCombos: [] as never[],
+    traitDistribution: [] as never[],
+    seriesDistribution: [] as never[],
     trend: null as { windowStart: string; windowMid: string; windowEnd: string; priorCount: number; recentCount: number } | null,
-    risingCards: [] as unknown[],
-    decliningCards: [] as unknown[],
+    risingCards: [] as never[],
+    decliningCards: [] as never[],
   };
   if (!snapshotIds.length) return empty;
 
@@ -255,8 +256,9 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
   // Tendência: corte por MEDIANA de contagem de decks elegíveis (ordenados pela data
   // real do evento), não janela de calendário fixa -- ver comentário no topo do arquivo.
   let trend: typeof empty.trend = null;
-  let risingCards: unknown[] = [];
-  let decliningCards: unknown[] = [];
+  type CardTrend = { cardModelId: string; name: string; color: string | null; priorPresenceRate: number; recentPresenceRate: number; trendDelta: number };
+  let risingCards: CardTrend[] = [];
+  let decliningCards: CardTrend[] = [];
 
   const datedSnapshots = eligibleSnapshotIds
     .map((id) => ({ id, date: snapshotOutcome.get(id)!.eventDate }))

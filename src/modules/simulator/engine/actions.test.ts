@@ -4,7 +4,9 @@ import { buildSt01DeckList, ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { findCard } from "./events";
 import { advanceToMainPhase } from "./phases";
-import { applyPlayerAction } from "./actions";
+import { applyPlayerAction, playerHasActionStepPlay } from "./actions";
+import { viewStateFor } from "./viewState";
+import type { EffectSpec } from "./effectSpec";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver } from "../content";
 
 /**
@@ -201,5 +203,185 @@ describe("applyPlayerAction — finishTurn", () => {
     expect(next.endPhaseAction).toBeNull();
     expect(next.activePlayer).toBe("B");
     expect(next.phase).toBe("main");
+  });
+});
+
+describe("playerHasActionStepPlay — auto-pass nunca pode esconder jogada legal", () => {
+  const ACTION_CMD: CardDef = {
+    code: "TEST-ACTION-CMD",
+    nameEn: "Test Action Command",
+    cardType: "COMMAND",
+    color: "blue",
+    triggerKeywords: ["Action"],
+    level: 3,
+    cost: 3,
+  };
+  // "While your opponent has 1+ Units in play, this card in your hand gets cost -2 / Lv -2."
+  const DISCOUNTED_CMD: CardDef = {
+    ...ACTION_CMD,
+    code: "TEST-DISCOUNT-CMD",
+    dynamicCost: { condition: { kind: "enemyUnitCountAtLeast", n: 1 }, amount: -2 },
+    dynamicLevel: { condition: { kind: "enemyUnitCountAtLeast", n: 1 }, amount: -2 },
+  };
+  const ACTIVATOR_UNIT: CardDef = { code: "TEST-ACTIVATOR", nameEn: "Activator", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 1 };
+  const ENEMY_UNIT: CardDef = { code: "TEST-ENEMY", nameEn: "Enemy", cardType: "UNIT", color: "red", level: 1, cost: 1, ap: 1, hp: 1 };
+
+  function emptyBoard(): GameState {
+    const state = freshGame();
+    for (const id of ["A", "B"] as const) {
+      state.players[id].hand = [];
+      state.players[id].resourceArea = [];
+      state.players[id].battleArea = [];
+      state.players[id].baseSection = [];
+    }
+    return state;
+  }
+
+  function putInBattleArea(state: GameState, player: PlayerId, def: CardDef, rested = false): CardInstance {
+    const card: CardInstance = {
+      instanceId: `${player}-actbattle-${seq++}`,
+      def,
+      owner: player,
+      zone: "battleArea",
+      rested,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: state.turnNumber,
+    };
+    state.players[player].battleArea.push(card);
+    return card;
+  }
+
+  function activateSpec(cost: EffectSpec["cost"]): EffectSpec {
+    return { id: "TEST-ACTIVATOR-Activate·Action", cardCode: ACTIVATOR_UNIT.code, trigger: "Activate·Action", cost, actions: [], sourceText: "" };
+  }
+
+  it("sem Comando 【Action】 nem 【Activate·Action】 → false", () => {
+    const state = emptyBoard();
+    giveResources(state, "A", 5);
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(false);
+  });
+
+  it("Comando 【Action】 com nível e custo pagáveis → true; sem recursos suficientes → false", () => {
+    const state = emptyBoard();
+    putInHand(state, "A", ACTION_CMD);
+    giveResources(state, "A", 2);
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(false);
+    giveResources(state, "A", 1);
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(true);
+  });
+
+  it("aplica redução dinâmica de custo e nível (dynamicCost/dynamicLevel) igual a playCommand", () => {
+    const state = emptyBoard();
+    putInHand(state, "A", DISCOUNTED_CMD);
+    giveResources(state, "A", 1);
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(false);
+    putInBattleArea(state, "B", ENEMY_UNIT);
+    // Lv 3-2=1 e custo 3-2=1: 1 recurso basta — antes lia def.level/def.cost crus e auto-passava.
+    expect(playerHasActionStepPlay(state, "A", ALL_EFFECT_SPECS)).toBe(true);
+  });
+
+  it("【Activate·Action】 com custo \"rest this\" em carta já rested não conta como jogada", () => {
+    const state = emptyBoard();
+    const specs = [activateSpec([{ op: "rest", target: { kind: "self" } }])];
+    const unit = putInBattleArea(state, "A", ACTIVATOR_UNIT, true);
+    expect(playerHasActionStepPlay(state, "A", specs)).toBe(false);
+    unit.rested = false;
+    expect(playerHasActionStepPlay(state, "A", specs)).toBe(true);
+  });
+
+  it("【Activate·Action】 com custo de recurso só conta se houver recursos active suficientes", () => {
+    const state = emptyBoard();
+    const specs = [activateSpec([{ op: "payResourceCost", player: "controller", n: 2 }])];
+    putInBattleArea(state, "A", ACTIVATOR_UNIT);
+    giveResources(state, "A", 1);
+    expect(playerHasActionStepPlay(state, "A", specs)).toBe(false);
+    giveResources(state, "A", 1);
+    expect(playerHasActionStepPlay(state, "A", specs)).toBe(true);
+  });
+
+  it("ViewGameState: vê a própria mão e ignora a mão oculta do oponente sem lançar erro", () => {
+    const state = emptyBoard();
+    putInHand(state, "A", ACTION_CMD);
+    putInHand(state, "B", ACTION_CMD);
+    giveResources(state, "A", 3);
+    giveResources(state, "B", 3);
+    const viewA = viewStateFor(state, "A");
+    expect(playerHasActionStepPlay(viewA, "A", ALL_EFFECT_SPECS)).toBe(true);
+    // Mão de B chega como HiddenCard pro viewer A — resposta incompleta, mas nunca crash nem vazamento.
+    expect(() => playerHasActionStepPlay(viewA, "B", ALL_EFFECT_SPECS)).not.toThrow();
+    expect(playerHasActionStepPlay(viewA, "B", ALL_EFFECT_SPECS)).toBe(false);
+  });
+});
+
+describe("activateAbility — 【Activate·Action】 no Action Step do fim de turno", () => {
+  // Comprehensive Rules: o Action Step da End Phase aceita os mesmos tipos de
+  // jogada que o de batalha (Command 【Action】 e 【Activate·Action】).
+  const ACTIVATOR: CardDef = { code: "EPA-UNIT", nameEn: "End Phase Activator", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 1 };
+  const SPEC = {
+    id: "EPA-UNIT-Activate·Action",
+    cardCode: "EPA-UNIT",
+    trigger: "Activate·Action",
+    actions: [{ op: "draw" as const, player: "controller" as const, n: 1 }],
+    sourceText: "",
+  };
+
+  function endPhaseWithPriorityA(): { state: GameState; unitId: string } {
+    let state = freshGame();
+    const unitId = `A-epa-${seq++}`;
+    state.players.A.battleArea.push({
+      instanceId: unitId,
+      def: ACTIVATOR,
+      owner: "A",
+      zone: "battleArea",
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: state.turnNumber - 1,
+    });
+    state = applyPlayerAction(state, "A", { kind: "finishTurn" }, [SPEC]);
+    expect(state.endPhaseAction?.priority).toBe("B");
+    state = applyPlayerAction(state, "B", { kind: "passEndPhaseAction" }, [SPEC]);
+    expect(state.endPhaseAction?.priority).toBe("A");
+    return { state, unitId };
+  }
+
+  it("jogador com prioridade ativa a habilidade e o efeito resolve", () => {
+    const { state, unitId } = endPhaseWithPriorityA();
+    const handBefore = state.players.A.hand.length;
+    const next = applyPlayerAction(state, "A", { kind: "activateAbility", sourceInstanceId: unitId }, [SPEC]);
+    expect(next.players.A.hand.length).toBe(handBefore + 1);
+  });
+
+  it("<Support> (【Activate·Main】) não pode ser usado no Action Step do fim de turno", () => {
+    const { state } = endPhaseWithPriorityA();
+    const supportId = `A-sup-${seq++}`;
+    state.players.A.battleArea.push({
+      instanceId: supportId,
+      def: { code: "EPA-SUP", nameEn: "Support Unit", cardType: "UNIT", color: "blue", level: 1, cost: 1, ap: 1, hp: 1, effectKeywords: ["Support"], keywordTags: ["Support 1"] },
+      owner: "A",
+      zone: "battleArea",
+      rested: false,
+      damage: 0,
+      statModifiers: [],
+      keywordGrants: [],
+      usedKeywordsThisTurn: [],
+      enteredZoneOnTurn: state.turnNumber - 1,
+    });
+    const target = state.players.A.battleArea[0].instanceId;
+    expect(() =>
+      applyPlayerAction(state, "A", { kind: "activateAbility", sourceInstanceId: supportId, targets: { target: [target] } }, [SPEC]),
+    ).toThrow(/Activate·Action/);
+  });
+
+  it("sem a prioridade, recusa", () => {
+    const { state, unitId } = endPhaseWithPriorityA();
+    const bUnit = { ...state.players.A.battleArea.find((c) => c.instanceId === unitId)!, instanceId: "B-epa", owner: "B" as const };
+    state.players.B.battleArea.push(bUnit);
+    expect(() => applyPlayerAction(state, "B", { kind: "activateAbility", sourceInstanceId: "B-epa" }, [SPEC])).toThrow();
   });
 });

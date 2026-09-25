@@ -44,6 +44,10 @@ export interface HiddenCard {
 
 export type ViewCardInstance = CardInstance | HiddenCard;
 
+export function isHiddenCard(card: ViewCardInstance): card is HiddenCard {
+  return "hidden" in card && card.hidden === true;
+}
+
 function isHiddenFrom(card: CardInstance, viewer: PlayerId): boolean {
   if ((ALWAYS_HIDDEN_ZONES as Zone[]).includes(card.zone)) return true;
   if (card.zone === "hand") return card.owner !== viewer;

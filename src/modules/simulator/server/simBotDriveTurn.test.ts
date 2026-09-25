@@ -8,7 +8,7 @@ import {
   getMatch,
 } from "./matchStore";
 import { SIM_BOT_USER_ID, createTrainingMatch } from "./trainingMatch";
-import { driveBotTurn } from "../../../../services/sim-bot/driveBotTurn.mjs";
+import { driveBotTurn, humanizedThinkDelay, humanizedThinkDelayMs } from "../../../../services/sim-bot/driveBotTurn.mjs";
 
 afterEach(() => {
   _resetAllMatchesForTests();
@@ -27,6 +27,46 @@ function driveHumanUntilBotTurn(matchId: string): void {
 }
 
 describe("driveBotTurn — worker sim-bot", () => {
+  it("espera o \"tempo de pensar\" (beforeCommit) antes de CADA commit", async () => {
+    const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 42 });
+    driveHumanUntilBotTurn(matchId);
+
+    const timeline: string[] = [];
+    const result = await driveBotTurn({
+      initialState: getMatch(matchId)!.state,
+      seat: "B",
+      level: "normal",
+      seed: 1,
+      beforeCommit: async (ctx: { thinkingMs: number }) => {
+        expect(ctx.thinkingMs).toBeGreaterThanOrEqual(0);
+        timeline.push("think");
+      },
+      commit: async (action: unknown) => {
+        timeline.push("commit");
+        applyAction(matchId, SIM_BOT_USER_ID, action as never);
+      },
+    });
+
+    expect(result.actionsApplied).toBeGreaterThanOrEqual(1);
+    expect(timeline).toEqual(Array.from({ length: result.actionsApplied }, () => ["think", "commit"]).flat());
+  });
+
+  it("humanizedThinkDelay desconta o tempo de cálculo (não espera se já pensou ≥ 2s)", async () => {
+    const t0 = Date.now();
+    await humanizedThinkDelay({ thinkingMs: 5_000 });
+    expect(Date.now() - t0).toBeLessThan(200);
+  });
+
+  it("humanizedThinkDelayMs fica sempre entre 1s e 2s", () => {
+    expect(humanizedThinkDelayMs(() => 0)).toBe(1000);
+    expect(humanizedThinkDelayMs(() => 0.999999)).toBeLessThanOrEqual(2000);
+    for (let i = 0; i < 50; i += 1) {
+      const ms = humanizedThinkDelayMs();
+      expect(ms).toBeGreaterThanOrEqual(1000);
+      expect(ms).toBeLessThanOrEqual(2000);
+    }
+  });
+
   it("processa o turno do bot aplicando cada ação pelo caminho autoritativo", async () => {
     const { matchId } = createTrainingMatch({ deckId: "ST01", level: "normal", human: HUMAN, seed: 42 });
     driveHumanUntilBotTurn(matchId);

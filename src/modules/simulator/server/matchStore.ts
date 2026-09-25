@@ -7,6 +7,7 @@ import { viewStateFor, type ViewGameState } from "../engine/viewState";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { buildBattleLog, type BattleLogEntry } from "../ui/battleLog";
 import type { HeuristicLevel } from "../engine/bot";
+import type { ZeroCounterSummary } from "../engine/bot/zeroCounter";
 import {
   applySideboardSwap,
   type DeckListWithSideboard,
@@ -160,6 +161,16 @@ export interface MatchRecord {
   skipMulligan?: boolean;
   /** Timestamp em que o log final da partida foi gerado (evita duplicação). */
   loggedAt?: number;
+  /** Counter do Zero System (spec bot-zero-system-forte): o deck do bot foi escolhido contra o do jogador. */
+  botCounter?: ZeroCounterSummary;
+}
+
+/** carta da lista do bot mostrada no fim da partida (agrupada por código) */
+export interface BotDeckEntry {
+  code: string;
+  name: string;
+  cardType: string;
+  count: number;
 }
 
 export interface MatchLogDraft {
@@ -230,6 +241,10 @@ export interface MatchView {
   sideboardConfirmed?: Partial<Record<PlayerId, boolean>>;
   sideboardDeadlineAt?: number | null;
   sideboardDeck?: DeckListWithSideboard;
+  /** resumo do counter do Zero System — sem a lista (ela só sai com a partida encerrada) */
+  botCounter?: ZeroCounterSummary;
+  /** lista do deck do bot quando houve counter — SÓ com `gameOver` (não vira informação durante o jogo) */
+  botDeckList?: BotDeckEntry[];
 }
 
 export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
@@ -237,7 +252,7 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     view: viewStateFor(match.state, seat),
     matchId: match.id,
     seat,
-    deckKeys: match.deckKeys,
+    deckKeys: publicDeckKeys(match),
     turnDeadlineAt: match.turnDeadlineAt,
     lastSeenAt: match.lastSeenAt,
     version: match.version,
@@ -250,7 +265,35 @@ export function matchViewFor(match: MatchRecord, seat: PlayerId): MatchView {
     sideboardConfirmed: match.sideboardConfirmed,
     sideboardDeadlineAt: match.sideboardDeadlineAt,
     sideboardDeck: match.sideboardDecks?.[seat],
+    botCounter: match.botCounter,
+    botDeckList: match.botCounter && match.state.gameOver ? botDeckEntries(match) : undefined,
   };
+}
+
+/** rótulo do deck do bot enquanto o counter do Zero System está escondido */
+export const HIDDEN_COUNTER_DECK_KEY = "ZERO-SYSTEM";
+
+/**
+ * `deckKeys` que pode sair pra rede. Com counter do Zero System, a chave do deck do
+ * bot É o id do deck escolhido (receita pública) — só aparece com a partida encerrada.
+ */
+export function publicDeckKeys(match: MatchRecord): MatchRecord["deckKeys"] {
+  if (!match.botCounter || match.state.gameOver) return match.deckKeys;
+  const botSeat = match.seats.A?.bot ? "A" : match.seats.B?.bot ? "B" : null;
+  return botSeat ? { ...match.deckKeys, [botSeat]: HIDDEN_COUNTER_DECK_KEY } : match.deckKeys;
+}
+
+function botDeckEntries(match: MatchRecord): BotDeckEntry[] | undefined {
+  const botSeat = match.seats.A?.bot ? "A" : match.seats.B?.bot ? "B" : null;
+  const list = botSeat ? match.deckLists?.[botSeat] : undefined;
+  if (!list) return undefined;
+  const byCode = new Map<string, BotDeckEntry>();
+  for (const card of list.main) {
+    const entry = byCode.get(card.code);
+    if (entry) entry.count++;
+    else byCode.set(card.code, { code: card.code, name: card.nameEn, cardType: card.cardType, count: 1 });
+  }
+  return [...byCode.values()];
 }
 
 function matchViewsForBothPlayers(match: MatchRecord): Record<PlayerId, MatchView> {
@@ -302,6 +345,7 @@ export interface StoredMatch {
   sideboardDeadlineAt?: number | null;
   deckLists?: Partial<Record<PlayerId, DeckList>>;
   skipMulligan?: boolean;
+  botCounter?: ZeroCounterSummary;
 }
 
 export interface MatchPersistence {
@@ -337,6 +381,7 @@ function toStored(match: MatchRecord): StoredMatch {
     sideboardDeadlineAt: match.sideboardDeadlineAt,
     deckLists: match.deckLists,
     skipMulligan: match.skipMulligan,
+    botCounter: match.botCounter,
   };
 }
 
@@ -391,6 +436,7 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
     sideboardDeadlineAt: stored.sideboardDeadlineAt,
     deckLists: stored.deckLists,
     skipMulligan: stored.skipMulligan,
+    botCounter: stored.botCounter,
   };
   matches.set(match.id, match);
   if (match.matchStatus === "SIDEBOARDING") {
@@ -1027,7 +1073,10 @@ function clearTurnTimer(matchId: string): void {
  * Auto-pass inteligente do Action Step (docs/19, Sessão 2, tarefa 4): se o
  * jogador com prioridade num Action Step (combate OU fim de turno) ligou
  * `autoPassActionStep` e não tem nenhuma jogada 【Action】 real, passa na
- * hora — sem cobrar o timer do Action Step. Loop limitado: cada passe ou vira a
+ * hora — sem cobrar o timer do Action Step. O bot segue a MESMA regra
+ * (sempre com auto-pass ligado): só é passado aqui quando não tem jogada;
+ * se tiver, a vez fica com ele e a policy decide jogar ou passar
+ * (`maybeEnqueueBotTurn`), como um jogador real. Loop limitado: cada passe ou vira a
  * prioridade uma vez ou encerra o step, então converge em poucas iterações
  * (e para assim que o outro lado não tem auto-pass ligado, ou surge uma
  * decisão de Burst, ou o step termina).
@@ -1043,7 +1092,7 @@ function settleAutoPasses(match: MatchRecord): void {
     if (!inCombatActionStep && !inEndPhaseActionStep) return;
     const isBot = Boolean(match.seats[owner]?.bot);
     if (!isBot && !match.seats[owner]?.autoPassActionStep) return;
-    if (!isBot && playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
+    if (playerHasActionStepPlay(match.state, owner, ALL_EFFECT_SPECS)) return;
 
     const pass: PlayerAction = inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
     try {
