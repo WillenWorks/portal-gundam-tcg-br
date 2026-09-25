@@ -121,7 +121,9 @@ setMatchPersistence({
       turnDeadlineAt: m.turnDeadlineAt != null ? BigInt(m.turnDeadlineAt) : null,
       lastSeenAt: m.lastSeenAt as unknown as Prisma.InputJsonValue,
       gameOver: m.state.gameOver ? (m.state.gameOver as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-      finishedAt: m.state.gameOver ? new Date() : null,
+      // "partida acabou" é o status, não o `gameOver` do jogo: numa Bo3 o jogo 1 termina mas a série segue
+      // (SIDEBOARDING) — com `finishedAt` a limpeza apagaria a série no meio (server/simulatorMatchCleanup.ts)
+      finishedAt: (m.matchStatus ?? (m.state.gameOver ? "FINISHED" : null)) === "FINISHED" ? new Date() : null,
     } as unknown as Prisma.SimulatorMatchUpdateManyMutationInput;
     // `persist()` no matchStore é fire-and-forget — dois writes rápidos podem
     // resolver fora de ordem no Postgres. O guard `version <= m.version` garante
