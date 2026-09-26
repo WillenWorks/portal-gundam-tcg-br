@@ -333,6 +333,20 @@ describe("playCommand — jogar Command da mão (Main ou Action)", () => {
     const afterCommand = playCommand(next, "B", cardId, "Action", []);
     expect(afterCommand.players.B.trash.some((c) => c.instanceId === cardId)).toBe(true);
   });
+
+  it("CR 13-2-4-2 — Command com 【Pilot】[X] não pode ser pareado como Piloto no Action Step", () => {
+    const state = freshMainPhase();
+    giveResources(state, "A", 2);
+    const attackerId = place(state, "A", VANILLA_CARD_DEFS.VANILLA_01, "battleArea");
+    const unitA = place(state, "A", VANILLA_CARD_DEFS.VANILLA_02, "battleArea");
+    const pilotCommand: CardDef = { ...COMMAND_ACTION, code: "TEST-CMD-PILOT", pilotMode: { pilotName: "Test Pilot", ap: 1, hp: 1 } };
+    const cardId = place(state, "A", pilotCommand, "hand");
+
+    let next = declareAttack(state, attackerId, "player");
+    next = proceedToBlockStep(next);
+    next = skipBlock(next); // Action Step do jogador ativo (A)
+    expect(() => deployCard(next, "A", cardId, { pairWithUnitId: unitA })).toThrow(/combate/);
+  });
 });
 
 describe("deployCard + dispatcher — integração com EffectSpec real do ST01", () => {

@@ -187,6 +187,16 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
     blockedBy: "engine:damage-modification-layer (C2)",
   },
+  // W0.5 — ordem de efeitos simultâneos (CR 10-1-6). O motor já segue 10-1-6-8 (【Burst】 antes de
+  // todos) e 10-1-6-6 (efeitos do jogador ativo antes dos do standby — `dispatchDestroyedTriggers`);
+  // efeitos com escolha (alvo, "you may", mão/deck) já vão pra fila em que o jogador escolhe a ordem.
+  {
+    cardCode: "*",
+    clause: "10-1-6-5. If multiple effects belonging to you trigger, they do so simultaneously, and you resolve them in the order you decide.",
+    reason:
+      "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
+    blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
+  },
   // W0.3 (revisão da PR #31) — GD03: keyword/efeito que estava fixo no CardDef e era condicional
   // no texto oficial (removido); ainda sem vocabulário. GD03 fica fora do gate até a W2.
   {

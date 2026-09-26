@@ -948,8 +948,8 @@ export type PendingDecision =
        * 【Destroyed】 das Units destruídas no MESMO Damage Step (docs/44). O
        * 【Burst】 resolve primeiro (fila FIFO acima); quando ela esvazia,
        * `resolveBurstDecision` dispara estes 【Destroyed】 antes do Battle End
-       * Step (Comprehensive Rules — 【Burst】 e 【Destroyed】 são simultâneos; o
-       * jogador ativo ordena — aqui fixamos 【Burst】→【Destroyed】). Ver
+       * Step (CR 10-1-6-8: entre efeitos simultâneos, o 【Burst】 tem prioridade e
+       * resolve primeiro). Ver
        * `collectDestroyedInBattle`/`dispatchDestroyedTriggers`.
        */
       pendingDestroyed?: DestroyedInBattle[];

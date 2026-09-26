@@ -129,6 +129,7 @@ import {
   primaryTargetsDone,
   secondaryTargetingFor,
 } from "@/modules/simulator/ui/commandSecondaryTarget";
+import { canAddTarget, targetsReadyToAutoResolve } from "@/modules/simulator/ui/targetSelection";
 import {
   ActionDock,
   type ActionDockState,
@@ -1756,8 +1757,13 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  `requiredTargetCount` — docs/54: mínimo de alvos que o efeito exige (specs com
    *  `targetCount.min` > 1 existem, ex. GD01) — usado pro auto-disparo bidirecional
    *  não atirar cedo demais assim que 1 alvo é clicado. */
-  const { legalTargetInstanceIds: primaryLegalTargetIds, requiredTargetCount } = ((): { legalTargetInstanceIds: Set<string>; requiredTargetCount: number } => {
-    const none = { legalTargetInstanceIds: new Set<string>(), requiredTargetCount: 0 };
+  const { legalTargetInstanceIds: primaryLegalTargetIds, requiredTargetCount, maxTargetCount } = ((): {
+    legalTargetInstanceIds: Set<string>;
+    requiredTargetCount: number;
+    /** W0 — "choose 1 to N": máximo de alvos (`targetCount.max`) */
+    maxTargetCount: number;
+  } => {
+    const none = { legalTargetInstanceIds: new Set<string>(), requiredTargetCount: 0, maxTargetCount: 0 };
     if (!pending || !pendingCard || !pendingCard.def) return none;
 
     if (pending.kind === "deploy") {
@@ -1770,6 +1776,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
+          maxTargetCount: 1,
         };
       }
       return none;
@@ -1786,6 +1793,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             myUnits.filter((u) => u.def?.cardType === "UNIT" && u.instanceId !== pendingCard.instanceId).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
+          maxTargetCount: 1,
         };
       }
 
@@ -1797,8 +1805,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       const ids = new Set<string>();
       let minCount = 1;
+      let maxCount = 1;
       for (const spec of needing) {
         minCount = Math.max(minCount, spec.targetCount?.min ?? 1);
+        maxCount = Math.max(maxCount, spec.targetCount?.max ?? 1);
         try {
           for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
             ids.add(id);
@@ -1807,7 +1817,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // alvo inválido descartado
         }
       }
-      return { legalTargetInstanceIds: ids, requiredTargetCount: minCount };
+      return { legalTargetInstanceIds: ids, requiredTargetCount: minCount, maxTargetCount: maxCount };
     }
 
     if (pending.kind === "command") {
@@ -1818,8 +1828,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
       const ids = new Set<string>();
       let minCount = 1;
+      let maxCount = 1;
       for (const spec of needing) {
         minCount = Math.max(minCount, spec.targetCount?.min ?? 1);
+        maxCount = Math.max(maxCount, spec.targetCount?.max ?? 1);
         try {
           for (const id of computeLegalTargets(boardForStats, spec, seat, defaultTargetFilterResolver)) {
             ids.add(id);
@@ -1832,7 +1844,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       // precisa de alvo, a Command ainda resolve o spec sem alvo (mesma regra do
       // `commandPlayCandidates` em legalActions.ts).
       if (ids.size === 0 && specs.some((s) => !specNeedsNamedTarget(s))) return none;
-      return { legalTargetInstanceIds: ids, requiredTargetCount: minCount };
+      return { legalTargetInstanceIds: ids, requiredTargetCount: minCount, maxTargetCount: maxCount };
     }
 
     return none;
@@ -1877,7 +1889,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
 
     if (pending.kind === "command") {
-      if (requiredTargetCount > 0 && nextSelected.length < requiredTargetCount) return;
+      if (!targetsReadyToAutoResolve(nextSelected.length, requiredTargetCount, maxTargetCount, primaryLegalTargetIds.size)) return;
       if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, nextSecondary)) return;
       const targets = commandTargets(nextSelected, secondaryTargeting, nextSecondary);
       sfx.playDeploy();
@@ -1903,6 +1915,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return;
     }
     if (!primaryLegalTargetIds.has(instanceId)) return;
+    if (!selected.includes(instanceId) && !canAddTarget(selected.length, maxTargetCount)) return;
     sfx.playClick();
     const nextSelected = selected.includes(instanceId) ? selected.filter((id) => id !== instanceId) : [...selected, instanceId];
     setSelected(nextSelected);
@@ -2031,6 +2044,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         resourceInstanceIds,
       });
     } else {
+      if (primaryLegalTargetIds.size > 0 && selected.length < requiredTargetCount) {
+        showActionError(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`);
+        return;
+      }
       if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, secondarySelected)) {
         showActionError(inSecondaryStage ? "Escolha também o 2º alvo do efeito." : "Escolha o alvo do efeito e depois o 2º alvo.");
         return;
@@ -2705,6 +2722,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             : (pendingCost > 0 ? "Escolha os recursos pra pagar o custo e confirme." : "Confirme para ativar a habilidade.")
           : inSecondaryStage && secondarySelected.length === 0
             ? "Agora escolha o 2º alvo do efeito."
+          : pending.kind === "command" && maxTargetCount > requiredTargetCount
+            ? `Escolha de ${requiredTargetCount} a ${maxTargetCount} alvos e confirme.`
           : pending.sacrificeInstanceId
             ? "Invocação por sacrifício pronta. Confirme para invocar."
             : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");
