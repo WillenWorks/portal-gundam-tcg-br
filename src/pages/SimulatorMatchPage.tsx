@@ -2030,6 +2030,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         showActionError("Esta habilidade precisa de um alvo — clique numa carta do tabuleiro.");
         return;
       }
+      if (pending.abilityNeedsTarget && primaryLegalTargetIds.size > 0 && selected.length < requiredTargetCount) {
+        showActionError(`Escolha pelo menos ${requiredTargetCount} alvo(s) no tabuleiro.`);
+        return;
+      }
       // Só `target`. O `addShieldToHand` do motor escolhe o shield sozinho
       // (é face-down, a escolha não carrega informação). Passar o id do ALVO
       // também como shield fazia o efeito devolver a carta-alvo pra mão em vez

@@ -89,8 +89,9 @@ export function computeRepairEvents(state: GameState, player: PlayerId): GameEve
  * recovers HP, if you have 4 or less cards in your hand, draw 1." Autorada no PILOT — "this
  * Unit" é a Unit pareada, por isso checa tanto o próprio `card.def` quanto o do Pilot pareado
  * (mesma convenção de `resolveSelfUnit`, duplicada aqui pra evitar import circular com
- * content/predicates.ts). Chamado de `computeRepairEvents` (auto-heal) e do case "heal" de
- * `effectSpec.ts` (heal por efeito) — os 2 caminhos reais de cura que um deck pode montar.
+ * content/predicates.ts). Chamado de todo caminho que gera `HEAL_UNIT`: `computeRepairEvents`
+ * (auto-heal), case "heal" de `effectSpec.ts` (efeito) e os gatilhos de combate de `combat.ts`
+ * (`healSelf` em `combatTriggers` e "heal" em `allyCombatTriggers`).
  */
 export function selfHealReactionEvents(card: CardInstance, state: GameState): GameEvent[] {
   const pilot = card.pairedPilotId ? state.players[card.owner].battleArea.find((c) => c.instanceId === card.pairedPilotId) : undefined;

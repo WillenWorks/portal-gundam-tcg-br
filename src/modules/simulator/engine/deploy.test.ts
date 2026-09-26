@@ -334,6 +334,8 @@ describe("playCommand — jogar Command da mão (Main ou Action)", () => {
     expect(afterCommand.players.B.trash.some((c) => c.instanceId === cardId)).toBe(true);
   });
 
+  // garantido pela guarda geral de `deployCard` (nada se joga da mão com combate em andamento) —
+  // o Action Step do motor só existe dentro do combate e no fim de turno (fora da Main Phase)
   it("CR 13-2-4-2 — Command com 【Pilot】[X] não pode ser pareado como Piloto no Action Step", () => {
     const state = freshMainPhase();
     giveResources(state, "A", 2);
