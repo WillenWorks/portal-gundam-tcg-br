@@ -208,7 +208,7 @@ export interface CardDef {
    * `effectSpec.ts` (só quando o token é o EX Resource). Sem escolha real — auto-mira a 1ª
    * Unit amiga legal com `requiresTargetTrait`.
    */
-  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string };
+  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string; sourceText?: string };
   /**
    * GD02-085 Four Murasame — "【During Link】【Once per Turn】During your turn, when this Unit
    * recovers HP, if you have 4 or less cards in your hand, draw 1." Checado nos 3 pontos que

@@ -267,6 +267,7 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     ],
     "oncePerTurn": true
   },
+  // W0.3 (revisão semântica): Repair 3 inato indevido (é 'while this Unit has 1 HP', deferido)
   "GD03-061": {
     "code": "GD03-061",
     "nameEn": "Gundam Barbatos 6th Form",
@@ -285,13 +286,7 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Mikazuki Augus"
       ]
-    },
-    "effectKeywords": [
-      "Repair"
-    ],
-    "keywordTags": [
-      "Repair 3"
-    ]
+    }
   },
   "GD03-062": {
     "code": "GD03-062",
@@ -380,6 +375,7 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       ]
     }
   },
+  // W0.3 (revisão semântica): link aceita (Tekkadan)
   "GD03-067": {
     "code": "GD03-067",
     "nameEn": "Rouei",
@@ -396,13 +392,15 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     "link": {
       "kind": "trait",
       "values": [
-        "Teiwaz"
+        "Teiwaz",
+        "Tekkadan"
       ]
     },
     "triggerKeywords": [
       "Deploy"
     ]
   },
+  // W0.3 (revisão semântica): Blocker inato indevido (é 'while a friendly Base is in play', deferido)
   "GD03-068": {
     "code": "GD03-068",
     "nameEn": "Gundam Hajiroboshi",
@@ -421,9 +419,6 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Wistario Afam"
       ]
-    },
-    "effectKeywords": [
-      "Blocker"
-    ]
+    }
   },
 };

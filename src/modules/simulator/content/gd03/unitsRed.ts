@@ -92,6 +92,7 @@ export const UNITS_RED: Record<string, CardDef> = {
       ]
     }
   },
+  // W0.3 (revisão semântica): First Strike inato indevido (é condicional, C4 deferido)
   "GD03-037": {
     "code": "GD03-037",
     "nameEn": "Bertigo",
@@ -110,11 +111,7 @@ export const UNITS_RED: Record<string, CardDef> = {
         "Newtype"
       ]
     },
-    "effectKeywords": [
-      "First Strike"
-    ],
     "triggerKeywords": [
-      "Destroyed",
       "During Link"
     ]
   },
@@ -168,6 +165,7 @@ export const UNITS_RED: Record<string, CardDef> = {
       "Deploy"
     ]
   },
+  // W0.3 (revisão semântica): High-Maneuver só linkada (era inato)
   "GD03-040": {
     "code": "GD03-040",
     "nameEn": "Gundam Virsago & Gundam Ashtaron",
@@ -187,11 +185,16 @@ export const UNITS_RED: Record<string, CardDef> = {
         "Olba Frost"
       ]
     },
-    "effectKeywords": [
-      "High-Maneuver"
-    ],
     "triggerKeywords": [
       "During Link"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "duringLink",
+        "scope": "self",
+        "keyword": "High-Maneuver",
+        "sourceText": "【During Link】This Unit gains <High-Maneuver>."
+      }
     ]
   },
   "GD03-041": {

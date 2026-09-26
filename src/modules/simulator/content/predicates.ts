@@ -59,6 +59,13 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const traits = pairedPilotHasAnyTrait[1].split(",");
     return (pilot.def.traits ?? []).some((t) => traits.includes(t));
   }
+  // GD03-101 A Healthy Curiosity — "if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash".
+  const controllerTrashCardCountNamedAtLeast = predicate.match(/^controllerTrashCardCountNamedAtLeast:(.+):(\d+)$/);
+  if (controllerTrashCardCountNamedAtLeast) {
+    const name = controllerTrashCardCountNamedAtLeast[1];
+    const min = Number(controllerTrashCardCountNamedAtLeast[2]);
+    return ctx.state.players[ctx.controller].trash.filter((c) => c.def.nameEn.includes(name)).length >= min;
+  }
   // ST02-016 Corsica Base — "if ... a card with 'Corsica Base' in its card name is in your trash".
   const cardInTrashNamed = predicate.match(/^cardInTrashNamed:(.+)$/);
   if (cardInTrashNamed) {
@@ -465,6 +472,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
   const traitMatch = filter.match(/^trait:(.+)$/);
   if (traitMatch) return (candidate.def.traits ?? []).includes(traitMatch[1]);
+
+  // GD03-021 Gundam Deathscythe Hell — "1 of your (Operation Meteor)/(G Team) Units" (OR, vírgula).
+  const anyTraitMatch = filter.match(/^anyTrait:(.+)$/);
+  if (anyTraitMatch) {
+    const traits = anyTraitMatch[1].split(",");
+    return (candidate.def.traits ?? []).some((t) => traits.includes(t));
+  }
 
   // GD01-049 Blitz Gundam — companion do filtro de trait acima.
   const apAtLeast = filter.match(/^ap>=(\d+)$/);

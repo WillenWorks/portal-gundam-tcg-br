@@ -250,6 +250,10 @@
       "description": "O Pilot pareado com a fonte tem QUALQUER UM dos traits dados (OR, separados por vírgula).",
       "since": "GD01-044 Kshatriya (Lote 4)"
     },
+    "controllerTrashCardCountNamedAtLeast:<value>:<n>": {
+      "description": "O trash do controller tem >= N cartas cujo nome EN contém o valor dado.",
+      "since": "GD03-101 A Healthy Curiosity"
+    },
     "cardInTrashNamed:<value>": {
       "description": "O trash do controller tem uma carta cujo nome EN contém o valor dado.",
       "since": "ST02-016 Corsica Base"
@@ -439,6 +443,10 @@
     "trait:<value>": {
       "description": "Candidato tem o trait dado.",
       "since": "GD01-049 Blitz Gundam"
+    },
+    "anyTrait:<value>": {
+      "description": "Candidato tem QUALQUER UM dos traits dados (OR, separados por vírgula).",
+      "since": "GD03-021 Gundam Deathscythe Hell"
     },
     "ap>=<n>": {
       "description": "AP efetivo do candidato >= N.",

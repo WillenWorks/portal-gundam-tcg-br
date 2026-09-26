@@ -7999,10 +7999,10 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 7,
+        "full": 19,
         "partial": 0,
-        "missing": 109,
-        "withErrors": 11
+        "missing": 97,
+        "withErrors": 0
       },
       "cards": [
         {
@@ -8164,14 +8164,16 @@
         },
         {
           "code": "GD03-008",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Pair】This Unit gains <Repair 2>."
             }
           ]
@@ -8235,14 +8237,16 @@
         },
         {
           "code": "GD03-013",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While you have another (Jupitris) Unit in play, this Unit gets AP+1 and <Repair 1>."
             }
           ]
@@ -8399,20 +8403,17 @@
         },
         {
           "code": "GD03-021",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-021-Deploy"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-021-Deploy"
               ],
               "text": "【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may choose an active enemy Unit as its attack target."
             }
@@ -8434,16 +8435,16 @@
         },
         {
           "code": "GD03-023",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-023-Deploy"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "onExResourcePlaced"
+              ],
               "text": "When you place an EX Resource, choose 1 of your (AGE System) Units. It gains <High-Maneuver> during this turn."
             }
           ]
@@ -8726,14 +8727,16 @@
         },
         {
           "code": "GD03-040",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <High-Maneuver>."
             }
           ]
@@ -9944,7 +9947,7 @@
         },
         {
           "code": "GD03-101",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9952,10 +9955,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-101-Main",
+                "GD03-101-Main-Rest"
               ],
               "text": "【Main】Draw 1. Then, if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it."
             }
@@ -10024,9 +10027,7 @@
         {
           "code": "GD03-104",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Reccoa Londe"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10105,9 +10106,7 @@
         {
           "code": "GD03-107",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Hardie Steiner"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10135,9 +10134,7 @@
         {
           "code": "GD03-108",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Gabriel Ramirez Garcia"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10219,9 +10216,7 @@
         {
           "code": "GD03-111",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Emeralda Zubin"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10334,9 +10329,7 @@
         {
           "code": "GD03-115",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Yurin L'Ciel"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10363,11 +10356,8 @@
         },
         {
           "code": "GD03-116",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-116-Main",
-            "orphanSpec: GD03-116-Action"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10375,11 +10365,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-116-Main",
+                "GD03-116-Action"
               ],
               "text": "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them."
             }
@@ -10456,9 +10445,7 @@
         {
           "code": "GD03-120",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Patrick Colasour"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10486,9 +10473,7 @@
         {
           "code": "GD03-121",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Katz Kobayashi"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10516,9 +10501,7 @@
         {
           "code": "GD03-122",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Sergei Smirnov"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10545,7 +10528,7 @@
         },
         {
           "code": "GD03-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10564,10 +10547,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-123-Deploy",
+                "GD03-123-Deploy-Rest"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if a friendly (Jupitris) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it."
             }
@@ -10683,7 +10666,7 @@
         },
         {
           "code": "GD03-127",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10702,10 +10685,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-127-Deploy",
+                "GD03-127-Deploy-Buff"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, Choose 1 friendly (ZAFT) Unit. It gets AP+3 during this turn."
             }
@@ -10785,7 +10768,7 @@
         },
         {
           "code": "GD03-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10804,10 +10787,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-130-Deploy",
+                "GD03-130-Deploy-Revive"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, you may choose 1 (Vagan) Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
             }
@@ -10815,7 +10798,7 @@
         },
         {
           "code": "GD03-131",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10834,10 +10817,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-131-Deploy",
+                "GD03-131-Deploy-Bounce"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if you have 2 or more (Triple Ship Alliance) Units in play, choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
             }
@@ -10845,7 +10828,7 @@
         },
         {
           "code": "GD03-132",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10875,10 +10858,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD03-132-Destroyed"
               ],
               "text": "【Destroyed】If you have an (AEUG) Link Unit in play, choose 1 enemy Unit with 4 or less HP. Rest it."
             }

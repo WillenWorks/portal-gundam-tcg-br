@@ -1,6 +1,7 @@
 import type { CardDef } from "../../engine/types";
 
 export const PILOTS: Record<string, CardDef> = {
+  // W0.3 (revisão semântica): metadado falso (Pilot concede, não tem)
   "GD03-084": {
     "code": "GD03-084",
     "nameEn": "Paptimus Scirocco",
@@ -14,12 +15,6 @@ export const PILOTS: Record<string, CardDef> = {
       "Titans",
       "Jupitris",
       "Newtype"
-    ],
-    "effectKeywords": [
-      "Repair"
-    ],
-    "keywordTags": [
-      "Repair 2"
     ],
     "triggerKeywords": [
       "Burst"
@@ -80,6 +75,7 @@ export const PILOTS: Record<string, CardDef> = {
     ],
     "hasBurst": true
   },
+  // W0.3 (revisão semântica): metadado falso
   "GD03-088": {
     "code": "GD03-088",
     "nameEn": "Asemu Asuno",
@@ -92,12 +88,6 @@ export const PILOTS: Record<string, CardDef> = {
     "traits": [
       "Earth Federation",
       "Asuno Family"
-    ],
-    "effectKeywords": [
-      "Breach"
-    ],
-    "keywordTags": [
-      "Breach 1"
     ],
     "triggerKeywords": [
       "During Link",
@@ -123,6 +113,7 @@ export const PILOTS: Record<string, CardDef> = {
     ],
     "hasBurst": true
   },
+  // W0.3 (revisão semântica): metadado falso
   "GD03-090": {
     "code": "GD03-090",
     "nameEn": "Mikhail Kaminsky",
@@ -135,12 +126,6 @@ export const PILOTS: Record<string, CardDef> = {
     "traits": [
       "Zeon",
       "Cyclops Team"
-    ],
-    "effectKeywords": [
-      "Breach"
-    ],
-    "keywordTags": [
-      "Breach 1"
     ],
     "triggerKeywords": [
       "Attack",

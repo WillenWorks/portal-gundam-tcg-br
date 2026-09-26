@@ -1819,6 +1819,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // alvo inválido descartado
         }
       }
+      // W0 — "Draw 1. Then, if …, choose …" (GD03-101): sem alvo legal pro spec que
+      // precisa de alvo, a Command ainda resolve o spec sem alvo (mesma regra do
+      // `commandPlayCandidates` em legalActions.ts).
+      if (ids.size === 0 && specs.some((s) => !specNeedsNamedTarget(s))) return none;
       return { legalTargetInstanceIds: ids, requiredTargetCount: minCount };
     }
 

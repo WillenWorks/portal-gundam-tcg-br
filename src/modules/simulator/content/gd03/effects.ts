@@ -33,6 +33,73 @@ for (const code of BASE_CODES) {
   );
 }
 
+// W0.3 — o "Then, …" do 【Deploy】 e os 【Destroyed】 das Bases (mesmo padrão das Bases de GD02).
+// 124/125/126/128/129: gatilho/estático sem vocabulário ainda — deferidos em `deferred.ts`.
+GD03_BASE_EFFECT_SPECS.push(
+  {
+    id: "GD03-123-Deploy-Rest",
+    cardCode: "GD03-123",
+    trigger: "Deploy",
+    condition: {
+      predicate: "controllerUnitWithTraitInPlay:Jupitris",
+      then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+    },
+    actions: [],
+    targetScope: "enemyUnit",
+    targetFilter: "level<=3",
+    sourceText: "Then, if a friendly (Jupitris) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it.",
+  },
+  {
+    id: "GD03-127-Deploy-Buff",
+    cardCode: "GD03-127",
+    trigger: "Deploy",
+    actions: [{ op: "modifyStat", stat: "ap", amount: 3, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:ZAFT",
+    sourceText: "Then, Choose 1 friendly (ZAFT) Unit. It gets AP+3 during this turn.",
+  },
+  {
+    id: "GD03-130-Deploy-Revive",
+    cardCode: "GD03-130",
+    trigger: "Deploy",
+    optional: true,
+    condition: {
+      predicate: "isControllersTurn",
+      then: [{ op: "deployFromTrashPayingCost", player: "controller", filter: { cardType: "UNIT", anyTrait: ["Vagan"], maxLevel: 4 } }],
+    },
+    actions: [],
+    sourceText:
+      "Then, if it is your turn, you may choose 1 (Vagan) Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it.",
+  },
+  {
+    id: "GD03-131-Deploy-Bounce",
+    cardCode: "GD03-131",
+    trigger: "Deploy",
+    condition: {
+      predicate: "controllerOtherUnitCountWithAnyTraitAtLeast:Triple Ship Alliance:2",
+      then: [{ op: "moveZone", target: { kind: "named", name: "target" }, toZone: "hand" }],
+    },
+    actions: [],
+    targetScope: "enemyUnit",
+    targetFilter: "level<=4",
+    sourceText:
+      "Then, if you have 2 or more (Triple Ship Alliance) Units in play, choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand.",
+  },
+  {
+    id: "GD03-132-Destroyed",
+    cardCode: "GD03-132",
+    trigger: "Destroyed",
+    condition: {
+      predicate: "controllerLinkUnitWithTraitInPlay:AEUG",
+      then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+    },
+    actions: [],
+    targetScope: "enemyUnit",
+    targetFilter: "hp<=4",
+    sourceText: "【Destroyed】If you have an (AEUG) Link Unit in play, choose 1 enemy Unit with 4 or less HP. Rest it.",
+  },
+);
+
 // —————————————————————————— Pilots: Burst ——————————————————————————
 
 export const GD03_PILOT_BURST_SPECS: EffectSpec[] = [];
@@ -136,25 +203,20 @@ export const GD03_007_GUNDAM_NT1_FA_DESTROYED: EffectSpec = {
   sourceText: "【Destroyed】Choose 1 enemy Unit with 3 or less HP. Rest it.",
 };
 
-// GD03-021 Gundam Deathscythe Hell — 【Deploy】Choose 1 enemy Unit. Rest it.
+// GD03-021 — 【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may
+// choose an active enemy Unit as its attack target. (W0.3: antes o spec descansava um inimigo.)
 export const GD03_021_DEATHSCYTHE_DEPLOY: EffectSpec = {
   id: "GD03-021-Deploy",
   cardCode: "GD03-021",
   trigger: "Deploy",
-  actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
-  targetScope: "enemyUnit",
-  sourceText: "【Deploy】Choose 1 enemy Unit. Rest it.",
+  actions: [{ op: "grantAttackTargetRelax", target: { kind: "named", name: "target" } }],
+  targetScope: "friendlyUnit",
+  targetFilter: "anyTrait:Operation Meteor,G Team",
+  sourceText:
+    "【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may choose an active enemy Unit as its attack target.",
 };
 
-// GD03-023 Gundam Heavyarms Custom — 【Deploy】Choose 1 enemy Unit. Deal 2 damage to it.
-export const GD03_023_HEAVYARMS_DEPLOY: EffectSpec = {
-  id: "GD03-023-Deploy",
-  cardCode: "GD03-023",
-  trigger: "Deploy",
-  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
-  targetScope: "enemyUnit",
-  sourceText: "【Deploy】Choose 1 enemy Unit. Deal 2 damage to it.",
-};
+// GD03-023 — gatilho de EX Resource (não 【Deploy】): vive no CardDef (`onExResourcePlaced`). W0.3.
 
 // GD03-087 Sarah Zabiarov — 【When Linked】Choose 1 enemy Unit that is Lv.3 or lower. Rest it.
 export const GD03_087_SARAH_WHEN_LINKED: EffectSpec = {
@@ -180,13 +242,29 @@ export const GD03_090_MIKHAIL_ATTACK: EffectSpec = {
   sourceText: "【Attack】Choose 1 of your (Cyclops Team) Units. It gains <Breach 1> during this turn.",
 };
 
-// GD03-101 A Healthy Curiosity — 【Main】Draw 1.
+// GD03-101 A Healthy Curiosity — 【Main】Draw 1. Then, if there are 2 or more cards with "A Healthy
+// Curiosity" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it.
+// 2 specs: o "Draw 1" resolve mesmo sem alvo legal pro "Then" (W0.3: antes só comprava).
 export const GD03_101_HEALTHY_CURIOSITY_MAIN: EffectSpec = {
   id: "GD03-101-Main",
   cardCode: "GD03-101",
   trigger: "Main",
   actions: [{ op: "draw", player: "controller", n: 1 }],
   sourceText: "【Main】Draw 1.",
+};
+export const GD03_101_HEALTHY_CURIOSITY_MAIN_REST: EffectSpec = {
+  id: "GD03-101-Main-Rest",
+  cardCode: "GD03-101",
+  trigger: "Main",
+  condition: {
+    predicate: "controllerTrashCardCountNamedAtLeast:A Healthy Curiosity:2",
+    then: [{ op: "rest", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "hp<=4",
+  sourceText:
+    "Then, if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it.",
 };
 
 // GD03-111 Infiltrator Present — 【Main】/【Action】Choose 1 friendly (Mafty) Unit. It gets AP+3 during this turn.
@@ -214,24 +292,23 @@ export const GD03_111_INFILTRATOR_ACTION: EffectSpec = {
   sourceText: "【Action】Choose 1 friendly (Mafty) Unit. It gets AP+3 during this turn.",
 };
 
-// GD03-116 Towards Destiny — 【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it.
-export const GD03_116_TOWARDS_DESTINY_MAIN: EffectSpec = {
-  id: "GD03-116-Main",
+// GD03-116 Towards Destiny — 【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2
+// damage to them. (W0.3: antes só o inimigo tomava dano.)
+const gd03_116 = (trigger: "Main" | "Action"): EffectSpec => ({
+  id: `GD03-116-${trigger}`,
   cardCode: "GD03-116",
-  trigger: "Main",
-  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
-  targetScope: "enemyUnit",
-  sourceText: "【Main】Choose 1 enemy Unit. Deal 2 damage to it.",
-};
-
-export const GD03_116_TOWARDS_DESTINY_ACTION: EffectSpec = {
-  id: "GD03-116-Action",
-  cardCode: "GD03-116",
-  trigger: "Action",
-  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
-  targetScope: "enemyUnit",
-  sourceText: "【Action】Choose 1 enemy Unit. Deal 2 damage to it.",
-};
+  trigger,
+  actions: [
+    { op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } },
+    { op: "damageUnit", amount: 2, target: { kind: "named", name: "enemyTarget" } },
+  ],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Vagan",
+  secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit" },
+  sourceText: "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them.",
+});
+export const GD03_116_TOWARDS_DESTINY_MAIN = gd03_116("Main");
+export const GD03_116_TOWARDS_DESTINY_ACTION = gd03_116("Action");
 
 export const GD03_EFFECT_SPECS: EffectSpec[] = [
   ...GD03_BASE_EFFECT_SPECS,
@@ -242,10 +319,10 @@ export const GD03_EFFECT_SPECS: EffectSpec[] = [
   GD03_006_PENELOPE_DEPLOY,
   GD03_007_GUNDAM_NT1_FA_DESTROYED,
   GD03_021_DEATHSCYTHE_DEPLOY,
-  GD03_023_HEAVYARMS_DEPLOY,
   GD03_087_SARAH_WHEN_LINKED,
   GD03_090_MIKHAIL_ATTACK,
   GD03_101_HEALTHY_CURIOSITY_MAIN,
+  GD03_101_HEALTHY_CURIOSITY_MAIN_REST,
   GD03_111_INFILTRATOR_MAIN,
   GD03_111_INFILTRATOR_ACTION,
   GD03_116_TOWARDS_DESTINY_MAIN,
