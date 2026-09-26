@@ -42,6 +42,7 @@
     "catalog:coverage": "node scripts/gundam-coverage.mjs",
     "catalog:coverage:gate": "node scripts/gundam-coverage.mjs --gate",
     "gundam:coverage": "node scripts/gundam-coverage.mjs",
+    "gundam:fix-sourcetext": "node scripts/gundam-fix-sourcetext.mjs",
     "data:ibge:refresh": "node scripts/generate-ibge-city-uf.mjs",
     "mcp:gundam": "node scripts/mcp-gundam/server.mjs",
     "mcp:gundam:smoke": "node scripts/mcp-gundam/smoke.mjs",

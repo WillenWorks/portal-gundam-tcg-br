@@ -3,7 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CardDef } from "../src/modules/simulator/engine/types.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
-import { ALL_EFFECT_SPECS } from "../src/modules/simulator/content/index.ts";
+import type { EffectSpec } from "../src/modules/simulator/engine/effectSpec.ts";
+import { ALL_EFFECT_SPECS, DEFERRED_CLAUSES } from "../src/modules/simulator/content/index.ts";
+import type { DeferredClause } from "../src/modules/simulator/content/deferred.ts";
+import { legacyCoverageStatus } from "../src/modules/simulator/content/coverage/clauseAudit.ts";
 import { buildDeckListFromUserDeck, UserDeckSimulatorError, type UserDeckInput } from "../src/modules/simulator/content/userDeckBuilder.ts";
 
 /**
@@ -50,31 +53,17 @@ try {
 }
 
 const EFFECT_TEXT_BY_CODE = new Map(OFFICIAL_CARDS.map((c) => [c.code, c.effect ?? ""]));
-const CODES_WITH_SPEC = new Set(ALL_EFFECT_SPECS.map((s) => s.cardCode));
+const SPECS_BY_CODE = new Map<string, EffectSpec[]>();
+for (const spec of ALL_EFFECT_SPECS) SPECS_BY_CODE.set(spec.cardCode, [...(SPECS_BY_CODE.get(spec.cardCode) ?? []), spec]);
+const DEFERRALS_BY_CODE = new Map<string, DeferredClause[]>();
+for (const d of DEFERRED_CLAUSES) DEFERRALS_BY_CODE.set(d.cardCode, [...(DEFERRALS_BY_CODE.get(d.cardCode) ?? []), d]);
 /** Códigos reais do catálogo (`data/gcg-official-cards.json`) — inclui Units/Pilots/Commands/Bases E tokens (T-XXX), mas NUNCA os placeholders sintéticos de recurso (`<SET>-RESOURCE`), que não são cartas catalogadas de propósito. */
 const KNOWN_CODES = new Set(OFFICIAL_CARDS.map((c) => c.code));
 
-/** Mesma heurística de `scripts/gundam-coverage.mjs` — `true` se o texto tem regra além de keyword automática / 【Pilot】[X] / vazio. */
-function hasBespokeText(effect: string): boolean {
-  if (!effect || effect.trim() === "-" || effect.trim() === "") return false;
-  let s = effect
-    .replace(/【Pilot】\s*\[[^\]]*\]/g, " ")
-    .replace(/【[^】]*】/g, " ")
-    .replace(/<[^>]+>/g, " ");
-  let prev: string;
-  do {
-    prev = s;
-    s = s.replace(/\([^()]*\)/g, " ");
-  } while (s !== prev);
-  return s.replace(/[［］[\]･・、。.,\s]+/g, " ").trim().length > 0;
-}
-
 /**
- * `true` se o motor cobre `def` o bastante pra entrar numa partida real:
- * sem texto bespoke (vanilla — keyword automática já tratada em combat.ts/
- * keywords.ts), OU tem EffectSpec cadastrado (implementada/implementada*),
- * OU tem campo estruturado (staticAbilities/combatTriggers/attackTargetRules).
- * `false` = "deferida"/"faltando" — bloqueia a carta.
+ * `true` se o motor cobre `def` o bastante pra entrar numa partida real — mesmo critério
+ * por carta de `scripts/gundam-coverage.mjs` (módulo compartilhado `content/coverage/clauseAudit.ts`):
+ * vanilla / implementada / implementada* = jogável; deferida / faltando = bloqueada.
  *
  * Códigos que não existem no catálogo oficial são bloqueados EXPLICITAMENTE
  * (nunca tratados como "vanilla por padrão" — achado da auditoria: sem essa
@@ -84,14 +73,16 @@ function hasBespokeText(effect: string): boolean {
  * não são catalogadas de propósito (são um placeholder do motor, não uma
  * carta real) — sempre jogáveis.
  */
-export function isCardPlayable(def: Pick<CardDef, "code" | "cardType" | "staticAbilities" | "combatTriggers" | "attackTargetRules">): boolean {
+export function isCardPlayable(def: CardDef): boolean {
   if (def.cardType === "RESOURCE") return true;
   if (!KNOWN_CODES.has(def.code)) return false;
-  const effect = EFFECT_TEXT_BY_CODE.get(def.code) ?? "";
-  if (!hasBespokeText(effect)) return true;
-  if (CODES_WITH_SPEC.has(def.code)) return true;
-  if (def.staticAbilities?.length || def.combatTriggers?.length || def.attackTargetRules) return true;
-  return false;
+  const status = legacyCoverageStatus({
+    effect: EFFECT_TEXT_BY_CODE.get(def.code) ?? "",
+    def,
+    specs: SPECS_BY_CODE.get(def.code) ?? [],
+    deferrals: DEFERRALS_BY_CODE.get(def.code) ?? [],
+  });
+  return status !== "deferida" && status !== "faltando";
 }
 
 export interface DeckPayloadValidation {

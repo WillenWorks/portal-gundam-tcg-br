@@ -87,3 +87,10 @@ describe("deckCoverageGate — códigos de carta inexistentes/fora do catálogo"
     expect(validation.unplayableCards).toEqual(["GD02-001"]);
   });
 });
+
+describe("deckCoverageGate — mesmo critério do script de cobertura (content/coverage/clauseAudit.ts)", () => {
+  it("carta coberta só por campo estruturado fora da lista antiga (GD01-046, onSupportUsed) é jogável", () => {
+    // a lista antiga do gate só olhava staticAbilities/combatTriggers/attackTargetRules e barrava esta carta
+    expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
+  });
+});

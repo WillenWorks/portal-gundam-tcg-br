@@ -4340,7 +4340,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": "trait:Clan",
     "predicate": null,
-    "sourceText": "【Attack】Choose 1 or 2 friendly (Clan) Units. They get AP+2 during this turn."
+    "sourceText": "【Attack】Choose 1 to 2 friendly (Clan) Units. They get AP+2 during this turn."
   },
   {
     "id": "ST06-007-Deploy",
@@ -4437,7 +4437,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": null,
     "predicate": "controllerLinkUnitWithTraitInPlay:Clan",
-    "sourceText": "【Activate: Main】Rest this Base: If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
+    "sourceText": "【Activate·Main】Rest this Base:If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
   },
   {
     "id": "ST06-014-Deploy",
@@ -4604,7 +4604,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card / Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "ST07-015-Burst",
@@ -4677,7 +4677,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": "attackingPlayer;controllerHandHasUnitWithTrait:Earth Federation",
-    "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2."
+    "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return it to the bottom of your deck. If you do, draw 2."
   },
   {
     "id": "ST08-009-Deploy",
@@ -4738,7 +4738,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": "linkUnit",
     "predicate": null,
-    "sourceText": "【Main】Choose 1 friendly Link Unit. It gains [Breach 1] during this turn."
+    "sourceText": "【Main】Choose 1 friendly Link Unit. It gains <Breach 1> during this turn."
   },
   {
     "id": "ST08-013-Action",
@@ -4802,7 +4802,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Activate: Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP."
+    "sourceText": "【Activate·Main】【Once per Turn】②:Choose 1 of your Units. It recovers 2 HP."
   },
   {
     "id": "ST08-015-Burst",
