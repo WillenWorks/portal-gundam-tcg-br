@@ -8,7 +8,7 @@
  * `PendingDecision.abilityResolution` pro `player` — o jogador ordena os efeitos
  * simultâneos, escolhe o alvo de cada um e ativa/pula os optativos. Os demais
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
-import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
+import { dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   callsChoicePrimitive,
   callsNeedChoice,
@@ -23,10 +23,10 @@ import {
   specNeedsChoice,
   specNeedsNamedTarget,
 } from "./effectSpec";
-import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
+import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
-import { effectivePilotDef, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
+import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -67,7 +67,7 @@ function buildQueueEntry(
     optional: spec.optional ?? false,
     needsTarget,
     targetScope: spec.targetScope ?? "enemyUnit",
-    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver, sourceInstanceId) : [],
+    legalTargets: needsTarget ? computeLegalTargets(state, spec, player, targetFilterResolver, sourceInstanceId, implicitTargets) : [],
     targetCount: spec.targetCount,
     implicitTargets,
     // docs/47 Fase 5 — ST05-010 Mikazuki Augus 【When Paired】: 2º pool de alvo
@@ -434,7 +434,16 @@ export function dispatchAnyPairingFromEffect(
     );
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
   }
-  return next;
+  // W2a (C1) — "when you pair a Pilot … with one of your Units" (GD03-124): o Piloto é a carta do evento
+  const pairedPilots = newPairings
+    .map((np) => ({ np, pilotId: findCard(next, np.unitInstanceId).pairedPilotId }))
+    .filter((p): p is { np: (typeof newPairings)[number]; pilotId: string } => !!p.pilotId);
+  return dispatchReactions(
+    next,
+    pairedPilots.map(({ np, pilotId }) => ({ event: "pilotPaired", subjectId: pilotId, owner: np.owner })),
+    specs,
+    opts,
+  );
 }
 
 /**
@@ -763,4 +772,191 @@ export function filterDispatchableSpecs(
     }
     return true;
   });
+}
+
+// ---------------------------------------------------------------------------
+// W2a (C1) — gatilhos reativos ("when this Unit receives effect damage", "when one of your
+// Units is rested by an enemy effect", "when you pair a Pilot…", "when one of your Units
+// attacks"…). O evento é detectado onde acontece (efeito: `dispatchReactionsFromEffect`, no
+// fim de cada spec de `dispatchTrigger`; ataque/pareamento/fim de turno: nos seus pontos), as
+// cartas que escutam (`EffectSpec.reaction`) são achadas no lado do dono do evento, e o
+// despacho é o MESMO de qualquer gatilho (`deferOrDispatchAbilities`: escolha, "you may",
+// pausa). A carta do evento entra como alvo implícito `reactionSubject`.
+// ---------------------------------------------------------------------------
+
+export interface ReactionOccurrence {
+  event: ReactionEvent;
+  /** carta do evento (a Unit que recebeu dano / foi descansada / o Piloto pareado / a Unit que atacou) */
+  subjectId: string;
+  /** dono da carta do evento — quem escuta são as cartas DESTE lado */
+  owner: PlayerId;
+  /** quem controla o efeito que causou o evento (ausente = não foi efeito: ataque, pareamento, fim de turno) */
+  effectController?: PlayerId;
+}
+
+/**
+ * Eventos causados por UM efeito (os `events` que `resolveEffectSpec` compilou pra ele): dano,
+ * descanso e ativação de Unit em jogo. Dano/descanso/ativação que não muda nada (Unit já
+ * descansada, já ativa) não conta. Limitação: um custo de "rest" do próprio spec entra como
+ * "descansada por efeito" (nenhuma carta com reação a descanso paga custo assim hoje).
+ */
+export function collectEffectReactions(before: GameState, events: GameEvent[], effectController: PlayerId): ReactionOccurrence[] {
+  const out: ReactionOccurrence[] = [];
+  const seen = new Set<string>();
+  const push = (event: ReactionEvent, card: CardInstance) => {
+    const key = `${event}:${card.instanceId}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ event, subjectId: card.instanceId, owner: card.owner, effectController });
+  };
+  // estado de descanso acompanhado evento a evento (um efeito que descansa e depois ativa a
+  // mesma Unit gera as 2 transições)
+  const restedNow = new Map<string, boolean>();
+  for (const e of events) {
+    if (e.type !== "DAMAGE_UNIT" && e.type !== "REST_CARD" && e.type !== "SET_ACTIVE") continue;
+    const card = before.players.A.battleArea.find((c) => c.instanceId === e.instanceId) ??
+      before.players.B.battleArea.find((c) => c.instanceId === e.instanceId);
+    if (!card || card.def.cardType !== "UNIT") continue;
+    const wasRested = restedNow.get(card.instanceId) ?? card.rested;
+    if (e.type === "DAMAGE_UNIT") push("effectDamage", card);
+    else if (e.type === "REST_CARD") {
+      if (!wasRested) push("restedByEffect", card);
+      restedNow.set(card.instanceId, true);
+    } else {
+      if (wasRested) push("setActiveByEffect", card);
+      restedNow.set(card.instanceId, false);
+    }
+  }
+  return out;
+}
+
+function reactionMatches(
+  state: GameState,
+  listener: CardInstance,
+  spec: EffectSpec,
+  occ: ReactionOccurrence,
+  targetFilterResolver?: TargetFilterResolver,
+): boolean {
+  const reaction = spec.reaction;
+  if (!reaction || reaction.event !== occ.event) return false;
+  if (spec.oncePerTurn && listener.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) return false;
+  if (listener.def.oncePerTurn && listener.usedKeywordsThisTurn.includes(spec.trigger)) return false;
+  // "this Unit" num Piloto é a Unit pareada
+  const selfUnitId = isActingAsPilot(listener) ? listener.pairedUnitId : listener.instanceId;
+  if (reaction.subject === "self" && occ.subjectId !== selfUnitId && occ.subjectId !== listener.instanceId) return false;
+  if (reaction.subject === "friendlyOther" && (occ.subjectId === listener.instanceId || occ.subjectId === selfUnitId)) return false;
+  if (reaction.byEnemyEffect && (!occ.effectController || occ.effectController === listener.owner)) return false;
+  if (reaction.turn === "yours" && state.activePlayer !== listener.owner) return false;
+  if (reaction.turn === "opponents" && state.activePlayer === listener.owner) return false;
+  if (reaction.subjectFilter) {
+    const subject = findCard(state, occ.subjectId);
+    const ok = targetFilterResolver?.(reaction.subjectFilter, subject, {
+      state,
+      sourceInstanceId: listener.instanceId,
+      targets: { reactionSubject: [occ.subjectId] },
+    });
+    if (!ok) return false;
+  }
+  return true;
+}
+
+/** Cartas do lado do dono do evento (Battle Area + Base) com um spec que reage a ele. */
+export function reactionListeners(
+  state: GameState,
+  occ: ReactionOccurrence,
+  specs: EffectSpec[],
+  targetFilterResolver?: TargetFilterResolver,
+): AbilitySource[] {
+  const side = state.players[occ.owner];
+  const trigger = `Reaction:${occ.event}`;
+  const out: AbilitySource[] = [];
+  for (const card of [...side.battleArea, ...(side.baseSection ?? [])]) {
+    const cardSpecs = findTriggerSpecs(specs, card.def.code, trigger);
+    if (!cardSpecs.some((spec) => reactionMatches(state, card, spec, occ, targetFilterResolver))) continue;
+    out.push({ code: card.def.code, instanceId: card.instanceId, implicitTargets: { reactionSubject: [occ.subjectId] } });
+  }
+  return out;
+}
+
+/**
+ * Despacha as reações de `occurrences` — jogador ativo primeiro (CR 10-1-6-6). Se uma reação
+ * pausa pra decisão, as seguintes do MESMO lote se perdem (mesma dívida de `attachQueuedTriggers`,
+ * registrada; na prática um efeito dispara 1 reação por vez).
+ */
+export function dispatchReactions(
+  state: GameState,
+  occurrences: ReactionOccurrence[],
+  specs: EffectSpec[],
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  if (occurrences.length === 0) return state;
+  const active = state.activePlayer;
+  const ordered = [...occurrences].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
+  let next = state;
+  for (const occ of ordered) {
+    const sources = reactionListeners(next, occ, specs, opts.targetFilterResolver);
+    if (sources.length === 0) continue;
+    next = deferOrDispatchAbilities(next, occ.owner, `Reaction:${occ.event}`, sources, specs, opts);
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+  }
+  return next;
+}
+
+/** As reações que UM efeito causou (chamado por `dispatchTrigger` depois de aplicar os eventos do spec). */
+export function dispatchReactionsFromEffect(
+  before: GameState,
+  after: GameState,
+  events: GameEvent[],
+  effectController: PlayerId,
+  specs: EffectSpec[],
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  if (!specs.some((s) => s.reaction)) return after;
+  return dispatchReactions(after, collectEffectReactions(before, events, effectController), specs, opts);
+}
+
+/**
+ * W2a (C1) — "At the end of the turn …" (End Step, antes do Repair). Só specs sem escolha
+ * (sem alvo, sem "you may", sem escolha de mão/deck): uma pausa aqui travaria a troca de turno.
+ * Jogador ativo primeiro (CR 10-1-6-6).
+ */
+export function runEndOfTurnReactions(
+  state: GameState,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
+  if (!specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
+  let next = state;
+  const active = state.activePlayer;
+  for (const owner of [active, otherPlayer(active)]) {
+    for (const unit of next.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT")) {
+      const occ: ReactionOccurrence = { event: "endOfTurn", subjectId: unit.instanceId, owner };
+      for (const src of reactionListeners(next, occ, specs, targetFilterResolver)) {
+        const listener = findCard(next, src.instanceId);
+        const auto = findTriggerSpecs(specs, listener.def.code, "Reaction:endOfTurn").filter(
+          (s) => !(s.optional ?? false) && !specNeedsNamedTarget(s) && !specNeedsChoice(s),
+        );
+        if (auto.length === 0) continue;
+        next = dispatchTrigger(next, src.instanceId, "Reaction:endOfTurn", auto, {
+          targets: src.implicitTargets,
+          predicateResolver,
+          targetFilterResolver,
+          allSpecs: specs,
+        });
+        if (next.gameOver) return next;
+      }
+    }
+  }
+  return next;
 }

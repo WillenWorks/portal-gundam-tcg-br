@@ -7997,9 +7997,9 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 55,
+        "full": 65,
         "partial": 6,
-        "missing": 55,
+        "missing": 45,
         "withErrors": 0
       },
       "cards": [
@@ -8032,7 +8032,7 @@
         },
         {
           "code": "GD03-002",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8047,8 +8047,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-002-AllyAttack"
+              ],
               "text": "【During Pair】When one of your other Units with <Repair> attacks, choose 1 enemy Unit whose Lv. is equal to or lower than that Unit. Rest it."
             }
           ]
@@ -8683,7 +8685,7 @@
         },
         {
           "code": "GD03-038",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8700,8 +8702,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-038-RestedByEffect"
+              ],
               "text": "During your turn, when this Unit is rested by an effect, choose 1 of your (ZAFT) Units. It gets AP+2 during this turn."
             }
           ]
@@ -8943,7 +8947,7 @@
         },
         {
           "code": "GD03-053",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8958,8 +8962,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-053-AllyEffectDamage"
+              ],
               "text": "【During Pair】【Once per Turn】During your turn, when one of your (Tekkadan)/(Teiwaz) Units receives effect damage, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
             }
           ]
@@ -9079,14 +9085,16 @@
         },
         {
           "code": "GD03-060",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-060-EffectDamage"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit receives effect damage, deploy 1 rested [CGS Mobile Worker]((Tekkadan)·AP1·HP1) Unit token."
             }
           ]
@@ -9199,7 +9207,7 @@
         },
         {
           "code": "GD03-069",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9214,8 +9222,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-069-EndOfTurn"
+              ],
               "text": "【During Link】At the end of the turn when this Unit is paired with a Pilot, set it as active."
             }
           ]
@@ -9780,7 +9790,7 @@
         },
         {
           "code": "GD03-095",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9797,8 +9807,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-095-EffectDamage"
+              ],
               "text": "【Once per Turn】When this Unit receives effect damage, choose 1 enemy Unit. It gets AP-1 during this turn."
             }
           ]
@@ -9859,7 +9871,7 @@
         },
         {
           "code": "GD03-098",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9876,8 +9888,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-098-SetActiveByEffect"
+              ],
               "text": "【During Link】When this rested Unit is set as active by an effect, choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
             }
           ]
@@ -10547,7 +10561,7 @@
         },
         {
           "code": "GD03-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10575,8 +10589,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-124-PilotPaired"
+              ],
               "text": "【Once per Turn】When you pair a Pilot that is Lv.3 or lower with one of your Units, choose 1 enemy Unit with 3 or less HP. Rest it."
             }
           ]
@@ -10685,7 +10701,7 @@
         },
         {
           "code": "GD03-128",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10713,15 +10729,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-128-RestedByEnemyEffect"
+              ],
               "text": "【Once per Turn】During your opponent's turn, when one of your Units is rested by one of your opponent's effects, choose 1 enemy Unit. Deal 1 damage to it."
             }
           ]
         },
         {
           "code": "GD03-129",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10749,8 +10767,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-129-AllyEffectDamage"
+              ],
               "text": "During your turn, when one of your friendly (Tekkadan)/(Teiwaz) Units receives effect damage, you may rest this Base. If you do, place the top card of your deck into your trash."
             }
           ]

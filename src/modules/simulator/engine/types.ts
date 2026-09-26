@@ -298,7 +298,7 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
 export interface QueuedTrigger {
   owner: PlayerId;
   trigger: string;
-  sources: Array<{ code: string; instanceId: string }>;
+  sources: Array<{ code: string; instanceId: string; implicitTargets?: Record<string, string[]> }>;
 }
 
 export type StaticBoardCondition =
