@@ -28,6 +28,9 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD01-046": {
     code: "GD01-046",
+    structuredSourceText: {
+      onSupportUsed: "【During Pair·(Coordinator) Pilot】【Once per Turn】When you use this Unit's <Support> to increase a (ZAFT) Unit's AP, set this Unit as active.",
+    },
     nameEn: "Buster Gundam",
     cardType: "UNIT",
     color: "red",
@@ -139,6 +142,9 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD01-054": {
     code: "GD01-054",
+    structuredSourceText: {
+      staticAbilities: "While this Unit has 5 or more AP, it gains <Breach 3>.",
+    },
     nameEn: "Duel Gundam",
     cardType: "UNIT",
     color: "red",
@@ -255,6 +261,9 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD01-063": {
     code: "GD01-063",
+    structuredSourceText: {
+      staticAbilities: "During your turn, while this Unit is battling an enemy Unit that is Lv.2 or lower, it gains <First Strike>.",
+    },
     nameEn: "ZnO",
     cardType: "UNIT",
     color: "red",

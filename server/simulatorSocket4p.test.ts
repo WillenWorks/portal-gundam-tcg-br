@@ -230,13 +230,15 @@ describe("Arena 4P — resiliência de reconexão via queda de socket real", () 
     const survivingLaneMate = ownerIsSeatA ? seatB : host;
     const historyLengthBefore = match.actionHistory.length;
 
-    const forcedViewPromise = waitFor(survivingLaneMate, "arena:view_update", 3000);
-    const radarPromise = waitFor(seatC, "arena:radar_update", 3000); // confirma o broadcast arena-wide também chega pra quem está em outra lane
+    // prazo folgado: o grace é 150ms, mas com a suíte inteira em paralelo o worker chega a ficar
+    // >3s sem CPU (falhou assim no CI com 3023ms; isolado passa sempre)
+    const forcedViewPromise = waitFor(survivingLaneMate, "arena:view_update", 10_000);
+    const radarPromise = waitFor(seatC, "arena:radar_update", 10_000); // confirma o broadcast arena-wide também chega pra quem está em outra lane
     disconnectingSocket.disconnect();
     await Promise.all([forcedViewPromise, radarPromise]);
 
     const after = getMatch(laneAB.matchId)!;
     expect(after.actionHistory.length).toBe(historyLengthBefore + 1);
     void seatD;
-  });
+  }, 15_000);
 });

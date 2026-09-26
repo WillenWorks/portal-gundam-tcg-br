@@ -11,6 +11,9 @@ import type { DeckList } from "../engine/setup";
 
 export const XI_GUNDAM_LR: CardDef = {
   code: "ST08-001",
+  structuredSourceText: {
+    dynamicCost: "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each enemy Unit in play.",
+  },
   nameEn: "Xi Gundam",
   cardType: "UNIT",
   color: "red",
@@ -118,6 +121,9 @@ export const PENELOPE_COMMON: CardDef = {
 
 export const GUSTAV_KARL_TYPE_00: CardDef = {
   code: "ST08-008",
+  structuredSourceText: {
+    staticAbilities: "While 3 or more enemy Units are in play, this Unit gains <Blocker>.",
+  },
   nameEn: "Gustav Karl Type-00",
   cardType: "UNIT",
   color: "blue",

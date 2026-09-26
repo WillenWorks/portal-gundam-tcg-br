@@ -154,6 +154,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD01-034": {
     code: "GD01-034",
+    structuredSourceText: {
+      staticAbilities: "【During Pair】This Unit gains <Breach 3>.",
+    },
     nameEn: "Gundam Heavyarms",
     cardType: "UNIT",
     color: "green",
@@ -255,6 +258,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD01-042": {
     code: "GD01-042",
+    structuredSourceText: {
+      attackTargetRules: "This Unit may choose an active enemy Unit that is Lv.2 or lower as its attack target.",
+    },
     nameEn: "Duo's Leo",
     cardType: "UNIT",
     color: "green",

@@ -3,6 +3,9 @@ import type { CardDef } from "../../engine/types";
 export const PILOTS: Record<string, CardDef> = {
   "GD02-085": {
     code: "GD02-085",
+    structuredSourceText: {
+      onSelfHeal: "【During Link】【Once per Turn】During your turn, when this Unit recovers HP, if you have 4 or less cards in your hand, draw 1.",
+    },
     nameEn: "Four Murasame",
     cardType: "PILOT",
     color: "blue",
@@ -118,6 +121,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD02-093": {
     code: "GD02-093",
+    structuredSourceText: {
+      combatTriggers: "During your turn, when this Unit destroys an enemy Unit paired with a (Newtype) Pilot with battle damage, draw 1.",
+    },
     nameEn: "Olba Frost",
     cardType: "PILOT",
     color: "red",
@@ -189,6 +195,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD02-098": {
     code: "GD02-098",
+    structuredSourceText: {
+      nameAliases: "This card's name is also treated as [Char Aznable].",
+    },
     nameEn: "Quattro Bajeena",
     cardType: "PILOT",
     color: "white",

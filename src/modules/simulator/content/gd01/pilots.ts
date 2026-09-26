@@ -3,6 +3,9 @@ import type { CardDef } from "../../engine/types";
 export const PILOTS: Record<string, CardDef> = {
   "GD01-087": {
     code: "GD01-087",
+    structuredSourceText: {
+      staticAbilities: "While this Unit is blue, it gains <Repair 1>.",
+    },
     nameEn: "Sayla Mass",
     cardType: "PILOT",
     color: "blue",
@@ -36,6 +39,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-089": {
     code: "GD01-089",
+    structuredSourceText: {
+      staticAbilities: "While this Unit has <Repair>, it gets AP+1.",
+    },
     nameEn: "Riddhe Marcenas",
     cardType: "PILOT",
     color: "blue",
@@ -53,6 +59,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-090": {
     code: "GD01-090",
+    structuredSourceText: {
+      innateStatReductionImmunity: "【During Link】This Unit's AP can't be reduced by enemy effects.",
+    },
     nameEn: "Duo Maxwell",
     cardType: "PILOT",
     color: "green",
@@ -69,6 +78,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-091": {
     code: "GD01-091",
+    structuredSourceText: {
+      innateDamageProtection: "During your turn, while this Unit has <Breach>, it can't receive battle damage from enemy Units with 3 or less AP.",
+    },
     nameEn: "Chang Wufei",
     cardType: "PILOT",
     color: "green",
@@ -89,6 +101,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-092": {
     code: "GD01-092",
+    structuredSourceText: {
+      staticAbilities: "While this Unit is (Zeon), it gains <Breach 1>.",
+    },
     nameEn: "M'Quve",
     cardType: "PILOT",
     color: "green",
@@ -119,6 +134,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-094": {
     code: "GD01-094",
+    structuredSourceText: {
+      combatTriggers: "【Once per Turn】 When an enemy Link Unit is destroyed with damage while this Unit is attacking, draw 1.",
+    },
     nameEn: "Yzak Jule",
     cardType: "PILOT",
     color: "red",
@@ -152,6 +170,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD01-096": {
     code: "GD01-096",
+    structuredSourceText: {
+      staticAbilities: "While this Unit is white, it gains <Blocker>.",
+    },
     nameEn: "Cagalli Yula Athha",
     cardType: "PILOT",
     color: "white",

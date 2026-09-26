@@ -44,6 +44,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD02-072": {
     code: "GD02-072",
+    structuredSourceText: {
+      staticAbilities: "While a friendly white Base is in play, this Unit gains <Repair 1>.",
+    },
     nameEn: "Hyaku-Shiki",
     cardType: "UNIT",
     color: "white",
@@ -73,6 +76,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD02-074": {
     code: "GD02-074",
+    structuredSourceText: {
+      staticAbilities: "【During Pair】While there are 4 or more Command cards in your trash, this Unit gains <Blocker>.",
+    },
     nameEn: "Gundam Aerial Rebuild",
     cardType: "UNIT",
     color: "white",
@@ -106,6 +112,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD02-076": {
     code: "GD02-076",
+    structuredSourceText: {
+      staticAbilities: "While this Unit has 5 or more AP, it gains <Blocker>.",
+    },
     nameEn: "Buster Gundam",
     cardType: "UNIT",
     color: "white",
