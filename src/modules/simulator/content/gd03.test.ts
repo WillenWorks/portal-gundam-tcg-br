@@ -314,7 +314,7 @@ describe("GD03 — W1 (vocabulário existente)", () => {
     expect(token?.def.traits).toEqual(["Cyclops Team"]);
   });
 
-  it("028 ganha AP+2 só atacando Unit; 036 1 de dano em todas as inimigas; 112 AP+2 em toda Unit pareada (dos 2 lados)", () => {
+  it("036 1 de dano em todas as inimigas; 112 【Main】 AP+2 só nas Units pareadas", () => {
     let state = freshGame();
     const xi = placeCard(state, "A", GD03_CARD_DEFS["GD03-036"], "battleArea");
     const e1 = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
@@ -511,5 +511,108 @@ describe("GD03 — W1 gatilhos de combate", () => {
     const low = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea"); // Lv2
     state = runBattle(state, kyrios, defender);
     expect(findCard(state, low).damage).toBe(0); // sem Piloto: não está em Link
+  });
+});
+
+describe("GD03 — W1 (resolução de cada spec restante)", () => {
+  it("028: AP+2 na batalha só atacando Unit (não o jogador)", () => {
+    let state = advanceToMainPhase(freshGame());
+    state.players.B.baseSection = [];
+    const maganac = placeCard(state, "A", GD03_CARD_DEFS["GD03-028"], "battleArea");
+    const defender = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea", { rested: true });
+    const ap = effectiveAp(findCard(state, maganac), state);
+    let vsUnit = declareAttack(state, maganac, { unitId: defender });
+    vsUnit = run(vsUnit, "GD03-028-Attack", maganac);
+    expect(effectiveAp(findCard(vsUnit, maganac), vsUnit)).toBe(ap + 2);
+    let vsPlayer = declareAttack(state, maganac, "player");
+    vsPlayer = run(vsPlayer, "GD03-028-Attack", maganac);
+    expect(effectiveAp(findCard(vsPlayer, maganac), vsPlayer)).toBe(ap);
+  });
+
+  it("034 dá 3 de dano; 043 dá 1; 100 dá AP-3 no turno", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-034"], "battleArea");
+    const e1 = placeCard(state, "B", GD03_CARD_DEFS["GD03-070"], "battleArea"); // HP5
+    state = run(state, "GD03-034-Deploy", src, { target: [e1] });
+    expect(findCard(state, e1).damage).toBe(3);
+    state = run(state, "GD03-043-WhenPaired", src, { target: [e1] });
+    expect(findCard(state, e1).damage).toBe(4);
+    const ap = effectiveAp(findCard(state, e1), state);
+    state = run(state, "GD03-100-Destroyed", src, { target: [e1] });
+    expect(effectiveAp(findCard(state, e1), state)).toBe(ap - 3);
+  });
+
+  it("044 cria Daughtress descansado", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-044"], "battleArea");
+    state = run(state, "GD03-044-Deploy", src);
+    const token = state.players.A.battleArea.find((c) => c.def.code === "T-012");
+    expect(token?.rested).toBe(true);
+  });
+
+  it("051 paga o custo e põe em jogo Unit Lv.4 ou menor do trash; recusa Lv.5+", () => {
+    let state = freshGame();
+    for (let i = 0; i < 4; i++) {
+      placeCard(state, "A", { code: "RES", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    }
+    const divider = placeCard(state, "A", GD03_CARD_DEFS["GD03-051"], "battleArea");
+    const low = placeCard(state, "A", GD03_CARD_DEFS["GD03-058"], "trash"); // Lv2
+    const high = placeCard(state, "A", GD03_CARD_DEFS["GD03-064"], "trash"); // Lv5
+    expect(() => run(state, "GD03-051-WhenLinked", divider, { trashSearch: [high] })).toThrow();
+    state = run(state, "GD03-051-WhenLinked", divider, { trashSearch: [low] });
+    expect(findCard(state, low).zone).toBe("battleArea");
+  });
+
+  it("080 pega Command (Gjallarhorn) do trash; 091 pega Base (ZAFT); filtro recusa o tipo errado", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-080"], "battleArea");
+    const gjCommand = placeCard(state, "A", { code: "X-CMD", nameEn: "Gj Command", cardType: "COMMAND", color: "white", traits: ["Gjallarhorn"] }, "trash");
+    const zaftBase = placeCard(state, "A", { code: "X-BASE", nameEn: "ZAFT Base", cardType: "BASE", color: "red", traits: ["ZAFT"] }, "trash");
+    expect(() => run(state, "GD03-080-WhenLinked", src, { trashSearch: [zaftBase] })).toThrow();
+    state = run(state, "GD03-080-WhenLinked", src, { trashSearch: [gjCommand] });
+    expect(findCard(state, gjCommand).zone).toBe("hand");
+    state = run(state, "GD03-091-WhenLinked", src, { trashSearch: [zaftBase] });
+    expect(findCard(state, zaftBase).zone).toBe("hand");
+  });
+
+  it("096: descartando 1, compra 1; sem descarte não compra", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-096"], "battleArea");
+    const handBefore = state.players.A.hand.length;
+    state = run(state, "GD03-096-Attack", src);
+    expect(state.players.A.hand.length).toBe(handBefore);
+    const discardId = state.players.A.hand[0].instanceId;
+    state = run(state, "GD03-096-Attack", src, { discard: [discardId] });
+    expect(findCard(state, discardId).zone).toBe("trash");
+    expect(state.players.A.hand.length).toBe(handBefore);
+  });
+
+  it("075 AP-2 no turno; 086 AP+1 no turno (resolução, não só o alvo)", () => {
+    let state = freshGame();
+    const superG = placeCard(state, "A", GD03_CARD_DEFS["GD03-075"], "battleArea");
+    const enemy = placeCard(state, "B", GD03_CARD_DEFS["GD03-064"], "battleArea");
+    const apEnemy = effectiveAp(findCard(state, enemy), state);
+    state = run(state, "GD03-075-Attack", superG, { target: [enemy] });
+    expect(effectiveAp(findCard(state, enemy), state)).toBe(apEnemy - 2);
+
+    const unit = placeCard(state, "A", GD03_CARD_DEFS["GD03-014"], "battleArea");
+    const yazan = placeCard(state, "A", GD03_CARD_DEFS["GD03-086"], "battleArea");
+    pairUnit(state, unit, yazan);
+    const apUnit = effectiveAp(findCard(state, unit), state);
+    state = run(state, "GD03-086-Attack", yazan, { target: [unit] });
+    expect(effectiveAp(findCard(state, unit), state)).toBe(apUnit + 1);
+  });
+
+  it("112 【Action】 também: AP+2 nas Units pareadas dos 2 lados", () => {
+    let state = freshGame();
+    const mine = placeCard(state, "A", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    const theirs = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    pairUnit(state, mine, placeCard(state, "A", GD03_CARD_DEFS["GD03-085"], "battleArea"));
+    pairUnit(state, theirs, placeCard(state, "B", GD03_CARD_DEFS["GD03-085"], "battleArea"));
+    const apMine = effectiveAp(findCard(state, mine), state);
+    const apTheirs = effectiveAp(findCard(state, theirs), state);
+    state = run(state, "GD03-112-Action", mine);
+    expect(effectiveAp(findCard(state, mine), state)).toBe(apMine + 2);
+    expect(effectiveAp(findCard(state, theirs), state)).toBe(apTheirs + 2);
   });
 });
