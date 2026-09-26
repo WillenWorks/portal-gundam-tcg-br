@@ -48,12 +48,10 @@ describe("【When Linked】 de Unit", () => {
       targetFilterResolver: defaultTargetFilterResolver,
     });
 
-    // ou já resolveu (First Strike concedido) ou está na fila de decisão — nunca fica de fora
+    // o da Unit (automático) resolve na hora; o do Piloto (olhar o topo, escolha) fica na fila — os DOIS disparam
+    expect(hasKeyword(findCard(next, gqId), "First Strike", next)).toBe(true);
     const pending = next.pendingDecision.A;
-    const queued =
-      (pending?.kind === "abilityResolution" && pending.queue.some((q) => q.specId === "ST06-001-WhenLinked")) ||
-      (pending?.kind === "triggerOrder" && pending.triggers.some((t) => t.specId === "ST06-001-WhenLinked"));
-    expect(queued || hasKeyword(findCard(next, gqId), "First Strike", next)).toBe(true);
+    expect(pending?.kind === "abilityResolution" && pending.queue.map((q) => q.specId)).toEqual(["ST06-009-WhenLinked"]);
   });
 });
 
@@ -180,5 +178,42 @@ describe("E6 — pareamento feito por efeito dispara 【When Paired】/【When L
     const hand = after.players.A.hand.length;
     const next = dispatchPairingTriggersFromEffect(before, after, [spec]);
     expect(next.players.A.hand.length).toBe(hand + 1);
+  });
+});
+
+describe("E7 — Base substituída não é 'destruída' (CR 11-5-2-1)", () => {
+  it("a Base antiga que sai porque entrou outra no lugar não entra em collectDestroyed", async () => {
+    const { collectDestroyed } = await import("./abilityDispatch");
+    const before = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    before.players.A.baseSection.splice(0);
+    const oldId = place(before, "A", { code: "X-OLD", nameEn: "Old", cardType: "BASE", color: "red", hp: 4 }, "baseSection");
+    const after = structuredClone(before);
+    const [old] = after.players.A.baseSection.splice(0, 1);
+    old.zone = "trash";
+    after.players.A.trash.push(old);
+    place(after, "A", { code: "X-NEW", nameEn: "New", cardType: "BASE", color: "red", hp: 4 }, "baseSection");
+    expect(collectDestroyed(before, after).map((d) => d.instanceId)).not.toContain(oldId);
+  });
+});
+
+describe("【When Linked】 não se perde quando o 【When Paired】 do mesmo pareamento pausa", () => {
+  it("When Paired opcional do Piloto pausa → ao resolver, o When Linked da Unit dispara", async () => {
+    const { applyPlayerAction } = await import("./actions");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    const unitDef: CardDef = { ...GQUUUUUUX_OMEGA_PSYCOMMU, code: "X-U" };
+    const pilotDef: CardDef = { ...AMATE_YUZURIHA, code: "X-P" };
+    const unitId = place(state, "A", unitDef, "battleArea");
+    const pilotId = place(state, "A", pilotDef, "hand");
+    for (let i = 0; i < 6; i++) place(state, "A", { code: "R", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    const specs = [
+      { id: "X-P-WhenPaired", cardCode: "X-P", trigger: "When Paired", optional: true, actions: [{ op: "draw" as const, player: "controller" as const, n: 1 }], sourceText: "【When Paired】You may draw 1." },
+      { id: "X-U-WhenLinked", cardCode: "X-U", trigger: "When Linked", actions: [{ op: "draw" as const, player: "controller" as const, n: 2 }], sourceText: "【When Linked】Draw 2." },
+    ];
+    const paused = deployCard(state, "A", pilotId, { pairWithUnitId: unitId, specs });
+    const pending = paused.pendingDecision.A;
+    expect(pending?.kind).toBe("abilityResolution");
+    const hand = paused.players.A.hand.length;
+    const next = applyPlayerAction(paused, "A", { kind: "resolveAbility", resolutions: [{ specId: "X-P-WhenPaired", activate: false, targetIds: [] }] }, specs);
+    expect(next.players.A.hand.length).toBe(hand + 2); // o When Linked da Unit disparou depois
   });
 });
