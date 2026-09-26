@@ -3,6 +3,9 @@ import type { CardDef } from "../../engine/types";
 export const UNITS_PURPLE: Record<string, CardDef> = {
   "GD02-053": {
     code: "GD02-053",
+    structuredSourceText: {
+      staticAbilities: "【During Link】During your turn, while there are 7 or more cards in your trash, all your other (Vulture) Units get AP+2.",
+    },
     nameEn: "Gundam X (GD02-053)",
     cardType: "UNIT",
     color: "purple",
@@ -162,6 +165,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD02-064": {
     code: "GD02-064",
+    structuredSourceText: {
+      innateEffectDamageProtection: "During your turn, while there are 7 or more cards in your trash, this Unit can't receive effect damage from enemy Commands.",
+    },
     nameEn: "Gundam Leopard (GD02-064)",
     cardType: "UNIT",
     color: "purple",
@@ -188,6 +194,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD02-066": {
     code: "GD02-066",
+    structuredSourceText: {
+      attackTargetRules: "This Unit can't choose the enemy player as its attack target.",
+    },
     nameEn: "Gafran",
     cardType: "UNIT",
     color: "purple",

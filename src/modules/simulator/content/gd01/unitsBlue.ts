@@ -3,6 +3,9 @@ import type { CardDef } from "../../engine/types";
 export const UNITS_BLUE: Record<string, CardDef> = {
   "GD01-001": {
     code: "GD01-001",
+    structuredSourceText: {
+      staticAbilities: "All your (White Base Team) Units gain <Repair 1>.",
+    },
     nameEn: "Gundam",
     cardType: "UNIT",
     color: "blue",
@@ -20,6 +23,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD01-002": {
     code: "GD01-002",
+    structuredSourceText: {
+      alternateDeploySacrifice: "When playing this card from your hand, you may destroy 1 of your Link Units with \"Unicorn Mode\" in its card name that is Lv.5. If you do, play this card as if it has 0 Lv. and cost.",
+    },
     nameEn: "Unicorn Gundam (Destroy Mode)",
     cardType: "UNIT",
     color: "blue",
@@ -83,6 +89,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD01-006": {
     code: "GD01-006",
+    structuredSourceText: {
+      staticAbilities: "【During Link】This Unit gets HP+1.",
+    },
     nameEn: "Delta Plus",
     cardType: "UNIT",
     color: "blue",
@@ -216,6 +225,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD01-016": {
     code: "GD01-016",
+    structuredSourceText: {
+      dynamicCost: "While you have 2 or more (Earth Federation) Units in play, this card in your hand gets cost -1.",
+    },
     nameEn: "Jegan",
     cardType: "UNIT",
     color: "blue",
@@ -254,6 +266,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD01-019": {
     code: "GD01-019",
+    structuredSourceText: {
+      staticAbilities: "While 4 or more enemy Units are in play, this Unit gains <Blocker>.",
+    },
     nameEn: "Byarlant Custom",
     cardType: "UNIT",
     color: "blue",

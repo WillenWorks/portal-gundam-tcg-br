@@ -18,6 +18,9 @@ import type { DeckList } from "../engine/setup";
 
 const WING_GUNDAM: CardDef = {
   code: "ST02-001",
+  structuredSourceText: {
+    attackTargetRules: "This Unit may choose an active enemy Unit that is Lv.4 or lower as its attack target.",
+  },
   nameEn: "Wing Gundam",
   cardType: "UNIT",
   color: "green",
@@ -54,6 +57,9 @@ const WING_GUNDAM_BIRD_MODE: CardDef = {
 
 const GUNDAM_HEAVYARMS: CardDef = {
   code: "ST02-003",
+  structuredSourceText: {
+    combatTriggers: "【During Pair】During your turn, when this Unit destroys an enemy Unit with battle damage, deal 1 damage to all enemy Units that are Lv.3 or lower.",
+  },
   nameEn: "Gundam Heavyarms",
   cardType: "UNIT",
   color: "green",
@@ -162,6 +168,9 @@ const TRAGOS: CardDef = {
 
 const HEERO_YUY: CardDef = {
   code: "ST02-010",
+  structuredSourceText: {
+    staticAbilities: "【During Link】This Unit gets AP+1 and HP+1.",
+  },
   nameEn: "Heero Yuy",
   cardType: "PILOT",
   color: "green",
@@ -188,6 +197,9 @@ const HEERO_YUY: CardDef = {
 
 const ZECHS_MERQUISE: CardDef = {
   code: "ST02-011",
+  structuredSourceText: {
+    combatTriggers: "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, draw 1.",
+  },
   nameEn: "Zechs Merquise",
   cardType: "PILOT",
   color: "blue",

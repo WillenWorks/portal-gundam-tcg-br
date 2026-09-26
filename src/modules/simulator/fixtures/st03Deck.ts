@@ -27,6 +27,10 @@ import type { DeckList } from "../engine/setup";
 
 const SINANJU: CardDef = {
   code: "ST03-001",
+  structuredSourceText: {
+    staticAbilities: "【During Pair】This Unit gains <High-Maneuver>.",
+    combatTriggers: "During your turn, when this Unit destroys an enemy shield area card with battle damage, choose 1 enemy Unit. Deal 2 damage to it.",
+  },
   nameEn: "Sinanju",
   cardType: "UNIT",
   color: "red",

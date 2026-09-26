@@ -87,9 +87,34 @@ describe("auditCard", () => {
 
   it("GD01-087: estático coberto por campo estruturado, mas o 【Burst】 sem spec → missing", () => {
     const effect = "【Burst】Add this card to your hand.\nWhile this Unit is blue, it gains <Repair 1>.\n\n(At the end of your turn, this Unit recovers the specified number of HP.)";
-    const audit = auditCard({ code: "X-001", effect, def: def({ cardType: "PILOT", staticAbilities: [{} as never] }), specs: [] });
+    const staticEntry = { sourceText: "While this Unit is blue, it gains <Repair 1>." } as never;
+    const audit = auditCard({ code: "X-001", effect, def: def({ cardType: "PILOT", staticAbilities: [staticEntry] }), specs: [] });
     expect(audit.clauses.map((c) => c.by)).toEqual(["missing", "structured"]);
     expect(audit.status).toBe("missing");
+  });
+
+  it("W0.5 — cláusula contínua sem anotação NÃO conta como coberta só por a carta ter campo estruturado (ST07-005)", () => {
+    const effect = "During your turn, when this Unit destroys an enemy Unit with battle damage, this Unit recovers 2 HP.\n【During Link】This Unit gets AP+2.";
+    const staticEntry = { sourceText: "【During Link】This Unit gets AP+2." } as never;
+    const audit = auditCard({ code: "X-001", effect, def: def({ staticAbilities: [staticEntry] }), specs: [] });
+    expect(audit.clauses.map((c) => c.by)).toEqual(["missing", "structured"]);
+    expect(audit.clauses[0].unannotated).toBe(true);
+    expect(audit.clauses[0].refs).toEqual(["staticAbilities"]);
+    expect(isPlayable(audit)).toBe(false);
+  });
+
+  it("W0.5 — `structuredSourceText` anota campo sem `sourceText` por entrada", () => {
+    const effect = "This Unit can't choose the enemy player as its attack target.";
+    const annotated = auditCard({
+      code: "X-001",
+      effect,
+      def: def({
+        attackTargetRules: { cannotTargetPlayer: true } as never,
+        structuredSourceText: { attackTargetRules: "This Unit can't choose the enemy player as its attack target." },
+      }),
+      specs: [],
+    });
+    expect(annotated.status).toBe("full");
   });
 
   it("cláusula dividida em 2 specs (sem o marcador) conta como coberta", () => {

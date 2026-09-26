@@ -39,6 +39,8 @@ export interface ClauseResolution extends Clause {
   refs: string[];
   /** gatilhos da cláusula sem spec correspondente (só quando `by === "missing"` por isso) */
   missingTriggers?: string[];
+  /** cláusula contínua sem anotação numa carta que tem campo estruturado — `refs` lista os campos candidatos (anote o que a implementa) */
+  unannotated?: true;
 }
 
 export type CardAuditStatus = "vanilla" | "full" | "partial" | "missing";
@@ -260,10 +262,11 @@ export function auditCard(input: CardAuditInput): CardAudit {
     const deferred = deferralFor(clause, deferrals);
     if (deferred) return { ...clause, by: deferred.kind, refs: [deferred.blockedBy] };
 
-    // campo estruturado: anotado com o texto exato, ou (legado, sem anotação) só pra efeito contínuo
+    // campo estruturado: só conta anotado com o texto exato (`sourceText` da entrada ou `structuredSourceText`).
+    // W0.5: sem anotação vira "missing" — antes bastava a carta ter QUALQUER campo estruturado (ST07-005 passava sem o gatilho de cura).
     const annotated = structuredFields.find((f) => structuredSourceTexts(def, f).some((t) => compact(normalizeClause(t)).includes(body)));
     if (annotated) return { ...clause, by: "structured", refs: [annotated] };
-    if (clause.triggers.length === 0 && structuredFields.length) return { ...clause, by: "structured", refs: [...structuredFields] };
+    if (clause.triggers.length === 0 && structuredFields.length) return { ...clause, by: "missing", refs: [...structuredFields], unannotated: true };
 
     // refs = specs com texto parecido mas incompleto (pista pra quem for corrigir o sourceText)
     return {
@@ -340,7 +343,7 @@ function structuredSourceTexts(def: CardDef | undefined, field: (typeof STRUCTUR
     const t = (e as { sourceText?: unknown } | null)?.sourceText;
     if (typeof t === "string") texts.push(t);
   }
-  const extra = (def as { structuredSourceText?: Partial<Record<string, string>> }).structuredSourceText?.[field];
+  const extra = def.structuredSourceText?.[field];
   if (extra) texts.push(extra);
   return texts;
 }

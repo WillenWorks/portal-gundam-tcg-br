@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { matchesCardDefFilter } from "./effectSpec";
+import { selfHealReactionEvents } from "./keywords";
 
 /**
  * Sequência de combate (Comprehensive Rules seção 8, ver docs/18 "Estrutura
@@ -327,6 +328,11 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
           }
           break;
         }
+        case "healSelf": {
+          events.push({ type: "HEAL_UNIT", instanceId: attacker.instanceId, amount: action.amount });
+          events.push(...selfHealReactionEvents(attacker, state));
+          break;
+        }
         case "retrieveFromTrash": {
           // docs/47 Fase 6 — ST05-011 Akihiro Altland.
           const legalCandidates = state.players[attacker.owner].trash
@@ -375,6 +381,8 @@ function allyCombatTriggerEvents(actor: CardInstance, state: GameState, on: Comb
         }
         if (trigger.action.kind === "heal") {
           events.push({ type: "HEAL_UNIT", instanceId: listener.instanceId, amount: trigger.action.amount });
+          // "when this Unit recovers HP" (GD02-085) — cura de gatilho de combate também conta
+          events.push(...selfHealReactionEvents(listener, state));
         } else {
           events.push({ type: "SET_ACTIVE", instanceId: listener.instanceId });
         }

@@ -51,6 +51,9 @@ export const GUNDAM_VIRTUE_COMMON_LV5: CardDef = {
 
 export const GUNDAM_VIRTUE_BLOCKER: CardDef = {
   code: "ST07-004",
+  structuredSourceText: {
+    staticAbilities: "While you have a (CB) Pilot in play, this Unit gains <Blocker>.",
+  },
   nameEn: "Gundam Virtue",
   cardType: "UNIT",
   color: "purple",
@@ -86,10 +89,20 @@ export const GUNDAM_DYNAMES_LR: CardDef = {
   link: { kind: "pilotName", values: ["Lockon Stratos"] },
   staticAbilities: [
     {
+      sourceText: "【During Link】This Unit gets AP+2.",
       stat: "ap",
       amount: 2,
       condition: "duringLink",
       scope: "self",
+    },
+  ],
+  // W0.5 — faltava (a auditoria dava a cláusula como coberta pelo estático do 【During Link】)
+  combatTriggers: [
+    {
+      sourceText: "During your turn, when this Unit destroys an enemy Unit with battle damage, this Unit recovers 2 HP.",
+      condition: "always",
+      on: "destroyEnemyInBattle",
+      action: { kind: "healSelf", amount: 2 },
     },
   ],
 };
@@ -109,6 +122,9 @@ export const GUNDAM_DYNAMES_COMMON: CardDef = {
 
 export const GUNDAM_KYRIOS_BUFF: CardDef = {
   code: "ST07-007",
+  structuredSourceText: {
+    staticAbilities: "During your turn, while you have a (CB) Pilot in play, this Unit gets AP+2.",
+  },
   nameEn: "Gundam Kyrios",
   cardType: "UNIT",
   color: "green",
@@ -189,6 +205,9 @@ export const LOCKON_STRATOS: CardDef = {
 
 export const ALLELUJAH_HAPTISM: CardDef = {
   code: "ST07-012",
+  structuredSourceText: {
+    innateDamageProtection: "During your turn, while you have a (CB) Link Unit in play, this Unit can't receive battle damage from enemy Units with 3 or less AP.",
+  },
   nameEn: "Allelujah Haptism",
   cardType: "PILOT",
   color: "green",

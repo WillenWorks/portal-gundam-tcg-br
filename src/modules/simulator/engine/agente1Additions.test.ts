@@ -3,6 +3,7 @@ import { createGame } from "./setup";
 import { buildVanillaDeckList } from "../fixtures/vanillaDeck";
 import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
 import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
+import { ST07_CARD_DEFS } from "../fixtures/st07Deck";
 import type { CardDef, CardInstance, GameState, PlayerId, Zone } from "./types";
 import { effectiveAp, effectiveHp } from "./types";
 import { declareAttack, passAction, proceedToBlockStep, resolveDamageStep, skipBlock } from "./combat";
@@ -174,5 +175,16 @@ describe("combatTriggers — reação a 'destruiu inimigo em batalha' (docs/18 l
     expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
     expect(findCard(state, bystanderLowId).damage).toBe(1); // Lv.2 <= 3 -> recebe 1
     expect(findCard(state, bystanderHighId).damage).toBe(0); // Lv.5 -> intocada
+  });
+
+  it("ST07-005 Gundam Dynames (W0.5): ao destruir inimigo em batalha no seu turno, recupera 2 HP", () => {
+    let state = stripBase(freshGame(), "B");
+    const dynamesId = place(state, "A", ST07_CARD_DEFS["ST07-005"], "battleArea", { damage: 2 }); // AP2/HP4
+    const defenderId = place(state, "B", ST02_CARD_DEFS.TRAGOS, "battleArea", { rested: true }); // AP1/HP1
+
+    state = runBattle(state, dynamesId, defenderId);
+
+    expect(state.players.B.trash.some((c) => c.instanceId === defenderId)).toBe(true);
+    expect(findCard(state, dynamesId).damage).toBe(1); // 2 + 1 da batalha - 2 curados
   });
 });

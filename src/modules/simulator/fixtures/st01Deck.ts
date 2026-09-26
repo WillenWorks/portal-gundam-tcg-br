@@ -34,6 +34,9 @@ import type { DeckList } from "../engine/setup";
 
 const GUNDAM: CardDef = {
   code: "ST01-001",
+  structuredSourceText: {
+    staticAbilities: "【During Pair】During your turn, all your Units get AP+1.",
+  },
   nameEn: "Gundam",
   cardType: "UNIT",
   color: "blue",
@@ -153,6 +156,9 @@ const DEMI_TRAINER: CardDef = {
 
 const ZOWORT: CardDef = {
   code: "ST01-009",
+  structuredSourceText: {
+    attackTargetRules: "This Unit can't choose the enemy player as its attack target.",
+  },
   nameEn: "Zowort",
   cardType: "UNIT",
   color: "white",
