@@ -684,7 +684,7 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
   let bonus = 0;
   const owner = state.players[target.owner];
   // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
-  for (const source of [...owner.battleArea, ...owner.baseSection]) {
+  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -807,7 +807,7 @@ export function effectiveLevel(def: CardDef, state?: GameState, controller?: Pla
 function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, state: GameState): StaticAbility | undefined {
   const owner = state.players[card.owner];
   // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
-  for (const source of [...owner.battleArea, ...owner.baseSection]) {
+  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
