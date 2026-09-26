@@ -34,6 +34,14 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     return predicate.split(";").every((clause) => defaultPredicateResolver(clause, ctx));
   }
   // GD01-050 LaGOWE — 【Attack】"... it is attacking an enemy Unit, ...".
+  // GD03-069 — "at the end of the turn when this Unit is paired with a Pilot": o Piloto entrou neste turno.
+  // GD03-129 — "you may rest this Base. If you do": só dá pra pagar com a fonte ativa.
+  if (predicate === "selfIsActive") return !findCard(ctx.state, ctx.sourceInstanceId).rested;
+  if (predicate === "selfPairedThisTurn") {
+    const self = findCard(ctx.state, ctx.sourceInstanceId);
+    const pilot = self.pairedPilotId ? findCard(ctx.state, self.pairedPilotId) : undefined;
+    return !!pilot && pilot.enteredZoneOnTurn === ctx.state.turnNumber;
+  }
   if (predicate === "attackingEnemyUnit") {
     const target = ctx.state.combat?.originalTarget;
     return typeof target === "object" && target !== null;
@@ -517,6 +525,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // (relativo à própria fonte, não um número literal — precisa de `ctx.sourceInstanceId`).
   // A ability é autorada no PILOT ("During Link"), mas "this Unit" no texto é a Unit
   // PAREADA (quem ataca de verdade) — se a fonte já é Unit, usa ela mesma.
+  // GD03-002 The-O — "whose Lv. is equal to or lower than that Unit" (a Unit do gatilho reativo, W2a).
+  if (filter === "level<=reactionSubject") {
+    const subjectId = ctx.targets?.reactionSubject?.[0];
+    if (!subjectId) return false;
+    return (candidate.def.level ?? 0) <= (findCard(ctx.state, subjectId).def.level ?? 0);
+  }
+
   if (filter === "level<=self") {
     if (!ctx.sourceInstanceId) return false;
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);

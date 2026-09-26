@@ -874,10 +874,39 @@ export interface EffectCondition {
 export type PredicateResolver = (predicate: string, ctx: EffectContext) => boolean;
 
 /** Um efeito bespoke de uma carta específica, revisável lado a lado com o texto oficial. */
+/**
+ * W2a (C1) — evento que dispara um gatilho reativo ("when this Unit receives effect damage",
+ * "when one of your Units is rested by an enemy effect"…). O spec usa `trigger: "Reaction:<event>"`
+ * e descreve em `reaction` DE QUEM é o evento; o motor (`dispatchReactions`, abilityDispatch.ts)
+ * detecta o evento e despacha pelo mesmo caminho de pausa/escolha dos outros gatilhos.
+ */
+export type ReactionEvent = "effectDamage" | "restedByEffect" | "setActiveByEffect" | "pilotPaired" | "attack" | "endOfTurn";
+
+export interface ReactionSpec {
+  event: ReactionEvent;
+  /**
+   * De quem é o evento: `self` = a própria fonte (num Piloto, a Unit pareada — "this Unit");
+   * `friendly` = qualquer carta do controller da fonte; `friendlyOther` = idem, menos a fonte
+   * (e a Unit pareada, se a fonte é Piloto). A carta do evento vira o alvo implícito
+   * `reactionSubject` (ex. filtro `level<=reactionSubject`).
+   */
+  subject: "self" | "friendly" | "friendlyOther";
+  /** filtro de alvo (mesma sintaxe de `targetFilter`) aplicado à carta do evento — ex. "anyTrait:Tekkadan,Teiwaz" */
+  subjectFilter?: string;
+  /** "by an enemy effect" / "by one of your opponent's effects": quem controla o efeito é o oponente */
+  byEnemyEffect?: boolean;
+  /** "During your turn" / "During your opponent's turn" */
+  turn?: "yours" | "opponents";
+}
+
 export interface EffectSpec {
   /** id legível — "<code>-<trigger>", ex.: "GD01-001-Deploy" */
   id: string;
   cardCode: string;
+  /** W2a — gatilho reativo (ver `ReactionSpec`); exige `trigger: "Reaction:<event>"` */
+  reaction?: ReactionSpec;
+  /** 【Once per Turn】 deste gatilho (não da carta toda, ao contrário de `CardDef.oncePerTurn`) — marca `oncePerTurn:<trigger>` na fonte */
+  oncePerTurn?: boolean;
   /** rótulo do textSectionsJson correspondente — "Deploy" | "Attack" | "Destroyed" | "Burst" | "Activate·Main" | "Activate·Action" | etc. */
   trigger: string;
   cost?: PrimitiveCall[];
@@ -975,7 +1004,8 @@ export interface EffectSpec {
 export type TargetFilterResolver = (
   filter: string,
   candidate: CardInstance,
-  ctx: { state: GameState; sourceInstanceId?: string },
+  /** `targets`: alvos implícitos do gatilho (ex. `reactionSubject`, W2a) — só a fila de decisão passa */
+  ctx: { state: GameState; sourceInstanceId?: string; targets?: Record<string, string[]> },
 ) => boolean;
 
 /**
@@ -998,6 +1028,7 @@ export function computeLegalTargets(
   controller: PlayerId,
   resolveFilter?: TargetFilterResolver,
   sourceInstanceId?: string,
+  implicitTargets?: Record<string, string[]>,
 ): string[] {
   const scope = spec.targetScope ?? "enemyUnit";
   const pool: CardInstance[] =
@@ -1030,7 +1061,9 @@ export function computeLegalTargets(
   if (!resolveFilter) {
     throw new Error(`EffectSpec com targetFilter "${spec.targetFilter}" mas nenhum TargetFilterResolver foi passado`);
   }
-  return pool.filter((c) => resolveFilter(spec.targetFilter!, c, { state, sourceInstanceId })).map((c) => c.instanceId);
+  return pool
+    .filter((c) => resolveFilter(spec.targetFilter!, c, { state, sourceInstanceId, targets: implicitTargets }))
+    .map((c) => c.instanceId);
 }
 
 /**

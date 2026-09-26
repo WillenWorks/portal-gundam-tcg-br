@@ -234,6 +234,14 @@
     }
   },
   "predicates": {
+    "selfIsActive": {
+      "description": "A fonte está ativa (não descansada).",
+      "since": "GD03-129"
+    },
+    "selfPairedThisTurn": {
+      "description": "A fonte (Unit) tem Piloto pareado que entrou em jogo neste turno.",
+      "since": "GD03-069"
+    },
     "attackingEnemyUnit": {
       "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).",
       "since": "GD01-050 LaGOWE"
@@ -467,6 +475,10 @@
     "hp<=conditionalLinkUnit:<n>:<n>": {
       "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.",
       "since": "GD01-122 Covert Operative (Lote 5)"
+    },
+    "level<=reactionSubject": {
+      "description": "Nível do candidato <= nível da carta do gatilho reativo (alvo implícito reactionSubject).",
+      "since": "GD03-002 The-O"
     },
     "unpaired": {
       "description": "Candidato sem Piloto pareado.",

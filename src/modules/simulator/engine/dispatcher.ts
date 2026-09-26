@@ -9,6 +9,7 @@ import {
   dispatchAnyPairingFromEffect,
   dispatchDestroyedFromEffect,
   dispatchPairingTriggersFromEffect,
+  dispatchReactionsFromEffect,
   attachQueuedTriggers,
   pairingTriggerEntries,
 } from "./abilityDispatch";
@@ -73,6 +74,11 @@ export function findTriggerSpecs(specs: EffectSpec[], cardCode: string, trigger:
  * automática pra qualquer trigger, não só keyword de motor (docs/18 já
  * registrava isso como "responsabilidade de quem despacha o efeito").
  */
+/** marca de 【Once per Turn】 de um spec (W2a) — por gatilho, pra os specs de uma mesma cláusula dividida compartilharem */
+export function specOncePerTurnMarker(spec: EffectSpec): string {
+  return `oncePerTurn:${spec.trigger}`;
+}
+
 export function dispatchTrigger(
   state: GameState,
   sourceInstanceId: string,
@@ -86,6 +92,8 @@ export function dispatchTrigger(
   const cascadeDepth = opts.cascadeDepth ?? 0;
   const queueBudget = opts.queueBudget ?? { count: 0 };
   let next = state;
+  /** 【Once per Turn】 dos specs que resolveram — marcados só no fim, pra cláusula dividida em 2 specs rodar inteira */
+  const usedOncePerTurn = new Set<string>();
 
   const guardedEntry = checkTriggerLoopGuard(next, cascadeDepth, queueBudget);
   if (guardedEntry) return guardedEntry;
@@ -97,6 +105,7 @@ export function dispatchTrigger(
 
     const current = findCard(next, sourceInstanceId);
     if (current.def.oncePerTurn && current.usedKeywordsThisTurn.includes(trigger)) continue;
+    if (spec.oncePerTurn && current.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) continue;
     if (!specPairGateOpen(next, current, spec)) continue;
 
     const ctx: EffectContext = {
@@ -124,6 +133,15 @@ export function dispatchTrigger(
       queueBudget,
     });
     if (next.gameOver) break; // guard estourou dentro da cascata de Destroyed
+
+    // W2a (C1) — "when this Unit receives effect damage / is rested by an effect…"
+    next = dispatchReactionsFromEffect(before, next, events, current.owner, allSpecs, {
+      predicateResolver: opts.predicateResolver,
+      targetFilterResolver: opts.targetFilterResolver,
+      cascadeDepth: cascadeDepth + 1,
+      queueBudget,
+    });
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
 
     // Lote 5 (docs/debates 2026-09-13) — GD01-065: qualquer primitiva que pareou
     // (ex. `pairFromTrashSearch`, GD01-023) dispara "AnyPairing" pra Units reativas
@@ -177,6 +195,7 @@ export function dispatchTrigger(
     if (current.def.oncePerTurn) {
       next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword: trigger });
     }
+    if (spec.oncePerTurn) usedOncePerTurn.add(specOncePerTurnMarker(spec));
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
     // loop de specs desta carta — a decisão pendente resolve antes de seguir.
@@ -184,6 +203,9 @@ export function dispatchTrigger(
     if (next.gameOver || next.pendingDecision[current.owner] || next.pendingDecision[otherPlayer(current.owner)]) break;
   }
 
+  for (const keyword of usedOncePerTurn) {
+    next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword });
+  }
   return next;
 }
 

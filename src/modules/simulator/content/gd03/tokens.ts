@@ -53,3 +53,15 @@ export const TOKEN_GFRED: CardDef = {
   traits: ["Zeon"],
   isToken: true,
 };
+
+// T-015 — GD03-060
+export const TOKEN_CGS_MOBILE_WORKER: CardDef = {
+  code: "T-015",
+  nameEn: "CGS Mobile Worker",
+  cardType: "UNIT",
+  color: "purple",
+  ap: 1,
+  hp: 1,
+  traits: ["Tekkadan"],
+  isToken: true,
+};

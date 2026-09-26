@@ -3052,6 +3052,18 @@
     "sourceText": "【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it. When this effect destroys an enemy Unit, draw 1."
   },
   {
+    "id": "GD03-002-AllyAttack",
+    "cardCode": "GD03-002",
+    "trigger": "Reaction:attack",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=reactionSubject",
+    "predicate": null,
+    "sourceText": "【During Pair】When one of your other Units with <Repair> attacks, choose 1 enemy Unit whose Lv. is equal to or lower than that Unit. Rest it."
+  },
+  {
     "id": "GD03-004-Attack",
     "cardCode": "GD03-004",
     "trigger": "Attack",
@@ -3208,6 +3220,18 @@
     "sourceText": "【When Linked】Deal 1 damage to all enemy Units."
   },
   {
+    "id": "GD03-038-RestedByEffect",
+    "cardCode": "GD03-038",
+    "trigger": "Reaction:restedByEffect",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:ZAFT",
+    "predicate": null,
+    "sourceText": "During your turn, when this Unit is rested by an effect, choose 1 of your (ZAFT) Units. It gets AP+2 during this turn."
+  },
+  {
     "id": "GD03-043-WhenPaired",
     "cardCode": "GD03-043",
     "trigger": "When Paired",
@@ -3256,6 +3280,18 @@
     "sourceText": "【When Linked】You may choose 1 Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
   },
   {
+    "id": "GD03-053-AllyEffectDamage",
+    "cardCode": "GD03-053",
+    "trigger": "Reaction:effectDamage",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": null,
+    "sourceText": "【During Pair】【Once per Turn】During your turn, when one of your (Tekkadan)/(Teiwaz) Units receives effect damage, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
+  },
+  {
     "id": "GD03-055-WhenPaired",
     "cardCode": "GD03-055",
     "trigger": "When Paired",
@@ -3281,6 +3317,18 @@
     "sourceText": "【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
   },
   {
+    "id": "GD03-060-EffectDamage",
+    "cardCode": "GD03-060",
+    "trigger": "Reaction:effectDamage",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when this Unit receives effect damage, deploy 1 rested [CGS Mobile Worker]((Tekkadan)·AP1·HP1) Unit token."
+  },
+  {
     "id": "GD03-067-Deploy",
     "cardCode": "GD03-067",
     "trigger": "Deploy",
@@ -3292,6 +3340,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】You may choose 1 of your Units. Deal 1 damage to it. It gets AP+1 during this turn."
+  },
+  {
+    "id": "GD03-069-EndOfTurn",
+    "cardCode": "GD03-069",
+    "trigger": "Reaction:endOfTurn",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfPairedThisTurn",
+    "sourceText": "【During Link】At the end of the turn when this Unit is paired with a Pilot, set it as active."
   },
   {
     "id": "GD03-072-Deploy",
@@ -3535,6 +3595,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-095-EffectDamage",
+    "cardCode": "GD03-095",
+    "trigger": "Reaction:effectDamage",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When this Unit receives effect damage, choose 1 enemy Unit. It gets AP-1 during this turn."
+  },
+  {
     "id": "GD03-096-Attack",
     "cardCode": "GD03-096",
     "trigger": "Attack",
@@ -3582,6 +3654,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-098-SetActiveByEffect",
+    "cardCode": "GD03-098",
+    "trigger": "Reaction:setActiveByEffect",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【During Link】When this rested Unit is set as active by an effect, choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
   },
   {
     "id": "GD03-099-Burst",
@@ -3913,6 +3997,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD03-124-PilotPaired",
+    "cardCode": "GD03-124",
+    "trigger": "Reaction:pilotPaired",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Once per Turn】When you pair a Pilot that is Lv.3 or lower with one of your Units, choose 1 enemy Unit with 3 or less HP. Rest it."
+  },
+  {
     "id": "GD03-125-Burst",
     "cardCode": "GD03-125",
     "trigger": "Burst",
@@ -4019,6 +4115,31 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-128-RestedByEnemyEffect",
+    "cardCode": "GD03-128",
+    "trigger": "Reaction:restedByEffect",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your opponent's turn, when one of your Units is rested by one of your opponent's effects, choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD03-129-AllyEffectDamage",
+    "cardCode": "GD03-129",
+    "trigger": "Reaction:effectDamage",
+    "ops": [
+      "rest",
+      "millToTrash"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfIsActive",
+    "sourceText": "During your turn, when one of your friendly (Tekkadan)/(Teiwaz) Units receives effect damage, you may rest this Base. If you do, place the top card of your deck into your trash."
   },
   {
     "id": "GD03-129-Burst",

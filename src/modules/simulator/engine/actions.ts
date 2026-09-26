@@ -1,4 +1,4 @@
-import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
@@ -15,6 +15,8 @@ import {
   dispatchDestroyedTriggers,
   drainQueuedTriggers,
   filterDispatchableSpecs,
+  reactionListeners,
+  runEndOfTurnReactions,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
@@ -264,7 +266,17 @@ function applyPlayerActionInner(
         specs,
         { predicateResolver, targetFilterResolver },
       );
-      if (next.pendingDecision[actingPlayer]) return next; // pausou pra escolher (segue no resolveAbility)
+      // W2a (C1) — "when one of your (other) Units attacks" (GD03-002): simultâneo ao 【Attack】
+      const attackReactions: QueuedTrigger[] = [
+        {
+          owner: actingPlayer,
+          trigger: "Reaction:attack",
+          sources: reactionListeners(next, { event: "attack", subjectId: action.attackerId, owner: actingPlayer }, specs, targetFilterResolver),
+        },
+      ].filter((q) => q.sources.length > 0);
+      if (next.pendingDecision[actingPlayer]) return attachQueuedTriggers(next, attackReactions); // pausou pra escolher (segue no resolveAbility)
+      next = drainQueuedTriggers(next, attackReactions, specs, { predicateResolver, targetFilterResolver });
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
       // Attack Step -> Block Step não é decisão de ninguém, é avanço automático.
       return proceedToBlockStep(next);
     }
@@ -330,8 +342,15 @@ function applyPlayerActionInner(
     case "passEndPhaseAction": {
       // passEndPhaseAction() já valida internamente que `actingPlayer` tem a
       // prioridade do Action Step da End Phase agora — não precisa checar de novo aqui.
-      const next = passEndPhaseAction(state, actingPlayer);
+      let next = passEndPhaseAction(state, actingPlayer);
       if (next.endPhaseAction) return next; // ainda falta o outro jogador passar
+      // W2a (C1) — "at the end of the turn" (End Step, antes do Repair). Só efeito sem escolha:
+      // uma pausa aqui travaria a troca de turno (nenhuma carta de fim de turno pede escolha hoje).
+      next = runEndOfTurnReactions(next, specs, predicateResolver, targetFilterResolver);
+      if (next.gameOver) return next;
+      // uma reação em cascata pediu escolha (ex. GD03-069 ativa a Unit → GD03-098 reage): o End Step
+      // espera a decisão; `resolveAbility` retoma o fim de turno (ver `pausedInEndStep`)
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
       return finishEndPhaseAndAdvance(next);
     }
 
@@ -649,7 +668,7 @@ function applyPlayerActionInner(
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
-      if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {
+      if ((decision.trigger === "Attack" || decision.trigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
       }
       // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44), 【Deploy】 encadeado por
@@ -662,6 +681,10 @@ function applyPlayerActionInner(
       // CombatTrigger→BattleEnd, mesma ordem de sempre).
       if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
         return finishDamageStep(next, actingPlayer);
+      }
+      // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
+      if (pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+        return finishEndPhaseAndAdvance(next);
       }
       return next;
     }
@@ -869,4 +892,9 @@ function finishDamageStep(next: GameState, actingPlayer: PlayerId): GameState {
   }
   if (next.combat?.step !== "damage") return next;
   return resolveBattleEndStep(next);
+}
+
+/** End Step pausado por decisão (W2a): Action Step do fim de turno já fechado, fora de combate, ainda na End Phase. */
+function pausedInEndStep(state: GameState): boolean {
+  return state.phase === "end" && state.endPhaseAction === null && !state.combat;
 }
