@@ -809,14 +809,23 @@ export function collectEffectReactions(before: GameState, events: GameEvent[], e
     seen.add(key);
     out.push({ event, subjectId: card.instanceId, owner: card.owner, effectController });
   };
+  // estado de descanso acompanhado evento a evento (um efeito que descansa e depois ativa a
+  // mesma Unit gera as 2 transições)
+  const restedNow = new Map<string, boolean>();
   for (const e of events) {
     if (e.type !== "DAMAGE_UNIT" && e.type !== "REST_CARD" && e.type !== "SET_ACTIVE") continue;
     const card = before.players.A.battleArea.find((c) => c.instanceId === e.instanceId) ??
       before.players.B.battleArea.find((c) => c.instanceId === e.instanceId);
     if (!card || card.def.cardType !== "UNIT") continue;
+    const wasRested = restedNow.get(card.instanceId) ?? card.rested;
     if (e.type === "DAMAGE_UNIT") push("effectDamage", card);
-    else if (e.type === "REST_CARD" && !card.rested) push("restedByEffect", card);
-    else if (e.type === "SET_ACTIVE" && card.rested) push("setActiveByEffect", card);
+    else if (e.type === "REST_CARD") {
+      if (!wasRested) push("restedByEffect", card);
+      restedNow.set(card.instanceId, true);
+    } else {
+      if (wasRested) push("setActiveByEffect", card);
+      restedNow.set(card.instanceId, false);
+    }
   }
   return out;
 }

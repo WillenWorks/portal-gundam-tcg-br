@@ -119,6 +119,12 @@ export function dispatchTrigger(
     const before = next;
     const events = resolveEffectSpec(spec, ctx, opts.predicateResolver);
     next = applyEvents(next, events);
+    // 【Once per Turn】: o uso é a ativação em si — marca ANTES das cascatas (Destroyed, reações,
+    // pareamento), que podem pausar pra decisão e sair do loop sem voltar aqui.
+    if (current.def.oncePerTurn) {
+      next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword: trigger });
+    }
+    if (spec.oncePerTurn) usedOncePerTurn.add(specOncePerTurnMarker(spec));
 
     // docs/45 — 【Destroyed】 FORA do Damage Step: Units que este efeito acabou
     // de matar por dano/destroy direto (Close Combat 【Main】, Rewloola 【Deploy】,
@@ -191,11 +197,6 @@ export function dispatchTrigger(
         });
       }
     }
-
-    if (current.def.oncePerTurn) {
-      next = applyEvent(next, { type: "MARK_KEYWORD_USED", instanceId: sourceInstanceId, keyword: trigger });
-    }
-    if (spec.oncePerTurn) usedOncePerTurn.add(specOncePerTurnMarker(spec));
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
     // loop de specs desta carta — a decisão pendente resolve antes de seguir.

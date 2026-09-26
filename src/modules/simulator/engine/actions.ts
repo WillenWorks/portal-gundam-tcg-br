@@ -683,7 +683,7 @@ function applyPlayerActionInner(
         return finishDamageStep(next, actingPlayer);
       }
       // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
-      if (pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+      if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
         return finishEndPhaseAndAdvance(next);
       }
       return next;

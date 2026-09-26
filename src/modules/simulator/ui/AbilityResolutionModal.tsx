@@ -121,6 +121,12 @@ const TRIGGER_LABEL: Record<string, string> = {
   Deploy: "Carta implantada — 【Deploy】",
   Main: "Comando — 【Main】",
   Action: "Comando — 【Action】",
+  "Reaction:effectDamage": "Reação — Unit recebeu dano de efeito",
+  "Reaction:restedByEffect": "Reação — Unit descansada por efeito",
+  "Reaction:setActiveByEffect": "Reação — Unit ativada por efeito",
+  "Reaction:pilotPaired": "Reação — Piloto pareado",
+  "Reaction:attack": "Reação — ataque declarado",
+  "Reaction:endOfTurn": "Reação — fim do turno",
 };
 
 export function AbilityResolutionModal({

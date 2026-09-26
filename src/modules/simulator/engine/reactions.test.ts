@@ -38,9 +38,15 @@ function pair(state: GameState, unitId: string, pilotId: string): void {
 }
 
 /** um efeito qualquer da carta `sourceId` (controller = dono dela), passando pelo `dispatchTrigger` real */
-function fire(state: GameState, sourceId: string, actions: PrimitiveCall[], targets: Record<string, string[]> = {}): GameState {
+function fire(
+  state: GameState,
+  sourceId: string,
+  actions: PrimitiveCall[],
+  targets: Record<string, string[]> = {},
+  oncePerTurn = false,
+): GameState {
   const src = findCard(state, sourceId);
-  const spec = { id: "TEST-fire", cardCode: src.def.code, trigger: "TestFire", actions, sourceText: "" };
+  const spec = { id: "TEST-fire", cardCode: src.def.code, trigger: "TestFire", actions, sourceText: "", oncePerTurn };
   return dispatchTrigger(state, sourceId, "TestFire", [spec], {
     targets,
     allSpecs: ALL_EFFECT_SPECS,
@@ -207,5 +213,28 @@ describe("W2a — gatilhos reativos", () => {
     state = resolve(state, "A", "GD03-129-AllyEffectDamage");
     expect(findCard(state, base).rested).toBe(true);
     expect(state.players.A.trash.length).toBe(trash + 1);
+  });
+
+  it("【Once per Turn】 do efeito de ORIGEM fica marcado mesmo quando a reação que ele causa pausa pra escolha", () => {
+    let state = game();
+    const unit = placeCard(state, "A", G["GD03-058"], "battleArea");
+    pair(state, unit, placeCard(state, "A", G["GD03-095"], "battleArea"));
+    const enemySrc = placeCard(state, "B", G["GD03-034"], "battleArea");
+    placeCard(state, "B", G["GD03-001"], "battleArea");
+    state.activePlayer = "B";
+    state = fire(state, enemySrc, [damage(1)], { target: [unit] }, true);
+    expect(state.pendingDecision.A?.kind).toBe("abilityResolution");
+    expect(findCard(state, enemySrc).usedKeywordsThisTurn).toContain("oncePerTurn:TestFire");
+  });
+
+  it("um efeito que descansa e depois ativa a mesma Unit gera \"ativada por efeito\" (098 reage)", () => {
+    let state = game();
+    const flag = placeCard(state, "A", G["GD03-069"], "battleArea");
+    pair(state, flag, placeCard(state, "A", G["GD03-098"], "battleArea"));
+    placeCard(state, "B", G["GD03-058"], "battleArea");
+    const src = placeCard(state, "A", G["GD03-067"], "battleArea");
+    state = fire(state, src, [rest, setActive], { target: [flag] });
+    const decision = state.pendingDecision.A;
+    expect(decision?.kind === "abilityResolution" && decision.trigger).toBe("Reaction:setActiveByEffect");
   });
 });
