@@ -46,6 +46,17 @@ describe("splitClauses", () => {
     expect(clauses[0].body).toContain("■Draw 1.");
   });
 
+  it("linha ■ gruda no cabeçalho mesmo com linha em branco entre eles (GD05-102)", () => {
+    const effect =
+      "【Action】When playing this card, choose 1 of the following effects and activate it:\n\n" +
+      "■Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n\n" +
+      "■Choose 1 Unit. It recovers 3 HP.";
+    const clauses = splitClauses(effect);
+    expect(clauses).toHaveLength(1);
+    expect(clauses[0].triggers).toEqual(["Action"]);
+    expect(clauses[0].body).toContain("■Choose 1 Unit. It recovers 3 HP.");
+  });
+
   it("normalizeClause unifica separadores e espaços", () => {
     expect(normalizeClause("【Activate・Main】  Rest  it.")).toBe(normalizeClause("【Activate･Main】 Rest it."));
     expect(normalizeClause("won' t")).toBe("won't");
