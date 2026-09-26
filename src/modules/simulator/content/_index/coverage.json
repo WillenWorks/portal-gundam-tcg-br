@@ -1629,6 +1629,803 @@
         "deferida": 0,
         "faltando": 0
       }
+    },
+    "GD02": {
+      "cards": [
+        {
+          "code": "GD02-001",
+          "name": "Psycho Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-002",
+          "name": "Gundam Epyon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-003",
+          "name": "Gundam Mk-II (Titans)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-004",
+          "name": "Byarlant",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-005",
+          "name": "Tallgeese",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-006",
+          "name": "Forbidden Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-007",
+          "name": "Psycho Gundam (MA Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-008",
+          "name": "Gabthley",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-009",
+          "name": "Calamity Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-010",
+          "name": "Raider Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-011",
+          "name": "Moebius (Peacemaker Team)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-012",
+          "name": "Core Booster",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-013",
+          "name": "Hizack",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-014",
+          "name": "Galbaldy Beta",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-015",
+          "name": "Marasai",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-016",
+          "name": "Barzam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-017",
+          "name": "Delta Plus (Waverider Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-018",
+          "name": "Taurus",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-019",
+          "name": "Raider Gundam (MA Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-020",
+          "name": "Elmeth",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-021",
+          "name": "Gundam AGE-1 Normal",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-022",
+          "name": "G-Exes",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-023",
+          "name": "Gundam AGE-1 Spallow",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-024",
+          "name": "Red Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-025",
+          "name": "Gundam Heavyarms",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-026",
+          "name": "Genoace Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-027",
+          "name": "Gundam AGE-1 Titus",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-028",
+          "name": "Abdul's Maganac",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-029",
+          "name": "Gundam AGE-1 Normal",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-030",
+          "name": "Genoace",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-031",
+          "name": "Gundam AGE-1 Titus",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-032",
+          "name": "White Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-033",
+          "name": "Kikeroga (MA Mode) (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-034",
+          "name": "GQuuuuuuX",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-035",
+          "name": "Police Zaku (Armored RRU Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-036",
+          "name": "Qubeley",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-037",
+          "name": "Gundam Virsago",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-038",
+          "name": "GQuuuuuuX (Omega Psycommu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-039",
+          "name": "Haman Karn's Gaza C",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-040",
+          "name": "Gundam Ashtaron",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-041",
+          "name": "Sugai's Gelgoog (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-042",
+          "name": "Gundam Ashtaron (MA Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-043",
+          "name": "Daughtress Weapon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-044",
+          "name": "Daughtress Command",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-045",
+          "name": "GINN Long-Range Reconnaissance Type",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-046",
+          "name": "Sayla's Light-Type Guncannon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-047",
+          "name": "Gaza C",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-048",
+          "name": "Zaku Ⅲ (Sleeves)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-049",
+          "name": "Daughtress",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-050",
+          "name": "Ga-Zowmn (Sleeves)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-051",
+          "name": "01 Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-052",
+          "name": "Guncannon (GQ)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-053",
+          "name": "Gundam X",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-054",
+          "name": "Gundam Barbatos 1st Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-055",
+          "name": "Gundam Gusion Rebake",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-056",
+          "name": "Gundam X",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-057",
+          "name": "Zedas",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-058",
+          "name": "Ryusei-Go (Graze Custom Ⅱ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-059",
+          "name": "Gundam Airmaster",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-060",
+          "name": "Gundam Leopard",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-061",
+          "name": "Hyakuri",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-062",
+          "name": "Amida's Hyakuren",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-063",
+          "name": "Gundam Airmaster (Fighter Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-064",
+          "name": "Gundam Leopard",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-065",
+          "name": "Jenice Custom",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-066",
+          "name": "Gafran",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-067",
+          "name": "Baqto",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-068",
+          "name": "Gundam Barbatos 3rd Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-069",
+          "name": "Zeta Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-070",
+          "name": "Gundam Kimaris",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-071",
+          "name": "Gundam Mk-II (AEUG)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-072",
+          "name": "Hyaku-Shiki",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-073",
+          "name": "Carta's Graze Ritter (Ground Type)",
+          "status": "deferida",
+          "deferredClauses": [
+            "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>."
+          ]
+        },
+        {
+          "code": "GD02-074",
+          "name": "Gundam Aerial Rebuild",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-075",
+          "name": "Rick Dias (Red)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-076",
+          "name": "Buster Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-077",
+          "name": "Ein's Schwalbe Graze",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-078",
+          "name": "Gundam Pharact",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-079",
+          "name": "Rick Dias",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-080",
+          "name": "Nemo",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-081",
+          "name": "Methuss",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-082",
+          "name": "Gaelio's Schwalbe Graze",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-083",
+          "name": "Graze Ritter (Ground Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-084",
+          "name": "Lauda's Dilanza",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-085",
+          "name": "Four Murasame",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-086",
+          "name": "Jerid Messa",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-087",
+          "name": "Orga, Crot, and Shani",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-088",
+          "name": "Flit Asuno",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-089",
+          "name": "Lalah Sune",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-090",
+          "name": "Challia Bull (GQ)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-091",
+          "name": "Haman Karn",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-092",
+          "name": "Shagia Frost",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-093",
+          "name": "Olba Frost",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-094",
+          "name": "Garrod Ran & Tiffa Adill",
+          "status": "implementada*",
+          "deferredClauses": [
+            "You may discard 1. If you do,"
+          ]
+        },
+        {
+          "code": "GD02-095",
+          "name": "Lafter Frankland",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-096",
+          "name": "Desil Galette",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-097",
+          "name": "Kamille Bidan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-098",
+          "name": "Quattro Bajeena",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-099",
+          "name": "Gaelio Bauduin",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-100",
+          "name": "Dramatic Turnabout",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-101",
+          "name": "Beneath the Mask",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-102",
+          "name": "Mouar’s Determination",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-103",
+          "name": "AGE Device",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-104",
+          "name": "Turning Point of History",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-105",
+          "name": "Valedictorian",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-106",
+          "name": "White Wolf",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-107",
+          "name": "All-Range Attack",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-108",
+          "name": "That One Looks A Lot Stronger?",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-109",
+          "name": "Undying Persistence",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-110",
+          "name": "Awakened Power",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-111",
+          "name": "Decisive Last Resort",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-112",
+          "name": "Momentary Respite",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-113",
+          "name": "Sisterly Care",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-114",
+          "name": "It's Name is Ryusei-Go",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-115",
+          "name": "Familial Devotion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-116",
+          "name": "Comrades Come First",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-117",
+          "name": "A New Sign",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-118",
+          "name": "Heart Set on Revenge",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-119",
+          "name": "Persistent and Fortudinous",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-120",
+          "name": "Aspiring Pilot",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-121",
+          "name": "Dominion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-122",
+          "name": "Alexandria",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-123",
+          "name": "Sodon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-124",
+          "name": "Diva",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-125",
+          "name": "Gwadan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-126",
+          "name": "Shuji's Hideout",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-127",
+          "name": "Freeden",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-128",
+          "name": "Hammerhead",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD02-129",
+          "name": "Argama",
+          "status": "implementada*",
+          "deferredClauses": [
+            "This Base can't receive enemy effect damage."
+          ]
+        },
+        {
+          "code": "GD02-130",
+          "name": "Sleipnir",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 101,
+        "implStar": 2,
+        "vanilla": 26,
+        "deferida": 1,
+        "faltando": 0
+      }
     }
   }
 }

@@ -6,7 +6,7 @@ import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 import type { EffectSpec } from "../src/modules/simulator/engine/effectSpec.ts";
 import { ALL_EFFECT_SPECS, DEFERRED_CLAUSES } from "../src/modules/simulator/content/index.ts";
 import type { DeferredClause } from "../src/modules/simulator/content/deferred.ts";
-import { legacyCoverageStatus } from "../src/modules/simulator/content/coverage/clauseAudit.ts";
+import { auditCard, isPlayable, legacyCoverageStatus } from "../src/modules/simulator/content/coverage/clauseAudit.ts";
 import { buildDeckListFromUserDeck, UserDeckSimulatorError, type UserDeckInput } from "../src/modules/simulator/content/userDeckBuilder.ts";
 
 /**
@@ -76,13 +76,18 @@ const KNOWN_CODES = new Set(OFFICIAL_CARDS.map((c) => c.code));
 export function isCardPlayable(def: CardDef): boolean {
   if (def.cardType === "RESOURCE") return true;
   if (!KNOWN_CODES.has(def.code)) return false;
-  const status = legacyCoverageStatus({
+  const input = {
+    code: def.code,
     effect: EFFECT_TEXT_BY_CODE.get(def.code) ?? "",
     def,
     specs: SPECS_BY_CODE.get(def.code) ?? [],
     deferrals: DEFERRALS_BY_CODE.get(def.code) ?? [],
-  });
-  return status !== "deferida" && status !== "faltando";
+  };
+  // W0.4 — os 2 critérios juntos: o por carta (deferida bloqueia) E o cláusula a cláusula
+  // (`--strict` do script): uma cláusula sem efeito (ex. 【Burst】 de piloto sem spec) bloqueia.
+  const status = legacyCoverageStatus(input);
+  // sem cache por código: o `def` vem do payload do cliente, e o veredito depende dele
+  return status !== "deferida" && status !== "faltando" && isPlayable(auditCard(input));
 }
 
 export interface DeckPayloadValidation {

@@ -43,6 +43,7 @@ const { buildSt06DeckList } = await import(sim("fixtures/st06Deck.ts"));
 const { buildSt07DeckList } = await import(sim("fixtures/st07Deck.ts"));
 const { buildSt08DeckList } = await import(sim("fixtures/st08Deck.ts"));
 const { buildGd01DeckList } = await import(sim("fixtures/gd01Deck.ts"));
+const { META_DECKS_GD02_ERA } = await import(sim("fixtures/metaDecksGd02Era.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
@@ -81,6 +82,8 @@ const DECKS = {
   ST07: buildSt07DeckList,
   ST08: buildSt08DeckList,
   GD01: buildGd01DeckList,
+  // W0.4 — decks meta da era GD02 (GD02 + ST06), chave curta = id sem o prefixo "META-".
+  ...Object.fromEntries(Object.values(META_DECKS_GD02_ERA).map((d) => [d.id.replace(/^META-/, ""), d.build])),
 };
 
 function parseArgs(argv) {
