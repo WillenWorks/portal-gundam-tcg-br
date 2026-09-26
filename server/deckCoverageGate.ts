@@ -86,7 +86,7 @@ export function isCardPlayable(def: CardDef): boolean {
   // W0.4 — os 2 critérios juntos: o por carta (deferida bloqueia) E o cláusula a cláusula
   // (`--strict` do script): uma cláusula sem efeito (ex. 【Burst】 de piloto sem spec) bloqueia.
   const status = legacyCoverageStatus(input);
-  // sem cache por código: o `def` vem do payload do cliente, e o veredito depende dele
+  // sem cache por código: o veredito depende do `def` recebido, não só do código
   return status !== "deferida" && status !== "faltando" && isPlayable(auditCard(input));
 }
 

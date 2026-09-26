@@ -187,4 +187,42 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
     blockedBy: "engine:damage-modification-layer (C2)",
   },
+  // W0.3 (revisão da PR #31) — GD03: keyword/efeito que estava fixo no CardDef e era condicional
+  // no texto oficial (removido); ainda sem vocabulário. GD03 fica fora do gate até a W2.
+  {
+    cardCode: "GD03-015",
+    clause: "【Activate･Main】【Once per Turn】Exile 3 (Titans) cards from your trash: This Unit gains <Breach 4> during this turn.",
+    reason: "custo de exilar do trash ainda não existe — a Unit não ganha <Breach 4> (antes tinha fixo)",
+    blockedBy: "engine:exile-from-trash-cost (C3)",
+  },
+  {
+    cardCode: "GD03-037",
+    clause: "【During Link】During your turn, while this Unit is battling an enemy Unit with a 【Destroyed】 effect, it gains <First Strike>.",
+    reason: "condição \"Unit inimiga em batalha tem 【Destroyed】\" ainda não existe — a Unit não ganha <First Strike> (antes tinha fixo)",
+    blockedBy: "engine:static-battling-enemy-trigger-condition (W2)",
+  },
+  {
+    cardCode: "GD03-061",
+    clause: "While this Unit has 1 HP, it gains <Repair 3>.",
+    reason: "condição de HP restante da própria Unit ainda não existe — sem <Repair 3> (antes tinha fixo)",
+    blockedBy: "engine:static-self-remaining-hp-condition (W1)",
+  },
+  {
+    cardCode: "GD03-068",
+    clause: "While a friendly Base is in play, this Unit gains <Blocker>.",
+    reason: "condição \"Base aliada em jogo\" ainda não existe — sem <Blocker> (antes tinha fixo)",
+    blockedBy: "engine:static-friendly-base-condition (W1)",
+  },
+  {
+    cardCode: "GD03-084",
+    clause: "【When Linked】Choose 1 of your other Units. It gains <Repair 2> during this turn. Then, if it is a (Jupitris) Unit, draw 1.",
+    reason: "condição sobre o trait do alvo escolhido ainda não existe — o 【When Linked】 não faz nada",
+    blockedBy: "engine:chosen-target-trait-condition (W1)",
+  },
+  {
+    cardCode: "GD03-088",
+    clause: "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>.",
+    reason: "estático de Piloto condicionado ao trait da Unit pareada ainda não existe — sem AP+1/<Breach 1>",
+    blockedBy: "engine:pilot-static-paired-unit-trait (W1)",
+  },
 ] as const;

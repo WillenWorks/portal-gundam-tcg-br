@@ -114,6 +114,7 @@ describe("auditCard", () => {
   it("keyword declarada no texto mas ausente do CardDef → keywordMismatch", () => {
     const audit = auditCard({ code: "X-001", effect: "<Blocker>", def: def({ effectKeywords: [] }), specs: [] });
     expect(audit.errors.some((e) => e.startsWith("keywordMismatch"))).toBe(true);
+    expect(isPlayable(audit)).toBe(false); // runtime barra o mesmo que o --strict do CI
     const ok = auditCard({ code: "X-001", effect: "<Blocker>", def: def({ effectKeywords: ["Blocker"] }), specs: [] });
     expect(ok.status).toBe("vanilla");
   });

@@ -8000,8 +8000,8 @@
       "counts": {
         "vanilla": 16,
         "full": 19,
-        "partial": 0,
-        "missing": 97,
+        "partial": 6,
+        "missing": 91,
         "withErrors": 0
       },
       "cards": [
@@ -8267,7 +8267,7 @@
         },
         {
           "code": "GD03-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -8275,10 +8275,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "deferred",
+              "refs": [
+                "engine:exile-from-trash-cost (C3)"
               ],
               "text": "【Activate·Main】【Once per Turn】Exile 3 (Titans) cards from your trash: This Unit gains <Breach 4> during this turn."
             }
@@ -8669,14 +8668,16 @@
         },
         {
           "code": "GD03-037",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-battling-enemy-trigger-condition (W2)"
+              ],
               "text": "【During Link】During your turn, while this Unit is battling an enemy Unit with a 【Destroyed】 effect, it gains <First Strike>."
             }
           ]
@@ -9097,14 +9098,16 @@
         },
         {
           "code": "GD03-061",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-self-remaining-hp-condition (W1)"
+              ],
               "text": "While this Unit has 1 HP, it gains <Repair 3>."
             }
           ]
@@ -9186,14 +9189,16 @@
         },
         {
           "code": "GD03-068",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-friendly-base-condition (W1)"
+              ],
               "text": "While a friendly Base is in play, this Unit gains <Blocker>."
             }
           ]
@@ -9474,7 +9479,7 @@
         },
         {
           "code": "GD03-084",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -9493,10 +9498,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "deferred",
+              "refs": [
+                "engine:chosen-target-trait-condition (W1)"
               ],
               "text": "【When Linked】Choose 1 of your other Units. It gains <Repair 2> during this turn. Then, if it is a (Jupitris) Unit, draw 1."
             }
@@ -9588,7 +9592,7 @@
         },
         {
           "code": "GD03-088",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -9605,8 +9609,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:pilot-static-paired-unit-trait (W1)"
+              ],
               "text": "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>."
             }
           ]

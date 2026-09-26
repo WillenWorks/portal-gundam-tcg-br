@@ -320,9 +320,9 @@ export function legacyCoverageStatus(input: Omit<CardAuditInput, "code">): Legac
   return deferrals.length ? "deferida" : "faltando";
 }
 
-/** jogável no motor: nada faltando e o CardDef existe (deferido/aproximado entra, como o `implementada*` antigo) */
+/** jogável no motor: nada faltando e nenhum erro da auditoria — o mesmo que o `--strict` do CI barra (deferido/aproximado entra, como o `implementada*` antigo) */
 export function isPlayable(audit: CardAudit): boolean {
-  return audit.status !== "missing" && !audit.errors.includes("unknownCode");
+  return audit.status !== "missing" && audit.errors.length === 0;
 }
 
 function hasValue(v: unknown): boolean {
