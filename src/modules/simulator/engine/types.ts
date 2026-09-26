@@ -306,7 +306,15 @@ export type StaticBoardCondition =
   /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
   | { kind: "trashCountAtLeast"; n: number }
   /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
-  | { kind: "baseColorInPlay"; color: string };
+  | { kind: "baseColorInPlay"; color: string }
+  /** GD02-023/031/124 — "while you are Lv.7 or higher" (nível do jogador = Resources em campo, igual ao predicate `controllerLevelAtLeast`). */
+  | { kind: "controllerLevelAtLeast"; n: number }
+  /** GD02-034 — 【During Pair･Red Pilot】: cor do Piloto pareado com a fonte. */
+  | { kind: "pairedPilotColorIs"; color: string }
+  /** GD02-033 — "while another friendly (Zeon) Link Unit is in play". */
+  | { kind: "friendlyOtherLinkUnitTraitCountAtLeast"; trait: string; n: number }
+  /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
+  | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -321,7 +329,9 @@ export type StaticTargetCondition =
   | { kind: "traitIs"; trait: string }
   | { kind: "hasKeyword"; keyword: string }
   /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
-  | { kind: "isDamaged" };
+  | { kind: "isDamaged" }
+  /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
+  | { kind: "allOf"; conditions: StaticTargetCondition[] };
 
 export interface StaticAbility {
   condition: StaticEffectCondition;
@@ -643,11 +653,29 @@ export function isBoardConditionMet(
   if (cond.kind === "baseColorInPlay") {
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
-  // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
-  // Fonte Pilot: "this Unit" é a Unit pareada, que também não conta como "outra" (E12).
   const ownerState = state.players[owner];
   const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
+  if (cond.kind === "controllerLevelAtLeast") return ownerState.resourceArea.length >= cond.n;
+  if (cond.kind === "pairedPilotColorIs") {
+    const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
+    return !!pilot && effectivePilotDef(pilot).color === cond.color;
+  }
+  // "outra" Unit amiga = exclui a própria fonte; fonte Pilot: a Unit pareada também não conta (E12).
   const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));
+  const otherUnits = ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT");
+  if (cond.kind === "friendlyOtherLinkUnitTraitCountAtLeast") {
+    return (
+      otherUnits.filter((c) => {
+        if (!(c.def.traits ?? []).includes(cond.trait) || !c.pairedPilotId) return false;
+        const pilot = ownerState.battleArea.find((p) => p.instanceId === c.pairedPilotId);
+        return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), c.def);
+      }).length >= cond.n
+    );
+  }
+  if (cond.kind === "friendlyOtherUnitWithKeywordCountAtLeast") {
+    return otherUnits.filter((c) => hasKeyword(c, cond.keyword, state)).length >= cond.n;
+  }
+  // friendlyOtherUnitTraitCountAtLeast
   return (
     ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait))
       .length >= cond.n
@@ -660,6 +688,7 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
   if (cond.kind === "isDamaged") return target.damage > 0;
+  if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
   return hasKeyword(target, cond.keyword, state);
 }
 

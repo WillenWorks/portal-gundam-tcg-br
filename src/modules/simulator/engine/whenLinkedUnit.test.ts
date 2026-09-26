@@ -182,3 +182,47 @@ describe("E6 — pareamento feito por efeito dispara 【When Paired】/【When L
     expect(next.players.A.hand.length).toBe(hand + 1);
   });
 });
+
+describe("condições de tabuleiro novas (GD02 lote 2)", () => {
+  async function setup() {
+    const { isBoardConditionMet } = await import("./types");
+    const state = advanceToMainPhase(createGame(buildSt06DeckList(), buildSt06DeckList(), { seed: 3, firstPlayer: "A" }));
+    return { isBoardConditionMet, state };
+  }
+
+  it("controllerLevelAtLeast = quantidade de Resources", async () => {
+    const { isBoardConditionMet, state } = await setup();
+    const lv = state.players.A.resourceArea.length;
+    expect(isBoardConditionMet(state, "A", { kind: "controllerLevelAtLeast", n: lv })).toBe(true);
+    expect(isBoardConditionMet(state, "A", { kind: "controllerLevelAtLeast", n: lv + 1 })).toBe(false);
+  });
+
+  it("pairedPilotColorIs olha a cor do Piloto pareado com a fonte", async () => {
+    const { isBoardConditionMet, state } = await setup();
+    const unitId = place(state, "A", GQUUUUUUX_OMEGA_PSYCOMMU, "battleArea");
+    expect(isBoardConditionMet(state, "A", { kind: "pairedPilotColorIs", color: "red" }, unitId)).toBe(false);
+    const pilotId = place(state, "A", AMATE_YUZURIHA, "battleArea", { pairedUnitId: unitId }); // vermelho
+    findCard(state, unitId).pairedPilotId = pilotId;
+    expect(isBoardConditionMet(state, "A", { kind: "pairedPilotColorIs", color: "red" }, unitId)).toBe(true);
+  });
+
+  it("friendlyOtherLinkUnitTraitCountAtLeast só conta OUTRA Link Unit com o trait", async () => {
+    const { isBoardConditionMet, state } = await setup();
+    const cond = { kind: "friendlyOtherLinkUnitTraitCountAtLeast" as const, trait: "Clan", n: 1 };
+    const sourceId = place(state, "A", GAIAS_RICK_DOM, "battleArea");
+    const gqId = place(state, "A", GQUUUUUUX_OMEGA_PSYCOMMU, "battleArea");
+    expect(isBoardConditionMet(state, "A", cond, sourceId)).toBe(false); // GQ não está linkada
+    const pilotId = place(state, "A", AMATE_YUZURIHA, "battleArea", { pairedUnitId: gqId });
+    findCard(state, gqId).pairedPilotId = pilotId;
+    expect(isBoardConditionMet(state, "A", cond, sourceId)).toBe(true);
+  });
+
+  it("friendlyOtherUnitWithKeywordCountAtLeast conta outra Unit com a keyword", async () => {
+    const { isBoardConditionMet, state } = await setup();
+    const cond = { kind: "friendlyOtherUnitWithKeywordCountAtLeast" as const, keyword: "Blocker", n: 1 };
+    const sourceId = place(state, "A", GAIAS_RICK_DOM, "battleArea");
+    expect(isBoardConditionMet(state, "A", cond, sourceId)).toBe(false);
+    place(state, "A", { ...GAIAS_RICK_DOM, code: "X-BLK", effectKeywords: ["Blocker"], keywordTags: ["Blocker"] }, "battleArea");
+    expect(isBoardConditionMet(state, "A", cond, sourceId)).toBe(true);
+  });
+});

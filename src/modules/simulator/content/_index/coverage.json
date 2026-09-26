@@ -619,13 +619,15 @@
         {
           "code": "ST06-015",
           "name": "Kaneban Co., Ltd.",
-          "status": "implementada",
-          "deferredClauses": []
+          "status": "implementada*",
+          "deferredClauses": [
+            "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
+          ]
         }
       ],
       "counts": {
-        "impl": 11,
-        "implStar": 0,
+        "impl": 10,
+        "implStar": 1,
         "vanilla": 4,
         "deferida": 0,
         "faltando": 0
@@ -720,13 +722,15 @@
         {
           "code": "ST07-015",
           "name": "Ptolemaios",
-          "status": "implementada",
-          "deferredClauses": []
+          "status": "implementada*",
+          "deferredClauses": [
+            "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens."
+          ]
         }
       ],
       "counts": {
-        "impl": 11,
-        "implStar": 0,
+        "impl": 10,
+        "implStar": 1,
         "vanilla": 4,
         "deferida": 0,
         "faltando": 0
@@ -797,8 +801,10 @@
         {
           "code": "ST08-011",
           "name": "Lane Aim",
-          "status": "implementada",
-          "deferredClauses": []
+          "status": "implementada*",
+          "deferredClauses": [
+            "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
+          ]
         },
         {
           "code": "ST08-012",
@@ -826,8 +832,8 @@
         }
       ],
       "counts": {
-        "impl": 12,
-        "implStar": 0,
+        "impl": 11,
+        "implStar": 1,
         "vanilla": 3,
         "deferida": 0,
         "faltando": 0
