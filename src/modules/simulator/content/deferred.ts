@@ -169,4 +169,22 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
     blockedBy: "engine:reactive-trigger-bus (C1)",
   },
+  {
+    cardCode: "GD02-073",
+    clause: "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>.",
+    reason: "efeito contínuo que concede keyword à Unit INIMIGA em batalha ainda não existe — o spec antigo dava First Strike à própria Unit (removido)",
+    blockedBy: "engine:attack-rule-extensions (C4)",
+  },
+  {
+    cardCode: "GD02-094",
+    clause: "You may discard 1. If you do,",
+    reason: "uma entrada da fila não carrega descarte + revelar do topo juntos (E4) — o olhar/revelar acontece sem o custo de descarte",
+    blockedBy: "engine:multi-choice-queue-entry (E4/W2)",
+  },
+  {
+    cardCode: "GD02-129",
+    clause: "This Base can't receive enemy effect damage.",
+    reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
+    blockedBy: "engine:damage-modification-layer (C2)",
+  },
 ] as const;

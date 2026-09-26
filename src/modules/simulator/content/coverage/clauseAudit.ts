@@ -76,6 +76,7 @@ export const STRUCTURED_FIELDS = [
   "onSelfHeal",
   "alternateDeploySacrifice",
   "onAnyPairing",
+  "nameAliases",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([

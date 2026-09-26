@@ -13,6 +13,8 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     traits: ["Zeon"],
     link: {"kind":"pilotName","values":["Lalah Sune"]},
     triggerKeywords: ["Deploy","During Link"],
+    // 【During Link】 This Unit gets AP+2. (era spec com gatilho "DuringLink", que o motor não dispara)
+    staticAbilities: [{ condition: "duringLink", scope: "self", stat: "ap", amount: 2, sourceText: "【During Link】 This Unit gets AP+2." }],
   },
   "GD02-021": {
     code: "GD02-021",
@@ -56,6 +58,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     traits: ["Earth Federation","AGE System"],
     link: {"kind":"pilotName","values":["Flit Asuno"]},
     triggerKeywords: ["During Link"],
+    staticAbilities: [
+      { condition: "duringLink", scope: "self", keyword: "First Strike", boardCondition: { kind: "controllerLevelAtLeast", n: 7 }, sourceText: "【During Link】While you are Lv.7 or higher, this Unit gains <First Strike>." },
+    ],
   },
   "GD02-024": {
     code: "GD02-024",
@@ -109,6 +114,8 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     hp: 5,
     traits: ["Earth Federation","AGE System"],
     link: {"kind":"pilotName","values":["Flit Asuno"]},
+    effectKeywords: ["Breach"],
+    keywordTags: ["Breach 3"],
   },
   "GD02-028": {
     code: "GD02-028",
@@ -156,6 +163,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     hp: 4,
     traits: ["Earth Federation","AGE System"],
     link: {"kind":"pilotName","values":["Flit Asuno"]},
+    staticAbilities: [
+      { condition: "always", scope: "self", stat: "ap", amount: 2, boardCondition: { kind: "controllerLevelAtLeast", n: 7 }, sourceText: "While you are Lv.7 or higher, this Unit gets AP+2." },
+    ],
   },
   "GD02-032": {
     code: "GD02-032",
@@ -180,6 +190,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     hp: 4,
     traits: ["Zeon"],
     link: {"kind":"pilotName","values":["Challia Bull"]},
+    staticAbilities: [
+      { condition: "always", scope: "self", keyword: "Breach", keywordValue: 5, boardCondition: { kind: "friendlyOtherLinkUnitTraitCountAtLeast", trait: "Zeon", n: 1 }, sourceText: "While another friendly (Zeon) Link Unit is in play, this Unit gains <Breach 5>." },
+    ],
   },
   "GD02-034": {
     code: "GD02-034",
@@ -192,6 +205,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     hp: 3,
     traits: ["Zeon"],
     triggerKeywords: ["During Pair"],
+    staticAbilities: [
+      { condition: "duringPair", scope: "self", stat: "ap", amount: 2, boardCondition: { kind: "pairedPilotColorIs", color: "red" }, sourceText: "【During Pair･Red Pilot】This Unit gets AP+2." },
+    ],
   },
   "GD02-035": {
     code: "GD02-035",

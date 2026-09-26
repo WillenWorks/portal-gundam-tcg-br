@@ -178,6 +178,21 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   // cards in your trash, ...". Traits em lista separada por vírgula (OR entre
   // eles, não AND — "(Zeon)/(Neo Zeon)" no texto oficial é uma cor com 2 nomes
   // de trait possíveis, nunca as 2 ao mesmo tempo na mesma carta).
+  // GD02-061 Hyakuri — "3 or more (Teiwaz)/(Tekkadan) CARDS in your trash" (qualquer tipo, OR entre traits).
+  const controllerTrashCardCountWithAnyTraitAtLeast = predicate.match(/^controllerTrashCardCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerTrashCardCountWithAnyTraitAtLeast) {
+    const traits = controllerTrashCardCountWithAnyTraitAtLeast[1].split(",");
+    return (
+      ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).some((t) => traits.includes(t))).length >=
+      Number(controllerTrashCardCountWithAnyTraitAtLeast[2])
+    );
+  }
+  // GD02-003 Gundam Mk-II (Titans) — 【During Pair･Lv.3 or Lower Pilot】: nível do Piloto que ESTAVA pareado.
+  const formerPairedPilotLevelAtMost = predicate.match(/^formerPairedPilotLevelAtMost:(\d+)$/);
+  if (formerPairedPilotLevelAtMost) {
+    const pilotId = ctx.targets.formerPairedPilot?.[0];
+    return !!pilotId && (findCard(ctx.state, pilotId).def.level ?? 0) <= Number(formerPairedPilotLevelAtMost[1]);
+  }
   const controllerTrashUnitCountWithAnyTraitAtLeast = predicate.match(/^controllerTrashUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
   if (controllerTrashUnitCountWithAnyTraitAtLeast) {
     const traits = controllerTrashUnitCountWithAnyTraitAtLeast[1].split(",");
@@ -463,6 +478,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // ST05-001 Gundam Barbatos 4th Form — 【Deploy】"Choose 1 of your OTHER Units."
   // Exclui a própria fonte do pool de `friendlyUnit` (que por padrão a inclui).
   if (filter === "notSelf") return ctx.sourceInstanceId ? candidate.instanceId !== ctx.sourceInstanceId : true;
+  // GD02-089 Lalah Sune (Pilot) — "Choose 1 of your OTHER (Zeon) Link Units": exclui a Unit da fonte
+  // (a pareada, quando a fonte é Pilot) — `notSelf` compararia com o próprio Pilot.
+  if (filter === "notSelfUnit") {
+    if (!ctx.sourceInstanceId) return true;
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    return !selfUnit || candidate.instanceId !== selfUnit.instanceId;
+  }
 
   // GD01-066 Justice Gundam — "Choose 1 of your (Triple Ship Alliance) Unit TOKENS."
   // Sempre em composição com `trait:X` via ";" (o texto nunca restringe só por token).

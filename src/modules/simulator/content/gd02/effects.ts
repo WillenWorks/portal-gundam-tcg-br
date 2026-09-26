@@ -458,10 +458,7 @@ export const GD02_004_BYARLANT_WHEN_PAIRED: EffectSpec = {
   id: "GD02-004-WhenPaired",
   cardCode: "GD02-004",
   trigger: "When Paired",
-  actions: [
-    { op: "rest", target: { kind: "named", name: "target" } },
-    { op: "preventActivationNextTurn", target: { kind: "named", name: "target" } },
-  ],
+  actions: [{ op: "preventActivationNextTurn", target: { kind: "named", name: "target" } }],
   targetScope: "enemyUnit",
   targetFilter: "rested;hp<=3",
   sourceText: "【When Paired】Choose 1 rested enemy Unit with 3 or less HP. It won't be set as active during the start phase of your opponent's next turn.",
@@ -474,7 +471,7 @@ export const GD02_061_HYAKURI_WHEN_PAIRED: EffectSpec = {
   cardCode: "GD02-061",
   trigger: "When Paired",
   condition: {
-    predicate: "pairedPilotColorIs:purple;controllerTrashUnitCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
+    predicate: "pairedPilotColorIs:purple;controllerTrashCardCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
     then: [{ op: "rest", target: { kind: "named", name: "target" } }],
   },
   actions: [],
@@ -499,7 +496,7 @@ export const GD02_089_LALAH_SUNE_WHEN_PAIRED: EffectSpec = {
   trigger: "When Paired",
   actions: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "Breach 1", duration: "endOfTurn" }],
   targetScope: "friendlyUnit",
-  targetFilter: "trait:Zeon;linkUnit",
+  targetFilter: "trait:Zeon;linkUnit;notSelfUnit",
   sourceText: "【When Paired】Choose 1 of your other (Zeon) Link Units. It gains <Breach 1> during this turn.",
 };
 
@@ -959,8 +956,8 @@ export const GD02_047_GAZA_C_ACTIVATE_MAIN: EffectSpec = {
   id: "GD02-047-ActivateMain",
   cardCode: "GD02-047",
   trigger: "Activate·Main",
+  cost: [{ op: "rest", target: { kind: "self" } }],
   actions: [
-    { op: "rest", target: { kind: "self" } },
     { op: "destroy", target: { kind: "self" } },
     { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
   ],
@@ -1046,6 +1043,7 @@ export const GD02_021_GUNDAM_AGE_1_NORMAL_DEPLOY: EffectSpec = {
   id: "GD02-021-Deploy",
   cardCode: "GD02-021",
   trigger: "Deploy",
+  optional: true,
   condition: {
     predicate: "chosenNonEmpty:discard",
     then: [{ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea" }],
@@ -1088,11 +1086,17 @@ export const GD02_003_GUNDAM_MK_II_TITANS_DESTROYED: EffectSpec = {
   cardCode: "GD02-003",
   trigger: "Destroyed",
   duringPair: true,
+  // "You may" (W0.3): recusável; e sem Pilot Lv.3- pareado a habilidade nem existe (o descarte ficava obrigatório)
+  optional: true,
   condition: {
+    predicate: "formerPairedPilotLevelAtMost:3",
+    then: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT" } }],
+  },
+  condition2: {
     predicate: "formerPairedPilotLevelAtMostAndChosenNonEmpty:3:discard",
     then: [{ op: "moveZone", target: { kind: "named", name: "formerPairedPilot" }, toZone: "hand" }],
   },
-  actions: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT" } }],
+  actions: [],
   sourceText: "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may discard 1 Unit card. If you do, return the card paired with this Unit to your hand.",
 };
 
@@ -1130,7 +1134,7 @@ export const GD02_098_QUATTRO_BAJEENA_WHEN_LINKED: EffectSpec = {
   },
   actions: [],
   sourceText:
-    "This card's name is also treated as [Char Aznable].\n\n【Burst】Add this card to your hand.\n【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.",
+    "【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.",
 };
 
 // GD02-111 Decisive Last Resort — 【Burst】Choose 1 enemy Unit that is Lv.3 or lower. Deal 2
@@ -1184,7 +1188,7 @@ export const GD02_096_DESIL_GALETTE_WHEN_LINKED: EffectSpec = {
   trigger: "When Linked",
   actions: [{ op: "deployFromTrashPayingCost", player: "controller", filter: { cardType: "UNIT", anyTrait: ["Vagan"], maxLevel: 2 } }],
   sourceText:
-    "【Burst】Add this card to your hand.\n【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
+    "【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
 };
 
 // GD02-110 Awakened Power — 【Main】Choose 1 Unit card that is Lv.5 or lower from your trash.

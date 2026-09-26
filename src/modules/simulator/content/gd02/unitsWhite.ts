@@ -13,6 +13,8 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     traits: ["AEUG"],
     link: {"kind":"pilotName","values":["Kamille Bidan"]},
     triggerKeywords: ["During Link","Activate: Main"],
+    // 【Once per Turn】 — sem isto dava pra repetir a cada Base descansada
+    oncePerTurn: true,
   },
   "GD02-070": {
     code: "GD02-070",
@@ -189,6 +191,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     hp: 3,
     traits: ["Gjallarhorn"],
     link: {"kind":"pilotName","values":["Gaelio Bauduin"]},
+    staticAbilities: [
+      { condition: "always", scope: "self", keyword: "Blocker", boardCondition: { kind: "friendlyOtherUnitTraitCountAtLeast", trait: "Gjallarhorn", n: 1 }, sourceText: "While you have another (Gjallarhorn) Unit in play, this Unit gains <Blocker>." },
+    ],
   },
   "GD02-083": {
     code: "GD02-083",

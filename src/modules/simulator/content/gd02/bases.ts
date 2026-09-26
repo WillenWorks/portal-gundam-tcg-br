@@ -52,6 +52,18 @@ export const BASES: Record<string, CardDef> = {
     traits: ["Earth Federation","Warship"],
     triggerKeywords: ["Burst","Deploy"],
     hasBurst: true,
+    staticAbilities: [
+      {
+        condition: "always",
+        scope: "allFriendlyUnits",
+        stat: "ap",
+        amount: 1,
+        duringYourTurnOnly: true,
+        boardCondition: { kind: "controllerLevelAtLeast", n: 7 },
+        targetCondition: { kind: "allOf", conditions: [{ kind: "colorIs", color: "green" }, { kind: "traitIs", trait: "Earth Federation" }] },
+        sourceText: "During your turn, while you are Lv.7 or higher, all friendly green (Earth Federation) Units get AP+1.",
+      },
+    ],
   },
   "GD02-125": {
     code: "GD02-125",

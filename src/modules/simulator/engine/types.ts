@@ -345,6 +345,8 @@ export type StaticTargetCondition =
   | { kind: "allOf"; conditions: StaticTargetCondition[] };
 
 export interface StaticAbility {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: StaticEffectCondition;
   scope: StaticEffectScope;
   /** Concede bônus de STAT. Mutuamente exclusivo com `keyword` (uma StaticAbility concede um OU outro; carta com os 2 usa 2 entradas). */
@@ -371,6 +373,8 @@ export interface StaticAbility {
 export type CombatTriggerCondition = StaticEffectCondition | "always";
 
 export interface CombatTrigger {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: CombatTriggerCondition;
   /**
    * `destroyEnemyInBattle` — "esta Unit destruiu uma Unit inimiga em batalha"
@@ -406,6 +410,8 @@ export interface CombatTrigger {
 
 /** Ver `CardDef.allyCombatTriggers` — mesmo `on`/`condition`/`oncePerTurn` de `CombatTrigger`, mas o alvo da `action` é sempre o LISTENER (dono deste campo), nunca escolha de jogador — por isso o vocabulário de `action` é menor (sem os 2 kinds que pausam pra escolha). */
 export interface AllyCombatTrigger {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: CombatTriggerCondition;
   on: CombatTrigger["on"];
   /** GD02-001 Psycho Gundam — "one of your (Titans) Units destroys ...". Sem isto, qualquer Unit amiga conta. */
