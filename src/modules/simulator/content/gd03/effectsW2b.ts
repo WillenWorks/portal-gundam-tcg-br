@@ -6,6 +6,10 @@ import { TOKEN_AD_BALLOON } from "./tokens";
  * (`Reaction:battleDamageToEnemyUnit` / `destroyedEnemyInBattle` / `destroyedShieldInBattle`,
  * com a Unit inimiga como alvo implícito `battleVictim`). Os campos contínuos (provocação,
  * proteção, restrição) vivem nos CardDefs.
+ *
+ * Convenção: reação de combate NOVA usa `EffectSpec.reaction` (escolha/"you may"/pausa de graça).
+ * `CardDef.combatTriggers`/`allyCombatTriggers` são o caminho antigo (ST02–GD03-029) — não autorar a
+ * mesma habilidade nos dois, dispararia 2 vezes.
  */
 
 const target = { kind: "named", name: "target" } as const;

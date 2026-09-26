@@ -4,6 +4,7 @@ import type { CardDef, GameState, PlayerId } from "./types";
 import { advanceToMainPhase, runStartPhase } from "./phases";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { dispatchTrigger } from "./dispatcher";
+import { attackTargetError } from "./combat";
 import { findCard } from "./events";
 import { placeCard } from "./__testkit__/cardHarness";
 import { buildSt07DeckList } from "../fixtures/st07Deck";
@@ -252,5 +253,41 @@ describe("W2b — reações de combate", () => {
     state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD03-049-DestroyedShield", activate: true, targetIds: [low] }] });
     expect(findCard(state, low).zone).toBe("trash");
     expect(state.combat).toBeNull();
+  });
+
+  it("CR 10-1-6-4 no combate: a 052 destruída na troca de dano ainda destrói a inimiga (com outro Piloto (CB) em jogo)", () => {
+    let state = game();
+    const virtue = placeCard(state, "A", G["GD03-052"], "battleArea"); // AP3 HP3
+    pair(state, virtue, placeCard(state, "A", PILOT(["CB"]), "battleArea"));
+    const buddy = placeCard(state, "A", G["GD03-058"], "battleArea");
+    pair(state, buddy, placeCard(state, "A", PILOT(["CB"]), "battleArea"));
+    const enemy = placeCard(state, "B", G["GD03-001"], "battleArea", { rested: true }); // Lv5 AP4 HP4 — mata a Virtue
+    state = attack(state, virtue, { unitId: enemy });
+    expect(findCard(state, virtue).zone).toBe("trash");
+    expect(findCard(state, enemy).zone).toBe("trash");
+    expect(state.combat).toBeNull();
+  });
+});
+
+describe("W2b — attackTargetError (regra única do motor e da UI)", () => {
+  it("provocação barra mirar o jogador e outra Unit; 105 libera só inimiga ativa sem Piloto", () => {
+    let state = game();
+    const attacker = placeCard(state, "A", G["GD03-018"], "battleArea");
+    const lone = placeCard(state, "B", G["GD03-058"], "battleArea");
+    const piloted = placeCard(state, "B", G["GD03-001"], "battleArea");
+    pair(state, piloted, placeCard(state, "B", PILOT(["Earth Federation"]), "battleArea"));
+    const unit = findCard(state, attacker);
+    expect(attackTargetError(state, unit, "player")).toBeNull();
+    expect(attackTargetError(state, unit, { unitId: lone })).not.toBeNull();
+    const cmd = placeCard(state, "A", G["GD03-105"], "hand");
+    state = runSpec(state, "GD03-105-Main", cmd, { target: [attacker] });
+    expect(attackTargetError(state, findCard(state, attacker), { unitId: lone })).toBeNull();
+    expect(attackTargetError(state, findCard(state, attacker), { unitId: piloted })).not.toBeNull();
+
+    const age2 = placeCard(state, "B", G["GD03-019"], "battleArea", { rested: true });
+    pair(state, age2, placeCard(state, "B", PILOT(["Earth Federation"]), "battleArea"));
+    expect(attackTargetError(state, findCard(state, attacker), "player")).toMatch(/obriga/);
+    expect(attackTargetError(state, findCard(state, attacker), { unitId: lone })).toMatch(/obriga/);
+    expect(attackTargetError(state, findCard(state, attacker), { unitId: age2 })).toBeNull();
   });
 });

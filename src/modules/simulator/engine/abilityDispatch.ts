@@ -841,6 +841,9 @@ function reactionMatches(
 ): boolean {
   const reaction = spec.reaction;
   if (!reaction || reaction.event !== occ.event) return false;
+  // carta que saiu de jogo no próprio evento (CR 10-1-6-4) não tem como provar que estava pareada
+  // (`specPairGateOpen` abre pra quem está fora da Battle Area): 【During Pair/Link】 não reage
+  if ((spec.duringPair || spec.duringLink) && listener.zone !== "battleArea") return false;
   if (spec.oncePerTurn && listener.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) return false;
   if (listener.def.oncePerTurn && listener.usedKeywordsThisTurn.includes(spec.trigger)) return false;
   // "this Unit" num Piloto é a Unit pareada

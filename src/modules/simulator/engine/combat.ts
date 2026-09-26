@@ -76,29 +76,30 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
   return null;
 }
 
-export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
-  const attacker = findCard(state, attackerId);
-  const ineligible = attackIneligibilityReason(state, attacker);
-  if (ineligible) throw new Error(ineligible);
-
+/**
+ * Motivo pelo qual `attacker` NÃO pode mirar `target` agora, ou `null` se pode — as regras de
+ * ALVO do ataque (não pode mirar o jogador, provocação, Unit ativa só com relaxamento). Única fonte
+ * de verdade: `declareAttack` lança com esta mensagem e a UI usa pra iluminar só alvos legais.
+ */
+export function attackTargetError(state: GameState, attacker: CardInstance, target: AttackTarget): string | null {
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
     // ex.: ST01-009 Zowort — "This Unit can't choose the enemy player as its attack target." (docs/18, lacuna #6)
     // GD02-069 Zeta Gundam — mesma restrição, mas TEMPORÁRIA ("during this turn") — concedida via
     // grantKeyword sintético "CannotTargetPlayer" em vez de attackTargetRules (fixo na CardDef).
     if (attacker.def.attackTargetRules?.cannotTargetPlayer || hasKeyword(attacker, "CannotTargetPlayer", state)) {
-      throw new Error(`${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`);
+      return `${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`;
     }
   }
   // W2b (C4) — provocação: com alguma Unit inimiga "provocando", o ataque tem que mirar uma delas
   const forced = forcedAttackTargets(state, defendingPlayer);
   if (forced.length > 0 && (typeof target !== "object" || !forced.includes(target.unitId))) {
-    throw new Error("Uma Unit inimiga obriga este ataque a mirar nela (\"choose this rested Unit as their attack target if possible\")");
+    return "Uma Unit inimiga obriga este ataque a mirar nela (\"choose this rested Unit as their attack target if possible\")";
   }
   if (typeof target === "object") {
     const targetUnit = findCard(state, target.unitId);
     if (targetUnit.owner !== defendingPlayer || targetUnit.zone !== "battleArea") {
-      throw new Error("Alvo precisa ser uma Unit inimiga na Battle Area");
+      return "Alvo precisa ser uma Unit inimiga na Battle Area";
     }
     if (targetUnit.rested) {
       // sempre legal
@@ -126,10 +127,21 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
       const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired;
       if (!allowed) {
-        throw new Error("Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)");
+        return "Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)";
       }
     }
   }
+  return null;
+}
+
+export function declareAttack(state: GameState, attackerId: string, target: AttackTarget): GameState {
+  const attacker = findCard(state, attackerId);
+  const ineligible = attackIneligibilityReason(state, attacker);
+  if (ineligible) throw new Error(ineligible);
+
+  const defendingPlayer = otherPlayer(state.activePlayer);
+  const targetError = attackTargetError(state, attacker, target);
+  if (targetError) throw new Error(targetError);
 
   const events: GameEvent[] = [
     { type: "REST_CARD", instanceId: attackerId },
