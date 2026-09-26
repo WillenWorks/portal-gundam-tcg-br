@@ -34,15 +34,10 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// GD02/GD03 ficam FORA do gate por enquanto: `--gate --sets=GD02,GD03` (2026-09-18)
-// mostrou 69 e 76 cartas "faltando" respectivamente (real, não é falso positivo —
-// ver docs/_generated/coverage.md) — a cobertura desses 2 sets está muito atrás
-// do que a wave GD03 do CHANGELOG [2.1.0] sugere (só a vocabulário/governança de
-// primitivas foi fechada, não a autoria de EffectSpec carta a carta). Sem risco
-// de produção: `server/deckCoverageGate.ts` já bloqueia esses decks em runtime.
-// Adicionar de volta ao GATED_SETS só depois de fechar esse backlog (rastrear
-// em AI_GUIDE.md §8, Terminal 1).
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01"];
+// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada). GD03 fica FORA até
+// a W2 fechar o set — sem risco de produção: `server/deckCoverageGate.ts` bloqueia em
+// runtime as cartas com cláusula sem efeito.
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };

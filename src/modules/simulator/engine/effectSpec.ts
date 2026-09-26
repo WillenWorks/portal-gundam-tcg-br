@@ -399,9 +399,15 @@ export interface CardDefFilter {
   minLevel?: number;
   /** GD02-112 Momentary Respite — "1 purple Pilot card from your trash". Cor IMPRESSA da carta, não trait. */
   color?: CardDef["color"];
+  /** GD02-088 — "1 card with \"AGE Device\" in its card name" (nome impresso em inglês contém o trecho). */
+  nameContains?: string;
+  /** GD02-088 — "1 green (EF) Unit card/1 card with \"AGE Device\"…": casa se QUALQUER um dos filtros casar (além dos campos acima). */
+  anyOf?: CardDefFilter[];
 }
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
+  if (filter.nameContains && !def.nameEn.includes(filter.nameContains)) return false;
+  if (filter.anyOf && filter.anyOf.length > 0 && !filter.anyOf.some((f) => matchesCardDefFilter(def, f))) return false;
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
   if (filter.color && def.color !== filter.color) return false;

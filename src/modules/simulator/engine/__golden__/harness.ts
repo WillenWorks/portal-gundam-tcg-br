@@ -23,8 +23,15 @@ import { buildSt03DeckList } from "../../fixtures/st03Deck";
 import { buildSt04DeckList } from "../../fixtures/st04Deck";
 import { buildSt05DeckList } from "../../fixtures/st05Deck";
 import { buildGd01DeckList } from "../../fixtures/gd01Deck";
+import { buildSt06DeckList } from "../../fixtures/st06Deck";
+import { buildSt07DeckList } from "../../fixtures/st07Deck";
+import { buildSt08DeckList } from "../../fixtures/st08Deck";
+import { META_DECKS_GD02_ERA } from "../../fixtures/metaDecksGd02Era";
 
-export type DeckKey = "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01";
+export type DeckKey =
+  | "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01"
+  | "ST06" | "ST07" | "ST08"
+  | "GD02-AEUG-EA" | "GD02-TEKKADAN-VAGAN" | "GD02-QUBELEY" | "GD02-AGE-WING" | "GD02-TITANS" | "ST06-GQUUUUUUX";
 
 const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
@@ -33,6 +40,15 @@ const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST04: buildSt04DeckList,
   ST05: buildSt05DeckList,
   GD01: buildGd01DeckList,
+  ST06: buildSt06DeckList,
+  ST07: buildSt07DeckList,
+  ST08: buildSt08DeckList,
+  "GD02-AEUG-EA": META_DECKS_GD02_ERA["META-GD02-AEUG-EA"].build,
+  "GD02-TEKKADAN-VAGAN": META_DECKS_GD02_ERA["META-GD02-TEKKADAN-VAGAN"].build,
+  "GD02-QUBELEY": META_DECKS_GD02_ERA["META-GD02-QUBELEY"].build,
+  "GD02-AGE-WING": META_DECKS_GD02_ERA["META-GD02-AGE-WING"].build,
+  "GD02-TITANS": META_DECKS_GD02_ERA["META-GD02-TITANS"].build,
+  "ST06-GQUUUUUUX": META_DECKS_GD02_ERA["META-ST06-GQUUUUUUX"].build,
 };
 
 /** limite de turnos da partida golden — fixado aqui pra não depender do default de `runSelfPlay`. */
@@ -105,7 +121,28 @@ const ST05_PAIRS: GoldenPair[] = (() => {
   return pairs;
 })();
 
-export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS, ...ST05_PAIRS];
+/**
+ * W0.4 — ST06–08 e os decks meta da era GD02 (GD02 + ST06), seeds 22..27 (continuação,
+ * nunca reaproveitados — mesma regra dos blocos acima).
+ */
+const GD02_ERA_PAIRS: GoldenPair[] = (() => {
+  const matchups: Array<[DeckKey, DeckKey]> = [
+    ["ST06", "ST07"],
+    ["ST07", "ST08"],
+    ["ST08", "ST06"],
+    ["GD02-AEUG-EA", "GD02-TEKKADAN-VAGAN"],
+    ["GD02-QUBELEY", "GD02-TITANS"],
+    ["GD02-AGE-WING", "ST06-GQUUUUUUX"],
+  ];
+  let seed = ST01_04_PAIRS.length + GD01_PAIRS.length + ST05_PAIRS.length + 1;
+  return matchups.map(([a, b]) => {
+    const pair = { key: `${a}_vs_${b}_seed${seed}`, a, b, seed };
+    seed++;
+    return pair;
+  });
+})();
+
+export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS, ...ST05_PAIRS, ...GD02_ERA_PAIRS];
 
 /**
  * Campos do `GameState` que NÃO fazem parte da lógica de regras e precisam

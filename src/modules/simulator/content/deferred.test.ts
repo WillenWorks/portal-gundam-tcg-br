@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ST01_CARD_DEFS } from "../fixtures/st01Deck";
-import { ST02_CARD_DEFS } from "../fixtures/st02Deck";
-import { ST03_CARD_DEFS } from "../fixtures/st03Deck";
-import { ST04_CARD_DEFS } from "../fixtures/st04Deck";
-import { ST05_CARD_DEFS } from "../fixtures/st05Deck";
-import { GD01_CARD_DEFS } from "./gd01";
-import { GD02_CARD_DEFS } from "./gd02";
 import { DEFERRED_CLAUSES } from "./deferred";
+import { ALL_CARD_DEFS } from "./allCardDefs";
 
 /**
  * docs/44 §6.2 / docs/48 — invariantes estruturais de `DEFERRED_CLAUSES`.
@@ -18,11 +12,8 @@ import { DEFERRED_CLAUSES } from "./deferred";
  * (sem tipos de node), ficam só as invariantes que dependem do código.
  */
 
-const KNOWN_CARD_CODES = new Set<string>(
-  [ST01_CARD_DEFS, ST02_CARD_DEFS, ST03_CARD_DEFS, ST04_CARD_DEFS, ST05_CARD_DEFS, GD01_CARD_DEFS, GD02_CARD_DEFS].flatMap(
-    (defs) => Object.values(defs).map((def) => def.code),
-  ),
-);
+// todo CardDef conhecido pelo motor (ST01–ST08, GD01–GD03, …) — deferimento só pode citar carta que existe
+const KNOWN_CARD_CODES = new Set<string>(Object.values(ALL_CARD_DEFS).map((def) => def.code));
 
 describe("DEFERRED_CLAUSES", () => {
   it("é uma lista tipada (docs/47: fechou as 6 cartas de ST01-05/GD01 conhecidas até aqui — pode ficar vazia até uma wave nova achar uma cláusula nova)", () => {

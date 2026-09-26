@@ -208,7 +208,7 @@ export interface CardDef {
    * `effectSpec.ts` (só quando o token é o EX Resource). Sem escolha real — auto-mira a 1ª
    * Unit amiga legal com `requiresTargetTrait`.
    */
-  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string };
+  onExResourcePlaced?: { oncePerTurn?: boolean; grantKeyword: string; requiresTargetTrait?: string; sourceText?: string };
   /**
    * GD02-085 Four Murasame — "【During Link】【Once per Turn】During your turn, when this Unit
    * recovers HP, if you have 4 or less cards in your hand, draw 1." Checado nos 3 pontos que
@@ -317,7 +317,15 @@ export type StaticBoardCondition =
   /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
   | { kind: "trashCountAtLeast"; n: number }
   /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
-  | { kind: "baseColorInPlay"; color: string };
+  | { kind: "baseColorInPlay"; color: string }
+  /** GD02-023/031/124 — "while you are Lv.7 or higher" (nível do jogador = Resources em campo, igual ao predicate `controllerLevelAtLeast`). */
+  | { kind: "controllerLevelAtLeast"; n: number }
+  /** GD02-034 — 【During Pair･Red Pilot】: cor do Piloto pareado com a fonte. */
+  | { kind: "pairedPilotColorIs"; color: string }
+  /** GD02-033 — "while another friendly (Zeon) Link Unit is in play". */
+  | { kind: "friendlyOtherLinkUnitTraitCountAtLeast"; trait: string; n: number }
+  /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
+  | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number };
 
 /**
  * Gate adicional de condição sobre a carta RECEPTORA do bônus (o alvo de
@@ -332,9 +340,13 @@ export type StaticTargetCondition =
   | { kind: "traitIs"; trait: string }
   | { kind: "hasKeyword"; keyword: string }
   /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
-  | { kind: "isDamaged" };
+  | { kind: "isDamaged" }
+  /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
+  | { kind: "allOf"; conditions: StaticTargetCondition[] };
 
 export interface StaticAbility {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: StaticEffectCondition;
   scope: StaticEffectScope;
   /** Concede bônus de STAT. Mutuamente exclusivo com `keyword` (uma StaticAbility concede um OU outro; carta com os 2 usa 2 entradas). */
@@ -361,6 +373,8 @@ export interface StaticAbility {
 export type CombatTriggerCondition = StaticEffectCondition | "always";
 
 export interface CombatTrigger {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: CombatTriggerCondition;
   /**
    * `destroyEnemyInBattle` — "esta Unit destruiu uma Unit inimiga em batalha"
@@ -396,6 +410,8 @@ export interface CombatTrigger {
 
 /** Ver `CardDef.allyCombatTriggers` — mesmo `on`/`condition`/`oncePerTurn` de `CombatTrigger`, mas o alvo da `action` é sempre o LISTENER (dono deste campo), nunca escolha de jogador — por isso o vocabulário de `action` é menor (sem os 2 kinds que pausam pra escolha). */
 export interface AllyCombatTrigger {
+  /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
+  sourceText?: string;
   condition: CombatTriggerCondition;
   on: CombatTrigger["on"];
   /** GD02-001 Psycho Gundam — "one of your (Titans) Units destroys ...". Sem isto, qualquer Unit amiga conta. */
@@ -654,11 +670,29 @@ export function isBoardConditionMet(
   if (cond.kind === "baseColorInPlay") {
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
-  // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
-  // Fonte Pilot: "this Unit" é a Unit pareada, que também não conta como "outra" (E12).
   const ownerState = state.players[owner];
   const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
+  if (cond.kind === "controllerLevelAtLeast") return ownerState.resourceArea.length >= cond.n;
+  if (cond.kind === "pairedPilotColorIs") {
+    const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
+    return !!pilot && effectivePilotDef(pilot).color === cond.color;
+  }
+  // "outra" Unit amiga = exclui a própria fonte; fonte Pilot: a Unit pareada também não conta (E12).
   const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));
+  const otherUnits = ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT");
+  if (cond.kind === "friendlyOtherLinkUnitTraitCountAtLeast") {
+    return (
+      otherUnits.filter((c) => {
+        if (!(c.def.traits ?? []).includes(cond.trait) || !c.pairedPilotId) return false;
+        const pilot = ownerState.battleArea.find((p) => p.instanceId === c.pairedPilotId);
+        return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), c.def);
+      }).length >= cond.n
+    );
+  }
+  if (cond.kind === "friendlyOtherUnitWithKeywordCountAtLeast") {
+    return otherUnits.filter((c) => hasKeyword(c, cond.keyword, state)).length >= cond.n;
+  }
+  // friendlyOtherUnitTraitCountAtLeast
   return (
     ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait))
       .length >= cond.n
@@ -671,6 +705,7 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
   if (cond.kind === "isDamaged") return target.damage > 0;
+  if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
   return hasKeyword(target, cond.keyword, state);
 }
 

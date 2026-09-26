@@ -1752,9 +1752,9 @@
     "ST06": {
       "counts": {
         "vanilla": 4,
-        "full": 7,
-        "partial": 0,
-        "missing": 4,
+        "full": 10,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -1877,7 +1877,7 @@
         },
         {
           "code": "ST06-009",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -1885,10 +1885,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "ST06-009-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -1907,7 +1906,7 @@
         },
         {
           "code": "ST06-010",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -1915,10 +1914,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "ST06-010-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -2011,7 +2009,7 @@
         },
         {
           "code": "ST06-014",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2019,10 +2017,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "ST06-014-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -2052,7 +2049,7 @@
         },
         {
           "code": "ST06-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2060,10 +2057,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "ST06-015-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -2081,8 +2077,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:reactive-trigger-bus (C1)"
+              ],
               "text": "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
             }
           ]
@@ -2093,8 +2091,8 @@
       "counts": {
         "vanilla": 4,
         "full": 10,
-        "partial": 0,
-        "missing": 1,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -2369,7 +2367,7 @@
         },
         {
           "code": "ST07-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2397,8 +2395,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:damage-modification-layer (C2)"
+              ],
               "text": "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens."
             }
           ]
@@ -2409,8 +2409,8 @@
       "counts": {
         "vanilla": 3,
         "full": 11,
-        "partial": 0,
-        "missing": 1,
+        "partial": 1,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -2578,7 +2578,7 @@
         },
         {
           "code": "ST08-011",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -2595,8 +2595,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:reactive-trigger-bus (C1)"
+              ],
               "text": "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
             }
           ]
@@ -2722,10 +2724,10 @@
     "GD01": {
       "counts": {
         "vanilla": 28,
-        "full": 91,
+        "full": 102,
         "partial": 0,
-        "missing": 11,
-        "withErrors": 10
+        "missing": 0,
+        "withErrors": 0
       },
       "cards": [
         {
@@ -4116,7 +4118,7 @@
         },
         {
           "code": "GD01-087",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4124,10 +4126,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-087-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4173,7 +4174,7 @@
         },
         {
           "code": "GD01-089",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4181,10 +4182,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-089-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4201,7 +4201,7 @@
         },
         {
           "code": "GD01-090",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4209,10 +4209,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-090-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4229,7 +4228,7 @@
         },
         {
           "code": "GD01-091",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4237,10 +4236,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-091-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4257,7 +4255,7 @@
         },
         {
           "code": "GD01-092",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4265,10 +4263,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-092-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4314,7 +4311,7 @@
         },
         {
           "code": "GD01-094",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4322,10 +4319,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-094-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4371,7 +4367,7 @@
         },
         {
           "code": "GD01-096",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4379,10 +4375,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD01-096-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -4457,7 +4452,7 @@
         },
         {
           "code": "GD01-099",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4477,11 +4472,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD01-099-Main",
+                "GD01-099-Action"
               ],
               "text": "【Main】/【Action】Choose 1 to 2 enemy Units with 3 or less HP. Rest them."
             }
@@ -4508,9 +4502,7 @@
         {
           "code": "GD01-101",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Lucrezia Noin"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4557,9 +4549,7 @@
         {
           "code": "GD01-103",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Daguza Mackle"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4644,9 +4634,7 @@
         {
           "code": "GD01-106",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Dozle Zabi"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4738,9 +4726,7 @@
         {
           "code": "GD01-110",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Rasid Kurama"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4768,7 +4754,7 @@
         },
         {
           "code": "GD01-111",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4788,11 +4774,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD01-111-Main",
+                "GD01-111-Action"
               ],
               "text": "【Main】/【Action】Choose 1 damaged enemy Unit. Deal 3 damage to it."
             }
@@ -4801,9 +4786,7 @@
         {
           "code": "GD01-112",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Loni Garvey"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4830,9 +4813,7 @@
         {
           "code": "GD01-113",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Andrew Waldfeld"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4861,9 +4842,7 @@
         {
           "code": "GD01-114",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Yonem Kirks"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4889,7 +4868,7 @@
         },
         {
           "code": "GD01-115",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -4898,12 +4877,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
+                "GD01-115-Action",
                 "GD01-115-Main"
-              ],
-              "missingTriggers": [
-                "Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it."
             }
@@ -4912,9 +4889,7 @@
         {
           "code": "GD01-116",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Nicol Amarfi"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -4992,9 +4967,7 @@
         {
           "code": "GD01-119",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Chuatury Panlunch"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -5022,7 +4995,7 @@
         },
         {
           "code": "GD01-120",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -5041,10 +5014,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD01-120-Action"
               ],
               "text": "【Action】Choose 1 friendly Unit with <Blocker>. It gets AP+3 during this turn."
             }
@@ -5082,9 +5054,7 @@
         {
           "code": "GD01-122",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Shaddiq Zenelli"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -5378,10 +5348,10 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 80,
-        "partial": 0,
-        "missing": 24,
-        "withErrors": 1
+        "full": 101,
+        "partial": 3,
+        "missing": 0,
+        "withErrors": 0
       },
       "cards": [
         {
@@ -5682,7 +5652,7 @@
         },
         {
           "code": "GD02-020",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -5699,8 +5669,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】 This Unit gets AP+2."
             }
           ]
@@ -5747,9 +5719,9 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-023-Main-GrantFIRST_STRIKE"
+                "staticAbilities"
               ],
               "text": "【During Link】While you are Lv.7 or higher, this Unit gains <First Strike>."
             }
@@ -5810,9 +5782,7 @@
         {
           "code": "GD02-027",
           "status": "vanilla",
-          "errors": [
-            "keywordMismatch: Breach"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -5851,9 +5821,9 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-031-Main"
+                "staticAbilities"
               ],
               "text": "While you are Lv.7 or higher, this Unit gets AP+2."
             }
@@ -5873,9 +5843,9 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-033-Main-GrantBREACH_5"
+                "staticAbilities"
               ],
               "text": "While another friendly (Zeon) Link Unit is in play, this Unit gains <Breach 5>."
             }
@@ -5889,9 +5859,9 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-034-Main"
+                "staticAbilities"
               ],
               "text": "【During Pair·Red Pilot】This Unit gets AP+2."
             }
@@ -5915,7 +5885,7 @@
         },
         {
           "code": "GD02-036",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -5925,7 +5895,7 @@
               ],
               "by": "spec",
               "refs": [
-                "GD02-036-When Linked-GrantSUPPRESSION"
+                "GD02-036-WhenLinked"
               ],
               "text": "【When Linked】This Unit gains <Suppression> during this turn."
             },
@@ -5934,12 +5904,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-036-When Linked-GrantSUPPRESSION"
-              ],
-              "missingTriggers": [
-                "Attack"
+                "GD02-036-Attack"
               ],
               "text": "【During Pair·(Neo Zeon) Pilot】【Attack】Choose 1 damaged enemy Unit. Deal 2 damage to it."
             }
@@ -6323,7 +6290,8 @@
               ],
               "by": "spec",
               "refs": [
-                "GD02-058-Deploy"
+                "GD02-058-Deploy",
+                "GD02-058-Deploy-Draw"
               ],
               "text": "【Deploy】Choose 1 of your Units. Deal 1 damage to it. If you do, draw 1. Then, discard 1."
             }
@@ -6536,15 +6504,15 @@
         },
         {
           "code": "GD02-073",
-          "status": "full",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "deferred",
               "refs": [
-                "GD02-073-Main-GrantFIRST_STRIKE"
+                "engine:attack-rule-extensions (C4)"
               ],
               "text": "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>."
             }
@@ -6669,9 +6637,9 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-082-Main-GrantBLOCKER"
+                "staticAbilities"
               ],
               "text": "While you have another (Gjallarhorn) Unit in play, this Unit gains <Blocker>."
             }
@@ -6730,7 +6698,7 @@
         },
         {
           "code": "GD02-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -6738,21 +6706,18 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-086-Main"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-086-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-086-Main"
+                "staticAbilities"
               ],
               "text": "While you have another (Titans) Unit in play, this gets AP+1."
             }
@@ -6789,7 +6754,7 @@
         },
         {
           "code": "GD02-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -6797,12 +6762,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-088-When Linked"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-088-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -6813,7 +6775,7 @@
               ],
               "by": "spec",
               "refs": [
-                "GD02-088-When Linked"
+                "GD02-088-WhenLinked"
               ],
               "text": "【When Linked】Look at the top 3 cards of your deck. You may reveal 1 green (Earth Federation) Unit card/1 card with \"AGE Device\" in its card name among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -6850,7 +6812,7 @@
         },
         {
           "code": "GD02-090",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -6858,20 +6820,19 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-090-Main"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-090-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While you have another Unit with <High-Maneuver> in play, this Unit gets AP+1."
             }
           ]
@@ -6907,7 +6868,7 @@
         },
         {
           "code": "GD02-092",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -6915,12 +6876,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-092-Attack"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-092-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -6966,7 +6924,7 @@
         },
         {
           "code": "GD02-094",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -6974,12 +6932,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-094-When Paired"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-094-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -6988,9 +6943,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "spec",
+              "by": "deferred",
               "refs": [
-                "GD02-094-When Paired"
+                "engine:multi-choice-queue-entry (E4/W2)"
               ],
               "text": "【When Paired】You may discard 1. If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -7027,7 +6982,7 @@
         },
         {
           "code": "GD02-096",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7035,12 +6990,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-096-WhenLinked"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-096-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -7059,7 +7011,7 @@
         },
         {
           "code": "GD02-097",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7067,21 +7019,18 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-097-Main"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-097-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-097-Main"
+                "staticAbilities"
               ],
               "text": "While there is a friendly white Base in play, this Unit gets AP+2."
             }
@@ -7089,15 +7038,15 @@
         },
         {
           "code": "GD02-098",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "spec",
+              "by": "structured",
               "refs": [
-                "GD02-098-WhenLinked"
+                "nameAliases"
               ],
               "text": "This card's name is also treated as [Char Aznable]."
             },
@@ -7106,12 +7055,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-098-WhenLinked"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD02-098-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -7208,7 +7154,7 @@
         },
         {
           "code": "GD02-102",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7217,12 +7163,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
+                "GD02-102-Main",
                 "GD02-102-Action"
-              ],
-              "missingTriggers": [
-                "Main"
               ],
               "text": "【Main】/【Action】Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn."
             },
@@ -7521,7 +7465,7 @@
         },
         {
           "code": "GD02-114",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7530,12 +7474,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
+                "GD02-114-Main",
                 "GD02-114-Action"
-              ],
-              "missingTriggers": [
-                "Main"
               ],
               "text": "【Main】/【Action】Choose 1 damaged friendly Unit. It gets AP+2 during this turn."
             },
@@ -7552,7 +7494,7 @@
         },
         {
           "code": "GD02-115",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7561,12 +7503,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
+                "GD02-115-Main",
                 "GD02-115-Action"
-              ],
-              "missingTriggers": [
-                "Main"
               ],
               "text": "【Main】/【Action】Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn."
             },
@@ -7610,7 +7550,7 @@
         },
         {
           "code": "GD02-117",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7629,12 +7569,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-117-Burst"
-              ],
-              "missingTriggers": [
-                "Main"
+                "GD02-117-Main"
               ],
               "text": "【Main】Draw 3. Then, discard 2."
             }
@@ -7723,7 +7660,7 @@
         },
         {
           "code": "GD02-121",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7731,10 +7668,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-121-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7743,12 +7679,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-121-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-121-Deploy",
+                "GD02-121-Deploy-Heal"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 friendly blue Unit. It recovers 2 HP."
             }
@@ -7756,7 +7690,7 @@
         },
         {
           "code": "GD02-122",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7764,10 +7698,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-122-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7776,12 +7709,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-122-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-122-Deploy",
+                "GD02-122-Deploy-Damage"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 rested enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
             }
@@ -7789,7 +7720,7 @@
         },
         {
           "code": "GD02-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7797,10 +7728,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-123-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7809,12 +7739,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-123-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-123-Deploy",
+                "GD02-123-Deploy-Relax"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 friendly Unit token. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target."
             }
@@ -7822,7 +7750,7 @@
         },
         {
           "code": "GD02-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7830,10 +7758,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-124-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7851,15 +7778,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "During your turn, while you are Lv.7 or higher, all friendly green (Earth Federation) Units get AP+1."
             }
           ]
         },
         {
           "code": "GD02-125",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7867,10 +7796,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-125-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7879,12 +7807,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-125-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-125-Deploy",
+                "GD02-125-Deploy-Discard"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, you may discard 1 red card. If you do, draw 1."
             }
@@ -7892,7 +7818,7 @@
         },
         {
           "code": "GD02-126",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7900,10 +7826,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-126-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7923,10 +7848,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD02-126-Destroyed"
               ],
               "text": "【Destroyed】Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
             }
@@ -7934,7 +7858,7 @@
         },
         {
           "code": "GD02-127",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7942,10 +7866,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-127-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7965,10 +7888,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD02-127-Destroyed"
               ],
               "text": "【Destroyed】Place the top 2 cards of your deck into your trash."
             }
@@ -7976,7 +7898,7 @@
         },
         {
           "code": "GD02-128",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7984,10 +7906,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-128-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -7996,12 +7917,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-128-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-128-Deploy",
+                "GD02-128-Deploy-Destroy"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn and a friendly (Teiwaz) Link Unit is in play, choose 1 enemy Unit with 2 or less AP. Destroy it."
             }
@@ -8009,7 +7928,7 @@
         },
         {
           "code": "GD02-129",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -8017,10 +7936,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-129-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -8038,15 +7956,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:damage-modification-layer (C2)"
+              ],
               "text": "This Base can't receive enemy effect damage."
             }
           ]
         },
         {
           "code": "GD02-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8054,10 +7974,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD02-130-Burst"
               ],
               "text": "【Burst】Deploy this card."
             },
@@ -8066,12 +7985,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD02-130-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD02-130-Deploy",
+                "GD02-130-Deploy-Debuff"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if a friendly (Gjallarhorn) Unit is in play, choose 1 enemy Unit. It gets AP-2 during this turn."
             }
@@ -8082,10 +7999,10 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 7,
-        "partial": 0,
-        "missing": 109,
-        "withErrors": 11
+        "full": 19,
+        "partial": 6,
+        "missing": 91,
+        "withErrors": 0
       },
       "cards": [
         {
@@ -8247,14 +8164,16 @@
         },
         {
           "code": "GD03-008",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Pair】This Unit gains <Repair 2>."
             }
           ]
@@ -8318,14 +8237,16 @@
         },
         {
           "code": "GD03-013",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While you have another (Jupitris) Unit in play, this Unit gets AP+1 and <Repair 1>."
             }
           ]
@@ -8346,7 +8267,7 @@
         },
         {
           "code": "GD03-015",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -8354,10 +8275,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "deferred",
+              "refs": [
+                "engine:exile-from-trash-cost (C3)"
               ],
               "text": "【Activate·Main】【Once per Turn】Exile 3 (Titans) cards from your trash: This Unit gains <Breach 4> during this turn."
             }
@@ -8482,20 +8402,17 @@
         },
         {
           "code": "GD03-021",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-021-Deploy"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-021-Deploy"
               ],
               "text": "【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may choose an active enemy Unit as its attack target."
             }
@@ -8517,16 +8434,16 @@
         },
         {
           "code": "GD03-023",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-023-Deploy"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "onExResourcePlaced"
+              ],
               "text": "When you place an EX Resource, choose 1 of your (AGE System) Units. It gains <High-Maneuver> during this turn."
             }
           ]
@@ -8751,14 +8668,16 @@
         },
         {
           "code": "GD03-037",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-battling-enemy-trigger-condition (W2)"
+              ],
               "text": "【During Link】During your turn, while this Unit is battling an enemy Unit with a 【Destroyed】 effect, it gains <First Strike>."
             }
           ]
@@ -8809,14 +8728,16 @@
         },
         {
           "code": "GD03-040",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <High-Maneuver>."
             }
           ]
@@ -9177,14 +9098,16 @@
         },
         {
           "code": "GD03-061",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-self-remaining-hp-condition (W1)"
+              ],
               "text": "While this Unit has 1 HP, it gains <Repair 3>."
             }
           ]
@@ -9266,14 +9189,16 @@
         },
         {
           "code": "GD03-068",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:static-friendly-base-condition (W1)"
+              ],
               "text": "While a friendly Base is in play, this Unit gains <Blocker>."
             }
           ]
@@ -9554,7 +9479,7 @@
         },
         {
           "code": "GD03-084",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -9573,10 +9498,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "deferred",
+              "refs": [
+                "engine:chosen-target-trait-condition (W1)"
               ],
               "text": "【When Linked】Choose 1 of your other Units. It gains <Repair 2> during this turn. Then, if it is a (Jupitris) Unit, draw 1."
             }
@@ -9668,7 +9592,7 @@
         },
         {
           "code": "GD03-088",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -9685,8 +9609,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "deferred",
+              "refs": [
+                "engine:pilot-static-paired-unit-trait (W1)"
+              ],
               "text": "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>."
             }
           ]
@@ -10005,10 +9931,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD03-100-Burst"
               ],
               "text": "【Burst】Add this card to your hand."
             },
@@ -10028,7 +9953,7 @@
         },
         {
           "code": "GD03-101",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10036,12 +9961,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD03-101-Main"
-              ],
-              "missingTriggers": [
-                "Main"
+                "GD03-101-Main",
+                "GD03-101-Main-Rest"
               ],
               "text": "【Main】Draw 1. Then, if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it."
             }
@@ -10110,9 +10033,7 @@
         {
           "code": "GD03-104",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Reccoa Londe"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10191,9 +10112,7 @@
         {
           "code": "GD03-107",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Hardie Steiner"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10221,9 +10140,7 @@
         {
           "code": "GD03-108",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Gabriel Ramirez Garcia"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10305,9 +10222,7 @@
         {
           "code": "GD03-111",
           "status": "full",
-          "errors": [
-            "pilotModeMismatch: Emeralda Zubin"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10420,9 +10335,7 @@
         {
           "code": "GD03-115",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Yurin L'Ciel"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10449,11 +10362,8 @@
         },
         {
           "code": "GD03-116",
-          "status": "missing",
-          "errors": [
-            "orphanSpec: GD03-116-Main",
-            "orphanSpec: GD03-116-Action"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10461,11 +10371,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-116-Main",
+                "GD03-116-Action"
               ],
               "text": "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them."
             }
@@ -10542,9 +10451,7 @@
         {
           "code": "GD03-120",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Patrick Colasour"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10572,9 +10479,7 @@
         {
           "code": "GD03-121",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Katz Kobayashi"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10602,9 +10507,7 @@
         {
           "code": "GD03-122",
           "status": "missing",
-          "errors": [
-            "pilotModeMismatch: Sergei Smirnov"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10631,7 +10534,7 @@
         },
         {
           "code": "GD03-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10650,12 +10553,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD03-123-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD03-123-Deploy",
+                "GD03-123-Deploy-Rest"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if a friendly (Jupitris) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it."
             }
@@ -10771,7 +10672,7 @@
         },
         {
           "code": "GD03-127",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10790,12 +10691,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD03-127-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD03-127-Deploy",
+                "GD03-127-Deploy-Buff"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, Choose 1 friendly (ZAFT) Unit. It gets AP+3 during this turn."
             }
@@ -10875,7 +10774,7 @@
         },
         {
           "code": "GD03-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10894,12 +10793,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD03-130-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD03-130-Deploy",
+                "GD03-130-Deploy-Revive"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, you may choose 1 (Vagan) Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
             }
@@ -10907,7 +10804,7 @@
         },
         {
           "code": "GD03-131",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10926,12 +10823,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD03-131-Deploy"
-              ],
-              "missingTriggers": [
-                "Deploy"
+                "GD03-131-Deploy",
+                "GD03-131-Deploy-Bounce"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if you have 2 or more (Triple Ship Alliance) Units in play, choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
             }
@@ -10939,7 +10834,7 @@
         },
         {
           "code": "GD03-132",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10969,10 +10864,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD03-132-Destroyed"
               ],
               "text": "【Destroyed】If you have an (AEUG) Link Unit in play, choose 1 enemy Unit with 4 or less HP. Rest it."
             }

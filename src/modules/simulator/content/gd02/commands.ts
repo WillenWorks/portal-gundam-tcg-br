@@ -63,6 +63,8 @@ export const COMMANDS: Record<string, CardDef> = {
     hp: 0,
     triggerKeywords: ["Action"],
     pilotMode: {"pilotName":"Xavier Olivette","ap":1,"hp":0},
+    // modo Piloto (Xavier Olivette) conta como (Zeon)/(Newtype) — faltavam os traits
+    traits: ["Zeon", "Newtype"],
   },
   "GD02-106": {
     code: "GD02-106",

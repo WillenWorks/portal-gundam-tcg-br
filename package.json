@@ -40,7 +40,7 @@
     "gundam:fix": "node scripts/gundam-fix.mjs",
     "catalog:audit": "node scripts/gundam-audit-catalog.mjs",
     "catalog:coverage": "node scripts/gundam-coverage.mjs",
-    "catalog:coverage:gate": "node scripts/gundam-coverage.mjs --gate",
+    "catalog:coverage:gate": "node scripts/gundam-coverage.mjs --gate --strict",
     "gundam:coverage": "node scripts/gundam-coverage.mjs",
     "gundam:fix-sourcetext": "node scripts/gundam-fix-sourcetext.mjs",
     "data:ibge:refresh": "node scripts/generate-ibge-city-uf.mjs",

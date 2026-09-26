@@ -29,6 +29,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["OZ"],
     triggerKeywords: ["Main","Action"],
+    // 【Pilot】[Lucrezia Noin] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Lucrezia Noin", ap: 1, hp: 0 },
   },
   "GD01-102": {
     code: "GD01-102",
@@ -48,6 +50,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Earth Federation"],
     triggerKeywords: ["Main"],
+    // 【Pilot】[Daguza Mackle] — modo Piloto (AP+0/HP+1); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Daguza Mackle", ap: 0, hp: 1 },
   },
   "GD01-104": {
     code: "GD01-104",
@@ -78,6 +82,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 2,
     traits: ["Zeon"],
     triggerKeywords: ["Main"],
+    // 【Pilot】[Dozle Zabi] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Dozle Zabi", ap: 1, hp: 0 },
   },
   "GD01-107": {
     code: "GD01-107",
@@ -120,6 +126,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Maganac Corps"],
     triggerKeywords: ["Main","Action"],
+    // 【Pilot】[Rasid Kurama] — modo Piloto (AP+0/HP+1); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Rasid Kurama", ap: 0, hp: 1 },
   },
   "GD01-111": {
     code: "GD01-111",
@@ -140,6 +148,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Zeon","Newtype"],
     triggerKeywords: ["Main"],
+    // 【Pilot】[Loni Garvey] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Loni Garvey", ap: 1, hp: 0 },
   },
   "GD01-113": {
     code: "GD01-113",
@@ -150,6 +160,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["ZAFT","Coordinator"],
     triggerKeywords: ["Main","Action"],
+    // 【Pilot】[Andrew Waldfeld] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Andrew Waldfeld", ap: 1, hp: 0 },
   },
   "GD01-114": {
     code: "GD01-114",
@@ -160,6 +172,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Zeon"],
     triggerKeywords: ["Action"],
+    // 【Pilot】[Yonem Kirks] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Yonem Kirks", ap: 1, hp: 0 },
   },
   "GD01-115": {
     code: "GD01-115",
@@ -179,6 +193,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["ZAFT","Coordinator"],
     triggerKeywords: ["Main","Action"],
+    // 【Pilot】[Nicol Amarfi] — modo Piloto (AP+0/HP+1); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Nicol Amarfi", ap: 0, hp: 1 },
   },
   "GD01-117": {
     code: "GD01-117",
@@ -208,6 +224,8 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Academy"],
     triggerKeywords: ["Main","Action"],
+    // 【Pilot】[Chuatury Panlunch] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Chuatury Panlunch", ap: 1, hp: 0 },
   },
   "GD01-120": {
     code: "GD01-120",
@@ -242,5 +260,7 @@ export const COMMANDS: Record<string, CardDef> = {
     cost: 1,
     traits: ["Academy"],
     triggerKeywords: ["Main"],
+    // 【Pilot】[Shaddiq Zenelli] — modo Piloto (AP+1/HP+0); faltava, a carta não podia ser pareada (W0.3)
+    pilotMode: { pilotName: "Shaddiq Zenelli", ap: 1, hp: 0 },
   },
 };

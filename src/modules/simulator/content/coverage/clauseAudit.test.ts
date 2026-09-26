@@ -104,9 +104,17 @@ describe("auditCard", () => {
     expect(audit.errors.some((e) => e.startsWith("orphanSpec"))).toBe(true);
   });
 
+  it("spec que engole 2 cláusulas (texto inteiro copiado) → multiClauseSpec", () => {
+    // GD02-117: o spec de Burst tinha o texto das 2 linhas e fazia o efeito do 【Main】
+    const effect = "【Burst】Choose 1 (AEUG) Base card from your trash. Add it to your hand.\n【Main】Draw 3. Then, discard 2.";
+    const audit = auditCard({ code: "X-001", effect, def: def({ cardType: "COMMAND" }), specs: [spec("Burst", effect)] });
+    expect(audit.errors).toContain("multiClauseSpec: X-001-Burst");
+  });
+
   it("keyword declarada no texto mas ausente do CardDef → keywordMismatch", () => {
     const audit = auditCard({ code: "X-001", effect: "<Blocker>", def: def({ effectKeywords: [] }), specs: [] });
     expect(audit.errors.some((e) => e.startsWith("keywordMismatch"))).toBe(true);
+    expect(isPlayable(audit)).toBe(false); // runtime barra o mesmo que o --strict do CI
     const ok = auditCard({ code: "X-001", effect: "<Blocker>", def: def({ effectKeywords: ["Blocker"] }), specs: [] });
     expect(ok.status).toBe("vanilla");
   });

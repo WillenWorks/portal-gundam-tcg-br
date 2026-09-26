@@ -76,6 +76,7 @@ export const STRUCTURED_FIELDS = [
   "onSelfHeal",
   "alternateDeploySacrifice",
   "onAnyPairing",
+  "nameAliases",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([
@@ -275,6 +276,9 @@ export function auditCard(input: CardAuditInput): CardAudit {
 
   specs.forEach((s, i) => {
     if (!usedSpecs.has(i)) errors.push(`orphanSpec: ${s.id}`);
+    // texto de 2+ cláusulas num spec só (cópia da carta inteira): as ações quase sempre fazem uma delas só
+    const swallowed = clauses.filter((c) => c.kind === "bespoke" && compact(c.body) && bodies[i].includes(compact(c.body)));
+    if (swallowed.length > 1) errors.push(`multiClauseSpec: ${s.id}`);
   });
 
   let status: CardAuditStatus;
@@ -316,9 +320,9 @@ export function legacyCoverageStatus(input: Omit<CardAuditInput, "code">): Legac
   return deferrals.length ? "deferida" : "faltando";
 }
 
-/** jogável no motor: nada faltando e o CardDef existe (deferido/aproximado entra, como o `implementada*` antigo) */
+/** jogável no motor: nada faltando e nenhum erro da auditoria — o mesmo que o `--strict` do CI barra (deferido/aproximado entra, como o `implementada*` antigo) */
 export function isPlayable(audit: CardAudit): boolean {
-  return audit.status !== "missing" && !audit.errors.includes("unknownCode");
+  return audit.status !== "missing" && audit.errors.length === 0;
 }
 
 function hasValue(v: unknown): boolean {
