@@ -84,6 +84,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD01-070": {
     code: "GD01-070",
+    structuredSourceText: {
+      dynamicCost: "While there are 4 or more Command cards in your trash, this card in your hand gets cost -2.",
+    },
     nameEn: "Gundam Aerial",
     cardType: "UNIT",
     color: "white",
@@ -164,6 +167,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD01-076": {
     code: "GD01-076",
+    structuredSourceText: {
+      staticAbilities: "While there are 4 or more Command cards in your trash, this Unit gets AP+1 and HP+1.",
+    },
     nameEn: "Michaelis",
     cardType: "UNIT",
     color: "white",
@@ -230,6 +236,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD01-081": {
     code: "GD01-081",
+    structuredSourceText: {
+      staticAbilities: "While you have another (Triple Ship Alliance) Unit in play, this Unit gets AP+1 and <Blocker>.",
+    },
     nameEn: "M1 Astray",
     cardType: "UNIT",
     color: "white",

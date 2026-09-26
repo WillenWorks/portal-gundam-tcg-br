@@ -31,6 +31,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD02-022": {
     code: "GD02-022",
+    structuredSourceText: {
+      onExResourcePlaced: "【Once per Turn】When you place an EX Resource, choose 1 of your (AGE System) Units. It gains <Breach 2> during this turn.",
+    },
     nameEn: "G-Exes",
     cardType: "UNIT",
     color: "green",
@@ -64,6 +67,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD02-024": {
     code: "GD02-024",
+    structuredSourceText: {
+      staticAbilities: "【During Link】This Unit gains <High-Maneuver>.",
+    },
     nameEn: "Red Gundam",
     cardType: "UNIT",
     color: "green",
@@ -211,6 +217,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD02-035": {
     code: "GD02-035",
+    structuredSourceText: {
+      attackTargetRules: "This Unit can't choose the enemy player as its attack target.",
+    },
     nameEn: "Police Zaku (Armored RRU Type)",
     cardType: "UNIT",
     color: "green",

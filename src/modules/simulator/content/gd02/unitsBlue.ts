@@ -3,6 +3,9 @@ import type { CardDef } from "../../engine/types";
 export const UNITS_BLUE: Record<string, CardDef> = {
   "GD02-001": {
     code: "GD02-001",
+    structuredSourceText: {
+      allyCombatTriggers: "【During Pair·(Cyber-Newtype) Pilot】When one of your (Titans) Units destroys an enemy shield area card with damage, this Unit recovers 2 HP.",
+    },
     nameEn: "Psycho Gundam",
     cardType: "UNIT",
     color: "blue",
@@ -29,6 +32,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD02-002": {
     code: "GD02-002",
+    structuredSourceText: {
+      allyCombatTriggers: "【During Link】【Once per Turn】During your turn, when one of your Units destroys an enemy Unit with battle damage, set this Unit as active.",
+    },
     nameEn: "Gundam Epyon",
     cardType: "UNIT",
     color: "blue",
@@ -84,6 +90,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD02-006": {
     code: "GD02-006",
+    structuredSourceText: {
+      innateDamageProtection: "During your turn, this Unit can't receive battle damage from enemy Units that are Lv.2 or lower.",
+    },
     nameEn: "Forbidden Gundam",
     cardType: "UNIT",
     color: "blue",
@@ -127,6 +136,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD02-009": {
     code: "GD02-009",
+    structuredSourceText: {
+      onApReducedByEnemy: "【Once per Turn】When this Unit's AP is reduced by an enemy effect, choose 1 rested enemy Unit. Deal 2 damage to it.",
+    },
     nameEn: "Calamity Gundam",
     cardType: "UNIT",
     color: "blue",
@@ -142,6 +154,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD02-010": {
     code: "GD02-010",
+    structuredSourceText: {
+      onEffectDamageReceived: "【Once per Turn】When this Unit receives enemy effect damage, draw 1.",
+    },
     nameEn: "Raider Gundam",
     cardType: "UNIT",
     color: "blue",
@@ -241,6 +256,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD02-018": {
     code: "GD02-018",
+    structuredSourceText: {
+      attackTargetRules: "This Unit can't choose the enemy player as its attack target.",
+    },
     nameEn: "Taurus",
     cardType: "UNIT",
     color: "blue",

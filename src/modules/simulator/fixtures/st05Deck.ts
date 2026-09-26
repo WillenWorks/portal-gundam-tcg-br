@@ -19,6 +19,9 @@ import type { DeckList } from "../engine/setup";
 
 const GUNDAM_BARBATOS_4TH_FORM: CardDef = {
   code: "ST05-001",
+  structuredSourceText: {
+    staticAbilities: "While this is damaged, it gains <Suppression>.",
+  },
   nameEn: "Gundam Barbatos 4th Form",
   cardType: "UNIT",
   color: "purple",
@@ -35,6 +38,9 @@ const GUNDAM_BARBATOS_4TH_FORM: CardDef = {
 
 const GUNDAM_BARBATOS_2ND_FORM: CardDef = {
   code: "ST05-002",
+  structuredSourceText: {
+    staticAbilities: "While this Unit is damaged, it gets AP+2.",
+  },
   nameEn: "Gundam Barbatos 2nd Form",
   cardType: "UNIT",
   color: "purple",
@@ -165,6 +171,9 @@ const MIKAZUKI_AUGUS: CardDef = {
 
 const AKIHIRO_ALTLAND: CardDef = {
   code: "ST05-011",
+  structuredSourceText: {
+    combatTriggers: "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 (Tekkadan) Unit card that is Lv.2 or lower from your trash. Add it to your hand.",
+  },
   nameEn: "Akihiro Altland",
   cardType: "PILOT",
   color: "purple",

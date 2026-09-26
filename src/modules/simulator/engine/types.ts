@@ -105,6 +105,12 @@ export interface CardDef {
    * outro sistema do motor lê o nome da carta por string (efeitos usam `CardDefFilter`/traits).
    */
   nameAliases?: string[];
+  /**
+   * W0.5 — trecho literal do texto oficial que cada campo estruturado implementa (auditoria por
+   * cláusula, `content/coverage/clauseAudit.ts`). Pros campos sem `sourceText` por entrada; uma
+   * cláusula contínua só conta como coberta por campo estruturado se estiver anotada (aqui ou na entrada).
+   */
+  structuredSourceText?: Partial<Record<keyof CardDef, string>>;
 
   /**
    * Modificador estático contínuo (Comprehensive Rules 10-2) — ao contrário
@@ -405,7 +411,9 @@ export interface CombatTrigger {
      * é a camada base, effectSpec.ts já importa DELE, então importar `CardDefFilter`
      * pra cá criaria import circular. Mantenha os campos em sync se um mudar.
      */
-    | { kind: "retrieveFromTrash"; filter: CombatTriggerTrashFilter };
+    | { kind: "retrieveFromTrash"; filter: CombatTriggerTrashFilter }
+    /** ST07-005 Gundam Dynames — "this Unit recovers 2 HP" (a própria Unit que destruiu). */
+    | { kind: "healSelf"; amount: number };
 }
 
 /** Ver `CardDef.allyCombatTriggers` — mesmo `on`/`condition`/`oncePerTurn` de `CombatTrigger`, mas o alvo da `action` é sempre o LISTENER (dono deste campo), nunca escolha de jogador — por isso o vocabulário de `action` é menor (sem os 2 kinds que pausam pra escolha). */
