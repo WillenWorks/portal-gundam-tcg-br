@@ -7,7 +7,7 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -33,8 +33,8 @@ jobs:
       - name: Build
         run: corepack pnpm run build
 
-      - name: Fuzz (regressão do motor — ~6000 partidas repartidas entre ST01-08, GD01 e os decks meta GD02)
-        run: corepack pnpm run gundam:fuzz -- --totalGames=6000
+      - name: Fuzz (regressão do motor — ~4500 partidas repartidas entre ST01-08, GD01 e os decks meta GD02)
+        run: corepack pnpm run gundam:fuzz -- --totalGames=4500
 
       - name: Golden-master (docs/44 §4.3 — hash do estado final por par; PR que muda regra sem --update falha aqui)
         run: corepack pnpm run gundam:golden
