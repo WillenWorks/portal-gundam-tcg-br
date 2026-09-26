@@ -180,6 +180,7 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "Destroyed"
     ]
   },
+  // W0.3 (revisão semântica): Repair 2 só pareada (era inato)
   "GD03-008": {
     "code": "GD03-008",
     "nameEn": "Bolinoak Sammahn",
@@ -199,14 +200,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
         "Jupitris"
       ]
     },
-    "effectKeywords": [
-      "Repair"
-    ],
-    "keywordTags": [
-      "Repair 2"
-    ],
     "triggerKeywords": [
       "During Pair"
+    ],
+    "staticAbilities": [
+      {
+        "condition": "duringPair",
+        "scope": "self",
+        "keyword": "Repair",
+        "keywordValue": 2,
+        "sourceText": "【During Pair】This Unit gains <Repair 2>."
+      }
     ]
   },
   "GD03-009": {
@@ -296,6 +300,7 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "Repair 1"
     ]
   },
+  // W0.3 (revisão semântica): AP+1 e Repair 1 só com outra (Jupitris) (era Repair inato, sem AP+1)
   "GD03-013": {
     "code": "GD03-013",
     "nameEn": "Hizack",
@@ -309,11 +314,30 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "Titans",
       "Jupitris"
     ],
-    "effectKeywords": [
-      "Repair"
-    ],
-    "keywordTags": [
-      "Repair 1"
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 1,
+        "boardCondition": {
+          "kind": "friendlyOtherUnitTraitCountAtLeast",
+          "trait": "Jupitris",
+          "n": 1
+        }
+      },
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Repair",
+        "keywordValue": 1,
+        "boardCondition": {
+          "kind": "friendlyOtherUnitTraitCountAtLeast",
+          "trait": "Jupitris",
+          "n": 1
+        },
+        "sourceText": "While you have another (Jupitris) Unit in play, this Unit gets AP+1 and <Repair 1>."
+      }
     ]
   },
   "GD03-014": {
@@ -329,6 +353,7 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "Titans"
     ]
   },
+  // W0.3 (revisão semântica): Breach 4 era inato e grátis — é custo de exilar 3 (Titans) do trash (C3, deferido)
   "GD03-015": {
     "code": "GD03-015",
     "nameEn": "Baund Doc",
@@ -347,12 +372,6 @@ export const UNITS_BLUE: Record<string, CardDef> = {
         "Jerid Messa"
       ]
     },
-    "effectKeywords": [
-      "Breach"
-    ],
-    "keywordTags": [
-      "Breach 4"
-    ],
     "triggerKeywords": [
       "Activate: Main"
     ],

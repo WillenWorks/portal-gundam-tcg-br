@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { isCardPlayable, validateDeckPayload } from "./deckCoverageGate.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
 import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
+import { GD02_CARD_DEFS } from "../src/modules/simulator/content/gd02/index.ts";
+import { GD03_CARD_DEFS } from "../src/modules/simulator/content/gd03/index.ts";
 import type { CardDef } from "../src/modules/simulator/engine/types.ts";
 import type { DeckList } from "../src/modules/simulator/engine/setup.ts";
 
@@ -85,5 +87,20 @@ describe("deckCoverageGate — códigos de carta inexistentes/fora do catálogo"
     const validation = validateDeckPayload(deckOf([GD01_CARD_DEFS["GD01-008"], gd02Card]));
     expect(validation.valid).toBe(false);
     expect(validation.unplayableCards).toEqual(["GD02-001"]);
+  });
+});
+
+describe("deckCoverageGate — mesmo critério do script de cobertura (content/coverage/clauseAudit.ts)", () => {
+  it("carta coberta só por campo estruturado fora da lista antiga (GD01-046, onSupportUsed) é jogável", () => {
+    // a lista antiga do gate só olhava staticAbilities/combatTriggers/attackTargetRules e barrava esta carta
+    expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
+  });
+
+  it("W0.4 — cláusula sem efeito bloqueia mesmo com outro campo coberto (GD03-104: tem pilotMode, falta 【Main】/【Action】)", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-104"])).toBe(false);
+  });
+
+  it("W0.4 — GD02 com a auditoria zerada é jogável (GD02-001 real, coberto por allyCombatTriggers)", () => {
+    expect(isCardPlayable(GD02_CARD_DEFS["GD02-001"])).toBe(true);
   });
 });

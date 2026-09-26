@@ -584,6 +584,18 @@
     "sourceText": "【During Pair】【Activate･Action】【Once per Turn】②：Choose 1 enemy Unit. It gets AP-1 during this battle."
   },
   {
+    "id": "GD01-087-Burst",
+    "cardCode": "GD01-087",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
     "id": "GD01-088-Burst",
     "cardCode": "GD01-088",
     "trigger": "Burst",
@@ -608,6 +620,54 @@
     "sourceText": "【When Linked】Draw 1."
   },
   {
+    "id": "GD01-089-Burst",
+    "cardCode": "GD01-089",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD01-090-Burst",
+    "cardCode": "GD01-090",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD01-091-Burst",
+    "cardCode": "GD01-091",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD01-092-Burst",
+    "cardCode": "GD01-092",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
     "id": "GD01-093-Attack",
     "cardCode": "GD01-093",
     "trigger": "Attack",
@@ -622,6 +682,18 @@
   {
     "id": "GD01-093-Burst",
     "cardCode": "GD01-093",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD01-094-Burst",
+    "cardCode": "GD01-094",
     "trigger": "Burst",
     "ops": [
       "moveZone"
@@ -655,6 +727,18 @@
     "targetFilter": null,
     "predicate": "chosenNonEmpty:discard",
     "sourceText": "【When Linked】Discard 1. If you do, draw 1."
+  },
+  {
+    "id": "GD01-096-Burst",
+    "cardCode": "GD01-096",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "GD01-097-ActivateMain",
@@ -706,6 +790,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD01-099-Action",
+    "cardCode": "GD01-099",
+    "trigger": "Action",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 3 or less HP. Rest them."
+  },
+  {
     "id": "GD01-099-Burst",
     "cardCode": "GD01-099",
     "trigger": "Burst",
@@ -716,6 +812,18 @@
     "targetFilter": "hp<=5",
     "predicate": null,
     "sourceText": "【Burst】Choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
+    "id": "GD01-099-Main",
+    "cardCode": "GD01-099",
+    "trigger": "Main",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 3 or less HP. Rest them."
   },
   {
     "id": "GD01-100-Main",
@@ -911,6 +1019,18 @@
     "sourceText": "【Main】/【Action】Choose 1 Unit that is Lv.4 or higher. During this turn, it may choose an active enemy Unit with 6 or less AP as its attack target."
   },
   {
+    "id": "GD01-111-Action",
+    "cardCode": "GD01-111",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "damaged",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 damaged enemy Unit. Deal 3 damage to it."
+  },
+  {
     "id": "GD01-111-Burst",
     "cardCode": "GD01-111",
     "trigger": "Burst",
@@ -921,6 +1041,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "GD01-111-Main",
+    "cardCode": "GD01-111",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "damaged",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 damaged enemy Unit. Deal 3 damage to it."
   },
   {
     "id": "GD01-112-Main",
@@ -972,6 +1104,18 @@
     "sourceText": "【Action】Choose 2 friendly Units. They get AP+1 during this turn."
   },
   {
+    "id": "GD01-115-Action",
+    "cardCode": "GD01-115",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
     "id": "GD01-115-Main",
     "cardCode": "GD01-115",
     "trigger": "Main",
@@ -981,7 +1125,7 @@
     "targetScope": "enemyUnit",
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Main】Choose 1 enemy Unit. Deal 1 damage to it."
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it."
   },
   {
     "id": "GD01-116-Action",
@@ -1079,6 +1223,18 @@
     "targetFilter": "level<=4",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit that is Lv.4 or lower. It gets AP-2 during this turn."
+  },
+  {
+    "id": "GD01-120-Action",
+    "cardCode": "GD01-120",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly Unit with <Blocker>. It gets AP+3 during this turn."
   },
   {
     "id": "GD01-120-Burst",
@@ -1369,12 +1525,11 @@
     "cardCode": "GD02-003",
     "trigger": "Destroyed",
     "ops": [
-      "moveZone",
       "discardNamed"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": "formerPairedPilotLevelAtMostAndChosenNonEmpty:3:discard",
+    "predicate": "formerPairedPilotLevelAtMost:3",
     "sourceText": "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may discard 1 Unit card. If you do, return the card paired with this Unit to your hand."
   },
   {
@@ -1382,7 +1537,6 @@
     "cardCode": "GD02-004",
     "trigger": "When Paired",
     "ops": [
-      "rest",
       "preventActivationNextTurn"
     ],
     "targetScope": "enemyUnit",
@@ -1435,9 +1589,9 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetFilter": "trait:Titans",
     "predicate": null,
-    "sourceText": "[Deploy] Choose 1 of your (Titans) Units. It gets AP+1 during this turn."
+    "sourceText": "【Deploy】Choose 1 of your (Titans) Units. It gets AP+1 during this turn."
   },
   {
     "id": "GD02-016-Deploy",
@@ -1447,9 +1601,9 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetFilter": "trait:Titans",
     "predicate": null,
-    "sourceText": "[Deploy] Choose 1 of your (Titans) Units. It gets AP+1 during this turn."
+    "sourceText": "【Deploy】Choose 1 of your (Titans) Units. It gets AP+1 during this turn."
   },
   {
     "id": "GD02-020-Deploy",
@@ -1461,7 +1615,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Deploy] Look at the top 5 cards of your deck. You may reveal 1 green (Zeon) Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck. \n  \n[During Link] This unit gets AP+2."
+    "sourceText": "【Deploy】Look at the top 5 cards of your deck. You may reveal 1 green (Zeon) Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "GD02-021-Deploy",
@@ -1475,18 +1629,6 @@
     "targetFilter": null,
     "predicate": "chosenNonEmpty:discard",
     "sourceText": "【Deploy】You may discard 1 green (Earth Federation) Unit card. If you do, place 1 EX Resource. Then, if you are Lv.7 or higher, draw 1."
-  },
-  {
-    "id": "GD02-023-Main-GrantFIRST_STRIKE",
-    "cardCode": "GD02-023",
-    "trigger": "Main",
-    "ops": [
-      "grantKeyword"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "[During Link] While you are Lv.7 or higher, this Unit gains <First Strike>. \n(While this Unit is attacking, it deals damage before the enemy Unit.)"
   },
   {
     "id": "GD02-025-Deploy",
@@ -1508,48 +1650,24 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "[Deploy] If you are Lv.7 or higher, choose 1 of your (AGE System) Units. It gets AP+2 during this turn."
+    "targetFilter": "trait:AGE System",
+    "predicate": "controllerLevelAtLeast:7",
+    "sourceText": "【Deploy】If you are Lv.7 or higher, choose 1 of your (AGE System) Units. It gets AP+2 during this turn."
   },
   {
-    "id": "GD02-031-Main",
-    "cardCode": "GD02-031",
-    "trigger": "Main",
+    "id": "GD02-036-Attack",
+    "cardCode": "GD02-036",
+    "trigger": "Attack",
     "ops": [
-      "modifyStat"
+      "damageUnit"
     ],
-    "targetScope": "friendlyUnit",
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "While you are Lv.7 or higher, this Unit gets AP+2."
+    "targetScope": "enemyUnit",
+    "targetFilter": "damaged",
+    "predicate": "pairedPilotHasTrait:Neo Zeon",
+    "sourceText": "【During Pair･(Neo Zeon) Pilot】【Attack】Choose 1 damaged enemy Unit. Deal 2 damage to it."
   },
   {
-    "id": "GD02-033-Main-GrantBREACH_5",
-    "cardCode": "GD02-033",
-    "trigger": "Main",
-    "ops": [
-      "grantKeyword"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "While another friendly (Zeon) Link Unit is in play, this Unit gains <Breach 5>. \n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)"
-  },
-  {
-    "id": "GD02-034-Main",
-    "cardCode": "GD02-034",
-    "trigger": "Main",
-    "ops": [
-      "modifyStat"
-    ],
-    "targetScope": "friendlyUnit",
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "[During Pair: Red Pilot] This Unit gets AP+2."
-  },
-  {
-    "id": "GD02-036-When Linked-GrantSUPPRESSION",
+    "id": "GD02-036-WhenLinked",
     "cardCode": "GD02-036",
     "trigger": "When Linked",
     "ops": [
@@ -1558,7 +1676,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[When Linked] This Unit gains <Suppression> during this turn. \n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.) \n[During Pair: (Neo Zeon) Pilot] [Attack] Choose 1 damaged enemy Unit. Deal 2 damage to it."
+    "sourceText": "【When Linked】This Unit gains <Suppression> during this turn."
   },
   {
     "id": "GD02-037-Deploy",
@@ -1577,12 +1695,12 @@
     "cardCode": "GD02-038",
     "trigger": "Deploy",
     "ops": [
-      "lookAtTopFilterReveal"
+      "deployFromTopFilterReveal"
     ],
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Deploy] Look at the top 3 cards of your deck. You may deploy 1 (Clan) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "【Deploy】Look at the top 3 cards of your deck. You may deploy 1 (Clan) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "GD02-039-WhenPaired",
@@ -1749,13 +1867,25 @@
     "cardCode": "GD02-058",
     "trigger": "Deploy",
     "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your Units. Deal 1 damage to it."
+  },
+  {
+    "id": "GD02-058-Deploy-Draw",
+    "cardCode": "GD02-058",
+    "trigger": "Deploy",
+    "ops": [
       "draw",
       "discardNamed"
     ],
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Deploy] Choose 1 of your Units. Deal 1 damage to it. If you do, draw 1. Then, discard 1."
+    "sourceText": "If you do, draw 1. Then, discard 1."
   },
   {
     "id": "GD02-060-Deploy",
@@ -1778,7 +1908,7 @@
     ],
     "targetScope": "enemyUnit",
     "targetFilter": "ap<=3",
-    "predicate": "pairedPilotColorIs:purple;controllerTrashUnitCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
+    "predicate": "pairedPilotColorIs:purple;controllerTrashCardCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
     "sourceText": "【When Paired･Purple Pilot】If there are 3 or more (Teiwaz)/(Tekkadan) cards in your trash, choose 1 enemy Unit with 3 or less AP. Rest it."
   },
   {
@@ -1788,10 +1918,10 @@
     "ops": [
       "damageUnit"
     ],
-    "targetScope": "enemyUnit",
+    "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Deploy] Deal 2 damage to this Unit."
+    "sourceText": "【Deploy】Deal 2 damage to this Unit."
   },
   {
     "id": "GD02-069-ActivateMain",
@@ -1833,18 +1963,6 @@
     "sourceText": "【Deploy】If a friendly white Base is in play, you may pair 1 (AEUG) Pilot card from your hand with this Unit."
   },
   {
-    "id": "GD02-073-Main-GrantFIRST_STRIKE",
-    "cardCode": "GD02-073",
-    "trigger": "Main",
-    "ops": [
-      "grantKeyword"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>. \n(While this Unit is attacking, it deals damage before the enemy Unit.)"
-  },
-  {
     "id": "GD02-075-Attack",
     "cardCode": "GD02-075",
     "trigger": "Attack",
@@ -1868,18 +1986,6 @@
     "targetFilter": null,
     "predicate": "controllerHasBaseColor:white",
     "sourceText": "【Deploy】If a friendly white Base is in play, choose 1 enemy Unit. It gets AP-2 during this turn."
-  },
-  {
-    "id": "GD02-082-Main-GrantBLOCKER",
-    "cardCode": "GD02-082",
-    "trigger": "Main",
-    "ops": [
-      "grantKeyword"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "While you have another (Gjallarhorn) Unit in play, this Unit gains <Blocker>. \n(Rest this Unit to change the attack target to it.)"
   },
   {
     "id": "GD02-083-Destroyed",
@@ -1906,16 +2012,16 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
-    "id": "GD02-086-Main",
+    "id": "GD02-086-Burst",
     "cardCode": "GD02-086",
-    "trigger": "Main",
+    "trigger": "Burst",
     "ops": [
-      "modifyStat"
+      "moveZone"
     ],
-    "targetScope": "friendlyUnit",
+    "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand. \nWhile you have another (Titans) Unit in play, this gets AP+1."
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "GD02-087-Burst",
@@ -1942,7 +2048,19 @@
     "sourceText": "【When Linked】If this is a blue Unit, choose 1 enemy Unit with <Blocker>. Rest it."
   },
   {
-    "id": "GD02-088-When Linked",
+    "id": "GD02-088-Burst",
+    "cardCode": "GD02-088",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD02-088-WhenLinked",
     "cardCode": "GD02-088",
     "trigger": "When Linked",
     "ops": [
@@ -1951,7 +2069,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand. \n  \n[When Linked] Look at the top 3 cards of your deck. You may reveal 1 green (Earth Federation) Unit card/1 card with \"AGE Device\" in its card name among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "【When Linked】Look at the top 3 cards of your deck. You may reveal 1 green (Earth Federation) Unit card/1 card with \"AGE Device\" in its card name among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "GD02-089-Burst",
@@ -1973,21 +2091,21 @@
       "grantKeyword"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": "trait:Zeon;linkUnit",
+    "targetFilter": "trait:Zeon;linkUnit;notSelfUnit",
     "predicate": null,
     "sourceText": "【When Paired】Choose 1 of your other (Zeon) Link Units. It gains <Breach 1> during this turn."
   },
   {
-    "id": "GD02-090-Main",
+    "id": "GD02-090-Burst",
     "cardCode": "GD02-090",
-    "trigger": "Main",
+    "trigger": "Burst",
     "ops": [
-      "modifyStat"
+      "moveZone"
     ],
-    "targetScope": "friendlyUnit",
+    "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand.\n While you have another Unit with [High-Maneuver] in play, this Unit gets AP+1."
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "GD02-091-Burst",
@@ -2021,9 +2139,21 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
+    "targetFilter": "trait:New UNE",
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Choose 1 of your (New UNE) Units. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD02-092-Burst",
+    "cardCode": "GD02-092",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand. \n[During Link] [Attack] Choose 1 of your (New UNE) Units. It gets AP+2 during this turn."
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "GD02-093-Burst",
@@ -2038,7 +2168,19 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
-    "id": "GD02-094-When Paired",
+    "id": "GD02-094-Burst",
+    "cardCode": "GD02-094",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD02-094-WhenPaired",
     "cardCode": "GD02-094",
     "trigger": "When Paired",
     "ops": [
@@ -2047,7 +2189,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand.\n [When Paired] You may discard 1. If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "GD02-095-Attack",
@@ -2074,6 +2216,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD02-096-Burst",
+    "cardCode": "GD02-096",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
     "id": "GD02-096-WhenLinked",
     "cardCode": "GD02-096",
     "trigger": "When Linked",
@@ -2083,19 +2237,31 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Burst】Add this card to your hand.\n【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it."
+    "sourceText": "【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it."
   },
   {
-    "id": "GD02-097-Main",
+    "id": "GD02-097-Burst",
     "cardCode": "GD02-097",
-    "trigger": "Main",
+    "trigger": "Burst",
     "ops": [
-      "modifyStat"
+      "moveZone"
     ],
-    "targetScope": "friendlyUnit",
+    "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Add this card to your hand. \n  \nWhile there is a friendly white Base in play, this Unit gets AP+2."
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD02-098-Burst",
+    "cardCode": "GD02-098",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "GD02-098-WhenLinked",
@@ -2108,7 +2274,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": "selfHasTrait:AEUG",
-    "sourceText": "This card's name is also treated as [Char Aznable].\n\n【Burst】Add this card to your hand.\n【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1."
+    "sourceText": "【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1."
   },
   {
     "id": "GD02-099-Burst",
@@ -2191,9 +2357,21 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetFilter": "trait:Titans",
     "predicate": null,
-    "sourceText": "[Main] / [Action] Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn. \n[Pilot] [Mouar Pharaoh]"
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD02-102-Main",
+    "cardCode": "GD02-102",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Titans",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn."
   },
   {
     "id": "GD02-103-Burst",
@@ -2224,12 +2402,15 @@
     "cardCode": "GD02-104",
     "trigger": "Main",
     "ops": [
-      "lookAtTopFilterReveal"
+      "draw",
+      "moveWithinDeck",
+      "moveWithinDeck",
+      "moveWithinDeck"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": null,
-    "sourceText": "[Main] Look at the top 3 cards of your deck and return 1 to the top. Return the remaining cards to the bottom of your deck. Then, if you have a (Newtype) Pilot in play, draw 1."
+    "predicate": "controllerHasPilotWithTrait:Newtype",
+    "sourceText": "【Main】Look at the top 3 cards of your deck and return 1 to the top. Return the remaining cards to the bottom of your deck. Then, if you have a (Newtype) Pilot in play, draw 1."
   },
   {
     "id": "GD02-105-Action",
@@ -2408,9 +2589,21 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetFilter": "damaged",
     "predicate": null,
-    "sourceText": "[Main] / [Action] Choose 1 damaged friendly Unit. It gets AP+2 during this turn. \n[Pilot] [Norba Shino]"
+    "sourceText": "【Main】/【Action】Choose 1 damaged friendly Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD02-114-Main",
+    "cardCode": "GD02-114",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "damaged",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 damaged friendly Unit. It gets AP+2 during this turn."
   },
   {
     "id": "GD02-115-Action",
@@ -2420,9 +2613,21 @@
       "modifyStat"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": null,
+    "targetFilter": "trait:Vulture",
     "predicate": null,
-    "sourceText": "[Main] / [Action] Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn. \n[Pilot] [Witz Sou]"
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD02-115-Main",
+    "cardCode": "GD02-115",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Vulture",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn."
   },
   {
     "id": "GD02-116-Main",
@@ -2441,13 +2646,25 @@
     "cardCode": "GD02-117",
     "trigger": "Burst",
     "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Choose 1 (AEUG) Base card from your trash. Add it to your hand."
+  },
+  {
+    "id": "GD02-117-Main",
+    "cardCode": "GD02-117",
+    "trigger": "Main",
+    "ops": [
       "draw",
       "discardNamed"
     ],
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "[Burst] Choose 1 (AEUG) Base card from your trash. Add it to your hand. \n  \n[Main] Draw 3. Then, discard 2."
+    "sourceText": "【Main】Draw 3. Then, discard 2."
   },
   {
     "id": "GD02-118-Action",
@@ -2486,6 +2703,18 @@
     "sourceText": "【Action】Choose 1 of your (AEUG) Units/Bases. It recovers 2 HP."
   },
   {
+    "id": "GD02-121-Burst",
+    "cardCode": "GD02-121",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-121-Deploy",
     "cardCode": "GD02-121",
     "trigger": "Deploy",
@@ -2496,6 +2725,30 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD02-121-Deploy-Heal",
+    "cardCode": "GD02-121",
+    "trigger": "Deploy",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "color:blue",
+    "predicate": null,
+    "sourceText": "Then, choose 1 friendly blue Unit. It recovers 2 HP."
+  },
+  {
+    "id": "GD02-122-Burst",
+    "cardCode": "GD02-122",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "GD02-122-Deploy",
@@ -2510,6 +2763,30 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-122-Deploy-Damage",
+    "cardCode": "GD02-122",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested;level<=4",
+    "predicate": null,
+    "sourceText": "Then, choose 1 rested enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+  },
+  {
+    "id": "GD02-123-Burst",
+    "cardCode": "GD02-123",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-123-Deploy",
     "cardCode": "GD02-123",
     "trigger": "Deploy",
@@ -2520,6 +2797,30 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD02-123-Deploy-Relax",
+    "cardCode": "GD02-123",
+    "trigger": "Deploy",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "isToken",
+    "predicate": null,
+    "sourceText": "Then, choose 1 friendly Unit token. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target."
+  },
+  {
+    "id": "GD02-124-Burst",
+    "cardCode": "GD02-124",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "GD02-124-Deploy",
@@ -2534,6 +2835,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-125-Burst",
+    "cardCode": "GD02-125",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-125-Deploy",
     "cardCode": "GD02-125",
     "trigger": "Deploy",
@@ -2544,6 +2857,30 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD02-125-Deploy-Discard",
+    "cardCode": "GD02-125",
+    "trigger": "Deploy",
+    "ops": [
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "isControllersTurn",
+    "sourceText": "Then, if it is your turn, you may discard 1 red card. If you do, draw 1."
+  },
+  {
+    "id": "GD02-126-Burst",
+    "cardCode": "GD02-126",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "GD02-126-Deploy",
@@ -2558,6 +2895,30 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-126-Destroyed",
+    "cardCode": "GD02-126",
+    "trigger": "Destroyed",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": null,
+    "sourceText": "【Destroyed】Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+  },
+  {
+    "id": "GD02-127-Burst",
+    "cardCode": "GD02-127",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-127-Deploy",
     "cardCode": "GD02-127",
     "trigger": "Deploy",
@@ -2568,6 +2929,30 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD02-127-Destroyed",
+    "cardCode": "GD02-127",
+    "trigger": "Destroyed",
+    "ops": [
+      "millToTrash"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Destroyed】Place the top 2 cards of your deck into your trash."
+  },
+  {
+    "id": "GD02-128-Burst",
+    "cardCode": "GD02-128",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "GD02-128-Deploy",
@@ -2582,6 +2967,30 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-128-Deploy-Destroy",
+    "cardCode": "GD02-128",
+    "trigger": "Deploy",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=2",
+    "predicate": "isControllersTurn;controllerHasLinkUnitWithTrait:Teiwaz",
+    "sourceText": "Then, if it is your turn and a friendly (Teiwaz) Link Unit is in play, choose 1 enemy Unit with 2 or less AP. Destroy it."
+  },
+  {
+    "id": "GD02-129-Burst",
+    "cardCode": "GD02-129",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-129-Deploy",
     "cardCode": "GD02-129",
     "trigger": "Deploy",
@@ -2594,6 +3003,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD02-130-Burst",
+    "cardCode": "GD02-130",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
     "id": "GD02-130-Deploy",
     "cardCode": "GD02-130",
     "trigger": "Deploy",
@@ -2604,6 +3025,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD02-130-Deploy-Debuff",
+    "cardCode": "GD02-130",
+    "trigger": "Deploy",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerUnitWithTraitInPlay:Gjallarhorn",
+    "sourceText": "Then, if a friendly (Gjallarhorn) Unit is in play, choose 1 enemy Unit. It gets AP-2 during this turn."
   },
   {
     "id": "GD03-001-WhenPaired",
@@ -2655,40 +3088,16 @@
     "sourceText": "【Destroyed】Choose 1 enemy Unit with 3 or less HP. Rest it."
   },
   {
-    "id": "GD03-0100-Burst",
-    "cardCode": "GD03-0100",
-    "trigger": "Burst",
-    "ops": [
-      "moveZone"
-    ],
-    "targetScope": null,
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "【Burst】Add this card to your hand."
-  },
-  {
     "id": "GD03-021-Deploy",
     "cardCode": "GD03-021",
     "trigger": "Deploy",
     "ops": [
-      "rest"
+      "grantAttackTargetRelax"
     ],
-    "targetScope": "enemyUnit",
-    "targetFilter": null,
+    "targetScope": "friendlyUnit",
+    "targetFilter": "anyTrait:Operation Meteor,G Team",
     "predicate": null,
-    "sourceText": "【Deploy】Choose 1 enemy Unit. Rest it."
-  },
-  {
-    "id": "GD03-023-Deploy",
-    "cardCode": "GD03-023",
-    "trigger": "Deploy",
-    "ops": [
-      "damageUnit"
-    ],
-    "targetScope": "enemyUnit",
-    "targetFilter": null,
-    "predicate": null,
-    "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 2 damage to it."
+    "sourceText": "【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may choose an active enemy Unit as its attack target."
   },
   {
     "id": "GD03-084-Burst",
@@ -2907,6 +3316,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-100-Burst",
+    "cardCode": "GD03-100",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
     "id": "GD03-101-Main",
     "cardCode": "GD03-101",
     "trigger": "Main",
@@ -2917,6 +3338,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】Draw 1."
+  },
+  {
+    "id": "GD03-101-Main-Rest",
+    "cardCode": "GD03-101",
+    "trigger": "Main",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=4",
+    "predicate": "controllerTrashCardCountNamedAtLeast:A Healthy Curiosity:2",
+    "sourceText": "Then, if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it."
   },
   {
     "id": "GD03-102-Burst",
@@ -2995,24 +3428,26 @@
     "cardCode": "GD03-116",
     "trigger": "Action",
     "ops": [
+      "damageUnit",
       "damageUnit"
     ],
-    "targetScope": "enemyUnit",
-    "targetFilter": null,
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Vagan",
     "predicate": null,
-    "sourceText": "【Action】Choose 1 enemy Unit. Deal 2 damage to it."
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them."
   },
   {
     "id": "GD03-116-Main",
     "cardCode": "GD03-116",
     "trigger": "Main",
     "ops": [
+      "damageUnit",
       "damageUnit"
     ],
-    "targetScope": "enemyUnit",
-    "targetFilter": null,
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Vagan",
     "predicate": null,
-    "sourceText": "【Main】Choose 1 enemy Unit. Deal 2 damage to it."
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them."
   },
   {
     "id": "GD03-118-Burst",
@@ -3049,6 +3484,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-123-Deploy-Rest",
+    "cardCode": "GD03-123",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": "controllerUnitWithTraitInPlay:Jupitris",
+    "sourceText": "Then, if a friendly (Jupitris) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it."
   },
   {
     "id": "GD03-124-Burst",
@@ -3147,6 +3594,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD03-127-Deploy-Buff",
+    "cardCode": "GD03-127",
+    "trigger": "Deploy",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:ZAFT",
+    "predicate": null,
+    "sourceText": "Then, Choose 1 friendly (ZAFT) Unit. It gets AP+3 during this turn."
+  },
+  {
     "id": "GD03-128-Burst",
     "cardCode": "GD03-128",
     "trigger": "Burst",
@@ -3219,6 +3678,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD03-130-Deploy-Revive",
+    "cardCode": "GD03-130",
+    "trigger": "Deploy",
+    "ops": [
+      "deployFromTrashPayingCost"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "isControllersTurn",
+    "sourceText": "Then, if it is your turn, you may choose 1 (Vagan) Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
+  },
+  {
     "id": "GD03-131-Burst",
     "cardCode": "GD03-131",
     "trigger": "Burst",
@@ -3243,6 +3714,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD03-131-Deploy-Bounce",
+    "cardCode": "GD03-131",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": "controllerOtherUnitCountWithAnyTraitAtLeast:Triple Ship Alliance:2",
+    "sourceText": "Then, if you have 2 or more (Triple Ship Alliance) Units in play, choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
+  },
+  {
     "id": "GD03-132-Burst",
     "cardCode": "GD03-132",
     "trigger": "Burst",
@@ -3265,6 +3748,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-132-Destroyed",
+    "cardCode": "GD03-132",
+    "trigger": "Destroyed",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=4",
+    "predicate": "controllerLinkUnitWithTraitInPlay:AEUG",
+    "sourceText": "【Destroyed】If you have an (AEUG) Link Unit in play, choose 1 enemy Unit with 4 or less HP. Rest it."
   },
   {
     "id": "ST01-002-WhenPaired",
@@ -4340,7 +4835,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": "trait:Clan",
     "predicate": null,
-    "sourceText": "【Attack】Choose 1 or 2 friendly (Clan) Units. They get AP+2 during this turn."
+    "sourceText": "【Attack】Choose 1 to 2 friendly (Clan) Units. They get AP+2 during this turn."
   },
   {
     "id": "ST06-007-Deploy",
@@ -4353,6 +4848,18 @@
     "targetFilter": "trait:Clan;isNotSelf",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 of your other (Clan) Units. During this turn, it may choose an active enemy Unit with 3 or less AP as its attack target."
+  },
+  {
+    "id": "ST06-009-Burst",
+    "cardCode": "ST06-009",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "ST06-009-WhenLinked",
@@ -4377,6 +4884,18 @@
     "targetFilter": null,
     "predicate": "controllerUnitWithTraitInPlay:Clan",
     "sourceText": "【During Link】【Attack】If you have a (Clan) Unit in play, look at the top card of your deck. Return it to the top or bottom of your deck."
+  },
+  {
+    "id": "ST06-010-Burst",
+    "cardCode": "ST06-010",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
   },
   {
     "id": "ST06-011-Action",
@@ -4437,7 +4956,19 @@
     "targetScope": "friendlyUnit",
     "targetFilter": null,
     "predicate": "controllerLinkUnitWithTraitInPlay:Clan",
-    "sourceText": "【Activate: Main】Rest this Base: If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
+    "sourceText": "【Activate·Main】Rest this Base:If a friendly (Clan) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "ST06-014-Burst",
+    "cardCode": "ST06-014",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "ST06-014-Deploy",
@@ -4450,6 +4981,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "ST06-015-Burst",
+    "cardCode": "ST06-015",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
   },
   {
     "id": "ST06-015-Deploy",
@@ -4604,7 +5147,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card / Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "【Main】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
     "id": "ST07-015-Burst",
@@ -4677,7 +5220,7 @@
     "targetScope": null,
     "targetFilter": null,
     "predicate": "attackingPlayer;controllerHandHasUnitWithTrait:Earth Federation",
-    "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2."
+    "sourceText": "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return it to the bottom of your deck. If you do, draw 2."
   },
   {
     "id": "ST08-009-Deploy",
@@ -4738,7 +5281,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": "linkUnit",
     "predicate": null,
-    "sourceText": "【Main】Choose 1 friendly Link Unit. It gains [Breach 1] during this turn."
+    "sourceText": "【Main】Choose 1 friendly Link Unit. It gains <Breach 1> during this turn."
   },
   {
     "id": "ST08-013-Action",
@@ -4802,7 +5345,7 @@
     "targetScope": "friendlyUnit",
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "【Activate: Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP."
+    "sourceText": "【Activate·Main】【Once per Turn】②:Choose 1 of your Units. It recovers 2 HP."
   },
   {
     "id": "ST08-015-Burst",

@@ -1,398 +1,318 @@
 import type { EffectSpec } from "../../engine/effectSpec";
 import type { CardDef } from "../../engine/types";
 import { EX_RESOURCE_TOKEN } from "../../engine/setup";
+import { mainAndAction, stdAddToHandBurst, stdDeployThisBurst } from "../standardSpecs";
 
 /**
  * Wave GD02 "Dual Impact" — Catálogo de EffectSpecs Oficiais.
  */
 
-// GD02-014 Galbaldy Beta — 【Deploy】AP+1
+// ─────────────────────────────────────────────────────────────────────────
+// Bloco reescrito na W0.3 (revisão semântica GD02/GD03): o lote original tinha sido gerado a
+// partir do texto do apitcg ("[Deploy] …") e vários specs faziam outra coisa — filtro de alvo
+// ausente, efeito do 【Main】 no 【Burst】, "Main" em Unit/Pilot (código morto — só Command
+// joga 【Main】/【Action】), dano no inimigo em vez de "this Unit". Os efeitos contínuos
+// ("While …") desse lote viraram `staticAbilities` nos CardDefs (units*/pilots/bases.ts).
+// ─────────────────────────────────────────────────────────────────────────
+
+// GD02-014 Galbaldy Beta / GD02-016 Barzam — 【Deploy】Choose 1 of your (Titans) Units. It gets AP+1 during this turn.
 export const GD02_014_GALBALDY_BETA_DEPLOY: EffectSpec = {
   id: "GD02-014-Deploy",
   cardCode: "GD02-014",
   trigger: "Deploy",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 1, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
+  actions: [{ op: "modifyStat", stat: "ap", amount: 1, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",
-  sourceText: "[Deploy] Choose 1 of your (Titans) Units. It gets AP+1 during this turn.",
+  targetFilter: "trait:Titans",
+  sourceText: "【Deploy】Choose 1 of your (Titans) Units. It gets AP+1 during this turn.",
 };
+export const GD02_016_BARZAM_DEPLOY: EffectSpec = { ...GD02_014_GALBALDY_BETA_DEPLOY, id: "GD02-016-Deploy", cardCode: "GD02-016" };
 
-// GD02-016 Barzam — 【Deploy】AP+1
-export const GD02_016_BARZAM_DEPLOY: EffectSpec = {
-  id: "GD02-016-Deploy",
-  cardCode: "GD02-016",
-  trigger: "Deploy",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 1, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Deploy] Choose 1 of your (Titans) Units. It gets AP+1 during this turn.",
-};
-
-// GD02-020 Elmeth — 【Deploy】Look at top 5
+// GD02-020 Elmeth — 【Deploy】reveal 1 green (Zeon) PILOT card (o filtro aceitava qualquer carta Zeon).
+// O 【During Link】AP+2 é `staticAbilities` no CardDef.
 export const GD02_020_ELMETH_DEPLOY: EffectSpec = {
   id: "GD02-020-Deploy",
   cardCode: "GD02-020",
   trigger: "Deploy",
-  actions: [
-    { op: "lookAtTopFilterReveal", player: "controller", count: 5, filter: { anyTrait: ["Zeon"] } },
-  ],
-  sourceText: "[Deploy] Look at the top 5 cards of your deck. You may reveal 1 green (Zeon) Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck. \n  \n[During Link] This unit gets AP+2.",
+  actions: [{ op: "lookAtTopFilterReveal", player: "controller", count: 5, filter: { cardType: "PILOT", color: "green", anyTrait: ["Zeon"] } }],
+  sourceText:
+    "【Deploy】Look at the top 5 cards of your deck. You may reveal 1 green (Zeon) Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
 };
 
-// GD02-020 Elmeth — 【During Link】AP+2
-export const GD02_020_ELMETH_DURING_LINK: EffectSpec = {
-  id: "GD02-020-DuringLink",
-  cardCode: "GD02-020",
-  trigger: "DuringLink",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "[During Link] This unit gets AP+2.",
-};
-
-// GD02-023 Gundam AGE-1 Spallow — 【Main】gains <First Strike>
-export const GD02_023_GUNDAM_AGE_1_SPALLOW_GRANT_FIRST_STRIKE: EffectSpec = {
-  id: "GD02-023-Main-GrantFIRST_STRIKE",
-  cardCode: "GD02-023",
-  trigger: "Main",
-  actions: [
-    { op: "grantKeyword", keyword: "First Strike", duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "[During Link] While you are Lv.7 or higher, this Unit gains <First Strike>. \n(While this Unit is attacking, it deals damage before the enemy Unit.)",
-};
-
-// GD02-026 Genoace Custom — 【Deploy】AP+2
+// GD02-026 Genoace Custom — só com Lv.7+, e só em (AGE System).
 export const GD02_026_GENOACE_CUSTOM_DEPLOY: EffectSpec = {
   id: "GD02-026-Deploy",
   cardCode: "GD02-026",
   trigger: "Deploy",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
+  condition: {
+    predicate: "controllerLevelAtLeast:7",
+    then: [{ op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
   targetScope: "friendlyUnit",
-  sourceText: "[Deploy] If you are Lv.7 or higher, choose 1 of your (AGE System) Units. It gets AP+2 during this turn.",
+  targetFilter: "trait:AGE System",
+  sourceText: "【Deploy】If you are Lv.7 or higher, choose 1 of your (AGE System) Units. It gets AP+2 during this turn.",
 };
 
-// GD02-031 Gundam AGE-1 Titus — 【Main】AP+2
-export const GD02_031_GUNDAM_AGE_1_TITUS_MAIN: EffectSpec = {
-  id: "GD02-031-Main",
-  cardCode: "GD02-031",
-  trigger: "Main",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "While you are Lv.7 or higher, this Unit gets AP+2.",
-};
-
-// GD02-033 Kikeroga (MA Mode) (GQ) — 【Main】gains <Breach 5>
-export const GD02_033_KIKEROGA_MA_MODE_GQ_GRANT_BREACH_5: EffectSpec = {
-  id: "GD02-033-Main-GrantBREACH_5",
-  cardCode: "GD02-033",
-  trigger: "Main",
-  actions: [
-    { op: "grantKeyword", keyword: "Breach 5", duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "While another friendly (Zeon) Link Unit is in play, this Unit gains <Breach 5>. \n(When this Unit's attack destroys an enemy Unit, deal the specified amount of damage to the first card in that opponent's shield area.)",
-};
-
-// GD02-034 GQuuuuuuX — 【Main】AP+2
-export const GD02_034_GQUUUUUUX_MAIN: EffectSpec = {
-  id: "GD02-034-Main",
-  cardCode: "GD02-034",
-  trigger: "Main",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[During Pair: Red Pilot] This Unit gets AP+2.",
-};
-
-// GD02-036 Qubeley — 【When Linked】gains <Suppression>
+// GD02-036 Qubeley — 【When Linked】(dispara desde o E1) e o 【Attack】 que não existia.
 export const GD02_036_QUBELEY_GRANT_SUPPRESSION: EffectSpec = {
-  id: "GD02-036-When Linked-GrantSUPPRESSION",
+  id: "GD02-036-WhenLinked",
   cardCode: "GD02-036",
   trigger: "When Linked",
-  actions: [
-    { op: "grantKeyword", keyword: "Suppression", duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "[When Linked] This Unit gains <Suppression> during this turn. \n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.) \n[During Pair: (Neo Zeon) Pilot] [Attack] Choose 1 damaged enemy Unit. Deal 2 damage to it.",
+  actions: [{ op: "grantKeyword", keyword: "Suppression", duration: "endOfTurn", target: { kind: "self" } }],
+  sourceText: "【When Linked】This Unit gains <Suppression> during this turn.",
+};
+export const GD02_036_QUBELEY_ATTACK: EffectSpec = {
+  id: "GD02-036-Attack",
+  cardCode: "GD02-036",
+  trigger: "Attack",
+  condition: {
+    predicate: "pairedPilotHasTrait:Neo Zeon",
+    then: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 2 }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "damaged",
+  sourceText: "【During Pair･(Neo Zeon) Pilot】【Attack】Choose 1 damaged enemy Unit. Deal 2 damage to it.",
 };
 
-// GD02-038 GQuuuuuuX (Omega Psycommu) — 【Deploy】Look at top 3
+// GD02-038 GQuuuuuuX (Omega Psycommu) — DEPLOY (ia pra mão) 1 (Clan) Unit Lv.4 ou menor.
 export const GD02_038_GQUUUUUUX_OMEGA_PSYCOMMU_DEPLOY: EffectSpec = {
   id: "GD02-038-Deploy",
   cardCode: "GD02-038",
   trigger: "Deploy",
-  actions: [
-    { op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { anyTrait: ["Clan"] } },
-  ],
-  sourceText: "[Deploy] Look at the top 3 cards of your deck. You may deploy 1 (Clan) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
+  actions: [{ op: "deployFromTopFilterReveal", player: "controller", count: 3, filter: { cardType: "UNIT", anyTrait: ["Clan"], maxLevel: 4 } }],
+  sourceText:
+    "【Deploy】Look at the top 3 cards of your deck. You may deploy 1 (Clan) Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck.",
 };
 
-// GD02-058 Ryusei-Go (Graze Custom II) — 【Deploy】Draw 1, discard 1
+// GD02-058 Ryusei-Go (Graze Custom II) — faltava escolher a Unit e dar o dano. Em 2 specs: uma
+// fila só não carrega alvo + descarte juntos (E4). "If you do" sempre se cumpre: a própria Unit
+// recém-jogada é alvo legal e o "Choose 1" é obrigatório.
 export const GD02_058_RYUSEI_GO_GRAZE_CUSTOM_II_DEPLOY: EffectSpec = {
   id: "GD02-058-Deploy",
+  cardCode: "GD02-058",
+  trigger: "Deploy",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "friendlyUnit",
+  sourceText: "【Deploy】Choose 1 of your Units. Deal 1 damage to it.",
+};
+export const GD02_058_RYUSEI_GO_GRAZE_CUSTOM_II_DEPLOY_DRAW: EffectSpec = {
+  id: "GD02-058-Deploy-Draw",
   cardCode: "GD02-058",
   trigger: "Deploy",
   actions: [
     { op: "draw", player: "controller", n: 1 },
     { op: "discardNamed", player: "controller", name: "discard", n: 1 },
   ],
-  sourceText: "[Deploy] Choose 1 of your Units. Deal 1 damage to it. If you do, draw 1. Then, discard 1.",
+  sourceText: "If you do, draw 1. Then, discard 1.",
 };
 
-// GD02-068 Gundam Barbatos 3rd Form — 【Deploy】Deal 2 damage
+// GD02-068 Gundam Barbatos 3rd Form — o dano é em ESTA Unit (era numa inimiga).
 export const GD02_068_GUNDAM_BARBATOS_3RD_FORM_DEPLOY: EffectSpec = {
   id: "GD02-068-Deploy",
   cardCode: "GD02-068",
   trigger: "Deploy",
-  actions: [{ op: "damageUnit", amount: 2, target: { kind: "named", name: "target" } }],
-  targetScope: "enemyUnit",
-  sourceText: "[Deploy] Deal 2 damage to this Unit.",
+  actions: [{ op: "damageUnit", amount: 2, target: { kind: "self" } }],
+  sourceText: "【Deploy】Deal 2 damage to this Unit.",
 };
 
-// GD02-073 Carta's Graze Ritter (Ground Type) — 【Main】gains <First Strike>
-export const GD02_073_CARTA_S_GRAZE_RITTER_GROUND_TYPE_GRANT_FIRST_STRIKE: EffectSpec = {
-  id: "GD02-073-Main-GrantFIRST_STRIKE",
-  cardCode: "GD02-073",
-  trigger: "Main",
-  actions: [
-    { op: "grantKeyword", keyword: "First Strike", duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>. \n(While this Unit is attacking, it deals damage before the enemy Unit.)",
-};
-
-// GD02-082 Gaelio's Schwalbe Graze — 【Main】gains <Blocker>
-export const GD02_082_GAELIO_S_SCHWALBE_GRAZE_GRANT_BLOCKER: EffectSpec = {
-  id: "GD02-082-Main-GrantBLOCKER",
-  cardCode: "GD02-082",
-  trigger: "Main",
-  actions: [
-    { op: "grantKeyword", keyword: "Blocker", duration: "endOfTurn", target: { kind: "self" } },
-  ],
-  sourceText: "While you have another (Gjallarhorn) Unit in play, this Unit gains <Blocker>. \n(Rest this Unit to change the attack target to it.)",
-};
-
-// GD02-086 Jerid Messa — 【Main】AP+1
-export const GD02_086_JERID_MESSA_MAIN: EffectSpec = {
-  id: "GD02-086-Main",
-  cardCode: "GD02-086",
-  trigger: "Main",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 1, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Burst] Add this card to your hand. \nWhile you have another (Titans) Unit in play, this gets AP+1.",
-};
-
-// GD02-088 Flit Asuno — 【When Linked】Look at top 3
+// GD02-088 Flit Asuno — green (EF) UNIT card OU carta com "AGE Device" no nome.
 export const GD02_088_FLIT_ASUNO_WHEN_LINKED: EffectSpec = {
-  id: "GD02-088-When Linked",
+  id: "GD02-088-WhenLinked",
   cardCode: "GD02-088",
   trigger: "When Linked",
   actions: [
-    { op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { anyTrait: ["Earth Federation"] } },
+    {
+      op: "lookAtTopFilterReveal",
+      player: "controller",
+      count: 3,
+      filter: { anyOf: [{ cardType: "UNIT", color: "green", anyTrait: ["Earth Federation"] }, { nameContains: "AGE Device" }] },
+    },
   ],
-  sourceText: "[Burst] Add this card to your hand. \n  \n[When Linked] Look at the top 3 cards of your deck. You may reveal 1 green (Earth Federation) Unit card/1 card with \"AGE Device\" in its card name among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+  sourceText:
+    "【When Linked】Look at the top 3 cards of your deck. You may reveal 1 green (Earth Federation) Unit card/1 card with \"AGE Device\" in its card name among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
 };
 
-// GD02-090 Challia Bull (GQ) — 【Main】AP+1
-export const GD02_090_CHALLIA_BULL_GQ_MAIN: EffectSpec = {
-  id: "GD02-090-Main",
-  cardCode: "GD02-090",
-  trigger: "Main",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 1, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Burst] Add this card to your hand.\n While you have another Unit with [High-Maneuver] in play, this Unit gets AP+1.",
-};
-
-// GD02-092 Shagia Frost — 【Attack】AP+2
+// GD02-092 Shagia Frost — só 【During Link】, e só (New UNE).
 export const GD02_092_SHAGIA_FROST_ATTACK: EffectSpec = {
   id: "GD02-092-Attack",
   cardCode: "GD02-092",
   trigger: "Attack",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
+  duringLink: true,
+  actions: [{ op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",
-  sourceText: "[Burst] Add this card to your hand. \n[During Link] [Attack] Choose 1 of your (New UNE) Units. It gets AP+2 during this turn.",
+  targetFilter: "trait:New UNE",
+  sourceText: "【During Link】【Attack】Choose 1 of your (New UNE) Units. It gets AP+2 during this turn.",
 };
 
-// GD02-094 Garrod Ran & Tiffa Adill — 【When Paired】Look at top 3
+// GD02-094 Garrod Ran & Tiffa Adill — filtro de (Vulture) UNIT. O "You may discard 1. If you do,"
+// na frente depende de alvo+escolha na mesma fila (E4) — deferido em content/deferred.ts.
 export const GD02_094_GARROD_RAN_TIFFA_ADILL_WHEN_PAIRED: EffectSpec = {
-  id: "GD02-094-When Paired",
+  id: "GD02-094-WhenPaired",
   cardCode: "GD02-094",
   trigger: "When Paired",
-  actions: [
-    { op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { anyTrait: ["Vulture"] } },
-  ],
-  sourceText: "[Burst] Add this card to your hand.\n [When Paired] You may discard 1. If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+  actions: [{ op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { cardType: "UNIT", anyTrait: ["Vulture"] } }],
+  sourceText:
+    "look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
 };
 
-// GD02-097 Kamille Bidan — 【Main】AP+2
-export const GD02_097_KAMILLE_BIDAN_MAIN: EffectSpec = {
-  id: "GD02-097-Main",
-  cardCode: "GD02-097",
-  trigger: "Main",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Burst] Add this card to your hand. \n  \nWhile there is a friendly white Base in play, this Unit gets AP+2.",
-};
-
-// GD02-102 Mouar's Determination — 【Action】AP+2
-export const GD02_102_MOUAR_S_DETERMINATION_ACTION: EffectSpec = {
-  id: "GD02-102-Action",
+// GD02-102/114/115 — 【Main】/【Action】 (só tinham o Action) com o filtro que faltava.
+export const GD02_102_MOUAR_S_DETERMINATION = mainAndAction({
   cardCode: "GD02-102",
-  trigger: "Action",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
+  actions: [{ op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",
-  sourceText: "[Main] / [Action] Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn. \n[Pilot] [Mouar Pharaoh]",
-};
+  targetFilter: "trait:Titans",
+  sourceText: "【Main】/【Action】Choose 1 friendly (Titans) Unit. It gets AP+2 during this turn.",
+});
+export const GD02_114_IT_S_NAME_IS_RYUSEI_GO = mainAndAction({
+  cardCode: "GD02-114",
+  actions: [{ op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
+  targetScope: "friendlyUnit",
+  targetFilter: "damaged",
+  sourceText: "【Main】/【Action】Choose 1 damaged friendly Unit. It gets AP+2 during this turn.",
+});
+export const GD02_115_FAMILIAL_DEVOTION = mainAndAction({
+  cardCode: "GD02-115",
+  actions: [{ op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
+  targetScope: "friendlyUnit",
+  targetFilter: "trait:Vulture",
+  sourceText: "【Main】/【Action】Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn.",
+});
 
-// GD02-104 Turning Point of History — 【Main】Look at top 3
+// GD02-104 Turning Point of History — reordenar o topo (padrão ST02-015, 3 cartas: 1 no topo,
+// 2 no fundo) e comprar 1 com (Newtype) Pilot em jogo. Antes punha 1 carta na mão.
 export const GD02_104_TURNING_POINT_OF_HISTORY_MAIN: EffectSpec = {
   id: "GD02-104-Main",
   cardCode: "GD02-104",
   trigger: "Main",
   actions: [
-    { op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: {} },
+    { op: "moveWithinDeck", target: { kind: "named", name: "toTop" }, position: "top" },
+    { op: "moveWithinDeck", target: { kind: "named", name: "toBottom" }, position: "bottom" },
+    { op: "moveWithinDeck", target: { kind: "named", name: "toBottom2" }, position: "bottom" },
   ],
-  sourceText: "[Main] Look at the top 3 cards of your deck and return 1 to the top. Return the remaining cards to the bottom of your deck. Then, if you have a (Newtype) Pilot in play, draw 1.",
+  condition: { predicate: "controllerHasPilotWithTrait:Newtype", then: [{ op: "draw", player: "controller", n: 1 }] },
+  sourceText:
+    "【Main】Look at the top 3 cards of your deck and return 1 to the top. Return the remaining cards to the bottom of your deck. Then, if you have a (Newtype) Pilot in play, draw 1.",
 };
 
-// GD02-114 It's Name is Ryusei-Go — 【Action】AP+2
-export const GD02_114_IT_S_NAME_IS_RYUSEI_GO_ACTION: EffectSpec = {
-  id: "GD02-114-Action",
-  cardCode: "GD02-114",
-  trigger: "Action",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Main] / [Action] Choose 1 damaged friendly Unit. It gets AP+2 during this turn. \n[Pilot] [Norba Shino]",
-};
-
-// GD02-115 Familial Devotion — 【Action】AP+2
-export const GD02_115_FAMILIAL_DEVOTION_ACTION: EffectSpec = {
-  id: "GD02-115-Action",
-  cardCode: "GD02-115",
-  trigger: "Action",
-  actions: [
-    { op: "modifyStat", stat: "ap", amount: 2, duration: "endOfTurn", target: { kind: "named", name: "target" } },
-  ],
-  targetScope: "friendlyUnit",
-  sourceText: "[Main] / [Action] Choose 1 friendly (Vulture) Unit. It gets AP+2 during this turn. \n[Pilot] [Witz Sou]",
-};
-
-// GD02-117 A New Sign — 【Burst】Draw 3, discard 2
+// GD02-117 A New Sign — o 【Burst】 fazia o efeito do 【Main】 (e o 【Main】 não existia).
 export const GD02_117_A_NEW_SIGN_BURST: EffectSpec = {
   id: "GD02-117-Burst",
   cardCode: "GD02-117",
   trigger: "Burst",
+  actions: [{ op: "searchTrashToHand", player: "controller", filter: { cardType: "BASE", anyTrait: ["AEUG"] } }],
+  sourceText: "【Burst】Choose 1 (AEUG) Base card from your trash. Add it to your hand.",
+};
+export const GD02_117_A_NEW_SIGN_MAIN: EffectSpec = {
+  id: "GD02-117-Main",
+  cardCode: "GD02-117",
+  trigger: "Main",
   actions: [
     { op: "draw", player: "controller", n: 3 },
     { op: "discardNamed", player: "controller", name: "discard", n: 2 },
   ],
-  sourceText: "[Burst] Choose 1 (AEUG) Base card from your trash. Add it to your hand. \n  \n[Main] Draw 3. Then, discard 2.",
+  sourceText: "【Main】Draw 3. Then, discard 2.",
 };
 
-// GD02-121 Dominion — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_121_DOMINION_DEPLOY: EffectSpec = {
-  id: "GD02-121-Deploy",
+// Bases GD02-121…130 — 【Deploy】Add 1 of your Shields to your hand (fábrica) + o "Then, …" que
+// faltava, em spec SEPARADO: sem alvo legal a fila pula o spec inteiro, e o escudo não pode sumir junto.
+const baseShield = (cardCode: string): EffectSpec => ({
+  id: `${cardCode}-Deploy`,
+  cardCode,
+  trigger: "Deploy",
+  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
+  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+});
+export const GD02_121_DOMINION_DEPLOY = baseShield("GD02-121");
+export const GD02_121_DOMINION_DEPLOY_HEAL: EffectSpec = {
+  id: "GD02-121-Deploy-Heal",
   cardCode: "GD02-121",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  actions: [{ op: "heal", target: { kind: "named", name: "target" }, amount: 2 }],
+  targetScope: "friendlyUnit",
+  targetFilter: "color:blue",
+  sourceText: "Then, choose 1 friendly blue Unit. It recovers 2 HP.",
 };
-
-// GD02-122 Alexandria — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_122_ALEXANDRIA_DEPLOY: EffectSpec = {
-  id: "GD02-122-Deploy",
+export const GD02_122_ALEXANDRIA_DEPLOY = baseShield("GD02-122");
+export const GD02_122_ALEXANDRIA_DEPLOY_DAMAGE: EffectSpec = {
+  id: "GD02-122-Deploy-Damage",
   cardCode: "GD02-122",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "enemyUnit",
+  targetFilter: "rested;level<=4",
+  sourceText: "Then, choose 1 rested enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
 };
-
-// GD02-123 Sodon — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_123_SODON_DEPLOY: EffectSpec = {
-  id: "GD02-123-Deploy",
+export const GD02_123_SODON_DEPLOY = baseShield("GD02-123");
+export const GD02_123_SODON_DEPLOY_RELAX: EffectSpec = {
+  id: "GD02-123-Deploy-Relax",
   cardCode: "GD02-123",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  actions: [{ op: "grantAttackTargetRelax", target: { kind: "named", name: "target" }, maxAp: 5 }],
+  targetScope: "friendlyUnit",
+  targetFilter: "isToken",
+  sourceText: "Then, choose 1 friendly Unit token. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target.",
 };
-
-// GD02-124 Diva — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_124_DIVA_DEPLOY: EffectSpec = {
-  id: "GD02-124-Deploy",
-  cardCode: "GD02-124",
-  trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
-};
-
-// GD02-125 Gwadan — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_125_GWADAN_DEPLOY: EffectSpec = {
-  id: "GD02-125-Deploy",
+export const GD02_124_DIVA_DEPLOY = baseShield("GD02-124");
+export const GD02_125_GWADAN_DEPLOY = baseShield("GD02-125");
+export const GD02_125_GWADAN_DEPLOY_DISCARD: EffectSpec = {
+  id: "GD02-125-Deploy-Discard",
   cardCode: "GD02-125",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  optional: true,
+  condition: {
+    predicate: "isControllersTurn",
+    then: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { color: "red" } }],
+  },
+  condition2: { predicate: "chosenNonEmpty:discard", then: [{ op: "draw", player: "controller", n: 1 }] },
+  actions: [],
+  sourceText: "Then, if it is your turn, you may discard 1 red card. If you do, draw 1.",
 };
-
-// GD02-126 Shuji's Hideout — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_126_SHUJI_S_HIDEOUT_DEPLOY: EffectSpec = {
-  id: "GD02-126-Deploy",
+export const GD02_126_SHUJI_S_HIDEOUT_DEPLOY = baseShield("GD02-126");
+export const GD02_126_SHUJI_S_HIDEOUT_DESTROYED: EffectSpec = {
+  id: "GD02-126-Destroyed",
   cardCode: "GD02-126",
-  trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  trigger: "Destroyed",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
+  targetScope: "enemyUnit",
+  targetFilter: "level<=4",
+  sourceText: "【Destroyed】Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it.",
 };
-
-// GD02-127 Freeden — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_127_FREEDEN_DEPLOY: EffectSpec = {
-  id: "GD02-127-Deploy",
+export const GD02_127_FREEDEN_DEPLOY = baseShield("GD02-127");
+export const GD02_127_FREEDEN_DESTROYED: EffectSpec = {
+  id: "GD02-127-Destroyed",
   cardCode: "GD02-127",
-  trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  trigger: "Destroyed",
+  actions: [{ op: "millToTrash", player: "controller", count: 2 }],
+  sourceText: "【Destroyed】Place the top 2 cards of your deck into your trash.",
 };
-
-// GD02-128 Hammerhead — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_128_HAMMERHEAD_DEPLOY: EffectSpec = {
-  id: "GD02-128-Deploy",
+export const GD02_128_HAMMERHEAD_DEPLOY = baseShield("GD02-128");
+export const GD02_128_HAMMERHEAD_DEPLOY_DESTROY: EffectSpec = {
+  id: "GD02-128-Deploy-Destroy",
   cardCode: "GD02-128",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  condition: {
+    predicate: "isControllersTurn;controllerHasLinkUnitWithTrait:Teiwaz",
+    then: [{ op: "destroy", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  targetFilter: "ap<=2",
+  sourceText: "Then, if it is your turn and a friendly (Teiwaz) Link Unit is in play, choose 1 enemy Unit with 2 or less AP. Destroy it.",
 };
-
-// GD02-129 Argama — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_129_ARGAMA_DEPLOY: EffectSpec = {
-  id: "GD02-129-Deploy",
-  cardCode: "GD02-129",
-  trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
-};
-
-// GD02-130 Sleipnir — 【Deploy】Add 1 of your Shields to your hand.
-export const GD02_130_SLEIPNIR_DEPLOY: EffectSpec = {
-  id: "GD02-130-Deploy",
+export const GD02_129_ARGAMA_DEPLOY = baseShield("GD02-129");
+export const GD02_130_SLEIPNIR_DEPLOY = baseShield("GD02-130");
+export const GD02_130_SLEIPNIR_DEPLOY_DEBUFF: EffectSpec = {
+  id: "GD02-130-Deploy-Debuff",
   cardCode: "GD02-130",
   trigger: "Deploy",
-  actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
-  sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  condition: {
+    predicate: "controllerUnitWithTraitInPlay:Gjallarhorn",
+    then: [{ op: "modifyStat", stat: "ap", amount: -2, duration: "endOfTurn", target: { kind: "named", name: "target" } }],
+  },
+  actions: [],
+  targetScope: "enemyUnit",
+  sourceText: "Then, if a friendly (Gjallarhorn) Unit is in play, choose 1 enemy Unit. It gets AP-2 during this turn.",
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -538,10 +458,7 @@ export const GD02_004_BYARLANT_WHEN_PAIRED: EffectSpec = {
   id: "GD02-004-WhenPaired",
   cardCode: "GD02-004",
   trigger: "When Paired",
-  actions: [
-    { op: "rest", target: { kind: "named", name: "target" } },
-    { op: "preventActivationNextTurn", target: { kind: "named", name: "target" } },
-  ],
+  actions: [{ op: "preventActivationNextTurn", target: { kind: "named", name: "target" } }],
   targetScope: "enemyUnit",
   targetFilter: "rested;hp<=3",
   sourceText: "【When Paired】Choose 1 rested enemy Unit with 3 or less HP. It won't be set as active during the start phase of your opponent's next turn.",
@@ -554,7 +471,7 @@ export const GD02_061_HYAKURI_WHEN_PAIRED: EffectSpec = {
   cardCode: "GD02-061",
   trigger: "When Paired",
   condition: {
-    predicate: "pairedPilotColorIs:purple;controllerTrashUnitCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
+    predicate: "pairedPilotColorIs:purple;controllerTrashCardCountWithAnyTraitAtLeast:Teiwaz,Tekkadan:3",
     then: [{ op: "rest", target: { kind: "named", name: "target" } }],
   },
   actions: [],
@@ -579,7 +496,7 @@ export const GD02_089_LALAH_SUNE_WHEN_PAIRED: EffectSpec = {
   trigger: "When Paired",
   actions: [{ op: "grantKeyword", target: { kind: "named", name: "target" }, keyword: "Breach 1", duration: "endOfTurn" }],
   targetScope: "friendlyUnit",
-  targetFilter: "trait:Zeon;linkUnit",
+  targetFilter: "trait:Zeon;linkUnit;notSelfUnit",
   sourceText: "【When Paired】Choose 1 of your other (Zeon) Link Units. It gains <Breach 1> during this turn.",
 };
 
@@ -1039,8 +956,8 @@ export const GD02_047_GAZA_C_ACTIVATE_MAIN: EffectSpec = {
   id: "GD02-047-ActivateMain",
   cardCode: "GD02-047",
   trigger: "Activate·Main",
+  cost: [{ op: "rest", target: { kind: "self" } }],
   actions: [
-    { op: "rest", target: { kind: "self" } },
     { op: "destroy", target: { kind: "self" } },
     { op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 },
   ],
@@ -1126,6 +1043,7 @@ export const GD02_021_GUNDAM_AGE_1_NORMAL_DEPLOY: EffectSpec = {
   id: "GD02-021-Deploy",
   cardCode: "GD02-021",
   trigger: "Deploy",
+  optional: true,
   condition: {
     predicate: "chosenNonEmpty:discard",
     then: [{ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea" }],
@@ -1168,11 +1086,17 @@ export const GD02_003_GUNDAM_MK_II_TITANS_DESTROYED: EffectSpec = {
   cardCode: "GD02-003",
   trigger: "Destroyed",
   duringPair: true,
+  // "You may" (W0.3): recusável; e sem Pilot Lv.3- pareado a habilidade nem existe (o descarte ficava obrigatório)
+  optional: true,
   condition: {
+    predicate: "formerPairedPilotLevelAtMost:3",
+    then: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT" } }],
+  },
+  condition2: {
     predicate: "formerPairedPilotLevelAtMostAndChosenNonEmpty:3:discard",
     then: [{ op: "moveZone", target: { kind: "named", name: "formerPairedPilot" }, toZone: "hand" }],
   },
-  actions: [{ op: "discardNamed", player: "controller", name: "discard", n: 1, filter: { cardType: "UNIT" } }],
+  actions: [],
   sourceText: "【During Pair･Lv.3 or Lower Pilot】【Destroyed】You may discard 1 Unit card. If you do, return the card paired with this Unit to your hand.",
 };
 
@@ -1210,7 +1134,7 @@ export const GD02_098_QUATTRO_BAJEENA_WHEN_LINKED: EffectSpec = {
   },
   actions: [],
   sourceText:
-    "This card's name is also treated as [Char Aznable].\n\n【Burst】Add this card to your hand.\n【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.",
+    "【When Linked】If this is an (AEUG) Unit, draw 1. If you do, discard 1.",
 };
 
 // GD02-111 Decisive Last Resort — 【Burst】Choose 1 enemy Unit that is Lv.3 or lower. Deal 2
@@ -1264,7 +1188,7 @@ export const GD02_096_DESIL_GALETTE_WHEN_LINKED: EffectSpec = {
   trigger: "When Linked",
   actions: [{ op: "deployFromTrashPayingCost", player: "controller", filter: { cardType: "UNIT", anyTrait: ["Vagan"], maxLevel: 2 } }],
   sourceText:
-    "【Burst】Add this card to your hand.\n【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
+    "【When Linked】You may choose 1 (Vagan) Unit card that is Lv.2 or lower from your trash. Pay its cost to deploy it.",
 };
 
 // GD02-110 Awakened Power — 【Main】Choose 1 Unit card that is Lv.5 or lower from your trash.
@@ -1278,41 +1202,46 @@ export const GD02_110_AWAKENED_POWER_MAIN: EffectSpec = {
 };
 
 export const GD02_EFFECT_SPECS: EffectSpec[] = [
+  // auditoria por cláusula (W0.3): 【Burst】 padrão que faltava (pilotos e Bases)
+  ...["GD02-086", "GD02-088", "GD02-090", "GD02-092", "GD02-094", "GD02-096", "GD02-097", "GD02-098"].map(stdAddToHandBurst),
+  ...["GD02-121", "GD02-122", "GD02-123", "GD02-124", "GD02-125", "GD02-126", "GD02-127", "GD02-128", "GD02-129", "GD02-130"].map(stdDeployThisBurst),
   GD02_014_GALBALDY_BETA_DEPLOY,
   GD02_016_BARZAM_DEPLOY,
   GD02_020_ELMETH_DEPLOY,
-  GD02_023_GUNDAM_AGE_1_SPALLOW_GRANT_FIRST_STRIKE,
   GD02_026_GENOACE_CUSTOM_DEPLOY,
-  GD02_031_GUNDAM_AGE_1_TITUS_MAIN,
-  GD02_033_KIKEROGA_MA_MODE_GQ_GRANT_BREACH_5,
-  GD02_034_GQUUUUUUX_MAIN,
   GD02_036_QUBELEY_GRANT_SUPPRESSION,
+  GD02_036_QUBELEY_ATTACK,
   GD02_038_GQUUUUUUX_OMEGA_PSYCOMMU_DEPLOY,
   GD02_058_RYUSEI_GO_GRAZE_CUSTOM_II_DEPLOY,
+  GD02_058_RYUSEI_GO_GRAZE_CUSTOM_II_DEPLOY_DRAW,
   GD02_068_GUNDAM_BARBATOS_3RD_FORM_DEPLOY,
-  GD02_073_CARTA_S_GRAZE_RITTER_GROUND_TYPE_GRANT_FIRST_STRIKE,
-  GD02_082_GAELIO_S_SCHWALBE_GRAZE_GRANT_BLOCKER,
-  GD02_086_JERID_MESSA_MAIN,
   GD02_088_FLIT_ASUNO_WHEN_LINKED,
-  GD02_090_CHALLIA_BULL_GQ_MAIN,
   GD02_092_SHAGIA_FROST_ATTACK,
   GD02_094_GARROD_RAN_TIFFA_ADILL_WHEN_PAIRED,
-  GD02_097_KAMILLE_BIDAN_MAIN,
-  GD02_102_MOUAR_S_DETERMINATION_ACTION,
+  ...GD02_102_MOUAR_S_DETERMINATION,
   GD02_104_TURNING_POINT_OF_HISTORY_MAIN,
-  GD02_114_IT_S_NAME_IS_RYUSEI_GO_ACTION,
-  GD02_115_FAMILIAL_DEVOTION_ACTION,
+  ...GD02_114_IT_S_NAME_IS_RYUSEI_GO,
+  ...GD02_115_FAMILIAL_DEVOTION,
   GD02_117_A_NEW_SIGN_BURST,
+  GD02_117_A_NEW_SIGN_MAIN,
   GD02_121_DOMINION_DEPLOY,
+  GD02_121_DOMINION_DEPLOY_HEAL,
   GD02_122_ALEXANDRIA_DEPLOY,
+  GD02_122_ALEXANDRIA_DEPLOY_DAMAGE,
   GD02_123_SODON_DEPLOY,
+  GD02_123_SODON_DEPLOY_RELAX,
   GD02_124_DIVA_DEPLOY,
   GD02_125_GWADAN_DEPLOY,
+  GD02_125_GWADAN_DEPLOY_DISCARD,
   GD02_126_SHUJI_S_HIDEOUT_DEPLOY,
+  GD02_126_SHUJI_S_HIDEOUT_DESTROYED,
   GD02_127_FREEDEN_DEPLOY,
+  GD02_127_FREEDEN_DESTROYED,
   GD02_128_HAMMERHEAD_DEPLOY,
+  GD02_128_HAMMERHEAD_DEPLOY_DESTROY,
   GD02_129_ARGAMA_DEPLOY,
   GD02_130_SLEIPNIR_DEPLOY,
+  GD02_130_SLEIPNIR_DEPLOY_DEBUFF,
   GD02_025_GUNDAM_HEAVYARMS_DEPLOY,
   GD02_039_HAMAN_KARN_S_GAZA_C_WHEN_PAIRED,
   GD02_041_SUGAI_S_GELGOOG_GQ_DEPLOY,

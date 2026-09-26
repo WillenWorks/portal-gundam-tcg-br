@@ -147,4 +147,82 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   //   jogador (não é a jogada normal da Main Phase, CR 7 só amarra nível à
   //   jogada da mão) e sem reusar `deployCard`.
   // ─────────────────────────────────────────────────────────────────────────
+
+  // Achados da auditoria por cláusula (W0.3) — cláusulas que nunca tiveram efeito no motor e
+  // dependem dos pacotes de capacidade do plano "simulador até GD05" (C1 gatilhos reativos,
+  // C2 camada de dano). Registradas aqui em vez de parecer "cobertas" por outro spec da carta.
+  {
+    cardCode: "ST06-015",
+    clause: "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn.",
+    reason: "não há gatilho reativo de \"quando uma Unit aliada linka\" — o efeito não acontece",
+    blockedBy: "engine:reactive-trigger-bus (C1)",
+  },
+  {
+    cardCode: "ST07-015",
+    clause: "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
+    reason: "proteção de dano condicional para Base ainda não existe — a Base recebe o dano normalmente",
+    blockedBy: "engine:damage-modification-layer (C2)",
+  },
+  {
+    cardCode: "ST08-011",
+    clause: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
+    reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
+    blockedBy: "engine:reactive-trigger-bus (C1)",
+  },
+  {
+    cardCode: "GD02-073",
+    clause: "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>.",
+    reason: "efeito contínuo que concede keyword à Unit INIMIGA em batalha ainda não existe — o spec antigo dava First Strike à própria Unit (removido)",
+    blockedBy: "engine:attack-rule-extensions (C4)",
+  },
+  {
+    cardCode: "GD02-094",
+    clause: "You may discard 1. If you do,",
+    reason: "uma entrada da fila não carrega descarte + revelar do topo juntos (E4) — o olhar/revelar acontece sem o custo de descarte",
+    blockedBy: "engine:multi-choice-queue-entry (E4/W2)",
+  },
+  {
+    cardCode: "GD02-129",
+    clause: "This Base can't receive enemy effect damage.",
+    reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
+    blockedBy: "engine:damage-modification-layer (C2)",
+  },
+  // W0.3 (revisão da PR #31) — GD03: keyword/efeito que estava fixo no CardDef e era condicional
+  // no texto oficial (removido); ainda sem vocabulário. GD03 fica fora do gate até a W2.
+  {
+    cardCode: "GD03-015",
+    clause: "【Activate･Main】【Once per Turn】Exile 3 (Titans) cards from your trash: This Unit gains <Breach 4> during this turn.",
+    reason: "custo de exilar do trash ainda não existe — a Unit não ganha <Breach 4> (antes tinha fixo)",
+    blockedBy: "engine:exile-from-trash-cost (C3)",
+  },
+  {
+    cardCode: "GD03-037",
+    clause: "【During Link】During your turn, while this Unit is battling an enemy Unit with a 【Destroyed】 effect, it gains <First Strike>.",
+    reason: "condição \"Unit inimiga em batalha tem 【Destroyed】\" ainda não existe — a Unit não ganha <First Strike> (antes tinha fixo)",
+    blockedBy: "engine:static-battling-enemy-trigger-condition (W2)",
+  },
+  {
+    cardCode: "GD03-061",
+    clause: "While this Unit has 1 HP, it gains <Repair 3>.",
+    reason: "condição de HP restante da própria Unit ainda não existe — sem <Repair 3> (antes tinha fixo)",
+    blockedBy: "engine:static-self-remaining-hp-condition (W1)",
+  },
+  {
+    cardCode: "GD03-068",
+    clause: "While a friendly Base is in play, this Unit gains <Blocker>.",
+    reason: "condição \"Base aliada em jogo\" ainda não existe — sem <Blocker> (antes tinha fixo)",
+    blockedBy: "engine:static-friendly-base-condition (W1)",
+  },
+  {
+    cardCode: "GD03-084",
+    clause: "【When Linked】Choose 1 of your other Units. It gains <Repair 2> during this turn. Then, if it is a (Jupitris) Unit, draw 1.",
+    reason: "condição sobre o trait do alvo escolhido ainda não existe — o 【When Linked】 não faz nada",
+    blockedBy: "engine:chosen-target-trait-condition (W1)",
+  },
+  {
+    cardCode: "GD03-088",
+    clause: "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>.",
+    reason: "estático de Piloto condicionado ao trait da Unit pareada ainda não existe — sem AP+1/<Breach 1>",
+    blockedBy: "engine:pilot-static-paired-unit-trait (W1)",
+  },
 ] as const;

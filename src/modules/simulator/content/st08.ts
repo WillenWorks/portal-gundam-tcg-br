@@ -76,7 +76,7 @@ export const PENELOPE_ATTACK: EffectSpec = {
     ],
   },
   actions: [],
-  sourceText: "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return to the bottom of your deck. If you do, draw 2.",
+  sourceText: "【During Pair】【Attack】【Once per Turn】If this Unit is attacking the enemy player, reveal 1 (Earth Federation) Unit card from your hand. Return it to the bottom of your deck. If you do, draw 2.",
 };
 
 // ST08-009 Jegan Ground Type-A (Man Hunter) — 【Deploy】Choose 1 rested enemy Unit that is Lv.2 or lower.
@@ -144,7 +144,7 @@ export const WORDS_FOR_HATHAWAY_MAIN: EffectSpec = {
   ],
   targetScope: "friendlyUnit",
   targetFilter: "linkUnit",
-  sourceText: "【Main】Choose 1 friendly Link Unit. It gains [Breach 1] during this turn.",
+  sourceText: "【Main】Choose 1 friendly Link Unit. It gains <Breach 1> during this turn.",
 };
 
 // ST08-013 Lady Luck — 【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it.
@@ -231,7 +231,7 @@ export const DAVAO_ACTIVATE_MAIN: EffectSpec = {
   cost: [{ op: "payResourceCost", player: "controller", n: 2 }],
   actions: [{ op: "heal", amount: 2, target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",
-  sourceText: "【Activate: Main】[Once per Turn] (2): Choose 1 of your Units. It recovers 2 HP.",
+  sourceText: "【Activate·Main】【Once per Turn】②:Choose 1 of your Units. It recovers 2 HP.",
 };
 
 export const ST08_EFFECT_SPECS: EffectSpec[] = [

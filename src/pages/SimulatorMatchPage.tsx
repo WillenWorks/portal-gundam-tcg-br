@@ -124,6 +124,12 @@ import { ALL_EFFECT_SPECS, defaultTargetFilterResolver } from "@/modules/simulat
 import { computeLegalTargets, specNeedsNamedTarget } from "@/modules/simulator/engine/effectSpec";
 import { findTriggerSpecs } from "@/modules/simulator/engine/dispatcher";
 import {
+  commandTargets,
+  missingSecondaryTarget,
+  primaryTargetsDone,
+  secondaryTargetingFor,
+} from "@/modules/simulator/ui/commandSecondaryTarget";
+import {
   ActionDock,
   type ActionDockState,
   ArenaPlaymat,
@@ -547,6 +553,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  /** W0 — 2º alvo de Command com `secondaryTarget` (GD03-116, GD01-103/112), escolhido depois do 1º. */
+  const [secondarySelected, setSecondarySelected] = useState<string[]>([]);
   /** "Nova leva de correções" (item 4, plano v2) — alvo(s) de uma decisão
    *  `abilityResolution` em andamento (ex.: ST05-010 Mikazuki Augus), agora
    *  controlado aqui (não mais dentro do `AbilityResolutionModal`) porque o
@@ -1133,6 +1141,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const clearSelection = () => {
     setPending(null);
     setSelected([]);
+    setSecondarySelected([]);
     setSelectedResources([]);
     setAttackerId(null);
   };
@@ -1747,7 +1756,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  `requiredTargetCount` — docs/54: mínimo de alvos que o efeito exige (specs com
    *  `targetCount.min` > 1 existem, ex. GD01) — usado pro auto-disparo bidirecional
    *  não atirar cedo demais assim que 1 alvo é clicado. */
-  const { legalTargetInstanceIds, requiredTargetCount } = ((): { legalTargetInstanceIds: Set<string>; requiredTargetCount: number } => {
+  const { legalTargetInstanceIds: primaryLegalTargetIds, requiredTargetCount } = ((): { legalTargetInstanceIds: Set<string>; requiredTargetCount: number } => {
     const none = { legalTargetInstanceIds: new Set<string>(), requiredTargetCount: 0 };
     if (!pending || !pendingCard || !pendingCard.def) return none;
 
@@ -1819,11 +1828,23 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // alvo inválido descartado
         }
       }
+      // W0 — "Draw 1. Then, if …, choose …" (GD03-101): sem alvo legal pro spec que
+      // precisa de alvo, a Command ainda resolve o spec sem alvo (mesma regra do
+      // `commandPlayCandidates` em legalActions.ts).
+      if (ids.size === 0 && specs.some((s) => !specNeedsNamedTarget(s))) return none;
       return { legalTargetInstanceIds: ids, requiredTargetCount: minCount };
     }
 
     return none;
   })();
+
+  /** W0 — 2º pool de alvo da Command (`secondaryTarget`): a tela ilumina esse pool depois que o 1º alvo foi escolhido. */
+  const secondaryTargeting =
+    pending?.kind === "command" && pendingCard?.def
+      ? secondaryTargetingFor(boardForStats, seat, pendingCard.def.code, pending.trigger ?? "Main", ALL_EFFECT_SPECS, defaultTargetFilterResolver)
+      : null;
+  const inSecondaryStage = Boolean(secondaryTargeting) && primaryTargetsDone(primaryLegalTargetIds.size, requiredTargetCount, selected);
+  const legalTargetInstanceIds = inSecondaryStage && secondaryTargeting ? secondaryTargeting.ids : primaryLegalTargetIds;
 
   /** docs/54 — depois de QUALQUER clique em alvo ou recurso durante uma seleção
    *  pendente, tenta resolver a jogada sozinha assim que os requisitos batem —
@@ -1831,7 +1852,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
    *  jogada (Piloto, Comando, Unit, Base) precisava de um clique extra num
    *  botão "Confirmar". Chamado de `toggleSelect` e `toggleResource` com os
    *  arrays JÁ ATUALIZADOS (não espera o próximo render). */
-  const tryAutoResolve = (nextSelected: string[], nextResources: string[]) => {
+  const tryAutoResolve = (nextSelected: string[], nextResources: string[], nextSecondary: string[] = secondarySelected) => {
     if (!pending || !pendingCard) return;
     const costMet = pendingCost === 0 || nextResources.length === pendingCost;
     if (!costMet) return;
@@ -1857,7 +1878,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     if (pending.kind === "command") {
       if (requiredTargetCount > 0 && nextSelected.length < requiredTargetCount) return;
-      const targets = nextSelected.length ? { target: nextSelected } : undefined;
+      if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, nextSecondary)) return;
+      const targets = commandTargets(nextSelected, secondaryTargeting, nextSecondary);
       sfx.playDeploy();
       runAction({
         kind: "playCommand",
@@ -1870,7 +1892,17 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   };
 
   const toggleSelect = (instanceId: string) => {
-    if (!pending || !legalTargetInstanceIds.has(instanceId)) return;
+    if (!pending) return;
+    // 2ª etapa: clique no pool do 2º alvo (clicar num alvo principal já escolhido desfaz a 1ª etapa)
+    if (inSecondaryStage && secondaryTargeting && !selected.includes(instanceId)) {
+      if (!secondaryTargeting.ids.has(instanceId)) return;
+      sfx.playClick();
+      const nextSecondary = secondarySelected[0] === instanceId ? [] : [instanceId];
+      setSecondarySelected(nextSecondary);
+      tryAutoResolve(selected, selectedResources, nextSecondary);
+      return;
+    }
+    if (!primaryLegalTargetIds.has(instanceId)) return;
     sfx.playClick();
     const nextSelected = selected.includes(instanceId) ? selected.filter((id) => id !== instanceId) : [...selected, instanceId];
     setSelected(nextSelected);
@@ -1920,6 +1952,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     setPending({ kind: "deploy", cardInstanceId: card.instanceId, sacrificeInstanceId });
     setSelected([]);
+    setSecondarySelected([]);
     setSelectedResources([]);
   };
   const startCommand = (card: CardInstance) => {
@@ -1935,6 +1968,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       return;
     }
     setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger });
+    setSecondarySelected([]);
   };
   /** 【Activate·Main】 de carta em campo (Etapa 3) — abre o fluxo de custo/alvo (mesmo do deploy). */
   const startActivateAbility = (card: CardInstance, ability: FieldAbility) => {
@@ -1997,7 +2031,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         resourceInstanceIds,
       });
     } else {
-      const targets = selected.length ? { target: selected } : undefined;
+      if (missingSecondaryTarget(secondaryTargeting, primaryLegalTargetIds.size, secondarySelected)) {
+        showActionError(inSecondaryStage ? "Escolha também o 2º alvo do efeito." : "Escolha o alvo do efeito e depois o 2º alvo.");
+        return;
+      }
+      const targets = commandTargets(selected, secondaryTargeting, secondarySelected);
       sfx.playDeploy();
       runAction({
         kind: "playCommand",
@@ -2298,7 +2336,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           art={art}
           targetingActive={targetingActive}
           legalTarget={isLegal}
-          selected={Boolean(unit && selected.includes(unit.instanceId))}
+          selected={Boolean(unit && (selected.includes(unit.instanceId) || secondarySelected.includes(unit.instanceId)))}
           isAttacker={Boolean(unit && (attackerId === unit.instanceId || combat?.attackerId === unit.instanceId))}
           isBlocking={Boolean(unit && combat?.blockerUsedBy === unit.instanceId)}
           justDeployed={justDeployed}
@@ -2665,6 +2703,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           ? pending.abilityNeedsTarget
             ? (pendingCost > 0 ? "Escolha o alvo da habilidade e os recursos pra pagar o custo." : "Escolha o alvo da habilidade e confirme.")
             : (pendingCost > 0 ? "Escolha os recursos pra pagar o custo e confirme." : "Confirme para ativar a habilidade.")
+          : inSecondaryStage && secondarySelected.length === 0
+            ? "Agora escolha o 2º alvo do efeito."
           : pending.sacrificeInstanceId
             ? "Invocação por sacrifício pronta. Confirme para invocar."
             : (pendingDeployHint ?? "Se pedir alvo/pareamento, clique nas cartas do tabuleiro.");

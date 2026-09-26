@@ -54,7 +54,9 @@ export const COMMANDS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Main",
       "Action"
-    ]
+    ],
+    // 【Pilot】[Reccoa Londe] — modo Piloto (AP+1/HP+0); faltava (W0.3)
+    pilotMode: { pilotName: "Reccoa Londe", ap: 1, hp: 0 },
   },
   "GD03-105": {
     "code": "GD03-105",
@@ -95,7 +97,9 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Main"
-    ]
+    ],
+    // 【Pilot】[Hardie Steiner] — modo Piloto (AP+1/HP+1); faltava (W0.3)
+    pilotMode: { pilotName: "Hardie Steiner", ap: 1, hp: 1 },
   },
   "GD03-108": {
     "code": "GD03-108",
@@ -112,7 +116,9 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Main"
-    ]
+    ],
+    // 【Pilot】[Gabriel Ramirez Garcia] — modo Piloto (AP+1/HP+0); faltava (W0.3)
+    pilotMode: { pilotName: "Gabriel Ramirez Garcia", ap: 1, hp: 0 },
   },
   "GD03-109": {
     "code": "GD03-109",
@@ -155,7 +161,9 @@ export const COMMANDS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Main",
       "Action"
-    ]
+    ],
+    // 【Pilot】[Emeralda Zubin] — modo Piloto (AP+0/HP+1); faltava (W0.3)
+    pilotMode: { pilotName: "Emeralda Zubin", ap: 0, hp: 1 },
   },
   "GD03-112": {
     "code": "GD03-112",
@@ -212,7 +220,9 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Action"
-    ]
+    ],
+    // 【Pilot】[Yurin L'Ciel] — modo Piloto (AP+1/HP+0); faltava (W0.3)
+    pilotMode: { pilotName: "Yurin L'Ciel", ap: 1, hp: 0 },
   },
   "GD03-116": {
     "code": "GD03-116",
@@ -237,6 +247,7 @@ export const COMMANDS: Record<string, CardDef> = {
       "Main"
     ]
   },
+  // W0.3 (revisão semântica): metadado falso (Command concede Blocker)
   "GD03-118": {
     "code": "GD03-118",
     "nameEn": "Awakened Potential",
@@ -244,9 +255,6 @@ export const COMMANDS: Record<string, CardDef> = {
     "color": "white",
     "level": 4,
     "cost": 1,
-    "effectKeywords": [
-      "Blocker"
-    ],
     "triggerKeywords": [
       "Action",
       "Burst"
@@ -279,7 +287,9 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Main"
-    ]
+    ],
+    // 【Pilot】[Patrick Colasour] — modo Piloto (AP+1/HP+0); faltava (W0.3)
+    pilotMode: { pilotName: "Patrick Colasour", ap: 1, hp: 0 },
   },
   "GD03-121": {
     "code": "GD03-121",
@@ -296,7 +306,9 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Action"
-    ]
+    ],
+    // 【Pilot】[Katz Kobayashi] — modo Piloto (AP+1/HP+0); faltava (W0.3)
+    pilotMode: { pilotName: "Katz Kobayashi", ap: 1, hp: 0 },
   },
   "GD03-122": {
     "code": "GD03-122",
@@ -313,6 +325,8 @@ export const COMMANDS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Action"
-    ]
+    ],
+    // 【Pilot】[Sergei Smirnov] — modo Piloto (AP+0/HP+1); faltava (W0.3)
+    pilotMode: { pilotName: "Sergei Smirnov", ap: 0, hp: 1 },
   },
 };

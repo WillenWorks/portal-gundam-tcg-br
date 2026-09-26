@@ -29,6 +29,10 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["Titans"],
     triggerKeywords: ["Burst"],
     hasBurst: true,
+    // "this" = a Unit pareada; "another (Titans) Unit" exclui ela (E12)
+    staticAbilities: [
+      { condition: "duringPair", scope: "pairedUnit", stat: "ap", amount: 1, boardCondition: { kind: "friendlyOtherUnitTraitCountAtLeast", trait: "Titans", n: 1 }, sourceText: "While you have another (Titans) Unit in play, this gets AP+1." },
+    ],
   },
   "GD02-087": {
     code: "GD02-087",
@@ -66,9 +70,8 @@ export const PILOTS: Record<string, CardDef> = {
     ap: 1,
     hp: 1,
     traits: ["Zeon","Newtype"],
-    effectKeywords: ["Breach"],
+    // (sem effectKeywords: o <Breach 1> é concedido pelo 【When Paired】, o Pilot não tem keyword própria)
     triggerKeywords: ["Burst","When Paired"],
-    keywordTags: ["Breach 1"],
     hasBurst: true,
   },
   "GD02-090": {
@@ -83,6 +86,9 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["Zeon","Newtype"],
     triggerKeywords: ["Burst"],
     hasBurst: true,
+    staticAbilities: [
+      { condition: "duringPair", scope: "pairedUnit", stat: "ap", amount: 1, boardCondition: { kind: "friendlyOtherUnitWithKeywordCountAtLeast", keyword: "High-Maneuver", n: 1 }, sourceText: "While you have another Unit with <High-Maneuver> in play, this Unit gets AP+1." },
+    ],
   },
   "GD02-091": {
     code: "GD02-091",
@@ -177,6 +183,9 @@ export const PILOTS: Record<string, CardDef> = {
     traits: ["AEUG","Newtype"],
     triggerKeywords: ["Burst"],
     hasBurst: true,
+    staticAbilities: [
+      { condition: "duringPair", scope: "pairedUnit", stat: "ap", amount: 2, boardCondition: { kind: "baseColorInPlay", color: "white" }, sourceText: "While there is a friendly white Base in play, this Unit gets AP+2." },
+    ],
   },
   "GD02-098": {
     code: "GD02-098",

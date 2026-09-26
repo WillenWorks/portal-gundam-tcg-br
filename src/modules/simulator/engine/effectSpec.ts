@@ -399,9 +399,15 @@ export interface CardDefFilter {
   minLevel?: number;
   /** GD02-112 Momentary Respite — "1 purple Pilot card from your trash". Cor IMPRESSA da carta, não trait. */
   color?: CardDef["color"];
+  /** GD02-088 — "1 card with \"AGE Device\" in its card name" (nome impresso em inglês contém o trecho). */
+  nameContains?: string;
+  /** GD02-088 — "1 green (EF) Unit card/1 card with \"AGE Device\"…": casa se QUALQUER um dos filtros casar (além dos campos acima). */
+  anyOf?: CardDefFilter[];
 }
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
+  if (filter.nameContains && !def.nameEn.includes(filter.nameContains)) return false;
+  if (filter.anyOf && filter.anyOf.length > 0 && !filter.anyOf.some((f) => matchesCardDefFilter(def, f))) return false;
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
   if (filter.color && def.color !== filter.color) return false;
@@ -1169,11 +1175,17 @@ export function discardCandidateHandIds(
   state: GameState,
   player: PlayerId,
   implicitTargets?: Record<string, string[]>,
+  /** chamadas ativas de `specActiveCalls` (actions + ramo da condição) — sem elas, só `actions` é olhado */
+  activeCalls?: PrimitiveCall[],
 ): string[] {
   const hand = state.players[player].hand.map((c) => c.instanceId);
   let drawn = 0;
   const movedToHand: string[] = [];
-  for (const call of spec.actions) {
+  // ordem de execução de `resolveEffectSpec`: custo → ramo da condição → actions (E5 — a
+  // compra dentro de `condition.then` antes do descarte era ignorada)
+  const branch = activeCalls ? activeCalls.slice(spec.actions.length) : [];
+  const ordered = [...(spec.cost ?? []), ...branch, ...spec.actions];
+  for (const call of ordered) {
     if (call.op === "draw") drawn += call.n;
     if (call.op === "moveZone" && call.toZone === "hand" && call.target.kind === "named" && implicitTargets?.[call.target.name]) {
       movedToHand.push(...implicitTargets[call.target.name]);

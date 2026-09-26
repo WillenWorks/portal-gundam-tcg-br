@@ -81,7 +81,7 @@ describe("GD02 — resolução de efeitos bespoke", () => {
     }
   });
 
-  it("GD02-068 Gundam Barbatos causa 2 de dano a unidade alvo no Deploy", () => {
+  it("GD02-068 Gundam Barbatos 3rd Form — 【Deploy】Deal 2 damage to THIS Unit (não a um inimigo)", () => {
     let state = freshGame();
     const barbatosDef = GD02_CARD_DEFS["GD02-068"];
     const enemyDef = GD02_CARD_DEFS["GD02-004"];
@@ -92,9 +92,10 @@ describe("GD02 — resolução de efeitos bespoke", () => {
     expect(deploySpec).toBeDefined();
 
     if (deploySpec) {
-      const events = resolveEffectSpec(deploySpec, ctxFor(state, sourceId, { target: [enemyId] }), defaultPredicateResolver);
+      const events = resolveEffectSpec(deploySpec, ctxFor(state, sourceId, {}), defaultPredicateResolver);
       state = applyEvents(state, events);
-      expect(findCard(state, enemyId).damage).toBe(2);
+      expect(findCard(state, sourceId).damage).toBe(2);
+      expect(findCard(state, enemyId).damage).toBe(0);
     }
   });
 
@@ -1404,5 +1405,58 @@ describe("GD02 — Sprint 2 (docs/debates 2026-09-19), 11º lote — fecha os 3 
   it("DEFERRED_CLAUSES não tem mais entradas GD02-011/096/110 — Classe G fechada", () => {
     const stillDeferred = ["GD02-011", "GD02-096", "GD02-110"];
     expect(DEFERRED_CLAUSES.some((d) => stillDeferred.includes(d.cardCode))).toBe(false);
+  });
+});
+
+describe("GD02 — correções da revisão semântica (W0.3)", () => {
+  const specsOf = (code: string) => GD02_EFFECT_SPECS.filter((s) => s.cardCode === code);
+
+  it("GD02-102/114/115: 【Main】 e 【Action】, com o filtro do texto", () => {
+    for (const [code, filter] of [["GD02-102", "trait:Titans"], ["GD02-114", "damaged"], ["GD02-115", "trait:Vulture"]] as const) {
+      const specs = specsOf(code);
+      expect(specs.map((s) => s.trigger).sort()).toEqual(["Action", "Main"]);
+      expect(specs.every((s) => s.targetFilter === filter)).toBe(true);
+    }
+  });
+
+  it("GD02-117: o 【Burst】 busca Base (AEUG) no trash; o 【Main】 compra 3 e descarta 2", () => {
+    const burst = specsOf("GD02-117").find((s) => s.trigger === "Burst");
+    expect(burst?.actions[0]).toMatchObject({ op: "searchTrashToHand", filter: { cardType: "BASE", anyTrait: ["AEUG"] } });
+    const main = specsOf("GD02-117").find((s) => s.trigger === "Main");
+    expect(main?.actions.map((a) => a.op)).toEqual(["draw", "discardNamed"]);
+  });
+
+  it("nenhuma Unit/Pilot de GD02 tem spec de 【Main】/【Action】 (só Command joga esses gatilhos)", () => {
+    const dead = GD02_EFFECT_SPECS.filter(
+      (s) => (s.trigger === "Main" || s.trigger === "Action") && GD02_CARD_DEFS[s.cardCode]?.cardType !== "COMMAND",
+    );
+    expect(dead.map((s) => s.id)).toEqual([]);
+  });
+
+  it("GD02-121: o escudo e a cura são specs separados (sem alvo azul, o escudo ainda vem)", () => {
+    const deploys = specsOf("GD02-121").filter((s) => s.trigger === "Deploy");
+    expect(deploys).toHaveLength(2);
+    expect(deploys.find((s) => !s.targetScope)?.actions[0].op).toBe("addShieldToHand");
+    expect(deploys.find((s) => s.targetScope)?.targetFilter).toBe("color:blue");
+  });
+
+  it("GD02-124 (Base): Units verdes (Earth Federation) +1 AP no seu turno com Lv.7+", async () => {
+    const { effectiveAp } = await import("../engine/types");
+    const state = freshGame();
+    state.players.A.baseSection.splice(0);
+    placeCard(state, "A", GD02_CARD_DEFS["GD02-124"], "baseSection");
+    const green = { code: "X-G", nameEn: "G", cardType: "UNIT", color: "green", ap: 2, hp: 2, traits: ["Earth Federation"] } as CardDef;
+    const unitId = placeCard(state, "A", green, "battleArea");
+    const ap = () => effectiveAp(findCard(state, unitId), state);
+    state.players.A.resourceArea.splice(0);
+    expect(ap()).toBe(2);
+    for (let i = 0; i < 7; i++) placeCard(state, "A", { code: "R", nameEn: "R", cardType: "RESOURCE", color: "colorless" } as CardDef, "resourceArea");
+    state.activePlayer = "A";
+    expect(ap()).toBe(3);
+  });
+
+  it("GD02-020: 【During Link】 This Unit gets AP+2 virou efeito contínuo (o spec 'DuringLink' não disparava)", () => {
+    expect(specsOf("GD02-020").map((s) => s.trigger)).toEqual(["Deploy"]);
+    expect(GD02_CARD_DEFS["GD02-020"].staticAbilities?.[0]).toMatchObject({ condition: "duringLink", stat: "ap", amount: 2 });
   });
 });

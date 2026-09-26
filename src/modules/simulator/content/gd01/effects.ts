@@ -2,6 +2,7 @@ import type { EffectSpec, PrimitiveCall } from "../../engine/effectSpec";
 import type { CardDef } from "../../engine/types";
 import { EX_RESOURCE_TOKEN } from "../../engine/setup";
 import { TOKEN_ZAKU_II } from "../../fixtures/st03Deck";
+import { mainAndAction, stdAddToHandBurst } from "../standardSpecs";
 
 // GD01-066 Justice Gundam — token [Fatum-00] gerado pelo 【Deploy】.
 export const TOKEN_FATUM_00: CardDef = {
@@ -284,7 +285,7 @@ export const ZEON_REMNANT_FORCES_MAIN: EffectSpec = {
   trigger: "Main",
   actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 1 }],
   targetScope: "enemyUnit",
-  sourceText: "【Main】Choose 1 enemy Unit. Deal 1 damage to it.",
+  sourceText: "【Main】/【Action】Choose 1 enemy Unit. Deal 1 damage to it.",
 };
 
 // GD01-118 Overflowing Affection — 【Main】Draw 2. Then, discard 1.
@@ -1310,7 +1311,47 @@ export const THE_PATH_TO_VICTORY_OR_DEFEAT_MAIN: EffectSpec = {
     "【Main】Look at the top 5 cards of your deck. You may reveal 1 (Operation Meteor)/(G Team) Unit card/Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
 };
 
+// ── Auditoria por cláusula (W0.3): 【Main】/【Action】 que faltavam em Commands ──────────
+// GD01-115 Zeon Remnant Forces — só tinha o 【Main】; na Action Step não fazia nada.
+export const ZEON_REMNANT_FORCES_ACTION: EffectSpec = { ...ZEON_REMNANT_FORCES_MAIN, id: "GD01-115-Action", trigger: "Action" };
+
+// GD01-099 Intercept Orders — só tinha o 【Burst】; jogada como Command não fazia nada.
+export const INTERCEPT_ORDERS_MAIN_ACTION = mainAndAction({
+  cardCode: "GD01-099",
+  actions: [{ op: "rest", target: { kind: "namedGroup", name: "target" } }],
+  targetScope: "enemyUnit",
+  targetFilter: "hp<=3",
+  targetCount: { min: 1, max: 2 },
+  sourceText: "【Main】/【Action】Choose 1 to 2 enemy Units with 3 or less HP. Rest them.",
+});
+
+// GD01-111 Battle of Aces — só tinha o 【Burst】.
+export const BATTLE_OF_ACES_MAIN_ACTION = mainAndAction({
+  cardCode: "GD01-111",
+  actions: [{ op: "damageUnit", target: { kind: "named", name: "target" }, amount: 3 }],
+  targetScope: "enemyUnit",
+  targetFilter: "damaged",
+  sourceText: "【Main】/【Action】Choose 1 damaged enemy Unit. Deal 3 damage to it.",
+});
+
+// GD01-120 Naval Bombardment — só tinha o 【Burst】.
+export const NAVAL_BOMBARDMENT_ACTION: EffectSpec = {
+  id: "GD01-120-Action",
+  cardCode: "GD01-120",
+  trigger: "Action",
+  actions: [{ op: "modifyStat", target: { kind: "named", name: "target" }, stat: "ap", amount: 3, duration: "endOfTurn" }],
+  targetScope: "friendlyUnit",
+  targetFilter: "hasKeyword:Blocker",
+  sourceText: "【Action】Choose 1 friendly Unit with <Blocker>. It gets AP+3 during this turn.",
+};
+
 export const GD01_EFFECT_SPECS: EffectSpec[] = [
+  // auditoria por cláusula (W0.3): 【Burst】Add this card to your hand. dos pilotos que faltava
+  ...["GD01-087", "GD01-089", "GD01-090", "GD01-091", "GD01-092", "GD01-094", "GD01-096"].map(stdAddToHandBurst),
+  ZEON_REMNANT_FORCES_ACTION,
+  ...INTERCEPT_ORDERS_MAIN_ACTION,
+  ...BATTLE_OF_ACES_MAIN_ACTION,
+  NAVAL_BOMBARDMENT_ACTION,
   UNICORN_GUNDAM_DESTROY_MODE_ATTACK,
   UNICORN_GUNDAM_UNICORN_MODE_DESTROYED,
   CHARS_GELGOOG_ACTIVATE_MAIN,

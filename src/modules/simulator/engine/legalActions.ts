@@ -107,6 +107,56 @@ function neededTargetIds(
   return { ids: [...ids], someSpecNeeds: true, targetCount };
 }
 
+/**
+ * Jogadas de Command pra um gatilho (【Main】 ou 【Action】) — mesma enumeração nos 2 casos.
+ * - Lote 5 (docs/debates 2026-09-13) — GD01-103/112: 2º pool de alvo com escopo PRÓPRIO
+ *   (`secondaryTarget`, ex. "1 friendly Unit e 1 enemy Unit"). A Command resolve com
+ *   `action.targets` já pronto, então a enumeração entrega os 2 pools de uma vez (guloso:
+ *   só o 1º legal de cada). W0 (E11): vale também pro 【Action】 (GD03-116).
+ * - Alvo obrigatório sem pool legal (ex. ST05-013 "Choose 1 of your Units" sem Unit própria):
+ *   NÃO oferece a jogada — achado no fuzzing da wave ST05 (a resolução travava em
+ *   `pendingDecision` com 0 opções). Exceção W0: se OUTRO spec do mesmo gatilho não precisa de
+ *   alvo (GD03-101 "Draw 1. Then, if …, choose …"), a jogada sai sem alvo — `playCommand`
+ *   tira do lote o spec sem alvo legal e resolve o resto.
+ */
+function commandPlayCandidates(
+  state: GameState,
+  seat: PlayerId,
+  card: CardInstance,
+  trigger: "Main" | "Action",
+  specs: EffectSpec[],
+  opts: EnumerateOptions,
+): LegalAction[] {
+  const def = card.def;
+  const specWithSecondary = findTriggerSpecs(specs, def.code, trigger).find((s) => s.secondaryTarget);
+  if (specWithSecondary?.secondaryTarget) {
+    const primaryIds = computeLegalTargets(state, specWithSecondary, seat, opts.targetFilterResolver, card.instanceId);
+    const secondaryIds = computeLegalTargets(
+      state,
+      { targetScope: specWithSecondary.secondaryTarget.targetScope, targetFilter: specWithSecondary.secondaryTarget.targetFilter },
+      seat,
+      opts.targetFilterResolver,
+      card.instanceId,
+    );
+    const primaryMax = specWithSecondary.targetCount?.max ?? 1;
+    const targets: Record<string, string[]> = {};
+    if (primaryIds.length > 0) targets.target = primaryIds.slice(0, primaryMax);
+    if (secondaryIds.length > 0) targets[specWithSecondary.secondaryTarget.name] = secondaryIds.slice(0, 1);
+    return [{ kind: "playCommand", cardInstanceId: card.instanceId, trigger, targets }];
+  }
+  const { ids, someSpecNeeds, targetCount } = neededTargetIds(state, seat, def.code, trigger, specs, opts.targetFilterResolver, card.instanceId);
+  if (!someSpecNeeds) return [{ kind: "playCommand", cardInstanceId: card.instanceId, trigger }];
+  if (ids.length === 0) {
+    const someSpecTargetless = findTriggerSpecs(specs, def.code, trigger).some((s) => !specNeedsNamedTarget(s));
+    return someSpecTargetless ? [{ kind: "playCommand", cardInstanceId: card.instanceId, trigger }] : [];
+  }
+  if (targetCount.max > 1) {
+    // Lote 4 — bot/enumeração não explora combinações: escolhe gulosamente até `max` do pool legal.
+    return [{ kind: "playCommand", cardInstanceId: card.instanceId, trigger, targets: { target: ids.slice(0, targetCount.max) } }];
+  }
+  return ids.map((id): LegalAction => ({ kind: "playCommand", cardInstanceId: card.instanceId, trigger, targets: { target: [id] } }));
+}
+
 function commandActionCandidates(state: GameState, seat: PlayerId, specs: EffectSpec[], opts: EnumerateOptions): LegalAction[] {
   const out: LegalAction[] = [];
   for (const card of state.players[seat].hand) {
@@ -114,26 +164,7 @@ function commandActionCandidates(state: GameState, seat: PlayerId, specs: Effect
     if (!card.def.triggerKeywords?.includes("Action")) continue;
     if (!canPayLevel(state, seat, card.def)) continue;
     if (!canAfford(state, seat, effectiveCost(card.def, state, seat))) continue;
-    const { ids, someSpecNeeds, targetCount } = neededTargetIds(
-      state,
-      seat,
-      card.def.code,
-      "Action",
-      specs,
-      opts.targetFilterResolver,
-      card.instanceId,
-    );
-    if (someSpecNeeds && ids.length > 0) {
-      if (targetCount.max > 1) {
-        // Lote 4 — bot/enumeração não explora combinações: escolhe gulosamente até `max` do pool legal.
-        out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: ids.slice(0, targetCount.max) } });
-      } else {
-        for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action", targets: { target: [id] } });
-      }
-    } else if (!someSpecNeeds) {
-      out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Action" });
-    }
-    // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
+    out.push(...commandPlayCandidates(state, seat, card, "Action", specs, opts));
   }
   return out;
 }
@@ -220,52 +251,7 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
       }
     }
     if (def.cardType === "COMMAND" && def.triggerKeywords?.includes("Main")) {
-      // Lote 5 (docs/debates 2026-09-13) — GD01-103/112: 2º pool de alvo com escopo
-      // PRÓPRIO (`secondaryTarget`, ex. "1 friendly Unit e 1 enemy Unit"). A Command
-      // resolve com `action.targets` já pronto (não pausa pra decisão), então a
-      // enumeração aqui já entrega os 2 pools escolhidos de uma vez (guloso: só o
-      // 1º legal de cada, sem explorar combinações — mesmo espírito do Lote 4).
-      const specWithSecondary = findTriggerSpecs(specs, def.code, "Main").find((s) => s.secondaryTarget);
-      if (specWithSecondary?.secondaryTarget) {
-        const primaryIds = computeLegalTargets(state, specWithSecondary, seat, opts.targetFilterResolver, card.instanceId);
-        const secondaryIds = computeLegalTargets(
-          state,
-          { targetScope: specWithSecondary.secondaryTarget.targetScope, targetFilter: specWithSecondary.secondaryTarget.targetFilter },
-          seat,
-          opts.targetFilterResolver,
-          card.instanceId,
-        );
-        const primaryMax = specWithSecondary.targetCount?.max ?? 1;
-        const targets: Record<string, string[]> = {};
-        if (primaryIds.length > 0) targets.target = primaryIds.slice(0, primaryMax);
-        if (secondaryIds.length > 0) targets[specWithSecondary.secondaryTarget.name] = secondaryIds.slice(0, 1);
-        out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets });
-      } else {
-        const { ids, someSpecNeeds, targetCount } = neededTargetIds(
-          state,
-          seat,
-          def.code,
-          "Main",
-          specs,
-          opts.targetFilterResolver,
-          card.instanceId,
-        );
-        if (someSpecNeeds && ids.length > 0) {
-          if (targetCount.max > 1) {
-            out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: ids.slice(0, targetCount.max) } });
-          } else {
-            for (const id of ids) out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main", targets: { target: [id] } });
-          }
-        } else if (!someSpecNeeds) {
-          out.push({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: "Main" });
-        }
-        // `someSpecNeeds && ids.length === 0` — alvo obrigatório sem pool legal (ex.
-        // ST05-013 "Choose 1 of your Units" sem nenhuma Unit própria em campo): NÃO
-        // oferece a jogada. Achado no fuzzing da wave ST05 — antes disto, a Command
-        // entrava sem `targets`, e a resolução travava em `pendingDecision` com 0
-        // opções (mesma classe de bug do docs/48, versão "pool vazio" em vez de
-        // "condição falsa").
-      }
+      out.push(...commandPlayCandidates(state, seat, card, "Main", specs, opts));
     }
   }
 

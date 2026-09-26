@@ -1,4 +1,5 @@
 import type { GameOverInfo, GameState, PlayerId } from "./types";
+import { effectiveHp } from "./types";
 import type { DeckList } from "./setup";
 import { createGame } from "./setup";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
@@ -85,7 +86,25 @@ export function checkStateInvariants(state: GameState): string | null {
     if (unitCount > 6 && !state.pendingDecision.A && !state.pendingDecision.B) {
       return `${pid} com ${unitCount} Units na Battle Area (>6) sem zoneOverflow pendente`;
     }
+    const side = state.players[pid];
+    const settled = !state.pendingDecision.A && !state.pendingDecision.B;
+    // a Base nova substitui a antiga na mesma resolução — duas só existem se a troca falhou
+    if (settled && side.baseSection.length > 1) {
+      return `${pid} com ${side.baseSection.length} Bases na Base Section (>1)`;
+    }
+    for (const card of side.battleArea) {
+      // (um Command com 【Pilot】 também pareia — conta a presença, não o tipo)
+      if (card.pairedPilotId && !side.battleArea.some((c) => c.instanceId === card.pairedPilotId)) {
+        return `Unit ${card.instanceId} (${card.def.code}) pareada com Piloto ${card.pairedPilotId} que não está na Battle Area de ${pid}`;
+      }
+      // fora de combate e sem decisão aberta, dano >= HP já deveria ter destruído a Unit
+      if (settled && !state.combat && card.def.cardType === "UNIT" && card.damage > 0 && card.damage >= effectiveHp(card, state)) {
+        return `Unit ${card.instanceId} (${card.def.code}) com dano ${card.damage} >= HP ${effectiveHp(card, state)} ainda em campo`;
+      }
+    }
   }
+  // (sem invariante de "combate aberto sem atacante": pela regra 8-2-4/8-3-5/8-4-2 o passo em
+  // curso continua e só no FIM dele a batalha pula pro Battle End Step — é estado legal)
   return null;
 }
 

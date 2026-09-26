@@ -25,6 +25,7 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     ],
     "hasBurst": true
   },
+  // W0.3 (revisão semântica): Blocker indevido (o texto só cita inimigos com <Blocker>)
   "GD03-018": {
     "code": "GD03-018",
     "nameEn": "Altron Gundam",
@@ -44,7 +45,6 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       ]
     },
     "effectKeywords": [
-      "Blocker",
       "Breach"
     ],
     "keywordTags": [
@@ -146,6 +146,7 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "During Link"
     ]
   },
+  // W0.3 (revisão semântica): High-Maneuver inato indevido
   "GD03-023": {
     "code": "GD03-023",
     "nameEn": "G-Bouncer",
@@ -164,9 +165,13 @@ export const UNITS_GREEN: Record<string, CardDef> = {
         "Earth Federation"
       ]
     },
-    "effectKeywords": [
-      "High-Maneuver"
-    ]
+    // W0.3 — "When you place an EX Resource, choose 1 of your (AGE System) Units. It gains
+    // <High-Maneuver> during this turn." (sem 【Once per Turn】, ao contrário de GD02-022).
+    onExResourcePlaced: {
+      grantKeyword: "High-Maneuver",
+      requiresTargetTrait: "AGE System",
+      sourceText: "When you place an EX Resource, choose 1 of your (AGE System) Units. It gains <High-Maneuver> during this turn.",
+    },
   },
   "GD03-024": {
     "code": "GD03-024",
@@ -275,6 +280,7 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "Attack"
     ]
   },
+  // W0.3 (revisão semântica): Blocker indevido (o texto só cita inimigos com <Blocker>)
   "GD03-029": {
     "code": "GD03-029",
     "nameEn": "Gundam Heavyarms Custom",
@@ -292,10 +298,7 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "values": [
         "Trowa Barton"
       ]
-    },
-    "effectKeywords": [
-      "Blocker"
-    ]
+    }
   },
   "GD03-030": {
     "code": "GD03-030",
