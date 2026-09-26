@@ -1169,11 +1169,17 @@ export function discardCandidateHandIds(
   state: GameState,
   player: PlayerId,
   implicitTargets?: Record<string, string[]>,
+  /** chamadas ativas de `specActiveCalls` (actions + ramo da condição) — sem elas, só `actions` é olhado */
+  activeCalls?: PrimitiveCall[],
 ): string[] {
   const hand = state.players[player].hand.map((c) => c.instanceId);
   let drawn = 0;
   const movedToHand: string[] = [];
-  for (const call of spec.actions) {
+  // ordem de execução de `resolveEffectSpec`: custo → ramo da condição → actions (E5 — a
+  // compra dentro de `condition.then` antes do descarte era ignorada)
+  const branch = activeCalls ? activeCalls.slice(spec.actions.length) : [];
+  const ordered = [...(spec.cost ?? []), ...branch, ...spec.actions];
+  for (const call of ordered) {
     if (call.op === "draw") drawn += call.n;
     if (call.op === "moveZone" && call.toZone === "hand" && call.target.kind === "named" && implicitTargets?.[call.target.name]) {
       movedToHand.push(...implicitTargets[call.target.name]);

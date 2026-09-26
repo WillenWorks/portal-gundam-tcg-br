@@ -5,6 +5,7 @@ import {
   effectiveHp,
   effectivePilotDef,
   hasKeyword,
+  isActingAsPilot,
   otherPlayer,
   satisfiesLinkCondition,
   type CardInstance,
@@ -273,7 +274,8 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerHasPilotWithTrait) {
     const trait = controllerHasPilotWithTrait[1];
     return ctx.state.players[ctx.controller].battleArea.some(
-      (c) => c.def.cardType === "PILOT" && (c.def.traits ?? []).includes(trait),
+      // Command jogada como Pilot (`asPilot`) também é "(X) Pilot in play" (E10)
+      (c) => isActingAsPilot(c) && (effectivePilotDef(c).traits ?? []).includes(trait),
     );
   }
   // GD02-054 Gundam Barbatos 1st Form / GD02-095 Lafter Frankland (Pilot, "this Unit" =

@@ -8,10 +8,12 @@ import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passActi
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
+  attachQueuedTriggers,
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
+  drainQueuedTriggers,
   filterDispatchableSpecs,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
@@ -470,6 +472,10 @@ function applyPlayerActionInner(
           allSpecs: specs,
         });
       }
+      if (decision.queuedTriggers?.length && !next.gameOver) {
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers);
+        next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
+      }
       return next;
     }
 
@@ -634,6 +640,12 @@ function applyPlayerActionInner(
           predicateResolver,
           targetFilterResolver,
         });
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers ?? []);
+      }
+      // gatilhos do mesmo evento que esperavam esta decisão (ex.: 【When Linked】 depois do 【When Paired】)
+      if (decision.queuedTriggers?.length && !next.gameOver) {
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers);
+        next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.

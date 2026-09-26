@@ -25,8 +25,8 @@ import {
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
-import type { DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId } from "./types";
-import { effectivePilotDef, otherPlayer, satisfiesLinkCondition } from "./types";
+import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
+import { effectivePilotDef, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -114,7 +114,7 @@ function buildQueueEntry(
   }
 
   if (choice.op === "discardNamed") {
-    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets);
+    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls);
     // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
     // (custo com filtro): restringe os candidatos, se o spec pedir.
     const legalHandIds = choice.filter ? rawCandidates.filter((id) => matchesCardDefFilter(findCard(state, id).def, choice.filter!)) : rawCandidates;
@@ -225,7 +225,9 @@ export function deferOrDispatchAbilities(
   if (guarded) return guarded;
 
   const entries = sources.flatMap((s) =>
-    findTriggerSpecs(specs, s.code, trigger).map((spec) => ({ spec, sourceInstanceId: s.instanceId, implicitTargets: s.implicitTargets })),
+    findTriggerSpecs(specs, s.code, trigger)
+      .filter((spec) => specPairGateOpen(state, findCard(state, s.instanceId), spec))
+      .map((spec) => ({ spec, sourceInstanceId: s.instanceId, implicitTargets: s.implicitTargets })),
   );
   if (entries.length === 0) return state;
 
@@ -318,20 +320,38 @@ export function deferOrDispatchAbilities(
  * snapshot de antes — depois do `DESTROY_CARD` a Unit já perdeu `pairedPilotId`.
  * Units devolvidas pra mão/deck (não pro trash) NÃO contam como destruídas.
  */
+/** estado de pareamento de uma carta no snapshot `state` — Unit olha o Piloto dela; Piloto olha a Unit (E7) */
+function pairingOf(card: CardInstance, state: GameState): { wasPaired: boolean; wasLinkUnit: boolean } {
+  if (card.pairedPilotId) {
+    const pilot = findCard(state, card.pairedPilotId);
+    return { wasPaired: true, wasLinkUnit: satisfiesLinkCondition(effectivePilotDef(pilot), card.def) };
+  }
+  if (card.pairedUnitId) {
+    const unit = findCard(state, card.pairedUnitId);
+    return { wasPaired: true, wasLinkUnit: satisfiesLinkCondition(effectivePilotDef(card), unit.def) };
+  }
+  return { wasPaired: false, wasLinkUnit: false };
+}
+
 export function collectDestroyed(before: GameState, after: GameState): DestroyedInBattle[] {
   const out: DestroyedInBattle[] = [];
   for (const pid of ["A", "B"] as PlayerId[]) {
-    const stillInPlay = new Set(after.players[pid].battleArea.map((c) => c.instanceId));
+    const stillInPlay = new Set([...after.players[pid].battleArea, ...after.players[pid].baseSection].map((c) => c.instanceId));
     const inTrashNow = new Set(after.players[pid].trash.map((c) => c.instanceId));
-    for (const card of before.players[pid].battleArea) {
+    // Base também tem 【Destroyed】 (GD02-126/127) — antes só a Battle Area era vista. Mas a Base
+    // que sai porque OUTRA entrou no lugar (CR 11-5-2-1, rules management) não é "destruída".
+    const baseReplaced = after.players[pid].baseSection.some(
+      (b) => !before.players[pid].baseSection.some((old) => old.instanceId === b.instanceId),
+    );
+    const candidates = [...before.players[pid].battleArea, ...(baseReplaced ? [] : before.players[pid].baseSection)];
+    for (const card of candidates) {
       if (stillInPlay.has(card.instanceId)) continue;
       if (!inTrashNow.has(card.instanceId)) continue;
-      const pilot = card.pairedPilotId ? findCard(before, card.pairedPilotId) : undefined;
-      const wasLinkUnit = !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), card.def);
+      const { wasPaired, wasLinkUnit } = pairingOf(card, before);
       out.push({
         instanceId: card.instanceId,
         owner: pid,
-        wasPaired: !!card.pairedPilotId,
+        wasPaired,
         wasLinkUnit,
         formerPairedPilotId: card.pairedPilotId,
       });
@@ -413,6 +433,77 @@ export function dispatchAnyPairingFromEffect(
       opts,
     );
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+  }
+  return next;
+}
+
+/**
+ * E6 — pareamento feito por EFEITO (`pairFromHandSearch`/`pairFromTrashSearch`) dispara os
+ * mesmos 【When Paired】 (Unit + Pilot) e 【When Linked】 (se formou Link Unit) que o
+ * pareamento da jogada normal (`deploy.ts`). Antes só o "AnyPairing" reativo disparava.
+ */
+export function dispatchPairingTriggersFromEffect(
+  before: GameState,
+  after: GameState,
+  specs: EffectSpec[],
+  opts: {
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  return drainQueuedTriggers(after, pairingTriggerEntries(before, after), specs, opts);
+}
+
+/** 【When Paired】 (+ 【When Linked】 se formou Link) de cada pareamento novo entre `before` e `after` */
+export function pairingTriggerEntries(before: GameState, after: GameState): QueuedTrigger[] {
+  const entries: QueuedTrigger[] = [];
+  for (const np of collectNewPairings(before, after)) {
+    const unit = findCard(after, np.unitInstanceId);
+    if (!unit.pairedPilotId) continue;
+    const pilot = findCard(after, unit.pairedPilotId);
+    const sources = [
+      { code: unit.def.code, instanceId: unit.instanceId },
+      { code: pilot.def.code, instanceId: pilot.instanceId },
+    ];
+    entries.push({ owner: np.owner, trigger: "When Paired", sources });
+    if (satisfiesLinkCondition(effectivePilotDef(pilot), unit.def)) entries.push({ owner: np.owner, trigger: "When Linked", sources });
+  }
+  return entries;
+}
+
+/** pendura `entries` na decisão pendente (a que acabou de pausar) — elas disparam quando ela fechar */
+export function attachQueuedTriggers(state: GameState, entries: QueuedTrigger[]): GameState {
+  if (entries.length === 0) return state;
+  for (const p of ["A", "B"] as PlayerId[]) {
+    const d = state.pendingDecision[p];
+    if (d && (d.kind === "abilityResolution" || d.kind === "triggerOrder")) {
+      return { ...state, pendingDecision: { ...state.pendingDecision, [p]: { ...d, queuedTriggers: [...(d.queuedTriggers ?? []), ...entries] } } };
+    }
+  }
+  return state;
+}
+
+/** despacha a fila em ordem; se um deles pausar, o resto fica pendurado na nova decisão */
+export function drainQueuedTriggers(
+  state: GameState,
+  entries: QueuedTrigger[],
+  specs: EffectSpec[],
+  opts: {
+    targets?: Record<string, string[]>;
+    predicateResolver?: PredicateResolver;
+    targetFilterResolver?: TargetFilterResolver;
+    cascadeDepth?: number;
+    queueBudget?: TriggerQueueBudget;
+  } = {},
+): GameState {
+  let next = state;
+  for (let i = 0; i < entries.length; i++) {
+    if (next.gameOver) return next;
+    const entry = entries[i];
+    next = deferOrDispatchAbilities(next, entry.owner, entry.trigger, entry.sources, specs, opts);
+    if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, entries.slice(i + 1));
   }
   return next;
 }
