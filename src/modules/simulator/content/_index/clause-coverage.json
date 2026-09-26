@@ -7997,9 +7997,9 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 65,
+        "full": 79,
         "partial": 6,
-        "missing": 45,
+        "missing": 31,
         "withErrors": 0
       },
       "cards": [
@@ -8348,14 +8348,16 @@
         },
         {
           "code": "GD03-019",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "【During Pair】Enemy Units choose this rested Unit as their attack target if possible when attacking."
             },
             {
@@ -8373,7 +8375,7 @@
         },
         {
           "code": "GD03-020",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8381,18 +8383,19 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD03-020-WhenPaired"
               ],
               "text": "【When Paired】If there are 4 or more (Cyclops Team) cards in your trash, deploy 2 rested [Ad Balloon]((Civilian)·AP0·HP1·This Unit can't be set as active or paired with a Pilot) Unit tokens."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "innateDamageProtection"
+              ],
               "text": "While you have a Unit with \"Ad Balloon\" in its card name in play, this Unit can't receive enemy battle damage."
             }
           ]
@@ -8467,14 +8470,16 @@
         },
         {
           "code": "GD03-025",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "Enemy Units choose one of your rested (Maganac Corps) Units as their attack target if possible when attacking."
             }
           ]
@@ -8640,10 +8645,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-035-WhenLinked"
               ],
               "text": "【When Linked】During this turn, this Unit may choose an active enemy Unit with AP equal to or less than this Unit as its attack target."
             }
@@ -8747,7 +8751,7 @@
         },
         {
           "code": "GD03-041",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8755,10 +8759,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-041-Deploy"
               ],
               "text": "【Deploy】Deal 3 damage to all Bases."
             }
@@ -8766,14 +8769,16 @@
         },
         {
           "code": "GD03-042",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
               "text": "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower as its attack target."
             }
           ]
@@ -8862,7 +8867,7 @@
         },
         {
           "code": "GD03-049",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8877,8 +8882,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-049-DestroyedShield"
+              ],
               "text": "When this Unit destroys an enemy shield area card with battle damage, if there are 10 or more (CB) cards in your trash, choose 1 enemy Unit with the lowest HP. Destroy it."
             }
           ]
@@ -8922,7 +8929,7 @@
         },
         {
           "code": "GD03-052",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8939,8 +8946,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-052-BattleDamage"
+              ],
               "text": "When this Unit deals battle damage to an enemy Unit that is Lv.5 or lower, if you have a (CB) Pilot in play, destroy that enemy Unit."
             }
           ]
@@ -9232,14 +9241,16 @@
         },
         {
           "code": "GD03-070",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "protectsShieldsWhileRested"
+              ],
               "text": "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units."
             }
           ]
@@ -9320,14 +9331,16 @@
         },
         {
           "code": "GD03-074",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "【During Pair】While you have another (Superpower Bloc) Unit in play, enemy Units choose this rested Unit as their attack target if possible when attacking."
             }
           ]
@@ -9352,14 +9365,16 @@
         },
         {
           "code": "GD03-076",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-076-BattleDamage"
+              ],
               "text": "【Once per Turn】During your turn, when your (Triple Ship Alliance) Unit deals battle damage to an enemy Unit, you may return the enemy Unit to its owner's hand."
             }
           ]
@@ -9435,14 +9450,16 @@
         },
         {
           "code": "GD03-081",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackRestriction"
+              ],
               "text": "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed."
             }
           ]
@@ -10065,7 +10082,7 @@
         },
         {
           "code": "GD03-105",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10084,10 +10101,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-105-Main"
               ],
               "text": "【Main】Choose 1 friendly Unit. During this turn, it may choose an active enemy Unit that has no Pilot paired with it as its attack target."
             }
@@ -10334,7 +10350,7 @@
         },
         {
           "code": "GD03-115",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10342,10 +10358,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-115-Action"
               ],
               "text": "【Action】Choose 1 friendly Unit paired with an (X-Rounder) Pilot. It can't receive battle damage from enemy Units with 2 or less AP during this battle. If you are Lv.7 or higher, it can't receive battle damage from enemy Units with 5 or less AP instead."
             },
@@ -10599,7 +10614,7 @@
         },
         {
           "code": "GD03-125",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10627,8 +10642,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD03-125-DestroyedEnemy"
+              ],
               "text": "【Once per Turn】During your turn, when a friendly (Operation Meteor)/(G Team) Unit that is Lv.6 or higher destroys an enemy Unit with battle damage, that friendly Unit may recover 2 HP."
             }
           ]

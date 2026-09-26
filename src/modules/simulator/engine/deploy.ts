@@ -204,6 +204,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     }
     if (unit.def.cardType !== "UNIT") throw new Error("Só dá pra parear Pilot com Unit");
     if (unit.pairedPilotId) throw new Error("Essa Unit já tem um Pilot pareado");
+    if (unit.def.cannotBePaired) throw new Error(`${unit.def.code}: esta Unit não pode ser pareada com um Pilot`);
     events.push({ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "battleArea" });
     events.push({
       type: "PAIR_CARDS",

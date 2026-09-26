@@ -3160,6 +3160,18 @@
     "sourceText": "【When Linked】Place 1 EX Resource."
   },
   {
+    "id": "GD03-020-WhenPaired",
+    "cardCode": "GD03-020",
+    "trigger": "When Paired",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithTraitAtLeast:Cyclops Team:4",
+    "sourceText": "【When Paired】If there are 4 or more (Cyclops Team) cards in your trash, deploy 2 rested [Ad Balloon]((Civilian)·AP0·HP1·This Unit can't be set as active or paired with a Pilot) Unit tokens."
+  },
+  {
     "id": "GD03-021-Deploy",
     "cardCode": "GD03-021",
     "trigger": "Deploy",
@@ -3208,6 +3220,18 @@
     "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 3 damage to it."
   },
   {
+    "id": "GD03-035-WhenLinked",
+    "cardCode": "GD03-035",
+    "trigger": "When Linked",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】During this turn, this Unit may choose an active enemy Unit with AP equal to or less than this Unit as its attack target."
+  },
+  {
     "id": "GD03-036-WhenLinked",
     "cardCode": "GD03-036",
     "trigger": "When Linked",
@@ -3230,6 +3254,18 @@
     "targetFilter": "trait:ZAFT",
     "predicate": null,
     "sourceText": "During your turn, when this Unit is rested by an effect, choose 1 of your (ZAFT) Units. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD03-041-Deploy",
+    "cardCode": "GD03-041",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Deal 3 damage to all Bases."
   },
   {
     "id": "GD03-043-WhenPaired",
@@ -3268,6 +3304,18 @@
     "sourceText": "【Burst】If there are 3 or less enemy Shields, deploy 1 rested [GFreD]((Zeon)·AP4·HP3) Unit token."
   },
   {
+    "id": "GD03-049-DestroyedShield",
+    "cardCode": "GD03-049",
+    "trigger": "Reaction:destroyedShieldInBattle",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "lowestHp",
+    "predicate": "controllerTrashCardCountWithTraitAtLeast:CB:10",
+    "sourceText": "When this Unit destroys an enemy shield area card with battle damage, if there are 10 or more (CB) cards in your trash, choose 1 enemy Unit with the lowest HP. Destroy it."
+  },
+  {
     "id": "GD03-051-WhenLinked",
     "cardCode": "GD03-051",
     "trigger": "When Linked",
@@ -3278,6 +3326,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【When Linked】You may choose 1 Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
+  },
+  {
+    "id": "GD03-052-BattleDamage",
+    "cardCode": "GD03-052",
+    "trigger": "Reaction:battleDamageToEnemyUnit",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "battleVictimInPlay;battleVictimLevelAtMost:5;controllerHasPilotWithTrait:CB",
+    "sourceText": "When this Unit deals battle damage to an enemy Unit that is Lv.5 or lower, if you have a (CB) Pilot in play, destroy that enemy Unit."
   },
   {
     "id": "GD03-053-AllyEffectDamage",
@@ -3377,6 +3437,18 @@
     "targetFilter": "unpaired",
     "predicate": null,
     "sourceText": "【During Link】【Attack】Choose 1 enemy Unit with no paired Pilot. It gets AP-2 during this turn."
+  },
+  {
+    "id": "GD03-076-BattleDamage",
+    "cardCode": "GD03-076",
+    "trigger": "Reaction:battleDamageToEnemyUnit",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "battleVictimInPlay",
+    "sourceText": "【Once per Turn】During your turn, when your (Triple Ship Alliance) Unit deals battle damage to an enemy Unit, you may return the enemy Unit to its owner's hand."
   },
   {
     "id": "GD03-077-WhenLinked",
@@ -3776,6 +3848,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-105-Main",
+    "cardCode": "GD03-105",
+    "trigger": "Main",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 friendly Unit. During this turn, it may choose an active enemy Unit that has no Pilot paired with it as its attack target."
+  },
+  {
     "id": "GD03-106-Main",
     "cardCode": "GD03-106",
     "trigger": "Main",
@@ -3859,6 +3943,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
+  },
+  {
+    "id": "GD03-115-Action",
+    "cardCode": "GD03-115",
+    "trigger": "Action",
+    "ops": [
+      "preventUnitBattleDamage",
+      "preventUnitBattleDamage"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "pairedPilotTrait:X-Rounder",
+    "predicate": "controllerLevelAtLeast:7",
+    "sourceText": "【Action】Choose 1 friendly Unit paired with an (X-Rounder) Pilot. It can't receive battle damage from enemy Units with 2 or less AP during this battle. If you are Lv.7 or higher, it can't receive battle damage from enemy Units with 5 or less AP instead."
   },
   {
     "id": "GD03-116-Action",
@@ -4031,6 +4128,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD03-125-DestroyedEnemy",
+    "cardCode": "GD03-125",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "reactionSubjectInPlay",
+    "sourceText": "【Once per Turn】During your turn, when a friendly (Operation Meteor)/(G Team) Unit that is Lv.6 or higher destroys an enemy Unit with battle damage, that friendly Unit may recover 2 HP."
   },
   {
     "id": "GD03-126-Burst",

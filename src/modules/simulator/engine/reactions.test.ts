@@ -237,4 +237,13 @@ describe("W2a — gatilhos reativos", () => {
     const decision = state.pendingDecision.A;
     expect(decision?.kind === "abilityResolution" && decision.trigger).toBe("Reaction:setActiveByEffect");
   });
+
+  it("CR 10-1-6-4: a Unit destruída pelo próprio dano de efeito ainda reage (060 cria o token)", () => {
+    let state = game();
+    const worker = placeCard(state, "A", G["GD03-060"], "battleArea");
+    const src = placeCard(state, "A", G["GD03-067"], "battleArea");
+    state = fire(state, src, [damage(20)], { target: [worker] });
+    expect(findCard(state, worker).zone).toBe("trash");
+    expect(state.players.A.battleArea.some((c) => c.def.code === "T-015")).toBe(true);
+  });
 });

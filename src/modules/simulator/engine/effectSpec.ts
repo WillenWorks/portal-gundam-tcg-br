@@ -74,6 +74,8 @@ export type TargetGroup =
    * concedida (mesma checagem de `defaultTargetFilterResolver`).
    */
   | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string; /** GD03-112 — "all Units paired with a Pilot" */ paired?: boolean }
+  /** W2b — GD03-041 "Deal 3 damage to all Bases" (dos 2 lados) */
+  | { kind: "allBases" }
   /**
    * ST08-006 Penelope — "reveal 1 (Earth Federation) Unit card from your hand.
    * Return to the bottom of your deck." Não existe `targetScope` pra mão ainda
@@ -125,6 +127,9 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
       .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
       .filter((u) => !group.paired || !!u.pairedPilotId)
       .map((u) => u.instanceId);
+  }
+  if (group.kind === "allBases") {
+    return [...(ctx.state.players.A.baseSection ?? []), ...(ctx.state.players.B.baseSection ?? [])].map((b) => b.instanceId);
   }
   if (group.kind === "firstOwnHandUnitWithTrait") {
     const owner = ctx.state.players[ctx.controller];
@@ -281,7 +286,7 @@ export type PrimitiveCall =
    * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
    * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number }
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean }
   /** GD02-040 Gundam Ashtaron 【Deploy】 — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { op: "grantBattleDamageImmunityUntilTurn"; target: TargetRef; maxAttackerHp: number }
   /**
@@ -651,6 +656,8 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           instanceId,
           maxLevel: call.maxLevel,
           maxAp: call.maxAp,
+          apAtMostSelf: call.apAtMostSelf,
+          unpairedOnly: call.unpairedOnly,
           turn: ctx.turnNumber,
         }),
       );
@@ -880,7 +887,19 @@ export type PredicateResolver = (predicate: string, ctx: EffectContext) => boole
  * e descreve em `reaction` DE QUEM é o evento; o motor (`dispatchReactions`, abilityDispatch.ts)
  * detecta o evento e despacha pelo mesmo caminho de pausa/escolha dos outros gatilhos.
  */
-export type ReactionEvent = "effectDamage" | "restedByEffect" | "setActiveByEffect" | "pilotPaired" | "attack" | "endOfTurn";
+export type ReactionEvent =
+  | "effectDamage"
+  | "restedByEffect"
+  | "setActiveByEffect"
+  | "pilotPaired"
+  | "attack"
+  | "endOfTurn"
+  /** W2b — Damage Step: "when this Unit deals battle damage to an enemy Unit" (vítima = alvo implícito `battleVictim`) */
+  | "battleDamageToEnemyUnit"
+  /** W2b — "when this Unit destroys an enemy Unit with battle damage" */
+  | "destroyedEnemyInBattle"
+  /** W2b — "when this Unit destroys an enemy shield area card with battle damage" */
+  | "destroyedShieldInBattle";
 
 export interface ReactionSpec {
   event: ReactionEvent;

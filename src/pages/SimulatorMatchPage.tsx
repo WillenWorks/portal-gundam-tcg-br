@@ -107,6 +107,7 @@ import { Button } from "@/components/ui/button";
 import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport";
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
+import { attackTargetError } from "@/modules/simulator/engine/combat";
 import { otherPlayer, hasKeyword, effectiveCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
@@ -1773,7 +1774,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         return {
           legalTargetInstanceIds: new Set(
-            myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId).map((u) => u.instanceId),
+            myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId && !u.def?.cannotBePaired).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
           maxTargetCount: 1,
@@ -2085,7 +2086,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       inActionStep,
       activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
       totalResources: mine.counts.resourceArea,
-      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId),
+      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId && !u.def?.cannotBePaired),
       state: boardForStats,
       controller: seat,
     };
@@ -2259,18 +2260,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     const attackerUnit = attackerId ? publicUnits(view.players[seat]).find((u) => u.instanceId === attackerId) : null;
 
-    const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean => {
-      if (targetUnit.rested) return true;
-      const staticRelax = attacker.def?.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
-      if (staticRelax >= 0 && (targetUnit.def?.level ?? 999) <= staticRelax) return true;
-      const granted =
-        attacker.attackTargetRelaxUntilTurn?.turn === view.turnNumber
-          ? attacker.attackTargetRelaxUntilTurn
-          : undefined;
-      if (granted?.maxLevel !== undefined && (targetUnit.def?.level ?? 999) <= granted.maxLevel) return true;
-      if (granted?.maxAp !== undefined && (targetUnit.def?.ap ?? 999) <= granted.maxAp) return true;
-      return false;
-    };
+    // mesma regra do servidor (`attackTargetError`): provocação, relaxamentos, "não mira o jogador"
+    const canAttackerTargetEnemyUnit = (attacker: CardInstance, targetUnit: CardInstance): boolean =>
+      attackTargetError(boardForStats, attacker, { unitId: targetUnit.instanceId }) === null;
 
     const isLegalTargetForSlot = (unit: CardInstance | null): boolean => {
       if (!unit) return false;
@@ -2511,7 +2503,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
 
     // docs/55 tarefa 2 — clicar na trilha de Shields inimiga (igual clicar na
     // Base) declara o ataque direto na hora, sem modal intermediária.
-    const isDirectAttackTarget = !isSelf && attackerId !== null && combat === null;
+    const directAttacker = attackerId ? publicUnits(view.players[seat]).find((u) => u.instanceId === attackerId) : null;
+    const isDirectAttackTarget =
+      !isSelf && attackerId !== null && combat === null && !!directAttacker && attackTargetError(boardForStats, directAttacker, "player") === null;
     return {
       shields: (
         <ShieldRail

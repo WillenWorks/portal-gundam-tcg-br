@@ -222,7 +222,9 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       return state;
     }
     case "SET_ACTIVE": {
-      findCard(state, event.instanceId).rested = false;
+      const card = findCard(state, event.instanceId);
+      if (card.def.cannotBeSetActive) return state; // T-014 Ad Balloon
+      card.rested = false;
       return state;
     }
     case "DAMAGE_UNIT": {
@@ -479,7 +481,13 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       return state;
     }
     case "GRANT_ATTACK_TARGET_RELAX": {
-      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = { maxLevel: event.maxLevel, maxAp: event.maxAp, turn: event.turn };
+      findCard(state, event.instanceId).attackTargetRelaxUntilTurn = {
+        maxLevel: event.maxLevel,
+        maxAp: event.maxAp,
+        apAtMostSelf: event.apAtMostSelf,
+        unpairedOnly: event.unpairedOnly,
+        turn: event.turn,
+      };
       return state;
     }
     case "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN": {

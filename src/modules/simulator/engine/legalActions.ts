@@ -246,7 +246,7 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
     const canBePilot = def.cardType === "PILOT" || (def.cardType === "COMMAND" && !!def.pilotMode);
     if (canBePilot) {
       for (const unit of friendlyUnits(state, seat)) {
-        if (unit.pairedPilotId) continue;
+        if (unit.pairedPilotId || unit.def.cannotBePaired) continue;
         out.push({ kind: "deployCard", cardInstanceId: card.instanceId, pairWithUnitId: unit.instanceId });
       }
     }

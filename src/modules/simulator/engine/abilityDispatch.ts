@@ -792,6 +792,8 @@ export interface ReactionOccurrence {
   owner: PlayerId;
   /** quem controla o efeito que causou o evento (ausente = não foi efeito: ataque, pareamento, fim de turno) */
   effectController?: PlayerId;
+  /** W2b — Unit inimiga que levou o dano de batalha / foi destruída (alvo implícito `battleVictim`) */
+  victimId?: string;
 }
 
 /**
@@ -823,7 +825,7 @@ export function collectEffectReactions(before: GameState, events: GameEvent[], e
       if (!wasRested) push("restedByEffect", card);
       restedNow.set(card.instanceId, true);
     } else {
-      if (wasRested) push("setActiveByEffect", card);
+      if (wasRested && !card.def.cannotBeSetActive) push("setActiveByEffect", card);
       restedNow.set(card.instanceId, false);
     }
   }
@@ -839,6 +841,9 @@ function reactionMatches(
 ): boolean {
   const reaction = spec.reaction;
   if (!reaction || reaction.event !== occ.event) return false;
+  // carta que saiu de jogo no próprio evento (CR 10-1-6-4) não tem como provar que estava pareada
+  // (`specPairGateOpen` abre pra quem está fora da Battle Area): 【During Pair/Link】 não reage
+  if ((spec.duringPair || spec.duringLink) && listener.zone !== "battleArea") return false;
   if (spec.oncePerTurn && listener.usedKeywordsThisTurn.includes(specOncePerTurnMarker(spec))) return false;
   if (listener.def.oncePerTurn && listener.usedKeywordsThisTurn.includes(spec.trigger)) return false;
   // "this Unit" num Piloto é a Unit pareada
@@ -870,10 +875,17 @@ export function reactionListeners(
   const side = state.players[occ.owner];
   const trigger = `Reaction:${occ.event}`;
   const out: AbilitySource[] = [];
-  for (const card of [...side.battleArea, ...(side.baseSection ?? [])]) {
+  // a própria carta do evento escuta mesmo se já saiu de jogo no mesmo evento (CR 10-1-6-4 — ex.
+  // GD03-052 destruída na troca de dano ainda destrói a inimiga)
+  const inPlay = [...side.battleArea, ...(side.baseSection ?? [])];
+  const subject = findCard(state, occ.subjectId);
+  const candidates = inPlay.some((c) => c.instanceId === subject.instanceId) ? inPlay : [...inPlay, subject];
+  for (const card of candidates) {
     const cardSpecs = findTriggerSpecs(specs, card.def.code, trigger);
     if (!cardSpecs.some((spec) => reactionMatches(state, card, spec, occ, targetFilterResolver))) continue;
-    out.push({ code: card.def.code, instanceId: card.instanceId, implicitTargets: { reactionSubject: [occ.subjectId] } });
+    const implicitTargets: Record<string, string[]> = { reactionSubject: [occ.subjectId] };
+    if (occ.victimId) implicitTargets.battleVictim = [occ.victimId];
+    out.push({ code: card.def.code, instanceId: card.instanceId, implicitTargets });
   }
   return out;
 }

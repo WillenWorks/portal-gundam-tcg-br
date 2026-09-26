@@ -37,6 +37,21 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   // GD03-069 — "at the end of the turn when this Unit is paired with a Pilot": o Piloto entrou neste turno.
   // GD03-129 — "you may rest this Base. If you do": só dá pra pagar com a fonte ativa.
   if (predicate === "selfIsActive") return !findCard(ctx.state, ctx.sourceInstanceId).rested;
+  // W2b — reações de combate: a Unit inimiga da batalha ainda está em jogo / o nível dela
+  if (predicate === "battleVictimInPlay") {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && findCard(ctx.state, id).zone === "battleArea";
+  }
+  const battleVictimLevelAtMost = predicate.match(/^battleVictimLevelAtMost:(\d+)$/);
+  if (battleVictimLevelAtMost) {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && (findCard(ctx.state, id).def.level ?? 0) <= Number(battleVictimLevelAtMost[1]);
+  }
+  // GD03-125 — "that friendly Unit may recover 2 HP": a Unit do evento ainda está em jogo
+  if (predicate === "reactionSubjectInPlay") {
+    const id = ctx.targets.reactionSubject?.[0];
+    return !!id && findCard(ctx.state, id).zone === "battleArea";
+  }
   if (predicate === "selfPairedThisTurn") {
     const self = findCard(ctx.state, ctx.sourceInstanceId);
     const pilot = self.pairedPilotId ? findCard(ctx.state, self.pairedPilotId) : undefined;
@@ -517,6 +532,20 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
+
+  // GD03-115 — "1 friendly Unit paired with an (X-Rounder) Pilot".
+  const pairedPilotTrait = filter.match(/^pairedPilotTrait:(.+)$/);
+  if (pairedPilotTrait) {
+    const pilot = candidate.pairedPilotId ? findCard(ctx.state, candidate.pairedPilotId) : undefined;
+    return !!pilot && (effectivePilotDef(pilot).traits ?? []).includes(pairedPilotTrait[1]);
+  }
+
+  // GD03-049 — "1 enemy Unit with the lowest HP" (HP restante; empate: qualquer uma das menores)
+  if (filter === "lowestHp") {
+    const side = ctx.state.players[candidate.owner].battleArea.filter((c) => c.def.cardType === "UNIT");
+    const min = Math.min(...side.map((c) => remainingHp(c, ctx.state)));
+    return remainingHp(candidate, ctx.state) === min;
+  }
 
   // GD03-075 Super Gundam — "1 enemy Unit with no paired Pilot".
   if (filter === "unpaired") return !candidate.pairedPilotId;

@@ -234,6 +234,11 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD03-042": {
     "code": "GD03-042",
+    // W2b (GD03)
+    attackTargetRules: { mayTargetActiveEnemyUnit: { maxLevel: 5, requiresSelfApAtLeast: 5 } },
+    structuredSourceText: {
+      attackTargetRules: "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower as its attack target.",
+    },
     "nameEn": "Duel Gundam (Assault Shroud)",
     "cardType": "UNIT",
     "color": "red",

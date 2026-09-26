@@ -201,6 +201,10 @@
     "firstNInTrash": {
       "description": "Resolve pras primeiras N cartas da lixeira do controller que casam um CardDefFilter (sem escolha interativa — mesma simplificação de returnTrashToDeckAndShuffle). Usado com moveZone toZone:\"exile\".",
       "since": "GD02-111 Decisive Last Resort (Sprint 2 Lote 10)"
+    },
+    "allBases": {
+      "description": "Todas as Bases em jogo, dos dois lados.",
+      "since": "GD03-041"
     }
   },
   "targetScopes": {
@@ -234,6 +238,18 @@
     }
   },
   "predicates": {
+    "battleVictimInPlay": {
+      "description": "A Unit inimiga da batalha (alvo implícito battleVictim, reação de combate) ainda está na Battle Area.",
+      "since": "GD03-052"
+    },
+    "battleVictimLevelAtMost:<n>": {
+      "description": "Nível da Unit inimiga da batalha (battleVictim) <= N.",
+      "since": "GD03-052"
+    },
+    "reactionSubjectInPlay": {
+      "description": "A carta do gatilho reativo (reactionSubject) ainda está na Battle Area.",
+      "since": "GD03-125"
+    },
     "selfIsActive": {
       "description": "A fonte está ativa (não descansada).",
       "since": "GD03-129"
@@ -479,6 +495,14 @@
     "level<=reactionSubject": {
       "description": "Nível do candidato <= nível da carta do gatilho reativo (alvo implícito reactionSubject).",
       "since": "GD03-002 The-O"
+    },
+    "pairedPilotTrait:<value>": {
+      "description": "Candidato tem Piloto pareado com o trait dado.",
+      "since": "GD03-115"
+    },
+    "lowestHp": {
+      "description": "Candidato tem o menor HP restante entre as Units do seu lado (empate: qualquer uma).",
+      "since": "GD03-049"
     },
     "unpaired": {
       "description": "Candidato sem Piloto pareado.",
