@@ -342,6 +342,9 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD03-014": {
     "code": "GD03-014",
+    // W1 (GD03)
+    dynamicCost: { condition: { kind: "friendlyUnitWithTraitCountAtLeast", trait: "Titans", cardType: "UNIT", n: 2 }, amount: -1 },
+    structuredSourceText: { dynamicCost: "While you have 2 or more (Titans) Units in play, this card in your hand gets cost -1." },
     "nameEn": "Hizack Custom",
     "cardType": "UNIT",
     "color": "blue",

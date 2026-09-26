@@ -3052,6 +3052,18 @@
     "sourceText": "【When Paired】Choose 1 rested enemy Unit. Deal 1 damage to it. When this effect destroys an enemy Unit, draw 1."
   },
   {
+    "id": "GD03-004-Attack",
+    "cardCode": "GD03-004",
+    "trigger": "Attack",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=5",
+    "predicate": "controllerOtherUnitCountWithAnyTraitAtLeast:Titans:2",
+    "sourceText": "【Attack】If you have 2 or more other (Titans) Units in play, choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
     "id": "GD03-005-Deploy",
     "cardCode": "GD03-005",
     "trigger": "Deploy",
@@ -3088,6 +3100,54 @@
     "sourceText": "【Destroyed】Choose 1 enemy Unit with 3 or less HP. Rest it."
   },
   {
+    "id": "GD03-017-Burst",
+    "cardCode": "GD03-017",
+    "trigger": "Burst",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Choose 1 (Cyclops Team) Pilot card from your trash. Add it to your hand."
+  },
+  {
+    "id": "GD03-017-WhenPaired",
+    "cardCode": "GD03-017",
+    "trigger": "When Paired",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "pairedPilotHasTrait:Cyclops Team",
+    "sourceText": "【When Paired·(Cyclops Team) Pilot】All your (Cyclops Team) Units may choose an active enemy Unit with 5 or less AP as their attack target during this turn."
+  },
+  {
+    "id": "GD03-018-Attack",
+    "cardCode": "GD03-018",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit with <Blocker>. Deal 5 damage to it."
+  },
+  {
+    "id": "GD03-019-WhenLinked",
+    "cardCode": "GD03-019",
+    "trigger": "When Linked",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Place 1 EX Resource."
+  },
+  {
     "id": "GD03-021-Deploy",
     "cardCode": "GD03-021",
     "trigger": "Deploy",
@@ -3098,6 +3158,189 @@
     "targetFilter": "anyTrait:Operation Meteor,G Team",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 of your (Operation Meteor)/(G Team) Units. During this turn, it may choose an active enemy Unit as its attack target."
+  },
+  {
+    "id": "GD03-024-WhenLinked",
+    "cardCode": "GD03-024",
+    "trigger": "When Linked",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerOtherUnitWithTrait:Cyclops Team",
+    "sourceText": "【When Linked】If you have another (Cyclops Team) Unit in play, deploy 1 rested [Hy-Gogg]((Cyclops Team)·AP2·HP1) Unit token."
+  },
+  {
+    "id": "GD03-028-Attack",
+    "cardCode": "GD03-028",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "attackingEnemyUnit",
+    "sourceText": "【Attack】If you are attacking an enemy Unit, this Unit gets AP+2 during this battle."
+  },
+  {
+    "id": "GD03-034-Deploy",
+    "cardCode": "GD03-034",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 3 damage to it."
+  },
+  {
+    "id": "GD03-036-WhenLinked",
+    "cardCode": "GD03-036",
+    "trigger": "When Linked",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Deal 1 damage to all enemy Units."
+  },
+  {
+    "id": "GD03-043-WhenPaired",
+    "cardCode": "GD03-043",
+    "trigger": "When Paired",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD03-044-Deploy",
+    "cardCode": "GD03-044",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Deploy 1 rested [Daughtress]((New UNE)·AP0·HP1) Unit token."
+  },
+  {
+    "id": "GD03-048-Burst",
+    "cardCode": "GD03-048",
+    "trigger": "Burst",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "enemyShieldCountAtMost:3",
+    "sourceText": "【Burst】If there are 3 or less enemy Shields, deploy 1 rested [GFreD]((Zeon)·AP4·HP3) Unit token."
+  },
+  {
+    "id": "GD03-051-WhenLinked",
+    "cardCode": "GD03-051",
+    "trigger": "When Linked",
+    "ops": [
+      "deployFromTrashPayingCost"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】You may choose 1 Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
+  },
+  {
+    "id": "GD03-055-WhenPaired",
+    "cardCode": "GD03-055",
+    "trigger": "When Paired",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=2",
+    "predicate": "pairedPilotColorIs:purple",
+    "sourceText": "【When Paired·Purple Pilot】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
+  },
+  {
+    "id": "GD03-056-Deploy",
+    "cardCode": "GD03-056",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit",
+      "damageUnit"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
+  },
+  {
+    "id": "GD03-067-Deploy",
+    "cardCode": "GD03-067",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】You may choose 1 of your Units. Deal 1 damage to it. It gets AP+1 during this turn."
+  },
+  {
+    "id": "GD03-072-Deploy",
+    "cardCode": "GD03-072",
+    "trigger": "Deploy",
+    "ops": [
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerOtherUnitWithTrait:Triple Ship Alliance",
+    "sourceText": "【Deploy】If you have another (Triple Ship Alliance) Unit in play, draw 1. Then, discard 1."
+  },
+  {
+    "id": "GD03-075-Attack",
+    "cardCode": "GD03-075",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "unpaired",
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Choose 1 enemy Unit with no paired Pilot. It gets AP-2 during this turn."
+  },
+  {
+    "id": "GD03-077-WhenLinked",
+    "cardCode": "GD03-077",
+    "trigger": "When Linked",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 to 3 enemy Units with 3 or less HP. Return them to their owners'hands."
+  },
+  {
+    "id": "GD03-080-WhenLinked",
+    "cardCode": "GD03-080",
+    "trigger": "When Linked",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 (Gjallarhorn) Command card from your trash. Add it to your hand."
   },
   {
     "id": "GD03-084-Burst",
@@ -3122,6 +3365,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-086-Attack",
+    "cardCode": "GD03-086",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Titans;level<=self",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 of your (Titans) Units whose Lv. is equal to or lower than this Unit. It gets AP+1 during this turn."
   },
   {
     "id": "GD03-086-Burst",
@@ -3220,6 +3475,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-091-WhenLinked",
+    "cardCode": "GD03-091",
+    "trigger": "When Linked",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 (ZAFT) Base card from your trash. Add it to your hand."
+  },
+  {
     "id": "GD03-092-Burst",
     "cardCode": "GD03-092",
     "trigger": "Burst",
@@ -3266,6 +3533,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-096-Attack",
+    "cardCode": "GD03-096",
+    "trigger": "Attack",
+    "ops": [
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "chosenNonEmpty:discard",
+    "sourceText": "【During Link】【Attack】You may discard 1. If you do, draw 1."
   },
   {
     "id": "GD03-096-Burst",
@@ -3328,6 +3608,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-100-Destroyed",
+    "cardCode": "GD03-100",
+    "trigger": "Destroyed",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Destroyed】Choose 1 enemy Unit. It gets AP-3 during this turn."
+  },
+  {
     "id": "GD03-101-Main",
     "cardCode": "GD03-101",
     "trigger": "Main",
@@ -3376,6 +3668,18 @@
     "sourceText": "【Burst】Choose 1 enemy Unit with 2 or less HP. Rest it."
   },
   {
+    "id": "GD03-103-Main",
+    "cardCode": "GD03-103",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": "enemyUnitCountAtLeast:3",
+    "sourceText": "【Main】If 3 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it."
+  },
+  {
     "id": "GD03-105-Burst",
     "cardCode": "GD03-105",
     "trigger": "Burst",
@@ -3386,6 +3690,31 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-106-Main",
+    "cardCode": "GD03-106",
+    "trigger": "Main",
+    "ops": [
+      "spawnToken",
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Deploy 1 rested [GQuuuuuuX (Omega Psycommu)]((Clan)·AP3·HP2) Unit token and 1 rested [Red Gundam]((Clan)·AP2·HP3) Unit token."
+  },
+  {
+    "id": "GD03-108-Main",
+    "cardCode": "GD03-108",
+    "trigger": "Main",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Deploy 1 [Hy-Gogg]((Cyclops Team)·AP2·HP1) Unit token."
   },
   {
     "id": "GD03-111-Action",
@@ -3412,6 +3741,18 @@
     "sourceText": "【Main】Choose 1 friendly (Mafty) Unit. It gets AP+3 during this turn."
   },
   {
+    "id": "GD03-112-Action",
+    "cardCode": "GD03-112",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
+  },
+  {
     "id": "GD03-112-Burst",
     "cardCode": "GD03-112",
     "trigger": "Burst",
@@ -3422,6 +3763,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-112-Main",
+    "cardCode": "GD03-112",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
   },
   {
     "id": "GD03-116-Action",
@@ -3460,6 +3813,44 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-119-Main",
+    "cardCode": "GD03-119",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat",
+      "setActive"
+    ],
+    "targetScope": "friendlyBase",
+    "targetFilter": "rested",
+    "predicate": "chosenNonEmpty:target",
+    "sourceText": "【Main】Choose 1 rested friendly Base. Set it as active. If you do, all enemy Units get AP-1 during this turn."
+  },
+  {
+    "id": "GD03-121-Action",
+    "cardCode": "GD03-121",
+    "trigger": "Action",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "friendlyBase",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly Base and 1 enemy Unit with 3 or less HP. Rest them."
+  },
+  {
+    "id": "GD03-122-Action",
+    "cardCode": "GD03-122",
+    "trigger": "Action",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 enemy Unit that is Lv.3 or lower. Return it to its owner's hand."
   },
   {
     "id": "GD03-123-Burst",

@@ -7997,9 +7997,9 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 19,
+        "full": 55,
         "partial": 6,
-        "missing": 91,
+        "missing": 55,
         "withErrors": 0
       },
       "cards": [
@@ -8080,7 +8080,7 @@
         },
         {
           "code": "GD03-004",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8088,10 +8088,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-004-Attack"
               ],
               "text": "【Attack】If you have 2 or more other (Titans) Units in play, choose 1 enemy Unit with 5 or less HP. Rest it."
             }
@@ -8251,14 +8250,16 @@
         },
         {
           "code": "GD03-014",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have 2 or more (Titans) Units in play, this card in your hand gets cost -1."
             }
           ]
@@ -8289,7 +8290,7 @@
         },
         {
           "code": "GD03-017",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8297,10 +8298,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD03-017-Burst"
               ],
               "text": "【Burst】Choose 1 (Cyclops Team) Pilot card from your trash. Add it to your hand."
             },
@@ -8309,10 +8309,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD03-017-WhenPaired"
               ],
               "text": "【When Paired·(Cyclops Team) Pilot】All your (Cyclops Team) Units may choose an active enemy Unit with 5 or less AP as their attack target during this turn."
             }
@@ -8320,7 +8319,7 @@
         },
         {
           "code": "GD03-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8337,10 +8336,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-018-Attack"
               ],
               "text": "【Attack】Choose 1 enemy Unit with <Blocker>. Deal 5 damage to it."
             }
@@ -8363,10 +8361,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-019-WhenLinked"
               ],
               "text": "【When Linked】Place 1 EX Resource."
             }
@@ -8418,14 +8415,16 @@
         },
         {
           "code": "GD03-022",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "combatTriggers"
+              ],
               "text": "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, deal 1 damage to all enemy Units that are Lv.3 or lower."
             }
           ]
@@ -8448,7 +8447,7 @@
         },
         {
           "code": "GD03-024",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8456,10 +8455,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-024-WhenLinked"
               ],
               "text": "【When Linked】If you have another (Cyclops Team) Unit in play, deploy 1 rested [Hy-Gogg]((Cyclops Team)·AP2·HP1) Unit token."
             }
@@ -8503,7 +8501,7 @@
         },
         {
           "code": "GD03-028",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8511,10 +8509,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-028-Attack"
               ],
               "text": "【Attack】If you are attacking an enemy Unit, this Unit gets AP+2 during this battle."
             }
@@ -8522,28 +8519,32 @@
         },
         {
           "code": "GD03-029",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "combatTriggers"
+              ],
               "text": "During your turn, when this Unit destroys an enemy Unit with battle damage, deal 2 damage to all enemy Units with <Blocker>."
             }
           ]
         },
         {
           "code": "GD03-030",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have a (CB) Link Unit in play, this card in your hand gets cost -1."
             }
           ]
@@ -8568,8 +8569,10 @@
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Pair·(ZAFT) Pilot】During your turn, all your (ZAFT) Units get AP+2."
             },
             {
@@ -8588,7 +8591,7 @@
         },
         {
           "code": "GD03-034",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8605,10 +8608,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-034-Deploy"
               ],
               "text": "【Deploy】Choose 1 enemy Unit. Deal 3 damage to it."
             }
@@ -8647,7 +8649,7 @@
         },
         {
           "code": "GD03-036",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8655,10 +8657,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-036-WhenLinked"
               ],
               "text": "【When Linked】Deal 1 damage to all enemy Units."
             }
@@ -8775,7 +8776,7 @@
         },
         {
           "code": "GD03-043",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8783,10 +8784,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD03-043-WhenPaired"
               ],
               "text": "【When Paired】Choose 1 enemy Unit. Deal 1 damage to it."
             }
@@ -8794,7 +8794,7 @@
         },
         {
           "code": "GD03-044",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8802,10 +8802,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-044-Deploy"
               ],
               "text": "【Deploy】Deploy 1 rested [Daughtress]((New UNE)·AP0·HP1) Unit token."
             }
@@ -8813,14 +8812,16 @@
         },
         {
           "code": "GD03-045",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While you have a Unit token in play, this Unit gets AP+1."
             }
           ]
@@ -8839,7 +8840,7 @@
         },
         {
           "code": "GD03-048",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8847,10 +8848,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD03-048-Burst"
               ],
               "text": "【Burst】If there are 3 or less enemy Shields, deploy 1 rested [GFreD]((Zeon)·AP4·HP3) Unit token."
             }
@@ -8900,7 +8900,7 @@
         },
         {
           "code": "GD03-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -8908,10 +8908,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-051-WhenLinked"
               ],
               "text": "【When Linked】You may choose 1 Unit card that is Lv.4 or lower from your trash. Pay its cost to deploy it."
             }
@@ -8995,7 +8994,7 @@
         },
         {
           "code": "GD03-055",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9003,10 +9002,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD03-055-WhenPaired"
               ],
               "text": "【When Paired·Purple Pilot】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
             }
@@ -9014,7 +9012,7 @@
         },
         {
           "code": "GD03-056",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9022,10 +9020,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-056-Deploy"
               ],
               "text": "【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
             }
@@ -9168,7 +9165,7 @@
         },
         {
           "code": "GD03-067",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9176,10 +9173,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-067-Deploy"
               ],
               "text": "【Deploy】You may choose 1 of your Units. Deal 1 damage to it. It gets AP+1 during this turn."
             }
@@ -9259,7 +9255,7 @@
         },
         {
           "code": "GD03-072",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9276,10 +9272,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD03-072-Deploy"
               ],
               "text": "【Deploy】If you have another (Triple Ship Alliance) Unit in play, draw 1. Then, discard 1."
             }
@@ -9329,7 +9324,7 @@
         },
         {
           "code": "GD03-075",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9337,10 +9332,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-075-Attack"
               ],
               "text": "【During Link】【Attack】Choose 1 enemy Unit with no paired Pilot. It gets AP-2 during this turn."
             }
@@ -9362,7 +9356,7 @@
         },
         {
           "code": "GD03-077",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9370,10 +9364,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-077-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 to 3 enemy Units with 3 or less HP. Return them to their owners'hands."
             }
@@ -9414,7 +9407,7 @@
         },
         {
           "code": "GD03-080",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9422,10 +9415,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-080-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 (Gjallarhorn) Command card from your trash. Add it to your hand."
             }
@@ -9447,14 +9439,16 @@
         },
         {
           "code": "GD03-082",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have 2 or more (Superpower Bloc)/(UN) Units in play, this card in your hand gets cost -1."
             }
           ]
@@ -9531,7 +9525,7 @@
         },
         {
           "code": "GD03-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9550,10 +9544,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-086-Attack"
               ],
               "text": "【Attack】Choose 1 of your (Titans) Units whose Lv. is equal to or lower than this Unit. It gets AP+1 during this turn."
             }
@@ -9671,7 +9664,7 @@
         },
         {
           "code": "GD03-091",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9690,10 +9683,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD03-091-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 (ZAFT) Base card from your trash. Add it to your hand."
             }
@@ -9731,7 +9723,7 @@
         },
         {
           "code": "GD03-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9748,8 +9740,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While no enemy Base is in play, this Unit gets AP+1."
             }
           ]
@@ -9811,7 +9805,7 @@
         },
         {
           "code": "GD03-096",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9830,10 +9824,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD03-096-Attack"
               ],
               "text": "【During Link】【Attack】You may discard 1. If you do, draw 1."
             }
@@ -9921,7 +9914,7 @@
         },
         {
           "code": "GD03-100",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9940,10 +9933,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD03-100-Destroyed"
               ],
               "text": "【Destroyed】Choose 1 enemy Unit. It gets AP-3 during this turn."
             }
@@ -10000,7 +9992,7 @@
         },
         {
           "code": "GD03-103",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10019,10 +10011,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-103-Main"
               ],
               "text": "【Main】If 3 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it."
             }
@@ -10090,7 +10081,7 @@
         },
         {
           "code": "GD03-106",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10098,10 +10089,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-106-Main"
               ],
               "text": "【Main】Deploy 1 rested [GQuuuuuuX (Omega Psycommu)]((Clan)·AP3·HP2) Unit token and 1 rested [Red Gundam]((Clan)·AP2·HP3) Unit token."
             }
@@ -10137,7 +10127,7 @@
         },
         {
           "code": "GD03-108",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10145,10 +10135,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-108-Main"
               ],
               "text": "【Main】Deploy 1 [Hy-Gogg]((Cyclops Team)·AP2·HP1) Unit token."
             },
@@ -10248,7 +10237,7 @@
         },
         {
           "code": "GD03-112",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10268,11 +10257,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-112-Main",
+                "GD03-112-Action"
               ],
               "text": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
             }
@@ -10429,7 +10417,7 @@
         },
         {
           "code": "GD03-119",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10437,10 +10425,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD03-119-Main"
               ],
               "text": "【Main】Choose 1 rested friendly Base. Set it as active. If you do, all enemy Units get AP-1 during this turn."
             }
@@ -10476,7 +10463,7 @@
         },
         {
           "code": "GD03-121",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10484,10 +10471,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-121-Action"
               ],
               "text": "【Action】Choose 1 friendly Base and 1 enemy Unit with 3 or less HP. Rest them."
             },
@@ -10504,7 +10490,7 @@
         },
         {
           "code": "GD03-122",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10512,10 +10498,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD03-122-Action"
               ],
               "text": "【Action】Choose 1 enemy Unit that is Lv.3 or lower. Return it to its owner's hand."
             },

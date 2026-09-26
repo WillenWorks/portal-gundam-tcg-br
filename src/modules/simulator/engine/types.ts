@@ -330,6 +330,14 @@ export type StaticBoardCondition =
   | { kind: "pairedPilotColorIs"; color: string }
   /** GD02-033 — "while another friendly (Zeon) Link Unit is in play". */
   | { kind: "friendlyOtherLinkUnitTraitCountAtLeast"; trait: string; n: number }
+  /** GD03-082 — "While you have 2 or more (Superpower Bloc)/(UN) Units in play" (OR entre traits, só Units). */
+  | { kind: "friendlyUnitWithAnyTraitCountAtLeast"; traits: string[]; n: number }
+  /** GD03-045 — "While you have a Unit token in play". */
+  | { kind: "friendlyUnitTokenInPlay" }
+  /** GD03-093 — "While no enemy Base is in play". */
+  | { kind: "noEnemyBase" }
+  /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
+  | { kind: "pairedPilotHasTrait"; trait: string }
   /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
   | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number };
 
@@ -397,7 +405,8 @@ export interface CombatTrigger {
   oncePerTurn?: boolean;
   action:
     | { kind: "draw"; amount: number }
-    | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number }
+    /** `hasKeyword`: GD03-029 — "deal 2 damage to all enemy Units with <Blocker>". */
+    | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number; hasKeyword?: string }
     /**
      * ST03-001 Sinanju — "choose 1 enemy Unit. Deal 2 damage to it". Escolha
      * REAL do jogador (docs/47 Fase 6) — pausa via `combat.pendingTriggerChoices`
@@ -678,12 +687,29 @@ export function isBoardConditionMet(
   if (cond.kind === "baseColorInPlay") {
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
+  if (cond.kind === "friendlyUnitWithAnyTraitCountAtLeast") {
+    return (
+      state.players[owner].battleArea.filter(
+        (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => cond.traits.includes(t)),
+      ).length >= cond.n
+    );
+  }
+  if (cond.kind === "friendlyUnitTokenInPlay") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
+  }
+  if (cond.kind === "noEnemyBase") {
+    return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
+  }
   const ownerState = state.players[owner];
   const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
   if (cond.kind === "controllerLevelAtLeast") return ownerState.resourceArea.length >= cond.n;
   if (cond.kind === "pairedPilotColorIs") {
     const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
     return !!pilot && effectivePilotDef(pilot).color === cond.color;
+  }
+  if (cond.kind === "pairedPilotHasTrait") {
+    const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
+    return !!pilot && (effectivePilotDef(pilot).traits ?? []).includes(cond.trait);
   }
   // "outra" Unit amiga = exclui a própria fonte; fonte Pilot: a Unit pareada também não conta (E12).
   const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));

@@ -6,6 +6,7 @@ import { buildSt08DeckList } from "../fixtures/st08Deck";
 import { GD03_CARD_DEFS } from "./gd03";
 import { GD03_EFFECT_SPECS } from "./gd03/effects";
 import type { GameState } from "../engine/types";
+import { effectiveAp, effectiveCost } from "../engine/types";
 import type { EffectContext } from "../engine/effectSpec";
 import { resolveEffectSpec } from "../engine/effectSpec";
 import { applyEvents, findCard } from "../engine/events";
@@ -15,6 +16,7 @@ import { EX_RESOURCE_TOKEN } from "../engine/setup";
 import { advanceToMainPhase } from "../engine/phases";
 import { enumerateLegalActions } from "../engine/legalActions";
 import { applyPlayerAction } from "../engine/actions";
+import { declareAttack, passAction, proceedToBlockStep, resolveDamageStep, skipBlock } from "../engine/combat";
 import { ALL_EFFECT_SPECS } from "./index";
 
 function freshGame(): GameState {
@@ -254,5 +256,363 @@ describe("GD03 — correções W0.3 (texto oficial)", () => {
     const enemyId = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
     state = run(state, "GD03-132-Destroyed", b132, { target: [enemyId] });
     expect(findCard(state, enemyId).rested).toBe(false);
+  });
+});
+
+function pairUnit(state: GameState, unitId: string, pilotId: string): void {
+  findCard(state, unitId).pairedPilotId = pilotId;
+  findCard(state, pilotId).pairedUnitId = unitId;
+}
+
+describe("GD03 — W1 (vocabulário existente)", () => {
+  it("004: 【Attack】 só descansa com 2+ outras Units (Titans); 018: 5 de dano só em Unit com <Blocker>", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-004"], "battleArea");
+    const enemy = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea"); // HP 4
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-014"], "battleArea");
+    state = run(state, "GD03-004-Attack", src, { target: [enemy] });
+    expect(findCard(state, enemy).rested).toBe(false);
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-002"], "battleArea");
+    state = run(state, "GD03-004-Attack", src, { target: [enemy] });
+    expect(findCard(state, enemy).rested).toBe(true);
+
+    const altron = placeCard(state, "A", GD03_CARD_DEFS["GD03-018"], "battleArea");
+    const blocker = placeCard(state, "B", GD03_CARD_DEFS["GD03-072"], "battleArea"); // <Blocker>
+    expect(computeLegalTargets(state, specOf("GD03-018-Attack"), "A", defaultTargetFilterResolver, altron)).toEqual([blocker]);
+  });
+
+  it("017: 【Burst】 pega Piloto (Cyclops Team) do trash; 【When Paired】 com Piloto (Cyclops Team) libera o ataque a Unit ativa com AP<=5", () => {
+    let state = freshGame();
+    const kampfer = placeCard(state, "A", GD03_CARD_DEFS["GD03-017"], "battleArea");
+    const bernard = placeCard(state, "A", GD03_CARD_DEFS["GD03-089"], "trash");
+    state = run(state, "GD03-017-Burst", kampfer, { trashSearch: [bernard] });
+    expect(findCard(state, bernard).zone).toBe("hand");
+
+    const pilot = placeCard(state, "A", GD03_CARD_DEFS["GD03-090"], "battleArea");
+    const other = placeCard(state, "A", GD03_CARD_DEFS["GD03-024"], "battleArea");
+    pairUnit(state, kampfer, pilot);
+    state = run(state, "GD03-017-WhenPaired", kampfer);
+    expect(findCard(state, kampfer).attackTargetRelaxUntilTurn?.maxAp).toBe(5);
+    expect(findCard(state, other).attackTargetRelaxUntilTurn?.maxAp).toBe(5);
+  });
+
+  it("019 coloca 1 EX Resource; 024 cria Hy-Gogg descansado só com outra Unit (Cyclops Team)", () => {
+    let state = freshGame();
+    const age2 = placeCard(state, "A", GD03_CARD_DEFS["GD03-019"], "battleArea");
+    const resBefore = state.players.A.resourceArea.length;
+    state = run(state, "GD03-019-WhenLinked", age2);
+    expect(state.players.A.resourceArea.length).toBe(resBefore + 1);
+
+    const hyGogg = placeCard(state, "A", GD03_CARD_DEFS["GD03-024"], "battleArea");
+    const before = state.players.A.battleArea.length;
+    state = run(state, "GD03-024-WhenLinked", hyGogg);
+    expect(state.players.A.battleArea.length).toBe(before);
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-017"], "battleArea");
+    state = run(state, "GD03-024-WhenLinked", hyGogg);
+    const token = state.players.A.battleArea.find((c) => c.def.code === "T-013");
+    expect(token?.rested).toBe(true);
+    expect(token?.def.traits).toEqual(["Cyclops Team"]);
+  });
+
+  it("036 1 de dano em todas as inimigas; 112 【Main】 AP+2 só nas Units pareadas", () => {
+    let state = freshGame();
+    const xi = placeCard(state, "A", GD03_CARD_DEFS["GD03-036"], "battleArea");
+    const e1 = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    const e2 = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    state = run(state, "GD03-036-WhenLinked", xi);
+    expect([findCard(state, e1).damage, findCard(state, e2).damage]).toEqual([1, 1]);
+
+    const pilotA = placeCard(state, "A", GD03_CARD_DEFS["GD03-091"], "battleArea");
+    pairUnit(state, xi, pilotA);
+    const pilotB = placeCard(state, "B", GD03_CARD_DEFS["GD03-093"], "battleArea");
+    pairUnit(state, e1, pilotB);
+    const apXi = effectiveAp(findCard(state, xi), state);
+    const apE2 = effectiveAp(findCard(state, e2), state);
+    state = run(state, "GD03-112-Main", xi);
+    expect(effectiveAp(findCard(state, xi), state)).toBe(apXi + 2);
+    expect(effectiveAp(findCard(state, e2), state)).toBe(apE2); // sem Piloto
+  });
+
+  it("048 【Burst】: GFreD token só com 3 ou menos Shields inimigas", () => {
+    let state = freshGame();
+    const gfred = placeCard(state, "A", GD03_CARD_DEFS["GD03-048"], "shields");
+    state = run(state, "GD03-048-Burst", gfred);
+    expect(state.players.A.battleArea.some((c) => c.def.code === "T-020")).toBe(state.players.B.shields.length <= 3);
+    while (state.players.B.shields.length > 3) state.players.B.shields.pop();
+    state = run(state, "GD03-048-Burst", gfred);
+    expect(state.players.A.battleArea.some((c) => c.def.code === "T-020" && c.rested)).toBe(true);
+  });
+
+  it("055 só destrói com Piloto roxo; 075 só mira inimiga sem Piloto; 077 devolve de 1 a 3 inimigas com HP<=3", () => {
+    let state = freshGame();
+    const haji = placeCard(state, "A", GD03_CARD_DEFS["GD03-055"], "battleArea");
+    const small = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea"); // Lv2
+    const redPilot = placeCard(state, "A", GD03_CARD_DEFS["GD03-091"], "battleArea");
+    pairUnit(state, haji, redPilot);
+    state = run(state, "GD03-055-WhenPaired", haji, { target: [small] });
+    expect(findCard(state, small).zone).toBe("battleArea");
+    findCard(state, haji).pairedPilotId = undefined;
+    const purplePilot = placeCard(state, "A", GD03_CARD_DEFS["GD03-096"], "battleArea");
+    pairUnit(state, haji, purplePilot);
+    state = run(state, "GD03-055-WhenPaired", haji, { target: [small] });
+    expect(findCard(state, small).zone).toBe("trash");
+
+    const superG = placeCard(state, "A", GD03_CARD_DEFS["GD03-075"], "battleArea");
+    const lone = placeCard(state, "B", GD03_CARD_DEFS["GD03-064"], "battleArea");
+    const withPilot = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    pairUnit(state, withPilot, placeCard(state, "B", GD03_CARD_DEFS["GD03-093"], "battleArea"));
+    const legal = computeLegalTargets(state, specOf("GD03-075-Attack"), "A", defaultTargetFilterResolver, superG);
+    expect(legal).toContain(lone);
+    expect(legal).not.toContain(withPilot);
+
+    const justice = placeCard(state, "A", GD03_CARD_DEFS["GD03-077"], "battleArea");
+    const r1 = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    const r2 = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    state = run(state, "GD03-077-WhenLinked", justice, { target: [r1, r2] });
+    expect([findCard(state, r1).zone, findCard(state, r2).zone]).toEqual(["hand", "hand"]);
+  });
+
+  it("056 1 de dano numa Unit sua e numa inimiga; 067 1 de dano + AP+1 na sua; 072 compra e descarta só com outra (Triple Ship Alliance)", () => {
+    let state = freshGame();
+    const adapt = placeCard(state, "A", GD03_CARD_DEFS["GD03-056"], "battleArea");
+    const enemy = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    state = run(state, "GD03-056-Deploy", adapt, { target: [adapt], enemyTarget: [enemy] });
+    expect([findCard(state, adapt).damage, findCard(state, enemy).damage]).toEqual([1, 1]);
+
+    const rouei = placeCard(state, "A", GD03_CARD_DEFS["GD03-067"], "battleArea");
+    const apBefore = effectiveAp(findCard(state, rouei), state);
+    state = run(state, "GD03-067-Deploy", rouei, { target: [rouei] });
+    expect(findCard(state, rouei).damage).toBe(1);
+    expect(effectiveAp(findCard(state, rouei), state)).toBe(apBefore + 1);
+
+    const aile = placeCard(state, "A", GD03_CARD_DEFS["GD03-072"], "battleArea");
+    const handBefore = state.players.A.hand.length;
+    state = run(state, "GD03-072-Deploy", aile);
+    expect(state.players.A.hand.length).toBe(handBefore);
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-070"], "battleArea");
+    const discardId = state.players.A.hand[0].instanceId;
+    state = run(state, "GD03-072-Deploy", aile, { discardTarget: [discardId] });
+    expect(findCard(state, discardId).zone).toBe("trash");
+    expect(state.players.A.hand.length).toBe(handBefore); // +1 compra −1 descarte
+  });
+
+  it("086 (Piloto) só mira (Titans) de Lv. <= a Unit pareada; 103 só com 3+ inimigas; 106/108 criam os tokens", () => {
+    let state = freshGame();
+    const unit = placeCard(state, "A", GD03_CARD_DEFS["GD03-014"], "battleArea"); // Titans Lv3
+    const yazan = placeCard(state, "A", GD03_CARD_DEFS["GD03-086"], "battleArea");
+    pairUnit(state, unit, yazan);
+    const bigTitans = placeCard(state, "A", GD03_CARD_DEFS["GD03-002"], "battleArea"); // Lv7
+    const legal = computeLegalTargets(state, specOf("GD03-086-Attack"), "A", defaultTargetFilterResolver, yazan);
+    expect(legal).toContain(unit);
+    expect(legal).not.toContain(bigTitans);
+
+    const cmd = placeCard(state, "A", GD03_CARD_DEFS["GD03-103"], "hand");
+    const rested = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea", { rested: true });
+    state = run(state, "GD03-103-Main", cmd, { target: [rested] });
+    expect(findCard(state, rested).damage).toBe(0);
+    placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    state = run(state, "GD03-103-Main", cmd, { target: [rested] });
+    expect(findCard(state, rested).damage).toBe(2);
+
+    state = run(state, "GD03-106-Main", cmd);
+    state = run(state, "GD03-108-Main", cmd);
+    const codes = state.players.A.battleArea.map((c) => c.def.code);
+    expect(codes).toEqual(expect.arrayContaining(["T-018", "T-019", "T-013"]));
+  });
+
+  it("119 ativa a Base descansada e dá AP-1 às inimigas; 121 descansa Base amiga + inimiga HP<=3; 122 devolve Lv<=3", () => {
+    let state = freshGame();
+    const cmd = placeCard(state, "A", GD03_CARD_DEFS["GD03-119"], "hand");
+    const base = placeCard(state, "A", GD03_CARD_DEFS["GD03-123"], "baseSection", { rested: true });
+    const enemy = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    const ap = effectiveAp(findCard(state, enemy), state);
+    state = run(state, "GD03-119-Main", cmd, { target: [base] });
+    expect(findCard(state, base).rested).toBe(false);
+    expect(effectiveAp(findCard(state, enemy), state)).toBe(ap - 1);
+
+    state = run(state, "GD03-121-Action", cmd, { target: [base], enemyTarget: [enemy] });
+    expect([findCard(state, base).rested, findCard(state, enemy).rested]).toEqual([true, true]);
+
+    state = run(state, "GD03-122-Action", cmd, { target: [enemy] });
+    expect(findCard(state, enemy).zone).toBe("hand");
+  });
+
+  it("estáticos: 033 (ZAFT) AP+2 com Piloto (ZAFT) no seu turno; 045 AP+1 com token; 093 (Piloto) AP+1 sem Base inimiga", () => {
+    const state = freshGame();
+    const providence = placeCard(state, "A", GD03_CARD_DEFS["GD03-033"], "battleArea");
+    const zaft = placeCard(state, "A", GD03_CARD_DEFS["GD03-038"], "battleArea");
+    const apZaft = effectiveAp(findCard(state, zaft), state);
+    pairUnit(state, providence, placeCard(state, "A", GD03_CARD_DEFS["GD03-091"], "battleArea"));
+    expect(effectiveAp(findCard(state, zaft), state)).toBe(apZaft + 2);
+
+    const balient = placeCard(state, "A", GD03_CARD_DEFS["GD03-045"], "battleArea");
+    const apBalient = effectiveAp(findCard(state, balient), state);
+    placeCard(state, "A", { code: "T-012", nameEn: "Daughtress", cardType: "UNIT", color: "red", ap: 0, hp: 1, isToken: true }, "battleArea");
+    expect(effectiveAp(findCard(state, balient), state)).toBe(apBalient + 1);
+
+    state.players.B.baseSection = []; // o jogo começa com a EX Base do oponente
+    const host = placeCard(state, "A", GD03_CARD_DEFS["GD03-058"], "battleArea");
+    const carris = placeCard(state, "A", GD03_CARD_DEFS["GD03-093"], "battleArea");
+    pairUnit(state, host, carris);
+    const printedWithPilot = (GD03_CARD_DEFS["GD03-058"].ap ?? 0) + (GD03_CARD_DEFS["GD03-093"].ap ?? 0);
+    expect(effectiveAp(findCard(state, host), state)).toBe(printedWithPilot + 1);
+    placeCard(state, "B", GD03_CARD_DEFS["GD03-123"], "baseSection");
+    expect(effectiveAp(findCard(state, host), state)).toBe(printedWithPilot);
+  });
+
+  it("custo dinâmico: 014 −1 com 2 Units (Titans); 082 −1 com 2 Units (Superpower Bloc)/(UN)", () => {
+    const state = freshGame();
+    const def014 = GD03_CARD_DEFS["GD03-014"];
+    expect(effectiveCost(def014, state, "A")).toBe(def014.cost);
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-002"], "battleArea");
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-004"], "battleArea");
+    expect(effectiveCost(def014, state, "A")).toBe((def014.cost ?? 0) - 1);
+
+    const def082 = GD03_CARD_DEFS["GD03-082"];
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-082"], "battleArea"); // Superpower Bloc
+    expect(effectiveCost(def082, state, "A")).toBe(def082.cost);
+    placeCard(state, "A", GD03_CARD_DEFS["GD03-082"], "battleArea");
+    expect(effectiveCost(def082, state, "A")).toBe((def082.cost ?? 0) - 1);
+  });
+});
+
+describe("GD03 — W1 gatilhos de combate", () => {
+  function runBattle(state: GameState, attackerId: string, defenderId: string): GameState {
+    let next = declareAttack(state, attackerId, { unitId: defenderId });
+    next = proceedToBlockStep(next);
+    next = skipBlock(next);
+    next = passAction(next, next.combat!.defendingPlayer);
+    next = passAction(next, next.combat!.attackingPlayer);
+    return resolveDamageStep(next);
+  }
+  function battleReady(): GameState {
+    const state = advanceToMainPhase(freshGame());
+    state.players.B.baseSection = [];
+    return state;
+  }
+
+  it("029: ao destruir em batalha no seu turno, 2 de dano em toda inimiga com <Blocker> (e só nelas)", () => {
+    let state = battleReady();
+    const heavyarms = placeCard(state, "A", GD03_CARD_DEFS["GD03-029"], "battleArea"); // AP4
+    const defender = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea", { rested: true }); // HP2
+    const blocker = placeCard(state, "B", GD03_CARD_DEFS["GD03-072"], "battleArea"); // <Blocker>, HP4
+    const plain = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    state = runBattle(state, heavyarms, defender);
+    expect(findCard(state, defender).zone).toBe("trash");
+    expect(findCard(state, blocker).damage).toBe(2);
+    expect(findCard(state, plain).damage).toBe(0);
+  });
+
+  it("022: 【During Link】 ao destruir em batalha, 1 de dano nas inimigas Lv.3 ou menos; sem Link não faz nada", () => {
+    let state = battleReady();
+    const kyrios = placeCard(state, "A", GD03_CARD_DEFS["GD03-022"], "battleArea"); // AP5
+    const defender = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea", { rested: true });
+    const low = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea"); // Lv2
+    state = runBattle(state, kyrios, defender);
+    expect(findCard(state, low).damage).toBe(0); // sem Piloto: não está em Link
+  });
+});
+
+describe("GD03 — W1 (resolução de cada spec restante)", () => {
+  it("028: AP+2 na batalha só atacando Unit (não o jogador)", () => {
+    let state = advanceToMainPhase(freshGame());
+    state.players.B.baseSection = [];
+    const maganac = placeCard(state, "A", GD03_CARD_DEFS["GD03-028"], "battleArea");
+    const defender = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea", { rested: true });
+    const ap = effectiveAp(findCard(state, maganac), state);
+    let vsUnit = declareAttack(state, maganac, { unitId: defender });
+    vsUnit = run(vsUnit, "GD03-028-Attack", maganac);
+    expect(effectiveAp(findCard(vsUnit, maganac), vsUnit)).toBe(ap + 2);
+    let vsPlayer = declareAttack(state, maganac, "player");
+    vsPlayer = run(vsPlayer, "GD03-028-Attack", maganac);
+    expect(effectiveAp(findCard(vsPlayer, maganac), vsPlayer)).toBe(ap);
+  });
+
+  it("034 dá 3 de dano; 043 dá 1; 100 dá AP-3 no turno", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-034"], "battleArea");
+    const e1 = placeCard(state, "B", GD03_CARD_DEFS["GD03-070"], "battleArea"); // HP5
+    state = run(state, "GD03-034-Deploy", src, { target: [e1] });
+    expect(findCard(state, e1).damage).toBe(3);
+    state = run(state, "GD03-043-WhenPaired", src, { target: [e1] });
+    expect(findCard(state, e1).damage).toBe(4);
+    const ap = effectiveAp(findCard(state, e1), state);
+    state = run(state, "GD03-100-Destroyed", src, { target: [e1] });
+    expect(effectiveAp(findCard(state, e1), state)).toBe(ap - 3);
+  });
+
+  it("044 cria Daughtress descansado", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-044"], "battleArea");
+    state = run(state, "GD03-044-Deploy", src);
+    const token = state.players.A.battleArea.find((c) => c.def.code === "T-012");
+    expect(token?.rested).toBe(true);
+  });
+
+  it("051 paga o custo e põe em jogo Unit Lv.4 ou menor do trash; recusa Lv.5+", () => {
+    let state = freshGame();
+    for (let i = 0; i < 4; i++) {
+      placeCard(state, "A", { code: "RES", nameEn: "Resource", cardType: "RESOURCE", color: "colorless" }, "resourceArea");
+    }
+    const divider = placeCard(state, "A", GD03_CARD_DEFS["GD03-051"], "battleArea");
+    const low = placeCard(state, "A", GD03_CARD_DEFS["GD03-058"], "trash"); // Lv2
+    const high = placeCard(state, "A", GD03_CARD_DEFS["GD03-064"], "trash"); // Lv5
+    expect(() => run(state, "GD03-051-WhenLinked", divider, { trashSearch: [high] })).toThrow();
+    state = run(state, "GD03-051-WhenLinked", divider, { trashSearch: [low] });
+    expect(findCard(state, low).zone).toBe("battleArea");
+  });
+
+  it("080 pega Command (Gjallarhorn) do trash; 091 pega Base (ZAFT); filtro recusa o tipo errado", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-080"], "battleArea");
+    const gjCommand = placeCard(state, "A", { code: "X-CMD", nameEn: "Gj Command", cardType: "COMMAND", color: "white", traits: ["Gjallarhorn"] }, "trash");
+    const zaftBase = placeCard(state, "A", { code: "X-BASE", nameEn: "ZAFT Base", cardType: "BASE", color: "red", traits: ["ZAFT"] }, "trash");
+    expect(() => run(state, "GD03-080-WhenLinked", src, { trashSearch: [zaftBase] })).toThrow();
+    state = run(state, "GD03-080-WhenLinked", src, { trashSearch: [gjCommand] });
+    expect(findCard(state, gjCommand).zone).toBe("hand");
+    state = run(state, "GD03-091-WhenLinked", src, { trashSearch: [zaftBase] });
+    expect(findCard(state, zaftBase).zone).toBe("hand");
+  });
+
+  it("096: descartando 1, compra 1; sem descarte não compra", () => {
+    let state = freshGame();
+    const src = placeCard(state, "A", GD03_CARD_DEFS["GD03-096"], "battleArea");
+    const handBefore = state.players.A.hand.length;
+    state = run(state, "GD03-096-Attack", src);
+    expect(state.players.A.hand.length).toBe(handBefore);
+    const discardId = state.players.A.hand[0].instanceId;
+    state = run(state, "GD03-096-Attack", src, { discard: [discardId] });
+    expect(findCard(state, discardId).zone).toBe("trash");
+    expect(state.players.A.hand.length).toBe(handBefore);
+  });
+
+  it("075 AP-2 no turno; 086 AP+1 no turno (resolução, não só o alvo)", () => {
+    let state = freshGame();
+    const superG = placeCard(state, "A", GD03_CARD_DEFS["GD03-075"], "battleArea");
+    const enemy = placeCard(state, "B", GD03_CARD_DEFS["GD03-064"], "battleArea");
+    const apEnemy = effectiveAp(findCard(state, enemy), state);
+    state = run(state, "GD03-075-Attack", superG, { target: [enemy] });
+    expect(effectiveAp(findCard(state, enemy), state)).toBe(apEnemy - 2);
+
+    const unit = placeCard(state, "A", GD03_CARD_DEFS["GD03-014"], "battleArea");
+    const yazan = placeCard(state, "A", GD03_CARD_DEFS["GD03-086"], "battleArea");
+    pairUnit(state, unit, yazan);
+    const apUnit = effectiveAp(findCard(state, unit), state);
+    state = run(state, "GD03-086-Attack", yazan, { target: [unit] });
+    expect(effectiveAp(findCard(state, unit), state)).toBe(apUnit + 1);
+  });
+
+  it("112 【Action】 também: AP+2 nas Units pareadas dos 2 lados", () => {
+    let state = freshGame();
+    const mine = placeCard(state, "A", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    const theirs = placeCard(state, "B", GD03_CARD_DEFS["GD03-001"], "battleArea");
+    pairUnit(state, mine, placeCard(state, "A", GD03_CARD_DEFS["GD03-085"], "battleArea"));
+    pairUnit(state, theirs, placeCard(state, "B", GD03_CARD_DEFS["GD03-085"], "battleArea"));
+    const apMine = effectiveAp(findCard(state, mine), state);
+    const apTheirs = effectiveAp(findCard(state, theirs), state);
+    state = run(state, "GD03-112-Action", mine);
+    expect(effectiveAp(findCard(state, mine), state)).toBe(apMine + 2);
+    expect(effectiveAp(findCard(state, theirs), state)).toBe(apTheirs + 2);
   });
 });

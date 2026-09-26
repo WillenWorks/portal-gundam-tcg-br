@@ -510,6 +510,9 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
 
+  // GD03-075 Super Gundam — "1 enemy Unit with no paired Pilot".
+  if (filter === "unpaired") return !candidate.pairedPilotId;
+
   // GD01-093 Marida Cruz — "enemy Unit whose Lv. is equal to or lower than THIS Unit"
   // (relativo à própria fonte, não um número literal — precisa de `ctx.sourceInstanceId`).
   // A ability é autorada no PILOT ("During Link"), mas "this Unit" no texto é a Unit

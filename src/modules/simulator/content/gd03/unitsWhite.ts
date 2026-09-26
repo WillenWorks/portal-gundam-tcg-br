@@ -286,6 +286,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD03-082": {
     "code": "GD03-082",
+    // W1 (GD03)
+    dynamicCost: { condition: { kind: "friendlyUnitWithAnyTraitCountAtLeast", traits: ["Superpower Bloc", "UN"], n: 2 }, amount: -1 },
+    structuredSourceText: { dynamicCost: "While you have 2 or more (Superpower Bloc)/(UN) Units in play, this card in your hand gets cost -1." },
     "nameEn": "Union Flag",
     "cardType": "UNIT",
     "color": "white",

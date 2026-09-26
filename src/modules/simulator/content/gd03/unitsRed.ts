@@ -3,6 +3,19 @@ import type { CardDef } from "../../engine/types";
 export const UNITS_RED: Record<string, CardDef> = {
   "GD03-033": {
     "code": "GD03-033",
+    // W1 (GD03)
+    staticAbilities: [
+      {
+        sourceText: "【During Pair·(ZAFT) Pilot】During your turn, all your (ZAFT) Units get AP+2.",
+        condition: "duringPair",
+        boardCondition: { kind: "pairedPilotHasTrait", trait: "ZAFT" },
+        scope: "allFriendlyUnits",
+        targetCondition: { kind: "traitIs", trait: "ZAFT" },
+        duringYourTurnOnly: true,
+        stat: "ap",
+        amount: 2,
+      },
+    ],
     "nameEn": "Providence Gundam",
     "cardType": "UNIT",
     "color": "red",
@@ -278,6 +291,17 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD03-045": {
     "code": "GD03-045",
+    // W1 (GD03)
+    staticAbilities: [
+      {
+        sourceText: "While you have a Unit token in play, this Unit gets AP+1.",
+        condition: "always",
+        boardCondition: { kind: "friendlyUnitTokenInPlay" },
+        scope: "self",
+        stat: "ap",
+        amount: 1,
+      },
+    ],
     "nameEn": "Balient",
     "cardType": "UNIT",
     "color": "red",
