@@ -65,3 +65,17 @@ export const TOKEN_CGS_MOBILE_WORKER: CardDef = {
   traits: ["Tekkadan"],
   isToken: true,
 };
+
+// T-014 — GD03-020
+export const TOKEN_AD_BALLOON: CardDef = {
+  code: "T-014",
+  nameEn: "Ad Balloon",
+  cardType: "UNIT",
+  color: "green",
+  ap: 0,
+  hp: 1,
+  traits: ["Civilian"],
+  isToken: true,
+  cannotBeSetActive: true,
+  cannotBePaired: true,
+};

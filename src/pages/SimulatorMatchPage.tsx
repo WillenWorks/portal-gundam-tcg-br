@@ -1773,7 +1773,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         const myUnits = view.players[seat].battleArea.filter((c) => !isHidden(c)) as CardInstance[];
         return {
           legalTargetInstanceIds: new Set(
-            myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId).map((u) => u.instanceId),
+            myUnits.filter((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId && !u.def?.cannotBePaired).map((u) => u.instanceId),
           ),
           requiredTargetCount: 1,
           maxTargetCount: 1,
@@ -2085,7 +2085,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       inActionStep,
       activeResources: (mine.resourceArea.filter((c) => !isHidden(c)) as CardInstance[]).filter((r) => !r.rested).length,
       totalResources: mine.counts.resourceArea,
-      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId),
+      hasUnpairedFriendlyUnit: myUnits.some((u) => u.def?.cardType === "UNIT" && !u.pairedPilotId && !u.def?.cannotBePaired),
       state: boardForStats,
       controller: seat,
     };

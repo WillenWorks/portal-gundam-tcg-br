@@ -1,13 +1,15 @@
-import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import type { AttackTarget, CardDef, CardInstance, CombatTrigger, GameEvent, GameState, PendingCombatReaction, PendingCombatTriggerChoice, PlayerId } from "./types";
 import {
   effectiveAp,
   effectiveHp,
   effectivePilotDef,
   hasKeyword,
+  isBoardConditionMet,
   keywordValue,
   otherPlayer,
   pairedPilotFollowEvents,
   satisfiesLinkCondition,
+  specPairGateOpen,
 } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { matchesCardDefFilter } from "./effectSpec";
@@ -44,6 +46,19 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
     return `${attacker.def.code}: esta Unit não pode atacar neste turno`;
   }
   if (state.phase !== "main") return "Ataque só pode ser declarado na Main Phase";
+  // W2b (C4) — GD03-081: só ataca no turno em que uma Unit sua com o trait entrou em jogo.
+  // Aproximação: conta as Units com o trait que ESTÃO em jogo e entraram neste turno.
+  const restriction = attacker.def.attackRestriction;
+  if (restriction) {
+    const traits = restriction.requiresFriendlyUnitWithAnyTraitDeployedThisTurn;
+    const deployedThisTurn = state.players[attacker.owner].battleArea.some(
+      (c) =>
+        c.def.cardType === "UNIT" &&
+        c.enteredZoneOnTurn === state.turnNumber &&
+        (c.def.traits ?? []).some((t) => traits.includes(t)),
+    );
+    if (!deployedThisTurn) return `${attacker.def.code}: esta Unit só pode atacar num turno em que uma Unit (${traits.join("/")}) sua entrou em jogo`;
+  }
   if (state.combat) return "Já existe um combate em andamento";
   if (attacker.enteredZoneOnTurn === state.turnNumber) {
     // Comprehensive Rules 3-2-4: Unit recém-deployada não pode atacar no turno em
@@ -75,6 +90,11 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       throw new Error(`${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`);
     }
   }
+  // W2b (C4) — provocação: com alguma Unit inimiga "provocando", o ataque tem que mirar uma delas
+  const forced = forcedAttackTargets(state, defendingPlayer);
+  if (forced.length > 0 && (typeof target !== "object" || !forced.includes(target.unitId))) {
+    throw new Error("Uma Unit inimiga obriga este ataque a mirar nela (\"choose this rested Unit as their attack target if possible\")");
+  }
   if (typeof target === "object") {
     const targetUnit = findCard(state, target.unitId);
     if (targetUnit.owner !== defendingPlayer || targetUnit.zone !== "battleArea") {
@@ -89,7 +109,9 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       // estático `attackTargetRules`, vale também a concessão temporária de
       // ST04-011 Athrun Zala 【When Linked】 (`attackTargetRelaxUntilTurn`, só no
       // turno em que foi concedida).
-      const staticRelaxLevel = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit?.maxLevel ?? -1;
+      const staticRule = attacker.def.attackTargetRules?.mayTargetActiveEnemyUnit;
+      const staticRuleOn = !!staticRule && (staticRule.requiresSelfApAtLeast === undefined || effectiveAp(attacker, state) >= staticRule.requiresSelfApAtLeast);
+      const staticRelaxLevel = staticRuleOn ? staticRule.maxLevel : -1;
       // GD01-043/GD01-110 — a concessão temporária também pode vir por AP em
       // vez de nível ("... com 4 ou menos AP" em vez de "Lv.X ou menor");
       // `grantAttackTargetRelax` guarda qual dos dois critérios foi concedido.
@@ -99,7 +121,10 @@ export function declareAttack(state: GameState, attackerId: string, target: Atta
       const relaxMaxLevel = Math.max(staticRelaxLevel, grantedRelaxLevel);
       const allowedByLevel = relaxMaxLevel >= 0 && (targetUnit.def.level ?? 0) <= relaxMaxLevel;
       const allowedByAp = granted?.maxAp !== undefined && effectiveAp(targetUnit, state) <= granted.maxAp;
-      const allowed = allowedByLevel || allowedByAp;
+      // W2b — GD03-035 (AP <= o desta Unit) / GD03-105 (inimiga sem Piloto pareado)
+      const allowedBySelfAp = !!granted?.apAtMostSelf && effectiveAp(targetUnit, state) <= effectiveAp(attacker, state);
+      const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
+      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired;
       if (!allowed) {
         throw new Error("Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)");
       }
@@ -237,6 +262,40 @@ function breachEvents(
  * isso `CardDef.innateDamageProtection` é procurado tanto na própria Unit
  * quanto no Pilot pareado com ela, nunca só num dos dois.
  */
+/** W2b (C4) — Units descansadas do defensor que "provocam" agora (ver `CardDef.forcedAttackTarget`). */
+export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId): string[] {
+  const side = state.players[defendingPlayer];
+  const out = new Set<string>();
+  for (const card of side.battleArea) {
+    const rule = card.def.forcedAttackTarget;
+    if (!rule) continue;
+    if (rule.condition === "duringPair" && !specPairGateOpen(state, card, { duringPair: true })) continue;
+    if (rule.condition === "duringLink" && !specPairGateOpen(state, card, { duringLink: true })) continue;
+    if (rule.boardCondition && !isBoardConditionMet(state, card.owner, rule.boardCondition, card.instanceId)) continue;
+    const pool =
+      rule.scope === "self"
+        ? [card]
+        : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && (u.def.traits ?? []).includes(rule.trait));
+    for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
+  }
+  return [...out];
+}
+
+/** Proteção inata (`CardDef.innateDamageProtection`) de `unit` contra o dano de batalha de `opponent`. */
+function innateProtectsFrom(unit: CardInstance, opponent: CardInstance, state: GameState): boolean {
+  const innate = findInnateDamageProtection(unit, state);
+  if (!innate) return false;
+  if (innate.duringYourTurnOnly && unit.owner !== state.activePlayer) return false;
+  if (innate.requiresOwnKeyword && !hasKeyword(unit, innate.requiresOwnKeyword, state)) return false;
+  if (innate.boardCondition && !isBoardConditionMet(state, unit.owner, innate.boardCondition, unit.instanceId)) return false;
+  if (innate.unconditional) return true;
+  const opponentAp = effectiveAp(opponent, state);
+  return (
+    (innate.maxAttackerAp !== undefined && opponentAp <= innate.maxAttackerAp) ||
+    (innate.maxAttackerLevel !== undefined && (opponent.def.level ?? 0) <= innate.maxAttackerLevel)
+  );
+}
+
 function findInnateDamageProtection(unit: CardInstance, state: GameState): CardDef["innateDamageProtection"] {
   if (unit.def.innateDamageProtection) return unit.def.innateDamageProtection;
   if (unit.pairedPilotId) return findCard(state, unit.pairedPilotId).def.innateDamageProtection;
@@ -445,7 +504,8 @@ export function resolveDamageStep(state: GameState): GameState {
       // receive damage from enemy Units that are Lv.4 or lower" (docs/18, lacuna #7).
       const protection = combat.shieldProtection;
       const attackerLevel = attacker.def.level ?? 0;
-      const shieldsProtected = !!protection && attackerLevel <= protection.maxAttackerLevel;
+      const restedGuard = state.players[defendingPlayer].battleArea.some((c) => c.rested && c.def.protectsShieldsWhileRested);
+      const shieldsProtected = (!!protection && attackerLevel <= protection.maxAttackerLevel) || restedGuard;
       if (!shieldsProtected) {
         const hadShields = state.players[defendingPlayer].shields.length > 0;
         events.push(...shieldDamageEvents(defendingPlayer, suppression ? 2 : 1, state));
@@ -481,13 +541,7 @@ export function resolveDamageStep(state: GameState): GameState {
     // GD01-091 Chang Wufei (Lote 5) — proteção INATA e contínua (não instalada por
     // efeito pontual), reavaliada aqui mesmo: "During your turn, while this Unit has
     // <Breach>, it can't receive battle damage from enemy Units with 3 or less AP."
-    const innate = findInnateDamageProtection(defender, state);
-    const innateProtects =
-      !!innate &&
-      (!innate.duringYourTurnOnly || defender.owner === state.activePlayer) &&
-      (!innate.requiresOwnKeyword || hasKeyword(defender, innate.requiresOwnKeyword, state)) &&
-      ((innate.maxAttackerAp !== undefined && attackerAp <= innate.maxAttackerAp) ||
-        (innate.maxAttackerLevel !== undefined && (attacker.def.level ?? 0) <= innate.maxAttackerLevel));
+    const innateProtects = innateProtectsFrom(defender, attacker, state);
     // GD02-040 Gundam Ashtaron — "It can't receive battle damage from enemy Units with 2 or
     // less HP during this turn." (HP RESTANTE do atacante, mesma convenção do targetFilter
     // "hp<=N" — sobrevive a múltiplas batalhas no turno, ao contrário de unitDamageProtection.)
@@ -498,13 +552,7 @@ export function resolveDamageStep(state: GameState): GameState {
     // GD01-091 também protege O PRÓPRIO ATACANTE do contra-dano do defensor — "during your
     // turn" só é satisfeito enquanto ESTA Unit ataca (defensor nunca age no seu próprio
     // turno), então a aplicação real da carta é sempre este lado, não o do defensor.
-    const attackerInnate = findInnateDamageProtection(attacker, state);
-    const attackerDamagePrevented =
-      !!attackerInnate &&
-      (!attackerInnate.duringYourTurnOnly || attacker.owner === state.activePlayer) &&
-      (!attackerInnate.requiresOwnKeyword || hasKeyword(attacker, attackerInnate.requiresOwnKeyword, state)) &&
-      ((attackerInnate.maxAttackerAp !== undefined && defenderAp <= attackerInnate.maxAttackerAp) ||
-        (attackerInnate.maxAttackerLevel !== undefined && (defender.def.level ?? 0) <= attackerInnate.maxAttackerLevel));
+    const attackerDamagePrevented = innateProtectsFrom(attacker, defender, state);
     const defenderWillDie = !defenderDamagePrevented && defender.damage + attackerAp >= effectiveHp(defender, state);
     const attackerWillDie = !attackerDamagePrevented && attacker.damage + defenderAp >= effectiveHp(attacker, state);
 
@@ -573,6 +621,29 @@ export function resolveDamageStep(state: GameState): GameState {
   }
 
   const next = applyEvents(state, events);
+  // W2b — reações de combate: quem causou dano de batalha a Unit inimiga / destruiu / destruiu carta
+  // da área de escudo (só no ataque ao jogador — a do <Breach> não é "battle damage").
+  const reactions: PendingCombatReaction[] = [];
+  if (combat.currentTarget === "player") {
+    const defenderSide = state.players[combat.defendingPlayer];
+    const baseIds = new Set(defenderSide.baseSection.map((c) => c.instanceId));
+    const destroyedShieldArea = events.some(
+      (e) => (e.type === "DAMAGE_SHIELD" && defenderSide.shields.length > 0) || (e.type === "DESTROY_CARD" && baseIds.has(e.instanceId)),
+    );
+    if (destroyedShieldArea) {
+      reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
+    }
+  } else {
+    const defenderId = combat.currentTarget.unitId;
+    const damaged = (id: string) => events.some((e) => e.type === "DAMAGE_UNIT" && e.instanceId === id);
+    const destroyed = (id: string) => events.some((e) => e.type === "DESTROY_CARD" && e.instanceId === id);
+    const defenderOwner = findCard(state, defenderId).owner;
+    if (damaged(defenderId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
+    if (damaged(attacker.instanceId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: defenderId, owner: defenderOwner, victimId: attacker.instanceId });
+    if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
+    if (destroyed(attacker.instanceId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: defenderId, owner: defenderOwner, victimId: attacker.instanceId });
+  }
+  if (reactions.length > 0 && next.combat) next.combat.pendingReactions = reactions;
   // docs/47 Fase 6 — sobrevive em `combat` (limpo só em `COMBAT_ENDED`, mesmo
   // espírito de `shieldProtection`/`unitDamageProtection`) até `actions.ts`
   // converter em `PendingDecision.abilityResolution`, DEPOIS de Burst/Destroyed.

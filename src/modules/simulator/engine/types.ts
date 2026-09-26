@@ -87,6 +87,9 @@ export interface CardDef {
   oncePerTurn?: boolean;
   /** true para o EX Resource / EX Base gerados no setup, não fazem parte do deck de 50+10 */
   isToken?: boolean;
+  /** W2b — T-014 Ad Balloon: "This Unit can't be set as active or paired with a Pilot." */
+  cannotBeSetActive?: boolean;
+  cannotBePaired?: boolean;
   /**
    * Link condition desta Unit (Comprehensive Rules 3-2-6) — só existe em Units,
    * nunca em Pilot/Command/Base. Não restringe o pareamento em si (qualquer Pilot
@@ -160,8 +163,28 @@ export interface CardDef {
     /** ex. ST01-009 Zowort: "This Unit can't choose the enemy player as its attack target." */
     cannotTargetPlayer?: boolean;
     /** ex. ST02-001 Wing Gundam: pode escolher Unit inimiga ACTIVE (não só rested) até este level */
-    mayTargetActiveEnemyUnit?: { maxLevel: number };
+    mayTargetActiveEnemyUnit?: {
+      maxLevel: number;
+      /** GD03-042 — "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower" */
+      requiresSelfApAtLeast?: number;
+    };
   };
+  /**
+   * W2b (C4) — provocação: "Enemy Units choose this rested Unit as their attack target if possible
+   * when attacking." (GD03-019/074) ou "… one of your rested (Maganac Corps) Units …" (GD03-025).
+   * Enquanto ativa, um ataque inimigo que PODE mirar uma dessas Units descansadas é obrigado a mirar
+   * uma delas (`declareAttack`).
+   */
+  forcedAttackTarget?: {
+    condition: StaticEffectCondition;
+    boardCondition?: StaticBoardCondition;
+    scope: "self" | "friendlyUnitsWithTrait";
+    trait?: string;
+  };
+  /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
+  attackRestriction?: { requiresFriendlyUnitWithAnyTraitDeployedThisTurn: string[] };
+  /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
+  protectsShieldsWhileRested?: boolean;
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
    * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
@@ -177,6 +200,10 @@ export interface CardDef {
     requiresOwnKeyword?: string;
     /** "During your turn" — só vale enquanto for o turno do CONTROLLER da Unit (não do atacante). */
     duringYourTurnOnly?: boolean;
+    /** W2b — GD03-020 "can't receive enemy battle damage" (de qualquer atacante) */
+    unconditional?: boolean;
+    /** W2b — GD03-020 "While you have a Unit with \"Ad Balloon\" in its card name in play" */
+    boardCondition?: StaticBoardCondition;
   };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-090 "【During Link】This Unit's AP can't be
@@ -336,6 +363,8 @@ export type StaticBoardCondition =
   | { kind: "friendlyUnitTokenInPlay" }
   /** GD03-093 — "While no enemy Base is in play". */
   | { kind: "noEnemyBase" }
+  /** GD03-020 — "While you have a Unit with \"Ad Balloon\" in its card name in play". */
+  | { kind: "friendlyUnitNameContains"; text: string }
   /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
   | { kind: "pairedPilotHasTrait"; trait: string }
   /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
@@ -518,7 +547,15 @@ export interface CardInstance {
    * (estático, ST02-001 Wing Gundam). `turn` = só vale enquanto
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
-  attackTargetRelaxUntilTurn?: { maxLevel?: number; maxAp?: number; turn: number };
+  attackTargetRelaxUntilTurn?: {
+    maxLevel?: number;
+    maxAp?: number;
+    /** GD03-035 — "an active enemy Unit with AP equal to or less than this Unit" (AP de agora, na declaração) */
+    apAtMostSelf?: boolean;
+    /** GD03-105 — "an active enemy Unit that has no Pilot paired with it" */
+    unpairedOnly?: boolean;
+    turn: number;
+  };
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Guarda o `turnNumber` em que a proibição foi imposta; `declareAttack` barra
@@ -696,6 +733,9 @@ export function isBoardConditionMet(
   }
   if (cond.kind === "friendlyUnitTokenInPlay") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
+  }
+  if (cond.kind === "friendlyUnitNameContains") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
   }
   if (cond.kind === "noEnemyBase") {
     return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
@@ -1151,6 +1191,16 @@ export type PendingDecision =
       legalTargets: string[];
     };
 
+/** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
+export interface PendingCombatReaction {
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle";
+  /** a Unit que causou o dano / destruiu */
+  subjectId: string;
+  owner: PlayerId;
+  /** a Unit inimiga que levou o dano / foi destruída (alvo implícito `battleVictim`) */
+  victimId?: string;
+}
+
 export interface CombatState {
   step: CombatStep;
   attackerId: string;
@@ -1182,6 +1232,8 @@ export interface CombatState {
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
   unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean } | null;
+  /** W2b — reações de combate (dano de batalha / destruição) registradas no Damage Step, despachadas antes do Battle End */
+  pendingReactions?: PendingCombatReaction[];
   /** docs/47 Fase 6 — ver `PendingCombatTriggerChoice`. Populado por `resolveDamageStep`, consumido e limpo por `actions.ts` ao montar a pausa. */
   pendingTriggerChoices?: PendingCombatTriggerChoice[];
 }
@@ -1315,7 +1367,15 @@ export type GameEvent =
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
-  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
+  | {
+      type: "GRANT_ATTACK_TARGET_RELAX";
+      instanceId: string;
+      maxLevel?: number;
+      maxAp?: number;
+      apAtMostSelf?: boolean;
+      unpairedOnly?: boolean;
+      turn: number;
+    }
   /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { type: "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN"; instanceId: string; maxAttackerHp: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */

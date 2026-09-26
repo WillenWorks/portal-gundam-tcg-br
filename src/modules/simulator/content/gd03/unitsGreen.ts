@@ -56,6 +56,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-019": {
     "code": "GD03-019",
+    // W2b (GD03)
+    forcedAttackTarget: { condition: "duringPair", scope: "self" },
+    structuredSourceText: { forcedAttackTarget: "【During Pair】Enemy Units choose this rested Unit as their attack target if possible when attacking." },
     "nameEn": "Gundam AGE-2 Normal",
     "cardType": "UNIT",
     "color": "green",
@@ -79,6 +82,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-020": {
     "code": "GD03-020",
+    // W2b (GD03)
+    innateDamageProtection: { unconditional: true, boardCondition: { kind: "friendlyUnitNameContains", text: "Ad Balloon" } },
+    structuredSourceText: {
+      innateDamageProtection: "While you have a Unit with \"Ad Balloon\" in its card name in play, this Unit can't receive enemy battle damage.",
+    },
     "nameEn": "Zaku Ⅱ FZ",
     "cardType": "UNIT",
     "color": "green",
@@ -204,6 +212,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-025": {
     "code": "GD03-025",
+    // W2b (GD03)
+    forcedAttackTarget: { condition: "always", scope: "friendlyUnitsWithTrait", trait: "Maganac Corps" },
+    structuredSourceText: {
+      forcedAttackTarget: "Enemy Units choose one of your rested (Maganac Corps) Units as their attack target if possible when attacking.",
+    },
     "nameEn": "Gundam Sandrock Custom",
     "cardType": "UNIT",
     "color": "green",

@@ -15,6 +15,7 @@ import {
   dispatchDestroyedTriggers,
   drainQueuedTriggers,
   filterDispatchableSpecs,
+  dispatchReactions,
   reactionListeners,
   runEndOfTurnReactions,
 } from "./abilityDispatch";
@@ -325,7 +326,7 @@ function applyPlayerActionInner(
       }
 
       next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
-      return finishDamageStep(next, actingPlayer);
+      return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
     }
 
     case "finishTurn": {
@@ -459,7 +460,7 @@ function applyPlayerActionInner(
           predicateResolver,
           targetFilterResolver,
         });
-        next = finishDamageStep(next, actingPlayer);
+        next = finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       return next;
     }
@@ -680,7 +681,11 @@ function applyPlayerActionInner(
       // (ou pausa de novo, se sobrou mais alguma coisa — Burst→Destroyed→
       // CombatTrigger→BattleEnd, mesma ordem de sempre).
       if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
-        return finishDamageStep(next, actingPlayer);
+        return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+      }
+      // W2b — reação de combate: o combate estava parado no Damage Step -> segue a fila/Battle End
+      if (decision.trigger.startsWith("Reaction:") && next.combat?.step === "damage") {
+        return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
       if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
@@ -884,13 +889,29 @@ function pauseForCombatTriggerChoices(state: GameState, player: PlayerId, choice
  * escolha de gatilho de combate (Sinanju/Akihiro Altland) → Battle End.
  * Chamado depois que o chamador já processou Burst/Destroyed pra este passo.
  */
-function finishDamageStep(next: GameState, actingPlayer: PlayerId): GameState {
+function finishDamageStep(
+  next: GameState,
+  actingPlayer: PlayerId,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
   if (next.gameOver) return next;
   if (next.pendingDecision[actingPlayer] || next.pendingDecision[otherPlayer(actingPlayer)]) return next;
   if (next.combat?.pendingTriggerChoices?.length) {
     return pauseForCombatTriggerChoices(next, next.combat.attackingPlayer, next.combat.pendingTriggerChoices);
   }
   if (next.combat?.step !== "damage") return next;
+  // W2b — reações de combate ("when this Unit deals battle damage / destroys …"), uma por vez:
+  // se uma pausa pra escolha, as seguintes ficam em `combat.pendingReactions` e voltam aqui
+  // quando `resolveAbility` fecha a decisão.
+  while (next.combat?.pendingReactions?.length) {
+    const [occ, ...rest] = next.combat.pendingReactions;
+    next = { ...next, combat: { ...next.combat, pendingReactions: rest } };
+    next = dispatchReactions(next, [occ], specs, { predicateResolver, targetFilterResolver });
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (next.combat?.step !== "damage") return next;
+  }
   return resolveBattleEndStep(next);
 }
 
