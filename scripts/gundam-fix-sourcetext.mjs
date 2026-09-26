@@ -82,6 +82,11 @@ for (const p of planned) {
     manual.push({ spec: p.spec, best: { clause: { text: p.to }, score: p.score }, why: "literal não encontrado no fonte" });
     continue;
   }
+  // `replace` troca só a 1ª ocorrência: com o mesmo sourceText em 2+ specs do arquivo, gravaria no spec errado
+  if (sources.get(file).split(literal).length - 1 > 1) {
+    manual.push({ spec: p.spec, best: { clause: { text: p.to }, score: p.score }, why: "sourceText repetido no arquivo (ambíguo)" });
+    continue;
+  }
   console.log(`${p.spec.id} (${p.score.toFixed(2)}) ${path.relative(REPO_ROOT, file)}\n   - ${p.spec.sourceText.replace(/\n/g, "⏎").slice(0, 150)}\n   + ${p.to.slice(0, 150)}`);
   if (write) {
     sources.set(file, sources.get(file).replace(literal, JSON.stringify(p.to)));

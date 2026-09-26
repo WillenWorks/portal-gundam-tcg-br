@@ -117,10 +117,18 @@ export function splitClauses(effect: string): Clause[] {
   const lines = normalizeClause(effect ?? "")
     .split("\n")
     .map((l) => l.trim());
+  // "■" anexa na última linha NÃO vazia: o texto oficial de "choose 1 of the following effects"
+  // (GD05-102, ST10-002, EB01-008…) tem linha em branco entre o cabeçalho e cada "■".
   const merged: string[] = [];
   for (const line of lines) {
-    if (line.startsWith("■") && merged.length > 0) merged[merged.length - 1] += `\n${line}`;
-    else merged.push(line);
+    if (line.startsWith("■")) {
+      while (merged.length > 0 && merged[merged.length - 1] === "") merged.pop();
+      if (merged.length > 0) {
+        merged[merged.length - 1] += `\n${line}`;
+        continue;
+      }
+    }
+    merged.push(line);
   }
   const clauses: Clause[] = [];
   for (const raw of merged) {
@@ -256,7 +264,13 @@ export function auditCard(input: CardAuditInput): CardAudit {
     if (annotated) return { ...clause, by: "structured", refs: [annotated] };
     if (clause.triggers.length === 0 && structuredFields.length) return { ...clause, by: "structured", refs: [...structuredFields] };
 
-    return { ...clause, by: "missing", refs: [], missingTriggers: clause.triggers.length ? clause.triggers : undefined };
+    // refs = specs com texto parecido mas incompleto (pista pra quem for corrigir o sourceText)
+    return {
+      ...clause,
+      by: "missing",
+      refs: matching.map((i) => specs[i].id),
+      missingTriggers: clause.triggers.length ? clause.triggers : undefined,
+    };
   });
 
   specs.forEach((s, i) => {
