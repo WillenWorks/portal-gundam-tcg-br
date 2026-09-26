@@ -284,6 +284,17 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
  * — Lote 3 (docs/debates 2026-09-13). Reavaliado a cada consulta, junto de
  * `condition`; `"always"` + isto é o caso comum (GD01-019/076/081).
  */
+/**
+ * Gatilho que ficou esperando porque um gatilho anterior do MESMO evento pausou pra decisão
+ * (ex.: 【When Paired】 → 【When Linked】 no mesmo pareamento, CR 13-2-9/13-2-10). Sem isto o
+ * `return` na pausa perdia o 【When Linked】. `resolveAbility`/`resolveTriggerOrder` drenam a fila.
+ */
+export interface QueuedTrigger {
+  owner: PlayerId;
+  trigger: string;
+  sources: Array<{ code: string; instanceId: string }>;
+}
+
 export type StaticBoardCondition =
   /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
   | { kind: "enemyUnitCountAtLeast"; n: number }
@@ -941,6 +952,8 @@ export type PendingDecision =
       kind: "triggerOrder";
       /** `trigger` = rótulo do textSectionsJson ("Deploy"/"Destroyed"/...) que o dispatcher usa; `label` = texto pra UI. */
       triggers: Array<{ instanceId: string; specId: string; trigger: string; label: string }>;
+      /** gatilhos do MESMO evento que vêm depois desta decisão (ver `QueuedTrigger`) */
+      queuedTriggers?: QueuedTrigger[];
     }
   | {
       /**
@@ -1067,6 +1080,8 @@ export type PendingDecision =
        * atinge os dois — nenhuma carta ST01–ST04 faz isso).
        */
       queuedDestroyed?: { owner: PlayerId; sources: Array<{ code: string; instanceId: string }> };
+      /** gatilhos do MESMO evento que vêm depois desta decisão (ver `QueuedTrigger`) */
+      queuedTriggers?: QueuedTrigger[];
     }
   | {
       /**

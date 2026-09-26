@@ -9,6 +9,8 @@ import {
   dispatchAnyPairingFromEffect,
   dispatchDestroyedFromEffect,
   dispatchPairingTriggersFromEffect,
+  attachQueuedTriggers,
+  pairingTriggerEntries,
 } from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
 
@@ -132,7 +134,12 @@ export function dispatchTrigger(
       cascadeDepth: cascadeDepth + 1,
       queueBudget,
     });
-    if (next.gameOver || next.pendingDecision[current.owner]) break;
+    if (next.gameOver) break;
+    // AnyPairing pausou: o 【When Paired】/【When Linked】 do pareamento espera na fila da decisão
+    if (next.pendingDecision[current.owner]) {
+      next = attachQueuedTriggers(next, pairingTriggerEntries(before, next));
+      break;
+    }
     // E6 — e o 【When Paired】/【When Linked】 das próprias cartas pareadas
     next = dispatchPairingTriggersFromEffect(before, next, allSpecs, {
       predicateResolver: opts.predicateResolver,
