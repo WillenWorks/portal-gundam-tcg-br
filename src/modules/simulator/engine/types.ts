@@ -284,6 +284,17 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
  * — Lote 3 (docs/debates 2026-09-13). Reavaliado a cada consulta, junto de
  * `condition`; `"always"` + isto é o caso comum (GD01-019/076/081).
  */
+/**
+ * Gatilho que ficou esperando porque um gatilho anterior do MESMO evento pausou pra decisão
+ * (ex.: 【When Paired】 → 【When Linked】 no mesmo pareamento, CR 13-2-9/13-2-10). Sem isto o
+ * `return` na pausa perdia o 【When Linked】. `resolveAbility`/`resolveTriggerOrder` drenam a fila.
+ */
+export interface QueuedTrigger {
+  owner: PlayerId;
+  trigger: string;
+  sources: Array<{ code: string; instanceId: string }>;
+}
+
 export type StaticBoardCondition =
   /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
   | { kind: "enemyUnitCountAtLeast"; n: number }
@@ -562,6 +573,18 @@ function findInBattleArea(state: GameState, owner: PlayerId, instanceId: string)
   return state.players[owner].battleArea.find((c) => c.instanceId === instanceId);
 }
 
+/**
+ * Gate de `EffectSpec.duringPair`/`duringLink` pra qualquer gatilho (E9 — antes só o 【Destroyed】
+ * olhava; GD02-057 disparava sem Piloto). Fonte fora de campo (ex. 【Destroyed】, já no trash) passa:
+ * quem despacha esse caso decide pelo snapshot de antes (`DestroyedInBattle.wasPaired`).
+ */
+export function specPairGateOpen(state: GameState, source: CardInstance, spec: { duringPair?: boolean; duringLink?: boolean }): boolean {
+  if (!spec.duringPair && !spec.duringLink) return true;
+  if (source.zone !== "battleArea") return true;
+  if (spec.duringLink) return isStaticAbilityActive(state, source, "duringLink");
+  return isStaticAbilityActive(state, source, "duringPair");
+}
+
 function isStaticAbilityActive(state: GameState, source: CardInstance, condition: StaticEffectCondition): boolean {
   if (condition === "always") return true;
   if (condition === "duringPair") {
@@ -632,11 +655,13 @@ export function isBoardConditionMet(
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
   // friendlyOtherUnitTraitCountAtLeast — "outra" Unit amiga = exclui a própria fonte, se dada.
+  // Fonte Pilot: "this Unit" é a Unit pareada, que também não conta como "outra" (E12).
   const ownerState = state.players[owner];
+  const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
+  const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));
   return (
-    ownerState.battleArea.filter(
-      (c) => c.instanceId !== excludeInstanceId && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait),
-    ).length >= cond.n
+    ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait))
+      .length >= cond.n
   );
 }
 
@@ -658,7 +683,8 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
 function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
   let bonus = 0;
   const owner = state.players[target.owner];
-  for (const source of owner.battleArea) {
+  // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
+  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -780,7 +806,8 @@ export function effectiveLevel(def: CardDef, state?: GameState, controller?: Pla
 /** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */
 function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, state: GameState): StaticAbility | undefined {
   const owner = state.players[card.owner];
-  for (const source of owner.battleArea) {
+  // Base também tem estático (GD02-124 "all friendly green (Earth Federation) Units get AP+1")
+  for (const source of [...owner.battleArea, ...(owner.baseSection ?? [])]) {
     for (const ability of source.def.staticAbilities ?? []) {
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
@@ -896,6 +923,8 @@ export type PendingDecision =
       kind: "triggerOrder";
       /** `trigger` = rótulo do textSectionsJson ("Deploy"/"Destroyed"/...) que o dispatcher usa; `label` = texto pra UI. */
       triggers: Array<{ instanceId: string; specId: string; trigger: string; label: string }>;
+      /** gatilhos do MESMO evento que vêm depois desta decisão (ver `QueuedTrigger`) */
+      queuedTriggers?: QueuedTrigger[];
     }
   | {
       /**
@@ -1022,6 +1051,8 @@ export type PendingDecision =
        * atinge os dois — nenhuma carta ST01–ST04 faz isso).
        */
       queuedDestroyed?: { owner: PlayerId; sources: Array<{ code: string; instanceId: string }> };
+      /** gatilhos do MESMO evento que vêm depois desta decisão (ver `QueuedTrigger`) */
+      queuedTriggers?: QueuedTrigger[];
     }
   | {
       /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runSelfPlay, randomLegal, checkStateInvariants } from "./selfPlay";
+import { createGame } from "./setup";
 import { buildSt01DeckList } from "../fixtures/st01Deck";
 import { buildSt02DeckList } from "../fixtures/st02Deck";
 import { buildSt03DeckList } from "../fixtures/st03Deck";
@@ -73,4 +74,49 @@ describe("runSelfPlay", () => {
     const chosen = randomLegal({} as never, [{ kind: "finishTurn" }, { kind: "passAction" }], rng);
     expect(chosen).toEqual({ kind: "finishTurn" });
   });
+});
+
+describe("checkStateInvariants — regras de campo", () => {
+  function fresh() {
+    const state = createGame(buildSt01DeckList(), buildSt02DeckList(), { seed: 1, firstPlayer: "A" });
+    state.pendingDecision.A = null;
+    state.pendingDecision.B = null;
+    return state;
+  }
+  function moveFromDeck(state: ReturnType<typeof fresh>, cardType: string, zone: "battleArea" | "baseSection") {
+    const deck = state.players.A.deck;
+    const idx = deck.findIndex((c) => c.def.cardType === cardType);
+    if (idx < 0) throw new Error(`sem ${cardType} no deck`);
+    const [card] = deck.splice(idx, 1);
+    card.zone = zone;
+    state.players.A[zone].push(card);
+    return card;
+  }
+
+  it("estado recém-criado passa", () => {
+    expect(checkStateInvariants(fresh())).toBeNull();
+  });
+
+  it("duas Bases na Base Section", () => {
+    const state = fresh();
+    const base = state.players.A.baseSection[0] ?? moveFromDeck(state, "BASE", "baseSection");
+    const clone = { ...base, instanceId: `${base.instanceId}-dup` };
+    state.players.A.baseSection.push(clone);
+    expect(checkStateInvariants(state)).toMatch(/Base/);
+  });
+
+  it("Unit pareada com Piloto que não está em campo", () => {
+    const state = fresh();
+    const unit = moveFromDeck(state, "UNIT", "battleArea");
+    unit.pairedPilotId = "piloto-fantasma";
+    expect(checkStateInvariants(state)).toMatch(/Piloto/);
+  });
+
+  it("Unit com dano >= HP ainda em campo (fora de combate e sem decisão pendente)", () => {
+    const state = fresh();
+    const unit = moveFromDeck(state, "UNIT", "battleArea");
+    unit.damage = (unit.def.hp ?? 0) + 1;
+    expect(checkStateInvariants(state)).toMatch(/dano/);
+  });
+
 });

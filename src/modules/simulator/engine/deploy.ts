@@ -1,10 +1,10 @@
-import type { CardDef, GameEvent, GameState, PlayerId } from "./types";
+import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
 import { effectiveCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, filterDispatchableSpecs } from "./abilityDispatch";
+import { deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, drainQueuedTriggers, filterDispatchableSpecs } from "./abilityDispatch";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -259,34 +259,24 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     // Rewloola matando Char's Zaku Ⅱ) deixa `pendingDecision` setado: trava aqui.
     if (next.pendingDecision.A || next.pendingDecision.B) return next;
     if (playAsPilot && options.pairWithUnitId) {
-      // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) resolvido num
-      // momento SEPARADO da escolha da Unit — pausa se optativo/precisa de alvo.
-      next = deferOrDispatchAbilities(
-        next,
-        player,
-        "When Paired",
-        [
-          { code: findCard(next, options.pairWithUnitId).def.code, instanceId: options.pairWithUnitId },
-          { code: def.code, instanceId: cardInstanceId },
-        ],
-        specs,
-        { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
-      );
-      if (next.pendingDecision.A || next.pendingDecision.B) return next;
-      // 【When Linked】 (ST04-011 Athrun Zala) — dispara só quando o pareamento
-      // resultante forma uma Link Unit (3-2-6). "this Unit" no texto do Pilot =
-      // a Unit pareada; a fonte do EffectSpec é o próprio Pilot.
+      // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) e, se o pareamento formar Link
+      // Unit (3-2-6), 【When Linked】 — texto no Pilot ("this Unit" = a Unit pareada) OU na
+      // própria Unit (ST06-001 GQuuuuuuX). Mesmo evento: se o When Paired pausar pra decisão, o
+      // When Linked fica na fila da decisão (`queuedTriggers`) em vez de se perder.
       const pairedUnit = findCard(next, options.pairWithUnitId);
+      const sources = [
+        { code: pairedUnit.def.code, instanceId: options.pairWithUnitId },
+        { code: def.code, instanceId: cardInstanceId },
+      ];
+      const entries: QueuedTrigger[] = [{ owner: player, trigger: "When Paired", sources }];
       if (satisfiesLinkCondition(effectivePilotDef(findCard(next, cardInstanceId)), pairedUnit.def)) {
-        next = deferOrDispatchAbilities(
-          next,
-          player,
-          "When Linked",
-          [{ code: def.code, instanceId: cardInstanceId }],
-          specs,
-          { targets: options.targets, predicateResolver: options.predicateResolver, targetFilterResolver: options.targetFilterResolver },
-        );
+        entries.push({ owner: player, trigger: "When Linked", sources });
       }
+      next = drainQueuedTriggers(next, entries, specs, {
+        targets: options.targets,
+        predicateResolver: options.predicateResolver,
+        targetFilterResolver: options.targetFilterResolver,
+      });
     }
   }
 

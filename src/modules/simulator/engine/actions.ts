@@ -8,10 +8,12 @@ import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passActi
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
+  attachQueuedTriggers,
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
+  drainQueuedTriggers,
   filterDispatchableSpecs,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
@@ -149,7 +151,43 @@ export function applyPlayerAction(
   targetFilterResolver?: TargetFilterResolver,
 ): GameState {
   const result = applyPlayerActionInner(state, actingPlayer, action, specs, predicateResolver, targetFilterResolver);
-  return enforceZoneLimits(result);
+  return enforceZoneLimits(enforceLethalDamage(result, specs, predicateResolver, targetFilterResolver));
+}
+
+/** destruir uma Unit pode derrubar o HP de outra (aura que some) — repete até estabilizar, com teto */
+const MAX_LETHAL_PASSES = 8;
+
+/**
+ * CR 2-8-2 / 11-1-2 / 11-3-1 — rules management: card com HP restante zero é destruído na
+ * hora, inclusive quando o HP caiu DEPOIS do dano (bônus "during this turn" que expirou, Link
+ * desfeito, aura que sumiu). Dano de combate e de efeito já destroem no momento do dano; isto
+ * é a rede pro que muda o HP sem dano novo. Só com o estado assentado — sem decisão pendente e
+ * fora de combate (o Damage Step tem a ordem própria de destruição e 【Destroyed】).
+ */
+function enforceLethalDamage(
+  state: GameState,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
+  let next = state;
+  for (let pass = 0; pass < MAX_LETHAL_PASSES; pass++) {
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B || next.combat) return next;
+    const current = next;
+    const lethal = (["A", "B"] as PlayerId[]).flatMap((p) =>
+      [...current.players[p].battleArea.filter((c) => c.def.cardType === "UNIT"), ...current.players[p].baseSection].filter(
+        (c) => c.damage > 0 && c.damage >= effectiveHp(c, current),
+      ),
+    );
+    if (lethal.length === 0) return next;
+    const before = next;
+    for (const card of lethal) {
+      next = applyEvent(next, { type: "DESTROY_CARD", instanceId: card.instanceId });
+      next = applyEvents(next, pairedPilotFollowEvents(card));
+    }
+    next = dispatchDestroyedFromEffect(before, next, specs, { predicateResolver, targetFilterResolver });
+  }
+  return next;
 }
 
 function applyPlayerActionInner(
@@ -434,6 +472,10 @@ function applyPlayerActionInner(
           allSpecs: specs,
         });
       }
+      if (decision.queuedTriggers?.length && !next.gameOver) {
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers);
+        next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
+      }
       return next;
     }
 
@@ -466,6 +508,10 @@ function applyPlayerActionInner(
         // (não é "may") — não caem nos `continue` de skip; a validação abaixo
         // exige a escolha. `trashSearch` (GD01-067) é como `deckReveal` — "não
         // escolher" é um caminho legal (nada sai da lixeira, sem custo nenhum).
+        // "you may discard …" recusado: pula antes das validações de escolha obrigatória (descarte /
+        // reordenação / opção só são exigidos quando o efeito ativa). `deckTopReveal`/`trashSearch`
+        // ficam de fora: "não revelar" ainda resolve o efeito (as cartas do topo vão pro fundo).
+        if (q.optional && !r.activate && (handDiscard || deckReorder || enumChoice)) continue;
         if (!deckReveal && !handDiscard && !deckReorder && !enumChoice && !trashSearch) {
           // pulado, ou "Choose 1 ..." sem alvo/carta escolhida = nada acontece (regra oficial).
           if (!r.activate) continue;
@@ -594,6 +640,12 @@ function applyPlayerActionInner(
           predicateResolver,
           targetFilterResolver,
         });
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers ?? []);
+      }
+      // gatilhos do mesmo evento que esperavam esta decisão (ex.: 【When Linked】 depois do 【When Paired】)
+      if (decision.queuedTriggers?.length && !next.gameOver) {
+        if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers);
+        next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
