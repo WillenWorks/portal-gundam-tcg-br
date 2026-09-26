@@ -468,6 +468,10 @@
       "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.",
       "since": "GD01-122 Covert Operative (Lote 5)"
     },
+    "unpaired": {
+      "description": "Candidato sem Piloto pareado.",
+      "since": "GD03-075 Super Gundam"
+    },
     "linkUnit": {
       "description": "Candidato é Link Unit agora.",
       "since": "GD01-101 Deep Devotion"

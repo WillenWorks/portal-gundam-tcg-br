@@ -309,6 +309,7 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
           for (const enemy of opponent.battleArea) {
             if (enemy.def.cardType !== "UNIT") continue;
             if (action.maxLevel !== undefined && (enemy.def.level ?? 0) > action.maxLevel) continue;
+            if (action.hasKeyword && !hasKeyword(enemy, action.hasKeyword, state)) continue;
             events.push({ type: "DAMAGE_UNIT", instanceId: enemy.instanceId, amount: action.amount });
             if (enemy.damage + action.amount >= effectiveHp(enemy, state)) {
               events.push({ type: "DESTROY_CARD", instanceId: enemy.instanceId });

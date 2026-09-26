@@ -170,6 +170,17 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD03-093": {
     "code": "GD03-093",
+    // W1 (GD03)
+    staticAbilities: [
+      {
+        sourceText: "While no enemy Base is in play, this Unit gets AP+1.",
+        condition: "duringPair",
+        boardCondition: { kind: "noEnemyBase" },
+        scope: "pairedUnit",
+        stat: "ap",
+        amount: 1,
+      },
+    ],
     "nameEn": "Carris Nautilus",
     "cardType": "PILOT",
     "color": "red",

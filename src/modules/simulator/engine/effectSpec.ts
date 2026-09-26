@@ -73,7 +73,7 @@ export type TargetGroup =
    * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
    * concedida (mesma checagem de `defaultTargetFilterResolver`).
    */
-  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string }
+  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string; /** GD03-112 — "all Units paired with a Pilot" */ paired?: boolean }
   /**
    * ST08-006 Penelope — "reveal 1 (Earth Federation) Unit card from your hand.
    * Return to the bottom of your deck." Não existe `targetScope` pra mão ainda
@@ -123,6 +123,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
       .filter((u) => u.def.cardType === "UNIT")
       .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
       .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
+      .filter((u) => !group.paired || !!u.pairedPilotId)
       .map((u) => u.instanceId);
   }
   if (group.kind === "firstOwnHandUnitWithTrait") {

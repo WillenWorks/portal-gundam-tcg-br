@@ -124,6 +124,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-022": {
     "code": "GD03-022",
+    // W1 (GD03)
+    combatTriggers: [
+      {
+        sourceText: "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, deal 1 damage to all enemy Units that are Lv.3 or lower.",
+        condition: "duringLink",
+        on: "destroyEnemyInBattle",
+        action: { kind: "damageAllEnemyUnits", amount: 1, maxLevel: 3 },
+      },
+    ],
     "nameEn": "Gundam Kyrios",
     "cardType": "UNIT",
     "color": "green",
@@ -283,6 +292,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   // W0.3 (revisão semântica): Blocker indevido (o texto só cita inimigos com <Blocker>)
   "GD03-029": {
     "code": "GD03-029",
+    // W1 (GD03)
+    combatTriggers: [
+      {
+        sourceText: "During your turn, when this Unit destroys an enemy Unit with battle damage, deal 2 damage to all enemy Units with <Blocker>.",
+        condition: "always",
+        on: "destroyEnemyInBattle",
+        action: { kind: "damageAllEnemyUnits", amount: 2, hasKeyword: "Blocker" },
+      },
+    ],
     "nameEn": "Gundam Heavyarms Custom",
     "cardType": "UNIT",
     "color": "green",
@@ -302,6 +320,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-030": {
     "code": "GD03-030",
+    // W1 (GD03)
+    dynamicCost: { condition: { kind: "friendlyOtherLinkUnitTraitCountAtLeast", trait: "CB", n: 1 }, amount: -1 },
+    structuredSourceText: { dynamicCost: "While you have a (CB) Link Unit in play, this card in your hand gets cost -1." },
     "nameEn": "Gundam Kyrios (Tail Unit Flight Mode)",
     "cardType": "UNIT",
     "color": "green",
