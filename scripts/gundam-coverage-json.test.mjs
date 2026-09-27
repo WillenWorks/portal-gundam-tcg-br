@@ -9,7 +9,7 @@ const jsonPath = fileURLToPath(
 );
 const mdPath = fileURLToPath(new URL("../docs/_generated/coverage.md", import.meta.url));
 
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02", "GD03"];
 const EXPECTED_SET_LENGTHS = {
   ST01: 16,
   ST02: 16,
@@ -21,6 +21,7 @@ const EXPECTED_SET_LENGTHS = {
   ST08: 15,
   GD01: 130,
   GD02: 130,
+  GD03: 132,
 };
 
 function generate() {
@@ -58,7 +59,7 @@ describe("gundam-coverage — coverage.json", () => {
     expect(json.generatedFrom).toMatch(/^\d+ specs$/);
   });
 
-  it("cobre ST01–ST08, GD01 e GD02 com a contagem esperada de cartas por set, ordenadas por code", () => {
+  it("cobre ST01–ST08 e GD01–GD03 com a contagem esperada de cartas por set, ordenadas por code", () => {
     expect(Object.keys(json.sets)).toEqual(GATED_SETS);
     for (const set of GATED_SETS) {
       const codes = json.sets[set].cards.map((c) => c.code);

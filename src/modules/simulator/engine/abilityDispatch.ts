@@ -77,6 +77,7 @@ function buildQueueEntry(
       ? {
           name: spec.secondaryTarget.name,
           targetScope: spec.secondaryTarget.targetScope,
+          sequential: spec.secondaryTarget.sequential,
           legalTargets: computeLegalTargets(
             state,
             { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },

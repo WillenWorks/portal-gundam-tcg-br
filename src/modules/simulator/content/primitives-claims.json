@@ -175,6 +175,10 @@
     "group": {
       "description": "Grupo COLETIVO computado dinamicamente a partir de ctx.state (TargetGroup) — sem escolha externa.",
       "since": "ST01"
+    },
+    "pairedPilotOf": {
+      "description": "O Piloto pareado com a Unit escolhida em ctx.targets[name].",
+      "since": "GD03-110"
     }
   },
   "targetGroupKinds": {
@@ -441,6 +445,18 @@
     "formerPairedPilotLevelAtMost:<n>": {
       "description": "Verdadeiro se o Pilot que estava pareado com a fonte (ctx.targets.formerPairedPilot) tem nível ≤ N.",
       "since": "GD02-003 Gundam Mk-II (Titans) (W0.3)"
+    },
+    "topOfDeckHasAnyTrait:<n>:<value>": {
+      "description": "Alguma das N cartas do topo do deck do controller tem um dos traits (vírgula) — as que um millToTrash de N vai moer.",
+      "since": "GD03-092/094"
+    },
+    "chosenHasTrait:<value>:<value>": {
+      "description": "O alvo escolhido em ctx.targets[<nome>] tem o trait dado.",
+      "since": "GD03-084"
+    },
+    "enemyUnitCountAtMost:<n>": {
+      "description": "O oponente tem N ou menos Units em jogo.",
+      "since": "GD03-117"
     }
   },
   "targetFilters": {
@@ -543,6 +559,22 @@
     "notSelfUnit": {
       "description": "Exclui a Unit da fonte (a pareada, quando a fonte é Pilot) — 'other Unit' em texto de Pilot.",
       "since": "GD02-089 Lalah Sune (W0.3)"
+    },
+    "battlingSelf": {
+      "description": "Candidato é a Unit inimiga em batalha com a fonte (num Piloto, a Unit pareada).",
+      "since": "GD03-073"
+    },
+    "battlingUnit": {
+      "description": "Candidato é o atacante ou a Unit atacada do combate atual.",
+      "since": "GD03-102"
+    },
+    "paired": {
+      "description": "Candidato tem Piloto pareado.",
+      "since": "GD03-110"
+    },
+    "cond\\(([^|]+)\\|([^|]*)\\|([^|]*)\\)": {
+      "description": "Filtro condicional: cond(<predicado>|<filtro se verdadeiro>|<filtro se falso>); ramo vazio = qualquer.",
+      "since": "GD03-109/114"
     }
   }
 }

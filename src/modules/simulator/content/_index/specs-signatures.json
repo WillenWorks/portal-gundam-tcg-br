@@ -3112,6 +3112,32 @@
     "sourceText": "【Destroyed】Choose 1 enemy Unit with 3 or less HP. Rest it."
   },
   {
+    "id": "GD03-009-Deploy",
+    "cardCode": "GD03-009",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:Titans:2",
+    "sourceText": "【Deploy】You may choose 2 (Titans) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
+  },
+  {
+    "id": "GD03-015-ActivateMain",
+    "cardCode": "GD03-015",
+    "trigger": "Activate·Main",
+    "ops": [
+      "moveZone",
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】Exile 3 (Titans) cards from your trash: This Unit gains <Breach 4> during this turn."
+  },
+  {
     "id": "GD03-017-Burst",
     "cardCode": "GD03-017",
     "trigger": "Burst",
@@ -3208,6 +3234,18 @@
     "sourceText": "【Attack】If you are attacking an enemy Unit, this Unit gets AP+2 during this battle."
   },
   {
+    "id": "GD03-033-Attack",
+    "cardCode": "GD03-033",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit. Deal 1 damage to it for each 4 AP this Unit has."
+  },
+  {
     "id": "GD03-034-Deploy",
     "cardCode": "GD03-034",
     "trigger": "Deploy",
@@ -3218,6 +3256,20 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 3 damage to it."
+  },
+  {
+    "id": "GD03-035-ActivateMain",
+    "cardCode": "GD03-035",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "moveZone",
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】①, exile 1 Pilot card from your trash: Deal 1 damage to all enemy Units."
   },
   {
     "id": "GD03-035-WhenLinked",
@@ -3254,6 +3306,19 @@
     "targetFilter": "trait:ZAFT",
     "predicate": null,
     "sourceText": "During your turn, when this Unit is rested by an effect, choose 1 of your (ZAFT) Units. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD03-039-Deploy",
+    "cardCode": "GD03-039",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Clan;active;notSelf",
+    "predicate": "chosenNonEmpty:target;chosenNonEmpty:enemyTarget",
+    "sourceText": "【Deploy】Choose 1 other active friendly (Clan) Unit. Rest it. If you do, choose 1 enemy Unit with 2 or less AP. Deal 2 damage to it."
   },
   {
     "id": "GD03-041-Deploy",
@@ -3316,6 +3381,19 @@
     "sourceText": "When this Unit destroys an enemy shield area card with battle damage, if there are 10 or more (CB) cards in your trash, choose 1 enemy Unit with the lowest HP. Destroy it."
   },
   {
+    "id": "GD03-050-ActivateMain",
+    "cardCode": "GD03-050",
+    "trigger": "Activate·Main",
+    "ops": [
+      "moveZone",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】Choose 3 (Tekkadan)/(Teiwaz) Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
     "id": "GD03-051-WhenLinked",
     "cardCode": "GD03-051",
     "trigger": "When Linked",
@@ -3352,6 +3430,19 @@
     "sourceText": "【During Pair】【Once per Turn】During your turn, when one of your (Tekkadan)/(Teiwaz) Units receives effect damage, choose 1 enemy Unit that is Lv.4 or lower. Rest it."
   },
   {
+    "id": "GD03-054-WhenPaired",
+    "cardCode": "GD03-054",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone",
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": "pairedPilotHasTrait:X-Rounder;controllerTrashCardCountWithAnyTraitAtLeast:Vagan:4",
+    "sourceText": "【When Paired･(X-Rounder) Pilot】You may choose 4 (Vagan) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit that is Lv.4 or lower. Destroy it."
+  },
+  {
     "id": "GD03-055-WhenPaired",
     "cardCode": "GD03-055",
     "trigger": "When Paired",
@@ -3375,6 +3466,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
+  },
+  {
+    "id": "GD03-059-Attack",
+    "cardCode": "GD03-059",
+    "trigger": "Attack",
+    "ops": [
+      "moveZone",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Vagan",
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:Vagan:1",
+    "sourceText": "【Attack】You may choose 1 (Vagan) card from your trash. Exile it from the game. If you do, choose 1 of your (Vagan) Units. It gets AP+2 during this turn."
   },
   {
     "id": "GD03-060-EffectDamage",
@@ -3414,6 +3518,18 @@
     "sourceText": "【During Link】At the end of the turn when this Unit is paired with a Pilot, set it as active."
   },
   {
+    "id": "GD03-071-Deploy",
+    "cardCode": "GD03-071",
+    "trigger": "Deploy",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit. For each (AEUG) Unit card in your trash, it gets AP-1 during this turn."
+  },
+  {
     "id": "GD03-072-Deploy",
     "cardCode": "GD03-072",
     "trigger": "Deploy",
@@ -3425,6 +3541,18 @@
     "targetFilter": null,
     "predicate": "controllerOtherUnitWithTrait:Triple Ship Alliance",
     "sourceText": "【Deploy】If you have another (Triple Ship Alliance) Unit in play, draw 1. Then, discard 1."
+  },
+  {
+    "id": "GD03-073-ActivateAction",
+    "cardCode": "GD03-073",
+    "trigger": "Activate·Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "battlingSelf",
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:Gjallarhorn:6",
+    "sourceText": "【During Link】【Activate･Action】【Once per Turn】If there are 6 or more (Gjallarhorn) cards in your trash, choose 1 enemy Unit battling this Unit. It gets AP-3 during this battle."
   },
   {
     "id": "GD03-075-Attack",
@@ -3463,6 +3591,18 @@
     "sourceText": "【When Linked】Choose 1 to 3 enemy Units with 3 or less HP. Return them to their owners'hands."
   },
   {
+    "id": "GD03-078-Destroyed",
+    "cardCode": "GD03-078",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Destroyed】Return the card paired with this Unit to your hand."
+  },
+  {
     "id": "GD03-080-WhenLinked",
     "cardCode": "GD03-080",
     "trigger": "When Linked",
@@ -3485,6 +3625,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-084-WhenLinked",
+    "cardCode": "GD03-084",
+    "trigger": "When Linked",
+    "ops": [
+      "draw",
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "notSelfUnit",
+    "predicate": "chosenHasTrait:target:Jupitris",
+    "sourceText": "【When Linked】Choose 1 of your other Units. It gains <Repair 2> during this turn. Then, if it is a (Jupitris) Unit, draw 1."
   },
   {
     "id": "GD03-085-Burst",
@@ -3631,6 +3784,19 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-092-WhenLinked",
+    "cardCode": "GD03-092",
+    "trigger": "When Linked",
+    "ops": [
+      "damageUnit",
+      "millToTrash"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "topOfDeckHasAnyTrait:1:Zeon,Clan",
+    "sourceText": "【When Linked】Place the top card of your deck into your trash. If you placed a (Zeon)/(Clan) card with this effect, choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
     "id": "GD03-093-Burst",
     "cardCode": "GD03-093",
     "trigger": "Burst",
@@ -3653,6 +3819,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-094-WhenPaired",
+    "cardCode": "GD03-094",
+    "trigger": "When Paired",
+    "ops": [
+      "modifyStat",
+      "millToTrash"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "topOfDeckHasAnyTrait:2:Vagan",
+    "sourceText": "【When Paired】Place the top 2 cards of your deck into your trash. If you placed a (Vagan) card with this effect, choose 1 enemy Unit. It gets AP-2 during this turn."
   },
   {
     "id": "GD03-095-Burst",
@@ -3800,6 +3979,18 @@
     "sourceText": "Then, if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash, choose 1 enemy Unit with 4 or less HP. Rest it."
   },
   {
+    "id": "GD03-102-Action",
+    "cardCode": "GD03-102",
+    "trigger": "Action",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Titans;linkUnit;battlingUnit",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 of your (Titans) Link Units battling an enemy Unit. Set it as active."
+  },
+  {
     "id": "GD03-102-Burst",
     "cardCode": "GD03-102",
     "trigger": "Burst",
@@ -3873,6 +4064,18 @@
     "sourceText": "【Main】Deploy 1 rested [GQuuuuuuX (Omega Psycommu)]((Clan)·AP3·HP2) Unit token and 1 rested [Red Gundam]((Clan)·AP2·HP3) Unit token."
   },
   {
+    "id": "GD03-107-Main",
+    "cardCode": "GD03-107",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=5",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit that is Lv.5 or lower. Deal damage to it equal to the number of friendly Unit tokens in play."
+  },
+  {
     "id": "GD03-108-Main",
     "cardCode": "GD03-108",
     "trigger": "Main",
@@ -3883,6 +4086,66 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Main】Deploy 1 [Hy-Gogg]((Cyclops Team)·AP2·HP1) Unit token."
+  },
+  {
+    "id": "GD03-109-Action",
+    "cardCode": "GD03-109",
+    "trigger": "Action",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "cond(controllerTrashCardCountNamedAtLeast:Improved Technique:2||level<=4)",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit that is Lv.4 or lower. Deal 3 damage to it. If there are 2 or more cards with \"Improved Technique\" in their card name in your trash, choose 1 enemy Unit instead."
+  },
+  {
+    "id": "GD03-109-Burst",
+    "cardCode": "GD03-109",
+    "trigger": "Burst",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "cond(controllerTrashCardCountNamedAtLeast:Improved Technique:2||level<=4)",
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Main】."
+  },
+  {
+    "id": "GD03-109-Main",
+    "cardCode": "GD03-109",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "cond(controllerTrashCardCountNamedAtLeast:Improved Technique:2||level<=4)",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit that is Lv.4 or lower. Deal 3 damage to it. If there are 2 or more cards with \"Improved Technique\" in their card name in your trash, choose 1 enemy Unit instead."
+  },
+  {
+    "id": "GD03-110-Action",
+    "cardCode": "GD03-110",
+    "trigger": "Action",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "paired;level<=5",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Pilot paired with an enemy Unit that is Lv.5 or lower. Destroy it."
+  },
+  {
+    "id": "GD03-110-Main",
+    "cardCode": "GD03-110",
+    "trigger": "Main",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "paired;level<=5",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Pilot paired with an enemy Unit that is Lv.5 or lower. Destroy it."
   },
   {
     "id": "GD03-111-Action",
@@ -3945,6 +4208,30 @@
     "sourceText": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
   },
   {
+    "id": "GD03-114-Action",
+    "cardCode": "GD03-114",
+    "trigger": "Action",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "cond(controllerTrashCountAtLeast:10|active;level<=4|active;level<=2)",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 active enemy Unit that is Lv.2 or lower. Destroy it. If there are 10 or more cards in your trash, choose 1 active enemy Unit that is Lv.4 or lower instead."
+  },
+  {
+    "id": "GD03-114-Burst",
+    "cardCode": "GD03-114",
+    "trigger": "Burst",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "cond(controllerTrashCountAtLeast:10|active;level<=4|active;level<=2)",
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Action】."
+  },
+  {
     "id": "GD03-115-Action",
     "cardCode": "GD03-115",
     "trigger": "Action",
@@ -3982,6 +4269,18 @@
     "targetFilter": "trait:Vagan",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 friendly (Vagan) Unit and 1 enemy Unit. Deal 2 damage to them."
+  },
+  {
+    "id": "GD03-117-Main",
+    "cardCode": "GD03-117",
+    "trigger": "Main",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "enemyUnitCountAtLeast:1;enemyUnitCountAtMost:4",
+    "sourceText": "【Main】If 1 to 4 enemy Units are in play, deploy 1 [Graze Custom]((Tekkadan)･AP2･HP2) Unit token. If 5 or more are in play, deploy 1 [Gundam Barbatos 4th Form]((Tekkadan)･AP4･HP4) Unit token."
   },
   {
     "id": "GD03-118-Burst",

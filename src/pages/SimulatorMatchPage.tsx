@@ -108,7 +108,7 @@ import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
 import { attackTargetError } from "@/modules/simulator/engine/combat";
-import { otherPlayer, hasKeyword, effectiveCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
@@ -1739,7 +1739,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       : pending?.kind === "deploy" && pending.sacrificeInstanceId
         ? 0
         : pendingCard
-          ? effectiveCost(pendingCard.def, view as unknown as GameState, seat)
+          ? pending?.kind === "deploy" && pendingCard.def.zeroCostWhenPairedWithUnitNameContains && selected[0]
+            ? effectiveDeployCost(pendingCard.def, view as unknown as GameState, seat, selected[0])
+            : effectiveCost(pendingCard.def, view as unknown as GameState, seat)
           : 0;
   const resourcesReady = selectedResources.length === pendingCost;
   /** docs/54 — halo dos Recursos ativos durante o pagamento: ciano pra invocação

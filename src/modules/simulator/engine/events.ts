@@ -247,6 +247,12 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       const player = state.players[owner];
       const card = removeFromZone(player, event.instanceId);
       if (!card) return state;
+      // W2c (GD03-110 "Destroy it" num Piloto pareado): a Unit fica em campo, sem Piloto. (Unit
+      // destruída → o Piloto segue por evento próprio, `pairedPilotFollowEvents`; não mexe nisso.)
+      if (card.pairedUnitId) {
+        const unit = player.battleArea.find((c) => c.instanceId === card.pairedUnitId);
+        if (unit) unit.pairedPilotId = undefined;
+      }
       card.rested = false;
       card.damage = 0;
       card.statModifiers = [];

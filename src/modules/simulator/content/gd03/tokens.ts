@@ -79,3 +79,27 @@ export const TOKEN_AD_BALLOON: CardDef = {
   cannotBeSetActive: true,
   cannotBePaired: true,
 };
+
+// T-016 — GD03-117 Orga's Order
+export const TOKEN_GRAZE_CUSTOM: CardDef = {
+  code: "T-016",
+  nameEn: "Graze Custom",
+  cardType: "UNIT",
+  color: "purple",
+  ap: 2,
+  hp: 2,
+  traits: ["Tekkadan"],
+  isToken: true,
+};
+
+// T-017 — GD03-117 Orga's Order
+export const TOKEN_BARBATOS_4TH_FORM: CardDef = {
+  code: "T-017",
+  nameEn: "Gundam Barbatos 4th Form",
+  cardType: "UNIT",
+  color: "purple",
+  ap: 4,
+  hp: 4,
+  traits: ["Tekkadan"],
+  isToken: true,
+};

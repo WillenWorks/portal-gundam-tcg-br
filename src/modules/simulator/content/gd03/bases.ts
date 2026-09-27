@@ -63,6 +63,18 @@ export const BASES: Record<string, CardDef> = {
   },
   "GD03-126": {
     "code": "GD03-126",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "All friendly Unit tokens get AP+1 during your opponent's turn.",
+        condition: "always",
+        scope: "allFriendlyUnits",
+        targetCondition: { kind: "isToken" },
+        duringOpponentTurnOnly: true,
+        stat: "ap",
+        amount: 1,
+      },
+    ],
     "nameEn": "Cyclops Team",
     "cardType": "BASE",
     "color": "green",

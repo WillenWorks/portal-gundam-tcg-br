@@ -3,6 +3,7 @@ import { stdAddToHandBurst } from "../standardSpecs";
 import { GD03_W1_EFFECT_SPECS } from "./effectsW1";
 import { GD03_W2A_EFFECT_SPECS } from "./effectsW2a";
 import { GD03_W2B_EFFECT_SPECS } from "./effectsW2b";
+import { GD03_W2C_EFFECT_SPECS } from "./effectsW2c";
 
 /**
  * Wave GD03 "Crossfire" — Catálogo de EffectSpecs Oficiais.
@@ -318,6 +319,7 @@ export const GD03_EFFECT_SPECS: EffectSpec[] = [
   ...GD03_W1_EFFECT_SPECS,
   ...GD03_W2A_EFFECT_SPECS,
   ...GD03_W2B_EFFECT_SPECS,
+  ...GD03_W2C_EFFECT_SPECS,
   ...GD03_PILOT_BURST_SPECS,
   ...GD03_COMMAND_BURST_SPECS,
   GD03_001_GUNDAM_NT1_WHEN_PAIRED,

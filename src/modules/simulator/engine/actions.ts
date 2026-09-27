@@ -1,12 +1,13 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
+import { exileCostShortfall } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
-import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   attachQueuedTriggers,
   collectDestroyedInBattle,
@@ -377,6 +378,15 @@ function applyPlayerActionInner(
 
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
       if (abilitySpecs.length > 0) {
+        // W2c — sem isto a ativação virava no-op silencioso (e o bot podia repetir sem fim)
+        const usable = abilitySpecs.filter(
+          (s) =>
+            !(s.oncePerTurn && source.usedKeywordsThisTurn.includes(specOncePerTurnMarker(s))) &&
+            !(source.def.oncePerTurn && source.usedKeywordsThisTurn.includes(trigger)),
+        );
+        if (usable.length === 0) throw new Error(`${source.def.code}: 【Once per Turn】 já usado neste turno`);
+        const unpayable = usable.find((s) => exileCostShortfall(state, s, actingPlayer));
+        if (unpayable) throw new Error(`${source.def.code}: não há cartas suficientes no trash pra pagar o custo de exilar`);
         // V0 (docs/25): mesma filtragem de `playCommand` — spec com alvo
         // ilegal/não escolhido lança, spec sem alvo legal nenhum sai do lote.
         // Achado (Sprint 2 Lote 11, revalidação GD02-011 Moebius): faltavam
@@ -541,7 +551,8 @@ function applyPlayerActionInner(
           // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
           // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
           // lança "alvo nomeado não foi resolvido" pro 2º ao compilar as actions).
-          if (q.secondaryTarget && secondaryIds.length === 0) continue;
+          // W2c — exceto o 2º alvo de cláusula seguinte ("If you do, choose …", GD03-039).
+          if (q.secondaryTarget && !q.secondaryTarget.sequential && secondaryIds.length === 0) continue;
         }
 
         // V0 (docs/25): os candidatos legais foram calculados no servidor ao

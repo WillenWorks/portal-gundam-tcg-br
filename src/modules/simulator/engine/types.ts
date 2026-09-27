@@ -90,6 +90,10 @@ export interface CardDef {
   /** W2b — T-014 Ad Balloon: "This Unit can't be set as active or paired with a Pilot." */
   cannotBeSetActive?: boolean;
   cannotBePaired?: boolean;
+  /** W2c — GD03-058 "This card in your trash gets cost -1." (deploy a partir do trash pagando o custo) */
+  costModifierInTrash?: number;
+  /** W2c — GD03-085 "When playing this card from your hand and pairing it with a Unit with \"Gundam NT-1\" in its card name, play this card as if it has 0 cost." */
+  zeroCostWhenPairedWithUnitNameContains?: string;
   /**
    * Link condition desta Unit (Comprehensive Rules 3-2-6) — só existe em Units,
    * nunca em Pilot/Command/Base. Não restringe o pareamento em si (qualquer Pilot
@@ -365,6 +369,10 @@ export type StaticBoardCondition =
   | { kind: "noEnemyBase" }
   /** GD03-020 — "While you have a Unit with \"Ad Balloon\" in its card name in play". */
   | { kind: "friendlyUnitNameContains"; text: string }
+  /** W2c — GD03-068 "While a friendly Base is in play". */
+  | { kind: "friendlyBaseInPlay" }
+  /** W2c — GD03-037 "while this Unit is battling an enemy Unit with a 【Destroyed】 effect" (`triggerKeywords` da inimiga). */
+  | { kind: "battlingEnemyHasTrigger"; trigger: string }
   /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
   | { kind: "pairedPilotHasTrait"; trait: string }
   /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
@@ -384,6 +392,10 @@ export type StaticTargetCondition =
   | { kind: "hasKeyword"; keyword: string }
   /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
   | { kind: "isDamaged" }
+  /** W2c — GD03-061 "While this Unit has 1 HP" (HP restante) */
+  | { kind: "remainingHpAtMost"; n: number }
+  /** W2c — GD03-126 "All friendly Unit tokens" */
+  | { kind: "isToken" }
   /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
   | { kind: "allOf"; conditions: StaticTargetCondition[] };
 
@@ -405,6 +417,14 @@ export interface StaticAbility {
   targetCondition?: StaticTargetCondition;
   /** GD02-053 Gundam X — "all your OTHER (Vulture) Units get AP+2" — exclui a própria fonte do scope `allFriendlyUnits` (que por padrão a inclui). */
   excludeSelf?: boolean;
+  /** W2c — GD03-126 "during your opponent's turn" (espelho de `duringYourTurnOnly`) */
+  duringOpponentTurnOnly?: boolean;
+  /**
+   * W2c (C7) — o bônus é `amount` × contagem, reavaliada a cada consulta. GD03-089: "Increase this
+   * Unit's AP by an amount equal to the number of (Cyclops Team) Pilot cards/Command cards with unique
+   * names in your trash."
+   */
+  amountFrom?: { kind: "trashUniqueNames"; cardTypes: CardType[]; trait: string };
 }
 
 /**
@@ -734,6 +754,17 @@ export function isBoardConditionMet(
   if (cond.kind === "friendlyUnitTokenInPlay") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
   }
+  if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
+  if (cond.kind === "battlingEnemyHasTrigger") {
+    const combat = state.combat;
+    if (!combat || !excludeInstanceId) return false;
+    let enemyId: string | undefined;
+    if (combat.attackerId === excludeInstanceId && combat.currentTarget !== "player") enemyId = combat.currentTarget.unitId;
+    else if (combat.currentTarget !== "player" && combat.currentTarget.unitId === excludeInstanceId) enemyId = combat.attackerId;
+    if (!enemyId) return false;
+    const enemy = state.players[otherPlayer(owner)].battleArea.find((c) => c.instanceId === enemyId);
+    return !!enemy && (enemy.def.triggerKeywords ?? []).includes(cond.trigger);
+  }
   if (cond.kind === "friendlyUnitNameContains") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
   }
@@ -779,6 +810,8 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
   if (cond.kind === "isDamaged") return target.damage > 0;
+  if (cond.kind === "remainingHpAtMost") return effectiveHp(target, state) - target.damage <= cond.n;
+  if (cond.kind === "isToken") return !!target.def.isToken;
   if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
   return hasKeyword(target, cond.keyword, state);
 }
@@ -787,6 +820,15 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
   if (scope === "allFriendlyUnits") return target.def.cardType === "UNIT";
   if (scope === "pairedUnit") return source.pairedUnitId === target.instanceId;
   return source.instanceId === target.instanceId; // "self"
+}
+
+function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>): number {
+  const names = new Set(
+    state.players[owner].trash
+      .filter((c) => from.cardTypes.includes(c.def.cardType) && (c.def.traits ?? []).includes(from.trait))
+      .map((c) => c.def.nameEn),
+  );
+  return names.size;
 }
 
 function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
@@ -798,11 +840,12 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      if (ability.duringOpponentTurnOnly && source.owner === state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
       if (ability.excludeSelf && source.instanceId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
-      if (includesTarget) bonus += ability.amount;
+      if (includesTarget) bonus += ability.amountFrom ? ability.amount * staticAmountCount(state, source.owner, ability.amountFrom) : ability.amount;
     }
   }
   return bonus;
@@ -897,6 +940,19 @@ export function effectiveCost(def: CardDef, state?: GameState, controller?: Play
 }
 
 /**
+ * W2c — custo de JOGAR `def` da mão, considerando o pareamento escolhido (GD03-085: custo 0 ao
+ * parear com Unit cujo nome contém o texto). Sem pareamento = `effectiveCost`.
+ */
+export function effectiveDeployCost(def: CardDef, state: GameState, controller: PlayerId, pairWithUnitId?: string): number {
+  const text = def.zeroCostWhenPairedWithUnitNameContains;
+  if (text && pairWithUnitId) {
+    const unit = state.players[controller].battleArea.find((c) => c.instanceId === pairWithUnitId);
+    if (unit && unit.def.nameEn.includes(text)) return 0;
+  }
+  return effectiveCost(def, state, controller);
+}
+
+/**
  * Nível efetivo de deploy de `def` — aplica `def.dynamicLevel` se a condição
  * estiver satisfeita (ex.: ST08-001 Xi Gundam).
  */
@@ -921,6 +977,7 @@ function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, sta
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      if (ability.duringOpponentTurnOnly && source.owner === state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
       if (!matchesStaticScope(source, card, ability.scope)) continue;
       if (ability.targetCondition && !isTargetConditionMet(card, state, ability.targetCondition)) continue;
@@ -1136,7 +1193,13 @@ export type PendingDecision =
          * demais campos de escolha aqui. A escolha viaja em
          * `resolution.secondaryTargetIds` e vira `ctx.targets[name]`.
          */
-        secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; legalTargets: string[] };
+        secondaryTarget?: {
+          name: string;
+          targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+          legalTargets: string[];
+          /** ver `EffectSpec.secondaryTarget.sequential` */
+          sequential?: boolean;
+        };
         /**
          * docs/47 Fase 6 — presente só quando esta entrada da fila NÃO vem de um
          * `EffectSpec` (não tem `specId` real pra `dispatchTrigger`), mas de um
