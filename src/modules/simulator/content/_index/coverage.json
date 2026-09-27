@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "493 specs",
+  "generatedFrom": "517 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -2424,6 +2424,827 @@
         "implStar": 2,
         "vanilla": 26,
         "deferida": 1,
+        "faltando": 0
+      }
+    },
+    "GD03": {
+      "cards": [
+        {
+          "code": "GD03-001",
+          "name": "Gundam NT-1",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-002",
+          "name": "The-O",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-003",
+          "name": "Messala",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-004",
+          "name": "Hambrabi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-005",
+          "name": "Kshatriya Besserung",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-006",
+          "name": "Penelope (Middle Form)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-007",
+          "name": "Gundam NT-1 Full Armor",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-008",
+          "name": "Bolinoak Sammahn",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-009",
+          "name": "Palace Athene",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-010",
+          "name": "Full Armor Unicorn Gundam (Destroy Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-011",
+          "name": "GM Sniper II",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-012",
+          "name": "Messala (MA Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-013",
+          "name": "Hizack",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-014",
+          "name": "Hizack Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-015",
+          "name": "Baund Doc",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-016",
+          "name": "Full Armor Unicorn Gundam (Unicorn Mode)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-017",
+          "name": "Kämpfer",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-018",
+          "name": "Altron Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-019",
+          "name": "Gundam AGE-2 Normal",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-020",
+          "name": "Zaku Ⅱ FZ",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-021",
+          "name": "Gundam Deathscythe Hell",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-022",
+          "name": "Gundam Kyrios",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-023",
+          "name": "G-Bouncer",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-024",
+          "name": "Hy-Gogg",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-025",
+          "name": "Gundam Sandrock Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-026",
+          "name": "Gundam Dynames",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-027",
+          "name": "Z’Gok E",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-028",
+          "name": "Auda's Maganac",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-029",
+          "name": "Gundam Heavyarms Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-030",
+          "name": "Gundam Kyrios (Tail Unit Flight Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-031",
+          "name": "Gundam AGE-1 Flat",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-032",
+          "name": "Zaku (Four Snake Eyes') [YETI] (GQ)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-033",
+          "name": "Providence Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-034",
+          "name": "GQuuuuuuX (Omega Psycommu)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-035",
+          "name": "GFreD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-036",
+          "name": "Ξ Gundam (Flight Form)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-037",
+          "name": "Bertigo",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-038",
+          "name": "GuAIZ (Commander Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-039",
+          "name": "Red Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-040",
+          "name": "Gundam Virsago & Gundam Ashtaron",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-041",
+          "name": "Patulia",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-042",
+          "name": "Duel Gundam (Assault Shroud)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-043",
+          "name": "Messer Type-F02",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-044",
+          "name": "Daughtress Flyer",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-045",
+          "name": "Balient",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-046",
+          "name": "CGUE",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-047",
+          "name": "DINN (Commander Type)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-048",
+          "name": "GFreD",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-049",
+          "name": "Gundam Exia (Trans-Am)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-050",
+          "name": "Gundam Barbatos Lupus",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-051",
+          "name": "Gundam X Divider",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-052",
+          "name": "Gundam Virtue",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-053",
+          "name": "Gundam Gusion Rebake Full City",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-054",
+          "name": "Zeydra",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-055",
+          "name": "Gundam Hajiroboshi (2nd Form)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-056",
+          "name": "Gundam Barbatos Adapt",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-057",
+          "name": "GN Armor (Type-E)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-058",
+          "name": "Farsia",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-059",
+          "name": "Zedas R",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-060",
+          "name": "CGS Mobile Worker (Commander Type)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-061",
+          "name": "Gundam Barbatos 6th Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-062",
+          "name": "GX-Bit",
+          "status": "deferida",
+          "deferredClauses": [
+            "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it."
+          ]
+        },
+        {
+          "code": "GD03-063",
+          "name": "0 Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-064",
+          "name": "Defurse",
+          "status": "deferida",
+          "deferredClauses": [
+            "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1."
+          ]
+        },
+        {
+          "code": "GD03-065",
+          "name": "Zedas M",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-066",
+          "name": "Gundam Barbatos 5th Form (Ground Type)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-067",
+          "name": "Rouei",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-068",
+          "name": "Gundam Hajiroboshi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-069",
+          "name": "Graham's Union Flag Custom",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-070",
+          "name": "Freedom Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-071",
+          "name": "Z Gundam (Biosensor)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-072",
+          "name": "Aile Strike Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-073",
+          "name": "Graze Ein",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-074",
+          "name": "Tieren Taozi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-075",
+          "name": "Super Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-076",
+          "name": "Freedom Gundam (METEOR)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-077",
+          "name": "Justice Gundam (METEOR)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-078",
+          "name": "Tieren High Mobility Type",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-079",
+          "name": "G-Defenser",
+          "status": "deferida",
+          "deferredClauses": [
+            "When you rest your Base with one of your Units' effects, you may rest this Unit instead."
+          ]
+        },
+        {
+          "code": "GD03-080",
+          "name": "Gundam Kimaris Trooper (Trooper Mode)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-081",
+          "name": "AEU Enact Demonstration Color",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-082",
+          "name": "Union Flag",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-083",
+          "name": "AEU Hellion",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-084",
+          "name": "Paptimus Scirocco",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-085",
+          "name": "Christina Mackenzie",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-086",
+          "name": "Yazan Gable",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-087",
+          "name": "Sarah Zabiarov",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-088",
+          "name": "Asemu Asuno",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-089",
+          "name": "Bernard Wiseman",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-090",
+          "name": "Mikhail Kaminsky",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-091",
+          "name": "Rau Le Creuset",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-092",
+          "name": "Nyaan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-093",
+          "name": "Carris Nautilus",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-094",
+          "name": "Zeheart Galette",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-095",
+          "name": "Azee Gurumin",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-096",
+          "name": "Jamil Neate",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-097",
+          "name": "Wistario Afam",
+          "status": "implementada*",
+          "deferredClauses": [
+            "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
+          ]
+        },
+        {
+          "code": "GD03-098",
+          "name": "Graham Aker",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-099",
+          "name": "Emma Sheen",
+          "status": "implementada*",
+          "deferredClauses": [
+            "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand."
+          ]
+        },
+        {
+          "code": "GD03-100",
+          "name": "Soma Peries",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-101",
+          "name": "A Healthy Curiosity",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-102",
+          "name": "Privileged Position",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-103",
+          "name": "Field Directive",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-104",
+          "name": "Reccoa's Shadow",
+          "status": "deferida",
+          "deferredClauses": [
+            "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead."
+          ]
+        },
+        {
+          "code": "GD03-105",
+          "name": "Bridge Crew",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-106",
+          "name": "M.A.V. Tactics",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-107",
+          "name": "Over the River and Through the Woods",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-108",
+          "name": "How Many Miles to the Battlefield?",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-109",
+          "name": "Improved Technique",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-110",
+          "name": "Eliminate Target",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-111",
+          "name": "Infiltrator Present",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-112",
+          "name": "Warped Intent",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-113",
+          "name": "Human Karma",
+          "status": "deferida",
+          "deferredClauses": [
+            "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it."
+          ]
+        },
+        {
+          "code": "GD03-114",
+          "name": "Look of Determination",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-115",
+          "name": "Distant Reunion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-116",
+          "name": "Towards Destiny",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-117",
+          "name": "Orga's Order",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-118",
+          "name": "Awakened Potential",
+          "status": "implementada*",
+          "deferredClauses": [
+            "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn."
+          ]
+        },
+        {
+          "code": "GD03-119",
+          "name": "Awkward Approach",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-120",
+          "name": "Immortal Colasour",
+          "status": "deferida",
+          "deferredClauses": [
+            "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn."
+          ]
+        },
+        {
+          "code": "GD03-121",
+          "name": "Unheralded Attack",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-122",
+          "name": "Veteran Tactics",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-123",
+          "name": "Jupitris",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-124",
+          "name": "Ribo Colony",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-125",
+          "name": "Peacemillion",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-126",
+          "name": "Cyclops Team",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-127",
+          "name": "Jachin Due",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-128",
+          "name": "Doritea",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-129",
+          "name": "Hotarubi",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-130",
+          "name": "Downes",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-131",
+          "name": "Eternal",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "GD03-132",
+          "name": "Radish",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 107,
+        "implStar": 3,
+        "vanilla": 16,
+        "deferida": 6,
         "faltando": 0
       }
     }

@@ -23,6 +23,9 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD03-085": {
     "code": "GD03-085",
+    // W2c (GD03)
+    zeroCostWhenPairedWithUnitNameContains: "Gundam NT-1",
+    structuredSourceText: { zeroCostWhenPairedWithUnitNameContains: "When playing this card from your hand and pairing it with a Unit with \"Gundam NT-1\" in its card name, play this card as if it has 0 cost." },
     "nameEn": "Christina Mackenzie",
     "cardType": "PILOT",
     "color": "blue",
@@ -78,6 +81,25 @@ export const PILOTS: Record<string, CardDef> = {
   // W0.3 (revisão semântica): metadado falso
   "GD03-088": {
     "code": "GD03-088",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>.",
+        condition: "duringLink",
+        scope: "pairedUnit",
+        targetCondition: { kind: "traitIs", trait: "AGE System" },
+        stat: "ap",
+        amount: 1,
+      },
+      {
+        sourceText: "【During Link】If this is an (AGE System) Unit, it gets AP+1 and <Breach 1>.",
+        condition: "duringLink",
+        scope: "pairedUnit",
+        targetCondition: { kind: "traitIs", trait: "AGE System" },
+        keyword: "Breach",
+        keywordValue: 1,
+      },
+    ],
     "nameEn": "Asemu Asuno",
     "cardType": "PILOT",
     "color": "green",
@@ -97,6 +119,17 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD03-089": {
     "code": "GD03-089",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "Increase this Unit's AP by an amount equal to the number of (Cyclops Team) Pilot cards/Command cards with unique names in your trash.",
+        condition: "duringPair",
+        scope: "pairedUnit",
+        stat: "ap",
+        amount: 1,
+        amountFrom: { kind: "trashUniqueNames", cardTypes: ["PILOT", "COMMAND"], trait: "Cyclops Team" },
+      },
+    ],
     "nameEn": "Bernard Wiseman",
     "cardType": "PILOT",
     "color": "green",

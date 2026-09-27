@@ -1,8 +1,8 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
-import { effectiveCost, hasKeyword } from "./types";
+import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { computeLegalTargets, specNeedsNamedTarget } from "./effectSpec";
-import { findTriggerSpecs } from "./dispatcher";
+import { computeLegalTargets, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
+import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
 import { costRestsSelf } from "./costs";
@@ -189,7 +189,14 @@ function activateAbilityCandidates(
       if (card.def.oncePerTurn && card.usedKeywordsThisTurn.includes(trigger)) continue;
       const abilitySpecs = findTriggerSpecs(specs, card.def.code, trigger);
       // "Rest this Unit/Base:" já rested não é pagável de novo — ver `costRestsSelf`.
-      const payableAbilitySpecs = abilitySpecs.filter((s) => !(costRestsSelf(s) && card.rested));
+      // W2c — 【Once per Turn】 por spec já usado / custo de exilar do trash sem cartas: não oferecer
+      const payableAbilitySpecs = abilitySpecs.filter(
+        (s) =>
+          !(costRestsSelf(s) && card.rested) &&
+          !(s.oncePerTurn && card.usedKeywordsThisTurn.includes(specOncePerTurnMarker(s))) &&
+          !exileCostShortfall(state, s, seat) &&
+          specPairGateOpen(state, card, s),
+      );
       const hasSupport =
         trigger === "Activate·Main" &&
         hasKeyword(card, "Support", state) &&
@@ -237,7 +244,17 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
     const def = card.def;
     if (def.cardType === "RESOURCE") continue;
     const affordable = canPayLevel(state, seat, def) && canAfford(state, seat, effectiveCost(def, state, seat));
-    if (!affordable) continue;
+    // GD03-085 — custo 0 ao parear com a Unit certa: sem recurso pro custo cheio, só esse pareamento
+    if (!affordable) {
+      if (def.zeroCostWhenPairedWithUnitNameContains && canPayLevel(state, seat, def)) {
+        for (const unit of friendlyUnits(state, seat)) {
+          if (unit.pairedPilotId || unit.def.cannotBePaired) continue;
+          if (!canAfford(state, seat, effectiveDeployCost(def, state, seat, unit.instanceId))) continue;
+          out.push({ kind: "deployCard", cardInstanceId: card.instanceId, pairWithUnitId: unit.instanceId });
+        }
+      }
+      continue;
+    }
 
     if (def.cardType === "UNIT" || def.cardType === "BASE") {
       out.push({ kind: "deployCard", cardInstanceId: card.instanceId });

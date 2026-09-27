@@ -204,14 +204,15 @@ describe("activateAbility (docs/19, Sessão 2)", () => {
     expect(() => apply(state, "B", { kind: "activateAbility", sourceInstanceId: tallgeeseId })).toThrow(/carta própria/);
   });
 
-  it("【Once per Turn】: segunda ativação no mesmo turno é ignorada (dispatcher), sem custo dobrado", () => {
+  it("【Once per Turn】: segunda ativação no mesmo turno é recusada, sem custo dobrado", () => {
     const state = freshSt02();
     state.players.A.resourceArea = [];
     const tallgeeseId = place(state, "A", ST02_CARD_DEFS.TALLGEESE, "battleArea", { rested: true });
     giveResources(state, "A", 9);
 
-    let next = apply(state, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId });
-    next = apply(next, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId });
+    const next = apply(state, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId });
+    // W2c — recusada (antes virava no-op silencioso e o bot podia repetir a jogada sem fim)
+    expect(() => apply(next, "A", { kind: "activateAbility", sourceInstanceId: tallgeeseId })).toThrow(/Once per Turn/);
 
     expect(next.players.A.resourceArea.filter((r) => r.rested)).toHaveLength(4); // só a 1ª ativação cobrou
   });

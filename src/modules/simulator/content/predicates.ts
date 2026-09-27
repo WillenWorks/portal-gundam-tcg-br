@@ -38,6 +38,26 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   // GD03-129 — "you may rest this Base. If you do": só dá pra pagar com a fonte ativa.
   if (predicate === "selfIsActive") return !findCard(ctx.state, ctx.sourceInstanceId).rested;
   // W2b — reações de combate: a Unit inimiga da batalha ainda está em jogo / o nível dela
+  // W2c — GD03-092/094 "Place the top N cards of your deck into your trash. If you placed a (X) card
+  // with this effect, …": as N do topo AGORA são exatamente as que o `millToTrash` vai moer.
+  const topOfDeckHasAnyTrait = predicate.match(/^topOfDeckHasAnyTrait:(\d+):(.+)$/);
+  if (topOfDeckHasAnyTrait) {
+    const n = Number(topOfDeckHasAnyTrait[1]);
+    const traits = topOfDeckHasAnyTrait[2].split(",");
+    return ctx.state.players[ctx.controller].deck.slice(0, n).some((c) => (c.def.traits ?? []).some((t) => traits.includes(t)));
+  }
+  // W2c — GD03-084 "Then, if it is a (Jupitris) Unit": o alvo escolhido tem o trait.
+  const chosenHasTrait = predicate.match(/^chosenHasTrait:(.+):(.+)$/);
+  if (chosenHasTrait) {
+    const id = ctx.targets[chosenHasTrait[1]]?.[0];
+    return !!id && (findCard(ctx.state, id).def.traits ?? []).includes(chosenHasTrait[2]);
+  }
+  // W2c — GD03-117 "If 1 to 4 enemy Units are in play".
+  const enemyUnitCountAtMost = predicate.match(/^enemyUnitCountAtMost:(\d+)$/);
+  if (enemyUnitCountAtMost) {
+    const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
+    return opponent.battleArea.filter((c) => c.def.cardType === "UNIT").length <= Number(enemyUnitCountAtMost[1]);
+  }
   if (predicate === "battleVictimInPlay") {
     const id = ctx.targets.battleVictim?.[0];
     return !!id && findCard(ctx.state, id).zone === "battleArea";
@@ -448,6 +468,23 @@ function remainingHp(card: CardInstance, state: GameState): number {
  * (carta futura) entra aqui, nunca como um hack local na UI.
  */
 export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candidate, ctx) => {
+  // W2c — "… If <condição>, choose … instead" (GD03-109/114): `cond(<predicado>|<filtro se sim>|<filtro se não>)`.
+  // Avaliado ANTES da composição por ";" (os ramos podem ter ";"). Filtro vazio = qualquer candidato.
+  const conditional = filter.match(/^cond\(([^|]+)\|([^|]*)\|([^|]*)\)$/);
+  if (conditional) {
+    const source = ctx.sourceInstanceId ? findCard(ctx.state, ctx.sourceInstanceId) : undefined;
+    const holds =
+      !!source &&
+      defaultPredicateResolver(conditional[1], {
+        state: ctx.state,
+        controller: source.owner,
+        sourceInstanceId: source.instanceId,
+        turnNumber: ctx.state.turnNumber,
+        targets: ctx.targets ?? {},
+      });
+    const branch = holds ? conditional[2] : conditional[3];
+    return branch === "" || defaultTargetFilterResolver(branch, candidate, ctx);
+  }
   // Composição E lógico entre 2+ filtros simples (ex.: GD01-049 Blitz Gundam —
   // "1 of your (ZAFT) Units with 5 or more AP" -> "trait:ZAFT;ap>=5"). Cada
   // cláusula usa as MESMAS regras abaixo — nenhum operador novo, só "todas
@@ -532,6 +569,25 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
+
+  // W2c — GD03-073 "1 enemy Unit battling this Unit" (a fonte é um dos 2 lados do combate atual)
+  if (filter === "battlingSelf") {
+    const combat = ctx.state.combat;
+    if (!combat || !ctx.sourceInstanceId) return false;
+    const self = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    if (!self) return false;
+    const target = combat.currentTarget;
+    if (combat.attackerId === self.instanceId) return target !== "player" && target.unitId === candidate.instanceId;
+    return target !== "player" && target.unitId === self.instanceId && combat.attackerId === candidate.instanceId;
+  }
+  // W2c — GD03-102 "1 of your … Units battling an enemy Unit"
+  if (filter === "battlingUnit") {
+    const combat = ctx.state.combat;
+    if (!combat || combat.currentTarget === "player") return false;
+    return combat.attackerId === candidate.instanceId || combat.currentTarget.unitId === candidate.instanceId;
+  }
+  // W2c — GD03-110 "an enemy Unit" com Piloto pareado
+  if (filter === "paired") return !!candidate.pairedPilotId;
 
   // GD03-115 — "1 friendly Unit paired with an (X-Rounder) Pilot".
   const pairedPilotTrait = filter.match(/^pairedPilotTrait:(.+)$/);

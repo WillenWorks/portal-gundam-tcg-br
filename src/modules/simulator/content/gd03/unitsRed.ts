@@ -108,6 +108,17 @@ export const UNITS_RED: Record<string, CardDef> = {
   // W0.3 (revisão semântica): First Strike inato indevido (é condicional, C4 deferido)
   "GD03-037": {
     "code": "GD03-037",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "【During Link】During your turn, while this Unit is battling an enemy Unit with a 【Destroyed】 effect, it gains <First Strike>.",
+        condition: "duringLink",
+        scope: "self",
+        keyword: "First Strike",
+        duringYourTurnOnly: true,
+        boardCondition: { kind: "battlingEnemyHasTrigger", trigger: "Destroyed" },
+      },
+    ],
     "nameEn": "Bertigo",
     "cardType": "UNIT",
     "color": "red",

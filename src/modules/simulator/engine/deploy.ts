@@ -1,5 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
-import { effectiveCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
@@ -71,8 +71,14 @@ export function canPayLevel(state: GameState, player: PlayerId, def: CardDef): b
 // Pagamento de custo de recurso (EX Resource sai do jogo, Recurso normal só resta) foi
 // extraído pra costs.ts (payResourceCostEvents) — reaproveitado também pela primitiva de
 // DSL `payResourceCost` (ver effectSpec.ts, docs/18 lacuna #4, ex. ST02-006 Tallgeese "④").
-function payCostEvents(state: GameState, player: PlayerId, def: CardDef, resourceInstanceIds?: string[]): GameEvent[] {
-  return payResourceCostEvents(state, player, effectiveCost(def, state, player), resourceInstanceIds);
+function payCostEvents(
+  state: GameState,
+  player: PlayerId,
+  def: CardDef,
+  resourceInstanceIds?: string[],
+  pairWithUnitId?: string,
+): GameEvent[] {
+  return payResourceCostEvents(state, player, effectiveDeployCost(def, state, player, pairWithUnitId), resourceInstanceIds);
 }
 
 /** Joga uma carta Unit/Pilot/Base da mão (Comprehensive Rules 7 — Main Phase). */
@@ -166,7 +172,9 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
     );
   }
 
-  const events: GameEvent[] = freeDeploy ? [...discardEvents] : payCostEvents(base, player, def, options.resourceInstanceIds);
+  const events: GameEvent[] = freeDeploy
+    ? [...discardEvents]
+    : payCostEvents(base, player, def, options.resourceInstanceIds, playAsPilot ? options.pairWithUnitId : undefined);
   if (freeDeploy && options.sacrificeInstanceId) {
     const sacrificed = findCard(base, options.sacrificeInstanceId);
     events.push({ type: "DESTROY_CARD", instanceId: options.sacrificeInstanceId });
