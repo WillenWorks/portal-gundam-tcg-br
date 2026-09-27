@@ -457,6 +457,10 @@
     "enemyUnitCountAtMost:<n>": {
       "description": "O oponente tem N ou menos Units em jogo.",
       "since": "GD03-117"
+    },
+    "controllerUnitCountWithAnyTraitAtLeast:<value>:<n>": {
+      "description": "O controller tem N+ Units em jogo com algum dos traits (vírgula), contando a própria fonte.",
+      "since": "GD04-003/118"
     }
   },
   "targetFilters": {

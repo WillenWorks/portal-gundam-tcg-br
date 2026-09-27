@@ -52,6 +52,15 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets[chosenHasTrait[1]]?.[0];
     return !!id && (findCard(ctx.state, id).def.traits ?? []).includes(chosenHasTrait[2]);
   }
+  // W3 — GD04-003/118 "If you have 3 or more (League Militaire) Units in play" (conta a própria fonte).
+  const controllerUnitCountWithAnyTrait = predicate.match(/^controllerUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerUnitCountWithAnyTrait) {
+    const traits = controllerUnitCountWithAnyTrait[1].split(",");
+    const count = ctx.state.players[ctx.controller].battleArea.filter(
+      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
+    ).length;
+    return count >= Number(controllerUnitCountWithAnyTrait[2]);
+  }
   // W2c — GD03-117 "If 1 to 4 enemy Units are in play".
   const enemyUnitCountAtMost = predicate.match(/^enemyUnitCountAtMost:(\d+)$/);
   if (enemyUnitCountAtMost) {
