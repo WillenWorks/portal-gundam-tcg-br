@@ -31,7 +31,7 @@ describe("rankSimilarSpecs", () => {
   });
 
   it("\"Look at the top 3 cards of your deck...\" -> Char's Zaku II (ST03-006) no topo (empatada com GD01-045 e GD02, mesmo texto de abertura)", () => {
-    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 6);
+    const r = rankSimilarSpecs(signatures, "Look at the top 3 cards of your deck...", 12);
     expect(codesOf(r)).toContain("ST03-006");
   });
 

@@ -318,7 +318,7 @@ function auditCode(code) {
     deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
   });
 }
-const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03"])];
+const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04"])];
 const clauseTotalsBySet = {};
 const clauseJsonSets = {};
 for (const set of [...new Set([...CLAUSE_AUDIT_SETS, ...sets])]) {

@@ -10,10 +10,11 @@ import { ST08_CARD_DEFS } from "../fixtures/st08Deck";
 import { GD01_CARD_DEFS } from "./gd01";
 import { GD02_CARD_DEFS } from "./gd02";
 import { GD03_CARD_DEFS } from "./gd03";
+import { GD04_CARD_DEFS } from "./gd04";
 
 /**
  * Catálogo canônico de todas as definições de cartas (CardDef) oficiais
- * atualmente implementadas no motor do simulador (ST01..ST08, GD01..GD03).
+ * atualmente implementadas no motor do simulador (ST01..ST08, GD01..GD04).
  *
  * Indexado pelo código oficial da carta em maiúsculas (ex: "ST01-001", "GD01-001", "GD02-001", "GD03-001").
  */
@@ -29,6 +30,7 @@ export const ALL_CARD_DEFS: Record<string, CardDef> = {
   ...Object.values(GD01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD02_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD03_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(GD04_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
 };
 
 /**
