@@ -551,7 +551,8 @@ function applyPlayerActionInner(
           // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
           // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
           // lança "alvo nomeado não foi resolvido" pro 2º ao compilar as actions).
-          if (q.secondaryTarget && secondaryIds.length === 0) continue;
+          // W2c — exceto o 2º alvo de cláusula seguinte ("If you do, choose …", GD03-039).
+          if (q.secondaryTarget && !q.secondaryTarget.sequential && secondaryIds.length === 0) continue;
         }
 
         // V0 (docs/25): os candidatos legais foram calculados no servidor ao

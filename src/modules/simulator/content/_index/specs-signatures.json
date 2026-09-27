@@ -3317,7 +3317,7 @@
     ],
     "targetScope": "friendlyUnit",
     "targetFilter": "trait:Clan;active;notSelf",
-    "predicate": "chosenNonEmpty:target",
+    "predicate": "chosenNonEmpty:target;chosenNonEmpty:enemyTarget",
     "sourceText": "【Deploy】Choose 1 other active friendly (Clan) Unit. Rest it. If you do, choose 1 enemy Unit with 2 or less AP. Deal 2 damage to it."
   },
   {

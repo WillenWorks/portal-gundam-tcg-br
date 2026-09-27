@@ -366,6 +366,28 @@ describe("W2c — gatilhos e Commands", () => {
     expect(findCard(after, enemy).damage).toBe(2);
   });
 
+  it("039 fluxo real: sem inimiga AP2-, a Unit (Clan) ainda é restada (o \"if you do\" só condiciona o dano)", () => {
+    for (const [enemyAp, dmg] of [
+      [5, 0],
+      [2, 2],
+    ] as const) {
+      const state = game();
+      resources(state, "A", G["GD03-039"].level ?? 0);
+      const red = placeCard(state, "A", G["GD03-039"], "hand");
+      const clan = placeCard(state, "A", UNIT({ traits: ["Clan"] }), "battleArea");
+      const enemy = placeCard(state, "B", UNIT({ ap: enemyAp }), "battleArea");
+      let s = act(state, "A", { kind: "deployCard", cardInstanceId: red });
+      const options = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "resolveAbility");
+      const chosen = options.find(
+        (a) => a.kind === "resolveAbility" && a.resolutions.some((r) => r.activate && r.targetIds.includes(clan)),
+      );
+      expect(chosen, `AP ${enemyAp}: nenhuma resolução que resta a Unit (Clan)`).toBeDefined();
+      s = act(s, "A", chosen as PlayerAction);
+      expect(findCard(s, clan).rested).toBe(true);
+      expect(findCard(s, enemy).damage).toBe(dmg);
+    }
+  });
+
   it("073 【During Link】【Activate･Action】: com 6 (Gjallarhorn) a inimiga em batalha fica AP-3 nesta batalha", () => {
     const state = game();
     const self = placeCard(state, "A", G["GD03-073"], "battleArea");

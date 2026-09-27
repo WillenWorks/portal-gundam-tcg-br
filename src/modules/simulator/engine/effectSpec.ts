@@ -1052,7 +1052,17 @@ export interface EffectSpec {
    * então não precisou de mudança no formato de `PlayerAction`/`resolveAbility`,
    * só em `legalActions.ts` (enumeração gulosa: 1º alvo legal de cada pool).
    */
-  secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; targetFilter?: string };
+  secondaryTarget?: {
+    name: string;
+    targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+    targetFilter?: string;
+    /**
+     * W2c (GD03-039) — "Choose 1 X. Rest it. If you do, choose 1 Y …": a 2ª escolha é de uma cláusula
+     * SEGUINTE, então sem Y legal o 1º efeito ainda acontece (sem isto o efeito inteiro era descartado,
+     * regra do "Choose 1 X and 1 Y" da ST05-010). Quem usa condiciona o efeito do Y a `chosenNonEmpty`.
+     */
+    sequential?: boolean;
+  };
 }
 
 /**

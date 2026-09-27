@@ -1193,7 +1193,13 @@ export type PendingDecision =
          * demais campos de escolha aqui. A escolha viaja em
          * `resolution.secondaryTargetIds` e vira `ctx.targets[name]`.
          */
-        secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; legalTargets: string[] };
+        secondaryTarget?: {
+          name: string;
+          targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+          legalTargets: string[];
+          /** ver `EffectSpec.secondaryTarget.sequential` */
+          sequential?: boolean;
+        };
         /**
          * docs/47 Fase 6 — presente só quando esta entrada da fila NÃO vem de um
          * `EffectSpec` (não tem `specId` real pra `dispatchTrigger`), mas de um

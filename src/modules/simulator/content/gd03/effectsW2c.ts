@@ -93,19 +93,19 @@ export const GD03_W2C_EFFECT_SPECS: EffectSpec[] = [
     actions: [{ op: "damageUnit", target: { kind: "group", group: { kind: "allEnemyUnits" } }, amount: 1 }],
     sourceText: "【Activate･Main】【Once per Turn】①, exile 1 Pilot card from your trash: Deal 1 damage to all enemy Units.",
   },
-  // GD03-039 ("Rest it. If you do" = havia uma Unit (Clan) ativa pra restar)
+  // GD03-039 ("Rest it. If you do" = havia uma Unit (Clan) ativa pra restar; sem inimiga AP2-, só resta)
   {
     id: "GD03-039-Deploy",
     cardCode: "GD03-039",
     trigger: "Deploy",
     condition: {
-      predicate: "chosenNonEmpty:target",
+      predicate: "chosenNonEmpty:target;chosenNonEmpty:enemyTarget",
       then: [{ op: "damageUnit", target: { kind: "named", name: "enemyTarget" }, amount: 2 }],
     },
     actions: [{ op: "rest", target }],
     targetScope: "friendlyUnit",
     targetFilter: "trait:Clan;active;notSelf",
-    secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", targetFilter: "ap<=2" },
+    secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", targetFilter: "ap<=2", sequential: true },
     sourceText: "【Deploy】Choose 1 other active friendly (Clan) Unit. Rest it. If you do, choose 1 enemy Unit with 2 or less AP. Deal 2 damage to it.",
   },
   // GD03-050
