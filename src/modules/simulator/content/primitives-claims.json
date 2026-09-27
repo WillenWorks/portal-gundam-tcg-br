@@ -175,6 +175,10 @@
     "group": {
       "description": "Grupo COLETIVO computado dinamicamente a partir de ctx.state (TargetGroup) — sem escolha externa.",
       "since": "ST01"
+    },
+    "pairedPilotOf": {
+      "description": "O Piloto pareado com a Unit escolhida em ctx.targets[name].",
+      "since": "GD03-110"
     }
   },
   "targetGroupKinds": {
@@ -201,6 +205,10 @@
     "firstNInTrash": {
       "description": "Resolve pras primeiras N cartas da lixeira do controller que casam um CardDefFilter (sem escolha interativa — mesma simplificação de returnTrashToDeckAndShuffle). Usado com moveZone toZone:\"exile\".",
       "since": "GD02-111 Decisive Last Resort (Sprint 2 Lote 10)"
+    },
+    "allBases": {
+      "description": "Todas as Bases em jogo, dos dois lados.",
+      "since": "GD03-041"
     }
   },
   "targetScopes": {
@@ -234,6 +242,26 @@
     }
   },
   "predicates": {
+    "battleVictimInPlay": {
+      "description": "A Unit inimiga da batalha (alvo implícito battleVictim, reação de combate) ainda está na Battle Area.",
+      "since": "GD03-052"
+    },
+    "battleVictimLevelAtMost:<n>": {
+      "description": "Nível da Unit inimiga da batalha (battleVictim) <= N.",
+      "since": "GD03-052"
+    },
+    "reactionSubjectInPlay": {
+      "description": "A carta do gatilho reativo (reactionSubject) ainda está na Battle Area.",
+      "since": "GD03-125"
+    },
+    "selfIsActive": {
+      "description": "A fonte está ativa (não descansada).",
+      "since": "GD03-129"
+    },
+    "selfPairedThisTurn": {
+      "description": "A fonte (Unit) tem Piloto pareado que entrou em jogo neste turno.",
+      "since": "GD03-069"
+    },
     "attackingEnemyUnit": {
       "description": "Verdadeiro se o combate atual tem uma Unit inimiga como alvo original (não o jogador).",
       "since": "GD01-050 LaGOWE"
@@ -417,6 +445,18 @@
     "formerPairedPilotLevelAtMost:<n>": {
       "description": "Verdadeiro se o Pilot que estava pareado com a fonte (ctx.targets.formerPairedPilot) tem nível ≤ N.",
       "since": "GD02-003 Gundam Mk-II (Titans) (W0.3)"
+    },
+    "topOfDeckHasAnyTrait:<n>:<value>": {
+      "description": "Alguma das N cartas do topo do deck do controller tem um dos traits (vírgula) — as que um millToTrash de N vai moer.",
+      "since": "GD03-092/094"
+    },
+    "chosenHasTrait:<value>:<value>": {
+      "description": "O alvo escolhido em ctx.targets[<nome>] tem o trait dado.",
+      "since": "GD03-084"
+    },
+    "enemyUnitCountAtMost:<n>": {
+      "description": "O oponente tem N ou menos Units em jogo.",
+      "since": "GD03-117"
     }
   },
   "targetFilters": {
@@ -468,6 +508,22 @@
       "description": "HP restante do candidato <= o 1º número; OU <= o 2º número se o CONTROLLER da fonte tiver uma Link Unit em campo agora.",
       "since": "GD01-122 Covert Operative (Lote 5)"
     },
+    "level<=reactionSubject": {
+      "description": "Nível do candidato <= nível da carta do gatilho reativo (alvo implícito reactionSubject).",
+      "since": "GD03-002 The-O"
+    },
+    "pairedPilotTrait:<value>": {
+      "description": "Candidato tem Piloto pareado com o trait dado.",
+      "since": "GD03-115"
+    },
+    "lowestHp": {
+      "description": "Candidato tem o menor HP restante entre as Units do seu lado (empate: qualquer uma).",
+      "since": "GD03-049"
+    },
+    "unpaired": {
+      "description": "Candidato sem Piloto pareado.",
+      "since": "GD03-075 Super Gundam"
+    },
     "linkUnit": {
       "description": "Candidato é Link Unit agora.",
       "since": "GD01-101 Deep Devotion"
@@ -503,6 +559,22 @@
     "notSelfUnit": {
       "description": "Exclui a Unit da fonte (a pareada, quando a fonte é Pilot) — 'other Unit' em texto de Pilot.",
       "since": "GD02-089 Lalah Sune (W0.3)"
+    },
+    "battlingSelf": {
+      "description": "Candidato é a Unit inimiga em batalha com a fonte (num Piloto, a Unit pareada).",
+      "since": "GD03-073"
+    },
+    "battlingUnit": {
+      "description": "Candidato é o atacante ou a Unit atacada do combate atual.",
+      "since": "GD03-102"
+    },
+    "paired": {
+      "description": "Candidato tem Piloto pareado.",
+      "since": "GD03-110"
+    },
+    "cond\\(([^|]+)\\|([^|]*)\\|([^|]*)\\)": {
+      "description": "Filtro condicional: cond(<predicado>|<filtro se verdadeiro>|<filtro se falso>); ramo vazio = qualquer.",
+      "since": "GD03-109/114"
     }
   }
 }

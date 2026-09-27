@@ -28,6 +28,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD03-070": {
     "code": "GD03-070",
+    // W2b (GD03)
+    protectsShieldsWhileRested: true,
+    structuredSourceText: { protectsShieldsWhileRested: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." },
     "nameEn": "Freedom Gundam",
     "cardType": "UNIT",
     "color": "white",
@@ -121,6 +124,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD03-074": {
     "code": "GD03-074",
+    // W2b (GD03)
+    forcedAttackTarget: {
+      condition: "duringPair",
+      boardCondition: { kind: "friendlyOtherUnitTraitCountAtLeast", trait: "Superpower Bloc", n: 1 },
+      scope: "self",
+    },
+    structuredSourceText: {
+      forcedAttackTarget:
+        "【During Pair】While you have another (Superpower Bloc) Unit in play, enemy Units choose this rested Unit as their attack target if possible when attacking.",
+    },
     "nameEn": "Tieren Taozi",
     "cardType": "UNIT",
     "color": "white",
@@ -267,6 +280,11 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD03-081": {
     "code": "GD03-081",
+    // W2b (GD03)
+    attackRestriction: { requiresFriendlyUnitWithAnyTraitDeployedThisTurn: ["Superpower Bloc", "UN"] },
+    structuredSourceText: {
+      attackRestriction: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed.",
+    },
     "nameEn": "AEU Enact Demonstration Color",
     "cardType": "UNIT",
     "color": "white",
@@ -286,6 +304,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD03-082": {
     "code": "GD03-082",
+    // W1 (GD03)
+    dynamicCost: { condition: { kind: "friendlyUnitWithAnyTraitCountAtLeast", traits: ["Superpower Bloc", "UN"], n: 2 }, amount: -1 },
+    structuredSourceText: { dynamicCost: "While you have 2 or more (Superpower Bloc)/(UN) Units in play, this card in your hand gets cost -1." },
     "nameEn": "Union Flag",
     "cardType": "UNIT",
     "color": "white",

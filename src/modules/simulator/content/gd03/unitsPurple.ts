@@ -213,6 +213,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD03-058": {
     "code": "GD03-058",
+    // W2c (GD03)
+    costModifierInTrash: -1,
+    structuredSourceText: { costModifierInTrash: "This card in your trash gets cost -1." },
     "nameEn": "Farsia",
     "cardType": "UNIT",
     "color": "purple",
@@ -270,6 +273,17 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   // W0.3 (revisão semântica): Repair 3 inato indevido (é 'while this Unit has 1 HP', deferido)
   "GD03-061": {
     "code": "GD03-061",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "While this Unit has 1 HP, it gains <Repair 3>.",
+        condition: "always",
+        scope: "self",
+        keyword: "Repair",
+        keywordValue: 3,
+        targetCondition: { kind: "remainingHpAtMost", n: 1 },
+      },
+    ],
     "nameEn": "Gundam Barbatos 6th Form",
     "cardType": "UNIT",
     "color": "purple",
@@ -403,6 +417,16 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   // W0.3 (revisão semântica): Blocker inato indevido (é 'while a friendly Base is in play', deferido)
   "GD03-068": {
     "code": "GD03-068",
+    // W2c (GD03)
+    staticAbilities: [
+      {
+        sourceText: "While a friendly Base is in play, this Unit gains <Blocker>.",
+        condition: "always",
+        scope: "self",
+        keyword: "Blocker",
+        boardCondition: { kind: "friendlyBaseInPlay" },
+      },
+    ],
     "nameEn": "Gundam Hajiroboshi",
     "cardType": "UNIT",
     "color": "purple",

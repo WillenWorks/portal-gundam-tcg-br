@@ -67,6 +67,9 @@ export const STRUCTURED_FIELDS = [
   "combatTriggers",
   "allyCombatTriggers",
   "attackTargetRules",
+  "forcedAttackTarget",
+  "attackRestriction",
+  "protectsShieldsWhileRested",
   "dynamicCost",
   "onSupportUsed",
   "innateStatReductionImmunity",
@@ -79,6 +82,8 @@ export const STRUCTURED_FIELDS = [
   "alternateDeploySacrifice",
   "onAnyPairing",
   "nameAliases",
+  "costModifierInTrash",
+  "zeroCostWhenPairedWithUnitNameContains",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([

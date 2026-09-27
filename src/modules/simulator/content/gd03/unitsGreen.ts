@@ -56,6 +56,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-019": {
     "code": "GD03-019",
+    // W2b (GD03)
+    forcedAttackTarget: { condition: "duringPair", scope: "self" },
+    structuredSourceText: { forcedAttackTarget: "【During Pair】Enemy Units choose this rested Unit as their attack target if possible when attacking." },
     "nameEn": "Gundam AGE-2 Normal",
     "cardType": "UNIT",
     "color": "green",
@@ -79,6 +82,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-020": {
     "code": "GD03-020",
+    // W2b (GD03)
+    innateDamageProtection: { unconditional: true, boardCondition: { kind: "friendlyUnitNameContains", text: "Ad Balloon" } },
+    structuredSourceText: {
+      innateDamageProtection: "While you have a Unit with \"Ad Balloon\" in its card name in play, this Unit can't receive enemy battle damage.",
+    },
     "nameEn": "Zaku Ⅱ FZ",
     "cardType": "UNIT",
     "color": "green",
@@ -124,6 +132,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-022": {
     "code": "GD03-022",
+    // W1 (GD03)
+    combatTriggers: [
+      {
+        sourceText: "【During Link】During your turn, when this Unit destroys an enemy Unit with battle damage, deal 1 damage to all enemy Units that are Lv.3 or lower.",
+        condition: "duringLink",
+        on: "destroyEnemyInBattle",
+        action: { kind: "damageAllEnemyUnits", amount: 1, maxLevel: 3 },
+      },
+    ],
     "nameEn": "Gundam Kyrios",
     "cardType": "UNIT",
     "color": "green",
@@ -195,6 +212,11 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-025": {
     "code": "GD03-025",
+    // W2b (GD03)
+    forcedAttackTarget: { condition: "always", scope: "friendlyUnitsWithTrait", trait: "Maganac Corps" },
+    structuredSourceText: {
+      forcedAttackTarget: "Enemy Units choose one of your rested (Maganac Corps) Units as their attack target if possible when attacking.",
+    },
     "nameEn": "Gundam Sandrock Custom",
     "cardType": "UNIT",
     "color": "green",
@@ -283,6 +305,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   // W0.3 (revisão semântica): Blocker indevido (o texto só cita inimigos com <Blocker>)
   "GD03-029": {
     "code": "GD03-029",
+    // W1 (GD03)
+    combatTriggers: [
+      {
+        sourceText: "During your turn, when this Unit destroys an enemy Unit with battle damage, deal 2 damage to all enemy Units with <Blocker>.",
+        condition: "always",
+        on: "destroyEnemyInBattle",
+        action: { kind: "damageAllEnemyUnits", amount: 2, hasKeyword: "Blocker" },
+      },
+    ],
     "nameEn": "Gundam Heavyarms Custom",
     "cardType": "UNIT",
     "color": "green",
@@ -302,6 +333,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD03-030": {
     "code": "GD03-030",
+    // W1 (GD03)
+    dynamicCost: { condition: { kind: "friendlyOtherLinkUnitTraitCountAtLeast", trait: "CB", n: 1 }, amount: -1 },
+    structuredSourceText: { dynamicCost: "While you have a (CB) Link Unit in play, this card in your hand gets cost -1." },
     "nameEn": "Gundam Kyrios (Tail Unit Flight Mode)",
     "cardType": "UNIT",
     "color": "green",

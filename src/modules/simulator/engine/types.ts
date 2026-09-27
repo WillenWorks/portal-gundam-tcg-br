@@ -87,6 +87,13 @@ export interface CardDef {
   oncePerTurn?: boolean;
   /** true para o EX Resource / EX Base gerados no setup, não fazem parte do deck de 50+10 */
   isToken?: boolean;
+  /** W2b — T-014 Ad Balloon: "This Unit can't be set as active or paired with a Pilot." */
+  cannotBeSetActive?: boolean;
+  cannotBePaired?: boolean;
+  /** W2c — GD03-058 "This card in your trash gets cost -1." (deploy a partir do trash pagando o custo) */
+  costModifierInTrash?: number;
+  /** W2c — GD03-085 "When playing this card from your hand and pairing it with a Unit with \"Gundam NT-1\" in its card name, play this card as if it has 0 cost." */
+  zeroCostWhenPairedWithUnitNameContains?: string;
   /**
    * Link condition desta Unit (Comprehensive Rules 3-2-6) — só existe em Units,
    * nunca em Pilot/Command/Base. Não restringe o pareamento em si (qualquer Pilot
@@ -160,8 +167,28 @@ export interface CardDef {
     /** ex. ST01-009 Zowort: "This Unit can't choose the enemy player as its attack target." */
     cannotTargetPlayer?: boolean;
     /** ex. ST02-001 Wing Gundam: pode escolher Unit inimiga ACTIVE (não só rested) até este level */
-    mayTargetActiveEnemyUnit?: { maxLevel: number };
+    mayTargetActiveEnemyUnit?: {
+      maxLevel: number;
+      /** GD03-042 — "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower" */
+      requiresSelfApAtLeast?: number;
+    };
   };
+  /**
+   * W2b (C4) — provocação: "Enemy Units choose this rested Unit as their attack target if possible
+   * when attacking." (GD03-019/074) ou "… one of your rested (Maganac Corps) Units …" (GD03-025).
+   * Enquanto ativa, um ataque inimigo que PODE mirar uma dessas Units descansadas é obrigado a mirar
+   * uma delas (`declareAttack`).
+   */
+  forcedAttackTarget?: {
+    condition: StaticEffectCondition;
+    boardCondition?: StaticBoardCondition;
+    scope: "self" | "friendlyUnitsWithTrait";
+    trait?: string;
+  };
+  /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
+  attackRestriction?: { requiresFriendlyUnitWithAnyTraitDeployedThisTurn: string[] };
+  /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
+  protectsShieldsWhileRested?: boolean;
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
    * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
@@ -177,6 +204,10 @@ export interface CardDef {
     requiresOwnKeyword?: string;
     /** "During your turn" — só vale enquanto for o turno do CONTROLLER da Unit (não do atacante). */
     duringYourTurnOnly?: boolean;
+    /** W2b — GD03-020 "can't receive enemy battle damage" (de qualquer atacante) */
+    unconditional?: boolean;
+    /** W2b — GD03-020 "While you have a Unit with \"Ad Balloon\" in its card name in play" */
+    boardCondition?: StaticBoardCondition;
   };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-090 "【During Link】This Unit's AP can't be
@@ -298,7 +329,7 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
 export interface QueuedTrigger {
   owner: PlayerId;
   trigger: string;
-  sources: Array<{ code: string; instanceId: string }>;
+  sources: Array<{ code: string; instanceId: string; implicitTargets?: Record<string, string[]> }>;
 }
 
 export type StaticBoardCondition =
@@ -330,6 +361,20 @@ export type StaticBoardCondition =
   | { kind: "pairedPilotColorIs"; color: string }
   /** GD02-033 — "while another friendly (Zeon) Link Unit is in play". */
   | { kind: "friendlyOtherLinkUnitTraitCountAtLeast"; trait: string; n: number }
+  /** GD03-082 — "While you have 2 or more (Superpower Bloc)/(UN) Units in play" (OR entre traits, só Units). */
+  | { kind: "friendlyUnitWithAnyTraitCountAtLeast"; traits: string[]; n: number }
+  /** GD03-045 — "While you have a Unit token in play". */
+  | { kind: "friendlyUnitTokenInPlay" }
+  /** GD03-093 — "While no enemy Base is in play". */
+  | { kind: "noEnemyBase" }
+  /** GD03-020 — "While you have a Unit with \"Ad Balloon\" in its card name in play". */
+  | { kind: "friendlyUnitNameContains"; text: string }
+  /** W2c — GD03-068 "While a friendly Base is in play". */
+  | { kind: "friendlyBaseInPlay" }
+  /** W2c — GD03-037 "while this Unit is battling an enemy Unit with a 【Destroyed】 effect" (`triggerKeywords` da inimiga). */
+  | { kind: "battlingEnemyHasTrigger"; trigger: string }
+  /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
+  | { kind: "pairedPilotHasTrait"; trait: string }
   /** GD02-090 — "while you have another Unit with <High-Maneuver> in play". */
   | { kind: "friendlyOtherUnitWithKeywordCountAtLeast"; keyword: string; n: number };
 
@@ -347,6 +392,10 @@ export type StaticTargetCondition =
   | { kind: "hasKeyword"; keyword: string }
   /** ST05-001/002 — "While this Unit is damaged" (auto-referente, scope: "self"). `damage > 0`. */
   | { kind: "isDamaged" }
+  /** W2c — GD03-061 "While this Unit has 1 HP" (HP restante) */
+  | { kind: "remainingHpAtMost"; n: number }
+  /** W2c — GD03-126 "All friendly Unit tokens" */
+  | { kind: "isToken" }
   /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
   | { kind: "allOf"; conditions: StaticTargetCondition[] };
 
@@ -368,6 +417,14 @@ export interface StaticAbility {
   targetCondition?: StaticTargetCondition;
   /** GD02-053 Gundam X — "all your OTHER (Vulture) Units get AP+2" — exclui a própria fonte do scope `allFriendlyUnits` (que por padrão a inclui). */
   excludeSelf?: boolean;
+  /** W2c — GD03-126 "during your opponent's turn" (espelho de `duringYourTurnOnly`) */
+  duringOpponentTurnOnly?: boolean;
+  /**
+   * W2c (C7) — o bônus é `amount` × contagem, reavaliada a cada consulta. GD03-089: "Increase this
+   * Unit's AP by an amount equal to the number of (Cyclops Team) Pilot cards/Command cards with unique
+   * names in your trash."
+   */
+  amountFrom?: { kind: "trashUniqueNames"; cardTypes: CardType[]; trait: string };
 }
 
 /**
@@ -397,7 +454,8 @@ export interface CombatTrigger {
   oncePerTurn?: boolean;
   action:
     | { kind: "draw"; amount: number }
-    | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number }
+    /** `hasKeyword`: GD03-029 — "deal 2 damage to all enemy Units with <Blocker>". */
+    | { kind: "damageAllEnemyUnits"; amount: number; maxLevel?: number; hasKeyword?: string }
     /**
      * ST03-001 Sinanju — "choose 1 enemy Unit. Deal 2 damage to it". Escolha
      * REAL do jogador (docs/47 Fase 6) — pausa via `combat.pendingTriggerChoices`
@@ -509,7 +567,15 @@ export interface CardInstance {
    * (estático, ST02-001 Wing Gundam). `turn` = só vale enquanto
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
-  attackTargetRelaxUntilTurn?: { maxLevel?: number; maxAp?: number; turn: number };
+  attackTargetRelaxUntilTurn?: {
+    maxLevel?: number;
+    maxAp?: number;
+    /** GD03-035 — "an active enemy Unit with AP equal to or less than this Unit" (AP de agora, na declaração) */
+    apAtMostSelf?: boolean;
+    /** GD03-105 — "an active enemy Unit that has no Pilot paired with it" */
+    unpairedOnly?: boolean;
+    turn: number;
+  };
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Guarda o `turnNumber` em que a proibição foi imposta; `declareAttack` barra
@@ -678,12 +744,43 @@ export function isBoardConditionMet(
   if (cond.kind === "baseColorInPlay") {
     return state.players[owner].baseSection.some((b) => b.def.color === cond.color);
   }
+  if (cond.kind === "friendlyUnitWithAnyTraitCountAtLeast") {
+    return (
+      state.players[owner].battleArea.filter(
+        (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => cond.traits.includes(t)),
+      ).length >= cond.n
+    );
+  }
+  if (cond.kind === "friendlyUnitTokenInPlay") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
+  }
+  if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
+  if (cond.kind === "battlingEnemyHasTrigger") {
+    const combat = state.combat;
+    if (!combat || !excludeInstanceId) return false;
+    let enemyId: string | undefined;
+    if (combat.attackerId === excludeInstanceId && combat.currentTarget !== "player") enemyId = combat.currentTarget.unitId;
+    else if (combat.currentTarget !== "player" && combat.currentTarget.unitId === excludeInstanceId) enemyId = combat.attackerId;
+    if (!enemyId) return false;
+    const enemy = state.players[otherPlayer(owner)].battleArea.find((c) => c.instanceId === enemyId);
+    return !!enemy && (enemy.def.triggerKeywords ?? []).includes(cond.trigger);
+  }
+  if (cond.kind === "friendlyUnitNameContains") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
+  }
+  if (cond.kind === "noEnemyBase") {
+    return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
+  }
   const ownerState = state.players[owner];
   const source = excludeInstanceId ? ownerState.battleArea.find((c) => c.instanceId === excludeInstanceId) : undefined;
   if (cond.kind === "controllerLevelAtLeast") return ownerState.resourceArea.length >= cond.n;
   if (cond.kind === "pairedPilotColorIs") {
     const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
     return !!pilot && effectivePilotDef(pilot).color === cond.color;
+  }
+  if (cond.kind === "pairedPilotHasTrait") {
+    const pilot = source?.pairedPilotId ? ownerState.battleArea.find((c) => c.instanceId === source.pairedPilotId) : undefined;
+    return !!pilot && (effectivePilotDef(pilot).traits ?? []).includes(cond.trait);
   }
   // "outra" Unit amiga = exclui a própria fonte; fonte Pilot: a Unit pareada também não conta (E12).
   const excluded = new Set([excludeInstanceId, source?.pairedUnitId].filter((id): id is string => !!id));
@@ -713,6 +810,8 @@ function isTargetConditionMet(target: CardInstance, state: GameState, cond: Stat
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
   if (cond.kind === "isDamaged") return target.damage > 0;
+  if (cond.kind === "remainingHpAtMost") return effectiveHp(target, state) - target.damage <= cond.n;
+  if (cond.kind === "isToken") return !!target.def.isToken;
   if (cond.kind === "allOf") return cond.conditions.every((c) => isTargetConditionMet(target, state, c));
   return hasKeyword(target, cond.keyword, state);
 }
@@ -721,6 +820,15 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
   if (scope === "allFriendlyUnits") return target.def.cardType === "UNIT";
   if (scope === "pairedUnit") return source.pairedUnitId === target.instanceId;
   return source.instanceId === target.instanceId; // "self"
+}
+
+function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>): number {
+  const names = new Set(
+    state.players[owner].trash
+      .filter((c) => from.cardTypes.includes(c.def.cardType) && (c.def.traits ?? []).includes(from.trait))
+      .map((c) => c.def.nameEn),
+  );
+  return names.size;
 }
 
 function computeStaticStatBonus(target: CardInstance, state: GameState, stat: StatKey): number {
@@ -732,11 +840,12 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (ability.stat !== stat || ability.amount === undefined) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      if (ability.duringOpponentTurnOnly && source.owner === state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
       if (ability.excludeSelf && source.instanceId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
-      if (includesTarget) bonus += ability.amount;
+      if (includesTarget) bonus += ability.amountFrom ? ability.amount * staticAmountCount(state, source.owner, ability.amountFrom) : ability.amount;
     }
   }
   return bonus;
@@ -831,6 +940,19 @@ export function effectiveCost(def: CardDef, state?: GameState, controller?: Play
 }
 
 /**
+ * W2c — custo de JOGAR `def` da mão, considerando o pareamento escolhido (GD03-085: custo 0 ao
+ * parear com Unit cujo nome contém o texto). Sem pareamento = `effectiveCost`.
+ */
+export function effectiveDeployCost(def: CardDef, state: GameState, controller: PlayerId, pairWithUnitId?: string): number {
+  const text = def.zeroCostWhenPairedWithUnitNameContains;
+  if (text && pairWithUnitId) {
+    const unit = state.players[controller].battleArea.find((c) => c.instanceId === pairWithUnitId);
+    if (unit && unit.def.nameEn.includes(text)) return 0;
+  }
+  return effectiveCost(def, state, controller);
+}
+
+/**
  * Nível efetivo de deploy de `def` — aplica `def.dynamicLevel` se a condição
  * estiver satisfeita (ex.: ST08-001 Xi Gundam).
  */
@@ -855,6 +977,7 @@ function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, sta
       if (ability.keyword !== keyword) continue;
       if (!isStaticAbilityActive(state, source, ability.condition)) continue;
       if (ability.duringYourTurnOnly && source.owner !== state.activePlayer) continue;
+      if (ability.duringOpponentTurnOnly && source.owner === state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
       if (!matchesStaticScope(source, card, ability.scope)) continue;
       if (ability.targetCondition && !isTargetConditionMet(card, state, ability.targetCondition)) continue;
@@ -1070,7 +1193,13 @@ export type PendingDecision =
          * demais campos de escolha aqui. A escolha viaja em
          * `resolution.secondaryTargetIds` e vira `ctx.targets[name]`.
          */
-        secondaryTarget?: { name: string; targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit"; legalTargets: string[] };
+        secondaryTarget?: {
+          name: string;
+          targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit";
+          legalTargets: string[];
+          /** ver `EffectSpec.secondaryTarget.sequential` */
+          sequential?: boolean;
+        };
         /**
          * docs/47 Fase 6 — presente só quando esta entrada da fila NÃO vem de um
          * `EffectSpec` (não tem `specId` real pra `dispatchTrigger`), mas de um
@@ -1125,6 +1254,16 @@ export type PendingDecision =
       legalTargets: string[];
     };
 
+/** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
+export interface PendingCombatReaction {
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle";
+  /** a Unit que causou o dano / destruiu */
+  subjectId: string;
+  owner: PlayerId;
+  /** a Unit inimiga que levou o dano / foi destruída (alvo implícito `battleVictim`) */
+  victimId?: string;
+}
+
 export interface CombatState {
   step: CombatStep;
   attackerId: string;
@@ -1156,6 +1295,8 @@ export interface CombatState {
    * protegida por vez (o texto escolhe 1); o atacante ainda recebe o dano dele.
    */
   unitDamageProtection?: { instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean } | null;
+  /** W2b — reações de combate (dano de batalha / destruição) registradas no Damage Step, despachadas antes do Battle End */
+  pendingReactions?: PendingCombatReaction[];
   /** docs/47 Fase 6 — ver `PendingCombatTriggerChoice`. Populado por `resolveDamageStep`, consumido e limpo por `actions.ts` ao montar a pausa. */
   pendingTriggerChoices?: PendingCombatTriggerChoice[];
 }
@@ -1289,7 +1430,15 @@ export type GameEvent =
   /** ST03-014 The Blue Giant — ver `CombatState.unitDamageProtection`. Não-op fora de combate. */
   | { type: "SET_UNIT_DAMAGE_PROTECTION"; instanceId: string; maxAttackerAp?: number; maxAttackerLevel?: number; unconditional?: boolean }
   /** ST04-011 Athrun Zala — ver `CardInstance.attackTargetRelaxUntilTurn`. */
-  | { type: "GRANT_ATTACK_TARGET_RELAX"; instanceId: string; maxLevel?: number; maxAp?: number; turn: number }
+  | {
+      type: "GRANT_ATTACK_TARGET_RELAX";
+      instanceId: string;
+      maxLevel?: number;
+      maxAp?: number;
+      apAtMostSelf?: boolean;
+      unpairedOnly?: boolean;
+      turn: number;
+    }
   /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { type: "GRANT_BATTLE_DAMAGE_IMMUNITY_UNTIL_TURN"; instanceId: string; maxAttackerHp: number; turn: number }
   /** ST04-015 Archangel — ver `CardInstance.cannotAttackUntilTurn`. */

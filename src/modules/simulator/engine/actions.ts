@@ -1,12 +1,13 @@
-import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
+import { exileCostShortfall } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
 import { declareAttack, proceedToBlockStep, activateBlocker, skipBlock, passAction, resolveDamageStep, resolveBattleEndStep } from "./combat";
 import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, passEndPhaseAction } from "./phases";
-import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs } from "./dispatcher";
+import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   attachQueuedTriggers,
   collectDestroyedInBattle,
@@ -15,6 +16,9 @@ import {
   dispatchDestroyedTriggers,
   drainQueuedTriggers,
   filterDispatchableSpecs,
+  dispatchReactions,
+  reactionListeners,
+  runEndOfTurnReactions,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
@@ -264,7 +268,17 @@ function applyPlayerActionInner(
         specs,
         { predicateResolver, targetFilterResolver },
       );
-      if (next.pendingDecision[actingPlayer]) return next; // pausou pra escolher (segue no resolveAbility)
+      // W2a (C1) — "when one of your (other) Units attacks" (GD03-002): simultâneo ao 【Attack】
+      const attackReactions: QueuedTrigger[] = [
+        {
+          owner: actingPlayer,
+          trigger: "Reaction:attack",
+          sources: reactionListeners(next, { event: "attack", subjectId: action.attackerId, owner: actingPlayer }, specs, targetFilterResolver),
+        },
+      ].filter((q) => q.sources.length > 0);
+      if (next.pendingDecision[actingPlayer]) return attachQueuedTriggers(next, attackReactions); // pausou pra escolher (segue no resolveAbility)
+      next = drainQueuedTriggers(next, attackReactions, specs, { predicateResolver, targetFilterResolver });
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
       // Attack Step -> Block Step não é decisão de ninguém, é avanço automático.
       return proceedToBlockStep(next);
     }
@@ -313,7 +327,7 @@ function applyPlayerActionInner(
       }
 
       next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
-      return finishDamageStep(next, actingPlayer);
+      return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
     }
 
     case "finishTurn": {
@@ -330,8 +344,15 @@ function applyPlayerActionInner(
     case "passEndPhaseAction": {
       // passEndPhaseAction() já valida internamente que `actingPlayer` tem a
       // prioridade do Action Step da End Phase agora — não precisa checar de novo aqui.
-      const next = passEndPhaseAction(state, actingPlayer);
+      let next = passEndPhaseAction(state, actingPlayer);
       if (next.endPhaseAction) return next; // ainda falta o outro jogador passar
+      // W2a (C1) — "at the end of the turn" (End Step, antes do Repair). Só efeito sem escolha:
+      // uma pausa aqui travaria a troca de turno (nenhuma carta de fim de turno pede escolha hoje).
+      next = runEndOfTurnReactions(next, specs, predicateResolver, targetFilterResolver);
+      if (next.gameOver) return next;
+      // uma reação em cascata pediu escolha (ex. GD03-069 ativa a Unit → GD03-098 reage): o End Step
+      // espera a decisão; `resolveAbility` retoma o fim de turno (ver `pausedInEndStep`)
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
       return finishEndPhaseAndAdvance(next);
     }
 
@@ -357,6 +378,15 @@ function applyPlayerActionInner(
 
       const abilitySpecs = findTriggerSpecs(specs, source.def.code, trigger);
       if (abilitySpecs.length > 0) {
+        // W2c — sem isto a ativação virava no-op silencioso (e o bot podia repetir sem fim)
+        const usable = abilitySpecs.filter(
+          (s) =>
+            !(s.oncePerTurn && source.usedKeywordsThisTurn.includes(specOncePerTurnMarker(s))) &&
+            !(source.def.oncePerTurn && source.usedKeywordsThisTurn.includes(trigger)),
+        );
+        if (usable.length === 0) throw new Error(`${source.def.code}: 【Once per Turn】 já usado neste turno`);
+        const unpayable = usable.find((s) => exileCostShortfall(state, s, actingPlayer));
+        if (unpayable) throw new Error(`${source.def.code}: não há cartas suficientes no trash pra pagar o custo de exilar`);
         // V0 (docs/25): mesma filtragem de `playCommand` — spec com alvo
         // ilegal/não escolhido lança, spec sem alvo legal nenhum sai do lote.
         // Achado (Sprint 2 Lote 11, revalidação GD02-011 Moebius): faltavam
@@ -440,7 +470,7 @@ function applyPlayerActionInner(
           predicateResolver,
           targetFilterResolver,
         });
-        next = finishDamageStep(next, actingPlayer);
+        next = finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       return next;
     }
@@ -521,7 +551,8 @@ function applyPlayerActionInner(
           // sem o 2º (nenhum legal, ou o jogador não escolheu), o efeito inteiro
           // não ativa, mesmo com o 1º já escolhido (senão `resolveTargetIds`
           // lança "alvo nomeado não foi resolvido" pro 2º ao compilar as actions).
-          if (q.secondaryTarget && secondaryIds.length === 0) continue;
+          // W2c — exceto o 2º alvo de cláusula seguinte ("If you do, choose …", GD03-039).
+          if (q.secondaryTarget && !q.secondaryTarget.sequential && secondaryIds.length === 0) continue;
         }
 
         // V0 (docs/25): os candidatos legais foram calculados no servidor ao
@@ -649,7 +680,7 @@ function applyPlayerActionInner(
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
-      if (decision.trigger === "Attack" && !next.gameOver && next.combat?.step === "attack") {
+      if ((decision.trigger === "Attack" || decision.trigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
       }
       // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44), 【Deploy】 encadeado por
@@ -661,7 +692,15 @@ function applyPlayerActionInner(
       // (ou pausa de novo, se sobrou mais alguma coisa — Burst→Destroyed→
       // CombatTrigger→BattleEnd, mesma ordem de sempre).
       if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
-        return finishDamageStep(next, actingPlayer);
+        return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+      }
+      // W2b — reação de combate: o combate estava parado no Damage Step -> segue a fila/Battle End
+      if (decision.trigger.startsWith("Reaction:") && next.combat?.step === "damage") {
+        return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+      }
+      // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
+      if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+        return finishEndPhaseAndAdvance(next);
       }
       return next;
     }
@@ -861,12 +900,33 @@ function pauseForCombatTriggerChoices(state: GameState, player: PlayerId, choice
  * escolha de gatilho de combate (Sinanju/Akihiro Altland) → Battle End.
  * Chamado depois que o chamador já processou Burst/Destroyed pra este passo.
  */
-function finishDamageStep(next: GameState, actingPlayer: PlayerId): GameState {
+function finishDamageStep(
+  next: GameState,
+  actingPlayer: PlayerId,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
   if (next.gameOver) return next;
   if (next.pendingDecision[actingPlayer] || next.pendingDecision[otherPlayer(actingPlayer)]) return next;
   if (next.combat?.pendingTriggerChoices?.length) {
     return pauseForCombatTriggerChoices(next, next.combat.attackingPlayer, next.combat.pendingTriggerChoices);
   }
   if (next.combat?.step !== "damage") return next;
+  // W2b — reações de combate ("when this Unit deals battle damage / destroys …"), uma por vez:
+  // se uma pausa pra escolha, as seguintes ficam em `combat.pendingReactions` e voltam aqui
+  // quando `resolveAbility` fecha a decisão.
+  while (next.combat?.pendingReactions?.length) {
+    const [occ, ...rest] = next.combat.pendingReactions;
+    next = { ...next, combat: { ...next.combat, pendingReactions: rest } };
+    next = dispatchReactions(next, [occ], specs, { predicateResolver, targetFilterResolver });
+    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (next.combat?.step !== "damage") return next;
+  }
   return resolveBattleEndStep(next);
+}
+
+/** End Step pausado por decisão (W2a): Action Step do fim de turno já fechado, fora de combate, ainda na End Phase. */
+function pausedInEndStep(state: GameState): boolean {
+  return state.phase === "end" && state.endPhaseAction === null && !state.combat;
 }
