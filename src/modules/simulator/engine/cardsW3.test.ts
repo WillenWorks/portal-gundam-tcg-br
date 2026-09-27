@@ -353,3 +353,14 @@ describe("W3 — Commands e Bases", () => {
     expect(after.players.A.exile.length).toBe(1);
   });
 });
+
+describe("W3 — link misto (GD04-045)", () => {
+  it("\"(Trinity) Trait / [Ali al-Saachez]\": linka com o nome OU com Piloto (Trinity)", async () => {
+    const { satisfiesLinkCondition } = await import("./types");
+    const unit = G["GD04-045"];
+    expect(unit.link).toEqual({ kind: "pilotName", values: ["Ali al-Saachez"], orTraits: ["Trinity"] });
+    expect(satisfiesLinkCondition(PILOT({ nameEn: "Ali al-Saachez" }), unit)).toBe(true);
+    expect(satisfiesLinkCondition(PILOT({ nameEn: "Nena Trinity", traits: ["Trinity"] }), unit)).toBe(true);
+    expect(satisfiesLinkCondition(PILOT({ nameEn: "Other", traits: ["CB"] }), unit)).toBe(false);
+  });
+});

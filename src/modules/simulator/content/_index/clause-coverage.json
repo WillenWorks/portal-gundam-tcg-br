@@ -10880,18 +10880,16 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 37,
+        "full": 40,
         "partial": 0,
-        "missing": 75,
+        "missing": 72,
         "withErrors": 0
       },
       "cards": [
         {
           "code": "GD04-001",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10910,15 +10908,15 @@
         {
           "code": "GD04-002",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "During your turn, all your (Earth Federation) Units get AP+1."
             },
             {
@@ -10938,9 +10936,7 @@
         {
           "code": "GD04-003",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10958,9 +10954,7 @@
         {
           "code": "GD04-004",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -10983,17 +10977,13 @@
         {
           "code": "GD04-005",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-006",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11021,9 +11011,7 @@
         {
           "code": "GD04-007",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11040,16 +11028,16 @@
         },
         {
           "code": "GD04-008",
-          "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <High-Maneuver>."
             }
           ]
@@ -11057,9 +11045,7 @@
         {
           "code": "GD04-009",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11077,17 +11063,13 @@
         {
           "code": "GD04-010",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-011",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11105,17 +11087,13 @@
         {
           "code": "GD04-012",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-013",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11129,17 +11107,13 @@
         {
           "code": "GD04-014",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-015",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11156,10 +11130,8 @@
         },
         {
           "code": "GD04-016",
-          "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11173,8 +11145,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
               "text": "This Unit can't choose the enemy player as its attack target."
             }
           ]
@@ -11182,9 +11156,7 @@
         {
           "code": "GD04-017",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11213,9 +11185,7 @@
         {
           "code": "GD04-018",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11238,9 +11208,7 @@
         {
           "code": "GD04-019",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11267,9 +11235,7 @@
         {
           "code": "GD04-020",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11283,9 +11249,7 @@
         {
           "code": "GD04-021",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11308,22 +11272,24 @@
         {
           "code": "GD04-022",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "All your Unit tokens gain <Breach 1>."
             },
             {
               "i": 1,
               "triggers": [],
               "by": "missing",
-              "refs": [],
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested."
             }
           ]
@@ -11331,9 +11297,7 @@
         {
           "code": "GD04-023",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11352,9 +11316,7 @@
         {
           "code": "GD04-024",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11372,9 +11334,7 @@
         {
           "code": "GD04-025",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11393,9 +11353,7 @@
         {
           "code": "GD04-026",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11414,17 +11372,13 @@
         {
           "code": "GD04-027",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-028",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11442,9 +11396,7 @@
         {
           "code": "GD04-029",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11458,9 +11410,7 @@
         {
           "code": "GD04-030",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11479,25 +11429,19 @@
         {
           "code": "GD04-031",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-032",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-033",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11518,9 +11462,7 @@
         {
           "code": "GD04-034",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11543,9 +11485,7 @@
         {
           "code": "GD04-035",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11564,9 +11504,7 @@
         {
           "code": "GD04-036",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11585,9 +11523,7 @@
         {
           "code": "GD04-037",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11608,9 +11544,7 @@
         {
           "code": "GD04-038",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11628,9 +11562,7 @@
         {
           "code": "GD04-039",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11656,17 +11588,13 @@
         {
           "code": "GD04-040",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-041",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11680,9 +11608,7 @@
         {
           "code": "GD04-042",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11696,9 +11622,7 @@
         {
           "code": "GD04-043",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11717,9 +11641,7 @@
         {
           "code": "GD04-044",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11738,9 +11660,7 @@
         {
           "code": "GD04-045",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11759,9 +11679,7 @@
         {
           "code": "GD04-046",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11779,25 +11697,19 @@
         {
           "code": "GD04-047",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-048",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-049",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11825,9 +11737,7 @@
         {
           "code": "GD04-050",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11855,9 +11765,7 @@
         {
           "code": "GD04-051",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11871,9 +11779,7 @@
         {
           "code": "GD04-052",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11891,9 +11797,7 @@
         {
           "code": "GD04-053",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11907,9 +11811,7 @@
         {
           "code": "GD04-054",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11925,17 +11827,13 @@
         {
           "code": "GD04-055",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-056",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11953,9 +11851,7 @@
         {
           "code": "GD04-057",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11974,9 +11870,7 @@
         {
           "code": "GD04-058",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -11995,17 +11889,13 @@
         {
           "code": "GD04-059",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-060",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12024,9 +11914,7 @@
         {
           "code": "GD04-061",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12049,17 +11937,13 @@
         {
           "code": "GD04-062",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-063",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12078,17 +11962,13 @@
         {
           "code": "GD04-064",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-065",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12118,9 +11998,7 @@
         {
           "code": "GD04-066",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12143,9 +12021,7 @@
         {
           "code": "GD04-067",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12164,9 +12040,7 @@
         {
           "code": "GD04-068",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12189,9 +12063,7 @@
         {
           "code": "GD04-069",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12214,9 +12086,7 @@
         {
           "code": "GD04-070",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12235,9 +12105,7 @@
         {
           "code": "GD04-071",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12268,9 +12136,7 @@
         {
           "code": "GD04-072",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12288,9 +12154,7 @@
         {
           "code": "GD04-073",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12308,9 +12172,7 @@
         {
           "code": "GD04-074",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12329,9 +12191,7 @@
         {
           "code": "GD04-075",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12345,17 +12205,13 @@
         {
           "code": "GD04-076",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-077",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12371,25 +12227,19 @@
         {
           "code": "GD04-078",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-079",
           "status": "vanilla",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": []
         },
         {
           "code": "GD04-080",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12407,9 +12257,7 @@
         {
           "code": "GD04-081",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12438,9 +12286,7 @@
         {
           "code": "GD04-082",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12468,10 +12314,8 @@
         },
         {
           "code": "GD04-083",
-          "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "status": "full",
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12487,8 +12331,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "All your (League Militaire) Unit tokens get AP+1."
             }
           ]
@@ -12496,9 +12342,7 @@
         {
           "code": "GD04-084",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12527,9 +12371,7 @@
         {
           "code": "GD04-085",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12554,9 +12396,7 @@
         {
           "code": "GD04-086",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12586,9 +12426,7 @@
         {
           "code": "GD04-087",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12618,9 +12456,7 @@
         {
           "code": "GD04-088",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12645,9 +12481,7 @@
         {
           "code": "GD04-089",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12676,9 +12510,7 @@
         {
           "code": "GD04-090",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12703,9 +12535,7 @@
         {
           "code": "GD04-091",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12735,9 +12565,7 @@
         {
           "code": "GD04-092",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12766,9 +12594,7 @@
         {
           "code": "GD04-093",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12798,9 +12624,7 @@
         {
           "code": "GD04-094",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12830,9 +12654,7 @@
         {
           "code": "GD04-095",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12862,9 +12684,7 @@
         {
           "code": "GD04-096",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12889,9 +12709,7 @@
         {
           "code": "GD04-097",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12920,9 +12738,7 @@
         {
           "code": "GD04-098",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12947,9 +12763,7 @@
         {
           "code": "GD04-099",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -12979,9 +12793,7 @@
         {
           "code": "GD04-100",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13006,9 +12818,7 @@
         {
           "code": "GD04-101",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13041,9 +12851,7 @@
         {
           "code": "GD04-102",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13073,9 +12881,7 @@
         {
           "code": "GD04-103",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13093,9 +12899,7 @@
         {
           "code": "GD04-104",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13124,9 +12928,7 @@
         {
           "code": "GD04-105",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13144,9 +12946,7 @@
         {
           "code": "GD04-106",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13174,9 +12974,7 @@
         {
           "code": "GD04-107",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13206,9 +13004,7 @@
         {
           "code": "GD04-108",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13238,9 +13034,7 @@
         {
           "code": "GD04-109",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13260,9 +13054,7 @@
         {
           "code": "GD04-110",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13283,9 +13075,7 @@
         {
           "code": "GD04-111",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13314,9 +13104,7 @@
         {
           "code": "GD04-112",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13343,9 +13131,7 @@
         {
           "code": "GD04-113",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13375,9 +13161,7 @@
         {
           "code": "GD04-114",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13408,9 +13192,7 @@
         {
           "code": "GD04-115",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13440,9 +13222,7 @@
         {
           "code": "GD04-116",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13470,9 +13250,7 @@
         {
           "code": "GD04-117",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13501,9 +13279,7 @@
         {
           "code": "GD04-118",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13532,9 +13308,7 @@
         {
           "code": "GD04-119",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13564,9 +13338,7 @@
         {
           "code": "GD04-120",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13595,9 +13367,7 @@
         {
           "code": "GD04-121",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13626,9 +13396,7 @@
         {
           "code": "GD04-122",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13669,9 +13437,7 @@
         {
           "code": "GD04-123",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13707,9 +13473,7 @@
         {
           "code": "GD04-124",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13745,9 +13509,7 @@
         {
           "code": "GD04-125",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13788,9 +13550,7 @@
         {
           "code": "GD04-126",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13826,9 +13586,7 @@
         {
           "code": "GD04-127",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13857,9 +13615,7 @@
         {
           "code": "GD04-128",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13899,9 +13655,7 @@
         {
           "code": "GD04-129",
           "status": "missing",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,
@@ -13937,9 +13691,7 @@
         {
           "code": "GD04-130",
           "status": "full",
-          "errors": [
-            "unknownCode"
-          ],
+          "errors": [],
           "clauses": [
             {
               "i": 0,

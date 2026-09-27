@@ -175,7 +175,7 @@ function PanelBody({
         <p className="text-xs text-amber-300/90">
           <span className="uppercase tracking-wide text-amber-500/70">Link:</span>{" "}
           {def.link.kind === "pilotName"
-            ? def.link.values.map((v) => `[${v}]`).join(" / ")
+            ? [...(def.link.orTraits ?? []).map((v) => `(${v})`), ...def.link.values.map((v) => `[${v}]`)].join(" / ")
             : def.link.values.map((v) => `(${v})`).join(" / ")}
         </p>
       ) : null}

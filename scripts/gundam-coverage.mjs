@@ -63,6 +63,7 @@ const { ST08_CARD_DEFS } = await import("../src/modules/simulator/fixtures/st08D
 const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/index.ts");
 const { GD02_CARD_DEFS } = await import("../src/modules/simulator/content/gd02/index.ts");
 const { GD03_CARD_DEFS } = await import("../src/modules/simulator/content/gd03/index.ts");
+const { GD04_CARD_DEFS } = await import("../src/modules/simulator/content/gd04/index.ts");
 
 const DEF_BY_CODE = new Map();
 for (const defs of [
@@ -77,6 +78,7 @@ for (const defs of [
   GD01_CARD_DEFS,
   GD02_CARD_DEFS,
   GD03_CARD_DEFS,
+  GD04_CARD_DEFS,
 ]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }

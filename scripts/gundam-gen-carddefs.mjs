@@ -23,7 +23,7 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { splitClauses } = await import(pathToFileURL(path.join(REPO, "src/modules/simulator/content/coverage/clauseAudit.ts")).href);
+const { buildCardDef } = await import(pathToFileURL(path.join(REPO, "scripts/lib/gen-carddefs.mjs")).href);
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -41,63 +41,6 @@ const official = JSON.parse(readFileSync(path.join(REPO, "data/gcg-official-card
 const apitcgRaw = JSON.parse(readFileSync(path.join(REPO, "data/apitcg-gundam.json"), "utf8"));
 const apitcg = Array.isArray(apitcgRaw) ? apitcgRaw : (apitcgRaw.cards ?? apitcgRaw.data ?? Object.values(apitcgRaw));
 const statsByCode = new Map(apitcg.filter((c) => c.code && c.attributes).map((c) => [c.code, c.attributes]));
-
-const int = (v) => {
-  const n = Number(String(v ?? "").replace(/^\+/, ""));
-  return Number.isFinite(n) ? n : undefined;
-};
-
-export function buildCardDef(card, stats) {
-  if (!stats) throw new Error(`${card.code}: sem stats no apitcg`);
-  const cardType = card.cardType;
-  const def = {
-    code: card.code,
-    nameEn: card.name,
-    cardType,
-    color: String(stats.Color ?? "").toLowerCase(),
-    level: int(stats.Level),
-    cost: int(stats.Cost),
-  };
-  if (cardType === "UNIT" || cardType === "BASE" || cardType === "PILOT") {
-    def.ap = int(stats["Attack Points"]) ?? 0;
-    def.hp = int(stats["Hit Points"]) ?? 0;
-  }
-  if ((card.traits ?? []).length && cardType !== "COMMAND") def.traits = [...card.traits];
-  if (cardType === "COMMAND" && (card.traits ?? []).length) def.traits = [...card.traits];
-
-  const link = card.link && card.link !== "-" ? card.link : null;
-  if (link) {
-    const names = [...link.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
-    const traits = [...link.matchAll(/\(([^)]+)\)/g)].map((m) => m[1].trim());
-    def.link = names.length ? { kind: "pilotName", values: names } : { kind: "trait", values: traits };
-  }
-
-  const clauses = splitClauses(card.effect ?? "");
-  const effectKeywords = [];
-  const keywordTags = [];
-  const triggers = [];
-  for (const c of clauses) {
-    for (const t of c.triggers) if (!triggers.includes(t)) triggers.push(t);
-    if (c.kind === "keyword") {
-      for (const m of c.body.matchAll(/<([A-Za-z][A-Za-z -]*?)(?:\s+(\d+))?>/g)) {
-        const name = m[1].trim();
-        if (!effectKeywords.includes(name)) effectKeywords.push(name);
-        if (m[2]) keywordTags.push(`${name} ${m[2]}`);
-      }
-    }
-    if (c.kind === "pilotMode" && c.pilotName) {
-      def.pilotMode = { pilotName: c.pilotName, ap: int(stats["Attack Points"]) ?? 0, hp: int(stats["Hit Points"]) ?? 0 };
-      // mesma convenção dos Commands de GD01–GD03: AP/HP do modo Piloto também no próprio def
-      def.ap = def.pilotMode.ap;
-      def.hp = def.pilotMode.hp;
-    }
-  }
-  if (effectKeywords.length) def.effectKeywords = effectKeywords;
-  if (keywordTags.length) def.keywordTags = keywordTags;
-  if (triggers.length) def.triggerKeywords = triggers;
-  if (triggers.includes("Burst")) def.hasBurst = true;
-  return def;
-}
 
 function fileKey(def) {
   if (def.cardType === "UNIT") return `units${def.color[0].toUpperCase()}${def.color.slice(1)}`;

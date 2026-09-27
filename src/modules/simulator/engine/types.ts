@@ -104,7 +104,12 @@ export interface CardDef {
    * 3-2-6-4, ex. link "[Amuro Ray]"); `kind: "trait"` casa se o Pilot pareado
    * tiver algum desses traits (ex. link "(OZ) Trait").
    */
-  link?: { kind: "pilotName" | "trait"; values: string[] };
+  link?: {
+    kind: "pilotName" | "trait";
+    values: string[];
+    /** W3 — link misto "(Trinity) Trait / [Ali al-Saachez]" (GD04-045, GD05-010…): Piloto com o nome OU um destes traits. */
+    orTraits?: string[];
+  };
   /**
    * GD02-098 Quattro Bajeena — "This card's name is also treated as [Char Aznable]." Só
    * relevante pra `satisfiesLinkCondition` (link `kind: "pilotName"` de OUTRA carta, ex.
@@ -653,7 +658,8 @@ export function satisfiesLinkCondition(pilotDef: CardDef, unitDef: CardDef): boo
   if (!link) return false;
   if (link.kind === "pilotName") {
     const names = [pilotDef.nameEn, ...(pilotDef.nameAliases ?? [])];
-    return link.values.some((name) => names.some((candidate) => candidate.includes(name)));
+    if (link.values.some((name) => names.some((candidate) => candidate.includes(name)))) return true;
+    return (link.orTraits ?? []).some((trait) => (pilotDef.traits ?? []).includes(trait));
   }
   return link.values.some((trait) => (pilotDef.traits ?? []).includes(trait));
 }

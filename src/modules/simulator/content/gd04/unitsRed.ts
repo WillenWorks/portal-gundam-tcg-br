@@ -263,6 +263,9 @@ export const UNITS_RED: Record<string, CardDef> = {
       "kind": "pilotName",
       "values": [
         "Ali al-Saachez"
+      ],
+      "orTraits": [
+        "Trinity"
       ]
     },
     "triggerKeywords": [
