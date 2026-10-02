@@ -1165,9 +1165,8 @@ function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, sta
  */
 /** "Breach" casa "Breach" e "Breach 3" (não "Breacher") */
 function keywordNameMatches(text: string, keyword: string): boolean {
-  const t = text.toLowerCase();
-  const k = keyword.toLowerCase();
-  return t === k || t.startsWith(`${k} `);
+  // caminho quente (bot/MCTS): sem alocação — igualdade, ou o nome seguido de espaço + valor
+  return text === keyword || (text.length > keyword.length && text.charCodeAt(keyword.length) === 32 && text.startsWith(keyword));
 }
 
 export function hasKeyword(card: CardInstance, keyword: string, state?: GameState): boolean {
