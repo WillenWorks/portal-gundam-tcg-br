@@ -19,7 +19,7 @@ const IMPLICIT_TARGETS = new Set(["battleVictim", "reactionSubject", "formerPair
  * Pendências conhecidas (auditoria W4/W5, item A3) — em investigação. Remover daqui ao resolver;
  * o teste falha se a lista ficar desatualizada (spec consertado ou removido).
  */
-const KNOWN_PENDING_TARGETS = new Set(["ST07-013-Action"]);
+const KNOWN_PENDING_TARGETS = new Set<string>();
 
 function refsIn(v: unknown, out: Array<{ kind: string; name: string }> = []): Array<{ kind: string; name: string }> {
   if (!v || typeof v !== "object") return out;
@@ -74,6 +74,11 @@ describe("invariantes de EffectSpec (todos os sets)", () => {
   it("a lista de pendências conhecidas não está desatualizada", () => {
     const ids = new Set(ALL_EFFECT_SPECS.map((s) => s.id));
     for (const id of KNOWN_PENDING_TARGETS) expect(ids.has(id), `${id} não existe mais — tire de KNOWN_PENDING_TARGETS`).toBe(true);
+  });
+
+  it("spec sem efeito nenhum (sem actions, cost nem condition) não existe — senão a auditoria conta a cláusula como coberta", () => {
+    const bad = ALL_EFFECT_SPECS.filter((s) => s.actions.length === 0 && !s.cost?.length && !s.condition && !s.condition2).map((s) => s.id);
+    expect(bad).toEqual([]);
   });
 
   it("gatilho `Reaction:`/`Delayed:` bate com `reaction.event`", () => {

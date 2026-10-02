@@ -428,6 +428,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       };
       return state;
     }
+    case "ATTACK_TARGET_CHANGED": {
+      if (state.combat) state.combat.currentTarget = { unitId: event.unitId };
+      return state;
+    }
     case "BLOCK_DECLARED": {
       if (state.combat) {
         state.combat.currentTarget = event.newTarget;

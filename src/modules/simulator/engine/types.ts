@@ -1581,6 +1581,8 @@ export type GameEvent =
   | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
   /** W5 (C2) */
   | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  /** auditoria A3 — ST07-013: o ataque em andamento passa a mirar esta Unit (sem ser bloqueio) */
+  | { type: "ATTACK_TARGET_CHANGED"; unitId: string }
   /** W5 — ver `PlayerState.delayedReactions` */
   | { type: "ADD_DELAYED_REACTION"; player: PlayerId; entry: DelayedReaction }
   /** W5 (C6) — o Command foi pago com (ou sem) EX Resource; só sai quando muda algo (ver `playCommand`) */

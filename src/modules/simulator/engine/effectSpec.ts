@@ -381,6 +381,11 @@ export type PrimitiveCall =
       sourceUnitOnly?: boolean;
       sourceMaxLevel?: number;
     }
+  /**
+   * Auditoria A3 — ST07-013 "Change the attack target of the battling enemy Unit to it.": só com uma Unit
+   * INIMIGA atacando agora (combate em andamento); o alvo antigo deixa de estar em batalha (CR 5-22-2).
+   */
+  | { op: "changeAttackTarget"; target: TargetRef }
   /** W5 (C5) — GD04-021 "pair that card from your trash with one of your Units": a carta (Command com 【Pilot】) vira Piloto */
   | { op: "pairCardFromTrashAsPilot"; card: TargetRef; unit: TargetRef }
   /**
@@ -700,6 +705,12 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "changeAttackTarget": {
+      const combat = ctx.state.combat;
+      const [unitId] = resolveTargetIds(call.target, ctx);
+      if (!combat || !unitId || combat.attackingPlayer === ctx.controller) return [];
+      return [{ type: "ATTACK_TARGET_CHANGED", unitId }];
     }
     case "pairCardFromTrashAsPilot": {
       const [cardId] = resolveTargetIds(call.card, ctx);

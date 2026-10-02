@@ -864,3 +864,25 @@ describe("auditoria A3 — ST06 (alvo 'targets') pede escolha no fluxo real", ()
     expect(dmg(damageStep(s, c2, high), c2)).toBe(3);
   });
 });
+
+describe("auditoria A3 — ST07-013 Armed Intervention muda o alvo do ataque inimigo", () => {
+  it("B ataca o jogador A; no Action Step A joga ST07-013 e o ataque passa a mirar a Unit (CB) descansada", () => {
+    const cmd = getCardDefByCode("ST07-013");
+    if (!cmd) throw new Error("ST07-013");
+    let state = game();
+    state = { ...state, activePlayer: "B" };
+    resources(state, "A", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const cb = placeCard(state, "A", UNIT({ hp: 9, traits: ["CB"] }), "battleArea", { rested: true });
+    placeCard(state, "A", UNIT({ hp: 9 }), "battleArea", { rested: true }); // sem trait: não é alvo
+    const attacker = placeCard(state, "B", UNIT({ ap: 3, hp: 9 }), "battleArea");
+    const card = placeCard(state, "A", cmd, "hand");
+    state = {
+      ...state,
+      combat: { step: "action", attackerId: attacker, attackingPlayer: "B", defendingPlayer: "A", originalTarget: "player", currentTarget: "player", actionPasses: { A: false, B: false }, actionPriority: "A" },
+    };
+    const offer = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "playCommand" && a.cardInstanceId === card);
+    expect(offer.map((a) => (a.kind === "playCommand" ? a.targets?.target : undefined))).toEqual([[cb]]);
+    state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Action", targets: { target: [cb] } });
+    expect(state.combat?.currentTarget).toEqual({ unitId: cb });
+  });
+});

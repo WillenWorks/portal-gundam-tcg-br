@@ -169,6 +169,10 @@
     "pairCardFromTrashAsPilot": {
       "description": "Pareia a carta <card> do trash (com 【Pilot】) como Piloto da Unit <target>.",
       "since": "GD04-021"
+    },
+    "changeAttackTarget": {
+      "description": "Muda o alvo do ataque INIMIGO em andamento para a Unit escolhida (não é bloqueio).",
+      "since": "ST07-013"
     }
   },
   "targetRefKinds": {
