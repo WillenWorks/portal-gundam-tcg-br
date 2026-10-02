@@ -1,5 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
-import { effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
