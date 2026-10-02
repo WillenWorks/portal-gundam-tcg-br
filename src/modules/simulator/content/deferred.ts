@@ -203,6 +203,15 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
     kind: "approximation",
   },
+  // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
+  {
+    cardCode: "*",
+    clause: "Exilar N cartas do trash (custo ou efeito \"choose N … from your trash. Exile them\")",
+    reason:
+      "o motor exila as N primeiras cartas elegíveis do trash em vez de o jogador escolher (GD02-111, GD03-009/015/035/050/054/059, GD04-049/065/071/130) — muda o resultado só quando a identidade das cartas importa depois (contagens por nome/trait no trash, GD04-067)",
+    blockedBy: "engine:exile-choice-from-trash (aproximação aceita; escolha entra com o C3 Development N, W9)",
+    kind: "approximation",
+  },
   // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
   {
     cardCode: "GD03-064",
