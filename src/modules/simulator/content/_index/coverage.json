@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "605 specs",
+  "generatedFrom": "635 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -2798,10 +2798,8 @@
         {
           "code": "GD03-062",
           "name": "GX-Bit",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-063",
@@ -3241,10 +3239,10 @@
         }
       ],
       "counts": {
-        "impl": 107,
+        "impl": 108,
         "implStar": 3,
         "vanilla": 16,
-        "deferida": 6,
+        "deferida": 5,
         "faltando": 0
       }
     }

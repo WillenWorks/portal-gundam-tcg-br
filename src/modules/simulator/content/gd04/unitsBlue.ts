@@ -277,6 +277,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD04-013": {
     "code": "GD04-013",
+    // W4 (GD04)
+    staticAbilities: [
+      {
+        sourceText: "While this Unit is rested, all your (League Militaire) Unit tokens gain <Blocker>.",
+        condition: "always",
+        scope: "allFriendlyUnits",
+        boardCondition: { kind: "selfRested" },
+        targetCondition: { kind: "allOf", conditions: [{ kind: "isToken" }, { kind: "traitIs", trait: "League Militaire" }] },
+        keyword: "Blocker",
+      },
+    ],
     "nameEn": "Core Fighter",
     "cardType": "UNIT",
     "color": "blue",

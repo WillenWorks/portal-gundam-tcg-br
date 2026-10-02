@@ -49,7 +49,10 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
   // W2b (C4) — GD03-081: só ataca no turno em que uma Unit sua com o trait entrou em jogo.
   // Aproximação: conta as Units com o trait que ESTÃO em jogo e entraram neste turno.
   const restriction = attacker.def.attackRestriction;
-  if (restriction) {
+  if (restriction?.requiresTrashCountAtLeast !== undefined && state.players[attacker.owner].trash.length < restriction.requiresTrashCountAtLeast) {
+    return `${attacker.def.code}: esta Unit não pode atacar com ${restriction.requiresTrashCountAtLeast - 1} ou menos cartas no trash`;
+  }
+  if (restriction?.requiresFriendlyUnitWithAnyTraitDeployedThisTurn) {
     const traits = restriction.requiresFriendlyUnitWithAnyTraitDeployedThisTurn;
     const deployedThisTurn = state.players[attacker.owner].battleArea.some(
       (c) =>
@@ -125,7 +128,9 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
       // W2b — GD03-035 (AP <= o desta Unit) / GD03-105 (inimiga sem Piloto pareado)
       const allowedBySelfAp = !!granted?.apAtMostSelf && effectiveAp(targetUnit, state) <= effectiveAp(attacker, state);
       const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
-      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired;
+      // W4 — GD04-045 "a damaged active enemy Unit"
+      const allowedDamaged = !!granted?.damagedOnly && targetUnit.damage > 0;
+      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged;
       if (!allowed) {
         return "Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)";
       }

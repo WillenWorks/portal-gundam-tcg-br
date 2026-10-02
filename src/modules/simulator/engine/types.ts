@@ -55,7 +55,14 @@ export interface CardDef {
    * Reusa `StaticBoardCondition` (Lote 3): a "fonte" aqui é a própria carta na
    * MÃO, nunca contada nela mesma (nem excluída à parte — não está em campo/trash).
    */
-  dynamicCost?: { condition: StaticBoardCondition; amount: number; perEnemyUnit?: boolean };
+  dynamicCost?: {
+    /** omitido = sempre (ex. GD04-075, só a contagem) */
+    condition?: StaticBoardCondition;
+    amount: number;
+    perEnemyUnit?: boolean;
+    /** W4 — GD04-075 "Reduce the cost … by the number of (UN)/(Superpower Bloc) Command cards in your trash": `amount` × contagem */
+    perTrashMatching?: { cardType?: CardType; anyTrait?: string[] };
+  };
   /**
    * Redução ou modificação dinâmica de Nível na mão (ex.: ST08-001 Xi Gundam).
    */
@@ -191,7 +198,11 @@ export interface CardDef {
     trait?: string;
   };
   /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
-  attackRestriction?: { requiresFriendlyUnitWithAnyTraitDeployedThisTurn: string[] };
+  attackRestriction?: {
+    requiresFriendlyUnitWithAnyTraitDeployedThisTurn?: string[];
+    /** W4 — GD04-061 "This Unit can't attack while there are 6 or less cards in your trash." */
+    requiresTrashCountAtLeast?: number;
+  };
   /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
   protectsShieldsWhileRested?: boolean;
   /**
@@ -376,6 +387,12 @@ export type StaticBoardCondition =
   | { kind: "friendlyUnitNameContains"; text: string }
   /** W2c — GD03-068 "While a friendly Base is in play". */
   | { kind: "friendlyBaseInPlay" }
+  /** W4 — GD04-013 "While this Unit is rested" (a própria fonte, via `excludeInstanceId`) */
+  | { kind: "selfRested" }
+  /** W4 — GD04-037 "While you have a red (Super Soldier) Pilot in play" (Piloto pareado em campo) */
+  | { kind: "friendlyPilotInPlay"; trait: string; color?: string }
+  /** W4 — GD04-039 "If there are 8 or more (Neo Zeon) cards in your trash" */
+  | { kind: "trashTraitCountAtLeast"; trait: string; n: number }
   /** W2c — GD03-037 "while this Unit is battling an enemy Unit with a 【Destroyed】 effect" (`triggerKeywords` da inimiga). */
   | { kind: "battlingEnemyHasTrigger"; trigger: string }
   /** GD03-033 — 【During Pair･(ZAFT) Pilot】: trait do Piloto pareado com a fonte. */
@@ -429,7 +446,10 @@ export interface StaticAbility {
    * Unit's AP by an amount equal to the number of (Cyclops Team) Pilot cards/Command cards with unique
    * names in your trash."
    */
-  amountFrom?: { kind: "trashUniqueNames"; cardTypes: CardType[]; trait: string };
+  amountFrom?:
+    | { kind: "trashUniqueNames"; cardTypes: CardType[]; trait: string }
+    /** W4 — GD04-034 "AP+2 for each of your rested (CB) Units" */
+    | { kind: "friendlyRestedUnitsWithTrait"; trait: string };
 }
 
 /**
@@ -565,6 +585,8 @@ export interface CardInstance {
   usedKeywordsThisTurn: string[];
   /** turno em que entrou na zona atual — usado por regras tipo "Link ataca imediato ao ser deployada" */
   enteredZoneOnTurn: number;
+  /** W4 — de que zona a carta veio ao entrar na Battle Area (GD04-060/GD03-062 "If you deploy this Unit from your trash") */
+  enteredFromZone?: Zone;
   /**
    * ST04-011 Athrun Zala 【When Linked】 — "During this turn, this Unit may choose
    * an active enemy Unit that is Lv.5 or lower as its attack target." Concessão
@@ -579,6 +601,8 @@ export interface CardInstance {
     apAtMostSelf?: boolean;
     /** GD03-105 — "an active enemy Unit that has no Pilot paired with it" */
     unpairedOnly?: boolean;
+    /** W4 — GD04-045 "a damaged active enemy Unit" */
+    damagedOnly?: boolean;
     turn: number;
   };
   /**
@@ -761,6 +785,22 @@ export function isBoardConditionMet(
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
   }
   if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
+  if (cond.kind === "selfRested") {
+    const self = excludeInstanceId ? findInBattleArea(state, owner, excludeInstanceId) ?? state.players[owner].baseSection?.find((c) => c.instanceId === excludeInstanceId) : undefined;
+    return !!self?.rested;
+  }
+  if (cond.kind === "friendlyPilotInPlay") {
+    return state.players[owner].battleArea.some(
+      (c) =>
+        c.def.cardType === "PILOT" &&
+        !!c.pairedUnitId &&
+        (c.def.traits ?? []).includes(cond.trait) &&
+        (cond.color === undefined || c.def.color === cond.color),
+    );
+  }
+  if (cond.kind === "trashTraitCountAtLeast") {
+    return state.players[owner].trash.filter((c) => (c.def.traits ?? []).includes(cond.trait)).length >= cond.n;
+  }
   if (cond.kind === "battlingEnemyHasTrigger") {
     const combat = state.combat;
     if (!combat || !excludeInstanceId) return false;
@@ -829,6 +869,9 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
 }
 
 function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>): number {
+  if (from.kind === "friendlyRestedUnitsWithTrait") {
+    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(from.trait)).length;
+  }
   const names = new Set(
     state.players[owner].trash
       .filter((c) => from.cardTypes.includes(c.def.cardType) && (c.def.traits ?? []).includes(from.trait))
@@ -936,8 +979,17 @@ export function effectiveHp(card: CardInstance, state?: GameState, pairedPilot?:
 export function effectiveCost(def: CardDef, state?: GameState, controller?: PlayerId): number {
   const base = def.cost ?? 0;
   if (!def.dynamicCost || !state || !controller) return base;
-  const met = isBoardConditionMet(state, controller, def.dynamicCost.condition);
+  const met = !def.dynamicCost.condition || isBoardConditionMet(state, controller, def.dynamicCost.condition);
   if (!met) return base;
+  const perTrash = def.dynamicCost.perTrashMatching;
+  if (perTrash) {
+    const count = state.players[controller].trash.filter(
+      (c) =>
+        (perTrash.cardType === undefined || c.def.cardType === perTrash.cardType) &&
+        (perTrash.anyTrait === undefined || (c.def.traits ?? []).some((t) => perTrash.anyTrait?.includes(t))),
+    ).length;
+    return Math.max(0, base + def.dynamicCost.amount * count);
+  }
   if (def.dynamicCost.perEnemyUnit) {
     const enemyCount = state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT").length;
     return Math.max(0, base + def.dynamicCost.amount * enemyCount);
@@ -1443,6 +1495,7 @@ export type GameEvent =
       maxAp?: number;
       apAtMostSelf?: boolean;
       unpairedOnly?: boolean;
+      damagedOnly?: boolean;
       turn: number;
     }
   /** GD02-040 Gundam Ashtaron — ver `CardInstance.battleDamageImmunityUntilTurn`. */

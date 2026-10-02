@@ -53,7 +53,9 @@ export type TargetRef =
   /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
   | { kind: "group"; group: TargetGroup }
   /** W2c — GD03-110 "Choose 1 Pilot paired with an enemy Unit …": o Piloto pareado com a Unit escolhida em `name` */
-  | { kind: "pairedPilotOf"; name: string };
+  | { kind: "pairedPilotOf"; name: string }
+  /** W4 — GD04-001 "a blue Pilot paired with this Unit": o Piloto pareado com a fonte (vazio se não há) */
+  | { kind: "selfPairedPilot" };
 
 
 /**
@@ -98,7 +100,9 @@ export type TargetGroup =
    * "if you do" (só exilar se houver 6+ elegíveis) é modelado pelo `condition` do spec
    * (`controllerTrashUnitColorCountAtLeast`), não aqui.
    */
-  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter };
+  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter }
+  /** W4 — GD04-043 "Choose 1 enemy Base" (no máximo 1 Base por jogador — sem escolha) */
+  | { kind: "enemyBase" };
 
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
@@ -117,7 +121,12 @@ export type AmountFrom =
   /** GD03-071 — "For each (AEUG) Unit card in your trash" */
   | { kind: "controllerTrashCount"; filter: CardDefFilter }
   /** GD03-107 — "equal to the number of friendly Unit tokens in play" */
-  | { kind: "friendlyUnitTokenCount" };
+  | { kind: "friendlyUnitTokenCount" }
+  /**
+   * W4 — GD04-116 "Place the top 2 cards … Deal damage equal to the number of (Minerva Squad) cards
+   * placed": conta nas N do topo AGORA — o spec põe o dano ANTES do `millToTrash` nas actions.
+   */
+  | { kind: "topOfDeckTraitCount"; n: number; trait: string };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -128,6 +137,9 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
   }
   if (from.kind === "controllerTrashCount") {
     return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
+  }
+  if (from.kind === "topOfDeckTraitCount") {
+    return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => (c.def.traits ?? []).includes(from.trait)).length;
   }
   return call.amount * ctx.state.players[ctx.controller].battleArea.filter((c) => c.def.cardType === "UNIT" && !!c.def.isToken).length;
 }
@@ -165,6 +177,9 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     const match = owner.hand.find((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(group.trait));
     return match ? [match.instanceId] : [];
   }
+  if (group.kind === "enemyBase") {
+    return (ctx.state.players[otherPlayer(ctx.controller)].baseSection ?? []).map((b) => b.instanceId);
+  }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[ctx.controller];
     return owner.trash
@@ -180,7 +195,10 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
 }
 
 /** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "pairedUnit", "instance", "named"). */
-function resolveTarget(ref: Exclude<TargetRef, { kind: "group" } | { kind: "namedGroup" } | { kind: "pairedPilotOf" }>, ctx: EffectContext): string {
+function resolveTarget(
+  ref: Exclude<TargetRef, { kind: "group" } | { kind: "namedGroup" } | { kind: "pairedPilotOf" } | { kind: "selfPairedPilot" }>,
+  ctx: EffectContext,
+): string {
   switch (ref.kind) {
     case "self":
       return ctx.sourceInstanceId;
@@ -208,6 +226,10 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
   // 0 escolhidos é uma escolha legal ("Choose 1 to 2 ..." com o jogador optando por menos).
   if (ref.kind === "namedGroup") return ctx.targets[ref.name] ?? [];
+  if (ref.kind === "selfPairedPilot") {
+    const pilotId = findCard(ctx.state, ctx.sourceInstanceId).pairedPilotId;
+    return pilotId ? [pilotId] : [];
+  }
   if (ref.kind === "pairedPilotOf") {
     const unitId = ctx.targets[ref.name]?.[0];
     const pilotId = unitId ? findCard(ctx.state, unitId).pairedPilotId : undefined;
@@ -320,7 +342,7 @@ export type PrimitiveCall =
    * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
    * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean }
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean; damagedOnly?: boolean }
   /** GD02-040 Gundam Ashtaron 【Deploy】 — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { op: "grantBattleDamageImmunityUntilTurn"; target: TargetRef; maxAttackerHp: number }
   /**
@@ -411,7 +433,13 @@ export type PrimitiveCall =
    * precisa de `CardDef` por opção). Sempre atua sobre o TOPO do deck agora (só
    * 1 carta — sem ambiguidade de qual).
    */
-  | { op: "moveTopCardToChosenPosition"; player: PlayerRef; optionsKey: string }
+  | {
+      op: "moveTopCardToChosenPosition";
+      player: PlayerRef;
+      optionsKey: string;
+      /** W4 — GD04-026 "Return it to the top of your deck or place it into your trash." (padrão: topo/fundo) */
+      positions?: Array<"top" | "bottom" | "trash">;
+    }
   /**
    * "【Burst】Deploy this card." — coloca a PRÓPRIA carta (BASE → baseSection,
    * UNIT → battleArea) em campo, aplicando a regra de 1 Base (a Base atual vai
@@ -443,6 +471,8 @@ export interface CardDefFilter {
   nameContains?: string;
   /** GD02-088 — "1 green (EF) Unit card/1 card with \"AGE Device\"…": casa se QUALQUER um dos filtros casar (além dos campos acima). */
   anyOf?: CardDefFilter[];
+  /** W4 — GD04-094 "1 purple Unit card with <Suppression>" (keyword impressa da carta) */
+  hasKeyword?: string;
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
@@ -460,6 +490,7 @@ export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boole
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
   if (filter.color && def.color !== filter.color) return false;
+  if (filter.hasKeyword && !(def.effectKeywords ?? []).includes(filter.hasKeyword)) return false;
   if (filter.anyTrait && filter.anyTrait.length > 0) {
     const traits = def.traits ?? [];
     if (!filter.anyTrait.some((t) => traits.includes(t))) return false;
@@ -705,6 +736,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           maxAp: call.maxAp,
           apAtMostSelf: call.apAtMostSelf,
           unpairedOnly: call.unpairedOnly,
+          damagedOnly: call.damagedOnly,
           turn: ctx.turnNumber,
         }),
       );
@@ -873,8 +905,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const top = ctx.state.players[player].deck[0];
       if (!top) return [];
       const chosen = ctx.targets[call.optionsKey]?.[0];
-      const position = chosen === "top" ? "top" : "bottom";
-      return [{ type: "MOVE_WITHIN_DECK", instanceId: top.instanceId, position }];
+      const positions = call.positions ?? ["top", "bottom"];
+      const pick = positions.find((p) => p === chosen) ?? positions[positions.length - 1];
+      if (pick === "trash") return [{ type: "MOVE_CARD", instanceId: top.instanceId, toZone: "trash" }];
+      return [{ type: "MOVE_WITHIN_DECK", instanceId: top.instanceId, position: pick }];
     }
     case "returnTrashToDeckAndShuffle": {
       const player = resolvePlayerRef(call.player, ctx.controller);

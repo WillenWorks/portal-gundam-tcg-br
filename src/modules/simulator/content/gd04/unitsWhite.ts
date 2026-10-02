@@ -228,6 +228,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD04-075": {
     "code": "GD04-075",
+    // W4 (GD04)
+    dynamicCost: { amount: -1, perTrashMatching: { cardType: "COMMAND", anyTrait: ["UN", "Superpower Bloc"] } },
+    structuredSourceText: { dynamicCost: "Reduce the cost of this card in your hand by an amount equal to the number of (UN)/(Superpower Bloc) Command cards in your trash." },
     "nameEn": "GN-X",
     "cardType": "UNIT",
     "color": "white",

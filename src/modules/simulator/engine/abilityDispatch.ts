@@ -170,10 +170,10 @@ function buildQueueEntry(
       ...entry,
       enumChoice: {
         key: choice.optionsKey,
-        options: [
-          { value: "top", label: "Topo do deck" },
-          { value: "bottom", label: "Fundo do deck" },
-        ],
+        options: (choice.positions ?? ["top", "bottom"]).map((value) => ({
+          value,
+          label: value === "top" ? "Topo do deck" : value === "bottom" ? "Fundo do deck" : "Trash",
+        })),
         label: spec.sourceText,
       },
     };

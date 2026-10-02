@@ -260,6 +260,9 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD04-061": {
     "code": "GD04-061",
+    // W4 (GD04)
+    attackRestriction: { requiresTrashCountAtLeast: 7 },
+    structuredSourceText: { attackRestriction: "This Unit can't attack while there are 6 or less cards in your trash." },
     "nameEn": "G-Falcon",
     "cardType": "UNIT",
     "color": "purple",
