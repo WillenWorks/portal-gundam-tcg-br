@@ -1331,7 +1331,13 @@ export function callsNeedNamedTarget(calls: PrimitiveCall[] | undefined): boolea
   return (calls ?? []).some((call) =>
     Object.values(call).some((v) => {
       const ref = v as { kind?: string; name?: string } | null;
-      return typeof ref === "object" && ref !== null && (ref.kind === "named" || ref.kind === "namedGroup") && ref.name === "target";
+      // `pairedPilotOf` (GD03-110, GD04-099) escolhe a Unit em `target` e age no Piloto dela
+      return (
+        typeof ref === "object" &&
+        ref !== null &&
+        (ref.kind === "named" || ref.kind === "namedGroup" || ref.kind === "pairedPilotOf") &&
+        ref.name === "target"
+      );
     }),
   );
 }

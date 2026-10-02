@@ -1012,6 +1012,21 @@ export function dispatchCommandActivated(
  * W5 (C6) — "when you pay ① or more for one of your Units' effects": o spec que resolveu tinha
  * `payResourceCost` no custo e é efeito de Unit (a própria, ou o texto do Piloto pareado nela).
  */
+/**
+ * W5 — quanto o controlador pagou em Recursos neste efeito: Recursos SEUS descansados + EX Resources seus
+ * removidos (`payResourceCostEvents`). Vale para custo (`cost`) e para pagamento dentro do efeito
+ * ("You may pay ①. If you do…", GD04-074).
+ */
+export function resourcePaymentAmount(before: GameState, events: GameEvent[], controller: PlayerId): number {
+  const own = new Map(before.players[controller].resourceArea.map((r) => [r.instanceId, r]));
+  let paid = 0;
+  for (const e of events) {
+    if (e.type === "REST_CARD" && own.get(e.instanceId) && !own.get(e.instanceId)?.rested) paid += 1;
+    else if (e.type === "REMOVE_CARD_FROM_GAME" && own.get(e.instanceId)?.def.code === TOKEN_EX_RESOURCE_CODE) paid += 1;
+  }
+  return paid;
+}
+
 export function paidForUnitEffectOccurrence(state: GameState, sourceInstanceId: string, paid: number): ReactionOccurrence | null {
   if (paid <= 0) return null;
   const source = findCard(state, sourceInstanceId);

@@ -2,7 +2,6 @@ import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer, specPairGateOpen } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { resolveEffectSpec } from "./effectSpec";
-import { specResourceCost } from "./costs";
 import { applyEvent, applyEvents, findCard } from "./events";
 import {
   checkTriggerLoopGuard,
@@ -13,6 +12,7 @@ import {
   dispatchReactionsFromEffect,
   dispatchReactions,
   paidForUnitEffectOccurrence,
+  resourcePaymentAmount,
   attachQueuedTriggers,
   pairingTriggerEntries,
 } from "./abilityDispatch";
@@ -185,7 +185,7 @@ export function dispatchTrigger(
     });
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
     // W5 (C6) — "when you pay ① or more for one of your Units' effects"
-    const paidOcc = paidForUnitEffectOccurrence(before, sourceInstanceId, specResourceCost(spec));
+    const paidOcc = paidForUnitEffectOccurrence(before, sourceInstanceId, resourcePaymentAmount(before, events, current.owner));
     if (paidOcc) {
       next = dispatchReactions(next, [paidOcc], allSpecs, {
         predicateResolver: opts.predicateResolver,
