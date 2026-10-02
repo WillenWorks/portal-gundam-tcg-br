@@ -71,6 +71,8 @@ export const STRUCTURED_FIELDS = [
   "attackRestriction",
   "protectsShieldsWhileRested",
   "damageReductions",
+  "deploysRestedRule",
+  "grantsTraitToFriendlyUnits",
   "dynamicCost",
   "onSupportUsed",
   "innateStatReductionImmunity",

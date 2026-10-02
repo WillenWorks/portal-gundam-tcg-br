@@ -103,7 +103,9 @@ export type TargetGroup =
    */
   | { kind: "firstNInTrash"; count: number; filter: CardDefFilter }
   /** W4 — GD04-043 "Choose 1 enemy Base" (no máximo 1 Base por jogador — sem escolha) */
-  | { kind: "enemyBase" };
+  | { kind: "enemyBase" }
+  /** W5 — GD04-069 (aproximação de "choose 1 of your (Militia) Units" no fim do turno): a 1ª descansada com o trait */
+  | { kind: "firstRestedFriendlyUnitWithTrait"; trait: string };
 
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
@@ -183,6 +185,12 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     const owner = ctx.state.players[ctx.controller];
     const match = owner.hand.find((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(group.trait));
     return match ? [match.instanceId] : [];
+  }
+  if (group.kind === "firstRestedFriendlyUnitWithTrait") {
+    const unit = ctx.state.players[ctx.controller].battleArea.find(
+      (c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(group.trait),
+    );
+    return unit ? [unit.instanceId] : [];
   }
   if (group.kind === "enemyBase") {
     return (ctx.state.players[otherPlayer(ctx.controller)].baseSection ?? []).map((b) => b.instanceId);
@@ -372,6 +380,8 @@ export type PrimitiveCall =
       enemyOnly?: boolean;
       sourceUnitOnly?: boolean;
     }
+  /** W5 (C5) — GD04-021 "pair that card from your trash with one of your Units": a carta (Command com 【Pilot】) vira Piloto */
+  | { op: "pairCardFromTrashAsPilot"; card: TargetRef; unit: TargetRef }
   /**
    * W5 — "During this turn, when <X> destroys/deals battle damage …": arma o spec `specId` (gatilho
    * `Delayed:<evento>`, com `reaction`) até o fim do turno. `subject` = só eventos dessa carta (GD04-035/115);
@@ -688,6 +698,18 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "pairCardFromTrashAsPilot": {
+      const [cardId] = resolveTargetIds(call.card, ctx);
+      const [unitId] = resolveTargetIds(call.unit, ctx);
+      if (!cardId || !unitId) return [];
+      const card = findCard(ctx.state, cardId);
+      const unit = findCard(ctx.state, unitId);
+      if (card.zone !== "trash" || !card.def.pilotMode || unit.zone !== "battleArea" || unit.pairedPilotId) return [];
+      return [
+        { type: "MOVE_CARD", instanceId: cardId, toZone: "battleArea" },
+        { type: "PAIR_CARDS", pilotId: cardId, unitId, asPilotMode: card.def.cardType === "COMMAND" },
+      ];
     }
     case "grantDelayedReaction": {
       const subjectId = call.subject ? resolveTargetIds(call.subject, ctx)[0] : undefined;
@@ -1092,6 +1114,8 @@ export type ReactionEvent =
   | "destroyedShieldInBattle"
   /** W5 — "when <Unit> receives damage from an enemy" (batalha ou efeito; a carta do evento é quem recebeu) */
   | "damagedByEnemy"
+  /** W5 — "when this Unit or one of your Units is deployed" (efeito, jogada da mão ou token) */
+  | "unitDeployed"
   /** W5 (C6) — "when you play and activate a Command card" (a carta do evento é o Command, já no trash) */
   | "commandActivated"
   /** W5 (C6) — "when you place an EX Resource" (a carta do evento é o EX Resource novo) */
@@ -1168,7 +1192,7 @@ export interface EffectSpec {
    */
   /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
   /** GD02-120 Aspiring Pilot — "Choose 1 of your (AEUG) Units/Bases." (pool = Units E Bases do controller, filtro de trait aplica aos dois.) */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield";
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield" | "enemyUnitOrBase";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -1269,6 +1293,11 @@ export function computeLegalTargets(
             ? state.players[controller].baseSection
             : scope === "friendlyUnitOrBase"
               ? [...state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT"), ...state.players[controller].baseSection]
+              : scope === "enemyUnitOrBase"
+                ? [
+                    ...state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT"),
+                    ...state.players[otherPlayer(controller)].baseSection,
+                  ]
               : scope === "battlingBaseOrShield"
                 ? (() => {
                     // GD02-011 Moebius — "Choose 1 enemy Base/enemy Shield this Unit is
@@ -1297,10 +1326,14 @@ export function computeLegalTargets(
  * `true` se algum `PrimitiveCall` de `calls` consome o alvo nomeado `"target"`.
  */
 export function callsNeedNamedTarget(calls: PrimitiveCall[] | undefined): boolean {
-  return (calls ?? []).some((call) => {
-    const target = (call as { target?: { kind?: string; name?: string } }).target;
-    return (target?.kind === "named" || target?.kind === "namedGroup") && target.name === "target";
-  });
+  // W5 — qualquer campo TargetRef conta (`target`, mas também `from`/`to` de redirectBattleDamage,
+  // `subject` de grantDelayedReaction, `unit` de pairCardFromTrashAsPilot)
+  return (calls ?? []).some((call) =>
+    Object.values(call).some((v) => {
+      const ref = v as { kind?: string; name?: string } | null;
+      return typeof ref === "object" && ref !== null && (ref.kind === "named" || ref.kind === "namedGroup") && ref.name === "target";
+    }),
+  );
 }
 
 /**

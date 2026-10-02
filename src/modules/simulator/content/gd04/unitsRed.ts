@@ -4,6 +4,8 @@ import type { CardDef } from "../../engine/types";
 export const UNITS_RED: Record<string, CardDef> = {
   "GD04-033": {
     "code": "GD04-033",
+    // W5 (C12)
+    grantsTraitToFriendlyUnits: { trait: "Neo Zeon", duringLink: true, sourceText: "【During Link】All your Units gain (Neo Zeon)." },
     "nameEn": "Neo Zeong",
     "cardType": "UNIT",
     "color": "red",

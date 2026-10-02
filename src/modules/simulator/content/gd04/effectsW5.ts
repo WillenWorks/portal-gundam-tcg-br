@@ -10,6 +10,8 @@ import { mainAndAction } from "../standardSpecs";
  * `exResourcePlaced`, `paidForUnitEffect`; `selfPaidWithEx` / filtro `paidWithEx`; `deployExBase`.
  * W5c — custo "Rest 1 of your … Units" (2º alvo `costUnit`, o motor pergunta junto com o alvo) e gatilhos
  * atrasados "During this turn, when …" (`grantDelayedReaction` + spec `Delayed:<evento>`).
+ * W5d — regras contínuas (C12: `deploysRestedRule`, `grantsTraitToFriendlyUnits`, alvo com keyword), reação
+ * `unitDeployed`, parear Command do trash como Piloto, provocação temporária, Base que revida.
  */
 
 const target = { kind: "named", name: "target" } as const;
@@ -21,6 +23,110 @@ const costUnit = { kind: "named", name: "costUnit" } as const;
 const restCostUnit: PrimitiveCall = { op: "rest", target: costUnit };
 
 export const GD04_W5_EFFECT_SPECS: EffectSpec[] = [
+  // ——— W5d ———
+  {
+    id: "GD04-021-CommandActivated",
+    cardCode: "GD04-021",
+    trigger: "Reaction:commandActivated",
+    reaction: { event: "commandActivated", subject: "friendly", subjectFilter: "trait:Dawn of Fold;paidWithEx", turn: "yours" },
+    optional: true,
+    actions: [{ op: "pairCardFromTrashAsPilot", card: { kind: "named", name: "reactionSubject" }, unit: target }],
+    targetScope: "friendlyUnit",
+    targetFilter: "unpaired;nameContains:Gundam Lfrith",
+    sourceText:
+      "During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, you may pair that card from your trash with one of your Units with \"Gundam Lfrith\" in its card name.",
+  },
+  {
+    id: "GD04-033-UnitDeployed",
+    cardCode: "GD04-033",
+    trigger: "Reaction:unitDeployed",
+    reaction: { event: "unitDeployed", subject: "friendly", subjectFilter: "or(isSelf|trait:Neo Zeon)" },
+    actions: [{ op: "damageUnit", target, amount: 3 }],
+    targetScope: "enemyUnit",
+    sourceText: "When this Unit or one of your (Neo Zeon) Units is deployed, choose 1 enemy Unit. Deal 3 damage to it.",
+  },
+  {
+    id: "GD04-049-Attack",
+    cardCode: "GD04-049",
+    trigger: "Attack",
+    duringPair: true,
+    optional: true,
+    condition: {
+      predicate: "attackingPlayer;controllerTrashCardCountWithTraitAtLeast:Vulture:7",
+      then: [
+        { op: "moveZone", target: { kind: "group", group: { kind: "firstNInTrash", count: 7, filter: { anyTrait: ["Vulture"] } } }, toZone: "exile" },
+        { op: "destroy", target },
+      ],
+    },
+    actions: [],
+    targetScope: "enemyUnitOrBase",
+    targetFilter: "level<=8",
+    sourceText:
+      "【During Pair】【Attack】If you are attacking the enemy player, you may choose 7 (Vulture) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit/Base that is Lv.8 or lower. Destroy it.",
+  },
+  {
+    id: "GD04-065-ActivateMain",
+    cardCode: "GD04-065",
+    trigger: "Activate·Main",
+    duringLink: true,
+    cost: [{ op: "moveZone", target: { kind: "group", group: { kind: "firstNInTrash", count: 3, filter: { color: "blue" } } }, toZone: "exile" }],
+    actions: [
+      { op: "setActive", target: self },
+      { op: "grantKeyword", target: self, keyword: "CannotTargetPlayer", duration: "endOfTurn" },
+    ],
+    sourceText:
+      "【During Link】【Activate·Main】Exile 3 blue cards from your trash:Set this Unit as active. It can't choose the enemy player as its attack target during this turn.",
+  },
+  {
+    id: "GD04-066-CommandActivated",
+    cardCode: "GD04-066",
+    trigger: "Reaction:commandActivated",
+    reaction: { event: "commandActivated", subject: "friendly" },
+    actions: [{ op: "modifyStat", target, stat: "ap", amount: -2, duration: "endOfTurn" }],
+    targetScope: "enemyUnit",
+    sourceText: "When you activate a Command's 【Main】/【Action】 effect, choose 1 enemy Unit. It gets AP-2 during this turn.",
+  },
+  {
+    id: "GD04-069-PaidForUnitEffect",
+    cardCode: "GD04-069",
+    trigger: "Reaction:paidForUnitEffect",
+    reaction: { event: "paidForUnitEffect", subject: "friendlyOther", subjectFilter: "anyTrait:Militia,Dianna Counter" },
+    duringLink: true,
+    oncePerTurn: true,
+    actions: [{ op: "grantDelayedReaction", specId: "GD04-069-EndOfTurn" }],
+    sourceText:
+      "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
+  },
+  {
+    id: "GD04-069-EndOfTurn",
+    cardCode: "GD04-069",
+    trigger: "Delayed:endOfTurn",
+    reaction: { event: "endOfTurn", subject: "friendly" },
+    actions: [{ op: "setActive", target: { kind: "group", group: { kind: "firstRestedFriendlyUnitWithTrait", trait: "Militia" } } }],
+    sourceText:
+      "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
+  },
+  {
+    id: "GD04-107-Action",
+    cardCode: "GD04-107",
+    trigger: "Action",
+    actions: [{ op: "grantKeyword", target, keyword: "ForcedAttackTarget", duration: "endOfTurn" }],
+    targetScope: "friendlyUnit",
+    targetFilter: "rested",
+    sourceText: "【Action】Choose 1 of your rested Units. During this turn, all enemy Units must choose that Unit as their attack target when attacking.",
+  },
+  {
+    id: "GD04-126-DamagedByEnemy",
+    cardCode: "GD04-126",
+    trigger: "Reaction:damagedByEnemy",
+    reaction: { event: "damagedByEnemy", subject: "self" },
+    condition: {
+      predicate: "battleVictimInPlay;battleVictimApAtMost:3",
+      then: [{ op: "damageUnit", target: { kind: "named", name: "battleVictim" }, amount: 1 }],
+    },
+    actions: [],
+    sourceText: "When this Base receives battle damage from an enemy Unit with 3 or less AP, deal 1 damage to that Unit.",
+  },
   // ——— W5c: custo de descansar Unit ———
   {
     id: "GD04-006-ActivateMain",

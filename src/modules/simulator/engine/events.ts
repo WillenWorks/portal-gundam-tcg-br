@@ -8,7 +8,7 @@ import type {
   PlayerState,
   Zone,
 } from "./types";
-import { effectiveHp } from "./types";
+import { effectiveHp, entersRestedByRule } from "./types";
 import { createRng, shuffleInPlace } from "./rng";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
@@ -206,6 +206,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.enteredZoneOnTurn = state.turnNumber;
       // W4 — "If you deploy this Unit from your trash" (GD04-060, GD03-062)
       card.enteredFromZone = targetZone === "battleArea" ? fromZone : undefined;
+      // W5 (C12) — GD04-022 "… are deployed rested" (a carta já está na zona nova pra checagem)
+      if (targetZone === "battleArea" && fromZone !== "battleArea" && entersRestedByRule(state, card)) card.rested = true;
       if (targetZone !== "battleArea" && targetZone !== "baseSection") {
         if (event.toZone === "hand") unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate

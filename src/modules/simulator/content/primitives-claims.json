@@ -165,6 +165,10 @@
     "grantDelayedReaction": {
       "description": "Arma até o fim do turno o spec <specId> (gatilho Delayed:<evento>, com reaction); subject opcional restringe aos eventos daquela carta.",
       "since": "GD04-002/035/115"
+    },
+    "pairCardFromTrashAsPilot": {
+      "description": "Pareia a carta <card> do trash (com 【Pilot】) como Piloto da Unit <target>.",
+      "since": "GD04-021"
     }
   },
   "targetRefKinds": {
@@ -233,6 +237,10 @@
     "enemyBase": {
       "description": "A Base inimiga (0 ou 1).",
       "since": "GD04-043"
+    },
+    "firstRestedFriendlyUnitWithTrait": {
+      "description": "A 1ª Unit amiga descansada com o trait (aproximação de \"choose 1\" sem pausa).",
+      "since": "GD04-069"
     }
   },
   "targetScopes": {
@@ -263,6 +271,10 @@
     "battlingBaseOrShield": {
       "description": "Pool de alvo legal — Base (baseSection) + todos os Shields do DEFENSOR, só quando sourceInstanceId é o ATACANTE de um combate em andamento contra o jogador (state.combat.attackerId === source && currentTarget === \"player\"); [] fora disso.",
       "since": "GD02-011 Moebius (Peacemaker Team) (Sprint 2 Lote 11)"
+    },
+    "enemyUnitOrBase": {
+      "description": "Units e a Base do oponente.",
+      "since": "GD04-049"
     }
   },
   "predicates": {
@@ -517,6 +529,10 @@
     "controllerHandCountAtMost:<n>": {
       "description": "O controller tem N ou menos cartas na mão.",
       "since": "GD04-035"
+    },
+    "battleVictimApAtMost:<n>": {
+      "description": "A carta em battleVictim (a Unit do evento de batalha) tem N ou menos AP.",
+      "since": "GD04-126"
     }
   },
   "targetFilters": {
@@ -651,6 +667,14 @@
     "paidWithEx": {
       "description": "O candidato (Command do evento) foi pago com EX Resource neste turno.",
       "since": "GD04-020/085"
+    },
+    "isSelf": {
+      "description": "O candidato é a própria fonte.",
+      "since": "GD04-033"
+    },
+    "nameContains:<value>": {
+      "description": "O nome (EN) do candidato contém o trecho.",
+      "since": "GD04-021"
     }
   }
 }

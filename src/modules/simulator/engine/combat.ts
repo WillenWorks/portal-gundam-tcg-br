@@ -85,6 +85,9 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
  * ALVO do ataque (não pode mirar o jogador, provocação, Unit ativa só com relaxamento). Única fonte
  * de verdade: `declareAttack` lança com esta mensagem e a UI usa pra iluminar só alvos legais.
  */
+/** keyword effects impressas no jogo (GD04-051 "with a keyword effect") */
+const KEYWORD_EFFECTS = ["Repair", "Breach", "Support", "Blocker", "First Strike", "High-Maneuver", "Suppression"];
+
 export function attackTargetError(state: GameState, attacker: CardInstance, target: AttackTarget): string | null {
   const defendingPlayer = otherPlayer(state.activePlayer);
   if (target === "player") {
@@ -131,7 +134,16 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
       const allowedUnpaired = !!granted?.unpairedOnly && !targetUnit.pairedPilotId;
       // W4 — GD04-045 "a damaged active enemy Unit"
       const allowedDamaged = !!granted?.damagedOnly && targetUnit.damage > 0;
-      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged;
+      // W5 — GD04-051 "an active enemy Unit with a keyword effect" (Piloto com trait + trash N+)
+      const kwRule = attacker.def.attackTargetRules?.mayTargetActiveEnemyWithKeyword;
+      const kwPilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
+      const allowedKeyword =
+        !!kwRule &&
+        !!kwPilot &&
+        (!kwRule.pairedPilotTrait || (effectivePilotDef(kwPilot).traits ?? []).includes(kwRule.pairedPilotTrait)) &&
+        (kwRule.trashAtLeast === undefined || state.players[attacker.owner].trash.length >= kwRule.trashAtLeast) &&
+        KEYWORD_EFFECTS.some((k) => hasKeyword(targetUnit, k, state));
+      const allowed = allowedByLevel || allowedByAp || allowedBySelfAp || allowedUnpaired || allowedDamaged || allowedKeyword;
       if (!allowed) {
         return "Só é possível declarar ataque contra Unit inimiga rested (exceto keyword que relaxe essa regra)";
       }
@@ -295,6 +307,10 @@ export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId)
         ? [card]
         : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && (u.def.traits ?? []).includes(rule.trait));
     for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
+  }
+  // W5 — GD04-107 "all enemy Units must choose that Unit as their attack target" (keyword sintética, este turno)
+  for (const unit of side.battleArea) {
+    if (unit.def.cardType === "UNIT" && unit.rested && hasKeyword(unit, "ForcedAttackTarget", state)) out.add(unit.instanceId);
   }
   return [...out];
 }
@@ -663,6 +679,11 @@ export function resolveDamageStep(state: GameState): GameState {
   if (combat.currentTarget === "player") {
     const defenderSide = state.players[combat.defendingPlayer];
     const baseIds = new Set(defenderSide.baseSection.map((c) => c.instanceId));
+    // W5 — GD04-126 "When this Base receives battle damage from an enemy Unit …" (o atacante vai em `battleVictim`)
+    const baseHit = events.find((e) => e.type === "DAMAGE_BASE" && e.amount > 0);
+    if (baseHit && baseHit.type === "DAMAGE_BASE") {
+      reactions.push({ event: "damagedByEnemy", subjectId: baseHit.instanceId, owner: combat.defendingPlayer, victimId: attacker.instanceId });
+    }
     const destroyedShieldArea = events.some(
       (e) => (e.type === "DAMAGE_SHIELD" && defenderSide.shields.length > 0) || (e.type === "DESTROY_CARD" && baseIds.has(e.instanceId)),
     );
@@ -680,8 +701,12 @@ export function resolveDamageStep(state: GameState): GameState {
     if (damaged(defenderId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (damaged(attackerVictimId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
     // W5 — "when <Unit> receives damage from an enemy" (quem recebeu o dano de batalha)
-    if (damaged(defenderId)) reactions.push({ event: "damagedByEnemy", subjectId: defenderId, owner: findCard(state, defenderId).owner });
-    if (damaged(attackerVictimId)) reactions.push({ event: "damagedByEnemy", subjectId: attackerVictimId, owner: findCard(state, attackerVictimId).owner });
+    if (damaged(defenderId)) {
+      reactions.push({ event: "damagedByEnemy", subjectId: defenderId, owner: findCard(state, defenderId).owner, victimId: attacker.instanceId });
+    }
+    if (damaged(attackerVictimId)) {
+      reactions.push({ event: "damagedByEnemy", subjectId: attackerVictimId, owner: findCard(state, attackerVictimId).owner, victimId: blockerOrTargetId });
+    }
     if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (destroyed(attackerVictimId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
   }

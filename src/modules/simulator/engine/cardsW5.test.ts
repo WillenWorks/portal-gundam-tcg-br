@@ -5,6 +5,7 @@ import { advanceToMainPhase } from "./phases";
 import { dispatchTrigger } from "./dispatcher";
 import { resolveDamageStep } from "./combat";
 import { enumerateLegalActions } from "./legalActions";
+import { attackTargetError } from "./combat";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { effectiveAp } from "./types";
 import { findCard } from "./events";
@@ -525,5 +526,177 @@ describe("W5c — custo de descansar Unit e gatilhos atrasados", () => {
     const high = placeCard(state, "B", UNIT({ hp: 9, level: 6 }), "battleArea", { rested: true });
     expect(inPlay(fight(state, unit, low), low)).toBe(false);
     expect(inPlay(fight(state, unit, high), high)).toBe(true);
+  });
+});
+
+describe("W5d — modificadores de regra (C12) e o resto do GD04", () => {
+  const pendingD = (state: GameState, player: PlayerId) => {
+    const d = state.pendingDecision[player];
+    return d?.kind === "abilityResolution" ? d : null;
+  };
+  /** joga da mão pagando o custo com Recursos normais */
+  function deploy(state: GameState, player: PlayerId, def: CardDef): { state: GameState; id: string } {
+    resources(state, player, Math.max(def.level ?? 0, def.cost ?? 0) + 1);
+    const id = placeCard(state, player, def, "hand");
+    return { state: act({ ...state, activePlayer: player }, player, { kind: "deployCard", cardInstanceId: id }), id };
+  }
+
+  it("021: Command (Dawn of Fold) pago com EX → pode parear essa carta do trash com Unit \"Gundam Lfrith\"", () => {
+    const state = game();
+    placeCard(state, "A", G["GD04-021"], "battleArea");
+    const lfrith = placeCard(state, "A", UNIT({ nameEn: "Gundam Lfrith Ur", traits: ["Academy"] }), "battleArea");
+    let s = playCmd(state, G["GD04-108"], { withEx: true, targets: { target: [lfrith] } });
+    const cmd = s.players.A.trash.find((c) => c.def.code === "GD04-108");
+    expect(cmd).toBeDefined();
+    expect(pendingD(s, "A")?.queue[0].legalTargets).toContain(lfrith); // a própria 021 também é uma "Gundam Lfrith"
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-021-CommandActivated", activate: true, targetIds: [lfrith] }] });
+    expect(findCard(s, lfrith).pairedPilotId).toBe(cmd?.instanceId);
+    expect(findCard(s, cmd?.instanceId ?? "").asPilot).toBe(true);
+  });
+
+  it("022 【During Link】: Units Lv.3- (não token) entram descansadas — dos dois lados", () => {
+    const state = game();
+    const u = placeCard(state, "A", G["GD04-022"], "battleArea");
+    const link = G["GD04-022"].link;
+    pair(state, u, placeCard(state, "A", link?.kind === "pilotName" ? PILOT({ nameEn: link.values[0] }) : PILOT({ traits: link?.values ?? [] }), "battleArea"));
+    const low = deploy(state, "B", UNIT({ level: 3 }));
+    expect(findCard(low.state, low.id).rested).toBe(true);
+    const high = deploy(state, "B", UNIT({ level: 4 }));
+    expect(findCard(high.state, high.id).rested).toBe(false);
+  });
+
+  it("033: ela ou Unit (Neo Zeon) sua entra em jogo → 3 de dano numa inimiga", () => {
+    const state = game();
+    placeCard(state, "A", G["GD04-033"], "battleArea");
+    const enemy = placeCard(state, "B", UNIT({ hp: 9 }), "battleArea");
+    let { state: s } = deploy(state, "A", UNIT({ traits: ["Neo Zeon"] }));
+    expect(pendingD(s, "A")?.queue.some((q) => q.specId === "GD04-033-UnitDeployed")).toBe(true);
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-033-UnitDeployed", activate: true, targetIds: [enemy] }] });
+    expect(dmg(s, enemy)).toBe(3);
+    const other = deploy(state, "A", UNIT({ traits: ["Zeon"] }));
+    expect(pendingD(other.state, "A")).toBeNull();
+  });
+
+  it("033 【During Link】: suas Units ganham (Neo Zeon) — filtros de trait passam a casar", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-033"], "battleArea");
+    const plain = placeCard(state, "A", UNIT(), "battleArea");
+    const ctx = { state, sourceInstanceId: self, targets: {} };
+    expect(defaultTargetFilterResolver("trait:Neo Zeon", findCard(state, plain), ctx)).toBe(false);
+    const link = G["GD04-033"].link;
+    pair(state, self, placeCard(state, "A", link?.kind === "pilotName" ? PILOT({ nameEn: link.values[0] }) : PILOT({ traits: link?.values ?? [] }), "battleArea"));
+    expect(defaultTargetFilterResolver("trait:Neo Zeon", findCard(state, plain), ctx)).toBe(true);
+    const enemy = placeCard(state, "B", UNIT(), "battleArea");
+    expect(defaultTargetFilterResolver("trait:Neo Zeon", findCard(state, enemy), ctx)).toBe(false);
+  });
+
+  it("049 【During Pair】【Attack】: atacando o jogador, exila 7 (Vulture) do trash → destrói Unit/Base inimiga Lv.8-", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-049"], "battleArea");
+    pair(state, self, placeCard(state, "A", PILOT(), "battleArea"));
+    for (let i = 0; i < 7; i++) placeCard(state, "A", UNIT({ traits: ["Vulture"] }), "trash");
+    const base = placeCard(state, "B", CARD_BASE(), "baseSection");
+    const s = runSpec({ ...state, combat: { step: "attack", attackerId: self, attackingPlayer: "A", defendingPlayer: "B", originalTarget: "player", currentTarget: "player", actionPasses: { A: false, B: false }, actionPriority: "B" } }, "GD04-049-Attack", self, { target: [base] });
+    expect(s.players.B.baseSection.length).toBe(0);
+    expect(s.players.A.exile.filter((c) => (c.def.traits ?? []).includes("Vulture")).length).toBe(7);
+  });
+
+  it("051 【During Pair·(Vulture) Pilot】: com 7+ no trash, pode atacar Unit ativa com keyword", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-051"], "battleArea");
+    pair(state, self, placeCard(state, "A", PILOT({ traits: ["Vulture"] }), "battleArea"));
+    const kw = placeCard(state, "B", UNIT({ effectKeywords: ["Blocker"], keywordTags: ["Blocker"] }), "battleArea");
+    const plain = placeCard(state, "B", UNIT(), "battleArea");
+    expect(attackTargetError(state, findCard(state, self), { unitId: kw })).not.toBeNull();
+    for (let i = 0; i < 7; i++) placeCard(state, "A", UNIT(), "trash");
+    expect(attackTargetError(state, findCard(state, self), { unitId: kw })).toBeNull();
+    expect(attackTargetError(state, findCard(state, self), { unitId: plain })).not.toBeNull();
+  });
+
+  it("065 【During Link】【Activate·Main】: exila 3 azuis do trash → fica ativa e não pode atacar o jogador neste turno", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-065"], "battleArea", { rested: true });
+    const link = G["GD04-065"].link;
+    pair(state, self, placeCard(state, "A", link?.kind === "pilotName" ? PILOT({ nameEn: link.values[0] }) : PILOT({ traits: link?.values ?? [] }), "battleArea"));
+    for (let i = 0; i < 3; i++) placeCard(state, "A", UNIT({ color: "blue" }), "trash");
+    const s = runSpec(state, "GD04-065-ActivateMain", self);
+    expect(findCard(s, self).rested).toBe(false);
+    expect(s.players.A.trash.length).toBe(0);
+    expect(attackTargetError(s, findCard(s, self), "player")).not.toBeNull();
+  });
+
+  it("066: ao ativar o 【Main】 de um Command, 1 Unit inimiga ganha AP-2 neste turno", () => {
+    const state = game();
+    placeCard(state, "A", G["GD04-066"], "battleArea");
+    const enemy = placeCard(state, "B", UNIT({ ap: 4 }), "battleArea");
+    let s = playCmd(state, DAWN_CMD({ traits: [] }), { withEx: false });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-066-CommandActivated", activate: true, targetIds: [enemy] }] });
+    expect(effectiveAp(findCard(s, enemy), s)).toBe(2);
+  });
+
+  it("107 【Action】: neste turno, Units inimigas precisam atacar a Unit descansada escolhida", () => {
+    const state = game();
+    const mine = placeCard(state, "B", UNIT(), "battleArea", { rested: true });
+    const other = placeCard(state, "B", UNIT(), "battleArea", { rested: true });
+    const attacker = placeCard(state, "A", UNIT(), "battleArea");
+    const src = placeCard(state, "B", G["GD04-107"], "trash");
+    const s = runSpec(state, "GD04-107-Action", src, { target: [mine] });
+    expect(attackTargetError(s, findCard(s, attacker), { unitId: other })).not.toBeNull();
+    expect(attackTargetError(s, findCard(s, attacker), "player")).not.toBeNull();
+    expect(attackTargetError(s, findCard(s, attacker), { unitId: mine })).toBeNull();
+  });
+
+  it("126 (Base): recebe dano de batalha de Unit inimiga AP<=3 → 1 de dano nela", () => {
+    const state = game();
+    const base = placeCard(state, "B", { ...G["GD04-126"], hp: 9 }, "baseSection");
+    const weak = placeCard(state, "A", UNIT({ ap: 3, hp: 3 }), "battleArea");
+    const s = act({ ...state, combat: { step: "action", attackerId: weak, attackingPlayer: "A", defendingPlayer: "B", originalTarget: "player", currentTarget: "player", actionPasses: { A: true, B: false }, actionPriority: "B" } }, "B", { kind: "passAction" });
+    expect(dmg(s, base)).toBe(3);
+    expect(dmg(s, weak)).toBe(1);
+  });
+
+  it("069 【During Link】 (aproximação): pagou ① por efeito de outra Unit (Militia) → no fim do turno, 1 Unit (Militia) descansada fica ativa", () => {
+    let state = game();
+    resources(state, "A", 3);
+    const self = placeCard(state, "A", G["GD04-069"], "battleArea");
+    const link = G["GD04-069"].link;
+    pair(state, self, placeCard(state, "A", link?.kind === "pilotName" ? PILOT({ nameEn: link.values[0] }) : PILOT({ traits: link?.values ?? [] }), "battleArea"));
+    const militia = placeCard(state, "A", UNIT({ code: "TEST-MILITIA", traits: ["Militia"] }), "battleArea", { rested: true });
+    state = dispatchTrigger(
+      state,
+      militia,
+      "Activate·Main",
+      [{ id: "T-pay", cardCode: "TEST-MILITIA", trigger: "Activate·Main", cost: [{ op: "payResourceCost", player: "controller", n: 1 }], actions: [], sourceText: "t" }],
+      { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
+    );
+    state = act(state, "A", { kind: "finishTurn" });
+    if (state.endPhaseAction) state = act(state, state.endPhaseAction.priority, { kind: "passEndPhaseAction" });
+    if (state.endPhaseAction) state = act(state, state.endPhaseAction.priority, { kind: "passEndPhaseAction" });
+    expect(findCard(state, militia).rested).toBe(false);
+  });
+});
+
+describe("W5 — fluxo real: efeitos com alvo em campo que não é o `target` da ação pausam pra escolha", () => {
+  it("035 【Deploy】 (jogada da mão): pede a Unit (Mafty) e arma o gatilho nela", () => {
+    let state = game();
+    resources(state, "A", 6);
+    const mafty = placeCard(state, "A", UNIT({ traits: ["Mafty"] }), "battleArea");
+    const card = placeCard(state, "A", G["GD04-035"], "hand");
+    state = act(state, "A", { kind: "deployCard", cardInstanceId: card });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue[0].legalTargets).toContain(mafty);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-035-Deploy", activate: true, targetIds: [mafty] }] });
+    expect(state.players.A.delayedReactions?.[0]?.subjectId).toBe(mafty);
+  });
+
+  it("095 【When Linked】 (pareamento real): pede a Unit (Minerva Squad)", () => {
+    let state = game();
+    resources(state, "A", 6);
+    const linked = placeCard(state, "A", linkedTo(G["GD04-095"]), "battleArea");
+    const minerva = placeCard(state, "A", UNIT({ traits: ["Minerva Squad"] }), "battleArea");
+    const pilot = placeCard(state, "A", G["GD04-095"], "hand");
+    state = act(state, "A", { kind: "deployCard", cardInstanceId: pilot, pairWithUnitId: linked });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-095-WhenLinked")?.legalTargets).toContain(minerva);
   });
 });

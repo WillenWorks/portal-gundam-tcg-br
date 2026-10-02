@@ -10880,9 +10880,9 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 100,
-        "partial": 1,
-        "missing": 11,
+        "full": 109,
+        "partial": 3,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -11254,7 +11254,7 @@
         },
         {
           "code": "GD04-021",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11269,15 +11269,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-021-CommandActivated"
+              ],
               "text": "During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, you may pair that card from your trash with one of your Units with \"Gundam Lfrith\" in its card name."
             }
           ]
         },
         {
           "code": "GD04-022",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11292,9 +11294,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
+              "by": "structured",
               "refs": [
-                "staticAbilities"
+                "deploysRestedRule"
               ],
               "text": "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested."
             }
@@ -11444,21 +11446,25 @@
         },
         {
           "code": "GD04-033",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-033-UnitDeployed"
+              ],
               "text": "When this Unit or one of your (Neo Zeon) Units is deployed, choose 1 enemy Unit. Deal 3 damage to it."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "approximated",
+              "refs": [
+                "engine:trait-grant-everywhere (aproximação aceita)"
+              ],
               "text": "【During Link】All your Units gain (Neo Zeon)."
             }
           ]
@@ -11719,7 +11725,7 @@
         },
         {
           "code": "GD04-049",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11736,10 +11742,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD04-049-Attack"
               ],
               "text": "【During Pair】【Attack】If you are attacking the enemy player, you may choose 7 (Vulture) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit/Base that is Lv.8 or lower. Destroy it."
             }
@@ -11774,14 +11779,16 @@
         },
         {
           "code": "GD04-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
               "text": "【During Pair·(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target."
             }
           ]
@@ -11977,7 +11984,7 @@
         },
         {
           "code": "GD04-065",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11985,10 +11992,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD04-065-ActivateMain"
               ],
               "text": "【During Link】【Activate·Main】Exile 3 blue cards from your trash:Set this Unit as active. It can't choose the enemy player as its attack target during this turn."
             },
@@ -12007,7 +12013,7 @@
         },
         {
           "code": "GD04-066",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12022,15 +12028,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-066-CommandActivated"
+              ],
               "text": "When you activate a Command's 【Main】/【Action】 effect, choose 1 enemy Unit. It gets AP-2 during this turn."
             }
           ]
         },
         {
           "code": "GD04-067",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -12038,10 +12046,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "deferred",
+              "refs": [
+                "engine:copy-keywords-from-trash (C12, falta ruling)"
               ],
               "text": "【Activate·Main】【Once per Turn】①:Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card."
             }
@@ -12074,7 +12081,7 @@
         },
         {
           "code": "GD04-069",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12089,8 +12096,11 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-069-PaidForUnitEffect",
+                "GD04-069-EndOfTurn"
+              ],
               "text": "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units'effects, choose 1 of your (Militia) Units. Set it as active."
             }
           ]
@@ -12983,7 +12993,7 @@
         },
         {
           "code": "GD04-107",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13002,10 +13012,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD04-107-Action"
               ],
               "text": "【Action】Choose 1 of your rested Units. During this turn, all enemy Units must choose that Unit as their attack target when attacking."
             }
@@ -13556,7 +13565,7 @@
         },
         {
           "code": "GD04-126",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13584,8 +13593,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-126-DamagedByEnemy"
+              ],
               "text": "When this Base receives battle damage from an enemy Unit with 3 or less AP, deal 1 damage to that Unit."
             }
           ]

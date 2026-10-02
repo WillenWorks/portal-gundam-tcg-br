@@ -4876,6 +4876,18 @@
     "sourceText": "【Once per Turn】During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, draw 1."
   },
   {
+    "id": "GD04-021-CommandActivated",
+    "cardCode": "GD04-021",
+    "trigger": "Reaction:commandActivated",
+    "ops": [
+      "pairCardFromTrashAsPilot"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "unpaired;nameContains:Gundam Lfrith",
+    "predicate": null,
+    "sourceText": "During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, you may pair that card from your trash with one of your Units with \"Gundam Lfrith\" in its card name."
+  },
+  {
     "id": "GD04-023-Deploy",
     "cardCode": "GD04-023",
     "trigger": "Deploy",
@@ -4946,6 +4958,18 @@
     "targetFilter": "trait:Academy;notSelf",
     "predicate": null,
     "sourceText": "【Attack】Choose 1 of your other (Academy) Units. During this turn, it may choose an active enemy Unit that is Lv.3 or lower as its attack target."
+  },
+  {
+    "id": "GD04-033-UnitDeployed",
+    "cardCode": "GD04-033",
+    "trigger": "Reaction:unitDeployed",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "When this Unit or one of your (Neo Zeon) Units is deployed, choose 1 enemy Unit. Deal 3 damage to it."
   },
   {
     "id": "GD04-035-Delayed",
@@ -5083,6 +5107,19 @@
     "sourceText": "【Deploy】You may rest this Unit. If you do, choose 1 enemy Unit that is Lv.3 or lower. Deal 2 damage to it."
   },
   {
+    "id": "GD04-049-Attack",
+    "cardCode": "GD04-049",
+    "trigger": "Attack",
+    "ops": [
+      "moveZone",
+      "destroy"
+    ],
+    "targetScope": "enemyUnitOrBase",
+    "targetFilter": "level<=8",
+    "predicate": "attackingPlayer;controllerTrashCardCountWithTraitAtLeast:Vulture:7",
+    "sourceText": "【During Pair】【Attack】If you are attacking the enemy player, you may choose 7 (Vulture) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit/Base that is Lv.8 or lower. Destroy it."
+  },
+  {
     "id": "GD04-050-Attack",
     "cardCode": "GD04-050",
     "trigger": "Attack",
@@ -5181,6 +5218,20 @@
     "sourceText": "【Deploy】Choose 1 enemy Unit that is Lv.1 or lower or has 1 or less AP. Destroy it."
   },
   {
+    "id": "GD04-065-ActivateMain",
+    "cardCode": "GD04-065",
+    "trigger": "Activate·Main",
+    "ops": [
+      "moveZone",
+      "setActive",
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Activate·Main】Exile 3 blue cards from your trash:Set this Unit as active. It can't choose the enemy player as its attack target during this turn."
+  },
+  {
     "id": "GD04-065-Attack",
     "cardCode": "GD04-065",
     "trigger": "Attack",
@@ -5191,6 +5242,42 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Attack】All enemy Units get AP-1 during this turn."
+  },
+  {
+    "id": "GD04-066-CommandActivated",
+    "cardCode": "GD04-066",
+    "trigger": "Reaction:commandActivated",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "When you activate a Command's 【Main】/【Action】 effect, choose 1 enemy Unit. It gets AP-2 during this turn."
+  },
+  {
+    "id": "GD04-069-EndOfTurn",
+    "cardCode": "GD04-069",
+    "trigger": "Delayed:endOfTurn",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active."
+  },
+  {
+    "id": "GD04-069-PaidForUnitEffect",
+    "cardCode": "GD04-069",
+    "trigger": "Reaction:paidForUnitEffect",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active."
   },
   {
     "id": "GD04-070-Deploy",
@@ -5800,6 +5887,18 @@
     "sourceText": "【Main】Choose 1 friendly (Academy) Unit. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target. If you use an EX Resource to play this card, choose 1 to 2 friendly (Academy) Units instead."
   },
   {
+    "id": "GD04-107-Action",
+    "cardCode": "GD04-107",
+    "trigger": "Action",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 of your rested Units. During this turn, all enemy Units must choose that Unit as their attack target when attacking."
+  },
+  {
     "id": "GD04-107-Burst",
     "cardCode": "GD04-107",
     "trigger": "Burst",
@@ -6299,6 +6398,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "GD04-126-DamagedByEnemy",
+    "cardCode": "GD04-126",
+    "trigger": "Reaction:damagedByEnemy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "battleVictimInPlay;battleVictimApAtMost:3",
+    "sourceText": "When this Base receives battle damage from an enemy Unit with 3 or less AP, deal 1 damage to that Unit."
   },
   {
     "id": "GD04-126-Deploy",

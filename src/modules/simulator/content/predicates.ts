@@ -6,6 +6,7 @@ import {
   effectiveHp,
   effectivePilotDef,
   hasKeyword,
+  hasTrait,
   isActingAsPilot,
   otherPlayer,
   satisfiesLinkCondition,
@@ -84,6 +85,12 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (enemyUnitWithTrait) {
     const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
     return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(enemyUnitWithTrait[1]));
+  }
+  // W5 — GD04-126 "from an enemy Unit with 3 or less AP" (a Unit que causou o dano de batalha)
+  const victimApAtMost = predicate.match(/^battleVictimApAtMost:(\d+)$/);
+  if (victimApAtMost) {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
   }
   // W5 — GD04-035 "if you have 3 or less cards in your hand"
   const handAtMost = predicate.match(/^controllerHandCountAtMost:(\d+)$/);
@@ -581,14 +588,19 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
   const traitMatch = filter.match(/^trait:(.+)$/);
-  if (traitMatch) return (candidate.def.traits ?? []).includes(traitMatch[1]);
+  if (traitMatch) return hasTrait(candidate, traitMatch[1], ctx.state);
 
   // GD03-021 Gundam Deathscythe Hell — "1 of your (Operation Meteor)/(G Team) Units" (OR, vírgula).
   const anyTraitMatch = filter.match(/^anyTrait:(.+)$/);
   if (anyTraitMatch) {
     const traits = anyTraitMatch[1].split(",");
-    return (candidate.def.traits ?? []).some((t) => traits.includes(t));
+    return traits.some((t) => hasTrait(candidate, t, ctx.state));
   }
+  // W5 — GD04-021 "one of your Units with \"Gundam Lfrith\" in its card name"
+  const nameContains = filter.match(/^nameContains:(.+)$/);
+  if (nameContains) return candidate.def.nameEn.includes(nameContains[1]);
+  // W5 — GD04-033 "When this Unit or …": o candidato é a própria fonte
+  if (filter === "isSelf") return candidate.instanceId === ctx.sourceInstanceId;
 
   // GD01-049 Blitz Gundam — companion do filtro de trait acima.
   const apAtLeast = filter.match(/^ap>=(\d+)$/);

@@ -11,6 +11,8 @@ import {
   dispatchDestroyedFromEffect,
   drainQueuedTriggers,
   filterDispatchableSpecs,
+  attachQueuedTriggers,
+  unitDeployedEntries,
 } from "./abilityDispatch";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { payResourceCostEvents } from "./costs";
@@ -272,9 +274,18 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       predicateResolver: options.predicateResolver,
       targetFilterResolver: options.targetFilterResolver,
     });
+    // W5 — "when this Unit or one of your Units is deployed" (GD04-033): reação da jogada da mão
+    const deployedEntries = def.cardType === "UNIT" ? unitDeployedEntries(next, cardInstanceId, specs, options.targetFilterResolver) : [];
     // docs/45 — um 【Deploy】 que matou uma Unit com 【Destroyed】-que-pausa (ex.
     // Rewloola matando Char's Zaku Ⅱ) deixa `pendingDecision` setado: trava aqui.
-    if (next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (next.pendingDecision.A || next.pendingDecision.B) return deployedEntries.length ? attachQueuedTriggers(next, deployedEntries) : next;
+    if (deployedEntries.length) {
+      next = drainQueuedTriggers(next, deployedEntries, specs, {
+        predicateResolver: options.predicateResolver,
+        targetFilterResolver: options.targetFilterResolver,
+      });
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
+    }
     if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) e, se o pareamento formar Link
       // Unit (3-2-6), 【When Linked】 — texto no Pilot ("this Unit" = a Unit pareada) OU na

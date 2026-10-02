@@ -841,6 +841,15 @@ export function collectEffectReactions(
       restedNow.set(card.instanceId, false);
     }
   }
+  // W5 — "when one of your Units is deployed": Unit que entrou na Battle Area por este efeito
+  if (after) {
+    for (const pid of ["A", "B"] as PlayerId[]) {
+      const had = new Set(before.players[pid].battleArea.map((c) => c.instanceId));
+      for (const u of after.players[pid].battleArea) {
+        if (u.def.cardType === "UNIT" && !had.has(u.instanceId)) push("unitDeployed", u);
+      }
+    }
+  }
   // W5 (C6) — "when you place an EX Resource": o EX novo (só existe no estado depois do efeito)
   if (after && events.some((e) => e.type === "SPAWN_TOKEN" && e.def.code === TOKEN_EX_RESOURCE_CODE)) {
     for (const pid of ["A", "B"] as PlayerId[]) {
@@ -972,6 +981,19 @@ function delayedListeners(state: GameState, occ: ReactionOccurrence, specs: Effe
 }
 
 /**
+ * W5 — "when this Unit or one of your Units is deployed" pela jogada da mão (`deployCard`): as reações
+ * entram como gatilho enfileirado (`QueuedTrigger`) — se o 【Deploy】 da própria carta pausou pra escolha,
+ * esperam na fila da decisão.
+ */
+export function unitDeployedEntries(state: GameState, unitId: string, specs: EffectSpec[], targetFilterResolver?: TargetFilterResolver): QueuedTrigger[] {
+  if (!specsListenTo(specs, "unitDeployed")) return [];
+  const unit = findCard(state, unitId);
+  if (unit.def.cardType !== "UNIT" || unit.zone !== "battleArea") return [];
+  const sources = reactionListeners(state, { event: "unitDeployed", subjectId: unitId, owner: unit.owner }, specs, targetFilterResolver);
+  return sources.length ? [{ owner: unit.owner, trigger: "Reaction:unitDeployed", sources }] : [];
+}
+
+/**
  * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
  * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
  */
@@ -1027,7 +1049,8 @@ export function runEndOfTurnReactions(
   predicateResolver?: PredicateResolver,
   targetFilterResolver?: TargetFilterResolver,
 ): GameState {
-  if (!specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
+  const delayedEnd = (["A", "B"] as PlayerId[]).some((p) => (state.players[p].delayedReactions ?? []).length > 0);
+  if (!delayedEnd && !specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
   let next = state;
   const active = state.activePlayer;
   for (const owner of [active, otherPlayer(active)]) {
@@ -1047,6 +1070,14 @@ export function runEndOfTurnReactions(
         });
         if (next.gameOver) return next;
       }
+    }
+    // W5 — gatilhos atrasados de fim de turno (GD04-069), só os sem escolha (mesma regra de cima)
+    for (const entry of next.players[owner].delayedReactions ?? []) {
+      if (entry.turn !== next.turnNumber) continue;
+      const spec = specs.find((s) => s.id === entry.specId);
+      if (!spec || spec.reaction?.event !== "endOfTurn" || specNeedsNamedTarget(spec) || specNeedsChoice(spec)) continue;
+      next = dispatchTrigger(next, entry.sourceId, spec.trigger, [spec], { predicateResolver, targetFilterResolver, allSpecs: specs });
+      if (next.gameOver) return next;
     }
   }
   return next;

@@ -23,6 +23,8 @@ export interface DeferredClause {
   reason: string;
   /** identificador curto do bloqueio, prefixo `engine:` — o que teria de mudar no motor pra fechar. */
   blockedBy: string;
+  /** "approximation" = o efeito acontece com uma diferença registrada (não fica sem efeito) */
+  kind?: "approximation";
 }
 
 export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
@@ -184,6 +186,31 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason:
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
+  },
+  // W5 — GD04-067: "all <Keyword> on that Unit card" — copiar keyword de carta do trash; Q&A oficial não cobre
+  // o que acontece com valores (<Breach 3> + <Breach 2>) nem keyword já possuída (plano: carta ambígua → deferida)
+  {
+    cardCode: "GD04-067",
+    clause:
+      "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card.",
+    reason: "falta ruling de como somar/copiar keywords com valor (Breach/Repair/Support) — a habilidade não faz nada",
+    blockedBy: "engine:copy-keywords-from-trash (C12, falta ruling)",
+  },
+  // W5 — aproximações aceitas (o efeito acontece, com a diferença descrita)
+  {
+    cardCode: "GD04-069",
+    clause:
+      "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
+    reason: "\"choose 1\" no fim do turno vira automático: a 1ª Unit (Militia) descansada fica ativa (o fim do turno não pausa pra escolha)",
+    blockedBy: "engine:end-of-turn-choice (aproximação aceita)",
+    kind: "approximation",
+  },
+  {
+    cardCode: "GD04-033",
+    clause: "【During Link】All your Units gain (Neo Zeon).",
+    reason: "o trait concedido vale nos filtros de alvo e de reação (`hasTrait`); condições de board e custos ainda leem o trait impresso",
+    blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
+    kind: "approximation",
   },
   // W5 — GD04: sem ruling oficial pra dano letal de efeito numa Unit que "can't be destroyed by enemy effects"
   {

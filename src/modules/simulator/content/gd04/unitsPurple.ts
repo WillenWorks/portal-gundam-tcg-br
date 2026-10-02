@@ -55,6 +55,12 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD04-051": {
     "code": "GD04-051",
+    // W5
+    attackTargetRules: { mayTargetActiveEnemyWithKeyword: { pairedPilotTrait: "Vulture", trashAtLeast: 7 } },
+    structuredSourceText: {
+      attackTargetRules:
+        "【During Pair･(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target.",
+    },
     "nameEn": "Gundam Airmaster Burst",
     "cardType": "UNIT",
     "color": "purple",

@@ -127,6 +127,13 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD04-022": {
     "code": "GD04-022",
+    // W5 (C12)
+    deploysRestedRule: {
+      maxLevel: 3,
+      excludeTokens: true,
+      duringLink: true,
+      sourceText: "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested.",
+    },
     // W3 (GD04)
     staticAbilities: [
       {

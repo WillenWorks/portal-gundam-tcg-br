@@ -184,6 +184,8 @@ export interface CardDef {
       /** GD03-042 — "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower" */
       requiresSelfApAtLeast?: number;
     };
+    /** W5 — GD04-051 "【During Pair·(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target." */
+    mayTargetActiveEnemyWithKeyword?: { pairedPilotTrait?: string; trashAtLeast?: number };
   };
   /**
    * W2b (C4) — provocação: "Enemy Units choose this rested Unit as their attack target if possible
@@ -210,6 +212,10 @@ export interface CardDef {
    * (Damage Step e `damageUnit`). Num Piloto, protege a Unit pareada ("this Unit"); numa Base, a Base.
    */
   damageReductions?: DamageReduction[];
+  /** W5 (C12) — GD04-022 "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested." (dos 2 lados) */
+  deploysRestedRule?: { maxLevel: number; excludeTokens?: boolean; duringLink?: boolean; sourceText?: string };
+  /** W5 (C12) — GD04-033 "【During Link】All your Units gain (Neo Zeon)." (lido por `hasTrait`) */
+  grantsTraitToFriendlyUnits?: { trait: string; duringLink?: boolean; sourceText?: string };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
    * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
@@ -801,6 +807,38 @@ function isStaticAbilityActive(state: GameState, source: CardInstance, condition
  * uma carta na MÃO — nunca aparece na Battle Area/trash contados, então excluir
  * seria um no-op de qualquer forma).
  */
+/** a Unit `unit` é Link Unit agora (com o Piloto pareado) */
+function isLinkedUnit(state: GameState, unit: CardInstance): boolean {
+  if (!unit.pairedPilotId) return false;
+  const pilot = [...state.players.A.battleArea, ...state.players.B.battleArea].find((c) => c.instanceId === unit.pairedPilotId);
+  return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
+}
+
+/**
+ * W5 (C12) — trait impresso OU concedido por efeito contínuo (GD04-033 "All your Units gain (Neo Zeon)").
+ * Lido pelos filtros de alvo `trait:`/`anyTrait:` (e por isso pelos `subjectFilter` de reação); condições
+ * de board e custos ainda leem o trait impresso (aproximação registrada em `deferred.ts`).
+ */
+export function hasTrait(card: CardInstance, trait: string, state?: GameState): boolean {
+  if ((card.def.traits ?? []).includes(trait)) return true;
+  if (!state || card.def.cardType !== "UNIT" || card.zone !== "battleArea") return false;
+  return state.players[card.owner].battleArea.some(
+    (c) => c.def.grantsTraitToFriendlyUnits?.trait === trait && (!c.def.grantsTraitToFriendlyUnits.duringLink || isLinkedUnit(state, c)),
+  );
+}
+
+/** W5 (C12) — GD04-022: a Unit que entra agora entra descansada por regra contínua de alguma carta em jogo */
+export function entersRestedByRule(state: GameState, unit: CardInstance): boolean {
+  if (unit.def.cardType !== "UNIT") return false;
+  return [...state.players.A.battleArea, ...state.players.B.battleArea].some((c) => {
+    const rule = c.def.deploysRestedRule;
+    if (!rule || c.instanceId === unit.instanceId) return false;
+    if (rule.duringLink && !isLinkedUnit(state, c)) return false;
+    if (rule.excludeTokens && unit.def.isToken) return false;
+    return (unit.def.level ?? 0) <= rule.maxLevel;
+  });
+}
+
 export function isBoardConditionMet(
   state: GameState,
   owner: PlayerId,
@@ -1245,7 +1283,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
-        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield";
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield" | "enemyUnitOrBase";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
         /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */
