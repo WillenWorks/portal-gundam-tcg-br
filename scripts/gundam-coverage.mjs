@@ -34,10 +34,10 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c (set fechado —
+// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c e GD04 na W5 (sets fechados —
 // as cláusulas que dependem de motor novo estão em `content/deferred.ts` e seguem bloqueadas em
 // runtime por `server/deckCoverageGate.ts`).
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02", "GD03"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02", "GD03", "GD04"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };
