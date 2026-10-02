@@ -15,6 +15,7 @@ import { buildSt08DeckList } from "../fixtures/st08Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { GD02_CARD_DEFS as G2 } from "../content/gd02";
 import { GD04_CARD_DEFS } from "../content/gd04";
+import { GD03_CARD_DEFS } from "../content/gd03";
 
 /** W5 — GD04-C. W5a: camada de dano (C2) — redução, imunidade, "próximo dano", redirecionar (engine/damageLayer.ts). */
 
@@ -698,5 +699,39 @@ describe("W5 — fluxo real: efeitos com alvo em campo que não é o `target` da
     state = act(state, "A", { kind: "deployCard", cardInstanceId: pilot, pairWithUnitId: linked });
     const d = state.pendingDecision.A;
     expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-095-WhenLinked")?.legalTargets).toContain(minerva);
+  });
+});
+
+describe("auditoria A2 — alvo `pairedPilotOf` pede escolha no fluxo real", () => {
+  it("GD04-099 【During Link】【Attack】: atacando, pede a Unit inimiga pareada e devolve o Piloto dela", () => {
+    let state = game();
+    const self = placeCard(state, "A", linkedTo(G["GD04-099"], { ap: 1 }), "battleArea");
+    pair(state, self, placeCard(state, "A", G["GD04-099"], "battleArea"));
+    const enemy = placeCard(state, "B", UNIT({ hp: 9 }), "battleArea", { rested: true });
+    const enemyPilot = placeCard(state, "B", PILOT(), "battleArea");
+    pair(state, enemy, enemyPilot);
+    placeCard(state, "B", UNIT(), "battleArea", { rested: true }); // sem Piloto: não é alvo
+    state = act(state, "A", { kind: "declareAttack", attackerId: self, target: { unitId: enemy } });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-099-Attack")?.legalTargets).toEqual([enemy]);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-099-Attack", activate: true, targetIds: [enemy] }] });
+    expect(state.players.B.hand.some((c) => c.instanceId === enemyPilot)).toBe(true);
+  });
+
+  it("GD03-110 【Main】 (Command jogado): pede a Unit inimiga Lv.5- pareada e destrói o Piloto dela", () => {
+    let state = game();
+    const def = GD03_CARD_DEFS["GD03-110"];
+    resources(state, "A", Math.max(def.level ?? 0, def.cost ?? 0));
+    const low = placeCard(state, "B", UNIT({ level: 5 }), "battleArea");
+    const lowPilot = placeCard(state, "B", PILOT(), "battleArea");
+    pair(state, low, lowPilot);
+    const high = placeCard(state, "B", UNIT({ level: 6 }), "battleArea");
+    pair(state, high, placeCard(state, "B", PILOT(), "battleArea"));
+    const card = placeCard(state, "A", def, "hand");
+    const offers = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "playCommand" && a.cardInstanceId === card);
+    expect(offers.map((a) => (a.kind === "playCommand" ? a.targets?.target : undefined))).toEqual([[low]]);
+    state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [low] } });
+    expect(state.players.B.trash.some((c) => c.instanceId === lowPilot)).toBe(true);
+    expect(findCard(state, low).pairedPilotId).toBeFalsy();
   });
 });
