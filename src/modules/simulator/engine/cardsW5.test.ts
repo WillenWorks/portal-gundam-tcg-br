@@ -909,3 +909,47 @@ describe("GD04-101 Kindhearted (ruling oficial Q287)", () => {
     expect(after.players.A.indestructibleByEnemyEffectsTurn).toBe(after.turnNumber);
   });
 });
+
+describe("rulings Q376/Q397 e Q361 (auditoria A5 e A15)", () => {
+  it("A5 — GD04-066 reage ao 【Main】 de Command ativado pelo 【Burst】 (Kindhearted quebrada como shield)", () => {
+    let state = game();
+    placeCard(state, "B", G["GD04-066"], "battleArea");
+    state.players.B.shields = [];
+    const shield = placeCard(state, "B", G["GD04-101"], "shields");
+    const attacker = placeCard(state, "A", UNIT({ ap: 2, hp: 9 }), "battleArea");
+    const enemyOfB = placeCard(state, "A", UNIT({ ap: 4, hp: 9 }), "battleArea");
+    state = act(state, "A", { kind: "declareAttack", attackerId: attacker, target: "player" });
+    state = act(state, "B", { kind: "skipBlock" });
+    state = act(state, "B", { kind: "passAction" });
+    state = act(state, "A", { kind: "passAction" });
+    expect(state.pendingDecision.B).toMatchObject({ kind: "burst", cardInstanceId: shield });
+    state = act(state, "B", { kind: "resolveBurstDecision", activate: true });
+    const d = state.pendingDecision.B;
+    expect(d?.kind === "abilityResolution" && d.queue.some((q) => q.specId === "GD04-066-CommandActivated")).toBe(true);
+    state = act(state, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD04-066-CommandActivated", activate: true, targetIds: [enemyOfB] }] });
+    expect(effectiveAp(findCard(state, enemyOfB), state)).toBe(2);
+  });
+
+  it("A15 — GD04-042: <Breach> de Unit sua pareada com Piloto (Cyber-Newtype) que destrói shield dispara a reação", () => {
+    const state = game();
+    const psycho = placeCard(state, "A", { ...G["GD04-042"], hp: 9 }, "battleArea");
+    pair(state, psycho, placeCard(state, "A", G["GD04-091"], "battleArea")); // link: Deux Murasame
+    const breacher = placeCard(state, "A", UNIT({ ap: 5, hp: 9, effectKeywords: ["Breach"], keywordTags: ["Breach 2"] }), "battleArea");
+    pair(state, breacher, placeCard(state, "A", PILOT({ traits: ["Cyber-Newtype"] }), "battleArea"));
+    const victim = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    const target = placeCard(state, "B", UNIT({ ap: 5, hp: 9 }), "battleArea");
+    state.players.B.shields = state.players.B.shields.map((c) => ({ ...c, def: UNIT({ code: "TEST-SHIELD" }) }));
+    let s = act(
+      {
+        ...state,
+        combat: { step: "action", attackerId: breacher, attackingPlayer: "A", defendingPlayer: "B", originalTarget: { unitId: victim }, currentTarget: { unitId: victim }, actionPasses: { A: true, B: false }, actionPriority: "B" },
+      },
+      "B",
+      { kind: "passAction" },
+    );
+    const d = s.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-042-DestroyedShield")?.legalTargets).toEqual([target]);
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-042-DestroyedShield", activate: true, targetIds: [target] }] });
+    expect(dmg(s, target)).toBe(2);
+  });
+});

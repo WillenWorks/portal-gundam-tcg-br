@@ -701,6 +701,14 @@ export function resolveDamageStep(state: GameState): GameState {
     if (damaged(defenderId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (damaged(attackerVictimId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
     // W5 — "when <Unit> receives damage from an enemy" (quem recebeu o dano de batalha)
+    // ruling Q361 — <Breach> que destrói carta da área de escudo conta como "damage from this Unit destroys
+    // an enemy shield area card" (GD04-042)
+    const defSide = state.players[combat.defendingPlayer];
+    const defBaseIds = new Set(defSide.baseSection.map((c) => c.instanceId));
+    const breachHitShieldArea = events.some(
+      (e) => (e.type === "DAMAGE_SHIELD" && defSide.shields.length > 0) || (e.type === "DESTROY_CARD" && defBaseIds.has(e.instanceId)),
+    );
+    if (breachHitShieldArea) reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
     if (damaged(defenderId)) {
       reactions.push({ event: "damagedByEnemy", subjectId: defenderId, owner: findCard(state, defenderId).owner, victimId: attacker.instanceId });
     }

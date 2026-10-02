@@ -470,6 +470,12 @@ function applyPlayerActionInner(
           targetFilterResolver,
           allSpecs: specs,
         });
+        // rulings Q376/Q397 — "【Burst】Activate this card's 【Main】" ativa o 【Main】 do Command: conta para
+        // "When you activate a Command's 【Main】/【Action】" (GD04-066). Não é "play" (Q42), então quem
+        // exige "play … using an EX Resource" (GD04-020/085) segue sem reagir (sem pagamento, sem EX).
+        if (decision.cardDef.cardType === "COMMAND" && dispatchable.some((s) => s.sourceText.includes("Activate this card's 【Main】"))) {
+          next = dispatchCommandActivated(next, decision.cardInstanceId, specs, { predicateResolver, targetFilterResolver });
+        }
       }
       if (decision.queuedInstanceIds.length > 0) {
         return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds, decision.pendingDestroyed ?? []);
