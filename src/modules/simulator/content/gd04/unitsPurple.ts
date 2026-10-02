@@ -96,6 +96,10 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD04-053": {
     "code": "GD04-053",
+    // W5 (C2)
+    damageReductions: [
+      { amount: 1, duringLink: true, oncePerTurn: true, sourceText: "【During Link】【Once per Turn】When this Unit receives damage from an enemy, reduce it by 1." },
+    ],
     "nameEn": "Rey's Blaze Zaku Phantom",
     "cardType": "UNIT",
     "color": "purple",

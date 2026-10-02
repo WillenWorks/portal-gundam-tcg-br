@@ -2088,8 +2088,8 @@
     "ST07": {
       "counts": {
         "vanilla": 4,
-        "full": 10,
-        "partial": 1,
+        "full": 11,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -2365,7 +2365,7 @@
         },
         {
           "code": "ST07-015",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2393,9 +2393,9 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:damage-modification-layer (C2)"
+                "damageReductions"
               ],
               "text": "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens."
             }
@@ -5346,8 +5346,8 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 101,
-        "partial": 3,
+        "full": 102,
+        "partial": 2,
         "missing": 0,
         "withErrors": 0
       },
@@ -7926,7 +7926,7 @@
         },
         {
           "code": "GD02-129",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7954,9 +7954,9 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:damage-modification-layer (C2)"
+                "damageReductions"
               ],
               "text": "This Base can't receive enemy effect damage."
             }
@@ -10880,9 +10880,9 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 73,
-        "partial": 0,
-        "missing": 39,
+        "full": 84,
+        "partial": 1,
+        "missing": 27,
         "withErrors": 0
       },
       "cards": [
@@ -11395,14 +11395,16 @@
         },
         {
           "code": "GD04-029",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【Once per Turn】If you have a (CB) Pilot in play, when this Unit receives damage from an enemy, reduce it by 1."
             }
           ]
@@ -11802,14 +11804,16 @@
         },
         {
           "code": "GD04-053",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【During Link】【Once per Turn】When this Unit receives damage from an enemy, reduce it by 1."
             }
           ]
@@ -12043,7 +12047,7 @@
         },
         {
           "code": "GD04-068",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12058,8 +12062,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "When this Unit receives effect damage from an enemy, reduce it by 3."
             }
           ]
@@ -12426,7 +12432,7 @@
         },
         {
           "code": "GD04-087",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12445,10 +12451,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD04-087-Attack"
               ],
               "text": "【During Link】【Attack】You may choose 1 of your (Academy) Units. During this battle, battle damage this Unit would receive is dealt to that Unit instead."
             }
@@ -12456,7 +12461,7 @@
         },
         {
           "code": "GD04-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12473,8 +12478,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "When this Unit is blocked by an enemy Unit that is Lv.4 or lower, it can't receive battle damage during this battle."
             }
           ]
@@ -12595,7 +12602,7 @@
         },
         {
           "code": "GD04-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12614,10 +12621,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD04-093-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 of your (ZAFT) Link Units. During this turn, reduce the next damage it receives by 2."
             }
@@ -12654,7 +12660,7 @@
         },
         {
           "code": "GD04-095",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12673,10 +12679,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD04-095-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 of your (Minerva Squad) Units. During this turn, battle damage it would receive is dealt to this Unit instead."
             }
@@ -12740,7 +12745,7 @@
         },
         {
           "code": "GD04-098",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12757,8 +12762,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【During Link】When this Unit receives effect damage from an enemy, reduce it by 2."
             }
           ]
@@ -12819,7 +12826,7 @@
         },
         {
           "code": "GD04-101",
-          "status": "missing",
+          "status": "partial",
           "errors": [],
           "clauses": [
             {
@@ -12827,10 +12834,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "deferred",
+              "refs": [
+                "engine:destroyed-by-effect-damage (falta ruling)"
               ],
               "text": "【Burst】Activate this card's 【Main】."
             },
@@ -12840,11 +12846,9 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "deferred",
+              "refs": [
+                "engine:destroyed-by-effect-damage (falta ruling)"
               ],
               "text": "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1."
             }
@@ -13131,7 +13135,7 @@
         },
         {
           "code": "GD04-113",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13150,10 +13154,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD04-113-Action"
               ],
               "text": "【Action】Choose 1 of your Units. During this battle, reduce battle damage it receives by 3."
             }
@@ -13307,7 +13310,7 @@
         },
         {
           "code": "GD04-119",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13316,11 +13319,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD04-119-Main",
+                "GD04-119-Action"
               ],
               "text": "【Main】/【Action】Choose 1 friendly Unit paired with a (Newtype) Pilot. It can't receive effect damage from enemy Units during this turn."
             },
@@ -13436,7 +13438,7 @@
         },
         {
           "code": "GD04-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13464,8 +13466,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "While you have a rested (Zeon) Unit in play, this Base can't receive battle damage from enemy Units that are Lv.4 or lower."
             }
           ]

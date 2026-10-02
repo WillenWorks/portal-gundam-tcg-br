@@ -70,6 +70,7 @@ export const STRUCTURED_FIELDS = [
   "forcedAttackTarget",
   "attackRestriction",
   "protectsShieldsWhileRested",
+  "damageReductions",
   "dynamicCost",
   "onSupportUsed",
   "innateStatReductionImmunity",

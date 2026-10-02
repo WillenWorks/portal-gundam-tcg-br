@@ -24,6 +24,7 @@ import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
 import { effectiveCost, effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
+import { incomingDamage } from "./damageLayer";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -626,10 +627,15 @@ function applyPlayerActionInner(
           const chosenId = r.targetIds[0];
           if (chosenId) {
             if (q.combatTrigger.action.kind === "damageChosenEnemyUnit") {
-              const amount = q.combatTrigger.action.amount;
-              next = applyEvent(next, { type: "DAMAGE_UNIT", instanceId: chosenId, amount });
+              // W5 (C2) — dano de efeito do gatilho de combate passa pela camada de dano
+              const hit = incomingDamage(next, findCard(next, chosenId), q.combatTrigger.action.amount, {
+                kind: "effect",
+                controller: actingPlayer,
+                sourceId: q.sourceInstanceId,
+              });
+              next = applyEvent(next, { type: "DAMAGE_UNIT", instanceId: chosenId, amount: hit.amount, consume: hit.consume });
               const target = findCard(next, chosenId);
-              if (target.damage >= effectiveHp(target, next)) {
+              if (hit.amount > 0 && target.damage >= effectiveHp(target, next)) {
                 const beforeDestroy = next;
                 next = applyEvent(next, { type: "DESTROY_CARD", instanceId: chosenId });
                 next = applyEvents(next, pairedPilotFollowEvents(target));

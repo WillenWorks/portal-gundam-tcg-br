@@ -149,6 +149,14 @@
     "deployFromTrashPayingCost": {
       "description": "Deploya 1 Unit escolhida na LIXEIRA (casando um CardDefFilter), pagando o CardDef.cost da carta ESCOLHIDA (custo variável, só conhecido após a escolha) — resta os N primeiros Recursos active (mesmo fallback determinístico de payResourceCostEvents). NÃO checa nível do jogador nem encadeia o Deploy da carta recém-deployada (mesma simplificação de deployFromHandTriggered).",
       "since": "GD02-096 Desil Galette / GD02-110 Awakened Power (Sprint 2 Lote 11)"
+    },
+    "grantDamageModifier": {
+      "description": "Modificador de dano na instância (camada de dano C2): redução ou imunidade, por tipo (battle/effect), escopo next/turn/battle; enemyOnly/sourceUnitOnly.",
+      "since": "GD04-093/113/119"
+    },
+    "redirectBattleDamage": {
+      "description": "Dano de batalha que <from> receberia vai pra <to> (esta batalha ou este turno).",
+      "since": "GD04-087/095"
     }
   },
   "targetRefKinds": {

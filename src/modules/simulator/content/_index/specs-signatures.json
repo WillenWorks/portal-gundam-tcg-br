@@ -5305,6 +5305,18 @@
     "sourceText": "【During Link】【Destroyed】If you have no EX Resources, place 1 EX Resource."
   },
   {
+    "id": "GD04-087-Attack",
+    "cardCode": "GD04-087",
+    "trigger": "Attack",
+    "ops": [
+      "redirectBattleDamage"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy;notSelfUnit",
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】You may choose 1 of your (Academy) Units. During this battle, battle damage this Unit would receive is dealt to that Unit instead."
+  },
+  {
     "id": "GD04-087-Burst",
     "cardCode": "GD04-087",
     "trigger": "Burst",
@@ -5425,6 +5437,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-093-WhenLinked",
+    "cardCode": "GD04-093",
+    "trigger": "When Linked",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:ZAFT;linkUnit",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 of your (ZAFT) Link Units. During this turn, reduce the next damage it receives by 2."
+  },
+  {
     "id": "GD04-094-Burst",
     "cardCode": "GD04-094",
     "trigger": "Burst",
@@ -5459,6 +5483,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD04-095-WhenLinked",
+    "cardCode": "GD04-095",
+    "trigger": "When Linked",
+    "ops": [
+      "redirectBattleDamage"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Minerva Squad;notSelfUnit",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 of your (Minerva Squad) Units. During this turn, battle damage it would receive is dealt to this Unit instead."
   },
   {
     "id": "GD04-096-BattleDamage",
@@ -5701,6 +5737,18 @@
     "sourceText": "【Main】Deal 1 damage to all Units that are Lv.2 or lower."
   },
   {
+    "id": "GD04-113-Action",
+    "cardCode": "GD04-113",
+    "trigger": "Action",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 of your Units. During this battle, reduce battle damage it receives by 3."
+  },
+  {
     "id": "GD04-113-Burst",
     "cardCode": "GD04-113",
     "trigger": "Burst",
@@ -5822,6 +5870,30 @@
     "targetFilter": "hp<=5",
     "predicate": "controllerUnitCountWithAnyTraitAtLeast:UN:2",
     "sourceText": "【Main】/【Action】If 2 or more friendly (UN) Units are in play, choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "GD04-119-Action",
+    "cardCode": "GD04-119",
+    "trigger": "Action",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "pairedPilotTrait:Newtype",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit paired with a (Newtype) Pilot. It can't receive effect damage from enemy Units during this turn."
+  },
+  {
+    "id": "GD04-119-Main",
+    "cardCode": "GD04-119",
+    "trigger": "Main",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "pairedPilotTrait:Newtype",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly Unit paired with a (Newtype) Pilot. It can't receive effect damage from enemy Units during this turn."
   },
   {
     "id": "GD04-120-Action",

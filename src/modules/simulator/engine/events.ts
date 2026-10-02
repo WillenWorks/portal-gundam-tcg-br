@@ -1,6 +1,7 @@
 import type {
   CardDef,
   CardInstance,
+  DamageConsumption,
   GameEvent,
   GameState,
   PlayerId,
@@ -213,6 +214,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.pairedUnitId = undefined;
         card.attackTargetRelaxUntilTurn = undefined;
         card.cannotAttackUntilTurn = undefined;
+        card.damageModifiers = undefined;
+        card.battleDamageRedirect = undefined;
       }
       if (targetZone === "shields" || targetZone === "deck" || targetZone === "resourceDeck") {
         card.rested = false;
@@ -233,6 +236,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     case "DAMAGE_UNIT": {
       const card = findCard(state, event.instanceId);
       card.damage += event.amount;
+      applyDamageConsumption(state, card, event.consume);
       return state;
     }
     case "HEAL_UNIT": {
@@ -243,6 +247,16 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     case "DAMAGE_BASE": {
       const card = findCard(state, event.instanceId);
       card.damage += event.amount;
+      applyDamageConsumption(state, card, event.consume);
+      return state;
+    }
+    case "GRANT_DAMAGE_MODIFIER": {
+      const card = findCard(state, event.instanceId);
+      card.damageModifiers = [...(card.damageModifiers ?? []), event.modifier];
+      return state;
+    }
+    case "SET_BATTLE_DAMAGE_REDIRECT": {
+      findCard(state, event.instanceId).battleDamageRedirect = event.redirect;
       return state;
     }
     case "DESTROY_CARD": {
@@ -265,6 +279,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.asPilot = undefined;
       card.attackTargetRelaxUntilTurn = undefined;
       card.cannotAttackUntilTurn = undefined;
+      card.damageModifiers = undefined;
+      card.battleDamageRedirect = undefined;
       // Token que deixa o campo é REMOVIDO DO JOGO, não vai pro trash
       // (Comprehensive Rules — EX Base, EX Resource, tokens de Unit). Vai pra
       // zona `exile`, igual REMOVE_CARD_FROM_GAME.
@@ -299,6 +315,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.asPilot = undefined;
       card.attackTargetRelaxUntilTurn = undefined;
       card.cannotAttackUntilTurn = undefined;
+      card.damageModifiers = undefined;
+      card.battleDamageRedirect = undefined;
       player.exile.push(card);
       return state;
     }
@@ -344,6 +362,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
             if (card.battleDamageImmunityUntilTurn && card.battleDamageImmunityUntilTurn.turn <= event.turnNumber) {
               card.battleDamageImmunityUntilTurn = undefined;
             }
+            if (card.damageModifiers) {
+              const left = card.damageModifiers.filter((m) => m.turn > event.turnNumber);
+              card.damageModifiers = left.length ? left : undefined;
+            }
+            if (card.battleDamageRedirect && card.battleDamageRedirect.turn <= event.turnNumber) card.battleDamageRedirect = undefined;
           }
         }
       }
@@ -539,4 +562,17 @@ export function findCardOwner(state: GameState, instanceId: string) {
 /** Uma Unit/Base é destruída quando dano marcado >= HP efetivo (Comprehensive Rules 5-5-2). */
 export function isLethallyDamaged(card: CardInstance, state?: GameState): boolean {
   return card.damage >= effectiveHp(card, state);
+}
+
+/** W5 (C2) — aplica o que o dano consumiu (ver `engine/damageLayer.ts`) */
+function applyDamageConsumption(state: GameState, target: CardInstance, consume: DamageConsumption | undefined): void {
+  if (!consume) return;
+  for (const { instanceId, marker } of consume.markers ?? []) {
+    const holder = findCard(state, instanceId);
+    if (!holder.usedKeywordsThisTurn.includes(marker)) holder.usedKeywordsThisTurn.push(marker);
+  }
+  if (consume.dropNext && target.damageModifiers) {
+    const left = target.damageModifiers.filter((m) => m.scope !== "next");
+    target.damageModifiers = left.length ? left : undefined;
+  }
 }

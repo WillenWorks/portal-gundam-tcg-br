@@ -206,6 +206,11 @@ export interface CardDef {
   /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
   protectsShieldsWhileRested?: boolean;
   /**
+   * W5 (C2) — redução/imunidade CONTÍNUA de dano recebido de inimigo, aplicada por `engine/damageLayer.ts`
+   * (Damage Step e `damageUnit`). Num Piloto, protege a Unit pareada ("this Unit"); numa Base, a Base.
+   */
+  damageReductions?: DamageReduction[];
+  /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
    * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
    * AP." Proteção CONTÍNUA e INATA (sempre reavaliada, ao contrário de
@@ -389,6 +394,8 @@ export type StaticBoardCondition =
   | { kind: "friendlyBaseInPlay" }
   /** W4 — GD04-013 "While this Unit is rested" (a própria fonte, via `excludeInstanceId`) */
   | { kind: "selfRested" }
+  /** W5 — GD04-123/ST07-015 "While you have a rested (Zeon) Unit in play" */
+  | { kind: "friendlyRestedUnitWithTrait"; trait: string }
   /** W4 — GD04-037 "While you have a red (Super Soldier) Pilot in play" (Piloto pareado em campo) */
   | { kind: "friendlyPilotInPlay"; trait: string; color?: string }
   /** W4 — GD04-039 "If there are 8 or more (Neo Zeon) cards in your trash" */
@@ -629,6 +636,56 @@ export interface CardInstance {
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
   battleDamageImmunityUntilTurn?: { maxAttackerHp: number; turn: number };
+  /** W5 (C2) — modificadores de dano concedidos por efeito (GD04-093 "next damage", 113 "this battle", 119 "this turn") */
+  damageModifiers?: DamageModifier[];
+  /** W5 (C2) — GD04-087/095 "battle damage it would receive is dealt to that Unit instead" */
+  battleDamageRedirect?: { toId: string; scope: "turn" | "battle"; turn: number };
+}
+
+/**
+ * W5 (C2) — todas as cartas falam de dano "from an enemy": só dano cujo controlador é o oponente
+ * do dono do alvo é afetado. `amount` reduz; `immune` zera.
+ */
+export interface DamageReduction {
+  amount?: number;
+  immune?: boolean;
+  /** omitido = qualquer dano; "effect" = "receives effect damage"; "battle" = "battle damage" */
+  kind?: "battle" | "effect";
+  oncePerTurn?: boolean;
+  /** 【During Link】 — a Unit protegida é Link Unit (com o Piloto dono do texto, se for de Piloto) */
+  duringLink?: boolean;
+  /** "If/While …" sobre o board do dono do alvo */
+  boardCondition?: StaticBoardCondition;
+  /** "from enemy Units that are Lv.N or lower" — a FONTE do dano (atacante ou carta do efeito) */
+  sourceMaxLevel?: number;
+  /** "from enemy Units" — a fonte é uma Unit */
+  sourceUnitOnly?: boolean;
+  /** "other than Unit tokens" */
+  sourceNotToken?: boolean;
+  /** GD04-088 "When this Unit is blocked by an enemy Unit that is Lv.N or lower" — só o dano dessa batalha */
+  whenBlockedByMaxLevel?: number;
+  sourceText?: string;
+}
+
+export interface DamageModifier {
+  amount?: number;
+  immune?: boolean;
+  kind?: "battle" | "effect";
+  /** "from an enemy" (sem isso, qualquer dano — GD04-093 "the next damage it receives") */
+  enemyOnly?: boolean;
+  /** "from enemy Units" — a fonte é uma Unit (ou Piloto pareado, cujo texto é da Unit) */
+  sourceUnitOnly?: boolean;
+  /** "next" = só o próximo dano deste turno; "battle" = até o fim da batalha atual; "turn" = este turno */
+  scope: "next" | "turn" | "battle";
+  turn: number;
+}
+
+/** W5 (C2) — o que um dano consome ao ser aplicado (calculado em `incomingDamage`, aplicado no evento) */
+export interface DamageConsumption {
+  /** marcadores 1×/turno (`usedKeywordsThisTurn`) por carta — a Unit ou o Piloto dono do texto */
+  markers?: Array<{ instanceId: string; marker: string }>;
+  /** o alvo gastou os modificadores "next" */
+  dropNext?: boolean;
 }
 
 /**
@@ -785,6 +842,9 @@ export function isBoardConditionMet(
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
   }
   if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
+  if (cond.kind === "friendlyRestedUnitWithTrait") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(cond.trait));
+  }
   if (cond.kind === "selfRested") {
     const self = excludeInstanceId ? findInBattleArea(state, owner, excludeInstanceId) ?? state.players[owner].baseSection?.find((c) => c.instanceId === excludeInstanceId) : undefined;
     return !!self?.rested;
@@ -1459,12 +1519,15 @@ export type GameEvent =
   | { type: "MOVE_CARD"; instanceId: string; toZone: Zone }
   | { type: "REST_CARD"; instanceId: string }
   | { type: "SET_ACTIVE"; instanceId: string }
-  | { type: "DAMAGE_UNIT"; instanceId: string; amount: number }
+  | { type: "DAMAGE_UNIT"; instanceId: string; amount: number; consume?: DamageConsumption }
   | { type: "HEAL_UNIT"; instanceId: string; amount: number }
   | { type: "DESTROY_CARD"; instanceId: string }
   | { type: "REMOVE_CARD_FROM_GAME"; instanceId: string }
   | { type: "DAMAGE_SHIELD"; player: PlayerId; count: number }
-  | { type: "DAMAGE_BASE"; instanceId: string; amount: number }
+  | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
+  /** W5 (C2) */
+  | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  | { type: "SET_BATTLE_DAMAGE_REDIRECT"; instanceId: string; redirect: { toId: string; scope: "turn" | "battle"; turn: number } }
   | { type: "MODIFY_STAT"; instanceId: string; modifier: StatModifier }
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }

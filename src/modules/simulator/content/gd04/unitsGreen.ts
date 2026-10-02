@@ -277,6 +277,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD04-029": {
     "code": "GD04-029",
+    // W5 (C2)
+    damageReductions: [
+      {
+        amount: 1,
+        oncePerTurn: true,
+        boardCondition: { kind: "friendlyPilotInPlay", trait: "CB" },
+        sourceText: "【Once per Turn】If you have a (CB) Pilot in play, when this Unit receives damage from an enemy, reduce it by 1.",
+      },
+    ],
     "nameEn": "Gundam Dynames (GN Full Shield)",
     "cardType": "UNIT",
     "color": "green",

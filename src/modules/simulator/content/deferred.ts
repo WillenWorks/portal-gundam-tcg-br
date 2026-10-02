@@ -158,12 +158,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:reactive-trigger-bus (C1)",
   },
   {
-    cardCode: "ST07-015",
-    clause: "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
-    reason: "proteção de dano condicional para Base ainda não existe — a Base recebe o dano normalmente",
-    blockedBy: "engine:damage-modification-layer (C2)",
-  },
-  {
     cardCode: "ST08-011",
     clause: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
     reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
@@ -181,12 +175,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "uma entrada da fila não carrega descarte + revelar do topo juntos (E4) — o olhar/revelar acontece sem o custo de descarte",
     blockedBy: "engine:multi-choice-queue-entry (E4/W2)",
   },
-  {
-    cardCode: "GD02-129",
-    clause: "This Base can't receive enemy effect damage.",
-    reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
-    blockedBy: "engine:damage-modification-layer (C2)",
-  },
   // W0.5 — ordem de efeitos simultâneos (CR 10-1-6). O motor já segue 10-1-6-8 (【Burst】 antes de
   // todos) e 10-1-6-6 (efeitos do jogador ativo antes dos do standby — `dispatchDestroyedTriggers`);
   // efeitos com escolha (alvo, "you may", mão/deck) já vão pra fila em que o jogador escolhe a ordem.
@@ -196,6 +184,20 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason:
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
+  },
+  // W5 — GD04: sem ruling oficial pra dano letal de efeito numa Unit que "can't be destroyed by enemy effects"
+  {
+    cardCode: "GD04-101",
+    clause: "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1.",
+    reason:
+      "falta ruling: dano de efeito que zera o HP conta como \"destroyed by enemy effects\"? (CR não define) — não dá pra modelar sem chutar",
+    blockedBy: "engine:destroyed-by-effect-damage (falta ruling)",
+  },
+  {
+    cardCode: "GD04-101",
+    clause: "【Burst】Activate this card's 【Main】.",
+    reason: "o 【Main】 da carta está deferido (ver acima)",
+    blockedBy: "engine:destroyed-by-effect-damage (falta ruling)",
   },
   // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
   {

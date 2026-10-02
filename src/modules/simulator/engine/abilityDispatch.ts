@@ -821,7 +821,9 @@ export function collectEffectReactions(before: GameState, events: GameEvent[], e
       before.players.B.battleArea.find((c) => c.instanceId === e.instanceId);
     if (!card || card.def.cardType !== "UNIT") continue;
     const wasRested = restedNow.get(card.instanceId) ?? card.rested;
-    if (e.type === "DAMAGE_UNIT") push("effectDamage", card);
+    if (e.type === "DAMAGE_UNIT") {
+      if (e.amount > 0) push("effectDamage", card); // W5 — dano reduzido a 0 não é "recebeu dano"
+    }
     else if (e.type === "REST_CARD") {
       if (!wasRested) push("restedByEffect", card);
       restedNow.set(card.instanceId, true);

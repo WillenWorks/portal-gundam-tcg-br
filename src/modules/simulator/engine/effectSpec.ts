@@ -4,6 +4,7 @@ import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { selfHealReactionEvents } from "./keywords";
+import { incomingDamage, type DamageSource } from "./damageLayer";
 
 /**
  * "Effect Spec" — formalização da Camada 3 (texto livre → lógica) proposta
@@ -245,6 +246,11 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
  * dano de efeito no motor. A fonte do dano (`ctx.sourceInstanceId`) precisa existir e ser
  * INIMIGA do dono do alvo pra contar como "enemy Commands".
  */
+/** W5 (C2) — origem do dano de um efeito, pra camada de dano */
+function effectSource(ctx: EffectContext): DamageSource {
+  return { kind: "effect", controller: ctx.controller, sourceId: ctx.sourceInstanceId };
+}
+
 function isProtectedFromEffectDamage(target: CardInstance, ctx: EffectContext): boolean {
   const prot = target.def.innateEffectDamageProtection;
   if (!prot) return false;
@@ -345,6 +351,23 @@ export type PrimitiveCall =
   | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean; damagedOnly?: boolean }
   /** GD02-040 Gundam Ashtaron 【Deploy】 — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { op: "grantBattleDamageImmunityUntilTurn"; target: TargetRef; maxAttackerHp: number }
+  /**
+   * W5 (C2) — GD04-093 "reduce the next damage it receives by 2", 113 "During this battle, reduce battle
+   * damage it receives by 3", 119 "It can't receive effect damage from enemy Units during this turn".
+   * Só dano de inimigo (ver `DamageReduction`).
+   */
+  | {
+      op: "grantDamageModifier";
+      target: TargetRef;
+      amount?: number;
+      immune?: boolean;
+      kind?: "battle" | "effect";
+      scope: "next" | "turn" | "battle";
+      enemyOnly?: boolean;
+      sourceUnitOnly?: boolean;
+    }
+  /** W5 (C2) — GD04-087/095 "battle damage <from> would receive is dealt to <to> instead" */
+  | { op: "redirectBattleDamage"; from: TargetRef; to: TargetRef; scope: "turn" | "battle" }
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Marca `CardInstance.cannotAttackUntilTurn = turno atual` na Unit alvo;
@@ -616,6 +639,29 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       return events;
     }
+    case "grantDamageModifier": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({
+          type: "GRANT_DAMAGE_MODIFIER",
+          instanceId,
+          modifier: {
+            amount: call.amount,
+            immune: call.immune,
+            kind: call.kind,
+            scope: call.scope,
+            enemyOnly: call.enemyOnly,
+            sourceUnitOnly: call.sourceUnitOnly,
+            turn: ctx.turnNumber,
+          },
+        }),
+      );
+    }
+    case "redirectBattleDamage": {
+      const [fromId] = resolveTargetIds(call.from, ctx);
+      const [toId] = resolveTargetIds(call.to, ctx);
+      if (!fromId || !toId || fromId === toId) return [];
+      return [{ type: "SET_BATTLE_DAMAGE_REDIRECT", instanceId: fromId, redirect: { toId, scope: call.scope, turn: ctx.turnNumber } }];
+    }
     case "damageUnit": {
       const events: GameEvent[] = [];
       const amount = resolveAmount(call, ctx);
@@ -623,7 +669,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       for (const instanceId of resolveTargetIds(call.target, ctx)) {
         const card = findCard(ctx.state, instanceId);
         if (isProtectedFromEffectDamage(card, ctx)) continue;
-        events.push({ type: "DAMAGE_UNIT", instanceId, amount });
+        // W5 (C2) — redução/imunidade (`engine/damageLayer.ts`); o evento sai mesmo zerado pra consumir 1×/turno
+        const hit = incomingDamage(ctx.state, card, amount, effectSource(ctx));
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: hit.amount, consume: hit.consume });
+        if (hit.amount <= 0) continue;
         // GD02-010 Raider Gundam — "when this Unit receives enemy effect damage, draw 1."
         if (card.def.onEffectDamageReceived && card.owner !== ctx.controller) {
           const usageMarker = "onEffectDamageReceived";
@@ -632,7 +681,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
             events.push({ type: "DRAW_CARD", player: card.owner, from: "deck", instanceId: ctx.state.players[card.owner].deck[0]?.instanceId ?? null });
           }
         }
-        if (card.damage + amount >= effectiveHp(card, ctx.state)) {
+        if (card.damage + hit.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
           events.push(...pairedPilotFollowEvents(card));
         }
@@ -651,8 +700,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         }
         // Base — dano acumulado normal, mesma fórmula/proteções de "damageUnit".
         if (isProtectedFromEffectDamage(card, ctx)) continue;
-        events.push({ type: "DAMAGE_UNIT", instanceId, amount: call.amount });
-        if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
+        const hit = incomingDamage(ctx.state, card, call.amount, effectSource(ctx));
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: hit.amount, consume: hit.consume });
+        if (hit.amount > 0 && card.damage + hit.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
         }
       }

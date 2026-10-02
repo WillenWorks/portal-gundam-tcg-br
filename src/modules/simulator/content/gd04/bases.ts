@@ -43,6 +43,17 @@ export const BASES: Record<string, CardDef> = {
   },
   "GD04-123": {
     "code": "GD04-123",
+    // W5 (C2)
+    damageReductions: [
+      {
+        immune: true,
+        kind: "battle",
+        sourceUnitOnly: true,
+        sourceMaxLevel: 4,
+        boardCondition: { kind: "friendlyRestedUnitWithTrait", trait: "Zeon" },
+        sourceText: "While you have a rested (Zeon) Unit in play, this Base can't receive battle damage from enemy Units that are Lv.4 or lower.",
+      },
+    ],
     "nameEn": "A Baoa Qu",
     "cardType": "BASE",
     "color": "green",

@@ -12,6 +12,7 @@ import {
   specPairGateOpen,
 } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
+import { battleDamageVictim, incomingDamage } from "./damageLayer";
 import { matchesCardDefFilter } from "./effectSpec";
 import { selfHealReactionEvents } from "./keywords";
 
@@ -506,9 +507,11 @@ export function resolveDamageStep(state: GameState): GameState {
     const defendingPlayer = combat.defendingPlayer;
     const base = state.players[defendingPlayer].baseSection[0];
     if (base) {
-      events.push({ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: effectiveAp(attacker, state) });
-      const projectedDamage = base.damage + effectiveAp(attacker, state);
-      if (projectedDamage >= effectiveHp(base, state)) {
+      // W5 (C2) — GD04-123/ST07-015: a Base pode reduzir/ignorar o dano de batalha
+      const hit = incomingDamage(state, base, effectiveAp(attacker, state), { kind: "battle", controller: attacker.owner, sourceId: attacker.instanceId });
+      events.push({ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume });
+      const projectedDamage = base.damage + hit.amount;
+      if (hit.amount > 0 && projectedDamage >= effectiveHp(base, state)) {
         events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
         // A Base fica na área de escudo: destruí-la com dano de batalha conta como
         // "destroys an enemy shield area card" (ST03-001 Sinanju, GD02-001 Psycho Gundam).
@@ -544,6 +547,9 @@ export function resolveDamageStep(state: GameState): GameState {
 
     const attackerAp = effectiveAp(attacker, state);
     const defenderAp = effectiveAp(defender, state);
+    // W5 (C2) — GD04-087/095: quem de fato recebe o dano de batalha de cada lado (redirecionamento)
+    const defVictim = battleDamageVictim(state, defender);
+    const attVictim = battleDamageVictim(state, attacker);
     // ST03-014 The Blue Giant — a Unit protegida não recebe dano de batalha de
     // atacante com AP efetivo <= maxAttackerAp (o atacante ainda recebe o dele).
     const unitProt = combat.unitDamageProtection;
@@ -565,71 +571,84 @@ export function resolveDamageStep(state: GameState): GameState {
     const turnImmunity = defender.battleDamageImmunityUntilTurn;
     const turnImmunityProtects =
       !!turnImmunity && turnImmunity.turn === state.turnNumber && effectiveHp(attacker, state) - attacker.damage <= turnImmunity.maxAttackerHp;
-    const defenderDamagePrevented = grantedProtects || innateProtects || turnImmunityProtects;
+    // W5 (C2) — redução/imunidade da camada de dano, sobre quem recebe de fato
+    const toDef = incomingDamage(state, defVictim, attackerAp, { kind: "battle", controller: attacker.owner, sourceId: attacker.instanceId });
+    const toAtt = incomingDamage(state, attVictim, defenderAp, { kind: "battle", controller: defender.owner, sourceId: defender.instanceId });
+    // shielded = nem recebe o evento; prevented = não leva dano (inclui redução a 0, que ainda consome 1×/turno)
+    const defenderShielded = grantedProtects || innateProtects || turnImmunityProtects;
+    const defenderDamagePrevented = defenderShielded || toDef.amount <= 0;
     // GD01-091 também protege O PRÓPRIO ATACANTE do contra-dano do defensor — "during your
     // turn" só é satisfeito enquanto ESTA Unit ataca (defensor nunca age no seu próprio
     // turno), então a aplicação real da carta é sempre este lado, não o do defensor.
-    const attackerDamagePrevented = innateProtectsFrom(attacker, defender, state);
-    const defenderWillDie = !defenderDamagePrevented && defender.damage + attackerAp >= effectiveHp(defender, state);
-    const attackerWillDie = !attackerDamagePrevented && attacker.damage + defenderAp >= effectiveHp(attacker, state);
+    const attackerShielded = innateProtectsFrom(attacker, defender, state);
+    const attackerDamagePrevented = attackerShielded || toAtt.amount <= 0;
+    const defenderWillDie = !defenderDamagePrevented && defVictim.damage + toDef.amount >= effectiveHp(defVictim, state);
+    const attackerWillDie = !attackerDamagePrevented && attVictim.damage + toAtt.amount >= effectiveHp(attVictim, state);
+    // 13-1-5-2 olha se quem devolveria o dano saiu de campo — com redirecionamento, quem morre pode ser outra Unit
+    const defenderGone = defenderWillDie && defVictim.instanceId === defender.instanceId;
+    const attackerGone = attackerWillDie && attVictim.instanceId === attacker.instanceId;
+    const damageDefender = (): GameEvent => ({ type: "DAMAGE_UNIT", instanceId: defVictim.instanceId, amount: toDef.amount, consume: toDef.consume });
+    const damageAttacker = (): GameEvent => ({ type: "DAMAGE_UNIT", instanceId: attVictim.instanceId, amount: toAtt.amount, consume: toAtt.consume });
 
     if (onlyAttackerFirstStrike) {
-      if (!defenderDamagePrevented) {
-        events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+      if (!defenderShielded) {
+        events.push(damageDefender());
       }
       if (defenderWillDie) {
-        events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
-        events.push(...pairedPilotFollowEvents(defender));
+        events.push({ type: "DESTROY_CARD", instanceId: defVictim.instanceId });
+        events.push(...pairedPilotFollowEvents(defVictim));
         events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
-        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defVictim));
         events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
-        // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
-      } else {
-        if (!attackerDamagePrevented) {
-          events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      }
+      // 13-1-5-2: destruiu com First Strike -> não recebe dano de volta
+      if (!defenderGone) {
+        if (!attackerShielded) {
+          events.push(damageAttacker());
         }
         if (attackerWillDie) {
-          events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
-          events.push(...pairedPilotFollowEvents(attacker));
+          events.push({ type: "DESTROY_CARD", instanceId: attVictim.instanceId });
+          events.push(...pairedPilotFollowEvents(attVictim));
         }
       }
     } else if (onlyDefenderFirstStrike) {
-      if (!attackerDamagePrevented) {
-        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (!attackerShielded) {
+        events.push(damageAttacker());
       }
       if (attackerWillDie) {
-        events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
-        events.push(...pairedPilotFollowEvents(attacker));
-      } else {
-        if (!defenderDamagePrevented) {
-          events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+        events.push({ type: "DESTROY_CARD", instanceId: attVictim.instanceId });
+        events.push(...pairedPilotFollowEvents(attVictim));
+      }
+      if (!attackerGone) {
+        if (!defenderShielded) {
+          events.push(damageDefender());
         }
         if (defenderWillDie) {
-          events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
-          events.push(...pairedPilotFollowEvents(defender));
+          events.push({ type: "DESTROY_CARD", instanceId: defVictim.instanceId });
+          events.push(...pairedPilotFollowEvents(defVictim));
           events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
-          pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+          pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defVictim));
           events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
         }
       }
     } else {
       // simultâneo — ou nenhum tem First Strike, ou os dois têm (se cancelam, ver comentário abaixo)
-      if (!defenderDamagePrevented) {
-        events.push({ type: "DAMAGE_UNIT", instanceId: defender.instanceId, amount: attackerAp });
+      if (!defenderShielded) {
+        events.push(damageDefender());
       }
-      if (!attackerDamagePrevented) {
-        events.push({ type: "DAMAGE_UNIT", instanceId: attacker.instanceId, amount: defenderAp });
+      if (!attackerShielded) {
+        events.push(damageAttacker());
       }
       if (defenderWillDie) {
-        events.push({ type: "DESTROY_CARD", instanceId: defender.instanceId });
-        events.push(...pairedPilotFollowEvents(defender));
+        events.push({ type: "DESTROY_CARD", instanceId: defVictim.instanceId });
+        events.push(...pairedPilotFollowEvents(defVictim));
         events.push(...breachWithTriggers(attacker, combat.defendingPlayer, state));
-        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defender));
+        pushTrigger(combatTriggerEvents(attacker, state, "destroyEnemyInBattle", defVictim));
         events.push(...allyCombatTriggerEvents(attacker, state, "destroyEnemyInBattle"));
       }
       if (attackerWillDie) {
-        events.push({ type: "DESTROY_CARD", instanceId: attacker.instanceId });
-        events.push(...pairedPilotFollowEvents(attacker));
+        events.push({ type: "DESTROY_CARD", instanceId: attVictim.instanceId });
+        events.push(...pairedPilotFollowEvents(attVictim));
       }
       // nota: quando ambos têm <First Strike>, 13-1-5-2 não cobre o caso — tratamos
       // como dano simultâneo (nenhum dos dois "primeiro" o suficiente pra anular o
@@ -651,14 +670,17 @@ export function resolveDamageStep(state: GameState): GameState {
       reactions.push({ event: "destroyedShieldInBattle", subjectId: attacker.instanceId, owner: attacker.owner });
     }
   } else {
-    const defenderId = combat.currentTarget.unitId;
-    const damaged = (id: string) => events.some((e) => e.type === "DAMAGE_UNIT" && e.instanceId === id);
+    // W5 — com redirecionamento, a "vítima" é quem recebeu o dano de fato
+    const blockerOrTargetId = combat.currentTarget.unitId;
+    const defenderId = battleDamageVictim(state, findCard(state, blockerOrTargetId)).instanceId;
+    const attackerVictimId = battleDamageVictim(state, attacker).instanceId;
+    const damaged = (id: string) => events.some((e) => e.type === "DAMAGE_UNIT" && e.instanceId === id && e.amount > 0);
     const destroyed = (id: string) => events.some((e) => e.type === "DESTROY_CARD" && e.instanceId === id);
-    const defenderOwner = findCard(state, defenderId).owner;
+    const defenderOwner = findCard(state, blockerOrTargetId).owner;
     if (damaged(defenderId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
-    if (damaged(attacker.instanceId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: defenderId, owner: defenderOwner, victimId: attacker.instanceId });
+    if (damaged(attackerVictimId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
     if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
-    if (destroyed(attacker.instanceId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: defenderId, owner: defenderOwner, victimId: attacker.instanceId });
+    if (destroyed(attackerVictimId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
   }
   if (reactions.length > 0 && next.combat) next.combat.pendingReactions = reactions;
   // docs/47 Fase 6 — sobrevive em `combat` (limpo só em `COMBAT_ENDED`, mesmo
@@ -686,6 +708,12 @@ export function resolveBattleEndStep(state: GameState): GameState {
       for (const card of player[zone]) {
         card.statModifiers = card.statModifiers.filter((m) => m.duration !== "thisBattle");
         card.keywordGrants = card.keywordGrants.filter((g) => g.duration !== "thisBattle");
+        // W5 (C2) — modificadores/redirecionamento "during this battle"
+        if (card.damageModifiers) {
+          const left = card.damageModifiers.filter((m) => m.scope !== "battle");
+          card.damageModifiers = left.length ? left : undefined;
+        }
+        if (card.battleDamageRedirect?.scope === "battle") card.battleDamageRedirect = undefined;
       }
     }
   }
