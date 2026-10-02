@@ -14,7 +14,7 @@
     "dev": "vite",
     "dev:api": "node scripts/dev-api.mjs",
     "dev:api:raw": "tsx watch server/index.ts",
-    "start": "prisma migrate deploy && tsx server/index.ts",
+    "start": "tsx server/index.ts",
     "dev:full": "pnpm run dev:api & pnpm run dev",
     "build": "prisma generate && tsc -b && vite build",
     "check:types": "prisma generate && tsc -b",
