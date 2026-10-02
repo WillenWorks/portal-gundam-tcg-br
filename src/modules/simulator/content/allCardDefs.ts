@@ -11,10 +11,12 @@ import { GD01_CARD_DEFS } from "./gd01";
 import { GD02_CARD_DEFS } from "./gd02";
 import { GD03_CARD_DEFS } from "./gd03";
 import { GD04_CARD_DEFS } from "./gd04";
+import { GD05_CARD_DEFS } from "./gd05";
+import { ST09_CARD_DEFS } from "./st09";
 
 /**
  * Catálogo canônico de todas as definições de cartas (CardDef) oficiais
- * atualmente implementadas no motor do simulador (ST01..ST08, GD01..GD04).
+ * atualmente implementadas no motor do simulador (ST01..ST09, GD01..GD05).
  *
  * Indexado pelo código oficial da carta em maiúsculas (ex: "ST01-001", "GD01-001", "GD02-001", "GD03-001").
  */
@@ -27,10 +29,12 @@ export const ALL_CARD_DEFS: Record<string, CardDef> = {
   ...Object.values(ST06_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(ST07_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(ST08_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(ST09_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD02_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD03_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD04_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(GD05_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
 };
 
 /**

@@ -29,6 +29,17 @@ export function stdDeployThisBurst(cardCode: string): EffectSpec {
   };
 }
 
+/** 【Deploy】Add 1 of your Shields to your hand. (o 【Deploy】 padrão das Bases — só quando é a cláusula inteira; "Then, …" é autoria própria) */
+export function stdBaseDeployShield(cardCode: string): EffectSpec {
+  return {
+    id: `${cardCode}-Deploy`,
+    cardCode,
+    trigger: "Deploy",
+    actions: [{ op: "addShieldToHand", player: "controller", count: 1 }],
+    sourceText: "【Deploy】Add 1 of your Shields to your hand.",
+  };
+}
+
 /** 【Main】/【Action】 no mesmo texto = 2 specs (`findTriggerSpecs` casa o gatilho exato — sem o de Main, jogar na Main Phase não faz nada) */
 export function mainAndAction(base: Omit<EffectSpec, "id" | "trigger">): [EffectSpec, EffectSpec] {
   return [
