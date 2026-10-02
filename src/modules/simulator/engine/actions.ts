@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall } from "./effectSpec";
+import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -394,7 +394,9 @@ function applyPlayerActionInner(
         }
         // W5 — custo "Rest 1 of your … Units": sem a Unit do custo escolhida, vira decisão (alvo + Unit do custo)
         const costTarget = usable.find(costRestsSecondaryTarget)?.secondaryTarget?.name;
-        if (costTarget && !action.targets?.[costTarget]?.length) {
+        // auditoria A25 — escolha fora do tabuleiro (trash/deck/mão: GD04-067) também vira decisão quando não veio pronta
+        const choiceMissing = usable.some(specNeedsChoice) && !action.targets;
+        if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
           return deferOrDispatchAbilities(state, actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
             targetFilterResolver,

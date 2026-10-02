@@ -32,6 +32,23 @@ const KINDHEARTED_MAIN: Omit<EffectSpec, "id" | "trigger"> = {
 };
 
 export const GD04_W5_EFFECT_SPECS: EffectSpec[] = [
+  // GD04-067 — rulings Q276/Q277 + CR 13-1-2-5 (valores somam)
+  {
+    id: "GD04-067-ActivateMain",
+    cardCode: "GD04-067",
+    trigger: "Activate·Main",
+    oncePerTurn: true,
+    cost: [{ op: "payResourceCost", player: "controller", n: 1 }],
+    actions: [
+      {
+        op: "copyKeywordsFromTrashCard",
+        keywords: ["Repair", "Breach", "First Strike", "Support", "High-Maneuver", "Suppression", "Blocker"],
+        apBonus: 1,
+      },
+    ],
+    sourceText:
+      "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card.",
+  },
   // GD04-101 — ruling Q287: só efeitos que destroem; dano de efeito ainda destrói
   ...mainAndAction(KINDHEARTED_MAIN),
   { ...KINDHEARTED_MAIN, id: "GD04-101-Burst", trigger: "Burst", sourceText: "【Burst】Activate this card's 【Main】." },

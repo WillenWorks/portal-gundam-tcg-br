@@ -177,6 +177,10 @@
     "protectFriendlyUnitsFromEnemyDestroyEffects": {
       "description": "Neste turno, Units amigas não são destruídas por efeitos inimigos que destroem (ruling Q287: dano de efeito ainda destrói).",
       "since": "GD04-101"
+    },
+    "copyKeywordsFromTrashCard": {
+      "description": "A fonte ganha AP+N e as keywords impressas (da lista) de uma Unit escolhida em qualquer trash; valores somam (CR 13-1-2-5).",
+      "since": "GD04-067"
     }
   },
   "targetRefKinds": {

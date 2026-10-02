@@ -165,6 +165,14 @@ function buildQueueEntry(
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
   }
 
+  // GD04-067 — Unit card com alguma das keywords em QUALQUER trash (ruling Q277)
+  if (choice.op === "copyKeywordsFromTrashCard") {
+    const legalTrashIds = [...state.players.A.trash, ...state.players.B.trash]
+      .filter((c) => c.def.cardType === "UNIT" && choice.keywords.some((k) => (c.def.effectKeywords ?? []).includes(k)))
+      .map((c) => c.instanceId);
+    return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
+  }
+
   // GD01-039 — a posição em si (top/bottom) é a escolha; reusa enumChoice com opções fixas.
   if (choice.op === "moveTopCardToChosenPosition") {
     return {

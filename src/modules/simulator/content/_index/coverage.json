@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "678 specs",
+  "generatedFrom": "679 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -3641,10 +3641,8 @@
         {
           "code": "GD04-067",
           "name": "∀ Gundam",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD04-068",
@@ -4028,10 +4026,10 @@
         }
       ],
       "counts": {
-        "impl": 109,
+        "impl": 110,
         "implStar": 2,
         "vanilla": 18,
-        "deferida": 1,
+        "deferida": 0,
         "faltando": 0
       }
     }

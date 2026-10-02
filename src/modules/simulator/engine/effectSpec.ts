@@ -381,6 +381,12 @@ export type PrimitiveCall =
       sourceUnitOnly?: boolean;
       sourceMaxLevel?: number;
     }
+  /**
+   * GD04-067 "Choose 1 Unit card with <keywords> from your trash. During this turn, this Unit gets AP+1 and all
+   * <keywords> on that Unit card." Rulings: Q277 (pode ser o trash do OPONENTE), Q276 (só keywords IMPRESSAS),
+   * CR 13-1-2-5 (valores somam). Escolha em `ctx.targets.trashSearch` (mesma UI de busca no trash).
+   */
+  | { op: "copyKeywordsFromTrashCard"; keywords: string[]; apBonus: number }
   /** GD04-101 "During this turn, friendly Units can't be destroyed by enemy effects." (ver PlayerState) */
   | { op: "protectFriendlyUnitsFromEnemyDestroyEffects" }
   /**
@@ -711,6 +717,23 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "copyKeywordsFromTrashCard": {
+      const chosen = ctx.targets.trashSearch?.[0];
+      if (!chosen) return [];
+      const card = [...ctx.state.players.A.trash, ...ctx.state.players.B.trash].find((c) => c.instanceId === chosen);
+      if (!card || card.def.cardType !== "UNIT") throw new Error(`copyKeywordsFromTrashCard: "${chosen}" não é Unit em nenhum trash`);
+      const self = ctx.sourceInstanceId;
+      const events: GameEvent[] = [
+        { type: "MODIFY_STAT", instanceId: self, modifier: { stat: "ap", amount: call.apBonus, duration: "endOfTurn", appliedOnTurn: ctx.turnNumber, appliedBy: ctx.controller } },
+      ];
+      for (const keyword of call.keywords) {
+        if (!(card.def.effectKeywords ?? []).includes(keyword)) continue;
+        // com valor (<Breach 3>) leva o valor impresso; `keywordValue` soma com o que a Unit já tem
+        const tag = (card.def.keywordTags ?? []).find((t) => t === keyword || t.startsWith(`${keyword} `)) ?? keyword;
+        events.push({ type: "GRANT_KEYWORD", instanceId: self, grant: { keyword: tag, duration: "endOfTurn", appliedOnTurn: ctx.turnNumber } });
+      }
+      return events;
     }
     case "protectFriendlyUnitsFromEnemyDestroyEffects": {
       return [{ type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS", player: ctx.controller, turn: ctx.turnNumber }];
@@ -1400,7 +1423,8 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "pairFromTrashSearch" }>
   | Extract<PrimitiveCall, { op: "pairFromHandSearch" }>
   | Extract<PrimitiveCall, { op: "deployFromTrashPayingCost" }>
-  | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>;
+  | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>
+  | Extract<PrimitiveCall, { op: "copyKeywordsFromTrashCard" }>;
 
 export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive {
   switch (call.op) {
@@ -1414,6 +1438,7 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "pairFromHandSearch":
     case "deployFromTrashPayingCost":
     case "moveTopCardToChosenPosition":
+    case "copyKeywordsFromTrashCard":
       return true;
     case "moveWithinDeck":
       return call.target.kind === "named";

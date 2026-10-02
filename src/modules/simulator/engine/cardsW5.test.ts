@@ -7,7 +7,7 @@ import { resolveDamageStep } from "./combat";
 import { enumerateLegalActions } from "./legalActions";
 import { attackTargetError } from "./combat";
 import { applyPlayerAction, type PlayerAction } from "./actions";
-import { effectiveAp } from "./types";
+import { effectiveAp, hasKeyword, keywordValue } from "./types";
 import { findCard } from "./events";
 import { placeCard } from "./__testkit__/cardHarness";
 import { buildSt07DeckList, PTOLEMAIOS } from "../fixtures/st07Deck";
@@ -951,5 +951,40 @@ describe("rulings Q376/Q397 e Q361 (auditoria A5 e A15)", () => {
     expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-042-DestroyedShield")?.legalTargets).toEqual([target]);
     s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-042-DestroyedShield", activate: true, targetIds: [target] }] });
     expect(dmg(s, target)).toBe(2);
+  });
+});
+
+describe("auditoria A27 / A25 — keywords com valor somam (CR 13-1-2-5) e GD04-067", () => {
+  it("<Breach 2> impresso + concessão <Breach 3> + outra <Breach 1> = <Breach 6>; concessão com valor conta como ter a keyword", () => {
+    const state = game();
+    const u = placeCard(state, "A", UNIT({ effectKeywords: ["Breach"], keywordTags: ["Breach 2"] }), "battleArea");
+    const plain = placeCard(state, "A", UNIT(), "battleArea");
+    for (const [id, k] of [[u, "Breach 3"], [u, "Breach 1"], [plain, "Repair 2"]] as const) {
+      findCard(state, id).keywordGrants.push({ keyword: k, duration: "endOfTurn", appliedOnTurn: state.turnNumber });
+    }
+    expect(keywordValue(findCard(state, u), "Breach", state)).toBe(6);
+    expect(hasKeyword(findCard(state, plain), "Repair", state)).toBe(true);
+    expect(keywordValue(findCard(state, plain), "Repair", state)).toBe(2);
+    expect(keywordValue(findCard(state, plain), "Breach", state)).toBeNull();
+  });
+
+  it("GD04-067 【Activate･Main】 (fluxo real): paga ①, escolhe Unit com keyword em QUALQUER trash → AP+1 e as keywords impressas (somando)", () => {
+    let state = game();
+    resources(state, "A", 2);
+    const self = placeCard(state, "A", { ...G["GD04-067"], effectKeywords: ["Breach"], keywordTags: ["Breach 1"] }, "battleArea");
+    const ownCard = placeCard(state, "A", UNIT({ effectKeywords: ["Blocker"], keywordTags: ["Blocker"] }), "trash");
+    const oppCard = placeCard(state, "B", UNIT({ effectKeywords: ["Breach", "First Strike"], keywordTags: ["Breach 3", "First Strike"] }), "trash");
+    placeCard(state, "B", UNIT(), "trash"); // sem keyword: não é opção
+    const ap0 = effectiveAp(findCard(state, self), state);
+    state = act(state, "A", { kind: "activateAbility", sourceInstanceId: self });
+    const d = state.pendingDecision.A;
+    const q = d?.kind === "abilityResolution" ? d.queue[0] : undefined;
+    expect(q?.trashSearch?.legalTrashIds.sort()).toEqual([ownCard, oppCard].sort());
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-067-ActivateMain", activate: true, targetIds: [oppCard] }] });
+    const after = findCard(state, self);
+    expect(effectiveAp(after, state)).toBe(ap0 + 1);
+    expect(keywordValue(after, "Breach", state)).toBe(4);
+    expect(hasKeyword(after, "First Strike", state)).toBe(true);
+    expect(state.players.A.resourceArea.filter((r) => r.rested).length).toBe(1);
   });
 });

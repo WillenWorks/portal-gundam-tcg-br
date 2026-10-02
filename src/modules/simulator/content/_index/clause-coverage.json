@@ -10882,8 +10882,8 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 110,
-        "partial": 2,
+        "full": 111,
+        "partial": 1,
         "missing": 0,
         "withErrors": 0
       },
@@ -12040,7 +12040,7 @@
         },
         {
           "code": "GD04-067",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12048,9 +12048,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:copy-keywords-from-trash (C12, falta ruling)"
+                "GD04-067-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】①:Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card."
             }

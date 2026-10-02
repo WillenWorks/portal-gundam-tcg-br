@@ -1163,9 +1163,17 @@ function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, sta
  * 【During Pair】/condição de board/aura de Pilot) não são vistas, mesmo
  * limite documentado em `effectiveAp` acima.
  */
+/** "Breach" casa "Breach" e "Breach 3" (não "Breacher") */
+function keywordNameMatches(text: string, keyword: string): boolean {
+  const t = text.toLowerCase();
+  const k = keyword.toLowerCase();
+  return t === k || t.startsWith(`${k} `);
+}
+
 export function hasKeyword(card: CardInstance, keyword: string, state?: GameState): boolean {
   const fromDef = card.def.effectKeywords?.includes(keyword) ?? false;
-  const fromGrant = card.keywordGrants.some((g) => g.keyword === keyword);
+  // auditoria A27 — concessão com valor ("Breach 3") também é <Breach>
+  const fromGrant = card.keywordGrants.some((g) => keywordNameMatches(g.keyword, keyword));
   const fromStatic = state ? findActiveStaticKeywordAbility(card, keyword, state) !== undefined : false;
   return fromDef || fromGrant || fromStatic;
 }
@@ -1181,18 +1189,30 @@ export function hasKeyword(card: CardInstance, keyword: string, state?: GameStat
  * "Simultaneous Fire", que concede `<Breach 3>` via Main).
  */
 export function keywordValue(card: CardInstance, keyword: string, state?: GameState): number | null {
-  const grant = card.keywordGrants.find((g) => g.keyword.toLowerCase().startsWith(keyword.toLowerCase()));
-  if (grant) {
-    const match = grant.keyword.match(/(-?\d+)/);
+  // auditoria A27 — CR 13-1-2-5 / 13-1-1-2 / 13-1-3-2 (rulings Q52/Q57/Q58): cópias de <Breach>/<Repair>/<Support>
+  // SOMAM os valores (<Breach 2> + <Breach 3> = <Breach 5>). Antes valia só a 1ª concessão e o impresso era ignorado.
+  const valueOf = (text: string) => {
+    const match = text.match(/(-?\d+)/);
     return match ? Number(match[1]) : 0;
+  };
+  let found = false;
+  let total = 0;
+  for (const g of card.keywordGrants) {
+    if (!keywordNameMatches(g.keyword, keyword)) continue;
+    found = true;
+    total += valueOf(g.keyword);
   }
-  const tag = card.def.keywordTags?.find((t) => t.toLowerCase().startsWith(keyword.toLowerCase()));
+  const tag = card.def.keywordTags?.find((t) => keywordNameMatches(t, keyword));
   if (tag) {
-    const match = tag.match(/(-?\d+)/);
-    return match ? Number(match[1]) : 0;
+    found = true;
+    total += valueOf(tag);
   }
   const staticAbility = state ? findActiveStaticKeywordAbility(card, keyword, state) : undefined;
-  if (staticAbility) return staticAbility.keywordValue ?? 0;
+  if (staticAbility) {
+    found = true;
+    total += staticAbility.keywordValue ?? 0;
+  }
+  if (found) return total;
   return hasKeyword(card, keyword, state) ? 0 : null;
 }
 

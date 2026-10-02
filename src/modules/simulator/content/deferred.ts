@@ -187,15 +187,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
   },
-  // W5 — GD04-067: "all <Keyword> on that Unit card" — copiar keyword de carta do trash; Q&A oficial não cobre
-  // o que acontece com valores (<Breach 3> + <Breach 2>) nem keyword já possuída (plano: carta ambígua → deferida)
-  {
-    cardCode: "GD04-067",
-    clause:
-      "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card.",
-    reason: "falta ruling de como somar/copiar keywords com valor (Breach/Repair/Support) — a habilidade não faz nada",
-    blockedBy: "engine:copy-keywords-from-trash (C12, falta ruling)",
-  },
   // W5 — aproximações aceitas (o efeito acontece, com a diferença descrita)
   {
     cardCode: "GD04-069",
