@@ -106,8 +106,12 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("W0.4 — cláusula sem efeito bloqueia mesmo com outro campo coberto (GD03-104: tem pilotMode, falta 【Main】/【Action】)", () => {
-    expect(isCardPlayable(GD03_CARD_DEFS["GD03-104"])).toBe(false);
+  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-113: 【Main】/【Action】 deferido)", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(false);
+  });
+
+  it("GD03-104 destravada na W5 (alvos condicionais) é jogável", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-104"])).toBe(true);
   });
 
   it("W0.4 — GD02 com a auditoria zerada é jogável (GD02-001 real, coberto por allyCombatTriggers)", () => {
