@@ -988,3 +988,108 @@ describe("auditoria A27 / A25 — keywords com valor somam (CR 13-1-2-5) e GD04-
     expect(state.players.A.resourceArea.filter((r) => r.rested).length).toBe(1);
   });
 });
+
+describe("auditoria A26 — fluxo real das cartas da W5 testadas só despachando o efeito", () => {
+  /** inimigo (B) joga GD01-104 "Choose 1 rested enemy Unit. Deal 2 damage to it." no alvo */
+  function enemyCommandHit(state: GameState, targetId: string): GameState {
+    const cmd = getCardDefByCode("GD01-104");
+    if (!cmd) throw new Error("GD01-104");
+    const s: GameState = { ...state, activePlayer: "B", phase: "main" };
+    resources(s, "B", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const card = placeCard(s, "B", cmd, "hand");
+    return act(s, "B", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [targetId] } });
+  }
+
+  it("029/098: redução/imunidade valem contra Command inimigo jogado de verdade", () => {
+    const state = game();
+    const dynames = placeCard(state, "A", { ...G["GD04-029"], hp: 9 }, "battleArea", { rested: true });
+    pair(state, placeCard(state, "A", UNIT({ hp: 9 }), "battleArea"), placeCard(state, "A", PILOT({ traits: ["CB"] }), "battleArea"));
+    expect(dmg(enemyCommandHit(state, dynames), dynames)).toBe(1);
+    const s2 = game();
+    const riddheUnit = placeCard(s2, "A", linkedTo(G["GD04-098"]), "battleArea", { rested: true });
+    pair(s2, riddheUnit, placeCard(s2, "A", G["GD04-098"], "battleArea"));
+    expect(dmg(enemyCommandHit(s2, riddheUnit), riddheUnit)).toBe(0);
+  });
+
+  it("036 【Deploy】 (jogada da mão): pede 1–2 outras Units (CB) ativas", () => {
+    let state = game();
+    resources(state, "A", 6);
+    const c1 = placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea");
+    placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea", { rested: true }); // descansada: fora
+    const low = placeCard(state, "B", UNIT({ hp: 9, level: 6 }), "battleArea");
+    const card = placeCard(state, "A", G["GD04-036"], "hand");
+    state = act(state, "A", { kind: "deployCard", cardInstanceId: card });
+    const d = state.pendingDecision.A;
+    const q = d?.kind === "abilityResolution" ? d.queue.find((x) => x.specId === "GD04-036-Deploy") : undefined;
+    expect(q?.legalTargets).toEqual([c1]);
+    expect(q?.targetCount?.max).toBe(2);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-036-Deploy", activate: true, targetIds: [c1] }] });
+    expect(dmg(state, low)).toBe(1);
+  });
+
+  it("049 【During Pair】【Attack】 (ataque real ao jogador): pede Unit/Base inimiga Lv.8-", () => {
+    let state = game();
+    const dx = placeCard(state, "A", G["GD04-049"], "battleArea");
+    pair(state, dx, placeCard(state, "A", PILOT(), "battleArea"));
+    for (let i = 0; i < 7; i++) placeCard(state, "A", UNIT({ traits: ["Vulture"] }), "trash");
+    const base = placeCard(state, "B", CARD_BASE(), "baseSection");
+    const big = placeCard(state, "B", UNIT({ level: 9 }), "battleArea");
+    state = act(state, "A", { kind: "declareAttack", attackerId: dx, target: "player" });
+    const d = state.pendingDecision.A;
+    const q = d?.kind === "abilityResolution" ? d.queue.find((x) => x.specId === "GD04-049-Attack") : undefined;
+    expect(q?.legalTargets).toContain(base);
+    expect(q?.legalTargets).not.toContain(big);
+  });
+
+  it("065 【During Link】【Activate･Main】: só é oferecida com 3 cartas azuis no trash; ativa de verdade", () => {
+    let state = game();
+    const self = placeCard(state, "A", linkedTo(PILOT({ nameEn: "Riddhe Marcenas" }), { ...G["GD04-065"], hp: 9 }), "battleArea", { rested: true });
+    pair(state, self, placeCard(state, "A", PILOT({ nameEn: "Riddhe Marcenas" }), "battleArea"));
+    const offered = (s: GameState) => enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, OPTS).some((a) => a.kind === "activateAbility" && a.sourceInstanceId === self);
+    expect(offered(state)).toBe(false);
+    for (let i = 0; i < 3; i++) placeCard(state, "A", UNIT({ color: "blue" }), "trash");
+    expect(offered(state)).toBe(true);
+    state = act(state, "A", { kind: "activateAbility", sourceInstanceId: self });
+    expect(findCard(state, self).rested).toBe(false);
+    expect(state.players.A.exile.length).toBe(3);
+  });
+
+  it("093 【When Linked】 (pareamento real): pede uma Link Unit (ZAFT) sua", () => {
+    let state = game();
+    resources(state, "A", 6);
+    const zaft = placeCard(state, "A", linkedTo(G["GD04-093"], { traits: ["ZAFT"] }), "battleArea");
+    const pilot = placeCard(state, "A", G["GD04-093"], "hand");
+    state = act(state, "A", { kind: "deployCard", cardInstanceId: pilot, pairWithUnitId: zaft });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD04-093-WhenLinked")?.legalTargets).toEqual([zaft]);
+  });
+
+  it("107 【Action】 (Command jogado no Action Step): oferece só Unit sua descansada", () => {
+    const cmd = G["GD04-107"];
+    let state = game();
+    state = { ...state, activePlayer: "B" };
+    resources(state, "A", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const rested = placeCard(state, "A", UNIT(), "battleArea", { rested: true });
+    placeCard(state, "A", UNIT(), "battleArea");
+    const attacker = placeCard(state, "B", UNIT(), "battleArea");
+    const card = placeCard(state, "A", cmd, "hand");
+    state = {
+      ...state,
+      combat: { step: "action", attackerId: attacker, attackingPlayer: "B", defendingPlayer: "A", originalTarget: "player", currentTarget: "player", actionPasses: { A: false, B: false }, actionPriority: "A" },
+    };
+    const offers = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "playCommand" && a.cardInstanceId === card);
+    expect(offers.map((a) => (a.kind === "playCommand" ? a.targets?.target : undefined))).toEqual([[rested]]);
+  });
+
+  it("119 【Main】 (Command jogado): oferece só Unit pareada com Piloto (Newtype)", () => {
+    const cmd = G["GD04-119"];
+    const state = game();
+    resources(state, "A", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const nt = placeCard(state, "A", UNIT(), "battleArea");
+    pair(state, nt, placeCard(state, "A", PILOT({ traits: ["Newtype"] }), "battleArea"));
+    placeCard(state, "A", UNIT(), "battleArea");
+    const card = placeCard(state, "A", cmd, "hand");
+    const offers = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "playCommand" && a.cardInstanceId === card);
+    expect(offers.map((a) => (a.kind === "playCommand" ? a.targets?.target : undefined))).toEqual([[nt]]);
+  });
+});
