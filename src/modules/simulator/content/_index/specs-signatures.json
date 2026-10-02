@@ -5307,6 +5307,19 @@
     "sourceText": "When you activate a Command's 【Main】/【Action】 effect, choose 1 enemy Unit. It gets AP-2 during this turn."
   },
   {
+    "id": "GD04-067-ActivateMain",
+    "cardCode": "GD04-067",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "copyKeywordsFromTrashCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】①：Choose 1 Unit card with <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> from your trash. During this turn, this Unit gets AP+1 and all <Repair>/<Breach>/<First Strike>/<Support>/<High-Maneuver>/<Suppression>/<Blocker> on that Unit card."
+  },
+  {
     "id": "GD04-069-EndOfTurn",
     "cardCode": "GD04-069",
     "trigger": "Delayed:endOfTurn",
