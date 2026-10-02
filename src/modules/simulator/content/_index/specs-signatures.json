@@ -4039,6 +4039,32 @@
     "sourceText": "【Main】If 3 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it."
   },
   {
+    "id": "GD03-104-Action",
+    "cardCode": "GD03-104",
+    "trigger": "Action",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": "controllerLinkUnitWithTraitInPlay:Jupitris",
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead."
+  },
+  {
+    "id": "GD03-104-Main",
+    "cardCode": "GD03-104",
+    "trigger": "Main",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": "controllerLinkUnitWithTraitInPlay:Jupitris",
+    "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead."
+  },
+  {
     "id": "GD03-105-Burst",
     "cardCode": "GD03-105",
     "trigger": "Burst",
@@ -4318,6 +4344,31 @@
     "targetFilter": "rested",
     "predicate": "chosenNonEmpty:target",
     "sourceText": "【Main】Choose 1 rested friendly Base. Set it as active. If you do, all enemy Units get AP-1 during this turn."
+  },
+  {
+    "id": "GD03-120-Delayed",
+    "cardCode": "GD03-120",
+    "trigger": "Delayed:destroyedEnemyInBattle",
+    "ops": [
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "anyTrait:Superpower Bloc,UN;rested",
+    "predicate": null,
+    "sourceText": "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "GD03-120-Main",
+    "cardCode": "GD03-120",
+    "trigger": "Main",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn."
   },
   {
     "id": "GD03-121-Action",
@@ -5800,6 +5851,45 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Once per Turn】When you pay ① or more cost for one of your Units'effects, you may increase this Unit's AP during this turn by an amount equal to the cost paid."
+  },
+  {
+    "id": "GD04-101-Action",
+    "cardCode": "GD04-101",
+    "trigger": "Action",
+    "ops": [
+      "protectFriendlyUnitsFromEnemyDestroyEffects",
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1."
+  },
+  {
+    "id": "GD04-101-Burst",
+    "cardCode": "GD04-101",
+    "trigger": "Burst",
+    "ops": [
+      "protectFriendlyUnitsFromEnemyDestroyEffects",
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Main】."
+  },
+  {
+    "id": "GD04-101-Main",
+    "cardCode": "GD04-101",
+    "trigger": "Main",
+    "ops": [
+      "protectFriendlyUnitsFromEnemyDestroyEffects",
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1."
   },
   {
     "id": "GD04-102-Burst",
@@ -7736,7 +7826,7 @@
     "cardCode": "ST06-013",
     "trigger": "Action",
     "ops": [
-      "preventUnitBattleDamage"
+      "grantDamageModifier"
     ],
     "targetScope": "friendlyUnit",
     "targetFilter": "trait:Clan",
@@ -7917,7 +8007,9 @@
     "id": "ST07-013-Action",
     "cardCode": "ST07-013",
     "trigger": "Action",
-    "ops": [],
+    "ops": [
+      "changeAttackTarget"
+    ],
     "targetScope": "friendlyUnit",
     "targetFilter": "trait:CB;rested",
     "predicate": null,
