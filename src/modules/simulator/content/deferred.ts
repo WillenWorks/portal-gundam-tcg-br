@@ -252,12 +252,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:destroyed-pilot-unit-level-filter (C5)",
   },
   {
-    cardCode: "GD03-104",
-    clause: "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead.",
-    reason: "\"choose 1 to 2 … instead\" (quantidade de alvos condicional) ainda não existe",
-    blockedBy: "engine:conditional-target-count (C9)",
-  },
-  {
     cardCode: "GD03-113",
     clause: "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it.",
     reason: "Lv. da Unit restada pela própria habilidade como limite do 2º alvo ainda não existe",
@@ -268,11 +262,5 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     clause: "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn.",
     reason: "\"Then, … you may choose 1 friendly Unit\" (2º alvo opcional condicionado) ainda não existe",
     blockedBy: "engine:optional-conditional-secondary-target (C9)",
-  },
-  {
-    cardCode: "GD03-120",
-    clause: "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn.",
-    reason: "efeito atrasado \"during this turn, if … destroys …, choose …\" (reação criada por Command) ainda não existe",
-    blockedBy: "engine:delayed-reaction-from-command (C1)",
   },
 ] as const;

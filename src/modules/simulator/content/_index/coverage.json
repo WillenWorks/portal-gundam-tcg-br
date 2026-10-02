@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "671 specs",
+  "generatedFrom": "675 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -3054,10 +3054,8 @@
         {
           "code": "GD03-104",
           "name": "Reccoa's Shadow",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-105",
@@ -3156,10 +3154,8 @@
         {
           "code": "GD03-120",
           "name": "Immortal Colasour",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-121",
@@ -3235,10 +3231,10 @@
         }
       ],
       "counts": {
-        "impl": 108,
+        "impl": 110,
         "implStar": 3,
         "vanilla": 16,
-        "deferida": 5,
+        "deferida": 3,
         "faltando": 0
       }
     },

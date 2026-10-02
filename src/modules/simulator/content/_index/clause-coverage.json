@@ -7997,8 +7997,8 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 108,
-        "partial": 8,
+        "full": 110,
+        "partial": 6,
         "missing": 0,
         "withErrors": 0
       },
@@ -10046,7 +10046,7 @@
         },
         {
           "code": "GD03-104",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10055,9 +10055,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:conditional-target-count (C9)"
+                "GD03-104-Main",
+                "GD03-104-Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead."
             },
@@ -10446,7 +10447,7 @@
         },
         {
           "code": "GD03-120",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10454,9 +10455,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:delayed-reaction-from-command (C1)"
+                "GD03-120-Main",
+                "GD03-120-Delayed"
               ],
               "text": "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn."
             },

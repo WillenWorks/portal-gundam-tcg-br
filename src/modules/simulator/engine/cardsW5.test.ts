@@ -758,3 +758,62 @@ describe("auditoria A8 — `commandActivated` não se perde quando a resolução
     expect(effectiveAp(findCard(state, enemy), state)).toBe(2);
   });
 });
+
+describe("auditoria A23 — deferidas do GD03 destravadas pela W5", () => {
+  const runFight = (state: GameState, attackerId: string, defenderId: string): GameState =>
+    act(
+      {
+        ...state,
+        combat: {
+          step: "action",
+          attackerId,
+          attackingPlayer: "A",
+          defendingPlayer: "B",
+          originalTarget: { unitId: defenderId },
+          currentTarget: { unitId: defenderId },
+          actionPasses: { A: true, B: false },
+          actionPriority: "B",
+        },
+      },
+      "B",
+      { kind: "passAction" },
+    );
+
+  it("GD03-104 (Command jogado): 1 alvo; com Link Unit (Jupitris) sua, até 2", () => {
+    const def = GD03_CARD_DEFS["GD03-104"];
+    const setup = () => {
+      const state = game();
+      resources(state, "A", Math.max(def.level ?? 0, def.cost ?? 0));
+      const e1 = placeCard(state, "B", UNIT({ hp: 3 }), "battleArea");
+      const e2 = placeCard(state, "B", UNIT({ hp: 3 }), "battleArea");
+      return { state, e1, e2 };
+    };
+    const plain = setup();
+    const card = placeCard(plain.state, "A", def, "hand");
+    const s1 = act(plain.state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [plain.e1, plain.e2] } });
+    expect([findCard(s1, plain.e1).rested, findCard(s1, plain.e2).rested]).toEqual([true, false]);
+    const linked = setup();
+    const u = placeCard(linked.state, "A", UNIT({ traits: ["Jupitris"], link: { kind: "pilotName", values: ["Link Pilot"] } }), "battleArea");
+    pair(linked.state, u, placeCard(linked.state, "A", PILOT({ nameEn: "Link Pilot" }), "battleArea"));
+    const card2 = placeCard(linked.state, "A", def, "hand");
+    const s2 = act(linked.state, "A", { kind: "playCommand", cardInstanceId: card2, trigger: "Main", targets: { target: [linked.e1, linked.e2] } });
+    expect([findCard(s2, linked.e1).rested, findCard(s2, linked.e2).rested]).toEqual([true, true]);
+  });
+
+  it("GD03-120 【Main】: Unit (UN) sua destrói inimiga em batalha → escolhe Unit (UN/SB) descansada: fica ativa e não ataca", () => {
+    const def = GD03_CARD_DEFS["GD03-120"];
+    let state = game();
+    resources(state, "A", Math.max(def.level ?? 0, def.cost ?? 0));
+    const card = placeCard(state, "A", def, "hand");
+    state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main" });
+    const un = placeCard(state, "A", UNIT({ ap: 5, hp: 9, traits: ["UN"] }), "battleArea");
+    const restedSb = placeCard(state, "A", UNIT({ traits: ["Superpower Bloc"] }), "battleArea", { rested: true });
+    const victim = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    state = runFight(state, un, victim);
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue[0].legalTargets).toContain(restedSb);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD03-120-Delayed", activate: true, targetIds: [restedSb] }] });
+    expect(findCard(state, restedSb).rested).toBe(false);
+    expect(findCard(state, restedSb).cannotAttackUntilTurn).toBe(state.turnNumber);
+  });
+});
