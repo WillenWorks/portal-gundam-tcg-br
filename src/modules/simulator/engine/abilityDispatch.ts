@@ -1003,9 +1003,16 @@ export function dispatchCommandActivated(
   specs: EffectSpec[],
   opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
 ): GameState {
-  if (state.gameOver || state.pendingDecision.A || state.pendingDecision.B) return state;
+  if (state.gameOver) return state;
   const card = findCard(state, commandId);
-  return dispatchReactions(state, [{ event: "commandActivated", subjectId: commandId, owner: card.owner }], specs, opts);
+  const occ: ReactionOccurrence = { event: "commandActivated", subjectId: commandId, owner: card.owner };
+  // auditoria A8 — a resolução pausou numa cascata (ex. 【Destroyed】 com escolha): a reação espera na fila da decisão
+  if (state.pendingDecision.A || state.pendingDecision.B) {
+    if (!specsListenTo(specs, "commandActivated")) return state;
+    const sources = reactionListeners(state, occ, specs, opts.targetFilterResolver);
+    return sources.length ? attachQueuedTriggers(state, [{ owner: card.owner, trigger: "Reaction:commandActivated", sources }]) : state;
+  }
+  return dispatchReactions(state, [occ], specs, opts);
 }
 
 /**

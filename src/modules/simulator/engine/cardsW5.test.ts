@@ -16,6 +16,7 @@ import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver
 import { GD02_CARD_DEFS as G2 } from "../content/gd02";
 import { GD04_CARD_DEFS } from "../content/gd04";
 import { GD03_CARD_DEFS } from "../content/gd03";
+import { getCardDefByCode } from "../content/allCardDefs";
 
 /** W5 — GD04-C. W5a: camada de dano (C2) — redução, imunidade, "próximo dano", redirecionar (engine/damageLayer.ts). */
 
@@ -733,5 +734,27 @@ describe("auditoria A2 — alvo `pairedPilotOf` pede escolha no fluxo real", () 
     state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [low] } });
     expect(state.players.B.trash.some((c) => c.instanceId === lowPilot)).toBe(true);
     expect(findCard(state, low).pairedPilotId).toBeFalsy();
+  });
+});
+
+describe("auditoria A8 — `commandActivated` não se perde quando a resolução do Command pausa", () => {
+  it("Command mata Unit cujo Piloto tem 【Destroyed】 com escolha (oponente decide) → depois o GD04-066 reage", () => {
+    let state = game();
+    placeCard(state, "A", G["GD04-066"], "battleArea");
+    const victim = placeCard(state, "B", UNIT({ hp: 1 }), "battleArea", { rested: true }); // +1 HP do Piloto = 2
+    pair(state, victim, placeCard(state, "B", G["GD04-091"], "battleArea"));
+    const other = placeCard(state, "A", UNIT({ hp: 9 }), "battleArea"); // alvo do 091 (sem dano)
+    const enemy = placeCard(state, "B", UNIT({ ap: 4, hp: 9 }), "battleArea");
+    const cmd = getCardDefByCode("GD01-104");
+    if (!cmd) throw new Error("GD01-104 fora do catálogo");
+    resources(state, "A", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const card = placeCard(state, "A", cmd, "hand");
+    state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [victim] } });
+    expect(state.pendingDecision.B?.kind).toBe("abilityResolution"); // 【Destroyed】 do Deux Murasame
+    state = act(state, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD04-091-Destroyed", activate: true, targetIds: [other] }] });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.some((q) => q.specId === "GD04-066-CommandActivated")).toBe(true);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-066-CommandActivated", activate: true, targetIds: [enemy] }] });
+    expect(effectiveAp(findCard(state, enemy), state)).toBe(2);
   });
 });
