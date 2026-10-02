@@ -161,6 +161,10 @@
     "deployExBase": {
       "description": "Coloca 1 EX Base (token) na Base Section; a Base atual sai (token removido, carta vai pro trash).",
       "since": "GD04-110"
+    },
+    "grantDelayedReaction": {
+      "description": "Arma até o fim do turno o spec <specId> (gatilho Delayed:<evento>, com reaction); subject opcional restringe aos eventos daquela carta.",
+      "since": "GD04-002/035/115"
     }
   },
   "targetRefKinds": {
@@ -509,6 +513,10 @@
     "selfPaidWithEx": {
       "description": "A fonte (Command) foi jogada pagando com EX Resource neste turno (CardInstance.paidWithExOnTurn).",
       "since": "GD04-106/108"
+    },
+    "controllerHandCountAtMost:<n>": {
+      "description": "O controller tem N ou menos cartas na mão.",
+      "since": "GD04-035"
     }
   },
   "targetFilters": {

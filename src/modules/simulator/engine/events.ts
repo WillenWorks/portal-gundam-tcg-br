@@ -151,6 +151,8 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     trash: player.trash.map(cloneCard),
     exile: player.exile.map(cloneCard),
     hand: player.hand.map(cloneCard),
+    // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
+    ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
   };
 }
 
@@ -255,6 +257,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.damageModifiers = [...(card.damageModifiers ?? []), event.modifier];
       return state;
     }
+    case "ADD_DELAYED_REACTION": {
+      const player = state.players[event.player];
+      player.delayedReactions = [...(player.delayedReactions ?? []), event.entry];
+      return state;
+    }
     case "MARK_COMMAND_PAYMENT": {
       findCard(state, event.instanceId).paidWithExOnTurn = event.withEx ? event.turn : undefined;
       return state;
@@ -344,6 +351,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "CLEAR_TURN_MODIFIERS": {
       for (const player of Object.values(state.players)) {
+        if (player.delayedReactions) {
+          const left = player.delayedReactions.filter((d) => d.turn > event.turnNumber);
+          player.delayedReactions = left.length ? left : undefined;
+        }
         for (const zone of ["battleArea", "baseSection"] as const) {
           for (const card of player[zone]) {
             card.statModifiers = card.statModifiers.filter(

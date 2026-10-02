@@ -4,6 +4,7 @@ import type { CardDef, GameState, PlayerId } from "./types";
 import { advanceToMainPhase } from "./phases";
 import { dispatchTrigger } from "./dispatcher";
 import { resolveDamageStep } from "./combat";
+import { enumerateLegalActions } from "./legalActions";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 import { effectiveAp } from "./types";
 import { findCard } from "./events";
@@ -399,5 +400,130 @@ describe("W5b — EX Resource e origem do pagamento (C6)", () => {
       { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
     );
     expect(dmg(s, base)).toBe(1);
+  });
+});
+
+describe("W5c — custo de descansar Unit e gatilhos atrasados", () => {
+  /** batalha A ataca `defender` (descansada) e passa os 2 Action Steps até o fim do combate */
+  function fight(state: GameState, attackerId: string, defenderId: string): GameState {
+    const s: GameState = {
+      ...state,
+      combat: {
+        step: "action",
+        attackerId,
+        attackingPlayer: "A",
+        defendingPlayer: "B",
+        originalTarget: { unitId: defenderId },
+        currentTarget: { unitId: defenderId },
+        actionPasses: { A: true, B: false },
+        actionPriority: "B",
+      },
+    };
+    return act(s, "B", { kind: "passAction" });
+  }
+  const pending = (state: GameState, player: PlayerId) => {
+    const d = state.pendingDecision[player];
+    return d?.kind === "abilityResolution" ? d : null;
+  };
+
+  it("006 【Activate·Main】【Once per Turn】: descansar outra Unit (League Militaire) ativa → descansa inimiga HP<=4", () => {
+    let state = game();
+    const self = placeCard(state, "A", G["GD04-006"], "battleArea");
+    const lm = placeCard(state, "A", UNIT({ traits: ["League Militaire"] }), "battleArea");
+    const enemy = placeCard(state, "B", UNIT({ hp: 4 }), "battleArea");
+    placeCard(state, "B", UNIT({ hp: 5 }), "battleArea");
+    state = act(state, "A", { kind: "activateAbility", sourceInstanceId: self });
+    const d = pending(state, "A");
+    expect(d?.queue[0].legalTargets).toEqual([enemy]);
+    expect(d?.queue[0].secondaryTarget?.legalTargets).toEqual([lm]);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-006-ActivateMain", activate: true, targetIds: [enemy], secondaryTargetIds: [lm] }] });
+    expect(findCard(state, lm).rested).toBe(true);
+    expect(findCard(state, enemy).rested).toBe(true);
+    expect(findCard(state, self).rested).toBe(false);
+  });
+
+  it("006: sem outra Unit (League Militaire) ativa, a habilidade não é ofertada", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-006"], "battleArea");
+    placeCard(state, "A", UNIT({ traits: ["League Militaire"] }), "battleArea", { rested: true });
+    placeCard(state, "B", UNIT({ hp: 4 }), "battleArea");
+    const offers = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "activateAbility" && a.sourceInstanceId === self);
+    expect(offers).toEqual([]);
+  });
+
+  it("125 (Base) 【Activate·Main】: ① + descansar 1 Unit (CB) → 1 de dano em inimiga Lv.5-", () => {
+    let state = game();
+    resources(state, "A", 2);
+    const base = placeCard(state, "A", G["GD04-125"], "baseSection");
+    const cb = placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea");
+    const enemy = placeCard(state, "B", UNIT({ hp: 3, level: 5 }), "battleArea");
+    state = act(state, "A", { kind: "activateAbility", sourceInstanceId: base });
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-125-ActivateMain", activate: true, targetIds: [enemy], secondaryTargetIds: [cb] }] });
+    expect(dmg(state, enemy)).toBe(1);
+    expect(findCard(state, cb).rested).toBe(true);
+    expect(state.players.A.resourceArea.filter((r) => r.rested).length).toBe(1);
+  });
+
+  it("036 【Deploy】: descansa 1–2 outras Units (CB) ativas → dano = nº descansadas em todas as inimigas Lv.6-", () => {
+    const state = game();
+    const self = placeCard(state, "A", G["GD04-036"], "battleArea");
+    const c1 = placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea");
+    const c2 = placeCard(state, "A", UNIT({ traits: ["CB"] }), "battleArea");
+    const low = placeCard(state, "B", UNIT({ hp: 9, level: 6 }), "battleArea");
+    const high = placeCard(state, "B", UNIT({ hp: 9, level: 7 }), "battleArea");
+    const s = runSpec(state, "GD04-036-Deploy", self, { target: [c1, c2] });
+    expect(findCard(s, c1).rested && findCard(s, c2).rested).toBe(true);
+    expect(dmg(s, low)).toBe(2);
+    expect(dmg(s, high)).toBe(0);
+  });
+
+  it("002 【Deploy】: neste turno, Unit (EF) sua destrói inimiga em batalha → descansa inimiga HP<=5", () => {
+    let state = game();
+    const self = placeCard(state, "A", G["GD04-002"], "battleArea");
+    state = runSpec(state, "GD04-002-Deploy", self);
+    const ef = placeCard(state, "A", UNIT({ ap: 5, hp: 9, traits: ["Earth Federation"] }), "battleArea");
+    const victim = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    const other = placeCard(state, "B", UNIT({ hp: 5 }), "battleArea");
+    state = fight(state, ef, victim);
+    expect(pending(state, "A")?.queue[0].legalTargets).toEqual([other]);
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD04-002-Delayed", activate: true, targetIds: [other] }] });
+    expect(findCard(state, other).rested).toBe(true);
+  });
+
+  it("002: no turno seguinte o gatilho não existe mais", () => {
+    let state = game();
+    const self = placeCard(state, "A", G["GD04-002"], "battleArea");
+    state = runSpec(state, "GD04-002-Deploy", self);
+    state = { ...state, turnNumber: state.turnNumber + 1 };
+    const ef = placeCard(state, "A", UNIT({ ap: 5, hp: 9, traits: ["Earth Federation"] }), "battleArea");
+    const victim = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    placeCard(state, "B", UNIT({ hp: 5 }), "battleArea");
+    state = fight(state, ef, victim);
+    expect(pending(state, "A")).toBeNull();
+  });
+
+  it("035 【Deploy】: a Unit (Mafty) escolhida destrói inimiga em batalha com mão <= 3 → compra 1", () => {
+    let state = game();
+    const self = placeCard(state, "A", G["GD04-035"], "battleArea");
+    const mafty = placeCard(state, "A", UNIT({ ap: 5, hp: 9, traits: ["Mafty"] }), "battleArea");
+    const other = placeCard(state, "A", UNIT({ ap: 5, hp: 9, traits: ["Mafty"] }), "battleArea");
+    state.players.A.hand = state.players.A.hand.slice(0, 2);
+    state = runSpec(state, "GD04-035-Deploy", self, { target: [mafty] });
+    const v1 = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    const afterOther = fight(state, other, v1);
+    expect(afterOther.players.A.hand.length).toBe(2);
+    const v2 = placeCard(state, "B", UNIT({ hp: 2 }), "battleArea", { rested: true });
+    expect(fight(state, mafty, v2).players.A.hand.length).toBe(3);
+  });
+
+  it("115 【Main】: a Unit escolhida causa dano de batalha em inimiga Lv.5- → destrói a inimiga", () => {
+    let state = game();
+    const unit = placeCard(state, "A", UNIT({ ap: 1, hp: 9 }), "battleArea");
+    const src = placeCard(state, "A", G["GD04-115"], "trash");
+    state = runSpec(state, "GD04-115-Main", src, { target: [unit] });
+    const low = placeCard(state, "B", UNIT({ hp: 9, level: 5 }), "battleArea", { rested: true });
+    const high = placeCard(state, "B", UNIT({ hp: 9, level: 6 }), "battleArea", { rested: true });
+    expect(inPlay(fight(state, unit, low), low)).toBe(false);
+    expect(inPlay(fight(state, unit, high), high)).toBe(true);
   });
 });

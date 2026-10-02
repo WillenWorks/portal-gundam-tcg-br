@@ -85,6 +85,9 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
     return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(enemyUnitWithTrait[1]));
   }
+  // W5 — GD04-035 "if you have 3 or less cards in your hand"
+  const handAtMost = predicate.match(/^controllerHandCountAtMost:(\d+)$/);
+  if (handAtMost) return ctx.state.players[ctx.controller].hand.length <= Number(handAtMost[1]);
   // W5 (C6) — GD04-106/108 "If you use an EX Resource to play this card"
   if (predicate === "selfPaidWithEx") {
     return findCard(ctx.state, ctx.sourceInstanceId).paidWithExOnTurn === ctx.state.turnNumber;

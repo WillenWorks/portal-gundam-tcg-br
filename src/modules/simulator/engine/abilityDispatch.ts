@@ -935,11 +935,40 @@ export function dispatchReactions(
   let next = state;
   for (const occ of ordered) {
     const sources = reactionListeners(next, occ, specs, opts.targetFilterResolver);
-    if (sources.length === 0) continue;
-    next = deferOrDispatchAbilities(next, occ.owner, `Reaction:${occ.event}`, sources, specs, opts);
-    if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (sources.length > 0) {
+      next = deferOrDispatchAbilities(next, occ.owner, `Reaction:${occ.event}`, sources, specs, opts);
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    }
+    const delayed = delayedListeners(next, occ, specs, opts.targetFilterResolver);
+    if (delayed.length > 0) {
+      next = deferOrDispatchAbilities(next, occ.owner, `Delayed:${occ.event}`, delayed, specs, opts);
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
+    }
   }
   return next;
+}
+
+/** W5 — gatilhos atrasados (`grantDelayedReaction`) do lado do dono do evento, armados neste turno */
+function delayedListeners(state: GameState, occ: ReactionOccurrence, specs: EffectSpec[], targetFilterResolver?: TargetFilterResolver): AbilitySource[] {
+  const out: AbilitySource[] = [];
+  for (const entry of state.players[occ.owner].delayedReactions ?? []) {
+    if (entry.turn !== state.turnNumber) continue;
+    const spec = specs.find((s) => s.id === entry.specId);
+    if (!spec?.reaction || spec.reaction.event !== occ.event) continue;
+    if (entry.subjectId && entry.subjectId !== occ.subjectId) continue;
+    if (spec.reaction.subjectFilter) {
+      const ok = targetFilterResolver?.(spec.reaction.subjectFilter, findCard(state, occ.subjectId), {
+        state,
+        sourceInstanceId: entry.sourceId,
+        targets: { reactionSubject: [occ.subjectId] },
+      });
+      if (!ok) continue;
+    }
+    const implicitTargets: Record<string, string[]> = { reactionSubject: [occ.subjectId] };
+    if (occ.victimId) implicitTargets.battleVictim = [occ.victimId];
+    out.push({ code: spec.cardCode, instanceId: entry.sourceId, implicitTargets });
+  }
+  return out;
 }
 
 /**

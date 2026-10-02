@@ -8,6 +8,8 @@ import { mainAndAction } from "../standardSpecs";
  * As reduções contínuas (GD04-029/053/068/088/098/123) são `CardDef.damageReductions`.
  * W5b — EX Resource e origem do pagamento (C6): reações `damagedByEnemy`, `commandActivated`,
  * `exResourcePlaced`, `paidForUnitEffect`; `selfPaidWithEx` / filtro `paidWithEx`; `deployExBase`.
+ * W5c — custo "Rest 1 of your … Units" (2º alvo `costUnit`, o motor pergunta junto com o alvo) e gatilhos
+ * atrasados "During this turn, when …" (`grantDelayedReaction` + spec `Delayed:<evento>`).
  */
 
 const target = { kind: "named", name: "target" } as const;
@@ -15,7 +17,124 @@ const thisUnit = { kind: "pairedUnit" } as const;
 const self = { kind: "self" } as const;
 const placeEx = (rested?: boolean): PrimitiveCall => ({ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea", rested });
 
+const costUnit = { kind: "named", name: "costUnit" } as const;
+const restCostUnit: PrimitiveCall = { op: "rest", target: costUnit };
+
 export const GD04_W5_EFFECT_SPECS: EffectSpec[] = [
+  // ——— W5c: custo de descansar Unit ———
+  {
+    id: "GD04-006-ActivateMain",
+    cardCode: "GD04-006",
+    trigger: "Activate·Main",
+    oncePerTurn: true,
+    cost: [restCostUnit],
+    actions: [{ op: "rest", target }],
+    targetScope: "enemyUnit",
+    targetFilter: "hp<=4",
+    secondaryTarget: { name: "costUnit", targetScope: "friendlyUnit", targetFilter: "trait:League Militaire;active;notSelfUnit" },
+    sourceText: "【Activate·Main】【Once per Turn】Rest 1 of your other (League Militaire) Units:Choose 1 enemy Unit with 4 or less HP. Rest it.",
+  },
+  {
+    id: "GD04-122-ActivateMain",
+    cardCode: "GD04-122",
+    trigger: "Activate·Main",
+    oncePerTurn: true,
+    cost: [restCostUnit],
+    actions: [{ op: "rest", target }],
+    targetScope: "enemyUnit",
+    targetFilter: "level<=3",
+    secondaryTarget: { name: "costUnit", targetScope: "friendlyUnit", targetFilter: "trait:Earth Federation;active" },
+    sourceText: "【Activate·Main】【Once per Turn】Rest 1 of your (Earth Federation) Units:Choose 1 enemy Unit that is Lv.3 or lower. Rest it.",
+  },
+  {
+    id: "GD04-125-ActivateMain",
+    cardCode: "GD04-125",
+    trigger: "Activate·Main",
+    oncePerTurn: true,
+    cost: [{ op: "payResourceCost", player: "controller", n: 1 }, restCostUnit],
+    actions: [{ op: "damageUnit", target, amount: 1 }],
+    targetScope: "enemyUnit",
+    targetFilter: "level<=5",
+    secondaryTarget: { name: "costUnit", targetScope: "friendlyUnit", targetFilter: "trait:CB;active" },
+    sourceText: "【Activate·Main】【Once per Turn】①, rest 1 friendly (CB) Unit:Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it.",
+  },
+  {
+    id: "GD04-036-Deploy",
+    cardCode: "GD04-036",
+    trigger: "Deploy",
+    optional: true,
+    actions: [
+      { op: "rest", target: { kind: "namedGroup", name: "target" } },
+      { op: "damageUnit", target: { kind: "group", group: { kind: "allEnemyUnits", maxLevel: 6 } }, amount: 1, amountFrom: { kind: "namedCount", name: "target" } },
+    ],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:CB;active;notSelfUnit",
+    targetCount: { min: 1, max: 2 },
+    sourceText:
+      "【Deploy】You may choose 1 to 2 of your other active (CB) Units. Rest them. If you do, deal damage equal to the number of Units rested with this effect to all enemy Units that are Lv.6 or lower.",
+  },
+  // ——— W5c: gatilhos atrasados ———
+  {
+    id: "GD04-002-Deploy",
+    cardCode: "GD04-002",
+    trigger: "Deploy",
+    actions: [{ op: "grantDelayedReaction", specId: "GD04-002-Delayed" }],
+    sourceText:
+      "【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it.",
+  },
+  {
+    id: "GD04-002-Delayed",
+    cardCode: "GD04-002",
+    trigger: "Delayed:destroyedEnemyInBattle",
+    reaction: { event: "destroyedEnemyInBattle", subject: "friendly", subjectFilter: "trait:Earth Federation" },
+    actions: [{ op: "rest", target }],
+    targetScope: "enemyUnit",
+    targetFilter: "hp<=5",
+    sourceText:
+      "【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it.",
+  },
+  {
+    id: "GD04-035-Deploy",
+    cardCode: "GD04-035",
+    trigger: "Deploy",
+    actions: [{ op: "grantDelayedReaction", specId: "GD04-035-Delayed", subject: target }],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:Mafty",
+    sourceText:
+      "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1.",
+  },
+  {
+    id: "GD04-035-Delayed",
+    cardCode: "GD04-035",
+    trigger: "Delayed:destroyedEnemyInBattle",
+    reaction: { event: "destroyedEnemyInBattle", subject: "friendly" },
+    condition: { predicate: "controllerHandCountAtMost:3", then: [{ op: "draw", player: "controller", n: 1 }] },
+    actions: [],
+    sourceText:
+      "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1.",
+  },
+  {
+    id: "GD04-115-Main",
+    cardCode: "GD04-115",
+    trigger: "Main",
+    actions: [{ op: "grantDelayedReaction", specId: "GD04-115-Delayed", subject: target }],
+    targetScope: "friendlyUnit",
+    sourceText:
+      "【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit.",
+  },
+  {
+    id: "GD04-115-Delayed",
+    cardCode: "GD04-115",
+    trigger: "Delayed:battleDamageToEnemyUnit",
+    reaction: { event: "battleDamageToEnemyUnit", subject: "friendly" },
+    condition: {
+      predicate: "battleVictimInPlay;battleVictimLevelAtMost:5",
+      then: [{ op: "destroy", target: { kind: "named", name: "battleVictim" } }],
+    },
+    actions: [],
+    sourceText:
+      "【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit.",
+  },
   // ——— W5b: Units ———
   {
     id: "GD04-018-DamagedByEnemy",

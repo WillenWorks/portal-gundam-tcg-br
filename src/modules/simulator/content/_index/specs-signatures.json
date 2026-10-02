@@ -4706,6 +4706,30 @@
     "sourceText": "【During Link】【Attack】If you are attacking an enemy Unit, you may return a blue Pilot paired with this Unit to its owner's hand."
   },
   {
+    "id": "GD04-002-Delayed",
+    "cardCode": "GD04-002",
+    "trigger": "Delayed:destroyedEnemyInBattle",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
+    "id": "GD04-002-Deploy",
+    "cardCode": "GD04-002",
+    "trigger": "Deploy",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it."
+  },
+  {
     "id": "GD04-003-Attack",
     "cardCode": "GD04-003",
     "trigger": "Attack",
@@ -4728,6 +4752,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Once per Turn】When you pair a (Cyber-Newtype) Pilot with one of your blue Units, draw 1."
+  },
+  {
+    "id": "GD04-006-ActivateMain",
+    "cardCode": "GD04-006",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=4",
+    "predicate": null,
+    "sourceText": "【Activate·Main】【Once per Turn】Rest 1 of your other (League Militaire) Units:Choose 1 enemy Unit with 4 or less HP. Rest it."
   },
   {
     "id": "GD04-007-Attack",
@@ -4909,6 +4946,43 @@
     "targetFilter": "trait:Academy;notSelf",
     "predicate": null,
     "sourceText": "【Attack】Choose 1 of your other (Academy) Units. During this turn, it may choose an active enemy Unit that is Lv.3 or lower as its attack target."
+  },
+  {
+    "id": "GD04-035-Delayed",
+    "cardCode": "GD04-035",
+    "trigger": "Delayed:destroyedEnemyInBattle",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerHandCountAtMost:3",
+    "sourceText": "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1."
+  },
+  {
+    "id": "GD04-035-Deploy",
+    "cardCode": "GD04-035",
+    "trigger": "Deploy",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Mafty",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1."
+  },
+  {
+    "id": "GD04-036-Deploy",
+    "cardCode": "GD04-036",
+    "trigger": "Deploy",
+    "ops": [
+      "rest",
+      "damageUnit"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:CB;active;notSelfUnit",
+    "predicate": null,
+    "sourceText": "【Deploy】You may choose 1 to 2 of your other active (CB) Units. Rest them. If you do, deal damage equal to the number of Units rested with this effect to all enemy Units that are Lv.6 or lower."
   },
   {
     "id": "GD04-038-Deploy",
@@ -5922,6 +5996,30 @@
     "sourceText": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it."
   },
   {
+    "id": "GD04-115-Delayed",
+    "cardCode": "GD04-115",
+    "trigger": "Delayed:battleDamageToEnemyUnit",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "battleVictimInPlay;battleVictimLevelAtMost:5",
+    "sourceText": "【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit."
+  },
+  {
+    "id": "GD04-115-Main",
+    "cardCode": "GD04-115",
+    "trigger": "Main",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit."
+  },
+  {
     "id": "GD04-116-Main",
     "cardCode": "GD04-116",
     "trigger": "Main",
@@ -6056,6 +6154,19 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, during your turn, if a friendly (League Militaire) Unit is in play, deploy 1 [Parts]((League Militaire)･AP1･HP1･This Unit can't choose the enemy player as its attack target) Unit token."
   },
   {
+    "id": "GD04-122-ActivateMain",
+    "cardCode": "GD04-122",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【Activate·Main】【Once per Turn】Rest 1 of your (Earth Federation) Units:Choose 1 enemy Unit that is Lv.3 or lower. Rest it."
+  },
+  {
     "id": "GD04-122-Burst",
     "cardCode": "GD04-122",
     "trigger": "Burst",
@@ -6138,6 +6249,20 @@
     "targetFilter": "trait:Academy",
     "predicate": null,
     "sourceText": "When you place an EX Resource, choose 1 friendly (Academy) Unit. It gets AP+2 during this turn."
+  },
+  {
+    "id": "GD04-125-ActivateMain",
+    "cardCode": "GD04-125",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "rest",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=5",
+    "predicate": null,
+    "sourceText": "【Activate·Main】【Once per Turn】①, rest 1 friendly (CB) Unit:Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it."
   },
   {
     "id": "GD04-125-Burst",

@@ -10880,9 +10880,9 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 93,
+        "full": 100,
         "partial": 1,
-        "missing": 18,
+        "missing": 11,
         "withErrors": 0
       },
       "cards": [
@@ -10906,7 +10906,7 @@
         },
         {
           "code": "GD04-002",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10923,10 +10923,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD04-002-Deploy",
+                "GD04-002-Delayed"
               ],
               "text": "【Deploy】During this turn, when one of your (Earth Federation) Units destroys an enemy Unit with battle damage, choose 1 enemy Unit with 5 or less HP. Rest it."
             }
@@ -10983,7 +10983,7 @@
         },
         {
           "code": "GD04-006",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11000,10 +11000,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD04-006-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 1 of your other (League Militaire) Units:Choose 1 enemy Unit with 4 or less HP. Rest it."
             }
@@ -11491,7 +11490,7 @@
         },
         {
           "code": "GD04-035",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11499,10 +11498,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD04-035-Deploy",
+                "GD04-035-Delayed"
               ],
               "text": "【Deploy】Choose 1 of your (Mafty) Units. When it destroys an enemy Unit with battle damage during this turn, if you have 3 or less cards in your hand, draw 1."
             }
@@ -11510,7 +11509,7 @@
         },
         {
           "code": "GD04-036",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11518,10 +11517,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD04-036-Deploy"
               ],
               "text": "【Deploy】You may choose 1 to 2 of your other active (CB) Units. Rest them. If you do, deal damage equal to the number of Units rested with this effect to all enemy Units that are Lv.6 or lower."
             }
@@ -13200,7 +13198,7 @@
         },
         {
           "code": "GD04-115",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13219,10 +13217,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD04-115-Main",
+                "GD04-115-Delayed"
               ],
               "text": "【Main】Choose 1 of your Units. When it deals battle damage to an enemy Unit that is Lv.5 or lower during this turn, destroy that enemy Unit."
             }
@@ -13402,7 +13400,7 @@
         },
         {
           "code": "GD04-122",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13432,10 +13430,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD04-122-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 1 of your (Earth Federation) Units:Choose 1 enemy Unit that is Lv.3 or lower. Rest it."
             }
@@ -13519,7 +13516,7 @@
         },
         {
           "code": "GD04-125",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13549,10 +13546,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD04-125-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】①, rest 1 friendly (CB) Unit:Choose 1 enemy Unit that is Lv.5 or lower. Deal 1 damage to it."
             }

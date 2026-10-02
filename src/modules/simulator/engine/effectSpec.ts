@@ -129,7 +129,9 @@ export type AmountFrom =
    */
   | { kind: "topOfDeckTraitCount"; n: number; trait: string }
   /** W5 (C6) — GD04-100 "by an amount equal to the cost paid": o valor do evento da reação */
-  | { kind: "reactionAmount" };
+  | { kind: "reactionAmount" }
+  /** W5 — GD04-036 "equal to the number of Units rested with this effect": quantos foram escolhidos em `name` */
+  | { kind: "namedCount"; name: string };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -142,6 +144,7 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
     return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
   }
   if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
+  if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
   if (from.kind === "topOfDeckTraitCount") {
     return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => (c.def.traits ?? []).includes(from.trait)).length;
   }
@@ -369,6 +372,12 @@ export type PrimitiveCall =
       enemyOnly?: boolean;
       sourceUnitOnly?: boolean;
     }
+  /**
+   * W5 — "During this turn, when <X> destroys/deals battle damage …": arma o spec `specId` (gatilho
+   * `Delayed:<evento>`, com `reaction`) até o fim do turno. `subject` = só eventos dessa carta (GD04-035/115);
+   * sem `subject`, vale o `reaction.subject`/`subjectFilter` do lado do controlador (GD04-002).
+   */
+  | { op: "grantDelayedReaction"; specId: string; subject?: TargetRef }
   /** W5 (C6) — GD04-110 "Deploy 1 EX Base." (a Base atual sai: token é removido, carta vai pro trash) */
   | { op: "deployExBase"; player: PlayerRef }
   /** W5 (C2) — GD04-087/095 "battle damage <from> would receive is dealt to <to> instead" */
@@ -501,6 +510,25 @@ export interface CardDefFilter {
   anyOf?: CardDefFilter[];
   /** W4 — GD04-094 "1 purple Unit card with <Suppression>" (keyword impressa da carta) */
   hasKeyword?: string;
+}
+
+/** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
+export function costRestsSecondaryTarget(spec: EffectSpec): boolean {
+  const name = spec.secondaryTarget?.name;
+  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "named" && c.target.name === name);
+}
+
+/** W5 — custo "Rest 1 of your … Units" sem nenhuma Unit elegível */
+export function costTargetShortfall(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  resolveFilter?: TargetFilterResolver,
+  sourceInstanceId?: string,
+): boolean {
+  if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
+  const st = spec.secondaryTarget;
+  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length === 0;
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
@@ -660,6 +688,17 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "grantDelayedReaction": {
+      const subjectId = call.subject ? resolveTargetIds(call.subject, ctx)[0] : undefined;
+      if (call.subject && !subjectId) return [];
+      return [
+        {
+          type: "ADD_DELAYED_REACTION",
+          player: ctx.controller,
+          entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber },
+        },
+      ];
     }
     case "deployExBase": {
       const player = resolvePlayerRef(call.player, ctx.controller);

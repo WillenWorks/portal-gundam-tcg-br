@@ -682,6 +682,16 @@ export interface DamageModifier {
   turn: number;
 }
 
+/** W5 — gatilho atrasado armado por `grantDelayedReaction` (vale só no turno `turn`) */
+export interface DelayedReaction {
+  specId: string;
+  /** a carta que armou (fonte do efeito quando ele dispara) */
+  sourceId: string;
+  /** só eventos desta carta ("When it destroys …") */
+  subjectId?: string;
+  turn: number;
+}
+
 /** W5 (C2) — o que um dano consome ao ser aplicado (calculado em `incomingDamage`, aplicado no evento) */
 export interface DamageConsumption {
   /** marcadores 1×/turno (`usedKeywordsThisTurn`) por carta — a Unit ou o Piloto dono do texto */
@@ -1437,6 +1447,8 @@ export interface EndPhaseActionState {
 }
 
 export interface PlayerState {
+  /** W5 — "During this turn, when …" armados por efeito (limpos no fim do turno) */
+  delayedReactions?: DelayedReaction[];
   id: PlayerId;
   deck: CardInstance[];
   resourceDeck: CardInstance[];
@@ -1529,6 +1541,8 @@ export type GameEvent =
   | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
   /** W5 (C2) */
   | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  /** W5 — ver `PlayerState.delayedReactions` */
+  | { type: "ADD_DELAYED_REACTION"; player: PlayerId; entry: DelayedReaction }
   /** W5 (C6) — o Command foi pago com (ou sem) EX Resource; só sai quando muda algo (ver `playCommand`) */
   | { type: "MARK_COMMAND_PAYMENT"; instanceId: string; withEx: boolean; turn: number }
   | { type: "SET_BATTLE_DAMAGE_REDIRECT"; instanceId: string; redirect: { toId: string; scope: "turn" | "battle"; turn: number } }
