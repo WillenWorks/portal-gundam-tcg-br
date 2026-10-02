@@ -886,3 +886,26 @@ describe("auditoria A3 — ST07-013 Armed Intervention muda o alvo do ataque ini
     expect(state.combat?.currentTarget).toEqual({ unitId: cb });
   });
 });
+
+describe("GD04-101 Kindhearted (ruling oficial Q287)", () => {
+  it("neste turno, efeito inimigo que DESTRÓI não destrói Unit amiga; dano de efeito ainda destrói; compra 1", () => {
+    let state = game();
+    const mine = placeCard(state, "A", UNIT({ hp: 2, level: 1 }), "battleArea");
+    const src = placeCard(state, "A", G["GD04-101"], "trash");
+    const hand0 = state.players.A.hand.length;
+    state = runSpec(state, "GD04-101-Main", src);
+    expect(state.players.A.hand.length).toBe(hand0 + 1);
+    const enemySrc = placeCard(state, "B", G["GD04-063"], "battleArea"); // 【Deploy】 destrói Unit Lv.1-
+    const afterDestroy = runSpec(state, "GD04-063-Deploy", enemySrc, { target: [mine] });
+    expect(inPlay(afterDestroy, mine)).toBe(true);
+    expect(inPlay(effectHit(state, mine, 2, "B"), mine)).toBe(false);
+    expect(inPlay(runSpec({ ...state, turnNumber: state.turnNumber + 1 }, "GD04-063-Deploy", enemySrc, { target: [mine] }), mine)).toBe(false);
+  });
+
+  it("【Burst】 ativa o 【Main】", () => {
+    const state = game();
+    const src = placeCard(state, "A", G["GD04-101"], "trash");
+    const after = runSpec(state, "GD04-101-Burst", src);
+    expect(after.players.A.indestructibleByEnemyEffectsTurn).toBe(after.turnNumber);
+  });
+});

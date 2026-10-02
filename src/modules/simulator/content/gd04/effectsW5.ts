@@ -22,7 +22,19 @@ const placeEx = (rested?: boolean): PrimitiveCall => ({ op: "spawnToken", def: E
 const costUnit = { kind: "named", name: "costUnit" } as const;
 const restCostUnit: PrimitiveCall = { op: "rest", target: costUnit };
 
+const KINDHEARTED_MAIN: Omit<EffectSpec, "id" | "trigger"> = {
+  cardCode: "GD04-101",
+  actions: [
+    { op: "protectFriendlyUnitsFromEnemyDestroyEffects" },
+    { op: "draw", player: "controller", n: 1 },
+  ],
+  sourceText: "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1.",
+};
+
 export const GD04_W5_EFFECT_SPECS: EffectSpec[] = [
+  // GD04-101 — ruling Q287: só efeitos que destroem; dano de efeito ainda destrói
+  ...mainAndAction(KINDHEARTED_MAIN),
+  { ...KINDHEARTED_MAIN, id: "GD04-101-Burst", trigger: "Burst", sourceText: "【Burst】Activate this card's 【Main】." },
   // ——— W5d ———
   {
     id: "GD04-021-CommandActivated",

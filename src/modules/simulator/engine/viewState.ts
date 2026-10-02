@@ -91,6 +91,7 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     counts,
     // W5 — gatilho atrasado declarado por efeito resolvido: informação pública
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
+    ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
   };
 }
 

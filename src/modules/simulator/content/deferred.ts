@@ -212,20 +212,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
     kind: "approximation",
   },
-  // W5 — GD04: sem ruling oficial pra dano letal de efeito numa Unit que "can't be destroyed by enemy effects"
-  {
-    cardCode: "GD04-101",
-    clause: "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1.",
-    reason:
-      "falta ruling: dano de efeito que zera o HP conta como \"destroyed by enemy effects\"? (CR não define) — não dá pra modelar sem chutar",
-    blockedBy: "engine:destroyed-by-effect-damage (falta ruling)",
-  },
-  {
-    cardCode: "GD04-101",
-    clause: "【Burst】Activate this card's 【Main】.",
-    reason: "o 【Main】 da carta está deferido (ver acima)",
-    blockedBy: "engine:destroyed-by-effect-damage (falta ruling)",
-  },
   // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
   {
     cardCode: "GD03-064",

@@ -173,6 +173,10 @@
     "changeAttackTarget": {
       "description": "Muda o alvo do ataque INIMIGO em andamento para a Unit escolhida (não é bloqueio).",
       "since": "ST07-013"
+    },
+    "protectFriendlyUnitsFromEnemyDestroyEffects": {
+      "description": "Neste turno, Units amigas não são destruídas por efeitos inimigos que destroem (ruling Q287: dano de efeito ainda destrói).",
+      "since": "GD04-101"
     }
   },
   "targetRefKinds": {

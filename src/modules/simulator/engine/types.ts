@@ -1489,6 +1489,11 @@ export interface EndPhaseActionState {
 export interface PlayerState {
   /** W5 — "During this turn, when …" armados por efeito (limpos no fim do turno) */
   delayedReactions?: DelayedReaction[];
+  /**
+   * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
+   * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
+   */
+  indestructibleByEnemyEffectsTurn?: number;
   id: PlayerId;
   deck: CardInstance[];
   resourceDeck: CardInstance[];
@@ -1581,6 +1586,8 @@ export type GameEvent =
   | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
   /** W5 (C2) */
   | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  /** GD04-101 — ver `PlayerState.indestructibleByEnemyEffectsTurn` */
+  | { type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS"; player: PlayerId; turn: number }
   /** auditoria A3 — ST07-013: o ataque em andamento passa a mirar esta Unit (sem ser bloqueio) */
   | { type: "ATTACK_TARGET_CHANGED"; unitId: string }
   /** W5 — ver `PlayerState.delayedReactions` */

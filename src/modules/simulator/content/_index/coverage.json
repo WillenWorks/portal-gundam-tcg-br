@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "675 specs",
+  "generatedFrom": "678 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -3849,11 +3849,8 @@
         {
           "code": "GD04-101",
           "name": "Kindhearted",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1.",
-            "【Burst】Activate this card's 【Main】."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD04-102",
@@ -4031,10 +4028,10 @@
         }
       ],
       "counts": {
-        "impl": 108,
+        "impl": 109,
         "implStar": 2,
         "vanilla": 18,
-        "deferida": 2,
+        "deferida": 1,
         "faltando": 0
       }
     }

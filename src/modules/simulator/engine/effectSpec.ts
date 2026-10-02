@@ -381,6 +381,8 @@ export type PrimitiveCall =
       sourceUnitOnly?: boolean;
       sourceMaxLevel?: number;
     }
+  /** GD04-101 "During this turn, friendly Units can't be destroyed by enemy effects." (ver PlayerState) */
+  | { op: "protectFriendlyUnitsFromEnemyDestroyEffects" }
   /**
    * Auditoria A3 — ST07-013 "Change the attack target of the battling enemy Unit to it.": só com uma Unit
    * INIMIGA atacando agora (combate em andamento); o alvo antigo deixa de estar em batalha (CR 5-22-2).
@@ -630,6 +632,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "destroy": {
       const events: GameEvent[] = [];
       for (const instanceId of resolveTargetIds(call.target, ctx)) {
+        // GD04-101 (ruling Q287): Unit amiga protegida não é destruída por efeito INIMIGO que destrói
+        const victim = findCard(ctx.state, instanceId);
+        const victimSide = ctx.state.players[victim.owner];
+        if (victim.owner !== ctx.controller && victim.def.cardType === "UNIT" && victimSide.indestructibleByEnemyEffectsTurn === ctx.turnNumber) continue;
         events.push({ type: "DESTROY_CARD", instanceId });
         events.push(...pairedPilotFollowEvents(findCard(ctx.state, instanceId)));
       }
@@ -705,6 +711,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "protectFriendlyUnitsFromEnemyDestroyEffects": {
+      return [{ type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS", player: ctx.controller, turn: ctx.turnNumber }];
     }
     case "changeAttackTarget": {
       const combat = ctx.state.combat;

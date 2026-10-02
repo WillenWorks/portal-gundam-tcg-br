@@ -153,6 +153,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     hand: player.hand.map(cloneCard),
     // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
+    ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
   };
 }
 
@@ -426,6 +427,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         actionPasses: { A: false, B: false },
         actionPriority: event.defendingPlayer,
       };
+      return state;
+    }
+    case "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS": {
+      state.players[event.player].indestructibleByEnemyEffectsTurn = event.turn;
       return state;
     }
     case "ATTACK_TARGET_CHANGED": {

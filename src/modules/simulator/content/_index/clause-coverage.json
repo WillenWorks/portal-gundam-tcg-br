@@ -10882,8 +10882,8 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 109,
-        "partial": 3,
+        "full": 110,
+        "partial": 2,
         "missing": 0,
         "withErrors": 0
       },
@@ -12844,7 +12844,7 @@
         },
         {
           "code": "GD04-101",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12852,9 +12852,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:destroyed-by-effect-damage (falta ruling)"
+                "GD04-101-Burst"
               ],
               "text": "【Burst】Activate this card's 【Main】."
             },
@@ -12864,9 +12864,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:destroyed-by-effect-damage (falta ruling)"
+                "GD04-101-Main",
+                "GD04-101-Action"
               ],
               "text": "【Main】/【Action】During this turn, friendly Units can't be destroyed by enemy effects. Then, draw 1."
             }
