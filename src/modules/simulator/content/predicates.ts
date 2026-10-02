@@ -85,6 +85,10 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
     return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(enemyUnitWithTrait[1]));
   }
+  // W5 (C6) — GD04-106/108 "If you use an EX Resource to play this card"
+  if (predicate === "selfPaidWithEx") {
+    return findCard(ctx.state, ctx.sourceInstanceId).paidWithExOnTurn === ctx.state.turnNumber;
+  }
   // W4 — GD04-086 "If you have no EX Resources"
   const exAtMost = predicate.match(/^controllerExResourceCountAtMost:(\d+)$/);
   if (exAtMost) {
@@ -638,6 +642,8 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (filter === "paired") return !!candidate.pairedPilotId;
 
   // GD03-115 — "1 friendly Unit paired with an (X-Rounder) Pilot".
+  // W5 (C6) — GD04-020/085 "a (X) Command card using an EX Resource" (o Command do evento)
+  if (filter === "paidWithEx") return candidate.paidWithExOnTurn === ctx.state.turnNumber;
   // W4 — GD04-004 "pair a Pilot with one of your blue Units": o candidato é o Piloto, a cor é da Unit
   const pairedUnitColor = filter.match(/^pairedUnitColor:(.+)$/);
   if (pairedUnitColor) {

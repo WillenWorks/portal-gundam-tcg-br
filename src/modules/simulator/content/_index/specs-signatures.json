@@ -4803,6 +4803,18 @@
     "sourceText": "【When Paired･(Newtype) Pilot】Deploy 2 [Wire-Guided Arm]((Zeon)･AP2･HP1･This Unit can't be paired with a Pilot) Unit tokens."
   },
   {
+    "id": "GD04-018-DamagedByEnemy",
+    "cardCode": "GD04-018",
+    "trigger": "Reaction:damagedByEnemy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when one of your other (Academy) Units receives damage from an enemy, place 1 EX Resource."
+  },
+  {
     "id": "GD04-019-Destroyed",
     "cardCode": "GD04-019",
     "trigger": "Destroyed",
@@ -4813,6 +4825,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card that is Lv.5 or lower among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "GD04-020-CommandActivated",
+    "cardCode": "GD04-020",
+    "trigger": "Reaction:commandActivated",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, draw 1."
   },
   {
     "id": "GD04-023-Deploy",
@@ -5281,6 +5305,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-085-CommandActivated",
+    "cardCode": "GD04-085",
+    "trigger": "Reaction:commandActivated",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerExResourceCountAtMost:0",
+    "sourceText": "【During Link】【Once per Turn】When you play and activate an (Academy) Command card using an EX Resource, if you have no remaining EX Resources, place 1 rested EX Resource."
+  },
+  {
     "id": "GD04-086-Burst",
     "cardCode": "GD04-086",
     "trigger": "Burst",
@@ -5593,6 +5629,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-100-PaidForUnitEffect",
+    "cardCode": "GD04-100",
+    "trigger": "Reaction:paidForUnitEffect",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When you pay ① or more cost for one of your Units'effects, you may increase this Unit's AP during this turn by an amount equal to the cost paid."
+  },
+  {
     "id": "GD04-102-Burst",
     "cardCode": "GD04-102",
     "trigger": "Burst",
@@ -5665,6 +5713,19 @@
     "sourceText": "【Main】Look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
+    "id": "GD04-106-Main",
+    "cardCode": "GD04-106",
+    "trigger": "Main",
+    "ops": [
+      "grantAttackTargetRelax",
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy",
+    "predicate": "selfPaidWithEx",
+    "sourceText": "【Main】Choose 1 friendly (Academy) Unit. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target. If you use an EX Resource to play this card, choose 1 to 2 friendly (Academy) Units instead."
+  },
+  {
     "id": "GD04-107-Burst",
     "cardCode": "GD04-107",
     "trigger": "Burst",
@@ -5675,6 +5736,32 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD04-108-Action",
+    "cardCode": "GD04-108",
+    "trigger": "Action",
+    "ops": [
+      "grantDamageModifier",
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy",
+    "predicate": "selfPaidWithEx",
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Academy) Unit. During this turn, reduce the next damage it receives by 2. If you use an EX Resource to play this card, reduce by 4 instead."
+  },
+  {
+    "id": "GD04-108-Main",
+    "cardCode": "GD04-108",
+    "trigger": "Main",
+    "ops": [
+      "grantDamageModifier",
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy",
+    "predicate": "selfPaidWithEx",
+    "sourceText": "【Main】/【Action】Choose 1 friendly (Academy) Unit. During this turn, reduce the next damage it receives by 2. If you use an EX Resource to play this card, reduce by 4 instead."
   },
   {
     "id": "GD04-109-Action",
@@ -5699,6 +5786,30 @@
     "targetFilter": "level<=6",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit that is Lv.6 or lower. Deal 4 damage to it."
+  },
+  {
+    "id": "GD04-110-Action",
+    "cardCode": "GD04-110",
+    "trigger": "Action",
+    "ops": [
+      "deployExBase"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Deploy 1 EX Base."
+  },
+  {
+    "id": "GD04-110-Main",
+    "cardCode": "GD04-110",
+    "trigger": "Main",
+    "ops": [
+      "deployExBase"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Deploy 1 EX Base."
   },
   {
     "id": "GD04-111-Action",
@@ -6017,6 +6128,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD04-124-ExPlaced",
+    "cardCode": "GD04-124",
+    "trigger": "Reaction:exResourcePlaced",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy",
+    "predicate": null,
+    "sourceText": "When you place an EX Resource, choose 1 friendly (Academy) Unit. It gets AP+2 during this turn."
+  },
+  {
     "id": "GD04-125-Burst",
     "cardCode": "GD04-125",
     "trigger": "Burst",
@@ -6150,6 +6273,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, deal 3 damage to this Base."
+  },
+  {
+    "id": "GD04-129-PaidForUnitEffect",
+    "cardCode": "GD04-129",
+    "trigger": "Reaction:paidForUnitEffect",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when you pay ① or more for a friendly Unit's effect, this Base recovers 2 HP."
   },
   {
     "id": "GD04-130-ActivateMain",

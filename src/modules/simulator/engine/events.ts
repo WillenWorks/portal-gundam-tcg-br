@@ -255,6 +255,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.damageModifiers = [...(card.damageModifiers ?? []), event.modifier];
       return state;
     }
+    case "MARK_COMMAND_PAYMENT": {
+      findCard(state, event.instanceId).paidWithExOnTurn = event.withEx ? event.turn : undefined;
+      return state;
+    }
     case "SET_BATTLE_DAMAGE_REDIRECT": {
       findCard(state, event.instanceId).battleDamageRedirect = event.redirect;
       return state;

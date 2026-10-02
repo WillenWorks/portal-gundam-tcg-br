@@ -2,7 +2,7 @@ import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, S
 import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
-import { TOKEN_EX_RESOURCE_CODE } from "./setup";
+import { EX_BASE_TOKEN, TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { selfHealReactionEvents } from "./keywords";
 import { incomingDamage, type DamageSource } from "./damageLayer";
 
@@ -127,7 +127,9 @@ export type AmountFrom =
    * W4 — GD04-116 "Place the top 2 cards … Deal damage equal to the number of (Minerva Squad) cards
    * placed": conta nas N do topo AGORA — o spec põe o dano ANTES do `millToTrash` nas actions.
    */
-  | { kind: "topOfDeckTraitCount"; n: number; trait: string };
+  | { kind: "topOfDeckTraitCount"; n: number; trait: string }
+  /** W5 (C6) — GD04-100 "by an amount equal to the cost paid": o valor do evento da reação */
+  | { kind: "reactionAmount" };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -139,6 +141,7 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
   if (from.kind === "controllerTrashCount") {
     return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
   }
+  if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
   if (from.kind === "topOfDeckTraitCount") {
     return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => (c.def.traits ?? []).includes(from.trait)).length;
   }
@@ -366,6 +369,8 @@ export type PrimitiveCall =
       enemyOnly?: boolean;
       sourceUnitOnly?: boolean;
     }
+  /** W5 (C6) — GD04-110 "Deploy 1 EX Base." (a Base atual sai: token é removido, carta vai pro trash) */
+  | { op: "deployExBase"; player: PlayerRef }
   /** W5 (C2) — GD04-087/095 "battle damage <from> would receive is dealt to <to> instead" */
   | { op: "redirectBattleDamage"; from: TargetRef; to: TargetRef; scope: "turn" | "battle" }
   /**
@@ -655,6 +660,20 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           },
         }),
       );
+    }
+    case "deployExBase": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const existing = ctx.state.players[player].baseSection[0];
+      const events: GameEvent[] = [];
+      if (existing) {
+        events.push(
+          existing.def.isToken
+            ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId }
+            : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" },
+        );
+      }
+      events.push({ type: "SPAWN_TOKEN", player, def: EX_BASE_TOKEN, zone: "baseSection" });
+      return events;
     }
     case "redirectBattleDamage": {
       const [fromId] = resolveTargetIds(call.from, ctx);
@@ -1031,7 +1050,15 @@ export type ReactionEvent =
   /** W2b — "when this Unit destroys an enemy Unit with battle damage" */
   | "destroyedEnemyInBattle"
   /** W2b — "when this Unit destroys an enemy shield area card with battle damage" */
-  | "destroyedShieldInBattle";
+  | "destroyedShieldInBattle"
+  /** W5 — "when <Unit> receives damage from an enemy" (batalha ou efeito; a carta do evento é quem recebeu) */
+  | "damagedByEnemy"
+  /** W5 (C6) — "when you play and activate a Command card" (a carta do evento é o Command, já no trash) */
+  | "commandActivated"
+  /** W5 (C6) — "when you place an EX Resource" (a carta do evento é o EX Resource novo) */
+  | "exResourcePlaced"
+  /** W5 (C6) — "when you pay ① or more for one of your Units' effects" (valor pago = `reactionAmount`) */
+  | "paidForUnitEffect";
 
 export interface ReactionSpec {
   event: ReactionEvent;

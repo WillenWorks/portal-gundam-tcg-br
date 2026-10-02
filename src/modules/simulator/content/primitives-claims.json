@@ -157,6 +157,10 @@
     "redirectBattleDamage": {
       "description": "Dano de batalha que <from> receberia vai pra <to> (esta batalha ou este turno).",
       "since": "GD04-087/095"
+    },
+    "deployExBase": {
+      "description": "Coloca 1 EX Base (token) na Base Section; a Base atual sai (token removido, carta vai pro trash).",
+      "since": "GD04-110"
     }
   },
   "targetRefKinds": {
@@ -501,6 +505,10 @@
     "controllerExResourceCountAtMost:<n>": {
       "description": "O controller tem N ou menos EX Resources na Resource Area.",
       "since": "GD04-086"
+    },
+    "selfPaidWithEx": {
+      "description": "A fonte (Command) foi jogada pagando com EX Resource neste turno (CardInstance.paidWithExOnTurn).",
+      "since": "GD04-106/108"
     }
   },
   "targetFilters": {
@@ -631,6 +639,10 @@
     "pairedUnitColor:<value>": {
       "description": "O candidato (Piloto) está pareado com uma Unit da cor.",
       "since": "GD04-004"
+    },
+    "paidWithEx": {
+      "description": "O candidato (Command do evento) foi pago com EX Resource neste turno.",
+      "since": "GD04-020/085"
     }
   }
 }

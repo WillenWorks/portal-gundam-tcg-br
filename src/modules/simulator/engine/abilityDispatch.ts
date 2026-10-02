@@ -8,7 +8,7 @@
  * `PendingDecision.abilityResolution` pro `player` — o jogador ordena os efeitos
  * simultâneos, escolhe o alvo de cada um e ativa/pula os optativos. Os demais
  * (self / mandatório sem alvo) resolvem na hora, antes da pausa. */
-import { dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
+import { dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker, specsListenTo } from "./dispatcher";
 import {
   callsChoicePrimitive,
   callsNeedChoice,
@@ -25,6 +25,7 @@ import {
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
 import { applyEvents, findCard } from "./events";
+import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
@@ -795,6 +796,8 @@ export interface ReactionOccurrence {
   effectController?: PlayerId;
   /** W2b — Unit inimiga que levou o dano de batalha / foi destruída (alvo implícito `battleVictim`) */
   victimId?: string;
+  /** W5 — valor do evento (custo pago em `paidForUnitEffect`), alvo implícito `reactionAmount` */
+  amount?: number;
 }
 
 /**
@@ -803,7 +806,12 @@ export interface ReactionOccurrence {
  * descansada, já ativa) não conta. Limitação: um custo de "rest" do próprio spec entra como
  * "descansada por efeito" (nenhuma carta com reação a descanso paga custo assim hoje).
  */
-export function collectEffectReactions(before: GameState, events: GameEvent[], effectController: PlayerId): ReactionOccurrence[] {
+export function collectEffectReactions(
+  before: GameState,
+  events: GameEvent[],
+  effectController: PlayerId,
+  after?: GameState,
+): ReactionOccurrence[] {
   const out: ReactionOccurrence[] = [];
   const seen = new Set<string>();
   const push = (event: ReactionEvent, card: CardInstance) => {
@@ -823,6 +831,7 @@ export function collectEffectReactions(before: GameState, events: GameEvent[], e
     const wasRested = restedNow.get(card.instanceId) ?? card.rested;
     if (e.type === "DAMAGE_UNIT") {
       if (e.amount > 0) push("effectDamage", card); // W5 — dano reduzido a 0 não é "recebeu dano"
+      if (e.amount > 0 && card.owner !== effectController) push("damagedByEnemy", card);
     }
     else if (e.type === "REST_CARD") {
       if (!wasRested) push("restedByEffect", card);
@@ -830,6 +839,15 @@ export function collectEffectReactions(before: GameState, events: GameEvent[], e
     } else {
       if (wasRested && !card.def.cannotBeSetActive) push("setActiveByEffect", card);
       restedNow.set(card.instanceId, false);
+    }
+  }
+  // W5 (C6) — "when you place an EX Resource": o EX novo (só existe no estado depois do efeito)
+  if (after && events.some((e) => e.type === "SPAWN_TOKEN" && e.def.code === TOKEN_EX_RESOURCE_CODE)) {
+    for (const pid of ["A", "B"] as PlayerId[]) {
+      const had = new Set(before.players[pid].resourceArea.map((c) => c.instanceId));
+      for (const r of after.players[pid].resourceArea) {
+        if (r.def.code === TOKEN_EX_RESOURCE_CODE && !had.has(r.instanceId)) push("exResourcePlaced", r);
+      }
     }
   }
   return out;
@@ -888,6 +906,7 @@ export function reactionListeners(
     if (!cardSpecs.some((spec) => reactionMatches(state, card, spec, occ, targetFilterResolver))) continue;
     const implicitTargets: Record<string, string[]> = { reactionSubject: [occ.subjectId] };
     if (occ.victimId) implicitTargets.battleVictim = [occ.victimId];
+    if (occ.amount !== undefined) implicitTargets.reactionAmount = [String(occ.amount)];
     out.push({ code: card.def.code, instanceId: card.instanceId, implicitTargets });
   }
   return out;
@@ -909,9 +928,10 @@ export function dispatchReactions(
     queueBudget?: TriggerQueueBudget;
   } = {},
 ): GameState {
-  if (occurrences.length === 0) return state;
+  const listened = occurrences.filter((o) => specsListenTo(specs, o.event));
+  if (listened.length === 0) return state;
   const active = state.activePlayer;
-  const ordered = [...occurrences].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
+  const ordered = [...listened].sort((a, b) => Number(b.owner === active) - Number(a.owner === active));
   let next = state;
   for (const occ of ordered) {
     const sources = reactionListeners(next, occ, specs, opts.targetFilterResolver);
@@ -920,6 +940,33 @@ export function dispatchReactions(
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next;
   }
   return next;
+}
+
+/**
+ * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
+ * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
+ */
+export function dispatchCommandActivated(
+  state: GameState,
+  commandId: string,
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  if (state.gameOver || state.pendingDecision.A || state.pendingDecision.B) return state;
+  const card = findCard(state, commandId);
+  return dispatchReactions(state, [{ event: "commandActivated", subjectId: commandId, owner: card.owner }], specs, opts);
+}
+
+/**
+ * W5 (C6) — "when you pay ① or more for one of your Units' effects": o spec que resolveu tinha
+ * `payResourceCost` no custo e é efeito de Unit (a própria, ou o texto do Piloto pareado nela).
+ */
+export function paidForUnitEffectOccurrence(state: GameState, sourceInstanceId: string, paid: number): ReactionOccurrence | null {
+  if (paid <= 0) return null;
+  const source = findCard(state, sourceInstanceId);
+  const unitId = source.def.cardType === "UNIT" ? source.instanceId : isActingAsPilot(source) ? source.pairedUnitId : undefined;
+  if (!unitId) return null;
+  return { event: "paidForUnitEffect", subjectId: unitId, owner: source.owner, amount: paid };
 }
 
 /** As reações que UM efeito causou (chamado por `dispatchTrigger` depois de aplicar os eventos do spec). */
@@ -937,7 +984,7 @@ export function dispatchReactionsFromEffect(
   } = {},
 ): GameState {
   if (!specs.some((s) => s.reaction)) return after;
-  return dispatchReactions(after, collectEffectReactions(before, events, effectController), specs, opts);
+  return dispatchReactions(after, collectEffectReactions(before, events, effectController, after), specs, opts);
 }
 
 /**

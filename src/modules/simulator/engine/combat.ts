@@ -679,6 +679,9 @@ export function resolveDamageStep(state: GameState): GameState {
     const defenderOwner = findCard(state, blockerOrTargetId).owner;
     if (damaged(defenderId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (damaged(attackerVictimId)) reactions.push({ event: "battleDamageToEnemyUnit", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
+    // W5 — "when <Unit> receives damage from an enemy" (quem recebeu o dano de batalha)
+    if (damaged(defenderId)) reactions.push({ event: "damagedByEnemy", subjectId: defenderId, owner: findCard(state, defenderId).owner });
+    if (damaged(attackerVictimId)) reactions.push({ event: "damagedByEnemy", subjectId: attackerVictimId, owner: findCard(state, attackerVictimId).owner });
     if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (destroyed(attackerVictimId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
   }

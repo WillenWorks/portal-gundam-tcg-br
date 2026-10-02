@@ -638,6 +638,8 @@ export interface CardInstance {
   battleDamageImmunityUntilTurn?: { maxAttackerHp: number; turn: number };
   /** W5 (C2) — modificadores de dano concedidos por efeito (GD04-093 "next damage", 113 "this battle", 119 "this turn") */
   damageModifiers?: DamageModifier[];
+  /** W5 (C6) — Command jogado pagando com EX Resource neste turno (GD04-020/085/106/108 "using an EX Resource") */
+  paidWithExOnTurn?: number;
   /** W5 (C2) — GD04-087/095 "battle damage it would receive is dealt to that Unit instead" */
   battleDamageRedirect?: { toId: string; scope: "turn" | "battle"; turn: number };
 }
@@ -1374,7 +1376,7 @@ export type PendingDecision =
 
 /** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
 export interface PendingCombatReaction {
-  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle";
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy";
   /** a Unit que causou o dano / destruiu */
   subjectId: string;
   owner: PlayerId;
@@ -1527,6 +1529,8 @@ export type GameEvent =
   | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
   /** W5 (C2) */
   | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  /** W5 (C6) — o Command foi pago com (ou sem) EX Resource; só sai quando muda algo (ver `playCommand`) */
+  | { type: "MARK_COMMAND_PAYMENT"; instanceId: string; withEx: boolean; turn: number }
   | { type: "SET_BATTLE_DAMAGE_REDIRECT"; instanceId: string; redirect: { toId: string; scope: "turn" | "battle"; turn: number } }
   | { type: "MODIFY_STAT"; instanceId: string; modifier: StatModifier }
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }

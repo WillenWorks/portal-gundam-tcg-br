@@ -12,6 +12,7 @@ import {
   attachQueuedTriggers,
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
+  dispatchCommandActivated,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
   drainQueuedTriggers,
@@ -666,6 +667,7 @@ function applyPlayerActionInner(
         const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
         if (src && src.def.cardType === "COMMAND") {
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
+          next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
         }
       }
       // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou

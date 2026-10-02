@@ -10880,9 +10880,9 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 84,
+        "full": 93,
         "partial": 1,
-        "missing": 27,
+        "missing": 18,
         "withErrors": 0
       },
       "cards": [
@@ -11187,7 +11187,7 @@
         },
         {
           "code": "GD04-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11202,8 +11202,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-018-DamagedByEnemy"
+              ],
               "text": "【Once per Turn】During your turn, when one of your other (Academy) Units receives damage from an enemy, place 1 EX Resource."
             }
           ]
@@ -11237,14 +11239,16 @@
         },
         {
           "code": "GD04-020",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-020-CommandActivated"
+              ],
               "text": "【Once per Turn】During your turn, when you play and activate a (Dawn of Fold) Command card using an EX Resource, draw 1."
             }
           ]
@@ -12378,7 +12382,7 @@
         },
         {
           "code": "GD04-085",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12395,8 +12399,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-085-CommandActivated"
+              ],
               "text": "【During Link】【Once per Turn】When you play and activate an (Academy) Command card using an EX Resource, if you have no remaining EX Resources, place 1 rested EX Resource."
             }
           ]
@@ -12801,7 +12807,7 @@
         },
         {
           "code": "GD04-100",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12818,8 +12824,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-100-PaidForUnitEffect"
+              ],
               "text": "【Once per Turn】When you pay ① or more cost for one of your Units'effects, you may increase this Unit's AP during this turn by an amount equal to the cost paid."
             }
           ]
@@ -12950,7 +12958,7 @@
         },
         {
           "code": "GD04-106",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -12958,10 +12966,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD04-106-Main"
               ],
               "text": "【Main】Choose 1 friendly (Academy) Unit. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target. If you use an EX Resource to play this card, choose 1 to 2 friendly (Academy) Units instead."
             },
@@ -13008,7 +13015,7 @@
         },
         {
           "code": "GD04-108",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13017,11 +13024,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD04-108-Main",
+                "GD04-108-Action"
               ],
               "text": "【Main】/【Action】Choose 1 friendly (Academy) Unit. During this turn, reduce the next damage it receives by 2. If you use an EX Resource to play this card, reduce by 4 instead."
             },
@@ -13058,7 +13064,7 @@
         },
         {
           "code": "GD04-110",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13067,11 +13073,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD04-110-Main",
+                "GD04-110-Action"
               ],
               "text": "【Main】/【Action】Deploy 1 EX Base."
             }
@@ -13476,7 +13481,7 @@
         },
         {
           "code": "GD04-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13504,8 +13509,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-124-ExPlaced"
+              ],
               "text": "When you place an EX Resource, choose 1 friendly (Academy) Unit. It gets AP+2 during this turn."
             }
           ]
@@ -13658,7 +13665,7 @@
         },
         {
           "code": "GD04-129",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13686,8 +13693,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD04-129-PaidForUnitEffect"
+              ],
               "text": "【Once per Turn】During your turn, when you pay ① or more for a friendly Unit's effect, this Base recovers 2 HP."
             }
           ]
