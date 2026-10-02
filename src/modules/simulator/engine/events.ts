@@ -198,8 +198,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         ? "exile"
         : event.toZone;
 
+      const fromZone = card.zone;
       card.zone = targetZone;
       card.enteredZoneOnTurn = state.turnNumber;
+      // W4 — "If you deploy this Unit from your trash" (GD04-060, GD03-062)
+      card.enteredFromZone = targetZone === "battleArea" ? fromZone : undefined;
       if (targetZone !== "battleArea" && targetZone !== "baseSection") {
         if (event.toZone === "hand") unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
@@ -492,6 +495,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         maxAp: event.maxAp,
         apAtMostSelf: event.apAtMostSelf,
         unpairedOnly: event.unpairedOnly,
+        damagedOnly: event.damagedOnly,
         turn: event.turn,
       };
       return state;

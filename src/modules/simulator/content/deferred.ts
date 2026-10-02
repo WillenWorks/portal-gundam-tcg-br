@@ -199,12 +199,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   },
   // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
   {
-    cardCode: "GD03-062",
-    clause: "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it.",
-    reason: "o motor não guarda de qual zona a Unit foi deployada — o 【Deploy】 não faz nada",
-    blockedBy: "engine:deploy-origin-zone (C8)",
-  },
-  {
     cardCode: "GD03-064",
     clause: "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1.",
     reason: "\"If you do, discard 1\" depois de uma busca opcional no trash ainda não encadeia — o 【Deploy】 não faz nada",

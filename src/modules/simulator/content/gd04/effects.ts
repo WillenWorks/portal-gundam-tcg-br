@@ -1,6 +1,7 @@
 import type { EffectSpec } from "../../engine/effectSpec";
 import { stdAddToHandBurst, stdDeployThisBurst } from "../standardSpecs";
 import { GD04_W3_EFFECT_SPECS } from "./effectsW3";
+import { GD04_W4_EFFECT_SPECS } from "./effectsW4";
 
 /**
  * Wave GD04 "Phantom Aria" — EffectSpecs. W3 (GD04-A): textos padrão de 【Burst】 e o 【Deploy】
@@ -29,4 +30,5 @@ export const GD04_EFFECT_SPECS: EffectSpec[] = [
   ...BASES.map(stdDeployThisBurst),
   ...PLAIN_DEPLOY_BASES.map(stdBaseDeployShield),
   ...GD04_W3_EFFECT_SPECS,
+  ...GD04_W4_EFFECT_SPECS,
 ];

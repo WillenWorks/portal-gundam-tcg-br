@@ -3493,6 +3493,18 @@
     "sourceText": "【Once per Turn】During your turn, when this Unit receives effect damage, deploy 1 rested [CGS Mobile Worker]((Tekkadan)·AP1·HP1) Unit token."
   },
   {
+    "id": "GD03-062-Deploy",
+    "cardCode": "GD03-062",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=4",
+    "predicate": "selfDeployedFromTrash",
+    "sourceText": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it."
+  },
+  {
     "id": "GD03-067-Deploy",
     "cardCode": "GD03-067",
     "trigger": "Deploy",
@@ -4682,6 +4694,18 @@
     "sourceText": "【Destroyed】If you have an (AEUG) Link Unit in play, choose 1 enemy Unit with 4 or less HP. Rest it."
   },
   {
+    "id": "GD04-001-Attack",
+    "cardCode": "GD04-001",
+    "trigger": "Attack",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "attackingEnemyUnit;pairedPilotColorIs:blue",
+    "sourceText": "【During Link】【Attack】If you are attacking an enemy Unit, you may return a blue Pilot paired with this Unit to its owner's hand."
+  },
+  {
     "id": "GD04-003-Attack",
     "cardCode": "GD04-003",
     "trigger": "Attack",
@@ -4692,6 +4716,18 @@
     "targetFilter": null,
     "predicate": "controllerUnitCountWithAnyTraitAtLeast:League Militaire:3",
     "sourceText": "【Attack】If you have 3 or more (League Militaire) Units in play, draw 1."
+  },
+  {
+    "id": "GD04-004-PilotPaired",
+    "cardCode": "GD04-004",
+    "trigger": "Reaction:pilotPaired",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When you pair a (Cyber-Newtype) Pilot with one of your blue Units, draw 1."
   },
   {
     "id": "GD04-007-Attack",
@@ -4779,6 +4815,18 @@
     "sourceText": "【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (CB) Unit card that is Lv.5 or lower among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
   },
   {
+    "id": "GD04-023-Deploy",
+    "cardCode": "GD04-023",
+    "trigger": "Deploy",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "pairedPilotTrait:Super Soldier",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your Units paired with a (Super Soldier) Pilot. During this turn, it may choose an active enemy Unit that is Lv.4 or lower as its attack target."
+  },
+  {
     "id": "GD04-024-Deploy",
     "cardCode": "GD04-024",
     "trigger": "Deploy",
@@ -4789,6 +4837,30 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Look at the top 3 cards of your deck. You may reveal 1 (Academy) Unit card/Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "GD04-025-Destroyed",
+    "cardCode": "GD04-025",
+    "trigger": "Destroyed",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "isControllersTurn;controllerUnitWithTraitInPlay:Dawn of Fold",
+    "sourceText": "【Destroyed】During your turn, if you have another (Dawn of Fold) Unit in play, place 1 EX Resource."
+  },
+  {
+    "id": "GD04-026-Deploy",
+    "cardCode": "GD04-026",
+    "trigger": "Deploy",
+    "ops": [
+      "moveTopCardToChosenPosition"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Look at the top card of your deck. Return it to the top of your deck or place it into your trash."
   },
   {
     "id": "GD04-028-Attack",
@@ -4803,6 +4875,18 @@
     "sourceText": "【Attack】Choose 1 active enemy Unit. It gains <Blocker> during this turn."
   },
   {
+    "id": "GD04-030-Attack",
+    "cardCode": "GD04-030",
+    "trigger": "Attack",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Academy;notSelf",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 of your other (Academy) Units. During this turn, it may choose an active enemy Unit that is Lv.3 or lower as its attack target."
+  },
+  {
     "id": "GD04-038-Deploy",
     "cardCode": "GD04-038",
     "trigger": "Deploy",
@@ -4813,6 +4897,79 @@
     "targetFilter": "level<=2",
     "predicate": "enemyUnitCountAtLeast:2",
     "sourceText": "【Deploy】If 2 or more enemy Units are in play, choose 1 enemy Unit that is Lv.2 or lower. Deal 2 damage to it."
+  },
+  {
+    "id": "GD04-039-Deploy",
+    "cardCode": "GD04-039",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "chosenHasKeyword:target:Repair",
+    "sourceText": "【Deploy】Choose 1 enemy Unit. Deal 1 damage to it. If it has <Repair>, deal 3 damage instead."
+  },
+  {
+    "id": "GD04-041-RestedByEffect",
+    "cardCode": "GD04-041",
+    "trigger": "Reaction:restedByEffect",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When this Unit is rested by an effect, set it as active."
+  },
+  {
+    "id": "GD04-042-DestroyedShield",
+    "cardCode": "GD04-042",
+    "trigger": "Reaction:destroyedShieldInBattle",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=5",
+    "predicate": null,
+    "sourceText": "【During Link】【Once per Turn】When damage from one of your Units paired with a (Cyber-Newtype) Pilot destroys an enemy shield area card, choose 1 enemy Unit with 5 or less AP. Deal 2 damage to it."
+  },
+  {
+    "id": "GD04-043-Deploy",
+    "cardCode": "GD04-043",
+    "trigger": "Deploy",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Base. Deal 1 damage to it."
+  },
+  {
+    "id": "GD04-044-Attack",
+    "cardCode": "GD04-044",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "attackingDamagedEnemyUnit",
+    "sourceText": "【Attack】If you are attacking a damaged enemy Unit, this Unit gains <Breach 3> during this battle."
+  },
+  {
+    "id": "GD04-045-WhenLinked",
+    "cardCode": "GD04-045",
+    "trigger": "When Linked",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:CB",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 of your (CB) Units. During this turn, it may choose a damaged active enemy Unit as its attack target."
   },
   {
     "id": "GD04-046-Deploy",
@@ -4826,6 +4983,18 @@
     "targetFilter": "level<=3",
     "predicate": "selfIsActive",
     "sourceText": "【Deploy】You may rest this Unit. If you do, choose 1 enemy Unit that is Lv.3 or lower. Deal 2 damage to it."
+  },
+  {
+    "id": "GD04-050-Attack",
+    "cardCode": "GD04-050",
+    "trigger": "Attack",
+    "ops": [
+      "deployFromTrashPayingCost"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Pair】【Attack】You may choose 1 (Minerva Squad) Unit card from your trash. Pay its cost to deploy it."
   },
   {
     "id": "GD04-052-Attack",
@@ -4866,6 +5035,54 @@
     "sourceText": "【Deploy】Deal 1 damage to this Unit. If you do, choose 1 enemy Unit with 3 or less AP. Rest it."
   },
   {
+    "id": "GD04-057-Deploy",
+    "cardCode": "GD04-057",
+    "trigger": "Deploy",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=6",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. During this turn, reduce its AP by an amount equal to the number of Unit cards with \"Gundam Virtue\" in their card names in your trash."
+  },
+  {
+    "id": "GD04-058-Destroyed",
+    "cardCode": "GD04-058",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "formerPairedPilotHasTrait:Vulture;isControllersTurn",
+    "sourceText": "【During Pair･(Vulture) Pilot】【Destroyed】If it is your turn, return this Unit's paired Pilot to its owner's hand."
+  },
+  {
+    "id": "GD04-060-Deploy",
+    "cardCode": "GD04-060",
+    "trigger": "Deploy",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfDeployedFromTrash",
+    "sourceText": "【Deploy】If you deploy this Unit from your trash, draw 1."
+  },
+  {
+    "id": "GD04-063-Deploy",
+    "cardCode": "GD04-063",
+    "trigger": "Deploy",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "or(level<=1|ap<=1)",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 enemy Unit that is Lv.1 or lower or has 1 or less AP. Destroy it."
+  },
+  {
     "id": "GD04-065-Attack",
     "cardCode": "GD04-065",
     "trigger": "Attack",
@@ -4876,6 +5093,45 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Attack】All enemy Units get AP-1 during this turn."
+  },
+  {
+    "id": "GD04-070-Deploy",
+    "cardCode": "GD04-070",
+    "trigger": "Deploy",
+    "ops": [
+      "pairFromHandSearch"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】You may pair 1 Pilot card with \"Ali al-Saachez\" in its card name from your hand with this Unit."
+  },
+  {
+    "id": "GD04-071-ActivateMain",
+    "cardCode": "GD04-071",
+    "trigger": "Activate·Main",
+    "ops": [
+      "moveZone",
+      "moveZone",
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】Choose 1 (Superpower Bloc) card and 1 (UN) card from your trash. Exile them from the game. If you do, set this Unit as active. It can't attack during this turn."
+  },
+  {
+    "id": "GD04-071-Burst",
+    "cardCode": "GD04-071",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "enemyUnitWithTraitInPlay:CB",
+    "sourceText": "【Burst】If an enemy (CB) Unit is in play, add this card to your hand."
   },
   {
     "id": "GD04-072-WhenLinked",
@@ -4901,6 +5157,20 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Activate･Main】【Once per Turn】①：This Unit gets AP+2 during this turn."
+  },
+  {
+    "id": "GD04-074-Attack",
+    "cardCode": "GD04-074",
+    "trigger": "Attack",
+    "ops": [
+      "payResourceCost",
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerActiveResourceCountAtLeast:1",
+    "sourceText": "【Attack】You may pay ①. If you do, draw 1. Then, discard 1."
   },
   {
     "id": "GD04-080-Destroyed",
@@ -5023,6 +5293,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-086-Destroyed",
+    "cardCode": "GD04-086",
+    "trigger": "Destroyed",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerExResourceCountAtMost:0",
+    "sourceText": "【During Link】【Destroyed】If you have no EX Resources, place 1 EX Resource."
+  },
+  {
     "id": "GD04-087-Burst",
     "cardCode": "GD04-087",
     "trigger": "Burst",
@@ -5071,6 +5353,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-090-DestroyedEnemy",
+    "cardCode": "GD04-090",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top card of your deck. If it is a (CB) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck."
+  },
+  {
     "id": "GD04-091-Burst",
     "cardCode": "GD04-091",
     "trigger": "Burst",
@@ -5081,6 +5375,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD04-091-Destroyed",
+    "cardCode": "GD04-091",
+    "trigger": "Destroyed",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "undamaged",
+    "predicate": null,
+    "sourceText": "【Destroyed】Choose 1 undamaged enemy Unit. Deal 1 damage to it."
   },
   {
     "id": "GD04-092-Burst",
@@ -5131,6 +5437,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-094-WhenLinked",
+    "cardCode": "GD04-094",
+    "trigger": "When Linked",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 purple Unit card with <Suppression> from your trash. Add it to your hand."
+  },
+  {
     "id": "GD04-095-Burst",
     "cardCode": "GD04-095",
     "trigger": "Burst",
@@ -5141,6 +5459,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD04-096-BattleDamage",
+    "cardCode": "GD04-096",
+    "trigger": "Reaction:battleDamageToEnemyUnit",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "battleVictimInPlay;battleVictimLevelAtMost:5",
+    "sourceText": "【During Link】When this Unit deals battle damage to an enemy Unit that is Lv.5 or lower, destroy that enemy Unit."
   },
   {
     "id": "GD04-096-Burst",
@@ -5191,6 +5521,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD04-099-Attack",
+    "cardCode": "GD04-099",
+    "trigger": "Attack",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "paired",
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】You may choose 1 enemy Pilot. Return it to its owner's hand."
+  },
+  {
     "id": "GD04-099-Burst",
     "cardCode": "GD04-099",
     "trigger": "Burst",
@@ -5225,6 +5567,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Draw 1."
+  },
+  {
+    "id": "GD04-102-Main",
+    "cardCode": "GD04-102",
+    "trigger": "Main",
+    "ops": [
+      "preventActivationNextTurn"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested;level<=5",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 rested enemy Unit that is Lv.5 or lower. It won't be set as active during the start phase of your opponent's next turn."
   },
   {
     "id": "GD04-103-Main",
@@ -5407,6 +5761,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD04-116-Main",
+    "cardCode": "GD04-116",
+    "trigger": "Main",
+    "ops": [
+      "damageUnit",
+      "millToTrash"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=4",
+    "predicate": null,
+    "sourceText": "【Main】Place the top 2 cards of your deck into your trash. If you do, choose 1 enemy Unit with 4 or less AP. Deal an amount of damage equal to the number of (Minerva Squad) cards placed with this effect to that enemy Unit."
   },
   {
     "id": "GD04-117-Action",

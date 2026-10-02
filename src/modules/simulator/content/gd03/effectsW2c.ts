@@ -166,6 +166,17 @@ export const GD03_W2C_EFFECT_SPECS: EffectSpec[] = [
     targetScope: "enemyUnit",
     sourceText: "【Deploy】Choose 1 enemy Unit. For each (AEUG) Unit card in your trash, it gets AP-1 during this turn.",
   },
+  // GD03-062 (W4 — origem do deploy: `CardInstance.enteredFromZone`)
+  {
+    id: "GD03-062-Deploy",
+    cardCode: "GD03-062",
+    trigger: "Deploy",
+    condition: { predicate: "selfDeployedFromTrash", then: [{ op: "damageUnit", target, amount: 2 }] },
+    actions: [],
+    targetScope: "enemyUnit",
+    targetFilter: "ap<=4",
+    sourceText: "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it.",
+  },
   // GD03-073
   {
     id: "GD03-073-ActivateAction",

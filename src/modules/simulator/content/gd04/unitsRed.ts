@@ -23,6 +23,17 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD04-034": {
     "code": "GD04-034",
+    // W4 (GD04)
+    staticAbilities: [
+      {
+        sourceText: "【During Link】This Unit gets AP+2 for each of your rested (CB) Units.",
+        condition: "duringLink",
+        scope: "self",
+        stat: "ap",
+        amount: 2,
+        amountFrom: { kind: "friendlyRestedUnitsWithTrait", trait: "CB" },
+      },
+    ],
     "nameEn": "Gundam Kyrios",
     "cardType": "UNIT",
     "color": "red",
@@ -92,6 +103,24 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD04-037": {
     "code": "GD04-037",
+    // W4 (GD04)
+    staticAbilities: [
+      {
+        sourceText: "While you have a red (Super Soldier) Pilot in play, this Unit gains <First Strike>.",
+        condition: "always",
+        scope: "self",
+        boardCondition: { kind: "friendlyPilotInPlay", trait: "Super Soldier", color: "red" },
+        keyword: "First Strike",
+      },
+      {
+        sourceText: "While you have a green (Super Soldier) Pilot in play, this Unit gains <Breach 3>.",
+        condition: "always",
+        scope: "self",
+        boardCondition: { kind: "friendlyPilotInPlay", trait: "Super Soldier", color: "green" },
+        keyword: "Breach",
+        keywordValue: 3,
+      },
+    ],
     "nameEn": "Gundam Kyrios (Trans-Am)",
     "cardType": "UNIT",
     "color": "red",
@@ -136,6 +165,9 @@ export const UNITS_RED: Record<string, CardDef> = {
   },
   "GD04-039": {
     "code": "GD04-039",
+    // W4 (GD04)
+    dynamicCost: { condition: { kind: "trashTraitCountAtLeast", trait: "Neo Zeon", n: 8 }, amount: -4 },
+    structuredSourceText: { dynamicCost: "If there are 8 or more (Neo Zeon) cards in your trash, this card in your hand gets cost -4." },
     "nameEn": "Rozen Zulu",
     "cardType": "UNIT",
     "color": "red",

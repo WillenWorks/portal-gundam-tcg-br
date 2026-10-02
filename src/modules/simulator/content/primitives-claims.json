@@ -179,6 +179,10 @@
     "pairedPilotOf": {
       "description": "O Piloto pareado com a Unit escolhida em ctx.targets[name].",
       "since": "GD03-110"
+    },
+    "selfPairedPilot": {
+      "description": "O Piloto pareado com a fonte (vazio se não houver).",
+      "since": "GD04-001"
     }
   },
   "targetGroupKinds": {
@@ -209,6 +213,10 @@
     "allBases": {
       "description": "Todas as Bases em jogo, dos dois lados.",
       "since": "GD03-041"
+    },
+    "enemyBase": {
+      "description": "A Base inimiga (0 ou 1).",
+      "since": "GD04-043"
     }
   },
   "targetScopes": {
@@ -461,6 +469,30 @@
     "controllerUnitCountWithAnyTraitAtLeast:<value>:<n>": {
       "description": "O controller tem N+ Units em jogo com algum dos traits (vírgula), contando a própria fonte.",
       "since": "GD04-003/118"
+    },
+    "selfDeployedFromTrash": {
+      "description": "A fonte entrou na Battle Area vinda do trash (CardInstance.enteredFromZone).",
+      "since": "GD04-060/GD03-062"
+    },
+    "attackingDamagedEnemyUnit": {
+      "description": "O combate atual mira uma Unit inimiga com dano.",
+      "since": "GD04-044"
+    },
+    "chosenHasKeyword:<value>:<value>": {
+      "description": "O alvo escolhido em ctx.targets[<nome>] tem a keyword (própria, concedida ou estática).",
+      "since": "GD04-039"
+    },
+    "enemyUnitWithTraitInPlay:<value>": {
+      "description": "O oponente tem uma Unit com o trait em jogo.",
+      "since": "GD04-071"
+    },
+    "controllerActiveResourceCountAtLeast:<n>": {
+      "description": "O controller tem N+ Recursos ativos (pra pagar ① opcional).",
+      "since": "GD04-074"
+    },
+    "controllerExResourceCountAtMost:<n>": {
+      "description": "O controller tem N ou menos EX Resources na Resource Area.",
+      "since": "GD04-086"
     }
   },
   "targetFilters": {
@@ -579,6 +611,18 @@
     "cond\\(([^|]+)\\|([^|]*)\\|([^|]*)\\)": {
       "description": "Filtro condicional: cond(<predicado>|<filtro se verdadeiro>|<filtro se falso>); ramo vazio = qualquer.",
       "since": "GD03-109/114"
+    },
+    "or\\(([^|]+)\\|([^|]+)\\)": {
+      "description": "Filtro OU: or(<filtro>|<filtro>).",
+      "since": "GD04-063"
+    },
+    "undamaged": {
+      "description": "Candidato sem dano.",
+      "since": "GD04-091"
+    },
+    "pairedUnitColor:<value>": {
+      "description": "O candidato (Piloto) está pareado com uma Unit da cor.",
+      "since": "GD04-004"
     }
   }
 }
