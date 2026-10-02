@@ -98,6 +98,10 @@ export function incomingDamage(state: GameState, target: CardInstance, amount: n
     if (m.kind && m.kind !== src.kind) continue;
     if (m.enemyOnly && !fromEnemy) continue;
     if (m.sourceUnitOnly && !sourceUnit(state, src)) continue;
+    if (m.sourceMaxLevel !== undefined) {
+      const unit = sourceUnit(state, src);
+      if (!unit || (unit.def.level ?? 0) > m.sourceMaxLevel) continue;
+    }
     if (m.scope === "battle" && !state.combat) continue;
     remaining = m.immune ? 0 : Math.max(0, remaining - (m.amount ?? 0));
     if (m.scope === "next") dropNext = true;

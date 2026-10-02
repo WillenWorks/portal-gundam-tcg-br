@@ -379,6 +379,7 @@ export type PrimitiveCall =
       scope: "next" | "turn" | "battle";
       enemyOnly?: boolean;
       sourceUnitOnly?: boolean;
+      sourceMaxLevel?: number;
     }
   /** W5 (C5) — GD04-021 "pair that card from your trash with one of your Units": a carta (Command com 【Pilot】) vira Piloto */
   | { op: "pairCardFromTrashAsPilot"; card: TargetRef; unit: TargetRef }
@@ -694,6 +695,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
             scope: call.scope,
             enemyOnly: call.enemyOnly,
             sourceUnitOnly: call.sourceUnitOnly,
+            sourceMaxLevel: call.sourceMaxLevel,
             turn: ctx.turnNumber,
           },
         }),

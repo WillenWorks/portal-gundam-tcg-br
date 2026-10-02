@@ -817,3 +817,50 @@ describe("auditoria A23 — deferidas do GD03 destravadas pela W5", () => {
     expect(findCard(state, restedSb).cannotAttackUntilTurn).toBe(state.turnNumber);
   });
 });
+
+describe("auditoria A3 — ST06 (alvo 'targets') pede escolha no fluxo real", () => {
+  const def = (code: string) => {
+    const d = getCardDefByCode(code);
+    if (!d) throw new Error(code);
+    return d;
+  };
+
+  it("ST06-011 【Main】 (Command jogado): até 2 Units (Clan) ganham AP+2", () => {
+    let state = game();
+    const cmd = def("ST06-011");
+    resources(state, "A", Math.max(cmd.level ?? 0, cmd.cost ?? 0));
+    const c1 = placeCard(state, "A", UNIT({ traits: ["Clan"] }), "battleArea");
+    const c2 = placeCard(state, "A", UNIT({ traits: ["Clan"] }), "battleArea");
+    placeCard(state, "A", UNIT(), "battleArea");
+    const card = placeCard(state, "A", cmd, "hand");
+    const offer = enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).find((a) => a.kind === "playCommand" && a.cardInstanceId === card);
+    expect(offer?.kind === "playCommand" && offer.targets?.target).toEqual([c1, c2]);
+    state = act(state, "A", { kind: "playCommand", cardInstanceId: card, trigger: "Main", targets: { target: [c1, c2] } });
+    expect([effectiveAp(findCard(state, c1), state), effectiveAp(findCard(state, c2), state)]).toEqual([5, 5]);
+  });
+
+  it("ST06-005 【Attack】 (ataque declarado): pede 1–2 Units (Clan)", () => {
+    let state = game();
+    const red = placeCard(state, "A", def("ST06-005"), "battleArea");
+    const ally = placeCard(state, "A", UNIT({ traits: ["Clan"] }), "battleArea");
+    state = act(state, "A", { kind: "declareAttack", attackerId: red, target: "player" });
+    const d = state.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue[0].legalTargets).toEqual(expect.arrayContaining([red, ally]));
+    state = act(state, "A", { kind: "resolveAbility", resolutions: [{ specId: "ST06-005-Attack", activate: true, targetIds: [ally] }] });
+    expect(effectiveAp(findCard(state, ally), state)).toBe(5);
+  });
+
+  it("ST06-013 【Action】: as 2 Units escolhidas ficam imunes a dano de batalha de Lv.2- o turno todo (atacando ou defendendo)", () => {
+    const state = game();
+    const c1 = placeCard(state, "A", UNIT({ hp: 9, ap: 1, traits: ["Clan"] }), "battleArea", { rested: true });
+    const c2 = placeCard(state, "A", UNIT({ hp: 9, ap: 1, traits: ["Clan"] }), "battleArea");
+    const src = placeCard(state, "A", def("ST06-013"), "trash");
+    const s = runSpec(state, "ST06-013-Action", src, { target: [c1, c2] });
+    const low = placeCard(s, "B", UNIT({ ap: 3, hp: 9, level: 2 }), "battleArea", { rested: true });
+    const high = placeCard(s, "B", UNIT({ ap: 3, hp: 9, level: 3 }), "battleArea", { rested: true });
+    // c2 ataca a Lv.2 (contra-dano bloqueado) e c1 é atacada pela Lv.2 (dano bloqueado): os 2 protegidos
+    expect(dmg(damageStep(s, c2, low), c2)).toBe(0);
+    expect(dmg(damageStep({ ...s, activePlayer: "B" }, low, c1), c1)).toBe(0);
+    expect(dmg(damageStep(s, c2, high), c2)).toBe(3);
+  });
+});

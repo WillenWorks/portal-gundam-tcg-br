@@ -19,7 +19,7 @@ const IMPLICIT_TARGETS = new Set(["battleVictim", "reactionSubject", "formerPair
  * Pendências conhecidas (auditoria W4/W5, item A3) — em investigação. Remover daqui ao resolver;
  * o teste falha se a lista ficar desatualizada (spec consertado ou removido).
  */
-const KNOWN_PENDING_TARGETS = new Set(["ST06-005-Attack", "ST06-011-Main", "ST06-011-Action", "ST06-013-Action", "ST07-013-Action"]);
+const KNOWN_PENDING_TARGETS = new Set(["ST07-013-Action"]);
 
 function refsIn(v: unknown, out: Array<{ kind: string; name: string }> = []): Array<{ kind: string; name: string }> {
   if (!v || typeof v !== "object") return out;

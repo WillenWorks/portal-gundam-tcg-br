@@ -683,6 +683,8 @@ export interface DamageModifier {
   enemyOnly?: boolean;
   /** "from enemy Units" — a fonte é uma Unit (ou Piloto pareado, cujo texto é da Unit) */
   sourceUnitOnly?: boolean;
+  /** ST06-013 "from enemy Units that are Lv.2 or lower" */
+  sourceMaxLevel?: number;
   /** "next" = só o próximo dano deste turno; "battle" = até o fim da batalha atual; "turn" = este turno */
   scope: "next" | "turn" | "battle";
   turn: number;
