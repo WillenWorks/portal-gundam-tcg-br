@@ -7,7 +7,16 @@
   "pnpm": {
     "overrides": {
       "deepmerge-ts": ">=8.0.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@google/genai",
+      "@prisma/client",
+      "@prisma/engines",
+      "core-js",
+      "esbuild",
+      "prisma",
+      "protobufjs"
+    ]
   },
   "scripts": {
     "postinstall": "prisma generate",
