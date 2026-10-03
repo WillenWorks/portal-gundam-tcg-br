@@ -8,7 +8,7 @@ import type {
   PlayerState,
   Zone,
 } from "./types";
-import { effectiveHp, entersRestedByRule } from "./types";
+import { effectiveHp, entersRestedByRule, isActingAsPilot } from "./types";
 import { createRng, shuffleInPlace } from "./rng";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
@@ -89,6 +89,25 @@ function unpairCounterpart(player: PlayerState, card: CardInstance): void {
     const unit = player.battleArea.find((c) => c.instanceId === card.pairedUnitId);
     if (unit) unit.pairedPilotId = undefined;
   }
+}
+
+/** CR 3-3-6 — o Piloto pareado acompanha a Unit para `zone` (token nunca é Piloto; Command-Piloto vira carta comum) */
+function movePilotAlong(player: PlayerState, pilotId: string, zone: Zone, turnNumber: number): void {
+  const idx = player.battleArea.findIndex((c) => c.instanceId === pilotId);
+  if (idx === -1) return;
+  const [pilot] = player.battleArea.splice(idx, 1);
+  pilot.zone = zone;
+  pilot.enteredZoneOnTurn = turnNumber;
+  pilot.enteredFromZone = undefined;
+  pilot.pairedUnitId = undefined;
+  pilot.asPilot = undefined;
+  pilot.rested = false;
+  pilot.damage = 0;
+  pilot.statModifiers = [];
+  pilot.keywordGrants = [];
+  pilot.damageModifiers = undefined;
+  pilot.battleDamageRedirect = undefined;
+  player[zone].push(pilot);
 }
 
 function removeFromZone(player: PlayerState, instanceId: string): CardInstance | null {
@@ -209,8 +228,12 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.enteredFromZone = targetZone === "battleArea" ? fromZone : undefined;
       // W5 (C12) — GD04-022 "… are deployed rested" (a carta já está na zona nova pra checagem)
       if (targetZone === "battleArea" && fromZone !== "battleArea" && entersRestedByRule(state, card)) card.rested = true;
+      // CR 3-3-6 — Unit pareada que sai da Battle Area leva o Piloto para o MESMO lugar (mão, deck, trash…).
+      // Antes o par era desfeito e o Piloto ficava sozinho na Battle Area (violando 3-3-3).
+      const followingPilotId = fromZone === "battleArea" && targetZone !== "battleArea" && !isActingAsPilot(card) ? card.pairedPilotId : undefined;
       if (targetZone !== "battleArea" && targetZone !== "baseSection") {
-        if (event.toZone === "hand") unpairCounterpart(player, card);
+        // Piloto que sai sozinho (ex. GD04-001/099 devolvendo o Piloto): a Unit fica sem par
+        unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
         card.statModifiers = [];
         card.keywordGrants = [];
@@ -226,6 +249,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.rested = false;
       }
       player[targetZone].push(card);
+      if (followingPilotId) movePilotAlong(player, followingPilotId, targetZone, state.turnNumber);
       return state;
     }
     case "REST_CARD": {
