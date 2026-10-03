@@ -9,6 +9,14 @@
  *   pnpm gundam:bot:matchups
  *   pnpm gundam:bot:matchups -- --pool=all --games=10 --workers=4
  *   pnpm gundam:bot:matchups -- --pool=docs/bot/pool-db-2026-09-25.json
+ *
+ * Para comparar versões e não gastar a máquina (ver `gundam-bot-bench-compare.mjs` e `.github/workflows/bot-bench.yml`):
+ *   --listDecks          imprime os ids do pool em JSON e sai
+ *   --decks=a,b,c        joga só esses decks, nesta ordem (mesma lista nos 2 lados = mesmas seeds)
+ *   --focus=a,b          só os pares que envolvem esses decks (as seeds não mudam: filtra o plano)
+ *   --shard=i/n          só a fatia i (0-based) de n do plano — para dividir entre máquinas/jobs
+ *   --nice               prioridade baixa do processo (e dos workers): a máquina continua usável
+ *   --out=caminho.json   onde gravar (o relatório leva as partidas cruas, `results`, para o merge)
  */
 import { register } from "tsx/esm/api";
 import { execSync } from "node:child_process";
@@ -27,7 +35,7 @@ const runnerUrl = pathToFileURL(path.join(ROOT, "scripts/lib/matchupRunner.mjs")
 
 const { MEASURABLE_LEVELS } = await import(sim("engine/bot/levelPolicies.ts"));
 const { planMatchupGames, splitForWorkers, aggregateMatchups, defaultWorkerCount } = await import(sim("engine/bot/matchupPlan.ts"));
-const { resolvePool, runPlannedGames } = await import(runnerUrl);
+const { resolvePool, selectDecks, runPlannedGames } = await import(runnerUrl);
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => {
@@ -41,20 +49,47 @@ const games = Number(args.games ?? 10);
 const seed = Number(args.seed ?? 1);
 const maxTurns = Number(args.maxTurns ?? 40);
 const workers = args.workers ? Number(args.workers) : defaultWorkerCount({ cpus: os.cpus().length, freeMemBytes: os.freemem() });
+if (args.nice === "true") {
+  // antes de criar os workers: as threads novas herdam a prioridade
+  try {
+    os.setPriority(0, os.constants.priority.PRIORITY_LOW);
+  } catch (err) {
+    console.warn(`[matchups] não consegui baixar a prioridade: ${err instanceof Error ? err.message : err}`);
+  }
+}
 if (!MEASURABLE_LEVELS.includes(level)) {
   console.error(`[matchups] nível desconhecido "${level}" — use ${MEASURABLE_LEVELS.join(", ")}`);
   process.exit(2);
 }
 
+const deckIds = args.decks ? String(args.decks).split(",").filter(Boolean) : undefined;
 let decks;
 try {
-  decks = resolvePool(poolSpec);
+  decks = selectDecks(resolvePool(poolSpec), deckIds);
 } catch (err) {
   console.error(`[matchups] ${err instanceof Error ? err.message : err}`);
   process.exit(2);
 }
 const ids = decks.map((d) => d.id);
-const plan = planMatchupGames({ decks: ids.length, gamesPerPair: games, seed });
+if (args.listDecks === "true") {
+  console.log(JSON.stringify(ids));
+  process.exit(0);
+}
+const focus = args.focus ? String(args.focus).split(",").filter(Boolean) : [];
+for (const id of focus) {
+  if (!ids.includes(id)) {
+    console.error(`[matchups] --focus: deck "${id}" não está no pool`);
+    process.exit(2);
+  }
+}
+const shardMatch = args.shard ? /^(\d+)\/(\d+)$/.exec(String(args.shard)) : null;
+if (args.shard && (!shardMatch || Number(shardMatch[1]) >= Number(shardMatch[2]))) {
+  console.error(`[matchups] --shard deve ser i/n com 0 <= i < n (recebi "${args.shard}")`);
+  process.exit(2);
+}
+const plan = planMatchupGames({ decks: ids.length, gamesPerPair: games, seed })
+  .filter((g) => focus.length === 0 || focus.includes(ids[g.a]) || focus.includes(ids[g.b]))
+  .filter((_, k) => !shardMatch || k % Number(shardMatch[2]) === Number(shardMatch[1]));
 const parts = splitForWorkers(plan, workers);
 const started = Date.now();
 const results = [];
@@ -64,10 +99,14 @@ const onResult = (r) => {
     console.log(`[matchups] ${results.length}/${plan.length} — ${((Date.now() - started) / 1000).toFixed(0)}s`);
   }
 };
-console.log(`[matchups] nível=${level} pool=${poolSpec} (${ids.length} decks) partidas/par=${games} total=${plan.length} workers=${parts.length}`);
+console.log(
+  `[matchups] nível=${level} pool=${poolSpec} (${ids.length} decks) partidas/par=${games} total=${plan.length} workers=${parts.length}` +
+    (focus.length ? ` foco=${focus.join(",")}` : "") +
+    (shardMatch ? ` shard=${args.shard}` : ""),
+);
 
 if (parts.length === 1) {
-  runPlannedGames({ poolSpec, level, maxTurns, games: plan }, onResult);
+  runPlannedGames({ poolSpec, deckIds: ids, level, maxTurns, games: plan }, onResult);
 } else {
   const workerUrl = new URL(pathToFileURL(path.join(ROOT, "scripts/lib/matchupWorker.mjs")));
   const workerList = [];
@@ -75,7 +114,7 @@ if (parts.length === 1) {
     parts.map(
       (part) =>
         new Promise((resolve, reject) => {
-          const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, level, maxTurns, games: part } });
+          const worker = new Worker(workerUrl, { workerData: { runnerUrl, poolSpec, deckIds: ids, level, maxTurns, games: part } });
           workerList.push(worker);
           worker.on("message", (msg) => {
             if (msg.type === "result") onResult(msg.result);
@@ -117,6 +156,6 @@ const outPath = path.resolve(ROOT, String(args.out ?? `docs/bot/matchups-${date}
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(
   outPath,
-  `${JSON.stringify({ date, commit, params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded }, null, 2)}\n`,
+  `${JSON.stringify({ date, commit, params: { level, pool: poolSpec, gamesPerPair: games, seed, maxTurns, workers: parts.length, focus, shard: args.shard ?? null }, durationSeconds: Math.round((Date.now() - started) / 1000), decks: ids, wins, played, rate, average, excluded, results: [...results].sort((x, y) => x.index - y.index) }, null, 2)}\n`,
 );
 console.log(`\n[matchups] relatório: ${path.relative(ROOT, outPath)}`);
