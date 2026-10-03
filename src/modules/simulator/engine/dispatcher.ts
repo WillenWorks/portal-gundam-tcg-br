@@ -10,6 +10,9 @@ import {
   dispatchDestroyedFromEffect,
   dispatchPairingTriggersFromEffect,
   dispatchReactionsFromEffect,
+  dispatchReactions,
+  paidForUnitEffectOccurrence,
+  resourcePaymentAmount,
   attachQueuedTriggers,
   pairingTriggerEntries,
 } from "./abilityDispatch";
@@ -60,8 +63,41 @@ export interface DispatchOptions {
 }
 
 /** Acha os EffectSpec de uma carta pra um trigger específico (ex.: "Deploy", "Burst", "Attack"). */
+/**
+ * W5 — índice (código, gatilho) → specs por array de specs: a varredura linear de ~700 specs a cada
+ * consulta pesava no bot (MCTS) depois que Command jogado / custo pago passaram a consultar reações.
+ * Reconstruído se o array mudar de tamanho; devolve cópia (quem chama pode ordenar/filtrar).
+ */
+const triggerIndex = new WeakMap<EffectSpec[], { size: number; byKey: Map<string, EffectSpec[]> }>();
+
 export function findTriggerSpecs(specs: EffectSpec[], cardCode: string, trigger: string): EffectSpec[] {
-  return specs.filter((s) => s.cardCode === cardCode && s.trigger === trigger);
+  let index = triggerIndex.get(specs);
+  if (!index || index.size !== specs.length) {
+    const byKey = new Map<string, EffectSpec[]>();
+    for (const s of specs) {
+      const key = `${s.cardCode}\u0000${s.trigger}`;
+      const list = byKey.get(key);
+      if (list) list.push(s);
+      else byKey.set(key, [s]);
+    }
+    index = { size: specs.length, byKey };
+    triggerIndex.set(specs, index);
+  }
+  return [...(index.byKey.get(`${cardCode}\u0000${trigger}`) ?? [])];
+}
+
+/** W5 — eventos de reação que algum spec de `specs` escuta (mesmo cache por array) */
+const reactionEventIndex = new WeakMap<EffectSpec[], { size: number; events: Set<string> }>();
+
+export function specsListenTo(specs: EffectSpec[], event: string): boolean {
+  let index = reactionEventIndex.get(specs);
+  if (!index || index.size !== specs.length) {
+    const events = new Set<string>();
+    for (const s of specs) if (s.reaction) events.add(s.reaction.event);
+    index = { size: specs.length, events };
+    reactionEventIndex.set(specs, index);
+  }
+  return index.events.has(event);
 }
 
 /**
@@ -148,6 +184,17 @@ export function dispatchTrigger(
       queueBudget,
     });
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
+    // W5 (C6) — "when you pay ① or more for one of your Units' effects"
+    const paidOcc = paidForUnitEffectOccurrence(before, sourceInstanceId, resourcePaymentAmount(before, events, current.owner));
+    if (paidOcc) {
+      next = dispatchReactions(next, [paidOcc], allSpecs, {
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        cascadeDepth: cascadeDepth + 1,
+        queueBudget,
+      });
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
+    }
 
     // Lote 5 (docs/debates 2026-09-13) — GD01-065: qualquer primitiva que pareou
     // (ex. `pairFromTrashSearch`, GD01-023) dispara "AnyPairing" pra Units reativas
@@ -173,29 +220,27 @@ export function dispatchTrigger(
     });
     if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
 
-    // docs/47 Fase 4 — 【Burst】Deploy this card: a `deployThisCard` acabou de pôr
-    // a carta em campo; agora encadeia o 【Deploy】 dela (Add 1 Shield / token /
-    // dano / reordenar deck). Antes disso chamava `dispatchTrigger` direto com
-    // auto-mira de um único alvo nomeado — sem suporte a `ChoicePrimitive`
-    // (deckReorder, discardNamed, etc.), gap fechado usando o MESMO
-    // `deferOrDispatchAbilities` que `deployCard`/`playCommand` usam pro Deploy
-    // por jogada normal: resolve specs automáticos inline e PAUSA (mesmo
-    // `PendingDecision.abilityResolution` de sempre) quando algum precisa de
-    // escolha real — ex. ST02-015 Saint Gabriel "look at top 2, return 1 to
-    // top e 1 to bottom" via Burst (deferred.ts Classe A, fechada).
-    if (!next.pendingDecision[current.owner] && spec.actions.some((c) => c.op === "deployThisCard")) {
-      const deployTriggerSpecs = findTriggerSpecs(allSpecs, current.def.code, "Deploy");
-      if (deployTriggerSpecs.length > 0) {
-        // Encadeamento Burst→Deploy: profundidade de cascata incrementa aqui
-        // também (antes ficava parada em `chainDepth`, um dos 2 gaps que
-        // deixavam o guard anterior incompleto — docs/debates 2026-09-13 §1.1).
-        next = deferOrDispatchAbilities(next, current.owner, "Deploy", [{ code: current.def.code, instanceId: current.instanceId }], allSpecs, {
-          predicateResolver: opts.predicateResolver,
-          targetFilterResolver: opts.targetFilterResolver,
-          cascadeDepth: cascadeDepth + 1,
-          queueBudget,
-        });
-      }
+    // 【Deploy】 de toda carta que ESTE efeito pôs em campo — `deployThisCard` (【Burst】 de Base, docs/47
+    // Fase 4) e também Unit deployada do trash/mão por efeito (W6 — `deployFromTrashPayingCost`: ST09-001 →
+    // ST09-006, GD02-110 → GD03-062/GD04-060 "If you deploy this Unit from your trash"; antes só o
+    // `deployThisCard` encadeava e esses 【Deploy】 nunca disparavam numa partida). Mesmo
+    // `deferOrDispatchAbilities` do `deployCard`: resolve o automático e PAUSA quando há escolha real.
+    // Piloto pareado (inclusive Command-Piloto) não é "deploy" de Unit/Base — fica de fora.
+    for (const owner of [current.owner, otherPlayer(current.owner)]) {
+      if (next.pendingDecision.A || next.pendingDecision.B || next.gameOver) break;
+      const wasInPlay = new Set([...before.players[owner].battleArea, ...before.players[owner].baseSection].map((c) => c.instanceId));
+      const deployed = [...next.players[owner].battleArea, ...next.players[owner].baseSection]
+        .filter((c) => !wasInPlay.has(c.instanceId) && !c.pairedUnitId && (c.def.cardType === "UNIT" || c.def.cardType === "BASE"))
+        .filter((c) => findTriggerSpecs(allSpecs, c.def.code, "Deploy").length > 0)
+        .map((c) => ({ code: c.def.code, instanceId: c.instanceId }));
+      if (deployed.length === 0) continue;
+      // Encadeamento efeito→Deploy: profundidade de cascata incrementa (docs/debates 2026-09-13 §1.1)
+      next = deferOrDispatchAbilities(next, owner, "Deploy", deployed, allSpecs, {
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        cascadeDepth: cascadeDepth + 1,
+        queueBudget,
+      });
     }
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do

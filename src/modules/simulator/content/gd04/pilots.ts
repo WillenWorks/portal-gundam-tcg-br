@@ -142,6 +142,15 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD04-088": {
     "code": "GD04-088",
+    // W5 (C2) — texto de Piloto: protege a Unit pareada
+    damageReductions: [
+      {
+        immune: true,
+        kind: "battle",
+        whenBlockedByMaxLevel: 4,
+        sourceText: "When this Unit is blocked by an enemy Unit that is Lv.4 or lower, it can't receive battle damage during this battle.",
+      },
+    ],
     "nameEn": "Tokwan",
     "cardType": "PILOT",
     "color": "green",
@@ -334,6 +343,8 @@ export const PILOTS: Record<string, CardDef> = {
   },
   "GD04-098": {
     "code": "GD04-098",
+    // W5 (C2) — texto de Piloto: protege a Unit pareada
+    damageReductions: [{ amount: 2, kind: "effect", duringLink: true, sourceText: "【During Link】When this Unit receives effect damage from an enemy, reduce it by 2." }],
     "nameEn": "Riddhe Marcenas",
     "cardType": "PILOT",
     "color": "white",

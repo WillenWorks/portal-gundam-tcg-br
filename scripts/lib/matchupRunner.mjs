@@ -23,8 +23,21 @@ export function resolvePool(poolSpec) {
   return poolFromFile(JSON.parse(fs.readFileSync(file, "utf8")));
 }
 
-export function runPlannedGames({ poolSpec, level, maxTurns, games }, onResult) {
-  const decks = resolvePool(poolSpec);
+/**
+ * Pool com só os decks `deckIds`, nessa ordem (os índices do plano apontam pra esta lista). Base e
+ * versão nova recebem a MESMA lista: deck novo num lado não desloca as seeds do outro.
+ */
+export function selectDecks(decks, deckIds) {
+  if (!deckIds?.length) return decks;
+  return deckIds.map((id) => {
+    const deck = decks.find((d) => d.id === id);
+    if (!deck) throw new Error(`deck "${id}" não está no pool`);
+    return deck;
+  });
+}
+
+export function runPlannedGames({ poolSpec, deckIds, level, maxTurns, games }, onResult) {
+  const decks = selectDecks(resolvePool(poolSpec), deckIds);
   for (const g of games) {
     const result = runSelfPlay({
       deckA: decks[g.a].build(),

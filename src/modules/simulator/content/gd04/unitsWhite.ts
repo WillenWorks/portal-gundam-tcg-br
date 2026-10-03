@@ -71,6 +71,8 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   },
   "GD04-068": {
     "code": "GD04-068",
+    // W5 (C2)
+    damageReductions: [{ amount: 3, kind: "effect", sourceText: "When this Unit receives effect damage from an enemy, reduce it by 3." }],
     "nameEn": "Silver Bullet",
     "cardType": "UNIT",
     "color": "white",

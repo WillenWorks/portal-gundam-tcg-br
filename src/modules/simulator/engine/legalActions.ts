@@ -1,11 +1,11 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { computeLegalTargets, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
+import { computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
-import { costRestsSelf } from "./costs";
+import { costRestsSelf, specResourceCost } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 
 /**
@@ -190,11 +190,15 @@ function activateAbilityCandidates(
       const abilitySpecs = findTriggerSpecs(specs, card.def.code, trigger);
       // "Rest this Unit/Base:" já rested não é pagável de novo — ver `costRestsSelf`.
       // W2c — 【Once per Turn】 por spec já usado / custo de exilar do trash sem cartas: não oferecer
+      const activeResources = state.players[seat].resourceArea.filter((r) => !r.rested).length;
       const payableAbilitySpecs = abilitySpecs.filter(
         (s) =>
           !(costRestsSelf(s) && card.rested) &&
+          // W6 — "②:" sem Recursos ativos não é pagável (mesmo critério do auto-pass, `playerHasActionStepPlay`)
+          activeResources >= specResourceCost(s) &&
           !(s.oncePerTurn && card.usedKeywordsThisTurn.includes(specOncePerTurnMarker(s))) &&
           !exileCostShortfall(state, s, seat) &&
+          !costTargetShortfall(state, s, seat, opts.targetFilterResolver, card.instanceId) &&
           specPairGateOpen(state, card, s),
       );
       const hasSupport =
@@ -204,6 +208,11 @@ function activateAbilityCandidates(
         !card.rested &&
         !(card.def.oncePerTurn && card.usedKeywordsThisTurn.includes("Support"));
       if (payableAbilitySpecs.length === 0 && !hasSupport) continue;
+      // W5 — custo "Rest 1 of your … Units": o motor pergunta alvo + Unit do custo numa decisão só
+      if (payableAbilitySpecs.some(costRestsSecondaryTarget)) {
+        out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
+        continue;
+      }
       if (payableAbilitySpecs.length > 0) {
         const { ids, someSpecNeeds, targetCount } = neededTargetIds(
           state,

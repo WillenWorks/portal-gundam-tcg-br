@@ -182,7 +182,7 @@ describe("W2b — camada de dano (C2)", () => {
   });
 
   it("115: sem Lv.7 protege de atacante com AP<=2; com Lv.7, de AP<=5", () => {
-    let state = game();
+    const state = game();
     const cmd = placeCard(state, "B", G["GD03-115"], "hand");
     const defender = placeCard(state, "B", G["GD03-058"], "battleArea", { rested: true });
     pair(state, defender, placeCard(state, "B", G["GD03-094"], "battleArea")); // (X-Rounder)
@@ -199,7 +199,7 @@ describe("W2b — camada de dano (C2)", () => {
 
 describe("W2b — reações de combate", () => {
   it("052: dano de batalha numa inimiga Lv.5 ou menos, com Piloto (CB) em jogo, destrói a inimiga", () => {
-    let state = game();
+    const state = game();
     const virtue = placeCard(state, "A", G["GD03-052"], "battleArea"); // AP3
     pair(state, virtue, placeCard(state, "A", PILOT(["CB"]), "battleArea"));
     const tough = placeCard(state, "B", G["GD03-070"], "battleArea", { rested: true }); // Lv6 HP5

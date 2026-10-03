@@ -242,11 +242,10 @@ describe("W4 — Units", () => {
     const enemy = placeCard(state, "B", UNIT({ ap: 3, hp: 5 }), "battleArea");
     let s = runSpec(state, "GD02-110-Main", command, { trashSearch: [gx] });
     expect(findCard(s, gx).enteredFromZone).toBe("trash");
-    const deploy = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, OPTS).find(
-      (a) => a.kind === "resolveAbility" && a.resolutions.some((r) => r.targetIds.includes(enemy)),
-    );
-    if (deploy) s = act(s, "A", deploy as PlayerAction);
-    else s = runSpec(s, "GD03-062-Deploy", gx, { target: [enemy] });
+    // o 【Deploy】 tem que disparar sozinho (W6 — antes nunca disparava e um fallback `runSpec` aqui escondia)
+    const d = s.pendingDecision.A;
+    expect(d?.kind === "abilityResolution" && d.queue.find((q) => q.specId === "GD03-062-Deploy")?.legalTargets).toEqual([enemy]);
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD03-062-Deploy", activate: true, targetIds: [enemy] }] });
     expect(findCard(s, enemy).damage).toBe(2);
 
     const fromHand = game();

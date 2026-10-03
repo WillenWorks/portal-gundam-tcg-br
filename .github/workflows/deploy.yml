@@ -1,0 +1,50 @@
+name: Deploy Production (AnaheimHub)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Hostinger VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: true
+          script: |
+            echo "🚀 Iniciando deploy em produção..."
+            cd /root/portal-gundam-tcg-br
+
+            # 1. Garantir que estamos na branch main limpa
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 2. Instalar dependências exatas
+            pnpm install --frozen-lockfile
+
+            # 3. Sincronizar schema do banco (sem rodar migrations com bug de ordenação)
+            pnpm run prisma:push
+
+            # 4. Compilar o frontend com as variáveis do .env da VPS
+            pnpm run build
+
+            # 5. Reiniciar a API no PM2
+            pm2 reload gundam-portal --update-env
+
+            echo "✅ Deploy concluído com sucesso!"

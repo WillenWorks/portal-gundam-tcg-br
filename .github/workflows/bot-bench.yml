@@ -1,0 +1,160 @@
+name: Bot bench
+
+# Mede o winrate do bot na base e na versão nova com as MESMAS partidas (seeds fixas), dividindo
+# o trabalho em fatias paralelas nos runners do GitHub, e compara (critério: nenhum deck cai mais
+# de 3 pontos). Não roda em todo push — só sob demanda:
+#   - PR: adicione o label `bot-bench` (a base é o branch de destino da PR);
+#   - manual: Actions → Bot bench → Run workflow (só aparece depois que este arquivo estiver em `main`).
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "ref da base (branch, tag ou commit)"
+        default: dev
+      games:
+        description: "partidas por par (10 = critério da wave; 4 = triagem rápida)"
+        default: "10"
+      shards:
+        description: "fatias por lado (jobs paralelos)"
+        default: "8"
+      focus:
+        description: "opcional: só pares com estes decks (ids separados por vírgula)"
+        default: ""
+
+concurrency:
+  group: bot-bench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || inputs.base }}
+  HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  GAMES: ${{ inputs.games || '10' }}
+  SHARDS: ${{ inputs.shards || '8' }}
+  FOCUS: ${{ inputs.focus || '' }}
+
+jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'bot-bench'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      decks: ${{ steps.decks.outputs.decks }}
+      shards: ${{ steps.decks.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          path: head
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: base
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - name: Install (só o head; a base reaproveita o node_modules)
+        working-directory: head
+        run: corepack pnpm install --frozen-lockfile
+      - name: Decks em comum (mesma lista e ordem nos 2 lados = mesmas seeds)
+        id: decks
+        run: |
+          ln -s "$PWD/head/node_modules" base/node_modules
+          for f in scripts/gundam-bot-matchups.mjs scripts/lib/matchupRunner.mjs scripts/lib/matchupWorker.mjs; do cp "head/$f" "base/$f"; done
+          head_decks=$(cd head && node scripts/gundam-bot-matchups.mjs --listDecks | tail -n 1)
+          base_decks=$(cd base && node scripts/gundam-bot-matchups.mjs --listDecks | tail -n 1)
+          decks=$(node -e 'const h=JSON.parse(process.argv[1]),b=new Set(JSON.parse(process.argv[2]));console.log(h.filter(d=>b.has(d)).join(","))' "$head_decks" "$base_decks")
+          echo "decks=$decks" >> "$GITHUB_OUTPUT"
+          echo "shards=$(node -e 'console.log(JSON.stringify([...Array(Number(process.argv[1])).keys()]))' "$SHARDS")" >> "$GITHUB_OUTPUT"
+          echo "decks: $decks"
+
+  measure:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        side: [base, head]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          path: head
+      - uses: actions/checkout@v4
+        if: matrix.side == 'base'
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: base
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - name: Install
+        working-directory: head
+        run: corepack pnpm install --frozen-lockfile
+      - name: Prepara a base com os scripts de medição do head
+        if: matrix.side == 'base'
+        run: |
+          ln -s "$PWD/head/node_modules" base/node_modules
+          for f in scripts/gundam-bot-matchups.mjs scripts/lib/matchupRunner.mjs scripts/lib/matchupWorker.mjs; do cp "head/$f" "base/$f"; done
+      - name: Mede a fatia ${{ matrix.shard }}
+        working-directory: ${{ matrix.side }}
+        run: |
+          node scripts/gundam-bot-matchups.mjs --games="$GAMES" --seed=1 \
+            --decks="${{ needs.plan.outputs.decks }}" ${FOCUS:+--focus="$FOCUS"} \
+            --shard="${{ matrix.shard }}/$SHARDS" --out="$RUNNER_TEMP/${{ matrix.side }}-${{ matrix.shard }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.side }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/${{ matrix.side }}-${{ matrix.shard }}.json
+          retention-days: 7
+
+  report:
+    needs: measure
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bench-*
+          path: parts
+          merge-multiple: true
+      - name: Junta as fatias e compara
+        id: compare
+        run: |
+          node scripts/gundam-bot-merge.mjs --out=bench/base.json parts/base-*.json
+          node scripts/gundam-bot-merge.mjs --out=bench/head.json parts/head-*.json
+          set +e
+          node scripts/gundam-bot-compare.mjs bench/base.json bench/head.json --maxDrop=3 --md=bench/comparacao.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat bench/comparacao.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-relatorio
+          path: bench/
+          retention-days: 30
+      - name: Comenta na PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file bench/comparacao.md
+      - name: Falha se o bot caiu
+        if: steps.compare.outputs.status != '0'
+        run: exit 1

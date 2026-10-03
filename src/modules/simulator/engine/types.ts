@@ -184,6 +184,8 @@ export interface CardDef {
       /** GD03-042 — "While this Unit has 5 or more AP, it may choose an active enemy Unit that is Lv.5 or lower" */
       requiresSelfApAtLeast?: number;
     };
+    /** W5 — GD04-051 "【During Pair·(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target." */
+    mayTargetActiveEnemyWithKeyword?: { pairedPilotTrait?: string; trashAtLeast?: number };
   };
   /**
    * W2b (C4) — provocação: "Enemy Units choose this rested Unit as their attack target if possible
@@ -205,6 +207,15 @@ export interface CardDef {
   };
   /** W2b (C2) — GD03-070: "While this Unit is rested, friendly Shields can't receive battle damage from enemy Units." */
   protectsShieldsWhileRested?: boolean;
+  /**
+   * W5 (C2) — redução/imunidade CONTÍNUA de dano recebido de inimigo, aplicada por `engine/damageLayer.ts`
+   * (Damage Step e `damageUnit`). Num Piloto, protege a Unit pareada ("this Unit"); numa Base, a Base.
+   */
+  damageReductions?: DamageReduction[];
+  /** W5 (C12) — GD04-022 "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested." (dos 2 lados) */
+  deploysRestedRule?: { maxLevel: number; excludeTokens?: boolean; duringLink?: boolean; sourceText?: string };
+  /** W5 (C12) — GD04-033 "【During Link】All your Units gain (Neo Zeon)." (lido por `hasTrait`) */
+  grantsTraitToFriendlyUnits?: { trait: string; duringLink?: boolean; sourceText?: string };
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-091 "During your turn, while this Unit
    * has <Breach>, it can't receive battle damage from enemy Units with 3 or less
@@ -389,6 +400,8 @@ export type StaticBoardCondition =
   | { kind: "friendlyBaseInPlay" }
   /** W4 — GD04-013 "While this Unit is rested" (a própria fonte, via `excludeInstanceId`) */
   | { kind: "selfRested" }
+  /** W5 — GD04-123/ST07-015 "While you have a rested (Zeon) Unit in play" */
+  | { kind: "friendlyRestedUnitWithTrait"; trait: string }
   /** W4 — GD04-037 "While you have a red (Super Soldier) Pilot in play" (Piloto pareado em campo) */
   | { kind: "friendlyPilotInPlay"; trait: string; color?: string }
   /** W4 — GD04-039 "If there are 8 or more (Neo Zeon) cards in your trash" */
@@ -629,6 +642,70 @@ export interface CardInstance {
    * `state.turnNumber === turn`; limpo em `CLEAR_TURN_MODIFIERS`.
    */
   battleDamageImmunityUntilTurn?: { maxAttackerHp: number; turn: number };
+  /** W5 (C2) — modificadores de dano concedidos por efeito (GD04-093 "next damage", 113 "this battle", 119 "this turn") */
+  damageModifiers?: DamageModifier[];
+  /** W5 (C6) — Command jogado pagando com EX Resource neste turno (GD04-020/085/106/108 "using an EX Resource") */
+  paidWithExOnTurn?: number;
+  /** W5 (C2) — GD04-087/095 "battle damage it would receive is dealt to that Unit instead" */
+  battleDamageRedirect?: { toId: string; scope: "turn" | "battle"; turn: number };
+}
+
+/**
+ * W5 (C2) — todas as cartas falam de dano "from an enemy": só dano cujo controlador é o oponente
+ * do dono do alvo é afetado. `amount` reduz; `immune` zera.
+ */
+export interface DamageReduction {
+  amount?: number;
+  immune?: boolean;
+  /** omitido = qualquer dano; "effect" = "receives effect damage"; "battle" = "battle damage" */
+  kind?: "battle" | "effect";
+  oncePerTurn?: boolean;
+  /** 【During Link】 — a Unit protegida é Link Unit (com o Piloto dono do texto, se for de Piloto) */
+  duringLink?: boolean;
+  /** "If/While …" sobre o board do dono do alvo */
+  boardCondition?: StaticBoardCondition;
+  /** "from enemy Units that are Lv.N or lower" — a FONTE do dano (atacante ou carta do efeito) */
+  sourceMaxLevel?: number;
+  /** "from enemy Units" — a fonte é uma Unit */
+  sourceUnitOnly?: boolean;
+  /** "other than Unit tokens" */
+  sourceNotToken?: boolean;
+  /** GD04-088 "When this Unit is blocked by an enemy Unit that is Lv.N or lower" — só o dano dessa batalha */
+  whenBlockedByMaxLevel?: number;
+  sourceText?: string;
+}
+
+export interface DamageModifier {
+  amount?: number;
+  immune?: boolean;
+  kind?: "battle" | "effect";
+  /** "from an enemy" (sem isso, qualquer dano — GD04-093 "the next damage it receives") */
+  enemyOnly?: boolean;
+  /** "from enemy Units" — a fonte é uma Unit (ou Piloto pareado, cujo texto é da Unit) */
+  sourceUnitOnly?: boolean;
+  /** ST06-013 "from enemy Units that are Lv.2 or lower" */
+  sourceMaxLevel?: number;
+  /** "next" = só o próximo dano deste turno; "battle" = até o fim da batalha atual; "turn" = este turno */
+  scope: "next" | "turn" | "battle";
+  turn: number;
+}
+
+/** W5 — gatilho atrasado armado por `grantDelayedReaction` (vale só no turno `turn`) */
+export interface DelayedReaction {
+  specId: string;
+  /** a carta que armou (fonte do efeito quando ele dispara) */
+  sourceId: string;
+  /** só eventos desta carta ("When it destroys …") */
+  subjectId?: string;
+  turn: number;
+}
+
+/** W5 (C2) — o que um dano consome ao ser aplicado (calculado em `incomingDamage`, aplicado no evento) */
+export interface DamageConsumption {
+  /** marcadores 1×/turno (`usedKeywordsThisTurn`) por carta — a Unit ou o Piloto dono do texto */
+  markers?: Array<{ instanceId: string; marker: string }>;
+  /** o alvo gastou os modificadores "next" */
+  dropNext?: boolean;
 }
 
 /**
@@ -732,6 +809,38 @@ function isStaticAbilityActive(state: GameState, source: CardInstance, condition
  * uma carta na MÃO — nunca aparece na Battle Area/trash contados, então excluir
  * seria um no-op de qualquer forma).
  */
+/** a Unit `unit` é Link Unit agora (com o Piloto pareado) */
+function isLinkedUnit(state: GameState, unit: CardInstance): boolean {
+  if (!unit.pairedPilotId) return false;
+  const pilot = [...state.players.A.battleArea, ...state.players.B.battleArea].find((c) => c.instanceId === unit.pairedPilotId);
+  return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), unit.def);
+}
+
+/**
+ * W5 (C12) — trait impresso OU concedido por efeito contínuo (GD04-033 "All your Units gain (Neo Zeon)").
+ * Lido pelos filtros de alvo `trait:`/`anyTrait:` (e por isso pelos `subjectFilter` de reação); condições
+ * de board e custos ainda leem o trait impresso (aproximação registrada em `deferred.ts`).
+ */
+export function hasTrait(card: CardInstance, trait: string, state?: GameState): boolean {
+  if ((card.def.traits ?? []).includes(trait)) return true;
+  if (!state || card.def.cardType !== "UNIT" || card.zone !== "battleArea") return false;
+  return state.players[card.owner].battleArea.some(
+    (c) => c.def.grantsTraitToFriendlyUnits?.trait === trait && (!c.def.grantsTraitToFriendlyUnits.duringLink || isLinkedUnit(state, c)),
+  );
+}
+
+/** W5 (C12) — GD04-022: a Unit que entra agora entra descansada por regra contínua de alguma carta em jogo */
+export function entersRestedByRule(state: GameState, unit: CardInstance): boolean {
+  if (unit.def.cardType !== "UNIT") return false;
+  return [...state.players.A.battleArea, ...state.players.B.battleArea].some((c) => {
+    const rule = c.def.deploysRestedRule;
+    if (!rule || c.instanceId === unit.instanceId) return false;
+    if (rule.duringLink && !isLinkedUnit(state, c)) return false;
+    if (rule.excludeTokens && unit.def.isToken) return false;
+    return (unit.def.level ?? 0) <= rule.maxLevel;
+  });
+}
+
 export function isBoardConditionMet(
   state: GameState,
   owner: PlayerId,
@@ -785,6 +894,9 @@ export function isBoardConditionMet(
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && !!c.def.isToken);
   }
   if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
+  if (cond.kind === "friendlyRestedUnitWithTrait") {
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(cond.trait));
+  }
   if (cond.kind === "selfRested") {
     const self = excludeInstanceId ? findInBattleArea(state, owner, excludeInstanceId) ?? state.players[owner].baseSection?.find((c) => c.instanceId === excludeInstanceId) : undefined;
     return !!self?.rested;
@@ -1051,9 +1163,16 @@ function findActiveStaticKeywordAbility(card: CardInstance, keyword: string, sta
  * 【During Pair】/condição de board/aura de Pilot) não são vistas, mesmo
  * limite documentado em `effectiveAp` acima.
  */
+/** "Breach" casa "Breach" e "Breach 3" (não "Breacher") */
+function keywordNameMatches(text: string, keyword: string): boolean {
+  // caminho quente (bot/MCTS): sem alocação — igualdade, ou o nome seguido de espaço + valor
+  return text === keyword || (text.length > keyword.length && text.charCodeAt(keyword.length) === 32 && text.startsWith(keyword));
+}
+
 export function hasKeyword(card: CardInstance, keyword: string, state?: GameState): boolean {
   const fromDef = card.def.effectKeywords?.includes(keyword) ?? false;
-  const fromGrant = card.keywordGrants.some((g) => g.keyword === keyword);
+  // auditoria A27 — concessão com valor ("Breach 3") também é <Breach>
+  const fromGrant = card.keywordGrants.some((g) => keywordNameMatches(g.keyword, keyword));
   const fromStatic = state ? findActiveStaticKeywordAbility(card, keyword, state) !== undefined : false;
   return fromDef || fromGrant || fromStatic;
 }
@@ -1069,18 +1188,30 @@ export function hasKeyword(card: CardInstance, keyword: string, state?: GameStat
  * "Simultaneous Fire", que concede `<Breach 3>` via Main).
  */
 export function keywordValue(card: CardInstance, keyword: string, state?: GameState): number | null {
-  const grant = card.keywordGrants.find((g) => g.keyword.toLowerCase().startsWith(keyword.toLowerCase()));
-  if (grant) {
-    const match = grant.keyword.match(/(-?\d+)/);
+  // auditoria A27 — CR 13-1-2-5 / 13-1-1-2 / 13-1-3-2 (rulings Q52/Q57/Q58): cópias de <Breach>/<Repair>/<Support>
+  // SOMAM os valores (<Breach 2> + <Breach 3> = <Breach 5>). Antes valia só a 1ª concessão e o impresso era ignorado.
+  const valueOf = (text: string) => {
+    const match = text.match(/(-?\d+)/);
     return match ? Number(match[1]) : 0;
+  };
+  let found = false;
+  let total = 0;
+  for (const g of card.keywordGrants) {
+    if (!keywordNameMatches(g.keyword, keyword)) continue;
+    found = true;
+    total += valueOf(g.keyword);
   }
-  const tag = card.def.keywordTags?.find((t) => t.toLowerCase().startsWith(keyword.toLowerCase()));
+  const tag = card.def.keywordTags?.find((t) => keywordNameMatches(t, keyword));
   if (tag) {
-    const match = tag.match(/(-?\d+)/);
-    return match ? Number(match[1]) : 0;
+    found = true;
+    total += valueOf(tag);
   }
   const staticAbility = state ? findActiveStaticKeywordAbility(card, keyword, state) : undefined;
-  if (staticAbility) return staticAbility.keywordValue ?? 0;
+  if (staticAbility) {
+    found = true;
+    total += staticAbility.keywordValue ?? 0;
+  }
+  if (found) return total;
   return hasKeyword(card, keyword, state) ? 0 : null;
 }
 
@@ -1173,7 +1304,7 @@ export type PendingDecision =
         label: string;
         optional: boolean;
         needsTarget: boolean;
-        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield";
+        targetScope: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield" | "enemyUnitOrBase";
         /** instanceIds já legais AGORA pra este alvo (escopo + `targetFilter` aplicados) — `[]` = nenhum alvo legal, o efeito não ativa. */
         legalTargets: string[];
         /** Lote 4 (docs/debates 2026-09-13) — presente só quando `EffectSpec.targetCount` existe ("Choose 1 to 2"/"Choose 2 ..."); ausente = escolha singular de sempre. `resolveAbility` valida `resolution.targetIds.length <= max` contra isto. */
@@ -1215,7 +1346,7 @@ export type PendingDecision =
          * `resolution.targetIds[i]` → `slots[i]`. `topCards` é o topo do deck
          * (redigido a `[]` pro oponente pela `viewState`, igual `deckTopReveal`).
          */
-        deckReorder?: { topCards: CardInstance[]; slots: Array<{ name: string; position: "top" | "bottom" }>; label: string };
+        deckReorder?: { topCards: CardInstance[]; slots: Array<{ name: string; position: "top" | "bottom" | "trash" }>; label: string };
         /**
          * ST04-012 Striker Pack 【Main】 "deploy 1 [Sword Strike] or 1 [Launcher
          * Strike] Unit token" — escolha ENUM. `resolution.targetIds` = `[value]`
@@ -1314,7 +1445,7 @@ export type PendingDecision =
 
 /** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
 export interface PendingCombatReaction {
-  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle";
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy";
   /** a Unit que causou o dano / destruiu */
   subjectId: string;
   owner: PlayerId;
@@ -1375,6 +1506,13 @@ export interface EndPhaseActionState {
 }
 
 export interface PlayerState {
+  /** W5 — "During this turn, when …" armados por efeito (limpos no fim do turno) */
+  delayedReactions?: DelayedReaction[];
+  /**
+   * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
+   * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
+   */
+  indestructibleByEnemyEffectsTurn?: number;
   id: PlayerId;
   deck: CardInstance[];
   resourceDeck: CardInstance[];
@@ -1459,12 +1597,23 @@ export type GameEvent =
   | { type: "MOVE_CARD"; instanceId: string; toZone: Zone }
   | { type: "REST_CARD"; instanceId: string }
   | { type: "SET_ACTIVE"; instanceId: string }
-  | { type: "DAMAGE_UNIT"; instanceId: string; amount: number }
+  | { type: "DAMAGE_UNIT"; instanceId: string; amount: number; consume?: DamageConsumption }
   | { type: "HEAL_UNIT"; instanceId: string; amount: number }
   | { type: "DESTROY_CARD"; instanceId: string }
   | { type: "REMOVE_CARD_FROM_GAME"; instanceId: string }
   | { type: "DAMAGE_SHIELD"; player: PlayerId; count: number }
-  | { type: "DAMAGE_BASE"; instanceId: string; amount: number }
+  | { type: "DAMAGE_BASE"; instanceId: string; amount: number; consume?: DamageConsumption }
+  /** W5 (C2) */
+  | { type: "GRANT_DAMAGE_MODIFIER"; instanceId: string; modifier: DamageModifier }
+  /** GD04-101 — ver `PlayerState.indestructibleByEnemyEffectsTurn` */
+  | { type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS"; player: PlayerId; turn: number }
+  /** auditoria A3 — ST07-013: o ataque em andamento passa a mirar esta Unit (sem ser bloqueio) */
+  | { type: "ATTACK_TARGET_CHANGED"; unitId: string }
+  /** W5 — ver `PlayerState.delayedReactions` */
+  | { type: "ADD_DELAYED_REACTION"; player: PlayerId; entry: DelayedReaction }
+  /** W5 (C6) — o Command foi pago com (ou sem) EX Resource; só sai quando muda algo (ver `playCommand`) */
+  | { type: "MARK_COMMAND_PAYMENT"; instanceId: string; withEx: boolean; turn: number }
+  | { type: "SET_BATTLE_DAMAGE_REDIRECT"; instanceId: string; redirect: { toId: string; scope: "turn" | "battle"; turn: number } }
   | { type: "MODIFY_STAT"; instanceId: string; modifier: StatModifier }
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }

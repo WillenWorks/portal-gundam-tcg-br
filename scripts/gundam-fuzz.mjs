@@ -45,6 +45,7 @@ const { buildSt08DeckList } = await import(sim("fixtures/st08Deck.ts"));
 const { buildGd01DeckList } = await import(sim("fixtures/gd01Deck.ts"));
 const { META_DECKS_GD02_ERA } = await import(sim("fixtures/metaDecksGd02Era.ts"));
 const { GD03_TEST_DECKS } = await import(sim("fixtures/gd03Decks.ts"));
+const { GD04_TEST_DECKS } = await import(sim("fixtures/gd04Decks.ts"));
 const { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } = await import(sim("content/index.ts"));
 const { heuristicPolicy } = await import(sim("engine/bot/heuristicPolicy.ts"));
 const { mctsPolicy } = await import(sim("engine/bot/mctsPolicy.ts"));
@@ -87,6 +88,8 @@ const DECKS = {
   ...Object.fromEntries(Object.values(META_DECKS_GD02_ERA).map((d) => [d.id.replace(/^META-/, ""), d.build])),
   // W2c — decks de teste do GD03 (set fechado)
   ...Object.fromEntries(Object.values(GD03_TEST_DECKS).map((d) => [d.id, d.build])),
+  // W5 — decks de teste do GD04 (set fechado)
+  ...Object.fromEntries(Object.values(GD04_TEST_DECKS).map((d) => [d.id, d.build])),
 };
 
 function parseArgs(argv) {

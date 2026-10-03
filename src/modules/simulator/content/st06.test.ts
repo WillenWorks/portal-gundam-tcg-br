@@ -80,7 +80,7 @@ describe("ST06 — resolução de EffectSpecs", () => {
     const redId = placeCard(state, "A", ST06_CARD_DEFS["ST06-005"], "battleArea");
     const allyId = placeCard(state, "A", ST06_CARD_DEFS["ST06-003"], "battleArea");
 
-    const events = resolveEffectSpec(RED_GUNDAM_ATTACK, ctxFor(state, redId, { targets: [redId, allyId] }), defaultPredicateResolver);
+    const events = resolveEffectSpec(RED_GUNDAM_ATTACK, ctxFor(state, redId, { target: [redId, allyId] }), defaultPredicateResolver);
     expect(events.length).toBe(2);
     state = applyEvents(state, events);
     expect(findCard(state, redId).statModifiers?.some((m) => m.stat === "ap" && m.amount === 2)).toBe(true);

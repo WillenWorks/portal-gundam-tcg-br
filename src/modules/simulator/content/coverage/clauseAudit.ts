@@ -70,6 +70,9 @@ export const STRUCTURED_FIELDS = [
   "forcedAttackTarget",
   "attackRestriction",
   "protectsShieldsWhileRested",
+  "damageReductions",
+  "deploysRestedRule",
+  "grantsTraitToFriendlyUnits",
   "dynamicCost",
   "onSupportUsed",
   "innateStatReductionImmunity",
@@ -98,7 +101,6 @@ const TIMING_TRIGGERS = new Set([
   "Activate·Main",
   "Activate·Action",
 ]);
-const QUALIFIERS = new Set(["During Pair", "During Link", "Once per Turn"]);
 
 /** separadores e espaços do texto oficial (`･`/`・`/`·`, `：`, aspas curvas, "won' t") numa forma só */
 export function normalizeClause(s: string): string {

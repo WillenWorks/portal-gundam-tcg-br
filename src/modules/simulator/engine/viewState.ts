@@ -89,6 +89,9 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     exile: player.exile.map((c) => redactCard(c, viewer)), // sempre pública, igual trash
     hand: player.hand.map((c) => redactCard(c, viewer)),
     counts,
+    // W5 — gatilho atrasado declarado por efeito resolvido: informação pública
+    ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
+    ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
   };
 }
 

@@ -147,7 +147,7 @@ export const ARMED_INTERVENTION_ACTION: EffectSpec = {
   id: "ST07-013-Action",
   cardCode: "ST07-013",
   trigger: "Action",
-  actions: [],
+  actions: [{ op: "changeAttackTarget", target: { kind: "named", name: "target" } }],
   targetScope: "friendlyUnit",
   targetFilter: "trait:CB;rested",
   sourceText: "【Action】Choose 1 rested friendly (CB) Unit. Change the attack target of the battling enemy Unit to it.",

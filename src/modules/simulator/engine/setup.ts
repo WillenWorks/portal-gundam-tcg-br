@@ -43,7 +43,8 @@ export interface CreateGameOptions {
   validateDeckSize?: boolean;
 }
 
-const EX_BASE_TOKEN: CardDef = {
+/** Exportado pra primitiva `deployExBase` (GD04-110). */
+export const EX_BASE_TOKEN: CardDef = {
   code: "TOKEN-EX-BASE",
   nameEn: "EX Base",
   cardType: "BASE",

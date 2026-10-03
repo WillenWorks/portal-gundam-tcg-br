@@ -55,6 +55,12 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD04-051": {
     "code": "GD04-051",
+    // W5
+    attackTargetRules: { mayTargetActiveEnemyWithKeyword: { pairedPilotTrait: "Vulture", trashAtLeast: 7 } },
+    structuredSourceText: {
+      attackTargetRules:
+        "【During Pair･(Vulture) Pilot】If there are 7 or more cards in your trash, this Unit may choose an active enemy Unit with a keyword effect as its attack target.",
+    },
     "nameEn": "Gundam Airmaster Burst",
     "cardType": "UNIT",
     "color": "purple",
@@ -96,6 +102,10 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD04-053": {
     "code": "GD04-053",
+    // W5 (C2)
+    damageReductions: [
+      { amount: 1, duringLink: true, oncePerTurn: true, sourceText: "【During Link】【Once per Turn】When this Unit receives damage from an enemy, reduce it by 1." },
+    ],
     "nameEn": "Rey's Blaze Zaku Phantom",
     "cardType": "UNIT",
     "color": "purple",

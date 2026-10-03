@@ -72,7 +72,7 @@ describe("mctsPolicy", () => {
     const { view, legal } = advanceToDecision(9, "A", 4);
     const chosen = chooseAction(view, legal, createRng(7), { rollouts: 6, ...specs });
     expect(legal).toContainEqual(chosen);
-  });
+  }, 30_000); // o padrão de 5 s estourava por ~0,2 s com a suíte inteira em paralelo
 });
 
 /**

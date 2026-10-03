@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { exileCostShortfall } from "./effectSpec";
+import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -12,6 +12,7 @@ import {
   attachQueuedTriggers,
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
+  dispatchCommandActivated,
   dispatchDestroyedFromEffect,
   dispatchDestroyedTriggers,
   drainQueuedTriggers,
@@ -24,6 +25,7 @@ import { activateSupport } from "./keywords";
 import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
 import { createRng } from "./rng";
 import { effectiveCost, effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
+import { incomingDamage } from "./damageLayer";
 
 /**
  * Passo 4 (docs/18, "UI mínima de sandbox" + decisão do Willen de testar com
@@ -387,6 +389,19 @@ function applyPlayerActionInner(
         if (usable.length === 0) throw new Error(`${source.def.code}: 【Once per Turn】 já usado neste turno`);
         const unpayable = usable.find((s) => exileCostShortfall(state, s, actingPlayer));
         if (unpayable) throw new Error(`${source.def.code}: não há cartas suficientes no trash pra pagar o custo de exilar`);
+        if (usable.some((s) => costTargetShortfall(state, s, actingPlayer, targetFilterResolver, action.sourceInstanceId))) {
+          throw new Error(`${source.def.code}: não há Unit elegível pra descansar no custo`);
+        }
+        // W5 — custo "Rest 1 of your … Units": sem a Unit do custo escolhida, vira decisão (alvo + Unit do custo)
+        const costTarget = usable.find(costRestsSecondaryTarget)?.secondaryTarget?.name;
+        // auditoria A25 — escolha fora do tabuleiro (trash/deck/mão: GD04-067) também vira decisão quando não veio pronta
+        const choiceMissing = usable.some(specNeedsChoice) && !action.targets;
+        if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
+          return deferOrDispatchAbilities(state, actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
+            predicateResolver,
+            targetFilterResolver,
+          });
+        }
         // V0 (docs/25): mesma filtragem de `playCommand` — spec com alvo
         // ilegal/não escolhido lança, spec sem alvo legal nenhum sai do lote.
         // Achado (Sprint 2 Lote 11, revalidação GD02-011 Moebius): faltavam
@@ -457,6 +472,12 @@ function applyPlayerActionInner(
           targetFilterResolver,
           allSpecs: specs,
         });
+        // rulings Q376/Q397 — "【Burst】Activate this card's 【Main】" ativa o 【Main】 do Command: conta para
+        // "When you activate a Command's 【Main】/【Action】" (GD04-066). Não é "play" (Q42), então quem
+        // exige "play … using an EX Resource" (GD04-020/085) segue sem reagir (sem pagamento, sem EX).
+        if (decision.cardDef.cardType === "COMMAND" && dispatchable.some((s) => s.sourceText.includes("Activate this card's 【Main】"))) {
+          next = dispatchCommandActivated(next, decision.cardInstanceId, specs, { predicateResolver, targetFilterResolver });
+        }
       }
       if (decision.queuedInstanceIds.length > 0) {
         return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds, decision.pendingDestroyed ?? []);
@@ -626,10 +647,15 @@ function applyPlayerActionInner(
           const chosenId = r.targetIds[0];
           if (chosenId) {
             if (q.combatTrigger.action.kind === "damageChosenEnemyUnit") {
-              const amount = q.combatTrigger.action.amount;
-              next = applyEvent(next, { type: "DAMAGE_UNIT", instanceId: chosenId, amount });
+              // W5 (C2) — dano de efeito do gatilho de combate passa pela camada de dano
+              const hit = incomingDamage(next, findCard(next, chosenId), q.combatTrigger.action.amount, {
+                kind: "effect",
+                controller: actingPlayer,
+                sourceId: q.sourceInstanceId,
+              });
+              next = applyEvent(next, { type: "DAMAGE_UNIT", instanceId: chosenId, amount: hit.amount, consume: hit.consume });
               const target = findCard(next, chosenId);
-              if (target.damage >= effectiveHp(target, next)) {
+              if (hit.amount > 0 && target.damage >= effectiveHp(target, next)) {
                 const beforeDestroy = next;
                 next = applyEvent(next, { type: "DESTROY_CARD", instanceId: chosenId });
                 next = applyEvents(next, pairedPilotFollowEvents(target));
@@ -660,6 +686,7 @@ function applyPlayerActionInner(
         const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
         if (src && src.def.cardType === "COMMAND") {
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
+          next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
         }
       }
       // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou

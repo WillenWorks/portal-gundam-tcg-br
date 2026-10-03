@@ -46,5 +46,5 @@ describe("gundam-golden", () => {
     const first = run([]);
     const second = run([]);
     expect(shaLines(second.out)).toBe(shaLines(first.out));
-  }, 60000);
+  }, 180_000); // roda o golden 2× (29 pares) — 60 s estourava com a suíte inteira em paralelo
 });

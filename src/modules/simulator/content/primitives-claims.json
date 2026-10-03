@@ -149,6 +149,38 @@
     "deployFromTrashPayingCost": {
       "description": "Deploya 1 Unit escolhida na LIXEIRA (casando um CardDefFilter), pagando o CardDef.cost da carta ESCOLHIDA (custo variável, só conhecido após a escolha) — resta os N primeiros Recursos active (mesmo fallback determinístico de payResourceCostEvents). NÃO checa nível do jogador nem encadeia o Deploy da carta recém-deployada (mesma simplificação de deployFromHandTriggered).",
       "since": "GD02-096 Desil Galette / GD02-110 Awakened Power (Sprint 2 Lote 11)"
+    },
+    "grantDamageModifier": {
+      "description": "Modificador de dano na instância (camada de dano C2): redução ou imunidade, por tipo (battle/effect), escopo next/turn/battle; enemyOnly/sourceUnitOnly.",
+      "since": "GD04-093/113/119"
+    },
+    "redirectBattleDamage": {
+      "description": "Dano de batalha que <from> receberia vai pra <to> (esta batalha ou este turno).",
+      "since": "GD04-087/095"
+    },
+    "deployExBase": {
+      "description": "Coloca 1 EX Base (token) na Base Section; a Base atual sai (token removido, carta vai pro trash).",
+      "since": "GD04-110"
+    },
+    "grantDelayedReaction": {
+      "description": "Arma até o fim do turno o spec <specId> (gatilho Delayed:<evento>, com reaction); subject opcional restringe aos eventos daquela carta.",
+      "since": "GD04-002/035/115"
+    },
+    "pairCardFromTrashAsPilot": {
+      "description": "Pareia a carta <card> do trash (com 【Pilot】) como Piloto da Unit <target>.",
+      "since": "GD04-021"
+    },
+    "changeAttackTarget": {
+      "description": "Muda o alvo do ataque INIMIGO em andamento para a Unit escolhida (não é bloqueio).",
+      "since": "ST07-013"
+    },
+    "protectFriendlyUnitsFromEnemyDestroyEffects": {
+      "description": "Neste turno, Units amigas não são destruídas por efeitos inimigos que destroem (ruling Q287: dano de efeito ainda destrói).",
+      "since": "GD04-101"
+    },
+    "copyKeywordsFromTrashCard": {
+      "description": "A fonte ganha AP+N e as keywords impressas (da lista) de uma Unit escolhida em qualquer trash; valores somam (CR 13-1-2-5).",
+      "since": "GD04-067"
     }
   },
   "targetRefKinds": {
@@ -217,6 +249,10 @@
     "enemyBase": {
       "description": "A Base inimiga (0 ou 1).",
       "since": "GD04-043"
+    },
+    "firstRestedFriendlyUnitWithTrait": {
+      "description": "A 1ª Unit amiga descansada com o trait (aproximação de \"choose 1\" sem pausa).",
+      "since": "GD04-069"
     }
   },
   "targetScopes": {
@@ -247,6 +283,10 @@
     "battlingBaseOrShield": {
       "description": "Pool de alvo legal — Base (baseSection) + todos os Shields do DEFENSOR, só quando sourceInstanceId é o ATACANTE de um combate em andamento contra o jogador (state.combat.attackerId === source && currentTarget === \"player\"); [] fora disso.",
       "since": "GD02-011 Moebius (Peacemaker Team) (Sprint 2 Lote 11)"
+    },
+    "enemyUnitOrBase": {
+      "description": "Units e a Base do oponente.",
+      "since": "GD04-049"
     }
   },
   "predicates": {
@@ -446,6 +486,22 @@
       "description": "O trash do controller tem N+ cartas Unit da cor dada — checado ANTES da própria primitiva firstNInTrash rodar (mesma ordem cost->condition->actions de controllerTrashCountAtLeast).",
       "since": "GD02-111 Decisive Last Resort (Sprint 2 Lote 10)"
     },
+    "battleVictimUnpaired": {
+      "description": "A vítima do dano de batalha (`battleVictim`) não tem Piloto pareado.",
+      "since": "GD05-050 (W6)"
+    },
+    "chosenPairedPilotLevelAtMost:<value>:<n>": {
+      "description": "O alvo escolhido em `targets[<value>]` está pareado com um Piloto de Lv. N ou menor.",
+      "since": "GD05-109 (W6)"
+    },
+    "controllerUnitNameContainsInPlay:<value>": {
+      "description": "O controller tem em jogo uma Unit com o texto dado no nome.",
+      "since": "GD05-110 (W6)"
+    },
+    "controllerTrashColorCountAtLeast:<value>:<n>": {
+      "description": "O trash do controller tem N+ cartas (qualquer tipo) da cor dada.",
+      "since": "ST09-003 Saviour Gundam (W6)"
+    },
     "controllerTrashCardCountWithAnyTraitAtLeast:<value>:<n>": {
       "description": "Verdadeiro se o trash do controller tem N+ cartas (qualquer tipo) com algum dos traits (OR, separados por vírgula).",
       "since": "GD02-061 Hyakuri (W0.3)"
@@ -493,6 +549,18 @@
     "controllerExResourceCountAtMost:<n>": {
       "description": "O controller tem N ou menos EX Resources na Resource Area.",
       "since": "GD04-086"
+    },
+    "selfPaidWithEx": {
+      "description": "A fonte (Command) foi jogada pagando com EX Resource neste turno (CardInstance.paidWithExOnTurn).",
+      "since": "GD04-106/108"
+    },
+    "controllerHandCountAtMost:<n>": {
+      "description": "O controller tem N ou menos cartas na mão.",
+      "since": "GD04-035"
+    },
+    "battleVictimApAtMost:<n>": {
+      "description": "A carta em battleVictim (a Unit do evento de batalha) tem N ou menos AP.",
+      "since": "GD04-126"
     }
   },
   "targetFilters": {
@@ -623,6 +691,18 @@
     "pairedUnitColor:<value>": {
       "description": "O candidato (Piloto) está pareado com uma Unit da cor.",
       "since": "GD04-004"
+    },
+    "paidWithEx": {
+      "description": "O candidato (Command do evento) foi pago com EX Resource neste turno.",
+      "since": "GD04-020/085"
+    },
+    "isSelf": {
+      "description": "O candidato é a própria fonte.",
+      "since": "GD04-033"
+    },
+    "nameContains:<value>": {
+      "description": "O nome (EN) do candidato contém o trecho.",
+      "since": "GD04-021"
     }
   }
 }

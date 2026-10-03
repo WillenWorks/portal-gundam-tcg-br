@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { isCardPlayable, validateDeckPayload } from "./deckCoverageGate.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
+import { GD03_TEST_DECKS } from "../src/modules/simulator/fixtures/gd03Decks.ts";
+import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts";
 import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
 import { GD02_CARD_DEFS } from "../src/modules/simulator/content/gd02/index.ts";
 import { GD03_CARD_DEFS } from "../src/modules/simulator/content/gd03/index.ts";
@@ -26,6 +28,14 @@ function deckOf(main: CardDef[]): DeckList {
 describe("deckCoverageGate — decks válidos (90 cartas GD01)", () => {
   it("aprova os 4 decks de fixtures/gd01TestDecks.ts (só usam o pool jogável)", () => {
     for (const [key, deck] of Object.entries(GD01_TEST_DECKS)) {
+      const validation = validateDeckPayload(deck.build());
+      expect(validation.valid, `${key}: ${JSON.stringify(validation.unplayableCards)}`).toBe(true);
+      expect(validation.unplayableCards).toEqual([]);
+    }
+  });
+
+  it("aprova os decks de teste do GD03 e do GD04 (presets da Fila Online/Convite/Treino)", () => {
+    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS })) {
       const validation = validateDeckPayload(deck.build());
       expect(validation.valid, `${key}: ${JSON.stringify(validation.unplayableCards)}`).toBe(true);
       expect(validation.unplayableCards).toEqual([]);
@@ -96,8 +106,12 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("W0.4 — cláusula sem efeito bloqueia mesmo com outro campo coberto (GD03-104: tem pilotMode, falta 【Main】/【Action】)", () => {
-    expect(isCardPlayable(GD03_CARD_DEFS["GD03-104"])).toBe(false);
+  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-113: 【Main】/【Action】 deferido)", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(false);
+  });
+
+  it("GD03-104 destravada na W5 (alvos condicionais) é jogável", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-104"])).toBe(true);
   });
 
   it("W0.4 — GD02 com a auditoria zerada é jogável (GD02-001 real, coberto por allyCombatTriggers)", () => {

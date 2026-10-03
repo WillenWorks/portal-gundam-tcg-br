@@ -34,10 +34,10 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c (set fechado —
+// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c e GD04 na W5 (sets fechados —
 // as cláusulas que dependem de motor novo estão em `content/deferred.ts` e seguem bloqueadas em
 // runtime por `server/deckCoverageGate.ts`).
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02", "GD03"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "GD01", "GD02", "GD03", "GD04"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };
@@ -64,6 +64,8 @@ const { GD01_CARD_DEFS } = await import("../src/modules/simulator/content/gd01/i
 const { GD02_CARD_DEFS } = await import("../src/modules/simulator/content/gd02/index.ts");
 const { GD03_CARD_DEFS } = await import("../src/modules/simulator/content/gd03/index.ts");
 const { GD04_CARD_DEFS } = await import("../src/modules/simulator/content/gd04/index.ts");
+const { GD05_CARD_DEFS } = await import("../src/modules/simulator/content/gd05/index.ts");
+const { ST09_CARD_DEFS } = await import("../src/modules/simulator/content/st09/index.ts");
 
 const DEF_BY_CODE = new Map();
 for (const defs of [
@@ -75,10 +77,12 @@ for (const defs of [
   ST06_CARD_DEFS,
   ST07_CARD_DEFS,
   ST08_CARD_DEFS,
+  ST09_CARD_DEFS,
   GD01_CARD_DEFS,
   GD02_CARD_DEFS,
   GD03_CARD_DEFS,
   GD04_CARD_DEFS,
+  GD05_CARD_DEFS,
 ]) {
   for (const def of Object.values(defs)) DEF_BY_CODE.set(def.code, def);
 }
@@ -320,7 +324,8 @@ function auditCode(code) {
     deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
   });
 }
-const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04"])];
+// ST09/GD05 (W6-prep): catálogo gerado, só auditoria por cláusula — entram no GATED_SETS no gate da wave.
+const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05"])];
 const clauseTotalsBySet = {};
 const clauseJsonSets = {};
 for (const set of [...new Set([...CLAUSE_AUDIT_SETS, ...sets])]) {
