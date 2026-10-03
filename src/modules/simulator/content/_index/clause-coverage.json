@@ -13973,9 +13973,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 0,
+        "full": 48,
         "partial": 0,
-        "missing": 111,
+        "missing": 63,
         "withErrors": 0
       },
       "cards": [
@@ -14040,7 +14040,7 @@
         },
         {
           "code": "GD05-003",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14048,10 +14048,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-003-Destroyed"
               ],
               "text": "【Destroyed】If you have an (Orb) Pilot in play, draw 1."
             }
@@ -14122,14 +14121,16 @@
         },
         {
           "code": "GD05-007",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gets AP+2 and <Repair 1>."
             }
           ]
@@ -14162,7 +14163,7 @@
         },
         {
           "code": "GD05-011",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14170,10 +14171,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-011-Deploy"
               ],
               "text": "【Deploy】You may choose 1 of your other active (Earth Alliance) Units. Rest it. If you do, choose 1 rested enemy Unit. Deal 2 damage to it."
             }
@@ -14181,7 +14181,7 @@
         },
         {
           "code": "GD05-012",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14189,10 +14189,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-012-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 rested enemy Unit that is Lv.3 or lower. Return it to its owner's hand."
             }
@@ -14222,7 +14221,7 @@
         },
         {
           "code": "GD05-015",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14230,10 +14229,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-015-Deploy"
               ],
               "text": "【Deploy】Choose 1 rested enemy Unit. Deal 1 damage to it."
             }
@@ -14309,7 +14307,7 @@
         },
         {
           "code": "GD05-019",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14317,10 +14315,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-019-Destroyed"
               ],
               "text": "【Destroyed】Look at the top 3 cards of your deck. You may reveal 1 (Londo Bell) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -14328,14 +14325,16 @@
         },
         {
           "code": "GD05-020",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Pair】This Unit gains <Breach 3>."
             },
             {
@@ -14343,10 +14342,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-020-Deploy"
               ],
               "text": "【Deploy】If there are 2 or more (Londo Bell) cards in your trash, place 1 EX Resource."
             }
@@ -14408,7 +14406,7 @@
         },
         {
           "code": "GD05-023",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14416,10 +14414,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-023-Deploy"
               ],
               "text": "【Deploy】Place 1 EX Resource."
             }
@@ -14446,7 +14443,7 @@
         },
         {
           "code": "GD05-025",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14454,10 +14451,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-025-Deploy"
               ],
               "text": "【Deploy】Look at the top 3 cards of your deck. You may reveal 1 Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -14485,7 +14481,7 @@
         },
         {
           "code": "GD05-028",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14493,10 +14489,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-028-Deploy"
               ],
               "text": "【Deploy】Choose 1 of your (Londo Bell) Units. During this turn, it may choose an active enemy Unit with 4 or less AP as its attack target."
             }
@@ -14504,7 +14499,7 @@
         },
         {
           "code": "GD05-029",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14512,10 +14507,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-029-Deploy"
               ],
               "text": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
             }
@@ -14674,7 +14668,7 @@
         },
         {
           "code": "GD05-039",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14682,10 +14676,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-039-Attack"
               ],
               "text": "【Attack】Choose 1 of your (Phantom Pain) Linked Units. It gains <High-Maneuver> during this turn."
             }
@@ -14839,14 +14832,16 @@
         },
         {
           "code": "GD05-050",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-050-BattleDamage"
+              ],
               "text": "When this Unit deals battle damage to an enemy Unit that is Lv.4 or lower that has no paired Pilot, destroy that enemy Unit."
             },
             {
@@ -14854,10 +14849,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-050-Destroyed"
               ],
               "text": "【Destroyed】Place the top 2 cards of your deck into your trash."
             }
@@ -14947,7 +14941,7 @@
         },
         {
           "code": "GD05-055",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14962,8 +14956,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【Once per Turn】When this Unit receives enemy battle damage, reduce it by 2."
             }
           ]
@@ -15030,7 +15026,7 @@
         },
         {
           "code": "GD05-060",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15039,11 +15035,10 @@
                 "Deploy",
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy",
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-060-Deploy",
+                "GD05-060-Attack"
               ],
               "text": "【Deploy】/【Attack】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
             }
@@ -15051,14 +15046,16 @@
         },
         {
           "code": "GD05-061",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While you have another (Neo Zeon) Unit in play, this Unit gains <Blocker>."
             }
           ]
@@ -15096,14 +15093,16 @@
         },
         {
           "code": "GD05-065",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gets AP+2 during your turn."
             }
           ]
@@ -15233,7 +15232,7 @@
         },
         {
           "code": "GD05-071",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15241,10 +15240,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-071-Attack"
               ],
               "text": "【Attack】If you have another (G Team)/(Preventer) Unit in play, choose 1 enemy Unit. It gets AP-2 during this turn."
             }
@@ -15252,7 +15250,7 @@
         },
         {
           "code": "GD05-072",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15260,10 +15258,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-072-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 enemy Unit with 4 or less HP. Rest it."
             }
@@ -15271,7 +15268,7 @@
         },
         {
           "code": "GD05-073",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15279,10 +15276,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-073-Deploy"
               ],
               "text": "【Deploy】Choose 1 rested enemy Unit. It won't be set as active during the start phase of your opponent's next turn."
             }
@@ -15290,7 +15286,7 @@
         },
         {
           "code": "GD05-074",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15298,10 +15294,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-074-Destroyed"
               ],
               "text": "【Destroyed】Draw 1. Then, discard 1."
             }
@@ -15309,7 +15304,7 @@
         },
         {
           "code": "GD05-075",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15324,8 +15319,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackTargetRules"
+              ],
               "text": "This Unit can't choose the enemy player as its attack target."
             }
           ]
@@ -15371,7 +15368,7 @@
         },
         {
           "code": "GD05-079",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15379,10 +15376,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-079-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】If you have another (G Team)/(Preventer) Unit in play, choose 1 enemy Unit that is Lv.4 or lower. It gets AP-1 during this turn."
             }
@@ -15396,7 +15392,7 @@
         },
         {
           "code": "GD05-081",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15415,10 +15411,10 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-081-WhenLinked",
+                "GD05-081-WhenLinked-TSA"
               ],
               "text": "【When Linked】If this is an (Orb)/(Triple Ship Alliance) Unit, draw 1."
             }
@@ -15426,7 +15422,7 @@
         },
         {
           "code": "GD05-082",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15443,15 +15439,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Repair 2>."
             }
           ]
         },
         {
           "code": "GD05-083",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15470,10 +15468,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-083-WhenPaired"
               ],
               "text": "【When Paired】Choose 1 enemy Unit with 1 HP. Return it to its owner's hand."
             }
@@ -15506,7 +15503,7 @@
         },
         {
           "code": "GD05-085",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15523,8 +15520,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-085-DestroyedEnemy"
+              ],
               "text": "During your turn, when this Unit destroys an enemy Unit with battle damage, this Unit recovers 2 HP."
             }
           ]
@@ -15556,7 +15555,7 @@
         },
         {
           "code": "GD05-087",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15573,8 +15572,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While this Unit is (Academy), it gains <High-Maneuver>."
             }
           ]
@@ -15694,7 +15695,7 @@
         },
         {
           "code": "GD05-092",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15713,10 +15714,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-092-Attack"
               ],
               "text": "【During Link】【Attack】If you are attacking the enemy player, this Unit gets AP+2 during this battle."
             }
@@ -15754,7 +15754,7 @@
         },
         {
           "code": "GD05-094",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15773,10 +15773,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-094-Destroyed"
               ],
               "text": "【Destroyed】Choose 1 of your (Neo Zeon) Units. During this turn, when it receives enemy battle damage, reduce it by 2."
             }
@@ -15784,7 +15783,7 @@
         },
         {
           "code": "GD05-095",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15801,15 +15800,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While this Unit is (Neo Zeon), it gains <Blocker>."
             }
           ]
         },
         {
           "code": "GD05-096",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15828,10 +15829,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-096-Attack"
               ],
               "text": "【Attack】You may deal 1 damage to this Unit. If you do, choose 1 of your other (Tekkadan) Units. It recovers 1 HP."
             }
@@ -15869,7 +15869,7 @@
         },
         {
           "code": "GD05-098",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15886,15 +15886,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-098-DestroyedShield"
+              ],
               "text": "When this Unit destroys an enemy shield area card with damage, choose 1 enemy Unit. It gets AP-2 during this turn."
             }
           ]
         },
         {
           "code": "GD05-099",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15911,15 +15913,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-099-DestroyedEnemy"
+              ],
               "text": "During your turn, when this Unit destroys an enemy Unit with battle damage, draw 1. Then, discard 1."
             }
           ]
         },
         {
           "code": "GD05-100",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15938,10 +15942,9 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-100-WhenPaired"
               ],
               "text": "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. Rest it."
             }
@@ -15949,7 +15952,7 @@
         },
         {
           "code": "GD05-101",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15966,8 +15969,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-101-PaidForUnitEffect"
+              ],
               "text": "【Once per Turn】When you pay ① or more for one of your Unit's effects, if this is a (Militia) Unit, it may recover 2 HP."
             }
           ]
@@ -15993,7 +15998,7 @@
         },
         {
           "code": "GD05-103",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16002,11 +16007,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-103-Main",
+                "GD05-103-Action"
               ],
               "text": "【Main】/【Action】Choose 1 friendly Unit. It recovers 1 HP and gets AP+2 during this turn."
             },
@@ -16051,7 +16055,7 @@
         },
         {
           "code": "GD05-105",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16059,10 +16063,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD05-105-Burst"
               ],
               "text": "【Burst】Activate this card's 【Main】."
             },
@@ -16072,11 +16075,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-105-Main",
+                "GD05-105-Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit that is Lv.3 or lower. Return it to its owner's hand."
             }
@@ -16111,10 +16113,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD05-107-Burst"
               ],
               "text": "【Burst】Place 1 EX Resource."
             },
@@ -16162,7 +16163,7 @@
         },
         {
           "code": "GD05-109",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16170,10 +16171,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-109-Action"
               ],
               "text": "【Action】Choose 1 friendly (Academy) Unit. It recovers 2 HP. Then, if it is paired with a Pilot that is Lv.3 or lower, draw 1."
             },
@@ -16190,7 +16190,7 @@
         },
         {
           "code": "GD05-110",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16198,10 +16198,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD05-110-Burst"
               ],
               "text": "【Burst】Activate this card's 【Main】."
             },
@@ -16211,11 +16210,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-110-Main",
+                "GD05-110-Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it. Then, if you have a Unit with \"Master Gundam\" in its card name in play, draw 1."
             }
@@ -16223,7 +16221,7 @@
         },
         {
           "code": "GD05-111",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16231,10 +16229,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-111-Main"
               ],
               "text": "【Main】Discard 1. If you do, draw 2."
             }
@@ -16298,7 +16295,7 @@
         },
         {
           "code": "GD05-114",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16306,10 +16303,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-114-Main"
               ],
               "text": "【Main】Destroy all Units that are Lv.4 or lower."
             }
@@ -16317,7 +16313,7 @@
         },
         {
           "code": "GD05-115",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16325,10 +16321,9 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Burst"
+              "by": "spec",
+              "refs": [
+                "GD05-115-Burst"
               ],
               "text": "【Burst】Draw 1."
             },
@@ -16337,10 +16332,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-115-Main"
               ],
               "text": "【Main】Choose 1 (Neo Zeon) Pilot card from your trash. Add it to your hand."
             }
@@ -16348,7 +16342,7 @@
         },
         {
           "code": "GD05-116",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16357,11 +16351,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-116-Main",
+                "GD05-116-Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
             },
@@ -16378,7 +16371,7 @@
         },
         {
           "code": "GD05-117",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16387,11 +16380,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-117-Main",
+                "GD05-117-Action"
               ],
               "text": "【Main】/【Action】Choose 1 of your Units and 1 enemy Unit. Deal 1 damage to them."
             },
@@ -16408,7 +16400,7 @@
         },
         {
           "code": "GD05-118",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16416,10 +16408,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-118-Main"
               ],
               "text": "【Main】Choose 1 enemy Unit. It gets AP-2 during this turn. If you use an EX Resource to play this card, rest the enemy Unit."
             }
@@ -16455,7 +16446,7 @@
         },
         {
           "code": "GD05-120",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16475,11 +16466,10 @@
                 "Main",
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main",
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-120-Main",
+                "GD05-120-Action"
               ],
               "text": "【Main】/【Action】Choose 1 enemy Unit with 4 or less HP. Rest it. Then, you may choose 1 of your Units with \"Shining Gundam\" in its card name. It gets <First Strike> during this turn."
             }
@@ -16615,7 +16605,7 @@
         },
         {
           "code": "GD05-125",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16645,10 +16635,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-125-ActivateMain"
               ],
               "text": "【Activate·Main】Rest this Base:Choose 1 friendly (Londo Bell) Unit. During this turn, when it receives enemy damage, reduce it by 1."
             }
