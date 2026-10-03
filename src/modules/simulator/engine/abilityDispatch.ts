@@ -116,7 +116,11 @@ function buildQueueEntry(
   }
 
   if (choice.op === "discardNamed") {
-    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls);
+    // W6 (GD05-111) — o Command em resolução ainda está na mão até o fim do efeito: não descarta a si mesmo
+    const resolvingCommand = state.players[player].hand.find((c) => c.instanceId === entry.sourceInstanceId && c.def.cardType === "COMMAND");
+    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls).filter(
+      (id) => id !== resolvingCommand?.instanceId,
+    );
     // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
     // (custo com filtro): restringe os candidatos, se o spec pedir.
     const legalHandIds = choice.filter ? rawCandidates.filter((id) => matchesCardDefFilter(findCard(state, id).def, choice.filter!)) : rawCandidates;
