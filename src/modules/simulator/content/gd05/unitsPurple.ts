@@ -138,6 +138,10 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
   },
   "GD05-055": {
     "code": "GD05-055",
+    // W6
+    damageReductions: [
+      { amount: 2, kind: "battle", oncePerTurn: true, sourceText: "【Once per Turn】When this Unit receives enemy battle damage, reduce it by 2." },
+    ],
     "nameEn": "Destiny Gundam",
     "cardType": "UNIT",
     "color": "purple",

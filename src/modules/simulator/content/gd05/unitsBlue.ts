@@ -135,6 +135,11 @@ export const UNITS_BLUE: Record<string, CardDef> = {
   },
   "GD05-007": {
     "code": "GD05-007",
+    // W6
+    staticAbilities: [
+      { sourceText: "【During Link】This Unit gets AP+2 and <Repair 1>.", condition: "duringLink", scope: "self", stat: "ap", amount: 2 },
+      { sourceText: "【During Link】This Unit gets AP+2 and <Repair 1>.", condition: "duringLink", scope: "self", keyword: "Repair", keywordValue: 1 },
+    ],
     "nameEn": "Asshimar",
     "cardType": "UNIT",
     "color": "blue",

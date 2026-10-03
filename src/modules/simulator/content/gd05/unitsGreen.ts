@@ -81,6 +81,10 @@ export const UNITS_GREEN: Record<string, CardDef> = {
   },
   "GD05-020": {
     "code": "GD05-020",
+    // W6
+    staticAbilities: [
+      { sourceText: "【During Pair】This Unit gains <Breach 3>.", condition: "duringPair", scope: "self", keyword: "Breach", keywordValue: 3 },
+    ],
     "nameEn": "Nu Gundam",
     "cardType": "UNIT",
     "color": "green",
