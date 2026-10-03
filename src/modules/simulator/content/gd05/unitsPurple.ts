@@ -284,7 +284,17 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
     "hp": 1,
     "traits": [
       "Neo Zeon"
-    ]
+    ],
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "While you have another (Neo Zeon) Unit in play, this Unit gains <Blocker>.",
+        condition: "always",
+        scope: "self",
+        keyword: "Blocker",
+        boardCondition: { kind: "friendlyOtherUnitTraitCountAtLeast", trait: "Neo Zeon", n: 1 },
+      },
+    ],
   },
   "GD05-062": {
     "code": "GD05-062",
@@ -358,6 +368,17 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Tekkadan"
       ]
-    }
+    },
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "【During Link】This Unit gets AP+2 during your turn.",
+        condition: "duringLink",
+        scope: "self",
+        stat: "ap",
+        amount: 2,
+        duringYourTurnOnly: true,
+      },
+    ],
   },
 };

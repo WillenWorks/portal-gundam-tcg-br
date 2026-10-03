@@ -37,6 +37,16 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "【During Link】This Unit gains <Repair 2>.",
+        condition: "duringLink",
+        scope: "pairedUnit",
+        keyword: "Repair",
+        keywordValue: 2,
+      },
+    ],
     "hasBurst": true
   },
   "GD05-083": {
@@ -125,6 +135,16 @@ export const PILOTS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Burst"
+    ],
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "While this Unit is (Academy), it gains <High-Maneuver>.",
+        condition: "duringPair",
+        scope: "pairedUnit",
+        keyword: "High-Maneuver",
+        targetCondition: { kind: "traitIs", trait: "Academy" },
+      },
     ],
     "hasBurst": true
   },
@@ -275,6 +295,16 @@ export const PILOTS: Record<string, CardDef> = {
     ],
     "triggerKeywords": [
       "Burst"
+    ],
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "While this Unit is (Neo Zeon), it gains <Blocker>.",
+        condition: "duringPair",
+        scope: "pairedUnit",
+        keyword: "Blocker",
+        targetCondition: { kind: "traitIs", trait: "Neo Zeon" },
+      },
     ],
     "hasBurst": true
   },

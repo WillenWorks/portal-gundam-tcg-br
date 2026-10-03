@@ -219,7 +219,10 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     ],
     "effectKeywords": [
       "Blocker"
-    ]
+    ],
+    // W6
+    attackTargetRules: { cannotTargetPlayer: true },
+    structuredSourceText: { attackTargetRules: "This Unit can't choose the enemy player as its attack target." },
   },
   "GD05-076": {
     "code": "GD05-076",

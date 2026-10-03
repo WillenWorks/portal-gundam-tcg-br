@@ -1,6 +1,7 @@
 import type { EffectSpec } from "../../engine/effectSpec";
 import { stdAddToHandBurst, stdBaseDeployShield, stdDeployThisBurst } from "../standardSpecs";
 import { GD05_W6A_EFFECT_SPECS } from "./effectsW6a";
+import { GD05_W6B_EFFECT_SPECS } from "./effectsW6b";
 
 /**
  * Wave GD05 — EffectSpecs. W6-prep: só os textos padrão de 【Burst】 e o 【Deploy】 padrão das Bases;
@@ -29,4 +30,5 @@ export const GD05_EFFECT_SPECS: EffectSpec[] = [
   ...BASES.map(stdDeployThisBurst),
   ...BASES.map(stdBaseDeployShield),
   ...GD05_W6A_EFFECT_SPECS,
+  ...GD05_W6B_EFFECT_SPECS,
 ];
