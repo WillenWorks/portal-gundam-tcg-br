@@ -29,6 +29,9 @@ jobs:
           script_stop: true
           script: |
             echo "🚀 Iniciando deploy em produção..."
+            # Sessão SSH não interativa não lê o .bashrc: carregar o nvm (node/pnpm/pm2 vêm dele)
+            export NVM_DIR="$HOME/.nvm"
+            . "$NVM_DIR/nvm.sh"
             cd /root/portal-gundam-tcg-br
 
             # 1. Garantir que estamos na branch main limpa
