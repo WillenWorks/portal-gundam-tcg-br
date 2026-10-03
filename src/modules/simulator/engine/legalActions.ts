@@ -5,7 +5,7 @@ import { computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exi
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
-import { costRestsSelf } from "./costs";
+import { costRestsSelf, specResourceCost } from "./costs";
 import { applyPlayerAction, type PlayerAction } from "./actions";
 
 /**
@@ -190,9 +190,12 @@ function activateAbilityCandidates(
       const abilitySpecs = findTriggerSpecs(specs, card.def.code, trigger);
       // "Rest this Unit/Base:" já rested não é pagável de novo — ver `costRestsSelf`.
       // W2c — 【Once per Turn】 por spec já usado / custo de exilar do trash sem cartas: não oferecer
+      const activeResources = state.players[seat].resourceArea.filter((r) => !r.rested).length;
       const payableAbilitySpecs = abilitySpecs.filter(
         (s) =>
           !(costRestsSelf(s) && card.rested) &&
+          // W6 — "②:" sem Recursos ativos não é pagável (mesmo critério do auto-pass, `playerHasActionStepPlay`)
+          activeResources >= specResourceCost(s) &&
           !(s.oncePerTurn && card.usedKeywordsThisTurn.includes(specOncePerTurnMarker(s))) &&
           !exileCostShortfall(state, s, seat) &&
           !costTargetShortfall(state, s, seat, opts.targetFilterResolver, card.instanceId) &&
