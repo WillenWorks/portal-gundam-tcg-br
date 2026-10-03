@@ -126,7 +126,7 @@ async function assembleFullSquad(mode: "2v2" | "ffa"): Promise<AssembledSquad> {
 
   // Entradas em sequência: o servidor dá o assento pela ordem de chegada do `arena:squad_join`,
   // e em paralelo o socket "seatB" podia virar seatD (o teste de emote checa o assento).
-  const guests = [];
+  const guests: ReturnType<typeof connect>[] = [];
   for (const [i, userId] of (["u-B", "u-C", "u-D"] as const).entries()) {
     const guest = connect(userId, `Piloto ${"BCD"[i]}`);
     await connected(guest);
