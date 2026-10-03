@@ -486,6 +486,18 @@
       "description": "O trash do controller tem N+ cartas Unit da cor dada — checado ANTES da própria primitiva firstNInTrash rodar (mesma ordem cost->condition->actions de controllerTrashCountAtLeast).",
       "since": "GD02-111 Decisive Last Resort (Sprint 2 Lote 10)"
     },
+    "battleVictimUnpaired": {
+      "description": "A vítima do dano de batalha (`battleVictim`) não tem Piloto pareado.",
+      "since": "GD05-050 (W6)"
+    },
+    "chosenPairedPilotLevelAtMost:<value>:<n>": {
+      "description": "O alvo escolhido em `targets[<value>]` está pareado com um Piloto de Lv. N ou menor.",
+      "since": "GD05-109 (W6)"
+    },
+    "controllerUnitNameContainsInPlay:<value>": {
+      "description": "O controller tem em jogo uma Unit com o texto dado no nome.",
+      "since": "GD05-110 (W6)"
+    },
     "controllerTrashColorCountAtLeast:<value>:<n>": {
       "description": "O trash do controller tem N+ cartas (qualquer tipo) da cor dada.",
       "since": "ST09-003 Saviour Gundam (W6)"

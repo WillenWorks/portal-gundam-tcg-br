@@ -119,6 +119,25 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets.battleVictim?.[0];
     return !!id && findCard(ctx.state, id).zone === "battleArea";
   }
+  // W6 — GD05-050 "an enemy Unit … that has no paired Pilot"
+  if (predicate === "battleVictimUnpaired") {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && !findCard(ctx.state, id).pairedPilotId;
+  }
+  // W6 — GD05-109 "if it is paired with a Pilot that is Lv.3 or lower" (o Piloto do alvo escolhido)
+  const chosenPairedPilotLevel = predicate.match(/^chosenPairedPilotLevelAtMost:(.+):(\d+)$/);
+  if (chosenPairedPilotLevel) {
+    const id = ctx.targets[chosenPairedPilotLevel[1]]?.[0];
+    const pilotId = id ? findCard(ctx.state, id).pairedPilotId : undefined;
+    return !!pilotId && (findCard(ctx.state, pilotId).def.level ?? 0) <= Number(chosenPairedPilotLevel[2]);
+  }
+  // W6 — GD05-110 "if you have a Unit with \"Master Gundam\" in its card name in play"
+  const controllerUnitNameContains = predicate.match(/^controllerUnitNameContainsInPlay:(.+)$/);
+  if (controllerUnitNameContains) {
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (c) => c.def.cardType === "UNIT" && !c.pairedUnitId && c.def.nameEn.includes(controllerUnitNameContains[1]),
+    );
+  }
   const battleVictimLevelAtMost = predicate.match(/^battleVictimLevelAtMost:(\d+)$/);
   if (battleVictimLevelAtMost) {
     const id = ctx.targets.battleVictim?.[0];

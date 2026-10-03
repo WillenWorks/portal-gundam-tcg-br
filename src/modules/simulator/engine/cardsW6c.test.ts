@@ -222,11 +222,9 @@ describe("W6c — GD05 Commands (Main/Action)", () => {
     expect(s.players.A.deck.length).toBe(deck0 - 2);
   });
 
-  // BUG do motor (fora do escopo da W6c — `engine/**` é de outra frente): enquanto o Command pausa
-  // na decisão, ele continua na mão e `discardCandidateHandIds` (engine/effectSpec.ts) o oferece
-  // como carta a descartar. Com a mão vazia, 111 "descarta a si mesma" e compra 2. `it.fails`
-  // documenta o comportamento correto; quando o motor for corrigido, troque por `it`.
-  it.fails("111 (bug do motor): a própria Command não é candidata ao descarte", () => {
+  // Achado na W6c: enquanto o Command pausa na decisão ele continua na mão, e o motor o oferecia
+  // como carta a descartar (com a mão vazia, 111 "descartava a si mesma" e comprava 2).
+  it("111: a própria Command não é candidata ao descarte", () => {
     const state = game();
     state.players.A.hand = [];
     placeCard(state, "A", UNIT(), "hand");
@@ -235,7 +233,7 @@ describe("W6c — GD05 Commands (Main/Action)", () => {
     expect(entry(s, "A", "GD05-111-Main")?.handDiscard?.legalHandIds).not.toContain(card);
   });
 
-  it.fails("111 (bug do motor): com a mão vazia (fora a própria Command), não descarta e não compra", () => {
+  it("111: com a mão vazia (fora a própria Command), não descarta e não compra", () => {
     const state = game();
     state.players.A.hand = [];
     const { card } = inHand(state, G["GD05-111"]);
@@ -406,5 +404,52 @@ describe("W6c — GD05-125 Ra Cailum (Base)", () => {
     const restedBase = placeCard(rested, "A", G["GD05-125"], "baseSection", { rested: true });
     placeCard(rested, "A", UNIT({ traits: ["Londo Bell"] }), "battleArea");
     expect(offered(rested, restedBase)).toBe(false);
+  });
+});
+
+function pair(state: GameState, unitId: string, pilotId: string): void {
+  findCard(state, unitId).pairedPilotId = pilotId;
+  findCard(state, pilotId).pairedUnitId = unitId;
+}
+
+describe("W6 (integração) — GD05-109 e GD05-110", () => {
+  it("109 【Action】: Unit (Academy) recupera 2 HP; pareada com Piloto Lv.3- compra 1, Lv.4 não", () => {
+    for (const [pilotLevel, draws] of [
+      [3, 1],
+      [4, 0],
+    ] as const) {
+      const base = game();
+      const academy = placeCard(base, "A", UNIT({ traits: ["Academy"], hp: 5 }), "battleArea", { damage: 3 });
+      pair(base, academy, placeCard(base, "A", PILOT({ level: pilotLevel }), "battleArea"));
+      placeCard(base, "A", UNIT({ traits: ["ZAFT"] }), "battleArea", { damage: 1 });
+      const { state, card } = actionStep(base, G["GD05-109"]);
+      expect(cmdOffers(state, card)).toEqual([{ target: [academy] }]);
+      const hand = state.players.A.hand.length;
+      const s = play(state, card, { target: [academy] }, { trigger: "Action" });
+      expect(findCard(s, academy).damage).toBe(1);
+      expect(s.players.A.hand.length).toBe(hand - 1 + draws);
+    }
+  });
+
+  it("110 【Main】: 2 de dano na Unit inimiga; compra 1 só com Unit \"Master Gundam\" sua em jogo", () => {
+    for (const withMaster of [true, false]) {
+      const state = game();
+      if (withMaster) placeCard(state, "A", UNIT({ nameEn: "Master Gundam" }), "battleArea");
+      const enemy = placeCard(state, "B", UNIT({ hp: 5 }), "battleArea");
+      placeCard(state, "B", UNIT({ nameEn: "Master Gundam", hp: 5 }), "battleArea"); // do inimigo: não conta
+      const { card } = inHand(state, G["GD05-110"]);
+      const hand = state.players.A.hand.length;
+      const s = play(state, card, { target: [enemy] });
+      expect(dmg(s, enemy)).toBe(2);
+      expect(s.players.A.hand.length).toBe(hand - 1 + (withMaster ? 1 : 0));
+    }
+  });
+
+  it("110 【Burst】 ativa o 【Main】 (Shield destruído no ataque real)", () => {
+    const state = game();
+    let { state: s } = burstPending(state, G["GD05-110"]);
+    const attacker = s.combat?.attackerId ?? s.players.A.battleArea[0].instanceId;
+    s = act(s, "B", { kind: "resolveBurstDecision", activate: true, targets: { target: [attacker] } });
+    expect(dmg(s, attacker)).toBe(2);
   });
 });

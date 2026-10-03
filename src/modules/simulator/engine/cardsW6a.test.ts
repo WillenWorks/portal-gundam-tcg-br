@@ -433,3 +433,27 @@ describe("GD05-060 Gundam Flauros (Ryusei-Go) 【Deploy】/【Attack】", () => 
     expect(inZone(state, "B", "battleArea", high)).toBe(true);
   });
 });
+
+describe("GD05-050 — reação ao dano de batalha (integração W6)", () => {
+  function fight(victimLevel: number, paired: boolean): { state: GameState; victim: string } {
+    let state = game();
+    const exia = placeCard(state, "A", G["GD05-050"], "battleArea");
+    const victim = placeCard(state, "B", UNIT({ level: victimLevel, hp: 9 }), "battleArea", { rested: true });
+    if (paired) pair(state, victim, placeCard(state, "B", PILOT(), "battleArea"));
+    state = runCombat(act(state, "A", { kind: "declareAttack", attackerId: exia, target: { unitId: victim } }));
+    return { state, victim };
+  }
+  it("Unit inimiga Lv.4- sem Piloto que sobrevive ao dano é destruída", () => {
+    const { state, victim } = fight(4, false);
+    expect(inZone(state, "B", "trash", victim)).toBe(true);
+  });
+  it("com Piloto pareado, ou Lv.5, ela fica", () => {
+    for (const [lv, paired] of [
+      [4, true],
+      [5, false],
+    ] as const) {
+      const { state, victim } = fight(lv, paired);
+      expect(inZone(state, "B", "battleArea", victim)).toBe(true);
+    }
+  });
+});

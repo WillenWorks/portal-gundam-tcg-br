@@ -5,9 +5,7 @@ import { EX_RESOURCE_TOKEN } from "../../engine/setup";
  * Wave W6 (GD05-A) — Units 003–060, só com o vocabulário que o motor já tem.
  * Estáticos do lote (GD05-007 【During Link】, GD05-020 【During Pair】, GD05-055 redução de dano de batalha)
  * ficam nos `CardDef` (`staticAbilities` / `damageReductions`, comentário `// W6`).
- * Fora daqui: GD05-050 "When this Unit deals battle damage to an enemy Unit that is Lv.4 or lower that has no
- * paired Pilot, destroy that enemy Unit." — falta um predicado "vítima da batalha sem Piloto pareado"
- * (ex.: `battleVictimUnpaired`, par de `battleVictimLevelAtMost`); o filtro `unpaired` só existe como target filter.
+ * GD05-050 (reação de dano de batalha) entrou na integração, com o predicado novo `battleVictimUnpaired`.
  */
 
 const target = { kind: "named", name: "target" } as const;
@@ -117,6 +115,18 @@ export const GD05_W6A_EFFECT_SPECS: EffectSpec[] = [
     targetScope: "friendlyUnit",
     targetFilter: "trait:Phantom Pain;linkUnit",
     sourceText: "【Attack】Choose 1 of your (Phantom Pain) Linked Units. It gains <High-Maneuver> during this turn.",
+  },
+  {
+    id: "GD05-050-BattleDamage",
+    cardCode: "GD05-050",
+    trigger: "Reaction:battleDamageToEnemyUnit",
+    reaction: { event: "battleDamageToEnemyUnit", subject: "self" },
+    condition: {
+      predicate: "battleVictimInPlay;battleVictimLevelAtMost:4;battleVictimUnpaired",
+      then: [{ op: "destroy", target: { kind: "named", name: "battleVictim" } }],
+    },
+    actions: [],
+    sourceText: "When this Unit deals battle damage to an enemy Unit that is Lv.4 or lower that has no paired Pilot, destroy that enemy Unit.",
   },
   {
     id: "GD05-050-Destroyed",

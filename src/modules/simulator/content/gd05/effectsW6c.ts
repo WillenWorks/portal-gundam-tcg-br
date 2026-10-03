@@ -8,10 +8,7 @@ import { mainAndAction } from "../standardSpecs";
  * - GD05-107 【Main】 "Destroy the first 2 cards in that player's shield area": a 1ª carta da área de
  *   escudo é a Base (se houver) — não há predicado "o inimigo tem Base" nem primitiva de destruir N
  *   cartas da área de escudo; e o 【Burst】 de Shield destruído por EFEITO não é oferecido (só no Damage Step).
- * - GD05-109 "Then, if it is paired with a Pilot that is Lv.3 or lower": falta predicado sobre o
- *   Piloto pareado do alvo escolhido (`chosenPairedPilotLevelAtMost`).
- * - GD05-110 "if you have a Unit with \"Master Gundam\" in its card name in play": falta predicado de
- *   Unit sua em jogo por nome (`controllerUnitNameContainsInPlay`); o 【Burst】 depende do 【Main】.
+ * (GD05-109 e GD05-110 entraram na integração, com `chosenPairedPilotLevelAtMost` e `controllerUnitNameContainsInPlay`.)
  */
 
 const target = { kind: "named", name: "target" } as const;
@@ -25,7 +22,27 @@ const DEFENSE_ORIENTED_MAIN: Omit<EffectSpec, "id" | "trigger"> = {
   sourceText: "【Main】/【Action】Choose 1 enemy Unit that is Lv.3 or lower. Return it to its owner's hand.",
 };
 
+const MASTER_GUNDAM_CMD_MAIN: Omit<EffectSpec, "id" | "trigger"> = {
+  cardCode: "GD05-110",
+  actions: [{ op: "damageUnit", target, amount: 2 }],
+  condition: { predicate: "controllerUnitNameContainsInPlay:Master Gundam", then: [{ op: "draw", player: "controller", n: 1 }] },
+  targetScope: "enemyUnit",
+  sourceText: '【Main】/【Action】Choose 1 enemy Unit. Deal 2 damage to it. Then, if you have a Unit with "Master Gundam" in its card name in play, draw 1.',
+};
+
 export const GD05_W6C_EFFECT_SPECS: EffectSpec[] = [
+  {
+    id: "GD05-109-Action",
+    cardCode: "GD05-109",
+    trigger: "Action",
+    actions: [{ op: "heal", target, amount: 2 }],
+    condition: { predicate: "chosenPairedPilotLevelAtMost:target:3", then: [{ op: "draw", player: "controller", n: 1 }] },
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:Academy",
+    sourceText: "【Action】Choose 1 friendly (Academy) Unit. It recovers 2 HP. Then, if it is paired with a Pilot that is Lv.3 or lower, draw 1.",
+  },
+  ...mainAndAction(MASTER_GUNDAM_CMD_MAIN),
+  { ...MASTER_GUNDAM_CMD_MAIN, id: "GD05-110-Burst", trigger: "Burst", sourceText: "【Burst】Activate this card's 【Main】." },
   // GD05-103 Not with Scattershot!
   ...mainAndAction({
     cardCode: "GD05-103",
