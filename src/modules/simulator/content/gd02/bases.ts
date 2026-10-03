@@ -119,6 +119,8 @@ export const BASES: Record<string, CardDef> = {
   },
   "GD02-129": {
     code: "GD02-129",
+    // W5 (C2)
+    damageReductions: [{ immune: true, kind: "effect", sourceText: "This Base can't receive enemy effect damage." }],
     nameEn: "Argama",
     cardType: "BASE",
     color: "white",

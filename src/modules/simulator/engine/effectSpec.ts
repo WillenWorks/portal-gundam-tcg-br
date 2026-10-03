@@ -2,8 +2,9 @@ import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, S
 import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
-import { TOKEN_EX_RESOURCE_CODE } from "./setup";
+import { EX_BASE_TOKEN, TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { selfHealReactionEvents } from "./keywords";
+import { incomingDamage, type DamageSource } from "./damageLayer";
 
 /**
  * "Effect Spec" — formalização da Camada 3 (texto livre → lógica) proposta
@@ -53,7 +54,9 @@ export type TargetRef =
   /** grupo de alvo COLETIVO, computado dinamicamente a partir de `ctx.state` — não precisa de escolha externa, porque o próprio padrão já define quem entra (ex.: "toda Unit amiga com Link ativo agora"). Ver docs/18, lacuna #5. */
   | { kind: "group"; group: TargetGroup }
   /** W2c — GD03-110 "Choose 1 Pilot paired with an enemy Unit …": o Piloto pareado com a Unit escolhida em `name` */
-  | { kind: "pairedPilotOf"; name: string };
+  | { kind: "pairedPilotOf"; name: string }
+  /** W4 — GD04-001 "a blue Pilot paired with this Unit": o Piloto pareado com a fonte (vazio se não há) */
+  | { kind: "selfPairedPilot" };
 
 
 /**
@@ -76,7 +79,15 @@ export type TargetGroup =
    * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
    * concedida (mesma checagem de `defaultTargetFilterResolver`).
    */
-  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string; /** GD03-112 — "all Units paired with a Pilot" */ paired?: boolean }
+  | {
+      kind: "allUnits";
+      maxLevel?: number;
+      /** W6 — ST09-003 "all Units with 5 or less AP" */
+      maxAp?: number;
+      hasKeyword?: string;
+      /** GD03-112 — "all Units paired with a Pilot" */
+      paired?: boolean;
+    }
   /** W2b — GD03-041 "Deal 3 damage to all Bases" (dos 2 lados) */
   | { kind: "allBases" }
   /**
@@ -98,7 +109,11 @@ export type TargetGroup =
    * "if you do" (só exilar se houver 6+ elegíveis) é modelado pelo `condition` do spec
    * (`controllerTrashUnitColorCountAtLeast`), não aqui.
    */
-  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter };
+  | { kind: "firstNInTrash"; count: number; filter: CardDefFilter }
+  /** W4 — GD04-043 "Choose 1 enemy Base" (no máximo 1 Base por jogador — sem escolha) */
+  | { kind: "enemyBase" }
+  /** W5 — GD04-069 (aproximação de "choose 1 of your (Militia) Units" no fim do turno): a 1ª descansada com o trait */
+  | { kind: "firstRestedFriendlyUnitWithTrait"; trait: string };
 
 
 function isLinkUnit(state: GameState, unit: CardInstance): boolean {
@@ -117,7 +132,16 @@ export type AmountFrom =
   /** GD03-071 — "For each (AEUG) Unit card in your trash" */
   | { kind: "controllerTrashCount"; filter: CardDefFilter }
   /** GD03-107 — "equal to the number of friendly Unit tokens in play" */
-  | { kind: "friendlyUnitTokenCount" };
+  | { kind: "friendlyUnitTokenCount" }
+  /**
+   * W4 — GD04-116 "Place the top 2 cards … Deal damage equal to the number of (Minerva Squad) cards
+   * placed": conta nas N do topo AGORA — o spec põe o dano ANTES do `millToTrash` nas actions.
+   */
+  | { kind: "topOfDeckTraitCount"; n: number; trait: string }
+  /** W5 (C6) — GD04-100 "by an amount equal to the cost paid": o valor do evento da reação */
+  | { kind: "reactionAmount" }
+  /** W5 — GD04-036 "equal to the number of Units rested with this effect": quantos foram escolhidos em `name` */
+  | { kind: "namedCount"; name: string };
 
 function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: EffectContext): number {
   const from = call.amountFrom;
@@ -128,6 +152,11 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
   }
   if (from.kind === "controllerTrashCount") {
     return call.amount * ctx.state.players[ctx.controller].trash.filter((c) => matchesCardDefFilter(c.def, from.filter)).length;
+  }
+  if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
+  if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
+  if (from.kind === "topOfDeckTraitCount") {
+    return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => (c.def.traits ?? []).includes(from.trait)).length;
   }
   return call.amount * ctx.state.players[ctx.controller].battleArea.filter((c) => c.def.cardType === "UNIT" && !!c.def.isToken).length;
 }
@@ -153,6 +182,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     return bothSides
       .filter((u) => u.def.cardType === "UNIT")
       .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
+      .filter((u) => group.maxAp === undefined || effectiveAp(u, ctx.state) <= group.maxAp)
       .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
       .filter((u) => !group.paired || !!u.pairedPilotId)
       .map((u) => u.instanceId);
@@ -164,6 +194,15 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     const owner = ctx.state.players[ctx.controller];
     const match = owner.hand.find((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(group.trait));
     return match ? [match.instanceId] : [];
+  }
+  if (group.kind === "firstRestedFriendlyUnitWithTrait") {
+    const unit = ctx.state.players[ctx.controller].battleArea.find(
+      (c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(group.trait),
+    );
+    return unit ? [unit.instanceId] : [];
+  }
+  if (group.kind === "enemyBase") {
+    return (ctx.state.players[otherPlayer(ctx.controller)].baseSection ?? []).map((b) => b.instanceId);
   }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[ctx.controller];
@@ -180,7 +219,10 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
 }
 
 /** Resolve pra exatamente 1 instanceId — usado por quem sabe que o alvo é sempre singular ("self", "pairedUnit", "instance", "named"). */
-function resolveTarget(ref: Exclude<TargetRef, { kind: "group" } | { kind: "namedGroup" } | { kind: "pairedPilotOf" }>, ctx: EffectContext): string {
+function resolveTarget(
+  ref: Exclude<TargetRef, { kind: "group" } | { kind: "namedGroup" } | { kind: "pairedPilotOf" } | { kind: "selfPairedPilot" }>,
+  ctx: EffectContext,
+): string {
   switch (ref.kind) {
     case "self":
       return ctx.sourceInstanceId;
@@ -208,6 +250,10 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
   // 0 escolhidos é uma escolha legal ("Choose 1 to 2 ..." com o jogador optando por menos).
   if (ref.kind === "namedGroup") return ctx.targets[ref.name] ?? [];
+  if (ref.kind === "selfPairedPilot") {
+    const pilotId = findCard(ctx.state, ctx.sourceInstanceId).pairedPilotId;
+    return pilotId ? [pilotId] : [];
+  }
   if (ref.kind === "pairedPilotOf") {
     const unitId = ctx.targets[ref.name]?.[0];
     const pilotId = unitId ? findCard(ctx.state, unitId).pairedPilotId : undefined;
@@ -223,6 +269,11 @@ function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
  * dano de efeito no motor. A fonte do dano (`ctx.sourceInstanceId`) precisa existir e ser
  * INIMIGA do dono do alvo pra contar como "enemy Commands".
  */
+/** W5 (C2) — origem do dano de um efeito, pra camada de dano */
+function effectSource(ctx: EffectContext): DamageSource {
+  return { kind: "effect", controller: ctx.controller, sourceId: ctx.sourceInstanceId };
+}
+
 function isProtectedFromEffectDamage(target: CardInstance, ctx: EffectContext): boolean {
   const prot = target.def.innateEffectDamageProtection;
   if (!prot) return false;
@@ -273,7 +324,8 @@ export type PrimitiveCall =
   /** variante de spawnToken que escolhe QUAL CardDef instanciar contando as próprias Units em campo (ex.: ST01-015 White Base — Gundam/Guncannon/Guntank token conforme 0/1/2+ Units já em jogo). `thresholds` é avaliado em ordem crescente de `maxUnits`; o 1º cuja contagem atual seja <= maxUnits vence. */
   | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
   /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. Com `target.kind: "named"` é interativo (camada de decisão, `deckReorder`). */
-  | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" }
+  /** W6 — `trash`: ST09-010/GD03-097 "look at the top 2 … return 1 to the top. Place the remaining card into your trash." */
+  | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" | "trash" }
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-003 "Choose 12 cards from your trash. Return
    * them to their owner's deck and shuffle it." Sem escolha real de QUAIS cartas quando a
@@ -320,9 +372,50 @@ export type PrimitiveCall =
    * nível ("... com 4/6 ou menos AP") — `maxLevel`/`maxAp` são independentes,
    * quem autora passa só o que o texto oficial pede.
    */
-  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean }
+  | { op: "grantAttackTargetRelax"; target: TargetRef; maxLevel?: number; maxAp?: number; apAtMostSelf?: boolean; unpairedOnly?: boolean; damagedOnly?: boolean }
   /** GD02-040 Gundam Ashtaron 【Deploy】 — ver `CardInstance.battleDamageImmunityUntilTurn`. */
   | { op: "grantBattleDamageImmunityUntilTurn"; target: TargetRef; maxAttackerHp: number }
+  /**
+   * W5 (C2) — GD04-093 "reduce the next damage it receives by 2", 113 "During this battle, reduce battle
+   * damage it receives by 3", 119 "It can't receive effect damage from enemy Units during this turn".
+   * Só dano de inimigo (ver `DamageReduction`).
+   */
+  | {
+      op: "grantDamageModifier";
+      target: TargetRef;
+      amount?: number;
+      immune?: boolean;
+      kind?: "battle" | "effect";
+      scope: "next" | "turn" | "battle";
+      enemyOnly?: boolean;
+      sourceUnitOnly?: boolean;
+      sourceMaxLevel?: number;
+    }
+  /**
+   * GD04-067 "Choose 1 Unit card with <keywords> from your trash. During this turn, this Unit gets AP+1 and all
+   * <keywords> on that Unit card." Rulings: Q277 (pode ser o trash do OPONENTE), Q276 (só keywords IMPRESSAS),
+   * CR 13-1-2-5 (valores somam). Escolha em `ctx.targets.trashSearch` (mesma UI de busca no trash).
+   */
+  | { op: "copyKeywordsFromTrashCard"; keywords: string[]; apBonus: number }
+  /** GD04-101 "During this turn, friendly Units can't be destroyed by enemy effects." (ver PlayerState) */
+  | { op: "protectFriendlyUnitsFromEnemyDestroyEffects" }
+  /**
+   * Auditoria A3 — ST07-013 "Change the attack target of the battling enemy Unit to it.": só com uma Unit
+   * INIMIGA atacando agora (combate em andamento); o alvo antigo deixa de estar em batalha (CR 5-22-2).
+   */
+  | { op: "changeAttackTarget"; target: TargetRef }
+  /** W5 (C5) — GD04-021 "pair that card from your trash with one of your Units": a carta (Command com 【Pilot】) vira Piloto */
+  | { op: "pairCardFromTrashAsPilot"; card: TargetRef; unit: TargetRef }
+  /**
+   * W5 — "During this turn, when <X> destroys/deals battle damage …": arma o spec `specId` (gatilho
+   * `Delayed:<evento>`, com `reaction`) até o fim do turno. `subject` = só eventos dessa carta (GD04-035/115);
+   * sem `subject`, vale o `reaction.subject`/`subjectFilter` do lado do controlador (GD04-002).
+   */
+  | { op: "grantDelayedReaction"; specId: string; subject?: TargetRef }
+  /** W5 (C6) — GD04-110 "Deploy 1 EX Base." (a Base atual sai: token é removido, carta vai pro trash) */
+  | { op: "deployExBase"; player: PlayerRef }
+  /** W5 (C2) — GD04-087/095 "battle damage <from> would receive is dealt to <to> instead" */
+  | { op: "redirectBattleDamage"; from: TargetRef; to: TargetRef; scope: "turn" | "battle" }
   /**
    * ST04-015 Archangel 【Activate･Main】 — "It can't attack during this turn."
    * Marca `CardInstance.cannotAttackUntilTurn = turno atual` na Unit alvo;
@@ -401,7 +494,8 @@ export type PrimitiveCall =
    * MESMO shape `trashSearch` de `searchTrashToHand`/`pairFromTrashSearch` na camada
    * de decisão; escolha em `ctx.targets[deployName ?? "trashSearch"]`.
    */
-  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
+  /** W6 — `free`: ST09-001 "Choose 1 Unit card … from your trash. Deploy it." (sem pagar o custo) */
+  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string; free?: boolean }
   /**
    * Lote 5 — GD01-039 "Look at the top card of your deck. Return it to the top
    * or bottom of your deck." Ao contrário de `moveWithinDeck` (posição FIXA,
@@ -411,7 +505,13 @@ export type PrimitiveCall =
    * precisa de `CardDef` por opção). Sempre atua sobre o TOPO do deck agora (só
    * 1 carta — sem ambiguidade de qual).
    */
-  | { op: "moveTopCardToChosenPosition"; player: PlayerRef; optionsKey: string }
+  | {
+      op: "moveTopCardToChosenPosition";
+      player: PlayerRef;
+      optionsKey: string;
+      /** W4 — GD04-026 "Return it to the top of your deck or place it into your trash." (padrão: topo/fundo) */
+      positions?: Array<"top" | "bottom" | "trash">;
+    }
   /**
    * "【Burst】Deploy this card." — coloca a PRÓPRIA carta (BASE → baseSection,
    * UNIT → battleArea) em campo, aplicando a regra de 1 Base (a Base atual vai
@@ -443,6 +543,29 @@ export interface CardDefFilter {
   nameContains?: string;
   /** GD02-088 — "1 green (EF) Unit card/1 card with \"AGE Device\"…": casa se QUALQUER um dos filtros casar (além dos campos acima). */
   anyOf?: CardDefFilter[];
+  /** W4 — GD04-094 "1 purple Unit card with <Suppression>" (keyword impressa da carta) */
+  hasKeyword?: string;
+  /** W6 — ST09-002 "without \"Force Impulse Gundam\" in its card name" */
+  notNameContains?: string;
+}
+
+/** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
+export function costRestsSecondaryTarget(spec: EffectSpec): boolean {
+  const name = spec.secondaryTarget?.name;
+  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "named" && c.target.name === name);
+}
+
+/** W5 — custo "Rest 1 of your … Units" sem nenhuma Unit elegível */
+export function costTargetShortfall(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  resolveFilter?: TargetFilterResolver,
+  sourceInstanceId?: string,
+): boolean {
+  if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
+  const st = spec.secondaryTarget;
+  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length === 0;
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
@@ -456,10 +579,12 @@ export function exileCostShortfall(state: GameState, spec: EffectSpec, controlle
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
   if (filter.nameContains && !def.nameEn.includes(filter.nameContains)) return false;
+  if (filter.notNameContains && def.nameEn.includes(filter.notNameContains)) return false;
   if (filter.anyOf && filter.anyOf.length > 0 && !filter.anyOf.some((f) => matchesCardDefFilter(def, f))) return false;
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
   if (filter.color && def.color !== filter.color) return false;
+  if (filter.hasKeyword && !(def.effectKeywords ?? []).includes(filter.hasKeyword)) return false;
   if (filter.anyTrait && filter.anyTrait.length > 0) {
     const traits = def.traits ?? [];
     if (!filter.anyTrait.some((t) => traits.includes(t))) return false;
@@ -527,6 +652,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "destroy": {
       const events: GameEvent[] = [];
       for (const instanceId of resolveTargetIds(call.target, ctx)) {
+        // GD04-101 (ruling Q287): Unit amiga protegida não é destruída por efeito INIMIGO que destrói
+        const victim = findCard(ctx.state, instanceId);
+        const victimSide = ctx.state.players[victim.owner];
+        if (victim.owner !== ctx.controller && victim.def.cardType === "UNIT" && victimSide.indestructibleByEnemyEffectsTurn === ctx.turnNumber) continue;
         events.push({ type: "DESTROY_CARD", instanceId });
         events.push(...pairedPilotFollowEvents(findCard(ctx.state, instanceId)));
       }
@@ -585,6 +714,93 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       return events;
     }
+    case "grantDamageModifier": {
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent => ({
+          type: "GRANT_DAMAGE_MODIFIER",
+          instanceId,
+          modifier: {
+            amount: call.amount,
+            immune: call.immune,
+            kind: call.kind,
+            scope: call.scope,
+            enemyOnly: call.enemyOnly,
+            sourceUnitOnly: call.sourceUnitOnly,
+            sourceMaxLevel: call.sourceMaxLevel,
+            turn: ctx.turnNumber,
+          },
+        }),
+      );
+    }
+    case "copyKeywordsFromTrashCard": {
+      const chosen = ctx.targets.trashSearch?.[0];
+      if (!chosen) return [];
+      const card = [...ctx.state.players.A.trash, ...ctx.state.players.B.trash].find((c) => c.instanceId === chosen);
+      if (!card || card.def.cardType !== "UNIT") throw new Error(`copyKeywordsFromTrashCard: "${chosen}" não é Unit em nenhum trash`);
+      const self = ctx.sourceInstanceId;
+      const events: GameEvent[] = [
+        { type: "MODIFY_STAT", instanceId: self, modifier: { stat: "ap", amount: call.apBonus, duration: "endOfTurn", appliedOnTurn: ctx.turnNumber, appliedBy: ctx.controller } },
+      ];
+      for (const keyword of call.keywords) {
+        if (!(card.def.effectKeywords ?? []).includes(keyword)) continue;
+        // com valor (<Breach 3>) leva o valor impresso; `keywordValue` soma com o que a Unit já tem
+        const tag = (card.def.keywordTags ?? []).find((t) => t === keyword || t.startsWith(`${keyword} `)) ?? keyword;
+        events.push({ type: "GRANT_KEYWORD", instanceId: self, grant: { keyword: tag, duration: "endOfTurn", appliedOnTurn: ctx.turnNumber } });
+      }
+      return events;
+    }
+    case "protectFriendlyUnitsFromEnemyDestroyEffects": {
+      return [{ type: "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS", player: ctx.controller, turn: ctx.turnNumber }];
+    }
+    case "changeAttackTarget": {
+      const combat = ctx.state.combat;
+      const [unitId] = resolveTargetIds(call.target, ctx);
+      if (!combat || !unitId || combat.attackingPlayer === ctx.controller) return [];
+      return [{ type: "ATTACK_TARGET_CHANGED", unitId }];
+    }
+    case "pairCardFromTrashAsPilot": {
+      const [cardId] = resolveTargetIds(call.card, ctx);
+      const [unitId] = resolveTargetIds(call.unit, ctx);
+      if (!cardId || !unitId) return [];
+      const card = findCard(ctx.state, cardId);
+      const unit = findCard(ctx.state, unitId);
+      if (card.zone !== "trash" || !card.def.pilotMode || unit.zone !== "battleArea" || unit.pairedPilotId) return [];
+      return [
+        { type: "MOVE_CARD", instanceId: cardId, toZone: "battleArea" },
+        { type: "PAIR_CARDS", pilotId: cardId, unitId, asPilotMode: card.def.cardType === "COMMAND" },
+      ];
+    }
+    case "grantDelayedReaction": {
+      const subjectId = call.subject ? resolveTargetIds(call.subject, ctx)[0] : undefined;
+      if (call.subject && !subjectId) return [];
+      return [
+        {
+          type: "ADD_DELAYED_REACTION",
+          player: ctx.controller,
+          entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber },
+        },
+      ];
+    }
+    case "deployExBase": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const existing = ctx.state.players[player].baseSection[0];
+      const events: GameEvent[] = [];
+      if (existing) {
+        events.push(
+          existing.def.isToken
+            ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId }
+            : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" },
+        );
+      }
+      events.push({ type: "SPAWN_TOKEN", player, def: EX_BASE_TOKEN, zone: "baseSection" });
+      return events;
+    }
+    case "redirectBattleDamage": {
+      const [fromId] = resolveTargetIds(call.from, ctx);
+      const [toId] = resolveTargetIds(call.to, ctx);
+      if (!fromId || !toId || fromId === toId) return [];
+      return [{ type: "SET_BATTLE_DAMAGE_REDIRECT", instanceId: fromId, redirect: { toId, scope: call.scope, turn: ctx.turnNumber } }];
+    }
     case "damageUnit": {
       const events: GameEvent[] = [];
       const amount = resolveAmount(call, ctx);
@@ -592,7 +808,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       for (const instanceId of resolveTargetIds(call.target, ctx)) {
         const card = findCard(ctx.state, instanceId);
         if (isProtectedFromEffectDamage(card, ctx)) continue;
-        events.push({ type: "DAMAGE_UNIT", instanceId, amount });
+        // W5 (C2) — redução/imunidade (`engine/damageLayer.ts`); o evento sai mesmo zerado pra consumir 1×/turno
+        const hit = incomingDamage(ctx.state, card, amount, effectSource(ctx));
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: hit.amount, consume: hit.consume });
+        if (hit.amount <= 0) continue;
         // GD02-010 Raider Gundam — "when this Unit receives enemy effect damage, draw 1."
         if (card.def.onEffectDamageReceived && card.owner !== ctx.controller) {
           const usageMarker = "onEffectDamageReceived";
@@ -601,7 +820,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
             events.push({ type: "DRAW_CARD", player: card.owner, from: "deck", instanceId: ctx.state.players[card.owner].deck[0]?.instanceId ?? null });
           }
         }
-        if (card.damage + amount >= effectiveHp(card, ctx.state)) {
+        if (card.damage + hit.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
           events.push(...pairedPilotFollowEvents(card));
         }
@@ -620,8 +839,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         }
         // Base — dano acumulado normal, mesma fórmula/proteções de "damageUnit".
         if (isProtectedFromEffectDamage(card, ctx)) continue;
-        events.push({ type: "DAMAGE_UNIT", instanceId, amount: call.amount });
-        if (card.damage + call.amount >= effectiveHp(card, ctx.state)) {
+        const hit = incomingDamage(ctx.state, card, call.amount, effectSource(ctx));
+        events.push({ type: "DAMAGE_UNIT", instanceId, amount: hit.amount, consume: hit.consume });
+        if (hit.amount > 0 && card.damage + hit.amount >= effectiveHp(card, ctx.state)) {
           events.push({ type: "DESTROY_CARD", instanceId });
         }
       }
@@ -674,7 +894,11 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       // nomeada — ex. Burst→Base Deploy, que não passa pela camada de decisão),
       // é no-op, o deck fica como está — resultado legal, não erro.
       if (call.target.kind === "named" && !ctx.targets[call.target.name]?.length) return [];
-      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_WITHIN_DECK", instanceId, position: call.position }));
+      const position = call.position;
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent =>
+          position === "trash" ? { type: "MOVE_CARD", instanceId, toZone: "trash" } : { type: "MOVE_WITHIN_DECK", instanceId, position },
+      );
     }
     case "spawnTokenChoice": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -705,6 +929,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           maxAp: call.maxAp,
           apAtMostSelf: call.apAtMostSelf,
           unpairedOnly: call.unpairedOnly,
+          damagedOnly: call.damagedOnly,
           turn: ctx.turnNumber,
         }),
       );
@@ -865,7 +1090,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
       }
       // GD03-058 — "This card in your trash gets cost -1."
-      const cost = Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
+      const cost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
       return [...payResourceCostEvents(ctx.state, player, cost), { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
     case "moveTopCardToChosenPosition": {
@@ -873,8 +1098,10 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       const top = ctx.state.players[player].deck[0];
       if (!top) return [];
       const chosen = ctx.targets[call.optionsKey]?.[0];
-      const position = chosen === "top" ? "top" : "bottom";
-      return [{ type: "MOVE_WITHIN_DECK", instanceId: top.instanceId, position }];
+      const positions = call.positions ?? ["top", "bottom"];
+      const pick = positions.find((p) => p === chosen) ?? positions[positions.length - 1];
+      if (pick === "trash") return [{ type: "MOVE_CARD", instanceId: top.instanceId, toZone: "trash" }];
+      return [{ type: "MOVE_WITHIN_DECK", instanceId: top.instanceId, position: pick }];
     }
     case "returnTrashToDeckAndShuffle": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -947,7 +1174,17 @@ export type ReactionEvent =
   /** W2b — "when this Unit destroys an enemy Unit with battle damage" */
   | "destroyedEnemyInBattle"
   /** W2b — "when this Unit destroys an enemy shield area card with battle damage" */
-  | "destroyedShieldInBattle";
+  | "destroyedShieldInBattle"
+  /** W5 — "when <Unit> receives damage from an enemy" (batalha ou efeito; a carta do evento é quem recebeu) */
+  | "damagedByEnemy"
+  /** W5 — "when this Unit or one of your Units is deployed" (efeito, jogada da mão ou token) */
+  | "unitDeployed"
+  /** W5 (C6) — "when you play and activate a Command card" (a carta do evento é o Command, já no trash) */
+  | "commandActivated"
+  /** W5 (C6) — "when you place an EX Resource" (a carta do evento é o EX Resource novo) */
+  | "exResourcePlaced"
+  /** W5 (C6) — "when you pay ① or more for one of your Units' effects" (valor pago = `reactionAmount`) */
+  | "paidForUnitEffect";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1018,7 +1255,7 @@ export interface EffectSpec {
    */
   /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
   /** GD02-120 Aspiring Pilot — "Choose 1 of your (AEUG) Units/Bases." (pool = Units E Bases do controller, filtro de trait aplica aos dois.) */
-  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield";
+  targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield" | "enemyUnitOrBase";
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -1119,6 +1356,11 @@ export function computeLegalTargets(
             ? state.players[controller].baseSection
             : scope === "friendlyUnitOrBase"
               ? [...state.players[controller].battleArea.filter((c) => c.def.cardType === "UNIT"), ...state.players[controller].baseSection]
+              : scope === "enemyUnitOrBase"
+                ? [
+                    ...state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT"),
+                    ...state.players[otherPlayer(controller)].baseSection,
+                  ]
               : scope === "battlingBaseOrShield"
                 ? (() => {
                     // GD02-011 Moebius — "Choose 1 enemy Base/enemy Shield this Unit is
@@ -1147,10 +1389,20 @@ export function computeLegalTargets(
  * `true` se algum `PrimitiveCall` de `calls` consome o alvo nomeado `"target"`.
  */
 export function callsNeedNamedTarget(calls: PrimitiveCall[] | undefined): boolean {
-  return (calls ?? []).some((call) => {
-    const target = (call as { target?: { kind?: string; name?: string } }).target;
-    return (target?.kind === "named" || target?.kind === "namedGroup") && target.name === "target";
-  });
+  // W5 — qualquer campo TargetRef conta (`target`, mas também `from`/`to` de redirectBattleDamage,
+  // `subject` de grantDelayedReaction, `unit` de pairCardFromTrashAsPilot)
+  return (calls ?? []).some((call) =>
+    Object.values(call).some((v) => {
+      const ref = v as { kind?: string; name?: string } | null;
+      // `pairedPilotOf` (GD03-110, GD04-099) escolhe a Unit em `target` e age no Piloto dela
+      return (
+        typeof ref === "object" &&
+        ref !== null &&
+        (ref.kind === "named" || ref.kind === "namedGroup" || ref.kind === "pairedPilotOf") &&
+        ref.name === "target"
+      );
+    }),
+  );
 }
 
 /**
@@ -1189,7 +1441,8 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "pairFromTrashSearch" }>
   | Extract<PrimitiveCall, { op: "pairFromHandSearch" }>
   | Extract<PrimitiveCall, { op: "deployFromTrashPayingCost" }>
-  | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>;
+  | Extract<PrimitiveCall, { op: "moveTopCardToChosenPosition" }>
+  | Extract<PrimitiveCall, { op: "copyKeywordsFromTrashCard" }>;
 
 export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive {
   switch (call.op) {
@@ -1203,6 +1456,7 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "pairFromHandSearch":
     case "deployFromTrashPayingCost":
     case "moveTopCardToChosenPosition":
+    case "copyKeywordsFromTrashCard":
       return true;
     case "moveWithinDeck":
       return call.target.kind === "named";
@@ -1266,6 +1520,13 @@ export function specActiveCalls(
       // Sem resolver fornecido, assume a cláusula then
       calls.push(...spec.condition.then);
     }
+  }
+  // W6 — `condition2` também conta (mesma ordem de `resolveEffectSpec`): sem isto, spec com `actions: []` e 1ª
+  // condição falsa era descartado antes da 2ª ser avaliada (`activeCalls.length === 0` em abilityDispatch)
+  if (spec.condition2) {
+    if (!predicateResolver) calls.push(...spec.condition2.then);
+    else if (predicateResolver(spec.condition2.predicate, ctx)) calls.push(...spec.condition2.then);
+    else if (spec.condition2.else) calls.push(...spec.condition2.else);
   }
   return calls;
 }

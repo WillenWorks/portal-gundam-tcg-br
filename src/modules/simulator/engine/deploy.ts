@@ -1,10 +1,20 @@
 import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
-import { effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
-import { deferOrDispatchAbilities, dispatchAnyPairingFromEffect, dispatchDestroyedFromEffect, drainQueuedTriggers, filterDispatchableSpecs } from "./abilityDispatch";
+import {
+  deferOrDispatchAbilities,
+  dispatchAnyPairingFromEffect,
+  dispatchCommandActivated,
+  dispatchDestroyedFromEffect,
+  drainQueuedTriggers,
+  filterDispatchableSpecs,
+  attachQueuedTriggers,
+  unitDeployedEntries,
+} from "./abilityDispatch";
+import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { payResourceCostEvents } from "./costs";
 
 /**
@@ -264,9 +274,18 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       predicateResolver: options.predicateResolver,
       targetFilterResolver: options.targetFilterResolver,
     });
+    // W5 — "when this Unit or one of your Units is deployed" (GD04-033): reação da jogada da mão
+    const deployedEntries = def.cardType === "UNIT" ? unitDeployedEntries(next, cardInstanceId, specs, options.targetFilterResolver) : [];
     // docs/45 — um 【Deploy】 que matou uma Unit com 【Destroyed】-que-pausa (ex.
     // Rewloola matando Char's Zaku Ⅱ) deixa `pendingDecision` setado: trava aqui.
-    if (next.pendingDecision.A || next.pendingDecision.B) return next;
+    if (next.pendingDecision.A || next.pendingDecision.B) return deployedEntries.length ? attachQueuedTriggers(next, deployedEntries) : next;
+    if (deployedEntries.length) {
+      next = drainQueuedTriggers(next, deployedEntries, specs, {
+        predicateResolver: options.predicateResolver,
+        targetFilterResolver: options.targetFilterResolver,
+      });
+      if (next.pendingDecision.A || next.pendingDecision.B) return next;
+    }
     if (playAsPilot && options.pairWithUnitId) {
       // 【When Paired】 (Unit e/ou Pilot, ST01-002 vs ST01-010) e, se o pareamento formar Link
       // Unit (3-2-6), 【When Linked】 — texto no Pilot ("this Unit" = a Unit pareada) OU na
@@ -344,6 +363,14 @@ export function playCommand(
   }
 
   const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);
+  // W5 (C6) — "using an EX Resource": o pagamento tirou um EX Resource do jogo. Só emite quando
+  // muda algo (sem EX e sem marca antiga = nada), pra não poluir o log de toda Command jogada.
+  const withEx = costEvents.some(
+    (e) => e.type === "REMOVE_CARD_FROM_GAME" && findCard(state, e.instanceId).def.code === TOKEN_EX_RESOURCE_CODE,
+  );
+  if (withEx || card.paidWithExOnTurn !== undefined) {
+    costEvents.push({ type: "MARK_COMMAND_PAYMENT", instanceId: cardInstanceId, withEx, turn: state.turnNumber });
+  }
   let next = applyEvents(state, costEvents);
 
   // docs/47 Classe A — Command com escolha nomeada (ST04-012 Striker Pack 【Main】:
@@ -395,6 +422,9 @@ export function playCommand(
   if (stillInHand) {
     next = applyEvents(next, [{ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "trash" }]);
   }
-
-  return next;
+  // W5 (C6) — "when you play and activate a Command card"
+  return dispatchCommandActivated(next, cardInstanceId, specs, {
+    predicateResolver: options.predicateResolver,
+    targetFilterResolver: options.targetFilterResolver,
+  });
 }

@@ -1,10 +1,12 @@
 import type { EffectContext, PredicateResolver, TargetFilterResolver } from "../engine/effectSpec";
 import { findCard } from "../engine/events";
+import { TOKEN_EX_RESOURCE_CODE } from "../engine/setup";
 import {
   effectiveAp,
   effectiveHp,
   effectivePilotDef,
   hasKeyword,
+  hasTrait,
   isActingAsPilot,
   otherPlayer,
   satisfiesLinkCondition,
@@ -52,6 +54,61 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets[chosenHasTrait[1]]?.[0];
     return !!id && (findCard(ctx.state, id).def.traits ?? []).includes(chosenHasTrait[2]);
   }
+  // W3 — GD04-003/118 "If you have 3 or more (League Militaire) Units in play" (conta a própria fonte).
+  const controllerUnitCountWithAnyTrait = predicate.match(/^controllerUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
+  if (controllerUnitCountWithAnyTrait) {
+    const traits = controllerUnitCountWithAnyTrait[1].split(",");
+    const count = ctx.state.players[ctx.controller].battleArea.filter(
+      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
+    ).length;
+    return count >= Number(controllerUnitCountWithAnyTrait[2]);
+  }
+  // W4 — GD04-060/GD03-062 "If you deploy this Unit from your trash".
+  if (predicate === "selfDeployedFromTrash") {
+    return findCard(ctx.state, ctx.sourceInstanceId).enteredFromZone === "trash";
+  }
+  // W4 — GD04-044 "If you are attacking a damaged enemy Unit".
+  if (predicate === "attackingDamagedEnemyUnit") {
+    const target = ctx.state.combat?.originalTarget;
+    if (typeof target !== "object" || target === null) return false;
+    const unit = ctx.state.players.A.battleArea.concat(ctx.state.players.B.battleArea).find((c) => c.instanceId === target.unitId);
+    return !!unit && unit.damage > 0;
+  }
+  // W4 — GD04-039 "If it has <Repair>": o alvo escolhido tem a keyword.
+  const chosenHasKeyword = predicate.match(/^chosenHasKeyword:(.+):(.+)$/);
+  if (chosenHasKeyword) {
+    const id = ctx.targets[chosenHasKeyword[1]]?.[0];
+    return !!id && hasKeyword(findCard(ctx.state, id), chosenHasKeyword[2], ctx.state);
+  }
+  // W4 — GD04-071 "If an enemy (CB) Unit is in play".
+  const enemyUnitWithTrait = predicate.match(/^enemyUnitWithTraitInPlay:(.+)$/);
+  if (enemyUnitWithTrait) {
+    const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
+    return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(enemyUnitWithTrait[1]));
+  }
+  // W5 — GD04-126 "from an enemy Unit with 3 or less AP" (a Unit que causou o dano de batalha)
+  const victimApAtMost = predicate.match(/^battleVictimApAtMost:(\d+)$/);
+  if (victimApAtMost) {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
+  }
+  // W5 — GD04-035 "if you have 3 or less cards in your hand"
+  const handAtMost = predicate.match(/^controllerHandCountAtMost:(\d+)$/);
+  if (handAtMost) return ctx.state.players[ctx.controller].hand.length <= Number(handAtMost[1]);
+  // W5 (C6) — GD04-106/108 "If you use an EX Resource to play this card"
+  if (predicate === "selfPaidWithEx") {
+    return findCard(ctx.state, ctx.sourceInstanceId).paidWithExOnTurn === ctx.state.turnNumber;
+  }
+  // W4 — GD04-086 "If you have no EX Resources"
+  const exAtMost = predicate.match(/^controllerExResourceCountAtMost:(\d+)$/);
+  if (exAtMost) {
+    return ctx.state.players[ctx.controller].resourceArea.filter((r) => r.def.code === TOKEN_EX_RESOURCE_CODE).length <= Number(exAtMost[1]);
+  }
+  // W4 — GD04-074 "You may pay ①": há recurso ativo pra pagar.
+  const activeResources = predicate.match(/^controllerActiveResourceCountAtLeast:(\d+)$/);
+  if (activeResources) {
+    return ctx.state.players[ctx.controller].resourceArea.filter((r) => !r.rested).length >= Number(activeResources[1]);
+  }
   // W2c — GD03-117 "If 1 to 4 enemy Units are in play".
   const enemyUnitCountAtMost = predicate.match(/^enemyUnitCountAtMost:(\d+)$/);
   if (enemyUnitCountAtMost) {
@@ -61,6 +118,25 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (predicate === "battleVictimInPlay") {
     const id = ctx.targets.battleVictim?.[0];
     return !!id && findCard(ctx.state, id).zone === "battleArea";
+  }
+  // W6 — GD05-050 "an enemy Unit … that has no paired Pilot"
+  if (predicate === "battleVictimUnpaired") {
+    const id = ctx.targets.battleVictim?.[0];
+    return !!id && !findCard(ctx.state, id).pairedPilotId;
+  }
+  // W6 — GD05-109 "if it is paired with a Pilot that is Lv.3 or lower" (o Piloto do alvo escolhido)
+  const chosenPairedPilotLevel = predicate.match(/^chosenPairedPilotLevelAtMost:(.+):(\d+)$/);
+  if (chosenPairedPilotLevel) {
+    const id = ctx.targets[chosenPairedPilotLevel[1]]?.[0];
+    const pilotId = id ? findCard(ctx.state, id).pairedPilotId : undefined;
+    return !!pilotId && (findCard(ctx.state, pilotId).def.level ?? 0) <= Number(chosenPairedPilotLevel[2]);
+  }
+  // W6 — GD05-110 "if you have a Unit with \"Master Gundam\" in its card name in play"
+  const controllerUnitNameContains = predicate.match(/^controllerUnitNameContainsInPlay:(.+)$/);
+  if (controllerUnitNameContains) {
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (c) => c.def.cardType === "UNIT" && !c.pairedUnitId && c.def.nameEn.includes(controllerUnitNameContains[1]),
+    );
   }
   const battleVictimLevelAtMost = predicate.match(/^battleVictimLevelAtMost:(\d+)$/);
   if (battleVictimLevelAtMost) {
@@ -420,6 +496,11 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     return !!selfUnit && (selfUnit.def.traits ?? []).includes(selfHasTrait[1]);
   }
+  // W6 — ST09-003 "If there are 5 or more purple cards in your trash" (qualquer tipo de carta)
+  const trashColorCount = predicate.match(/^controllerTrashColorCountAtLeast:(.+):(\d+)$/);
+  if (trashColorCount) {
+    return ctx.state.players[ctx.controller].trash.filter((c) => c.def.color === trashColorCount[1]).length >= Number(trashColorCount[2]);
+  }
   // GD02-111 Decisive Last Resort — "Choose 6 purple Unit cards from your trash. Exile them...".
   // Checado ANTES da própria primitiva `firstNInTrash` rodar (mesma ordem cost->condition->actions
   // de controllerTrashCountAtLeast acima) — "if you do" == havia 6+ cartas elegíveis na lixeira.
@@ -531,14 +612,19 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
 
   // GD01-049 Blitz Gundam — "1 of your (ZAFT) Units with 5 or more AP" (trait, sempre em composição com outro filtro via ";").
   const traitMatch = filter.match(/^trait:(.+)$/);
-  if (traitMatch) return (candidate.def.traits ?? []).includes(traitMatch[1]);
+  if (traitMatch) return hasTrait(candidate, traitMatch[1], ctx.state);
 
   // GD03-021 Gundam Deathscythe Hell — "1 of your (Operation Meteor)/(G Team) Units" (OR, vírgula).
   const anyTraitMatch = filter.match(/^anyTrait:(.+)$/);
   if (anyTraitMatch) {
     const traits = anyTraitMatch[1].split(",");
-    return (candidate.def.traits ?? []).some((t) => traits.includes(t));
+    return traits.some((t) => hasTrait(candidate, t, ctx.state));
   }
+  // W5 — GD04-021 "one of your Units with \"Gundam Lfrith\" in its card name"
+  const nameContains = filter.match(/^nameContains:(.+)$/);
+  if (nameContains) return candidate.def.nameEn.includes(nameContains[1]);
+  // W5 — GD04-033 "When this Unit or …": o candidato é a própria fonte
+  if (filter === "isSelf") return candidate.instanceId === ctx.sourceInstanceId;
 
   // GD01-049 Blitz Gundam — companion do filtro de trait acima.
   const apAtLeast = filter.match(/^ap>=(\d+)$/);
@@ -570,6 +656,11 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
 
+  // W4 — GD04-063 "that is Lv.1 or lower or has 1 or less AP": `or(<filtro>|<filtro>)`
+  const orFilter = filter.match(/^or\(([^|]+)\|([^|]+)\)$/);
+  if (orFilter) return defaultTargetFilterResolver(orFilter[1], candidate, ctx) || defaultTargetFilterResolver(orFilter[2], candidate, ctx);
+  // W4 — GD04-091 "1 undamaged enemy Unit"
+  if (filter === "undamaged") return candidate.damage === 0;
   // W2c — GD03-073 "1 enemy Unit battling this Unit" (a fonte é um dos 2 lados do combate atual)
   if (filter === "battlingSelf") {
     const combat = ctx.state.combat;
@@ -590,6 +681,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (filter === "paired") return !!candidate.pairedPilotId;
 
   // GD03-115 — "1 friendly Unit paired with an (X-Rounder) Pilot".
+  // W5 (C6) — GD04-020/085 "a (X) Command card using an EX Resource" (o Command do evento)
+  if (filter === "paidWithEx") return candidate.paidWithExOnTurn === ctx.state.turnNumber;
+  // W4 — GD04-004 "pair a Pilot with one of your blue Units": o candidato é o Piloto, a cor é da Unit
+  const pairedUnitColor = filter.match(/^pairedUnitColor:(.+)$/);
+  if (pairedUnitColor) {
+    return !!candidate.pairedUnitId && findCard(ctx.state, candidate.pairedUnitId).def.color === pairedUnitColor[1];
+  }
   const pairedPilotTrait = filter.match(/^pairedPilotTrait:(.+)$/);
   if (pairedPilotTrait) {
     const pilot = candidate.pairedPilotId ? findCard(ctx.state, candidate.pairedPilotId) : undefined;

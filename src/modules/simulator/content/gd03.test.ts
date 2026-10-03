@@ -516,7 +516,7 @@ describe("GD03 — W1 gatilhos de combate", () => {
 
 describe("GD03 — W1 (resolução de cada spec restante)", () => {
   it("028: AP+2 na batalha só atacando Unit (não o jogador)", () => {
-    let state = advanceToMainPhase(freshGame());
+    const state = advanceToMainPhase(freshGame());
     state.players.B.baseSection = [];
     const maganac = placeCard(state, "A", GD03_CARD_DEFS["GD03-028"], "battleArea");
     const defender = placeCard(state, "B", GD03_CARD_DEFS["GD03-058"], "battleArea", { rested: true });

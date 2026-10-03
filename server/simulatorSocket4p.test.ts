@@ -124,16 +124,18 @@ async function assembleFullSquad(mode: "2v2" | "ffa"): Promise<AssembledSquad> {
   expect(lobbyId).toBeTruthy();
   expect(squadCode).toBeTruthy();
 
-  const [seatB, seatC, seatD] = await Promise.all(
-    (["u-B", "u-C", "u-D"] as const).map(async (userId, i) => {
-      const guest = connect(userId, `Piloto ${"BCD"[i]}`);
-      await connected(guest);
-      const res = await ackEvent<{ lobbyId?: string; error?: string }>(guest, "arena:squad_join", { squadCode, deckId: "ST01" });
-      expect(res.error).toBeUndefined();
-      expect(res.lobbyId).toBe(lobbyId);
-      return guest;
-    }),
-  );
+  // Entradas em sequência: o servidor dá o assento pela ordem de chegada do `arena:squad_join`,
+  // e em paralelo o socket "seatB" podia virar seatD (o teste de emote checa o assento).
+  const guests: ReturnType<typeof connect>[] = [];
+  for (const [i, userId] of (["u-B", "u-C", "u-D"] as const).entries()) {
+    const guest = connect(userId, `Piloto ${"BCD"[i]}`);
+    await connected(guest);
+    const res = await ackEvent<{ lobbyId?: string; error?: string }>(guest, "arena:squad_join", { squadCode, deckId: "ST01" });
+    expect(res.error).toBeUndefined();
+    expect(res.lobbyId).toBe(lobbyId);
+    guests.push(guest);
+  }
+  const [seatB, seatC, seatD] = guests;
 
   const all = [host, seatB, seatC, seatD];
   // Igual ao cliente real (socketClient4p.ts `joinArenaMatch`): "ready" só troca o status do

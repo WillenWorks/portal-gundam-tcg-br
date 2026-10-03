@@ -54,7 +54,9 @@ export function fieldAbilityFor(card: CardInstance): FieldAbility | null {
   if (spec) {
     if (card.def?.oncePerTurn && card.usedKeywordsThisTurn.includes(ACTIVATE_MAIN)) return null;
     if (card.rested && costRestsSelf(spec)) return null;
-    return { kind: "activateMain", cost: abilityResourceCost(spec), needsTarget: specNeedsNamedTarget(spec) };
+    // W5 — custo "Rest 1 of your … Units" (2º alvo): o motor abre a decisão com alvo + Unit do custo juntos
+    const engineAsks = !!spec.secondaryTarget;
+    return { kind: "activateMain", cost: abilityResourceCost(spec), needsTarget: !engineAsks && specNeedsNamedTarget(spec) };
   }
 
   if (hasKeyword(card, SUPPORT) && card.def?.cardType === "UNIT" && !card.rested) {

@@ -253,6 +253,18 @@ export const TACTICAL_VISIONARY: CardDef = {
 
 export const PTOLEMAIOS: CardDef = {
   code: "ST07-015",
+  // W5 (C2)
+  damageReductions: [
+    {
+      immune: true,
+      sourceUnitOnly: true,
+      sourceMaxLevel: 3,
+      sourceNotToken: true,
+      boardCondition: { kind: "friendlyRestedUnitWithTrait", trait: "CB" },
+      sourceText:
+        "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
+    },
+  ],
   nameEn: "Ptolemaios",
   cardType: "BASE",
   color: "purple",

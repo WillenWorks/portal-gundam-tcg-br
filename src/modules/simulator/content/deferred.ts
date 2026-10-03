@@ -23,6 +23,8 @@ export interface DeferredClause {
   reason: string;
   /** identificador curto do bloqueio, prefixo `engine:` — o que teria de mudar no motor pra fechar. */
   blockedBy: string;
+  /** "approximation" = o efeito acontece com uma diferença registrada (não fica sem efeito) */
+  kind?: "approximation";
 }
 
 export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
@@ -158,12 +160,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:reactive-trigger-bus (C1)",
   },
   {
-    cardCode: "ST07-015",
-    clause: "While a rested friendly (CB) Unit is in play, this Base can't receive damage from enemy Units that are Lv.3 or lower, other than Unit tokens.",
-    reason: "proteção de dano condicional para Base ainda não existe — a Base recebe o dano normalmente",
-    blockedBy: "engine:damage-modification-layer (C2)",
-  },
-  {
     cardCode: "ST08-011",
     clause: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
     reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
@@ -181,12 +177,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "uma entrada da fila não carrega descarte + revelar do topo juntos (E4) — o olhar/revelar acontece sem o custo de descarte",
     blockedBy: "engine:multi-choice-queue-entry (E4/W2)",
   },
-  {
-    cardCode: "GD02-129",
-    clause: "This Base can't receive enemy effect damage.",
-    reason: "proteção de dano de efeito para Base ainda não existe — a Base recebe o dano normalmente",
-    blockedBy: "engine:damage-modification-layer (C2)",
-  },
   // W0.5 — ordem de efeitos simultâneos (CR 10-1-6). O motor já segue 10-1-6-8 (【Burst】 antes de
   // todos) e 10-1-6-6 (efeitos do jogador ativo antes dos do standby — `dispatchDestroyedTriggers`);
   // efeitos com escolha (alvo, "you may", mão/deck) já vão pra fila em que o jogador escolhe a ordem.
@@ -197,13 +187,32 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
   },
-  // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
+  // W5 — aproximações aceitas (o efeito acontece, com a diferença descrita)
   {
-    cardCode: "GD03-062",
-    clause: "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it.",
-    reason: "o motor não guarda de qual zona a Unit foi deployada — o 【Deploy】 não faz nada",
-    blockedBy: "engine:deploy-origin-zone (C8)",
+    cardCode: "GD04-069",
+    clause:
+      "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
+    reason: "\"choose 1\" no fim do turno vira automático: a 1ª Unit (Militia) descansada fica ativa (o fim do turno não pausa pra escolha)",
+    blockedBy: "engine:end-of-turn-choice (aproximação aceita)",
+    kind: "approximation",
   },
+  {
+    cardCode: "GD04-033",
+    clause: "【During Link】All your Units gain (Neo Zeon).",
+    reason: "o trait concedido vale nos filtros de alvo e de reação (`hasTrait`); condições de board e custos ainda leem o trait impresso",
+    blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
+    kind: "approximation",
+  },
+  // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
+  {
+    cardCode: "*",
+    clause: "Exilar N cartas do trash (custo ou efeito \"choose N … from your trash. Exile them\")",
+    reason:
+      "o motor exila as N primeiras cartas elegíveis do trash em vez de o jogador escolher (GD02-111, GD03-009/015/035/050/054/059, GD04-049/065/071/130) — muda o resultado só quando a identidade das cartas importa depois (contagens por nome/trait no trash, GD04-067)",
+    blockedBy: "engine:exile-choice-from-trash (aproximação aceita; escolha entra com o C3 Development N, W9)",
+    kind: "approximation",
+  },
+  // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
   {
     cardCode: "GD03-064",
     clause: "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1.",
@@ -229,12 +238,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:destroyed-pilot-unit-level-filter (C5)",
   },
   {
-    cardCode: "GD03-104",
-    clause: "【Main】/【Action】Choose 1 enemy Unit with 3 or less HP. Rest it. If a friendly (Jupitris) Link Unit is in play, choose 1 to 2 enemy Units with 3 or less HP instead.",
-    reason: "\"choose 1 to 2 … instead\" (quantidade de alvos condicional) ainda não existe",
-    blockedBy: "engine:conditional-target-count (C9)",
-  },
-  {
     cardCode: "GD03-113",
     clause: "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it.",
     reason: "Lv. da Unit restada pela própria habilidade como limite do 2º alvo ainda não existe",
@@ -245,11 +248,5 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     clause: "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn.",
     reason: "\"Then, … you may choose 1 friendly Unit\" (2º alvo opcional condicionado) ainda não existe",
     blockedBy: "engine:optional-conditional-secondary-target (C9)",
-  },
-  {
-    cardCode: "GD03-120",
-    clause: "【Main】During this turn, if a friendly (Superpower Bloc)/(UN) Unit destroys an enemy Unit with battle damage, choose 1 rested friendly (Superpower Bloc)/(UN) Unit. Set it as active. It can't attack during this turn.",
-    reason: "efeito atrasado \"during this turn, if … destroys …, choose …\" (reação criada por Command) ainda não existe",
-    blockedBy: "engine:delayed-reaction-from-command (C1)",
   },
 ] as const;

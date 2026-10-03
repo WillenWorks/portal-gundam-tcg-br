@@ -1,13 +1,14 @@
 import type {
   CardDef,
   CardInstance,
+  DamageConsumption,
   GameEvent,
   GameState,
   PlayerId,
   PlayerState,
   Zone,
 } from "./types";
-import { effectiveHp } from "./types";
+import { effectiveHp, entersRestedByRule, isActingAsPilot } from "./types";
 import { createRng, shuffleInPlace } from "./rng";
 
 function instantiateToken(state: GameState, owner: PlayerId, def: CardDef, zone: Zone, rested: boolean): CardInstance {
@@ -90,6 +91,25 @@ function unpairCounterpart(player: PlayerState, card: CardInstance): void {
   }
 }
 
+/** CR 3-3-6 — o Piloto pareado acompanha a Unit para `zone` (token nunca é Piloto; Command-Piloto vira carta comum) */
+function movePilotAlong(player: PlayerState, pilotId: string, zone: Zone, turnNumber: number): void {
+  const idx = player.battleArea.findIndex((c) => c.instanceId === pilotId);
+  if (idx === -1) return;
+  const [pilot] = player.battleArea.splice(idx, 1);
+  pilot.zone = zone;
+  pilot.enteredZoneOnTurn = turnNumber;
+  pilot.enteredFromZone = undefined;
+  pilot.pairedUnitId = undefined;
+  pilot.asPilot = undefined;
+  pilot.rested = false;
+  pilot.damage = 0;
+  pilot.statModifiers = [];
+  pilot.keywordGrants = [];
+  pilot.damageModifiers = undefined;
+  pilot.battleDamageRedirect = undefined;
+  player[zone].push(pilot);
+}
+
 function removeFromZone(player: PlayerState, instanceId: string): CardInstance | null {
   const zones: Zone[] = [
     "deck",
@@ -150,6 +170,9 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     trash: player.trash.map(cloneCard),
     exile: player.exile.map(cloneCard),
     hand: player.hand.map(cloneCard),
+    // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
+    ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
+    ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
   };
 }
 
@@ -198,10 +221,19 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         ? "exile"
         : event.toZone;
 
+      const fromZone = card.zone;
       card.zone = targetZone;
       card.enteredZoneOnTurn = state.turnNumber;
+      // W4 — "If you deploy this Unit from your trash" (GD04-060, GD03-062)
+      card.enteredFromZone = targetZone === "battleArea" ? fromZone : undefined;
+      // W5 (C12) — GD04-022 "… are deployed rested" (a carta já está na zona nova pra checagem)
+      if (targetZone === "battleArea" && fromZone !== "battleArea" && entersRestedByRule(state, card)) card.rested = true;
+      // CR 3-3-6 — Unit pareada que sai da Battle Area leva o Piloto para o MESMO lugar (mão, deck, trash…).
+      // Antes o par era desfeito e o Piloto ficava sozinho na Battle Area (violando 3-3-3).
+      const followingPilotId = fromZone === "battleArea" && targetZone !== "battleArea" && !isActingAsPilot(card) ? card.pairedPilotId : undefined;
       if (targetZone !== "battleArea" && targetZone !== "baseSection") {
-        if (event.toZone === "hand") unpairCounterpart(player, card);
+        // Piloto que sai sozinho (ex. GD04-001/099 devolvendo o Piloto): a Unit fica sem par
+        unpairCounterpart(player, card);
         // sair de campo limpa buffs/pareamento — zonas fora de jogo não carregam estado de combate
         card.statModifiers = [];
         card.keywordGrants = [];
@@ -210,11 +242,14 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         card.pairedUnitId = undefined;
         card.attackTargetRelaxUntilTurn = undefined;
         card.cannotAttackUntilTurn = undefined;
+        card.damageModifiers = undefined;
+        card.battleDamageRedirect = undefined;
       }
       if (targetZone === "shields" || targetZone === "deck" || targetZone === "resourceDeck") {
         card.rested = false;
       }
       player[targetZone].push(card);
+      if (followingPilotId) movePilotAlong(player, followingPilotId, targetZone, state.turnNumber);
       return state;
     }
     case "REST_CARD": {
@@ -230,6 +265,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     case "DAMAGE_UNIT": {
       const card = findCard(state, event.instanceId);
       card.damage += event.amount;
+      applyDamageConsumption(state, card, event.consume);
       return state;
     }
     case "HEAL_UNIT": {
@@ -240,6 +276,25 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     case "DAMAGE_BASE": {
       const card = findCard(state, event.instanceId);
       card.damage += event.amount;
+      applyDamageConsumption(state, card, event.consume);
+      return state;
+    }
+    case "GRANT_DAMAGE_MODIFIER": {
+      const card = findCard(state, event.instanceId);
+      card.damageModifiers = [...(card.damageModifiers ?? []), event.modifier];
+      return state;
+    }
+    case "ADD_DELAYED_REACTION": {
+      const player = state.players[event.player];
+      player.delayedReactions = [...(player.delayedReactions ?? []), event.entry];
+      return state;
+    }
+    case "MARK_COMMAND_PAYMENT": {
+      findCard(state, event.instanceId).paidWithExOnTurn = event.withEx ? event.turn : undefined;
+      return state;
+    }
+    case "SET_BATTLE_DAMAGE_REDIRECT": {
+      findCard(state, event.instanceId).battleDamageRedirect = event.redirect;
       return state;
     }
     case "DESTROY_CARD": {
@@ -262,6 +317,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.asPilot = undefined;
       card.attackTargetRelaxUntilTurn = undefined;
       card.cannotAttackUntilTurn = undefined;
+      card.damageModifiers = undefined;
+      card.battleDamageRedirect = undefined;
       // Token que deixa o campo é REMOVIDO DO JOGO, não vai pro trash
       // (Comprehensive Rules — EX Base, EX Resource, tokens de Unit). Vai pra
       // zona `exile`, igual REMOVE_CARD_FROM_GAME.
@@ -296,6 +353,8 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       card.asPilot = undefined;
       card.attackTargetRelaxUntilTurn = undefined;
       card.cannotAttackUntilTurn = undefined;
+      card.damageModifiers = undefined;
+      card.battleDamageRedirect = undefined;
       player.exile.push(card);
       return state;
     }
@@ -319,6 +378,10 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "CLEAR_TURN_MODIFIERS": {
       for (const player of Object.values(state.players)) {
+        if (player.delayedReactions) {
+          const left = player.delayedReactions.filter((d) => d.turn > event.turnNumber);
+          player.delayedReactions = left.length ? left : undefined;
+        }
         for (const zone of ["battleArea", "baseSection"] as const) {
           for (const card of player[zone]) {
             card.statModifiers = card.statModifiers.filter(
@@ -341,6 +404,11 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
             if (card.battleDamageImmunityUntilTurn && card.battleDamageImmunityUntilTurn.turn <= event.turnNumber) {
               card.battleDamageImmunityUntilTurn = undefined;
             }
+            if (card.damageModifiers) {
+              const left = card.damageModifiers.filter((m) => m.turn > event.turnNumber);
+              card.damageModifiers = left.length ? left : undefined;
+            }
+            if (card.battleDamageRedirect && card.battleDamageRedirect.turn <= event.turnNumber) card.battleDamageRedirect = undefined;
           }
         }
       }
@@ -383,6 +451,14 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         actionPasses: { A: false, B: false },
         actionPriority: event.defendingPlayer,
       };
+      return state;
+    }
+    case "SET_INDESTRUCTIBLE_BY_ENEMY_EFFECTS": {
+      state.players[event.player].indestructibleByEnemyEffectsTurn = event.turn;
+      return state;
+    }
+    case "ATTACK_TARGET_CHANGED": {
+      if (state.combat) state.combat.currentTarget = { unitId: event.unitId };
       return state;
     }
     case "BLOCK_DECLARED": {
@@ -492,6 +568,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         maxAp: event.maxAp,
         apAtMostSelf: event.apAtMostSelf,
         unpairedOnly: event.unpairedOnly,
+        damagedOnly: event.damagedOnly,
         turn: event.turn,
       };
       return state;
@@ -535,4 +612,17 @@ export function findCardOwner(state: GameState, instanceId: string) {
 /** Uma Unit/Base é destruída quando dano marcado >= HP efetivo (Comprehensive Rules 5-5-2). */
 export function isLethallyDamaged(card: CardInstance, state?: GameState): boolean {
   return card.damage >= effectiveHp(card, state);
+}
+
+/** W5 (C2) — aplica o que o dano consumiu (ver `engine/damageLayer.ts`) */
+function applyDamageConsumption(state: GameState, target: CardInstance, consume: DamageConsumption | undefined): void {
+  if (!consume) return;
+  for (const { instanceId, marker } of consume.markers ?? []) {
+    const holder = findCard(state, instanceId);
+    if (!holder.usedKeywordsThisTurn.includes(marker)) holder.usedKeywordsThisTurn.push(marker);
+  }
+  if (consume.dropNext && target.damageModifiers) {
+    const left = target.damageModifiers.filter((m) => m.scope !== "next");
+    target.damageModifiers = left.length ? left : undefined;
+  }
 }
