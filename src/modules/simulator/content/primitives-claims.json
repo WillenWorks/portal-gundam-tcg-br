@@ -486,6 +486,10 @@
       "description": "O trash do controller tem N+ cartas Unit da cor dada — checado ANTES da própria primitiva firstNInTrash rodar (mesma ordem cost->condition->actions de controllerTrashCountAtLeast).",
       "since": "GD02-111 Decisive Last Resort (Sprint 2 Lote 10)"
     },
+    "controllerTrashColorCountAtLeast:<value>:<n>": {
+      "description": "O trash do controller tem N+ cartas (qualquer tipo) da cor dada.",
+      "since": "ST09-003 Saviour Gundam (W6)"
+    },
     "controllerTrashCardCountWithAnyTraitAtLeast:<value>:<n>": {
       "description": "Verdadeiro se o trash do controller tem N+ cartas (qualquer tipo) com algum dos traits (OR, separados por vírgula).",
       "since": "GD02-061 Hyakuri (W0.3)"

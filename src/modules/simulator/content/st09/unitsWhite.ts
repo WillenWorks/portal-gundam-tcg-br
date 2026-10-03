@@ -22,6 +22,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "effectKeywords": [
       "Blocker"
-    ]
+    ],
+    // W6
+    staticAbilities: [
+      {
+        sourceText: "While a friendly Base in play, this Unit gains <Suppression>.",
+        condition: "always",
+        scope: "self",
+        keyword: "Suppression",
+        boardCondition: { kind: "friendlyBaseInPlay" },
+      },
+    ],
   },
 };

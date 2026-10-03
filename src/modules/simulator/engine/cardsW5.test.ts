@@ -1093,3 +1093,48 @@ describe("auditoria A26 — fluxo real das cartas da W5 testadas só despachando
     expect(offers.map((a) => (a.kind === "playCommand" ? a.targets?.target : undefined))).toEqual([[nt]]);
   });
 });
+
+describe("CR 3-3-6 — o Piloto pareado acompanha a Unit que sai da Battle Area", () => {
+  it("Unit pareada devolvida à mão: o Piloto vai para a mão junto (não fica sozinho na Battle Area)", () => {
+    const state = game();
+    const unit = placeCard(state, "B", UNIT({ hp: 9, level: 2 }), "battleArea", { rested: true });
+    const pilot = placeCard(state, "B", PILOT(), "battleArea");
+    pair(state, unit, pilot);
+    const src = placeCard(state, "A", COMMAND, "trash");
+    const s = dispatchTrigger(
+      state,
+      src,
+      "Main",
+      [{ id: "T-bounce", cardCode: "TEST-COMMAND", trigger: "Main", actions: [{ op: "moveZone", target: { kind: "instance", instanceId: unit }, toZone: "hand" }], sourceText: "t" }],
+      { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
+    );
+    expect(s.players.B.hand.map((c) => c.instanceId)).toEqual(expect.arrayContaining([unit, pilot]));
+    expect(s.players.B.battleArea.some((c) => c.instanceId === pilot)).toBe(false);
+    expect(findCard(s, pilot).pairedUnitId).toBeUndefined();
+  });
+
+  it("Unit pareada para o fundo do deck: o Piloto vai junto; Piloto devolvido sozinho deixa a Unit sem par", () => {
+    const state = game();
+    const unit = placeCard(state, "A", UNIT(), "battleArea");
+    const pilot = placeCard(state, "A", PILOT(), "battleArea");
+    pair(state, unit, pilot);
+    const src = placeCard(state, "A", COMMAND, "trash");
+    const toDeck = dispatchTrigger(
+      state,
+      src,
+      "Main",
+      [{ id: "T-deck", cardCode: "TEST-COMMAND", trigger: "Main", actions: [{ op: "moveZone", target: { kind: "instance", instanceId: unit }, toZone: "deck" }], sourceText: "t" }],
+      { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
+    );
+    expect(toDeck.players.A.deck.slice(-2).map((c) => c.instanceId)).toEqual([unit, pilot]);
+    const onlyPilot = dispatchTrigger(
+      state,
+      src,
+      "Main",
+      [{ id: "T-pilot", cardCode: "TEST-COMMAND", trigger: "Main", actions: [{ op: "moveZone", target: { kind: "instance", instanceId: pilot }, toZone: "hand" }], sourceText: "t" }],
+      { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
+    );
+    expect(onlyPilot.players.A.battleArea.some((c) => c.instanceId === unit)).toBe(true);
+    expect(findCard(onlyPilot, unit).pairedPilotId).toBeUndefined();
+  });
+});

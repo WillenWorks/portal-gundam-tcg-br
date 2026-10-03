@@ -491,7 +491,7 @@ export function AbilityResolutionModal({
                               active={(reorder[specId] ?? {})[slot.name] === card.instanceId}
                               onClick={() => assignReorder(specId, slot.name, card.instanceId)}
                             >
-                              {slot.position === "top" ? "↑ topo" : "↓ fundo"}
+                              {slot.position === "top" ? "↑ topo" : slot.position === "trash" ? "→ trash" : "↓ fundo"}
                             </Toggle>
                           ))}
                         </div>

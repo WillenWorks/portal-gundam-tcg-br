@@ -79,7 +79,15 @@ export type TargetGroup =
    * AMBOS os lados do tabuleiro. `hasKeyword` filtra por keyword própria OU
    * concedida (mesma checagem de `defaultTargetFilterResolver`).
    */
-  | { kind: "allUnits"; maxLevel?: number; hasKeyword?: string; /** GD03-112 — "all Units paired with a Pilot" */ paired?: boolean }
+  | {
+      kind: "allUnits";
+      maxLevel?: number;
+      /** W6 — ST09-003 "all Units with 5 or less AP" */
+      maxAp?: number;
+      hasKeyword?: string;
+      /** GD03-112 — "all Units paired with a Pilot" */
+      paired?: boolean;
+    }
   /** W2b — GD03-041 "Deal 3 damage to all Bases" (dos 2 lados) */
   | { kind: "allBases" }
   /**
@@ -174,6 +182,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
     return bothSides
       .filter((u) => u.def.cardType === "UNIT")
       .filter((u) => group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel)
+      .filter((u) => group.maxAp === undefined || effectiveAp(u, ctx.state) <= group.maxAp)
       .filter((u) => !group.hasKeyword || hasKeyword(u, group.hasKeyword, ctx.state))
       .filter((u) => !group.paired || !!u.pairedPilotId)
       .map((u) => u.instanceId);
@@ -315,7 +324,8 @@ export type PrimitiveCall =
   /** variante de spawnToken que escolhe QUAL CardDef instanciar contando as próprias Units em campo (ex.: ST01-015 White Base — Gundam/Guncannon/Guntank token conforme 0/1/2+ Units já em jogo). `thresholds` é avaliado em ordem crescente de `maxUnits`; o 1º cuja contagem atual seja <= maxUnits vence. */
   | { op: "spawnTokenByOwnUnitCount"; player: PlayerRef; zone: Zone; thresholds: { maxUnits: number; def: CardDef }[] }
   /** reordena 1 carta já revelada (via peekAndReorderDeck) de volta pro topo ou pro fundo do próprio deck, sem trocar de zona. Ex.: ST02-015 Saint Gabriel Institute. Com `target.kind: "named"` é interativo (camada de decisão, `deckReorder`). */
-  | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" }
+  /** W6 — `trash`: ST09-010/GD03-097 "look at the top 2 … return 1 to the top. Place the remaining card into your trash." */
+  | { op: "moveWithinDeck"; target: TargetRef; position: "top" | "bottom" | "trash" }
   /**
    * Lote 5 (docs/debates 2026-09-13) — GD01-003 "Choose 12 cards from your trash. Return
    * them to their owner's deck and shuffle it." Sem escolha real de QUAIS cartas quando a
@@ -484,7 +494,8 @@ export type PrimitiveCall =
    * MESMO shape `trashSearch` de `searchTrashToHand`/`pairFromTrashSearch` na camada
    * de decisão; escolha em `ctx.targets[deployName ?? "trashSearch"]`.
    */
-  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string }
+  /** W6 — `free`: ST09-001 "Choose 1 Unit card … from your trash. Deploy it." (sem pagar o custo) */
+  | { op: "deployFromTrashPayingCost"; player: PlayerRef; filter: CardDefFilter; deployName?: string; free?: boolean }
   /**
    * Lote 5 — GD01-039 "Look at the top card of your deck. Return it to the top
    * or bottom of your deck." Ao contrário de `moveWithinDeck` (posição FIXA,
@@ -534,6 +545,8 @@ export interface CardDefFilter {
   anyOf?: CardDefFilter[];
   /** W4 — GD04-094 "1 purple Unit card with <Suppression>" (keyword impressa da carta) */
   hasKeyword?: string;
+  /** W6 — ST09-002 "without \"Force Impulse Gundam\" in its card name" */
+  notNameContains?: string;
 }
 
 /** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
@@ -566,6 +579,7 @@ export function exileCostShortfall(state: GameState, spec: EffectSpec, controlle
 
 export function matchesCardDefFilter(def: CardDef, filter: CardDefFilter): boolean {
   if (filter.nameContains && !def.nameEn.includes(filter.nameContains)) return false;
+  if (filter.notNameContains && def.nameEn.includes(filter.notNameContains)) return false;
   if (filter.anyOf && filter.anyOf.length > 0 && !filter.anyOf.some((f) => matchesCardDefFilter(def, f))) return false;
   if (filter.cardType && def.cardType !== filter.cardType) return false;
   if (filter.anyCardType && filter.anyCardType.length > 0 && !filter.anyCardType.includes(def.cardType)) return false;
@@ -880,7 +894,11 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       // nomeada — ex. Burst→Base Deploy, que não passa pela camada de decisão),
       // é no-op, o deck fica como está — resultado legal, não erro.
       if (call.target.kind === "named" && !ctx.targets[call.target.name]?.length) return [];
-      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "MOVE_WITHIN_DECK", instanceId, position: call.position }));
+      const position = call.position;
+      return resolveTargetIds(call.target, ctx).map(
+        (instanceId): GameEvent =>
+          position === "trash" ? { type: "MOVE_CARD", instanceId, toZone: "trash" } : { type: "MOVE_WITHIN_DECK", instanceId, position },
+      );
     }
     case "spawnTokenChoice": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -1072,7 +1090,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
         throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
       }
       // GD03-058 — "This card in your trash gets cost -1."
-      const cost = Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
+      const cost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player) + (card.def.costModifierInTrash ?? 0));
       return [...payResourceCostEvents(ctx.state, player, cost), { type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
     case "moveTopCardToChosenPosition": {

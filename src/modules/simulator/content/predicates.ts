@@ -477,6 +477,11 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
     return !!selfUnit && (selfUnit.def.traits ?? []).includes(selfHasTrait[1]);
   }
+  // W6 — ST09-003 "If there are 5 or more purple cards in your trash" (qualquer tipo de carta)
+  const trashColorCount = predicate.match(/^controllerTrashColorCountAtLeast:(.+):(\d+)$/);
+  if (trashColorCount) {
+    return ctx.state.players[ctx.controller].trash.filter((c) => c.def.color === trashColorCount[1]).length >= Number(trashColorCount[2]);
+  }
   // GD02-111 Decisive Last Resort — "Choose 6 purple Unit cards from your trash. Exile them...".
   // Checado ANTES da própria primitiva `firstNInTrash` rodar (mesma ordem cost->condition->actions
   // de controllerTrashCountAtLeast acima) — "if you do" == havia 6+ cartas elegíveis na lixeira.

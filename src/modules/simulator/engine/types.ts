@@ -1346,7 +1346,7 @@ export type PendingDecision =
          * `resolution.targetIds[i]` → `slots[i]`. `topCards` é o topo do deck
          * (redigido a `[]` pro oponente pela `viewState`, igual `deckTopReveal`).
          */
-        deckReorder?: { topCards: CardInstance[]; slots: Array<{ name: string; position: "top" | "bottom" }>; label: string };
+        deckReorder?: { topCards: CardInstance[]; slots: Array<{ name: string; position: "top" | "bottom" | "trash" }>; label: string };
         /**
          * ST04-012 Striker Pack 【Main】 "deploy 1 [Sword Strike] or 1 [Launcher
          * Strike] Unit token" — escolha ENUM. `resolution.targetIds` = `[value]`
