@@ -1521,6 +1521,13 @@ export function specActiveCalls(
       calls.push(...spec.condition.then);
     }
   }
+  // W6 — `condition2` também conta (mesma ordem de `resolveEffectSpec`): sem isto, spec com `actions: []` e 1ª
+  // condição falsa era descartado antes da 2ª ser avaliada (`activeCalls.length === 0` em abilityDispatch)
+  if (spec.condition2) {
+    if (!predicateResolver) calls.push(...spec.condition2.then);
+    else if (predicateResolver(spec.condition2.predicate, ctx)) calls.push(...spec.condition2.then);
+    else if (spec.condition2.else) calls.push(...spec.condition2.else);
+  }
   return calls;
 }
 
