@@ -5563,8 +5563,8 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 102,
-        "partial": 2,
+        "full": 103,
+        "partial": 1,
         "missing": 0,
         "withErrors": 0
       },
@@ -7139,7 +7139,7 @@
         },
         {
           "code": "GD02-094",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -7158,9 +7158,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:multi-choice-queue-entry (E4/W2)"
+                "GD02-094-WhenPaired",
+                "GD02-094-Then"
               ],
               "text": "【When Paired】You may discard 1. If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -8214,8 +8215,8 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 110,
-        "partial": 6,
+        "full": 113,
+        "partial": 3,
         "missing": 0,
         "withErrors": 0
       },
@@ -9362,7 +9363,7 @@
         },
         {
           "code": "GD03-064",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9370,9 +9371,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:optional-trash-search-then-discard (C9)"
+                "GD03-064-Deploy",
+                "GD03-064-Then"
               ],
               "text": "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1."
             }
@@ -10504,7 +10506,7 @@
         },
         {
           "code": "GD03-113",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10513,9 +10515,11 @@
                 "Main",
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:secondary-target-relative-level (C9)"
+                "GD03-113-Main",
+                "GD03-113-Action",
+                "GD03-113-Then"
               ],
               "text": "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it."
             }
@@ -10617,7 +10621,7 @@
         },
         {
           "code": "GD03-118",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10636,9 +10640,10 @@
               "triggers": [
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:optional-conditional-secondary-target (C9)"
+                "GD03-118-Action",
+                "GD03-118-Then"
               ],
               "text": "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn."
             }
@@ -13973,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 52,
+        "full": 55,
         "partial": 0,
-        "missing": 59,
+        "missing": 56,
         "withErrors": 0
       },
       "cards": [
@@ -14425,7 +14430,7 @@
         },
         {
           "code": "GD05-024",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14433,10 +14438,10 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-024-Destroyed",
+                "GD05-024-Then"
               ],
               "text": "【Destroyed】Choose 1 green (Earth Federation) Pilot card from your trash. Add it to your hand. If you do, discard 1."
             }
@@ -14881,7 +14886,7 @@
         },
         {
           "code": "GD05-052",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14889,10 +14894,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-052-Deploy",
+                "GD05-052-Then"
               ],
               "text": "【Deploy】You may choose 1 of your other Units. Destroy it. If you do, place the top 3 cards of your deck into your trash. Add 1 (Neo Zeon) Unit card you placed from your deck with this effect to your hand."
             }
@@ -15641,7 +15646,7 @@
         },
         {
           "code": "GD05-090",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15660,10 +15665,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-090-Destroyed"
               ],
               "text": "【Destroyed】Look at the top card of your deck. If it is a (Phantom Pain) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck."
             }

@@ -259,8 +259,17 @@ export function dispatchTrigger(
       if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger });
     }
     for (const followUp of followUps) {
-      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
-      next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, [{ code: current.def.code, instanceId: sourceInstanceId }], allSpecs, {
+      if (next.gameOver) break;
+      // o alvo do passo anterior segue como alvo implícito `previousTarget` ("…whose Lv. is equal to or lower than the
+      // Unit rested with this ability", GD03-113)
+      const previousTarget = ctx.targets.target?.length ? { previousTarget: ctx.targets.target } : undefined;
+      const followUpSources = [{ code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget }];
+      // algo do próprio efeito pausou antes (ex. 【Destroyed】 da Unit que ele destruiu): a continuação espera na fila
+      if (next.pendingDecision.A || next.pendingDecision.B) {
+        next = attachQueuedTriggers(next, [{ owner: current.owner, trigger: followUp.trigger, sources: followUpSources }]);
+        continue;
+      }
+      next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, followUpSources, allSpecs, {
         targets: followUp.targets,
         predicateResolver: opts.predicateResolver,
         targetFilterResolver: opts.targetFilterResolver,

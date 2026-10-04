@@ -458,7 +458,15 @@ export type PrimitiveCall =
    * senão lança. Sem escolha (`optional`, jogador declina) → todas as N vão pro
    * fundo. Ordenação pro fundo segue a ordem do topo (mesma limitação de
    * `moveWithinDeck`; a aleatoriedade só esconde info de quem já olhou). */
-  | { op: "lookAtTopFilterReveal"; player: PlayerRef; count: number; filter: CardDefFilter; revealName?: string }
+  | {
+      op: "lookAtTopFilterReveal";
+      player: PlayerRef;
+      count: number;
+      filter: CardDefFilter;
+      revealName?: string;
+      /** W7 — GD05-052 "place the top 3 cards of your deck into your trash. Add 1 … you placed": o resto vai pro trash, não pro fundo */
+      restTo?: "bottom" | "trash";
+    }
   /**
    * "You may deploy 1 <filtro> card from your hand." disparado por gatilho
    * (【When Paired】 de ST03-010 Full Frontal, docs/41) — deploy SEM pagar custo
@@ -1006,7 +1014,11 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       for (const card of top) {
         if (card.instanceId === revealed) continue;
-        events.push({ type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" });
+        events.push(
+          call.restTo === "trash"
+            ? { type: "MOVE_CARD", instanceId: card.instanceId, toZone: "trash" }
+            : { type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" },
+        );
       }
       return events;
     }

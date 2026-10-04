@@ -2180,16 +2180,29 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
-    "id": "GD02-094-WhenPaired",
+    "id": "GD02-094-Then",
     "cardCode": "GD02-094",
-    "trigger": "When Paired",
+    "trigger": "Then:1",
     "ops": [
       "lookAtTopFilterReveal"
     ],
     "targetScope": null,
     "targetFilter": null,
     "predicate": null,
-    "sourceText": "look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+    "sourceText": "If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "GD02-094-WhenPaired",
+    "cardCode": "GD02-094",
+    "trigger": "When Paired",
+    "ops": [
+      "discardNamed",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerHandCountAtLeast:1",
+    "sourceText": "【When Paired】You may discard 1."
   },
   {
     "id": "GD02-095-Attack",
@@ -3505,6 +3518,31 @@
     "sourceText": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit with 4 or less AP. Deal 2 damage to it."
   },
   {
+    "id": "GD03-064-Deploy",
+    "cardCode": "GD03-064",
+    "trigger": "Deploy",
+    "ops": [
+      "thenTrigger",
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "chosenNonEmpty:trashSearch",
+    "sourceText": "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand."
+  },
+  {
+    "id": "GD03-064-Then",
+    "cardCode": "GD03-064",
+    "trigger": "Then:1",
+    "ops": [
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, discard 1."
+  },
+  {
     "id": "GD03-067-Deploy",
     "cardCode": "GD03-067",
     "trigger": "Deploy",
@@ -4246,6 +4284,44 @@
     "sourceText": "【Main】/【Action】During this turn, all Units paired with a Pilot get AP+2."
   },
   {
+    "id": "GD03-113-Action",
+    "cardCode": "GD03-113",
+    "trigger": "Action",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 active friendly Unit. Rest it."
+  },
+  {
+    "id": "GD03-113-Main",
+    "cardCode": "GD03-113",
+    "trigger": "Main",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 active friendly Unit. Rest it."
+  },
+  {
+    "id": "GD03-113-Then",
+    "cardCode": "GD03-113",
+    "trigger": "Then:1",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=previousTarget",
+    "predicate": null,
+    "sourceText": "If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it."
+  },
+  {
     "id": "GD03-114-Action",
     "cardCode": "GD03-114",
     "trigger": "Action",
@@ -4321,6 +4397,19 @@
     "sourceText": "【Main】If 1 to 4 enemy Units are in play, deploy 1 [Graze Custom]((Tekkadan)･AP2･HP2) Unit token. If 5 or more are in play, deploy 1 [Gundam Barbatos 4th Form]((Tekkadan)･AP4･HP4) Unit token."
   },
   {
+    "id": "GD03-118-Action",
+    "cardCode": "GD03-118",
+    "trigger": "Action",
+    "ops": [
+      "thenTrigger",
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested;level<=4",
+    "predicate": "controllerTrashCardCountNamedAtLeast:Awakened Potential:2",
+    "sourceText": "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
+  },
+  {
     "id": "GD03-118-Burst",
     "cardCode": "GD03-118",
     "trigger": "Burst",
@@ -4331,6 +4420,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-118-Then",
+    "cardCode": "GD03-118",
+    "trigger": "Then:1",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn."
   },
   {
     "id": "GD03-119-Main",
@@ -6810,6 +6911,31 @@
     "sourceText": "【Deploy】Place 1 EX Resource."
   },
   {
+    "id": "GD05-024-Destroyed",
+    "cardCode": "GD05-024",
+    "trigger": "Destroyed",
+    "ops": [
+      "thenTrigger",
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "chosenNonEmpty:trashSearch",
+    "sourceText": "【Destroyed】Choose 1 green (Earth Federation) Pilot card from your trash. Add it to your hand."
+  },
+  {
+    "id": "GD05-024-Then",
+    "cardCode": "GD05-024",
+    "trigger": "Then:1",
+    "ops": [
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, discard 1."
+  },
+  {
     "id": "GD05-025-Deploy",
     "cardCode": "GD05-025",
     "trigger": "Deploy",
@@ -6880,6 +7006,31 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Destroyed】Place the top 2 cards of your deck into your trash."
+  },
+  {
+    "id": "GD05-052-Deploy",
+    "cardCode": "GD05-052",
+    "trigger": "Deploy",
+    "ops": [
+      "destroy",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "notSelf",
+    "predicate": null,
+    "sourceText": "【Deploy】You may choose 1 of your other Units. Destroy it."
+  },
+  {
+    "id": "GD05-052-Then",
+    "cardCode": "GD05-052",
+    "trigger": "Then:1",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, place the top 3 cards of your deck into your trash. Add 1 (Neo Zeon) Unit card you placed from your deck with this effect to your hand."
   },
   {
     "id": "GD05-060-Attack",
@@ -7133,6 +7284,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD05-090-Destroyed",
+    "cardCode": "GD05-090",
+    "trigger": "Destroyed",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Destroyed】Look at the top card of your deck. If it is a (Phantom Pain) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck."
   },
   {
     "id": "GD05-091-Burst",

@@ -107,8 +107,12 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-113: 【Main】/【Action】 deferido)", () => {
-    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(false);
+  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-079: custo de descanso substituto, deferido)", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-079"])).toBe(false);
+  });
+
+  it("GD03-113 destravada na W7 (continuação com o Lv. da Unit descansada) é jogável", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(true);
   });
 
   it("GD03-104 destravada na W5 (alvos condicionais) é jogável", () => {

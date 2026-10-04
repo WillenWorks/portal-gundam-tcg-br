@@ -10,6 +10,8 @@ import { buildSt07DeckList } from "../fixtures/st07Deck";
 import { buildSt08DeckList } from "../fixtures/st08Deck";
 import { ALL_EFFECT_SPECS, defaultPredicateResolver, defaultTargetFilterResolver } from "../content";
 import { GD05_CARD_DEFS } from "../content/gd05";
+import { GD02_CARD_DEFS } from "../content/gd02";
+import { GD03_CARD_DEFS } from "../content/gd03";
 
 /**
  * W7a (C9) — escolha de modo, fluxo real: só ações de jogador. O motor pede o MODO (enum), depois o alvo
@@ -337,5 +339,212 @@ describe("GD05-002 Strike Freedom Gundam", () => {
     placeCard(t, "A", UNIT(), "hand");
     t = act(t, "A", { kind: "declareAttack", attackerId: unpaired, target: "player" });
     expect(entry(t, "A", "GD05-002-Attack")).toBeUndefined();
+  });
+});
+
+describe("continuações de 【Deploy】/【Destroyed】 (GD05-024, 052, 090)", () => {
+  /** a Unit `mine` do A ataca uma parede do B e morre na batalha */
+  function dieAttacking(s: GameState, mine: string): GameState {
+    const wall = placeCard(s, "B", UNIT({ code: "TEST-WALL", ap: 9, hp: 9 }), "battleArea", { rested: true });
+    let next = act(s, "A", { kind: "declareAttack", attackerId: mine, target: { unitId: wall } });
+    for (let i = 0; i < 10 && next.combat && !next.pendingDecision.A && !next.pendingDecision.B; i++) {
+      if (next.combat.step === "block") next = act(next, next.combat.defendingPlayer, { kind: "skipBlock" });
+      else if (next.combat.step === "action") next = act(next, next.combat.actionPriority, { kind: "passAction" });
+      else break;
+    }
+    return next;
+  }
+
+  it("GD05-024: Pilot verde (EF) do trash para a mão e DEPOIS descarta 1; o combate termina", () => {
+    let s = game();
+    const age2 = placeCard(s, "A", G["GD05-024"], "battleArea");
+    const efGreen = placeCard(s, "A", PILOT({ code: "TEST-EF-G", color: "green", traits: ["Earth Federation"] }), "trash");
+    const efBlue = placeCard(s, "A", PILOT({ code: "TEST-EF-B", color: "blue", traits: ["Earth Federation"] }), "trash");
+    s.players.A.hand = [];
+    const keep = placeCard(s, "A", UNIT({ code: "TEST-KEEP" }), "hand");
+
+    s = dieAttacking(s, age2);
+    expect(entry(s, "A", "GD05-024-Destroyed")?.trashSearch?.legalTrashIds).toEqual([efGreen]);
+    expect(entry(s, "A", "GD05-024-Destroyed")?.trashSearch?.legalTrashIds).not.toContain(efBlue);
+    s = resolve(s, "A", "GD05-024-Destroyed", [efGreen]);
+    expect(inZone(s, "A", "hand", efGreen)).toBe(true);
+
+    expect(entry(s, "A", "GD05-024-Then")?.handDiscard?.n).toBe(1);
+    s = resolve(s, "A", "GD05-024-Then", [keep]);
+    expect(inZone(s, "A", "trash", keep)).toBe(true);
+    expect(s.pendingDecision.A).toBeNull();
+    expect(s.combat).toBeNull();
+  });
+
+  it("GD05-024: sem pegar carta do trash não há descarte", () => {
+    let s = game();
+    const age2 = placeCard(s, "A", G["GD05-024"], "battleArea");
+    placeCard(s, "A", PILOT({ color: "green", traits: ["Earth Federation"] }), "trash");
+    s = dieAttacking(s, age2);
+    const hand = s.players.A.hand.length;
+    s = resolve(s, "A", "GD05-024-Destroyed", []);
+    expect(entry(s, "A", "GD05-024-Then")).toBeUndefined();
+    expect(s.players.A.hand).toHaveLength(hand);
+    expect(s.combat).toBeNull();
+  });
+
+  it("GD05-052: destrói outra Unit sua e DEPOIS olha o topo 3 — a Neo Zeon vai pra mão, o resto pro trash", () => {
+    let s = game();
+    const other = placeCard(s, "A", UNIT({ code: "TEST-FODDER" }), "battleArea");
+    const nz = placeCard(s, "A", UNIT({ code: "TEST-NZ", traits: ["Neo Zeon"] }), "deck");
+    const x = placeCard(s, "A", UNIT({ code: "TEST-X" }), "deck");
+    const y = placeCard(s, "A", PILOT({ code: "TEST-Y", traits: ["Neo Zeon"] }), "deck");
+    const deck = s.players.A.deck;
+    s.players.A.deck = [...deck.slice(-3), ...deck.slice(0, -3)];
+    const sazabi = placeCard(s, "A", G["GD05-052"], "hand");
+
+    s = act(s, "A", { kind: "deployCard", cardInstanceId: sazabi });
+    expect(entry(s, "A", "GD05-052-Deploy")?.legalTargets).toEqual([other]);
+    s = resolve(s, "A", "GD05-052-Deploy", [other]);
+    expect(inZone(s, "A", "trash", other)).toBe(true);
+
+    const reveal = entry(s, "A", "GD05-052-Then")?.deckTopReveal;
+    expect(reveal?.revealableIds).toEqual([nz]);
+    s = resolve(s, "A", "GD05-052-Then", [nz]);
+    expect(inZone(s, "A", "hand", nz)).toBe(true);
+    expect(inZone(s, "A", "trash", x) && inZone(s, "A", "trash", y)).toBe(true);
+  });
+
+  it("GD05-052: recusar o destroy não mexe no deck", () => {
+    let s = game();
+    placeCard(s, "A", UNIT(), "battleArea");
+    const deckBefore = s.players.A.deck.length;
+    const sazabi = placeCard(s, "A", G["GD05-052"], "hand");
+    s = act(s, "A", { kind: "deployCard", cardInstanceId: sazabi });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD05-052-Deploy", activate: false, targetIds: [] }] });
+    expect(s.players.A.deck).toHaveLength(deckBefore);
+    expect(s.pendingDecision.A).toBeNull();
+  });
+
+  it("GD05-090: o Piloto sai com a Unit destruída e pode pegar o topo se for (Phantom Pain)", () => {
+    let s = game();
+    const unit = placeCard(s, "A", UNIT({ code: "TEST-CARRIER", ap: 1, hp: 1 }), "battleArea");
+    const stellar = placeCard(s, "A", G["GD05-090"], "battleArea");
+    findCard(s, unit).pairedPilotId = stellar;
+    findCard(s, stellar).pairedUnitId = unit;
+    const pp = placeCard(s, "A", UNIT({ code: "TEST-PP", traits: ["Phantom Pain"] }), "deck");
+    s.players.A.deck = [s.players.A.deck.at(-1)!, ...s.players.A.deck.slice(0, -1)];
+
+    s = dieAttacking(s, unit);
+    expect(entry(s, "A", "GD05-090-Destroyed")?.deckTopReveal?.revealableIds).toEqual([pp]);
+    s = resolve(s, "A", "GD05-090-Destroyed", [pp]);
+    expect(inZone(s, "A", "hand", pp)).toBe(true);
+    expect(s.combat).toBeNull();
+  });
+});
+
+describe("deferidas destravadas pela continuação (E4 / C9): GD02-094, GD03-064, 113, 118", () => {
+  const putOnTop = (s: GameState, player: PlayerId, ids: string[]) => {
+    const deck = s.players[player].deck;
+    s.players[player].deck = [...ids.map((id) => deck.find((c) => c.instanceId === id)!), ...deck.filter((c) => !ids.includes(c.instanceId))];
+  };
+
+  it("GD02-094 【When Paired】: descarta 1 e SÓ ENTÃO olha o topo 3 por (Vulture) Unit", () => {
+    let s = game();
+    const unit = placeCard(s, "A", UNIT({ code: "TEST-HOST" }), "battleArea");
+    s.players.A.hand = [];
+    const fodder = placeCard(s, "A", UNIT({ code: "TEST-FODDER" }), "hand");
+    const garrod = placeCard(s, "A", GD02_CARD_DEFS["GD02-094"], "hand");
+    const vulture = placeCard(s, "A", UNIT({ code: "TEST-VULTURE", traits: ["Vulture"] }), "deck");
+    putOnTop(s, "A", [vulture]);
+
+    s = act(s, "A", { kind: "deployCard", cardInstanceId: garrod, pairWithUnitId: unit });
+    const first = entry(s, "A", "GD02-094-WhenPaired");
+    expect(first?.handDiscard?.legalHandIds).toEqual([fodder]);
+    expect(first?.deckTopReveal).toBeUndefined();
+    s = resolve(s, "A", "GD02-094-WhenPaired", [fodder]);
+    expect(entry(s, "A", "GD02-094-Then")?.deckTopReveal?.revealableIds).toEqual([vulture]);
+    s = resolve(s, "A", "GD02-094-Then", [vulture]);
+    expect(inZone(s, "A", "hand", vulture)).toBe(true);
+    expect(inZone(s, "A", "trash", fodder)).toBe(true);
+  });
+
+  it("GD02-094: sem descartar não olha nada", () => {
+    let s = game();
+    const unit = placeCard(s, "A", UNIT(), "battleArea");
+    placeCard(s, "A", UNIT(), "hand");
+    const garrod = placeCard(s, "A", GD02_CARD_DEFS["GD02-094"], "hand");
+    const topBefore = s.players.A.deck.slice(0, 3).map((c) => c.instanceId);
+    s = act(s, "A", { kind: "deployCard", cardInstanceId: garrod, pairWithUnitId: unit });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD02-094-WhenPaired", activate: false, targetIds: [] }] });
+    expect(s.pendingDecision.A).toBeNull();
+    expect(s.players.A.deck.slice(0, 3).map((c) => c.instanceId)).toEqual(topBefore);
+  });
+
+  it("GD03-064 【Deploy】: carta (X-Rounder) do trash e depois descarta 1", () => {
+    let s = game();
+    const xr = placeCard(s, "A", PILOT({ code: "TEST-XR", traits: ["X-Rounder"] }), "trash");
+    s.players.A.hand = [];
+    const keep = placeCard(s, "A", UNIT({ code: "TEST-KEEP" }), "hand");
+    const defurse = placeCard(s, "A", GD03_CARD_DEFS["GD03-064"], "hand");
+    s = act(s, "A", { kind: "deployCard", cardInstanceId: defurse });
+    s = resolve(s, "A", "GD03-064-Deploy", [xr]);
+    expect(entry(s, "A", "GD03-064-Then")?.handDiscard?.legalHandIds).toEqual(expect.arrayContaining([keep, xr]));
+    s = resolve(s, "A", "GD03-064-Then", [keep]);
+    expect(inZone(s, "A", "hand", xr) && inZone(s, "A", "trash", keep)).toBe(true);
+  });
+
+  it("GD03-113 【Main】: descansa a Unit escolhida e o 2º alvo é limitado pelo Lv. DELA", () => {
+    let s = game();
+    const mine = placeCard(s, "A", UNIT({ code: "TEST-LV3", level: 3 }), "battleArea");
+    const low = placeCard(s, "B", UNIT({ code: "TEST-E2", level: 2, hp: 5 }), "battleArea");
+    const high = placeCard(s, "B", UNIT({ code: "TEST-E5", level: 5, hp: 5 }), "battleArea");
+    const cmd = placeCard(s, "A", GD03_CARD_DEFS["GD03-113"], "hand");
+    s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main", targets: { target: [mine] } });
+    expect(findCard(s, mine).rested).toBe(true);
+    expect(inZone(s, "A", "hand", cmd)).toBe(true);
+    const then = entry(s, "A", "GD03-113-Then");
+    expect(then?.legalTargets).toEqual([low]);
+    expect(then?.legalTargets).not.toContain(high);
+    s = resolve(s, "A", "GD03-113-Then", [low]);
+    expect(findCard(s, low).damage).toBe(3);
+    expect(inZone(s, "A", "trash", cmd)).toBe(true);
+  });
+
+  describe("GD03-118 【Action】", () => {
+    function toAction(s: GameState): { s: GameState; victim: string } {
+      const attacker = placeCard(s, "A", UNIT({ ap: 1, hp: 9 }), "battleArea");
+      const victim = placeCard(s, "B", UNIT({ code: "TEST-V", level: 3 }), "battleArea", { rested: true });
+      let next = act(s, "A", { kind: "declareAttack", attackerId: attacker, target: "player" });
+      next = act(next, "B", { kind: "skipBlock" });
+      if (next.combat!.actionPriority === "B") next = act(next, "B", { kind: "passAction" });
+      return { s: next, victim };
+    }
+    const AWAKENED = () => GD03_CARD_DEFS["GD03-118"];
+
+    it("com 2+ \"Awakened Potential\" no trash: devolve a Unit e depois pode dar <Blocker> a 1 Unit amiga", () => {
+      let s = game();
+      placeCard(s, "A", AWAKENED(), "trash");
+      placeCard(s, "A", AWAKENED(), "trash");
+      const guard = placeCard(s, "A", UNIT({ code: "TEST-GUARD" }), "battleArea");
+      const cmd = placeCard(s, "A", AWAKENED(), "hand");
+      const started = toAction(s);
+      s = started.s;
+      const victim = started.victim;
+      s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action", targets: { target: [victim] } });
+      expect(inZone(s, "B", "hand", victim)).toBe(true);
+      expect(entry(s, "A", "GD03-118-Then")?.legalTargets).toContain(guard);
+      s = resolve(s, "A", "GD03-118-Then", [guard]);
+      expect(findCard(s, guard).keywordGrants.some((g) => g.keyword === "Blocker")).toBe(true);
+      expect(inZone(s, "A", "trash", cmd)).toBe(true);
+    });
+
+    it("com só 1 no trash (a própria carta não conta): devolve e acaba", () => {
+      let s = game();
+      placeCard(s, "A", AWAKENED(), "trash");
+      const cmd = placeCard(s, "A", AWAKENED(), "hand");
+      const started = toAction(s);
+      s = started.s;
+      const victim = started.victim;
+      s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action", targets: { target: [victim] } });
+      expect(inZone(s, "B", "hand", victim)).toBe(true);
+      expect(entry(s, "A", "GD03-118-Then")).toBeUndefined();
+      expect(inZone(s, "A", "trash", cmd)).toBe(true);
+    });
   });
 });

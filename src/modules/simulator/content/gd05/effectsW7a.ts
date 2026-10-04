@@ -95,6 +95,57 @@ export const GD05_W7A_EFFECT_SPECS: EffectSpec[] = [
     sourceText: "If you do, choose 1 enemy Unit with the lowest Lv. Return it to the bottom of its owner's deck.",
   },
 
+  // GD05-024 Gundam AGE-2 Normal (SP Ver.) — "If you do, discard 1." só se uma carta veio do trash
+  {
+    id: "GD05-024-Destroyed",
+    cardCode: "GD05-024",
+    trigger: "Destroyed",
+    actions: [{ op: "searchTrashToHand", player: "controller", filter: { cardType: "PILOT", color: "green", anyTrait: ["Earth Federation"] } }],
+    condition: { predicate: "chosenNonEmpty:trashSearch", then: [{ op: "thenTrigger", trigger: "Then:1" }] },
+    sourceText: "【Destroyed】Choose 1 green (Earth Federation) Pilot card from your trash. Add it to your hand.",
+  },
+  {
+    id: "GD05-024-Then",
+    cardCode: "GD05-024",
+    trigger: "Then:1",
+    actions: [{ op: "discardNamed", player: "controller", name: "discard", n: 1 }],
+    sourceText: "If you do, discard 1.",
+  },
+
+  // GD05-052 Sazabi — o 2º passo olha o topo 3: a Neo Zeon escolhida vai pra mão e o resto pro trash
+  // (leniência herdada do `deckTopReveal`: "Add 1" é obrigatório no texto, a UI deixa não escolher)
+  {
+    id: "GD05-052-Deploy",
+    cardCode: "GD05-052",
+    trigger: "Deploy",
+    optional: true,
+    actions: [
+      { op: "destroy", target },
+      { op: "thenTrigger", trigger: "Then:1" },
+    ],
+    targetScope: "friendlyUnit",
+    targetFilter: "notSelf",
+    sourceText: "【Deploy】You may choose 1 of your other Units. Destroy it.",
+  },
+  {
+    id: "GD05-052-Then",
+    cardCode: "GD05-052",
+    trigger: "Then:1",
+    actions: [{ op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { cardType: "UNIT", anyTrait: ["Neo Zeon"] }, restTo: "trash" }],
+    sourceText:
+      "If you do, place the top 3 cards of your deck into your trash. Add 1 (Neo Zeon) Unit card you placed from your deck with this effect to your hand.",
+  },
+
+  // GD05-090 Stellar Loussier (Pilot) — 【Destroyed】 quando sai junto da Unit pareada
+  {
+    id: "GD05-090-Destroyed",
+    cardCode: "GD05-090",
+    trigger: "Destroyed",
+    actions: [{ op: "lookAtTopFilterReveal", player: "controller", count: 1, filter: { anyTrait: ["Phantom Pain"] } }],
+    sourceText:
+      "【Destroyed】Look at the top card of your deck. If it is a (Phantom Pain) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck.",
+  },
+
   // GD05-102 Wings of Light
   {
     id: "GD05-102-Action",

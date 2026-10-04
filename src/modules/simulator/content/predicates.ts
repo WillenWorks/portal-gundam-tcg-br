@@ -724,6 +724,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     return (candidate.def.level ?? 0) <= (findCard(ctx.state, subjectId).def.level ?? 0);
   }
 
+  // W7 (C9) — GD03-113 "…whose Lv. is equal to or lower than the Unit rested with this ability" (alvo do passo anterior)
+  if (filter === "level<=previousTarget") {
+    const previousId = ctx.targets?.previousTarget?.[0];
+    if (!previousId) return false;
+    return (candidate.def.level ?? 0) <= (findCard(ctx.state, previousId).def.level ?? 0);
+  }
+
   if (filter === "level<=self") {
     if (!ctx.sourceInstanceId) return false;
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
