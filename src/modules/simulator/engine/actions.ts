@@ -730,11 +730,12 @@ function applyPlayerActionInner(
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2b — reação de combate: o combate estava parado no Damage Step -> segue a fila/Battle End
-      if (decision.trigger.startsWith("Reaction:") && next.combat?.step === "damage") {
+      // W7 — e gatilho atrasado (`Delayed:`), ex. o 【Destroyed】 concedido pelo GD05-104 numa Unit destruída em batalha
+      if ((decision.trigger.startsWith("Reaction:") || decision.trigger.startsWith("Delayed:")) && next.combat?.step === "damage") {
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
-      if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+      if ((decision.trigger.startsWith("Reaction:") || decision.trigger.startsWith("Delayed:")) && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
         return finishEndPhaseAndAdvance(next);
       }
       return next;

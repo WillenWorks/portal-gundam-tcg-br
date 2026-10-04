@@ -11,6 +11,29 @@ const target = { kind: "named", name: "target" } as const;
 const MODE_HEADER = "When playing this card, choose 1 of the following effects and activate it:";
 
 export const GD05_W7A_EFFECT_SPECS: EffectSpec[] = [
+  // GD05-104 At the Risk of One's Life — "It gains the following effect during this turn: ■【During Link】【Destroyed】…":
+  // o efeito concedido é um gatilho atrasado `destroyed` sobre a Unit escolhida (o 【During Link】 vale na destruição)
+  {
+    id: "GD05-104-Action",
+    cardCode: "GD05-104",
+    trigger: "Action",
+    actions: [{ op: "grantDelayedReaction", specId: "GD05-104-Granted", subject: target }],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:Shrike Team",
+    sourceText: "【Action】Choose 1 friendly (Shrike Team) Unit. It gains the following effect during this turn:",
+  },
+  {
+    id: "GD05-104-Granted",
+    cardCode: "GD05-104",
+    trigger: "Delayed:destroyed",
+    reaction: { event: "destroyed", subject: "friendly" },
+    duringLink: true,
+    actions: [{ op: "setActive", target }],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:League Militaire",
+    sourceText: "■【During Link】【Destroyed】Choose 1 friendly (League Militaire) Unit. Set it as active.",
+  },
+
   // GD05-102 Wings of Light
   {
     id: "GD05-102-Action",

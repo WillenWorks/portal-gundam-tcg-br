@@ -13973,9 +13973,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 50,
+        "full": 51,
         "partial": 0,
-        "missing": 61,
+        "missing": 60,
         "withErrors": 0
       },
       "cards": [
@@ -16028,7 +16028,7 @@
         },
         {
           "code": "GD05-104",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16036,10 +16036,10 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-104-Action",
+                "GD05-104-Granted"
               ],
               "text": "【Action】Choose 1 friendly (Shrike Team) Unit. It gains the following effect during this turn:\n■【During Link】【Destroyed】Choose 1 friendly (League Militaire) Unit. Set it as active."
             },

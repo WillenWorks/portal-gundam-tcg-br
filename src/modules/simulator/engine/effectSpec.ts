@@ -1206,7 +1206,13 @@ export type ReactionEvent =
   /** W5 (C6) — "when you place an EX Resource" (a carta do evento é o EX Resource novo) */
   | "exResourcePlaced"
   /** W5 (C6) — "when you pay ① or more for one of your Units' effects" (valor pago = `reactionAmount`) */
-  | "paidForUnitEffect";
+  | "paidForUnitEffect"
+  /**
+   * W7 (C9) — a Unit do evento foi destruída (batalha ou efeito). Só via gatilho atrasado (`grantDelayedReaction`
+   * com `subject`): é o "It gains the following effect: ■【Destroyed】…" (GD05-104). `duringLink` do spec vale
+   * pelo estado da Unit na destruição (`DestroyedInBattle.wasLinkUnit`).
+   */
+  | "destroyed";
 
 export interface ReactionSpec {
   event: ReactionEvent;

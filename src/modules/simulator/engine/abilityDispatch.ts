@@ -687,6 +687,9 @@ export function dispatchDestroyedTriggers(
 
   let next = state;
   const interactiveByOwner: Record<PlayerId, AbilitySource[]> = { A: [], B: [] };
+  // W7 (C9) — efeito concedido "■【Destroyed】…" (gatilho atrasado `destroyed`): entra na fila depois dos
+  // 【Destroyed】 impressos e espera se algum deles pausar
+  const delayed = delayedDestroyedEntries(state, ordered, specs);
 
   for (const d of ordered) {
     const card = findCard(next, d.instanceId);
@@ -713,7 +716,7 @@ export function dispatchDestroyedTriggers(
         ...dispatchOpts,
         targets: implicitTargets ?? {},
       });
-      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // encadeamento pausou (ou guard estourou)
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, delayed); // encadeamento pausou (ou guard estourou)
     }
     if (interactive.length > 0) {
       interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId, implicitTargets });
@@ -747,7 +750,28 @@ export function dispatchDestroyedTriggers(
       });
     }
   }
-  return next;
+  if (delayed.length === 0 || next.gameOver) return next;
+  if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, delayed);
+  return drainQueuedTriggers(next, delayed, specs, { ...opts, cascadeDepth, queueBudget });
+}
+
+/** W7 (C9) — gatilhos atrasados `destroyed` armados neste turno sobre as Units destruídas agora */
+function delayedDestroyedEntries(state: GameState, destroyed: DestroyedInBattle[], specs: EffectSpec[]): QueuedTrigger[] {
+  const out: QueuedTrigger[] = [];
+  for (const d of destroyed) {
+    for (const entry of state.players[d.owner].delayedReactions ?? []) {
+      if (entry.turn !== state.turnNumber || (entry.subjectId && entry.subjectId !== d.instanceId)) continue;
+      const spec = specs.find((s) => s.id === entry.specId);
+      if (spec?.reaction?.event !== "destroyed") continue;
+      if ((spec.duringLink && !d.wasLinkUnit) || (spec.duringPair && !d.wasPaired)) continue;
+      out.push({
+        owner: d.owner,
+        trigger: "Delayed:destroyed",
+        sources: [{ code: spec.cardCode, instanceId: entry.sourceId, implicitTargets: { reactionSubject: [d.instanceId] } }],
+      });
+    }
+  }
+  return out;
 }
 
 /**

@@ -173,3 +173,66 @@ describe("GD05-102 Wings of Light — 【Action】 escolha de modo no Action Ste
     expect(() => resolve(s, "A", "GD05-102-Action", ["3"])).toThrow(/Escolha inválida/);
   });
 });
+
+describe("GD05-104 At the Risk of One's Life — efeito concedido (■【During Link】【Destroyed】)", () => {
+  const SHRIKE = UNIT({ code: "TEST-SHRIKE", traits: ["Shrike Team"], ap: 1, hp: 2, link: { kind: "pilotName", values: ["Test Pilot"] } });
+  const MILITAIRE = UNIT({ code: "TEST-LM", traits: ["League Militaire"] });
+
+  /** A ataca com a Shrike (que morre na batalha) e joga o 104 nela no Action Step */
+  function attackAndGrant(s: GameState, shrike: string): GameState {
+    const wall = placeCard(s, "B", UNIT({ code: "TEST-WALL", ap: 9, hp: 9 }), "battleArea", { rested: true });
+    const cmd = placeCard(s, "A", G["GD05-104"], "hand");
+    let next = act(s, "A", { kind: "declareAttack", attackerId: shrike, target: { unitId: wall } });
+    next = act(next, "B", { kind: "skipBlock" });
+    if (next.combat!.actionPriority === "B") next = act(next, "B", { kind: "passAction" });
+    next = act(next, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action", targets: { target: [shrike] } });
+    expect(inZone(next, "A", "trash", cmd)).toBe(true);
+    for (let i = 0; i < 4 && next.combat?.step === "action"; i++) next = act(next, next.combat.actionPriority, { kind: "passAction" });
+    return next;
+  }
+
+  it("Link Unit concedida destruída em batalha: pede 1 League Militaire e a ativa; o combate termina depois", () => {
+    let s = game();
+    const shrike = placeCard(s, "A", SHRIKE, "battleArea");
+    const pilot = placeCard(s, "A", PILOT({ nameEn: "Test Pilot" }), "battleArea");
+    findCard(s, shrike).pairedPilotId = pilot;
+    findCard(s, pilot).pairedUnitId = shrike;
+    const ally = placeCard(s, "A", MILITAIRE, "battleArea", { rested: true });
+    const other = placeCard(s, "A", UNIT({ code: "TEST-OTHER" }), "battleArea", { rested: true });
+
+    s = attackAndGrant(s, shrike);
+    expect(inZone(s, "A", "trash", shrike)).toBe(true);
+    const granted = entry(s, "A", "GD05-104-Granted");
+    expect(granted?.legalTargets).toEqual([ally]);
+    expect(granted?.legalTargets).not.toContain(other);
+
+    s = resolve(s, "A", "GD05-104-Granted", [ally]);
+    expect(findCard(s, ally).rested).toBe(false);
+    expect(s.pendingDecision.A).toBeNull();
+    expect(s.combat).toBeNull();
+  });
+
+  it("sem Link na destruição (Unit sem Piloto) o efeito concedido não dispara", () => {
+    let s = game();
+    const shrike = placeCard(s, "A", SHRIKE, "battleArea");
+    const ally = placeCard(s, "A", MILITAIRE, "battleArea", { rested: true });
+    s = attackAndGrant(s, shrike);
+    expect(inZone(s, "A", "trash", shrike)).toBe(true);
+    expect(entry(s, "A", "GD05-104-Granted")).toBeUndefined();
+    expect(findCard(s, ally).rested).toBe(true);
+  });
+
+  it("só (Shrike Team) pode receber o efeito: outro alvo é recusado no Action Step", () => {
+    let s = game();
+    const attacker = placeCard(s, "A", UNIT({ ap: 1, hp: 9 }), "battleArea");
+    const notShrike = placeCard(s, "A", UNIT({ code: "TEST-PLAIN" }), "battleArea");
+    placeCard(s, "A", SHRIKE, "battleArea");
+    const victim = placeCard(s, "B", UNIT(), "battleArea", { rested: true });
+    const cmd = placeCard(s, "A", G["GD05-104"], "hand");
+    s = act(s, "A", { kind: "declareAttack", attackerId: attacker, target: { unitId: victim } });
+    s = act(s, "B", { kind: "skipBlock" });
+    if (s.combat!.actionPriority === "B") s = act(s, "B", { kind: "passAction" });
+    expect(() => act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action", targets: { target: [notShrike] } })).toThrow(/Alvo inválido/);
+    expect(s.players.A.delayedReactions ?? []).toEqual([]);
+  });
+});

@@ -7353,6 +7353,30 @@
     "sourceText": "【Main】/【Action】Choose 1 friendly Unit. It recovers 1 HP and gets AP+2 during this turn."
   },
   {
+    "id": "GD05-104-Action",
+    "cardCode": "GD05-104",
+    "trigger": "Action",
+    "ops": [
+      "grantDelayedReaction"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Shrike Team",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly (Shrike Team) Unit. It gains the following effect during this turn:"
+  },
+  {
+    "id": "GD05-104-Granted",
+    "cardCode": "GD05-104",
+    "trigger": "Delayed:destroyed",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:League Militaire",
+    "predicate": null,
+    "sourceText": "■【During Link】【Destroyed】Choose 1 friendly (League Militaire) Unit. Set it as active."
+  },
+  {
     "id": "GD05-105-Action",
     "cardCode": "GD05-105",
     "trigger": "Action",
