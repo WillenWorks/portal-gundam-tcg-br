@@ -56,7 +56,7 @@ export class ChallengeRegistry {
   }
 
   private generateCode(): string {
-    let code = "";
+    let code: string;
     do {
       code = `${CHALLENGE_CODE_PREFIX}-${Math.floor(1000 + Math.random() * 9000)}`;
     } while (this.byCode.has(code));

@@ -488,7 +488,7 @@ export function calculateTacticalMetrics(
 
   // 6. Recommended Lines & Persona Advice
   const recommendedLines: TacticalLine[] = [];
-  let tacticalAdvice = "";
+  let tacticalAdvice: string;
 
   if (persona === "amuro") {
     // Linha Amuro: Preservação e Contra-ataque

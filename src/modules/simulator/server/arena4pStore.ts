@@ -299,7 +299,7 @@ function sweepSquadCodes(): void {
 
 export function createSquadInvite(lobbyId: string): string {
   sweepSquadCodes();
-  let code = "";
+  let code: string;
   do {
     code = `AR-${Math.floor(1000 + Math.random() * 9000)}`;
   } while (squadCodes.has(code));
