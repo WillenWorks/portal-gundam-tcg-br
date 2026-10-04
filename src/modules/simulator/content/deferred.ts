@@ -197,6 +197,14 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
     kind: "approximation",
   },
+  // W7 (C10) — decidido com o usuário em 2026-10-04 (sem Q&A oficial da carta)
+  {
+    cardCode: "GD05-049",
+    clause: "【Attack】You may choose 1 of your Units. Destroy it.",
+    reason: "\"1 of your Units\" não oferece o próprio Sazabi (o texto não exclui; sem ruling, ficou de fora para o 【Attack】 não destruir o atacante)",
+    blockedBy: "engine:ruling-pendente-GD05-049 (aproximação aceita)",
+    kind: "approximation",
+  },
   // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
   {
     cardCode: "*",

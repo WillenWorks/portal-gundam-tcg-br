@@ -356,10 +356,14 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
 export interface QueuedTrigger {
   owner: PlayerId;
   trigger: string;
+  /** W7 (C10) — quem decide, quando não é o dono (continuação decidida pelo oponente) */
+  decider?: PlayerId;
   sources: Array<{ code: string; instanceId: string; implicitTargets?: Record<string, string[]> }>;
 }
 
 export type StaticBoardCondition =
+  /** W7 (C10) — GD05-041 "During a turn where your opponent has discarded due to one of your effects" */
+  | { kind: "opponentDiscardedByYourEffectThisTurn" }
   /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
   | { kind: "enemyUnitCountAtLeast"; n: number }
   /** GD01-076 Zaku II Kai — "While there are 4 or more Command cards in your trash, ...". */
@@ -925,6 +929,9 @@ export function isBoardConditionMet(
   }
   if (cond.kind === "friendlyUnitNameContains") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
+  }
+  if (cond.kind === "opponentDiscardedByYourEffectThisTurn") {
+    return state.players[otherPlayer(owner)].discardedByEnemyEffectOnTurn === state.turnNumber;
   }
   if (cond.kind === "noEnemyBase") {
     return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
@@ -1513,6 +1520,8 @@ export interface EndPhaseActionState {
 export interface PlayerState {
   /** W5 — "During this turn, when …" armados por efeito (limpos no fim do turno) */
   delayedReactions?: DelayedReaction[];
+  /** W7 (C10) — turno em que este jogador descartou por efeito do OPONENTE (GD05-041 "your opponent has discarded due to one of your effects") */
+  discardedByEnemyEffectOnTurn?: number;
   /**
    * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
    * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
@@ -1623,7 +1632,13 @@ export type GameEvent =
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
-  | { type: "DISCARD_TO_HAND_LIMIT"; player: PlayerId; instanceIds: string[] }
+  | {
+      type: "DISCARD_TO_HAND_LIMIT";
+      player: PlayerId;
+      instanceIds: string[];
+      /** W7 (C10) — descarte causado por efeito do oponente neste turno (marca `discardedByEnemyEffectOnTurn`) */
+      byEnemyEffectTurn?: number;
+    }
   | { type: "PAIR_CARDS"; pilotId: string; unitId: string; asPilotMode?: boolean }
   /** Cria uma instância nova em jogo a partir de um `CardDef` (token) — CR 3-1. Nunca usado no setup (setup.ts instancia direto); só por efeito de carta em tempo de jogo. */
   | { type: "SPAWN_TOKEN"; player: PlayerId; def: CardDef; zone: Zone; rested?: boolean }

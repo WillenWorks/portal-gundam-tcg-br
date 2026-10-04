@@ -664,6 +664,12 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (orFilter) return defaultTargetFilterResolver(orFilter[1], candidate, ctx) || defaultTargetFilterResolver(orFilter[2], candidate, ctx);
   // W4 — GD04-091 "1 undamaged enemy Unit"
   if (filter === "undamaged") return candidate.damage === 0;
+  // W7 (C10) — GD05-049 "each choose 1 of their non-battling Units" (fora do combate atual)
+  if (filter === "notBattling") {
+    const combat = ctx.state.combat;
+    if (!combat) return true;
+    return combat.attackerId !== candidate.instanceId && (combat.currentTarget === "player" || combat.currentTarget.unitId !== candidate.instanceId);
+  }
   // W2c — GD03-073 "1 enemy Unit battling this Unit" (a fonte é um dos 2 lados do combate atual)
   if (filter === "battlingSelf") {
     const combat = ctx.state.combat;

@@ -13978,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 55,
+        "full": 59,
         "partial": 0,
-        "missing": 56,
+        "missing": 52,
         "withErrors": 0
       },
       "cards": [
@@ -14568,14 +14568,20 @@
         },
         {
           "code": "GD05-034",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-034-Reaction",
+                "GD05-034-Choice",
+                "GD05-034-Discard",
+                "GD05-034-Keep",
+                "GD05-034-NoHand"
+              ],
               "text": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage, that enemy player may discard 1. If they don't discard with this effect, you may deploy 1 (Phantom Pain) Unit card that is Lv.4 or lower from your hand."
             }
           ]
@@ -14710,14 +14716,16 @@
         },
         {
           "code": "GD05-041",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "During a turn where your opponent has discarded due to one of your effects, this card in your hand gets cost -2."
             }
           ]
@@ -14771,7 +14779,7 @@
         },
         {
           "code": "GD05-046",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14779,10 +14787,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-046-WhenPaired",
+                "GD05-046-Discard"
               ],
               "text": "【When Paired·(Phantom Pain) Pilot】Choose 1 enemy player with 4 or more cards in their hand. They discard 1."
             }
@@ -14810,7 +14818,7 @@
         },
         {
           "code": "GD05-049",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14827,10 +14835,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-049-Attack",
+                "GD05-049-Then"
               ],
               "text": "【Attack】You may choose 1 of your Units. Destroy it. If you do, all enemy players each choose 1 of their non-battling Units. Destroy them."
             }

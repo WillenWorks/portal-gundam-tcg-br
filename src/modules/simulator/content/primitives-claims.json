@@ -723,6 +723,10 @@
     "lowestLevel": {
       "description": "Unit com o menor Lv. impresso entre as Units do lado dela (empate: qualquer uma das menores).",
       "since": "GD05-002"
+    },
+    "notBattling": {
+      "description": "Unit fora do combate atual (nem a atacante nem a Unit alvo do ataque); sem combate, toda Unit.",
+      "since": "GD05-049"
     }
   }
 }

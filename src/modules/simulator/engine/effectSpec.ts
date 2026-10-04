@@ -347,13 +347,27 @@ export type PrimitiveCall =
    * (`enumChoice`); o modo escolhido roda depois como gatilho próprio `Mode:<value>` da mesma carta
    * (`dispatchTrigger`), com alvo/escolhas próprios — o alvo de um modo só é pedido depois do modo.
    */
-  | { op: "chooseMode"; key: string; options: { value: string; label: string }[] }
+  | {
+      op: "chooseMode";
+      key: string;
+      /** `decidedBy: "opponent"` (C10) — a continuação desse modo é decidida pelo oponente do controlador */
+      options: { value: string; label: string; decidedBy?: "controller" | "opponent" }[];
+    }
   /**
    * W7 (C9) — "If you do, choose …"/"Then, …" que depende de uma escolha anterior do MESMO efeito (descarte, carta
    * do trash): roda depois como gatilho `Then:<n>` da mesma carta, pedindo a própria escolha (uma fila só não carrega
    * descarte + alvo juntos — limitação E4). Fica dentro do `condition.then` quando o "if you do" depende de algo.
    */
-  | { op: "thenTrigger"; trigger: string }
+  | {
+      op: "thenTrigger";
+      trigger: string;
+      /**
+       * W7 (C10) — "that enemy player may discard 1", "all enemy players each choose 1 of their Units": a escolha
+       * da continuação é do OPONENTE. O efeito continua sendo do controlador (`controller`/`opponent` nas
+       * primitivas resolvem pelo dono da carta); só a `PendingDecision` vai pro oponente.
+       */
+      decidedBy?: "controller" | "opponent";
+    }
   /**
    * W7 — "Place 1 (rested) Resource" (GD01-025/107, GD05-106, EB01-021): CR 3-6-1, Resource sai do topo do
    * RESOURCE DECK (não é EX Resource, que sai do jogo ao pagar). Resource deck vazio: não acontece nada.
@@ -668,7 +682,15 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           }
         }
       }
-      return [{ type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: chosen }];
+      // W7 (C10) — "They discard 1": descarte do oponente por efeito do controlador fica registrado no turno
+      return [
+        {
+          type: "DISCARD_TO_HAND_LIMIT",
+          player,
+          instanceIds: chosen,
+          ...(player !== ctx.controller ? { byEnemyEffectTurn: ctx.turnNumber } : {}),
+        },
+      ];
     }
     case "damageShield": {
       const player = resolvePlayerRef(call.player, ctx.controller);

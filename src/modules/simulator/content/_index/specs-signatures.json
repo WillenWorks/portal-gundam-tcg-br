@@ -6972,6 +6972,67 @@
     "sourceText": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
   },
   {
+    "id": "GD05-034-Choice",
+    "cardCode": "GD05-034",
+    "trigger": "Then:1",
+    "ops": [
+      "chooseMode",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "opponentHandCountAtLeast:1",
+    "sourceText": "that enemy player may discard 1."
+  },
+  {
+    "id": "GD05-034-Discard",
+    "cardCode": "GD05-034",
+    "trigger": "Mode:discard",
+    "ops": [
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "that enemy player may discard 1."
+  },
+  {
+    "id": "GD05-034-Keep",
+    "cardCode": "GD05-034",
+    "trigger": "Mode:keep",
+    "ops": [
+      "deployFromHandTriggered"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If they don't discard with this effect, you may deploy 1 (Phantom Pain) Unit card that is Lv.4 or lower from your hand."
+  },
+  {
+    "id": "GD05-034-NoHand",
+    "cardCode": "GD05-034",
+    "trigger": "Then:2",
+    "ops": [
+      "deployFromHandTriggered"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If they don't discard with this effect, you may deploy 1 (Phantom Pain) Unit card that is Lv.4 or lower from your hand."
+  },
+  {
+    "id": "GD05-034-Reaction",
+    "cardCode": "GD05-034",
+    "trigger": "Reaction:destroyedShieldInBattle",
+    "ops": [
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage,"
+  },
+  {
     "id": "GD05-039-Attack",
     "cardCode": "GD05-039",
     "trigger": "Attack",
@@ -6982,6 +7043,55 @@
     "targetFilter": "trait:Phantom Pain;linkUnit",
     "predicate": null,
     "sourceText": "【Attack】Choose 1 of your (Phantom Pain) Linked Units. It gains <High-Maneuver> during this turn."
+  },
+  {
+    "id": "GD05-046-Discard",
+    "cardCode": "GD05-046",
+    "trigger": "Then:1",
+    "ops": [
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "opponentHandCountAtLeast:4",
+    "sourceText": "They discard 1."
+  },
+  {
+    "id": "GD05-046-WhenPaired",
+    "cardCode": "GD05-046",
+    "trigger": "When Paired",
+    "ops": [
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "pairedPilotHasTrait:Phantom Pain",
+    "sourceText": "【When Paired･(Phantom Pain) Pilot】Choose 1 enemy player with 4 or more cards in their hand."
+  },
+  {
+    "id": "GD05-049-Attack",
+    "cardCode": "GD05-049",
+    "trigger": "Attack",
+    "ops": [
+      "destroy",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "notSelf",
+    "predicate": null,
+    "sourceText": "【Attack】You may choose 1 of your Units. Destroy it."
+  },
+  {
+    "id": "GD05-049-Then",
+    "cardCode": "GD05-049",
+    "trigger": "Then:1",
+    "ops": [
+      "destroy"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "notBattling",
+    "predicate": null,
+    "sourceText": "If you do, all enemy players each choose 1 of their non-battling Units. Destroy them."
   },
   {
     "id": "GD05-050-BattleDamage",

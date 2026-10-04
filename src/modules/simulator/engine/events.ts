@@ -173,6 +173,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
+    ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
   };
 }
 
@@ -420,6 +421,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "DISCARD_TO_HAND_LIMIT": {
       const player = state.players[event.player];
+      if (event.byEnemyEffectTurn !== undefined && event.instanceIds.length > 0) player.discardedByEnemyEffectOnTurn = event.byEnemyEffectTurn;
       for (const id of event.instanceIds) {
         const card = removeFromZone(player, id);
         if (card) {

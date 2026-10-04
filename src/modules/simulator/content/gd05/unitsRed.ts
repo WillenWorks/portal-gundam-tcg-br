@@ -203,6 +203,11 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Stellar Loussier"
       ]
+    },
+    // W7 (C10) — desconto no turno em que o oponente descartou por efeito seu (GD05-034/046)
+    "dynamicCost": { "condition": { "kind": "opponentDiscardedByYourEffectThisTurn" }, "amount": -2 },
+    "structuredSourceText": {
+      "dynamicCost": "During a turn where your opponent has discarded due to one of your effects, this card in your hand gets cost -2."
     }
   },
   "GD05-042": {

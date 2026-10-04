@@ -246,17 +246,22 @@ export function dispatchTrigger(
     // W7 (C9) — continuações: o modo escolhido ("choose 1 of the following effects") e o "If you do, choose …"
     // (`thenTrigger`) rodam como gatilho próprio da mesma carta (`Mode:<n>`/`Then:<n>`), pelo caminho que pausa
     // quando pedem alvo/escolha. A decisão da continuação lembra a habilidade de origem (`parentTrigger`).
-    const modeCall = spec.actions.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
+    const activeCalls = specActiveCalls(spec, ctx, opts.predicateResolver);
+    const modeCall = activeCalls.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
     const chosenMode = modeCall ? (opts.targets?.[modeCall.key]?.[0] ?? modeCall.options[0]?.value) : undefined;
-    const followUps: Array<{ trigger: string; targets?: Record<string, string[]> }> = [];
+    const followUps: Array<{ trigger: string; targets?: Record<string, string[]>; decidedBy?: "controller" | "opponent" }> = [];
     if (modeCall && chosenMode) {
       // alvo do modo já pronto só no caminho síncrono (bot/teste passa `targets.target` junto do modo); vindo da
       // fila de decisão só há a escolha do modo, e o modo pausa pra pedir o próprio alvo
       const { [modeCall.key]: _mode, ...modeTargets } = opts.targets ?? {};
-      followUps.push({ trigger: `Mode:${chosenMode}`, targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined });
+      followUps.push({
+        trigger: `Mode:${chosenMode}`,
+        targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined,
+        decidedBy: modeCall.options.find((o) => o.value === chosenMode)?.decidedBy,
+      });
     }
-    for (const call of specActiveCalls(spec, ctx, opts.predicateResolver)) {
-      if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger });
+    for (const call of activeCalls) {
+      if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger, decidedBy: call.decidedBy });
     }
     for (const followUp of followUps) {
       if (next.gameOver) break;
@@ -266,7 +271,14 @@ export function dispatchTrigger(
       const followUpSources = [{ code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget }];
       // algo do próprio efeito pausou antes (ex. 【Destroyed】 da Unit que ele destruiu): a continuação espera na fila
       if (next.pendingDecision.A || next.pendingDecision.B) {
-        next = attachQueuedTriggers(next, [{ owner: current.owner, trigger: followUp.trigger, sources: followUpSources }]);
+        next = attachQueuedTriggers(next, [
+          {
+            owner: current.owner,
+            trigger: followUp.trigger,
+            sources: followUpSources,
+            decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
+          },
+        ]);
         continue;
       }
       next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, followUpSources, allSpecs, {
@@ -275,6 +287,7 @@ export function dispatchTrigger(
         targetFilterResolver: opts.targetFilterResolver,
         cascadeDepth: cascadeDepth + 1,
         queueBudget,
+        decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
       });
       if (!isFollowUpTrigger(trigger)) next = withParentTrigger(next, followUp.trigger, trigger);
     }

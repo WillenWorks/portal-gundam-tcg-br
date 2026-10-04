@@ -127,7 +127,9 @@ function buildQueueEntry(
   if (choice.op === "discardNamed") {
     // W6 (GD05-111) — o Command em resolução ainda está na mão até o fim do efeito: não descarta a si mesmo
     const resolvingCommand = state.players[player].hand.find((c) => c.instanceId === entry.sourceInstanceId && c.def.cardType === "COMMAND");
-    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls).filter(
+    // W7 (C10) — "They discard 1": a mão é a de quem descarta (oponente do controlador), não a do controlador
+    const discarder = resolvePlayerRef(choice.player, player);
+    const rawCandidates = discardCandidateHandIds(spec, state, discarder, implicitTargets, activeCalls).filter(
       (id) => id !== resolvingCommand?.instanceId,
     );
     // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
@@ -240,6 +242,8 @@ export function deferOrDispatchAbilities(
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
     queueBudget?: TriggerQueueBudget;
+    /** W7 (C10) — quem toma a decisão (padrão: `player`, o controlador). A fila é montada pelo controlador. */
+    decider?: PlayerId;
   } = {},
 ): GameState {
   const cascadeDepth = opts.cascadeDepth ?? 0;
@@ -320,7 +324,7 @@ export function deferOrDispatchAbilities(
   return applyEvents(next, [
     {
       type: "SET_PENDING_DECISION",
-      player,
+      player: opts.decider ?? player,
       decision: {
         kind: "abilityResolution",
         trigger,
@@ -534,7 +538,7 @@ export function drainQueuedTriggers(
   for (let i = 0; i < entries.length; i++) {
     if (next.gameOver) return next;
     const entry = entries[i];
-    next = deferOrDispatchAbilities(next, entry.owner, entry.trigger, entry.sources, specs, opts);
+    next = deferOrDispatchAbilities(next, entry.owner, entry.trigger, entry.sources, specs, { ...opts, decider: entry.decider });
     if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, entries.slice(i + 1));
   }
   return next;
