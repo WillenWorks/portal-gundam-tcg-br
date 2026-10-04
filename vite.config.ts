@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import path from "path";
+import babel from "@rolldown/plugin-babel";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -19,27 +20,34 @@ export default defineConfig({
     "import.meta.env.VITE_ENGINE_SHA": JSON.stringify(process.env.VITE_ENGINE_SHA ?? gitShaCurto()),
   },
   plugins: [
-    react({
-      babel: {
-        plugins: [
-          // Inject data-source attribute for AI agent source location
-          "./scripts/babel-plugin-jsx-source-location.cjs",
-        ],
-      },
+    react(),
+    // plugin-react 6 não roda Babel; o plugin de data-source passa pelo @rolldown/plugin-babel.
+    babel({
+      include: /\.[jt]sx(?:$|\?)/,
+      plugins: [
+        // Inject data-source attribute for AI agent source location
+        "./scripts/babel-plugin-jsx-source-location.cjs",
+      ],
     }),
     tailwindcss(),
   ],
-  resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+  resolve: { alias: { "@": path.resolve(import.meta.dirname, "./src") } },
   base: "./",
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("recharts")) return "charts";
-          return "vendor";
+        codeSplitting: {
+          groups: [
+            {
+              name(id) {
+                if (!id.includes("node_modules")) return null;
+                if (id.includes("recharts")) return "charts";
+                return "vendor";
+              },
+            },
+          ],
         },
       },
     },

@@ -404,7 +404,7 @@ export async function loadMatch(matchId: string): Promise<MatchRecord | undefine
   if (hot) return hot;
   if (!persistence) return undefined;
 
-  let stored: StoredMatch | null = null;
+  let stored: StoredMatch | null;
   try {
     stored = await persistence.load(matchId);
   } catch (err) {

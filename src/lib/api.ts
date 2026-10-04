@@ -464,7 +464,7 @@ function readCachedValue<T>(key: string): T | null {
   if (memoized) apiMemoryCache.delete(key);
 
   if (typeof window === "undefined") return null;
-  let raw: string | null = null;
+  let raw: string | null;
   try {
     raw = window.sessionStorage.getItem(getCacheStorageKey(key));
   } catch {
@@ -853,7 +853,7 @@ function computeClientSideDeckConsistency(cards: any[]): ZeroDeckConsistencyResu
 function computeClientSideZeroChat(message: string, persona: PilotPersonaId = "adaptive"): ZeroChatMessageResponse {
   const m = message.toLowerCase();
   const resolved: "amuro" | "char" | "heero" | "analyst" = persona === "adaptive" ? "amuro" : persona;
-  let reply = "";
+  let reply: string;
 
   if (resolved === "amuro") {
     if (m.includes("zeon") || m.includes("aggro") || m.includes("rush")) {
