@@ -1,6 +1,6 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer, specPairGateOpen } from "./types";
-import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
+import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
 import { resolveEffectSpec } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import {
@@ -236,6 +236,23 @@ export function dispatchTrigger(
       if (deployed.length === 0) continue;
       // Encadeamento efeito→Deploy: profundidade de cascata incrementa (docs/debates 2026-09-13 §1.1)
       next = deferOrDispatchAbilities(next, owner, "Deploy", deployed, allSpecs, {
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        cascadeDepth: cascadeDepth + 1,
+        queueBudget,
+      });
+    }
+
+    // W7 (C9) — "choose 1 of the following effects": o modo escolhido roda como gatilho `Mode:<value>` da
+    // mesma carta, pelo caminho que pausa quando o modo pede alvo/escolha (o alvo só existe depois do modo).
+    const modeCall = spec.actions.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
+    const chosenMode = modeCall ? (opts.targets?.[modeCall.key]?.[0] ?? modeCall.options[0]?.value) : undefined;
+    if (chosenMode && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
+      // alvo do modo já pronto só no caminho síncrono (bot/teste passa `targets.target` junto do modo); vindo da
+      // fila de decisão só há a escolha do modo, e o modo pausa pra pedir o próprio alvo
+      const { [modeCall!.key]: _mode, ...modeTargets } = opts.targets ?? {};
+      next = deferOrDispatchAbilities(next, current.owner, `Mode:${chosenMode}`, [{ code: current.def.code, instanceId: sourceInstanceId }], allSpecs, {
+        targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined,
         predicateResolver: opts.predicateResolver,
         targetFilterResolver: opts.targetFilterResolver,
         cascadeDepth: cascadeDepth + 1,

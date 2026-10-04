@@ -181,6 +181,14 @@
     "copyKeywordsFromTrashCard": {
       "description": "A fonte ganha AP+N e as keywords impressas (da lista) de uma Unit escolhida em qualquer trash; valores somam (CR 13-1-2-5).",
       "since": "GD04-067"
+    },
+    "chooseMode": {
+      "description": "\"choose 1 of the following effects\" (■): escolha enum do modo; o modo escolhido roda como gatilho Mode:<valor> da mesma carta, com alvo próprio pedido depois do modo.",
+      "since": "GD05-102"
+    },
+    "placeResourceFromDeck": {
+      "description": "\"Place 1 (rested) Resource\": topo do resource deck para a área de Resource (CR 3-6-1), descansado opcional; resource deck vazio = nada. Não é EX Resource.",
+      "since": "GD01-025"
     }
   },
   "targetRefKinds": {

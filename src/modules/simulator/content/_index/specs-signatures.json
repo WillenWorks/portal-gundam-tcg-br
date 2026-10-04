@@ -188,7 +188,7 @@
     "cardCode": "GD01-025",
     "trigger": "When Paired",
     "ops": [
-      "spawnToken",
+      "placeResourceFromDeck",
       "grantKeyword"
     ],
     "targetScope": null,
@@ -963,7 +963,7 @@
     "cardCode": "GD01-107",
     "trigger": "Main",
     "ops": [
-      "spawnToken"
+      "placeResourceFromDeck"
     ],
     "targetScope": null,
     "targetFilter": null,
@@ -7291,6 +7291,42 @@
     "sourceText": "【Once per Turn】When you pay ① or more for one of your Unit's effects, if this is a (Militia) Unit, it may recover 2 HP."
   },
   {
+    "id": "GD05-102-Action",
+    "cardCode": "GD05-102",
+    "trigger": "Action",
+    "ops": [
+      "chooseMode"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Action】When playing this card, choose 1 of the following effects and activate it:"
+  },
+  {
+    "id": "GD05-102-Mode1",
+    "cardCode": "GD05-102",
+    "trigger": "Mode:1",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=5",
+    "predicate": null,
+    "sourceText": "■Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "GD05-102-Mode2",
+    "cardCode": "GD05-102",
+    "trigger": "Mode:2",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■Choose 1 Unit. It recovers 3 HP."
+  },
+  {
     "id": "GD05-103-Action",
     "cardCode": "GD05-103",
     "trigger": "Action",
@@ -7351,6 +7387,42 @@
     "targetFilter": "level<=3",
     "predicate": null,
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit that is Lv.3 or lower. Return it to its owner's hand."
+  },
+  {
+    "id": "GD05-106-Main",
+    "cardCode": "GD05-106",
+    "trigger": "Main",
+    "ops": [
+      "chooseMode"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】When playing this card, choose 1 of the following effects and activate it:"
+  },
+  {
+    "id": "GD05-106-Mode1",
+    "cardCode": "GD05-106",
+    "trigger": "Mode:1",
+    "ops": [
+      "placeResourceFromDeck"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■Place 1 rested Resource."
+  },
+  {
+    "id": "GD05-106-Mode2",
+    "cardCode": "GD05-106",
+    "trigger": "Mode:2",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■Choose 1 Pilot card that is Lv.5 or higher from your trash. Add it to your hand."
   },
   {
     "id": "GD05-107-Burst",

@@ -10,6 +10,7 @@ import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, 
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   attachQueuedTriggers,
+  awaitingModeOf,
   collectDestroyedInBattle,
   deferOrDispatchAbilities,
   dispatchCommandActivated,
@@ -627,7 +628,9 @@ function applyPlayerActionInner(
         // Unit pra mão e nunca devolvendo o shield real. `addShieldToHand` cai
         // no fallback "primeiros N shields" (shield é face-down, a escolha não
         // carrega informação).
-        const targets: Record<string, string[]> = { target: r.targetIds };
+        // W7 (C9) — escolha enum (modo, token, posição) não é alvo em campo: não vira `target` (o modo escolhido
+        // repassaria o valor "1"/"2" como id de carta pro gatilho `Mode:<n>`)
+        const targets: Record<string, string[]> = enumChoice ? {} : { target: r.targetIds };
         if (handChoice) targets.deploy = r.targetIds;
         if (deckReveal) targets.reveal = r.targetIds;
         if (handDiscard) targets.discard = r.targetIds;
@@ -669,7 +672,10 @@ function applyPlayerActionInner(
           continue;
         }
 
-        if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
+        // W7 (C9) — o modo escolhido (`Mode:<n>`) de uma Command também fecha a Command
+        if (decision.trigger === "Main" || decision.trigger === "Action" || decision.trigger.startsWith("Mode:")) {
+          commandSources.add(q.sourceInstanceId);
+        }
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets,
           predicateResolver,
@@ -683,6 +689,8 @@ function applyPlayerActionInner(
       // resolver. `playCommand` faz isso no fluxo síncrono; aqui é o fluxo
       // pausado.
       for (const srcId of commandSources) {
+        // W7 (C9) — o modo escolhido pausou pra alvo: a Command fica na mão até ele resolver (CR 3-4-4)
+        if (awaitingModeOf(next, srcId)) continue;
         const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
         if (src && src.def.cardType === "COMMAND") {
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });

@@ -43,6 +43,14 @@ export interface TriggerQueueBudget {
   count: number;
 }
 
+/** W7 (C9) — há decisão pendente do modo escolhido (`Mode:<n>`) desta carta: a Command ainda não resolveu */
+export function awaitingModeOf(state: GameState, sourceInstanceId: string): boolean {
+  return (["A", "B"] as PlayerId[]).some((p) => {
+    const d = state.pendingDecision[p];
+    return d?.kind === "abilityResolution" && d.trigger.startsWith("Mode:") && d.queue.some((q) => q.sourceInstanceId === sourceInstanceId);
+  });
+}
+
 type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
 
 /**
@@ -134,7 +142,7 @@ function buildQueueEntry(
     };
   }
 
-  if (choice.op === "spawnTokenChoice") {
+  if (choice.op === "spawnTokenChoice" || choice.op === "chooseMode") {
     return {
       ...entry,
       enumChoice: {

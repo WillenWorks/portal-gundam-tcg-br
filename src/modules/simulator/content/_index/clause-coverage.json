@@ -13973,9 +13973,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 48,
+        "full": 50,
         "partial": 0,
-        "missing": 63,
+        "missing": 61,
         "withErrors": 0
       },
       "cards": [
@@ -15979,7 +15979,7 @@
         },
         {
           "code": "GD05-102",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15987,10 +15987,11 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-102-Action",
+                "GD05-102-Mode1",
+                "GD05-102-Mode2"
               ],
               "text": "【Action】When playing this card, choose 1 of the following effects and activate it:\n■Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n■Choose 1 Unit. It recovers 3 HP."
             }
@@ -16086,7 +16087,7 @@
         },
         {
           "code": "GD05-106",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16094,10 +16095,11 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-106-Main",
+                "GD05-106-Mode1",
+                "GD05-106-Mode2"
               ],
               "text": "【Main】When playing this card, choose 1 of the following effects and activate it:\n■Place 1 rested Resource.\n■Choose 1 Pilot card that is Lv.5 or higher from your trash. Add it to your hand."
             }
