@@ -236,3 +236,106 @@ describe("GD05-104 At the Risk of One's Life — efeito concedido (■【During 
     expect(s.players.A.delayedReactions ?? []).toEqual([]);
   });
 });
+
+describe("GD05-002 Strike Freedom Gundam", () => {
+  function deployWithGrant(s: GameState, chosen: (selfId: string) => string[]): { s: GameState; self: string } {
+    const self = placeCard(s, "A", G["GD05-002"], "hand");
+    let next = act(s, "A", { kind: "deployCard", cardInstanceId: self });
+    expect(entry(next, "A", "GD05-002-Deploy")?.targetCount).toEqual({ min: 1, max: 2 });
+    next = resolve(next, "A", "GD05-002-Deploy", chosen(self));
+    return { s: next, self };
+  }
+  const runCombat = (state: GameState): GameState => {
+    let s = state;
+    for (let i = 0; i < 10 && s.combat && !s.pendingDecision.A && !s.pendingDecision.B; i++) {
+      if (s.combat.step === "block") s = act(s, s.combat.defendingPlayer, { kind: "skipBlock" });
+      else if (s.combat.step === "action") s = act(s, s.combat.actionPriority, { kind: "passAction" });
+      else break;
+    }
+    return s;
+  };
+
+  it("【Deploy】 até 2 Units: cada uma compra 1 ao destruir Unit inimiga ou escudo em batalha, neste turno", () => {
+    let s = game();
+    const a1 = placeCard(s, "A", UNIT({ code: "TEST-A1", ap: 5, hp: 5 }), "battleArea");
+    const a2 = placeCard(s, "A", UNIT({ code: "TEST-A2", ap: 5, hp: 5 }), "battleArea");
+    const a3 = placeCard(s, "A", UNIT({ code: "TEST-A3", ap: 5, hp: 5 }), "battleArea");
+    const victim = placeCard(s, "B", UNIT({ ap: 1, hp: 1 }), "battleArea", { rested: true });
+    ({ s } = deployWithGrant(s, () => [a1, a2]));
+    expect((s.players.A.delayedReactions ?? []).filter((d) => d.subjectId === a1)).toHaveLength(2);
+
+    const hand0 = s.players.A.hand.length;
+    s = runCombat(act(s, "A", { kind: "declareAttack", attackerId: a1, target: { unitId: victim } }));
+    expect(inZone(s, "B", "trash", victim)).toBe(true);
+    expect(s.players.A.hand.length).toBe(hand0 + 1);
+
+    s = runCombat(act(s, "A", { kind: "declareAttack", attackerId: a2, target: "player" }));
+    expect(s.players.A.hand.length).toBe(hand0 + 2);
+
+    // a3 não foi escolhida: destruir escudo não compra
+    s = runCombat(act(s, "A", { kind: "declareAttack", attackerId: a3, target: "player" }));
+    expect(s.players.A.hand.length).toBe(hand0 + 2);
+  });
+
+  function pairedStrikeFreedom(s: GameState): string {
+    const self = placeCard(s, "A", G["GD05-002"], "battleArea");
+    const pilot = placeCard(s, "A", PILOT(), "battleArea");
+    findCard(s, self).pairedPilotId = pilot;
+    findCard(s, pilot).pairedUnitId = self;
+    return self;
+  }
+
+  it("【During Pair】【Attack】 descarta 2 e DEPOIS escolhe a Unit inimiga de menor Lv → fundo do deck; o combate segue", () => {
+    let s = game();
+    const self = pairedStrikeFreedom(s);
+    s.players.A.hand = [];
+    const c1 = placeCard(s, "A", UNIT({ code: "TEST-H1" }), "hand");
+    const c2 = placeCard(s, "A", UNIT({ code: "TEST-H2" }), "hand");
+    const low = placeCard(s, "B", UNIT({ code: "TEST-LOW", level: 2 }), "battleArea");
+    const high = placeCard(s, "B", UNIT({ code: "TEST-HIGH", level: 5 }), "battleArea");
+
+    s = act(s, "A", { kind: "declareAttack", attackerId: self, target: "player" });
+    expect(entry(s, "A", "GD05-002-Attack")?.handDiscard?.n).toBe(2);
+    s = resolve(s, "A", "GD05-002-Attack", [c1, c2]);
+    expect(inZone(s, "A", "trash", c1) && inZone(s, "A", "trash", c2)).toBe(true);
+    expect(s.combat?.step).toBe("attack");
+
+    const then = entry(s, "A", "GD05-002-Then");
+    expect(then?.legalTargets).toEqual([low]);
+    expect(then?.legalTargets).not.toContain(high);
+    s = resolve(s, "A", "GD05-002-Then", [low]);
+    expect(s.players.B.deck.at(-1)?.instanceId).toBe(low);
+    expect(s.combat?.step).toBe("block");
+  });
+
+  it("recusar o descarte não move nada e o combate segue", () => {
+    let s = game();
+    const self = pairedStrikeFreedom(s);
+    s.players.A.hand = [];
+    placeCard(s, "A", UNIT(), "hand");
+    placeCard(s, "A", UNIT(), "hand");
+    const low = placeCard(s, "B", UNIT({ level: 1 }), "battleArea");
+    s = act(s, "A", { kind: "declareAttack", attackerId: self, target: "player" });
+    s = act(s, "A", { kind: "resolveAbility", resolutions: [{ specId: "GD05-002-Attack", activate: false, targetIds: [] }] });
+    expect(s.players.A.hand).toHaveLength(2);
+    expect(inZone(s, "B", "battleArea", low)).toBe(true);
+    expect(s.combat?.step).toBe("block");
+  });
+
+  it("com menos de 2 cartas na mão, ou sem Piloto, o 【Attack】 nem é oferecido", () => {
+    let s = game();
+    const self = pairedStrikeFreedom(s);
+    s.players.A.hand = [];
+    placeCard(s, "A", UNIT(), "hand");
+    s = act(s, "A", { kind: "declareAttack", attackerId: self, target: "player" });
+    expect(entry(s, "A", "GD05-002-Attack")).toBeUndefined();
+    expect(s.combat?.step).toBe("block");
+
+    let t = game();
+    const unpaired = placeCard(t, "A", G["GD05-002"], "battleArea");
+    placeCard(t, "A", UNIT(), "hand");
+    placeCard(t, "A", UNIT(), "hand");
+    t = act(t, "A", { kind: "declareAttack", attackerId: unpaired, target: "player" });
+    expect(entry(t, "A", "GD05-002-Attack")).toBeUndefined();
+  });
+});

@@ -189,6 +189,10 @@
     "placeResourceFromDeck": {
       "description": "\"Place 1 (rested) Resource\": topo do resource deck para a área de Resource (CR 3-6-1), descansado opcional; resource deck vazio = nada. Não é EX Resource.",
       "since": "GD01-025"
+    },
+    "thenTrigger": {
+      "description": "\"If you do, choose …\" que depende de uma escolha anterior do mesmo efeito: roda como gatilho Then:<n> da mesma carta, com escolha própria (resolve a limitação E4: descarte + alvo numa fila só). A decisão da continuação guarda a origem (parentTrigger).",
+      "since": "GD05-002"
     }
   },
   "targetRefKinds": {
@@ -569,6 +573,10 @@
     "battleVictimApAtMost:<n>": {
       "description": "A carta em battleVictim (a Unit do evento de batalha) tem N ou menos AP.",
       "since": "GD04-126"
+    },
+    "controllerHandCountAtLeast:<n>": {
+      "description": "O controlador tem N ou mais cartas na mão.",
+      "since": "GD05-002"
     }
   },
   "targetFilters": {
@@ -711,6 +719,10 @@
     "nameContains:<value>": {
       "description": "O nome (EN) do candidato contém o trecho.",
       "since": "GD04-021"
+    },
+    "lowestLevel": {
+      "description": "Unit com o menor Lv. impresso entre as Units do lado dela (empate: qualquer uma das menores).",
+      "since": "GD05-002"
     }
   }
 }

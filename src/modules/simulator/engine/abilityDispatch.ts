@@ -15,6 +15,7 @@ import {
   callsNeedNamedTarget,
   computeLegalTargets,
   discardCandidateHandIds,
+  isFollowUpTrigger,
   matchesCardDefFilter,
   peekAndReorderDeck,
   resolvePlayerRef,
@@ -43,11 +44,11 @@ export interface TriggerQueueBudget {
   count: number;
 }
 
-/** W7 (C9) — há decisão pendente do modo escolhido (`Mode:<n>`) desta carta: a Command ainda não resolveu */
-export function awaitingModeOf(state: GameState, sourceInstanceId: string): boolean {
+/** W7 (C9) — há continuação pendente (modo escolhido, "If you do …") desta carta: a habilidade ainda não terminou */
+export function awaitingFollowUpOf(state: GameState, sourceInstanceId: string): boolean {
   return (["A", "B"] as PlayerId[]).some((p) => {
     const d = state.pendingDecision[p];
-    return d?.kind === "abilityResolution" && d.trigger.startsWith("Mode:") && d.queue.some((q) => q.sourceInstanceId === sourceInstanceId);
+    return d?.kind === "abilityResolution" && isFollowUpTrigger(d.trigger) && d.queue.some((q) => q.sourceInstanceId === sourceInstanceId);
   });
 }
 

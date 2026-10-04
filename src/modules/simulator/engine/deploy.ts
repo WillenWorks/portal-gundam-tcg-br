@@ -5,7 +5,7 @@ import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
-  awaitingModeOf,
+  awaitingFollowUpOf,
   deferOrDispatchAbilities,
   dispatchAnyPairingFromEffect,
   dispatchCommandActivated,
@@ -420,7 +420,7 @@ export function playCommand(
   // a carta pode já ter se movido (nenhum EffectSpec de Command faz isso hoje,
   // mas o dispatcher não impede) — só manda pro trash se ainda estiver na mão.
   // W7 (C9) — o modo escolhido pausou pra alvo: a Command só vai pro trash quando ele resolver (`resolveAbility`)
-  if (awaitingModeOf(next, cardInstanceId)) return next;
+  if (awaitingFollowUpOf(next, cardInstanceId)) return next;
   const stillInHand = next.players[player].hand.some((c) => c.instanceId === cardInstanceId);
   if (stillInHand) {
     next = applyEvents(next, [{ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "trash" }]);

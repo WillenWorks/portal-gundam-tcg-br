@@ -1297,6 +1297,11 @@ export type PendingDecision =
        */
       kind: "abilityResolution";
       trigger: string;
+      /**
+       * W7 (C9) — continuação (`Mode:<n>`/`Then:<n>`): gatilho da habilidade de origem (【Attack】, 【Destroyed】,
+       * 【Main】…). A retomada do fluxo (Block Step, Damage Step, trash da Command) segue a origem, não a continuação.
+       */
+      parentTrigger?: string;
       queue: Array<{
         sourceInstanceId: string;
         specId: string;

@@ -1,7 +1,7 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer, specPairGateOpen } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
-import { resolveEffectSpec } from "./effectSpec";
+import { isFollowUpTrigger, resolveEffectSpec, specActiveCalls } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import {
   checkTriggerLoopGuard,
@@ -243,21 +243,31 @@ export function dispatchTrigger(
       });
     }
 
-    // W7 (C9) — "choose 1 of the following effects": o modo escolhido roda como gatilho `Mode:<value>` da
-    // mesma carta, pelo caminho que pausa quando o modo pede alvo/escolha (o alvo só existe depois do modo).
+    // W7 (C9) — continuações: o modo escolhido ("choose 1 of the following effects") e o "If you do, choose …"
+    // (`thenTrigger`) rodam como gatilho próprio da mesma carta (`Mode:<n>`/`Then:<n>`), pelo caminho que pausa
+    // quando pedem alvo/escolha. A decisão da continuação lembra a habilidade de origem (`parentTrigger`).
     const modeCall = spec.actions.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
     const chosenMode = modeCall ? (opts.targets?.[modeCall.key]?.[0] ?? modeCall.options[0]?.value) : undefined;
-    if (chosenMode && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
+    const followUps: Array<{ trigger: string; targets?: Record<string, string[]> }> = [];
+    if (modeCall && chosenMode) {
       // alvo do modo já pronto só no caminho síncrono (bot/teste passa `targets.target` junto do modo); vindo da
       // fila de decisão só há a escolha do modo, e o modo pausa pra pedir o próprio alvo
-      const { [modeCall!.key]: _mode, ...modeTargets } = opts.targets ?? {};
-      next = deferOrDispatchAbilities(next, current.owner, `Mode:${chosenMode}`, [{ code: current.def.code, instanceId: sourceInstanceId }], allSpecs, {
-        targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined,
+      const { [modeCall.key]: _mode, ...modeTargets } = opts.targets ?? {};
+      followUps.push({ trigger: `Mode:${chosenMode}`, targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined });
+    }
+    for (const call of specActiveCalls(spec, ctx, opts.predicateResolver)) {
+      if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger });
+    }
+    for (const followUp of followUps) {
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) break;
+      next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, [{ code: current.def.code, instanceId: sourceInstanceId }], allSpecs, {
+        targets: followUp.targets,
         predicateResolver: opts.predicateResolver,
         targetFilterResolver: opts.targetFilterResolver,
         cascadeDepth: cascadeDepth + 1,
         queueBudget,
       });
+      if (!isFollowUpTrigger(trigger)) next = withParentTrigger(next, followUp.trigger, trigger);
     }
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
@@ -344,4 +354,15 @@ export function dispatchBurstForNewlyTrashedShields(
     });
   }
   return next;
+}
+
+/** W7 (C9) — marca a origem na decisão da continuação que acabou de pausar (a retomada do fluxo segue a origem) */
+function withParentTrigger(state: GameState, followUpTrigger: string, parentTrigger: string): GameState {
+  for (const p of ["A", "B"] as PlayerId[]) {
+    const d = state.pendingDecision[p];
+    if (d?.kind === "abilityResolution" && d.trigger === followUpTrigger && !d.parentTrigger) {
+      return { ...state, pendingDecision: { ...state.pendingDecision, [p]: { ...d, parentTrigger } } };
+    }
+  }
+  return state;
 }

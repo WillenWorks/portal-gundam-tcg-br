@@ -92,6 +92,9 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets.battleVictim?.[0];
     return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
   }
+  // W7 — GD05-002 "You may discard 2" só é oferecido com 2+ cartas na mão (sem isso o "If you do" nunca se cumpre)
+  const handAtLeast = predicate.match(/^controllerHandCountAtLeast:(\d+)$/);
+  if (handAtLeast) return ctx.state.players[ctx.controller].hand.length >= Number(handAtLeast[1]);
   // W5 — GD04-035 "if you have 3 or less cards in your hand"
   const handAtMost = predicate.match(/^controllerHandCountAtMost:(\d+)$/);
   if (handAtMost) return ctx.state.players[ctx.controller].hand.length <= Number(handAtMost[1]);
@@ -692,6 +695,12 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (pairedPilotTrait) {
     const pilot = candidate.pairedPilotId ? findCard(ctx.state, candidate.pairedPilotId) : undefined;
     return !!pilot && (effectivePilotDef(pilot).traits ?? []).includes(pairedPilotTrait[1]);
+  }
+
+  // W7 — GD05-002 "1 enemy Unit with the lowest Lv." (Lv. impresso; empate: qualquer uma das menores)
+  if (filter === "lowestLevel") {
+    const side = ctx.state.players[candidate.owner].battleArea.filter((c) => c.def.cardType === "UNIT");
+    return (candidate.def.level ?? 0) === Math.min(...side.map((c) => c.def.level ?? 0));
   }
 
   // GD03-049 — "1 enemy Unit with the lowest HP" (HP restante; empate: qualquer uma das menores)

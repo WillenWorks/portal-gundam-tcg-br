@@ -7,6 +7,10 @@ import type { EffectSpec } from "../../engine/effectSpec";
  */
 
 const target = { kind: "named", name: "target" } as const;
+const targets = { kind: "namedGroup", name: "target" } as const;
+
+const STRIKE_FREEDOM_DEPLOY =
+  "【Deploy】Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1.";
 
 const MODE_HEADER = "When playing this card, choose 1 of the following effects and activate it:";
 
@@ -32,6 +36,63 @@ export const GD05_W7A_EFFECT_SPECS: EffectSpec[] = [
     targetScope: "friendlyUnit",
     targetFilter: "trait:League Militaire",
     sourceText: "■【During Link】【Destroyed】Choose 1 friendly (League Militaire) Unit. Set it as active.",
+  },
+
+  // GD05-002 Strike Freedom Gundam
+  {
+    id: "GD05-002-Deploy",
+    cardCode: "GD05-002",
+    trigger: "Deploy",
+    actions: [
+      { op: "grantDelayedReaction", specId: "GD05-002-DestroyedUnit", subject: targets },
+      { op: "grantDelayedReaction", specId: "GD05-002-DestroyedShield", subject: targets },
+    ],
+    targetScope: "friendlyUnit",
+    targetCount: { min: 1, max: 2 },
+    sourceText: STRIKE_FREEDOM_DEPLOY,
+  },
+  // "destroy an enemy card with battle damage" = Unit inimiga ou carta da área de escudo
+  {
+    id: "GD05-002-DestroyedUnit",
+    cardCode: "GD05-002",
+    trigger: "Delayed:destroyedEnemyInBattle",
+    reaction: { event: "destroyedEnemyInBattle", subject: "friendly" },
+    actions: [{ op: "draw", player: "controller", n: 1 }],
+    sourceText: STRIKE_FREEDOM_DEPLOY,
+  },
+  {
+    id: "GD05-002-DestroyedShield",
+    cardCode: "GD05-002",
+    trigger: "Delayed:destroyedShieldInBattle",
+    reaction: { event: "destroyedShieldInBattle", subject: "friendly" },
+    actions: [{ op: "draw", player: "controller", n: 1 }],
+    sourceText: STRIKE_FREEDOM_DEPLOY,
+  },
+  // "You may discard 2. If you do, choose 1 enemy Unit…": o descarte e o alvo são escolhas separadas (`Then:1`)
+  {
+    id: "GD05-002-Attack",
+    cardCode: "GD05-002",
+    trigger: "Attack",
+    duringPair: true,
+    optional: true,
+    condition: {
+      predicate: "controllerHandCountAtLeast:2",
+      then: [
+        { op: "discardNamed", player: "controller", name: "discard", n: 2 },
+        { op: "thenTrigger", trigger: "Then:1" },
+      ],
+    },
+    actions: [],
+    sourceText: "【During Pair】【Attack】You may discard 2.",
+  },
+  {
+    id: "GD05-002-Then",
+    cardCode: "GD05-002",
+    trigger: "Then:1",
+    actions: [{ op: "moveZone", target, toZone: "deck" }],
+    targetScope: "enemyUnit",
+    targetFilter: "lowestLevel",
+    sourceText: "If you do, choose 1 enemy Unit with the lowest Lv. Return it to the bottom of its owner's deck.",
   },
 
   // GD05-102 Wings of Light

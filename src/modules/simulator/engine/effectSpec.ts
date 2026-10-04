@@ -349,6 +349,12 @@ export type PrimitiveCall =
    */
   | { op: "chooseMode"; key: string; options: { value: string; label: string }[] }
   /**
+   * W7 (C9) — "If you do, choose …"/"Then, …" que depende de uma escolha anterior do MESMO efeito (descarte, carta
+   * do trash): roda depois como gatilho `Then:<n>` da mesma carta, pedindo a própria escolha (uma fila só não carrega
+   * descarte + alvo juntos — limitação E4). Fica dentro do `condition.then` quando o "if you do" depende de algo.
+   */
+  | { op: "thenTrigger"; trigger: string }
+  /**
    * W7 — "Place 1 (rested) Resource" (GD01-025/107, GD05-106, EB01-021): CR 3-6-1, Resource sai do topo do
    * RESOURCE DECK (não é EX Resource, que sai do jogo ao pagar). Resource deck vazio: não acontece nada.
    */
@@ -782,15 +788,15 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       ];
     }
     case "grantDelayedReaction": {
-      const subjectId = call.subject ? resolveTargetIds(call.subject, ctx)[0] : undefined;
-      if (call.subject && !subjectId) return [];
-      return [
-        {
+      // W7 — `subject` em grupo ("Choose 1 to 2 of your Units", GD05-002): um gatilho atrasado por Unit escolhida
+      const subjectIds: Array<string | undefined> = call.subject ? resolveTargetIds(call.subject, ctx) : [undefined];
+      return subjectIds.map(
+        (subjectId): GameEvent => ({
           type: "ADD_DELAYED_REACTION",
           player: ctx.controller,
           entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber },
-        },
-      ];
+        }),
+      );
     }
     case "deployExBase": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -913,6 +919,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     // W7 (C9) — a escolha em si não muda o estado; o modo escolhido é despachado pelo `dispatchTrigger`
     case "chooseMode":
+    case "thenTrigger":
       return [];
     case "placeResourceFromDeck": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -1624,3 +1631,8 @@ export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolveP
 
 // re-exportado por conveniência pra quem só quer inspecionar dono/zona de um alvo antes de montar uma primitiva
 export { findCard, findCardOwner };
+
+/** W7 (C9) — gatilho de continuação de um efeito (modo escolhido ou "If you do …"), não um gatilho de regra */
+export function isFollowUpTrigger(trigger: string): boolean {
+  return trigger.startsWith("Mode:") || trigger.startsWith("Then:");
+}

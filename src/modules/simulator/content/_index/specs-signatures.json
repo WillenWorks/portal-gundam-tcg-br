@@ -6663,6 +6663,68 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD05-002-Attack",
+    "cardCode": "GD05-002",
+    "trigger": "Attack",
+    "ops": [
+      "discardNamed",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerHandCountAtLeast:2",
+    "sourceText": "【During Pair】【Attack】You may discard 2."
+  },
+  {
+    "id": "GD05-002-Deploy",
+    "cardCode": "GD05-002",
+    "trigger": "Deploy",
+    "ops": [
+      "grantDelayedReaction",
+      "grantDelayedReaction"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1."
+  },
+  {
+    "id": "GD05-002-DestroyedShield",
+    "cardCode": "GD05-002",
+    "trigger": "Delayed:destroyedShieldInBattle",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1."
+  },
+  {
+    "id": "GD05-002-DestroyedUnit",
+    "cardCode": "GD05-002",
+    "trigger": "Delayed:destroyedEnemyInBattle",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1."
+  },
+  {
+    "id": "GD05-002-Then",
+    "cardCode": "GD05-002",
+    "trigger": "Then:1",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "lowestLevel",
+    "predicate": null,
+    "sourceText": "If you do, choose 1 enemy Unit with the lowest Lv. Return it to the bottom of its owner's deck."
+  },
+  {
     "id": "GD05-003-Destroyed",
     "cardCode": "GD05-003",
     "trigger": "Destroyed",

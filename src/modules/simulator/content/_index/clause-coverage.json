@@ -13973,9 +13973,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 51,
+        "full": 52,
         "partial": 0,
-        "missing": 60,
+        "missing": 59,
         "withErrors": 0
       },
       "cards": [
@@ -14009,7 +14009,7 @@
         },
         {
           "code": "GD05-002",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14017,10 +14017,11 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-002-Deploy",
+                "GD05-002-DestroyedUnit",
+                "GD05-002-DestroyedShield"
               ],
               "text": "【Deploy】 Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1."
             },
@@ -14029,10 +14030,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-002-Attack",
+                "GD05-002-Then"
               ],
               "text": "【During Pair】【Attack】You may discard 2. If you do, choose 1 enemy Unit with the lowest Lv. Return it to the bottom of its owner's deck."
             }
