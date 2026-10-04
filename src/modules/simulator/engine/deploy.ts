@@ -7,6 +7,7 @@ import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
   awaitingFollowUpOf,
   deferOrDispatchAbilities,
+  dispatchAfterMain,
   dispatchAnyPairingFromEffect,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
@@ -426,7 +427,13 @@ export function playCommand(
     next = applyEvents(next, [{ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "trash" }]);
   }
   // W5 (C6) — "when you play and activate a Command card"
-  return dispatchCommandActivated(next, cardInstanceId, specs, {
+  next = dispatchCommandActivated(next, cardInstanceId, specs, {
+    predicateResolver: options.predicateResolver,
+    targetFilterResolver: options.targetFilterResolver,
+  });
+  // W7 — "After activating this card's 【Main】, you may pair this card from your trash…"
+  if (trigger !== "Main") return next;
+  return dispatchAfterMain(next, cardInstanceId, specs, {
     predicateResolver: options.predicateResolver,
     targetFilterResolver: options.targetFilterResolver,
   });

@@ -92,6 +92,12 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets.battleVictim?.[0];
     return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
   }
+  // W7 — GD05-089 "If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn"
+  const activatedTrait = predicate.match(/^controllerActivatedCommandTraitThisTurn:(.+)$/);
+  if (activatedTrait) {
+    const mark = ctx.state.players[ctx.controller].commandTraitsActivatedOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.traits.includes(activatedTrait[1]);
+  }
   // W7 — GD05-002 "You may discard 2" só é oferecido com 2+ cartas na mão (sem isso o "If you do" nunca se cumpre)
   const handAtLeast = predicate.match(/^controllerHandCountAtLeast:(\d+)$/);
   if (handAtLeast) return ctx.state.players[ctx.controller].hand.length >= Number(handAtLeast[1]);
@@ -659,6 +665,9 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
 
+  // W7 — GD05-112 "(MF) Units without <Breach>": `not(<filtro>)`
+  const notFilter = filter.match(/^not\((.+)\)$/);
+  if (notFilter) return !defaultTargetFilterResolver(notFilter[1], candidate, ctx);
   // W4 — GD04-063 "that is Lv.1 or lower or has 1 or less AP": `or(<filtro>|<filtro>)`
   const orFilter = filter.match(/^or\(([^|]+)\|([^|]+)\)$/);
   if (orFilter) return defaultTargetFilterResolver(orFilter[1], candidate, ctx) || defaultTargetFilterResolver(orFilter[2], candidate, ctx);

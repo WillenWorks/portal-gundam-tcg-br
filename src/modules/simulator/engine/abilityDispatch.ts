@@ -25,7 +25,7 @@ import {
   specNeedsNamedTarget,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
-import { applyEvents, findCard } from "./events";
+import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
@@ -1043,16 +1043,52 @@ export function unitDeployedEntries(state: GameState, unitId: string, specs: Eff
 }
 
 /**
- * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
- * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
+ * W7 — "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units"
+ * (GD05-112/113/121/122): gatilho `AfterMain` da Command depois que ela resolveu e foi pro trash. Se outra decisão
+ * pausou no caminho, espera na fila dela.
  */
-export function dispatchCommandActivated(
+export function dispatchAfterMain(
   state: GameState,
   commandId: string,
   specs: EffectSpec[],
   opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
 ): GameState {
   if (state.gameOver) return state;
+  const card = findCard(state, commandId);
+  if (card.zone !== "trash" || findTriggerSpecs(specs, card.def.code, "AfterMain").length === 0) return state;
+  const sources = [{ code: card.def.code, instanceId: commandId }];
+  if (state.pendingDecision.A || state.pendingDecision.B) {
+    return attachQueuedTriggers(state, [{ owner: card.owner, trigger: "AfterMain", sources }]);
+  }
+  return deferOrDispatchAbilities(state, card.owner, "AfterMain", sources, specs, opts);
+}
+
+/**
+ * W7 — traits de Command que alguma carta consulta ("When you activate a (Special Move) Command's 【Main】/【Action】").
+ * Só esses são registrados: um evento a cada Command jogada mudaria o log (e o golden) sem ninguém ler.
+ */
+export const TRACKED_COMMAND_TRAITS: readonly string[] = ["Special Move"];
+
+export function markCommandTraitsActivated(state: GameState, commandId: string): GameState {
+  const card = findCard(state, commandId);
+  if (card.def.cardType !== "COMMAND") return state;
+  const traits = (card.def.traits ?? []).filter((t) => TRACKED_COMMAND_TRAITS.includes(t));
+  if (traits.length === 0) return state;
+  return applyEvent(state, { type: "MARK_COMMAND_TRAITS_ACTIVATED", player: card.owner, traits, turn: state.turnNumber });
+}
+
+/**
+ * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
+ * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
+ */
+export function dispatchCommandActivated(
+  stateIn: GameState,
+  commandId: string,
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  if (stateIn.gameOver) return stateIn;
+  const state = markCommandTraitsActivated(stateIn, commandId);
   const card = findCard(state, commandId);
   const occ: ReactionOccurrence = { event: "commandActivated", subjectId: commandId, owner: card.owner };
   // auditoria A8 — a resolução pausou numa cascata (ex. 【Destroyed】 com escolha): a reação espera na fila da decisão

@@ -69,6 +69,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
+    ],
+    // W7 — "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains <Suppression> during this turn"
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Suppression",
+        "boardCondition": { "kind": "activatedCommandWithTraitThisTurn", "trait": "Special Move" },
+        "sourceText": "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains <Suppression> during this turn."
+      }
     ]
   },
   "GD05-069": {

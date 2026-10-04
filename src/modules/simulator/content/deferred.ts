@@ -197,6 +197,13 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
     kind: "approximation",
   },
+  // W7 — Master Asia: Piloto entrando como Unit (AP3/HP3, "não é Pilot") precisa de uma Unit "emprestada" da carta
+  {
+    cardCode: "GD05-089",
+    clause: "If there are 3 or more (MF) cards in your trash, you may deploy it as an (AP3･HP3) Unit instead.",
+    reason: "o 【Burst】 só adiciona à mão; deployar o Piloto como Unit (AP3/HP3, sem ser Pilot) ainda não existe",
+    blockedBy: "engine:pilot-as-unit-deploy (W8)",
+  },
   // W7 (C10) — decidido com o usuário em 2026-10-04 (sem Q&A oficial da carta)
   {
     cardCode: "GD05-049",

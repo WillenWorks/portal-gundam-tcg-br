@@ -364,6 +364,8 @@ export interface QueuedTrigger {
 export type StaticBoardCondition =
   /** W7 (C10) — GD05-041 "During a turn where your opponent has discarded due to one of your effects" */
   | { kind: "opponentDiscardedByYourEffectThisTurn" }
+  /** W7 — GD05-068 "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains … during this turn" */
+  | { kind: "activatedCommandWithTraitThisTurn"; trait: string }
   /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
   | { kind: "enemyUnitCountAtLeast"; n: number }
   /** GD01-076 Zaku II Kai — "While there are 4 or more Command cards in your trash, ...". */
@@ -929,6 +931,10 @@ export function isBoardConditionMet(
   }
   if (cond.kind === "friendlyUnitNameContains") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
+  }
+  if (cond.kind === "activatedCommandWithTraitThisTurn") {
+    const mark = state.players[owner].commandTraitsActivatedOnTurn;
+    return !!mark && mark.turn === state.turnNumber && mark.traits.includes(cond.trait);
   }
   if (cond.kind === "opponentDiscardedByYourEffectThisTurn") {
     return state.players[otherPlayer(owner)].discardedByEnemyEffectOnTurn === state.turnNumber;
@@ -1522,6 +1528,8 @@ export interface PlayerState {
   delayedReactions?: DelayedReaction[];
   /** W7 (C10) — turno em que este jogador descartou por efeito do OPONENTE (GD05-041 "your opponent has discarded due to one of your effects") */
   discardedByEnemyEffectOnTurn?: number;
+  /** W7 — traits de Command cujo 【Main】/【Action】 este jogador ativou no turno (só `TRACKED_COMMAND_TRAITS`) */
+  commandTraitsActivatedOnTurn?: { turn: number; traits: string[] };
   /**
    * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
    * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
@@ -1632,6 +1640,8 @@ export type GameEvent =
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
+  /** W7 — o jogador ativou o 【Main】/【Action】 de uma Command com estes traits (só os rastreados) */
+  | { type: "MARK_COMMAND_TRAITS_ACTIVATED"; player: PlayerId; traits: string[]; turn: number }
   | {
       type: "DISCARD_TO_HAND_LIMIT";
       player: PlayerId;

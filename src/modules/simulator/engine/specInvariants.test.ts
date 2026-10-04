@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL_EFFECT_SPECS } from "../content";
-import { specNeedsNamedTarget, type EffectSpec } from "./effectSpec";
+import { isFollowUpTrigger, specNeedsNamedTarget, type EffectSpec } from "./effectSpec";
 
 /**
  * Invariantes estruturais de TODOS os EffectSpecs — transformam as classes de bug achadas na auditoria
@@ -59,7 +59,11 @@ describe("invariantes de EffectSpec (todos os sets)", () => {
       if (KNOWN_PENDING_TARGETS.has(s.id)) continue;
       const allowed = declaredChoiceNames(s);
       const refs = refsIn([s.actions, s.cost, s.condition, s.condition2]);
-      for (const r of refs) if (!allowed.has(r.name) && !IMPLICIT_TARGETS.has(r.name)) bad.push(`${s.id}: ${r.kind}("${r.name}")`);
+      for (const r of refs) {
+        // W7 (C9) — `previousTarget` é o alvo do passo anterior, que o motor só entrega à continuação (`Then:`/`Mode:`)
+        if (r.name === "previousTarget" && isFollowUpTrigger(s.trigger)) continue;
+        if (!allowed.has(r.name) && !IMPLICIT_TARGETS.has(r.name)) bad.push(`${s.id}: ${r.kind}("${r.name}")`);
+      }
     }
     expect(bad).toEqual([]);
   });

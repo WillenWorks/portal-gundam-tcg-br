@@ -174,6 +174,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
     ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
   };
 }
 
@@ -417,6 +418,13 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "MARK_KEYWORD_USED": {
       findCard(state, event.instanceId).usedKeywordsThisTurn.push(event.keyword);
+      return state;
+    }
+    case "MARK_COMMAND_TRAITS_ACTIVATED": {
+      const player = state.players[event.player];
+      const prev = player.commandTraitsActivatedOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.commandTraitsActivatedOnTurn = { turn: event.turn, traits };
       return state;
     }
     case "DISCARD_TO_HAND_LIMIT": {

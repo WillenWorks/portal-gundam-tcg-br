@@ -6972,6 +6972,19 @@
     "sourceText": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
   },
   {
+    "id": "GD05-033-Attack",
+    "cardCode": "GD05-033",
+    "trigger": "Attack",
+    "ops": [
+      "moveZone",
+      "damageFirstShieldAreaCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:Special Move:2",
+    "sourceText": "【Attack】You may choose 2 (Special Move) Command cards from your trash. Exile them from the game. If you do, deal 5 damage to the first card in your opponent's shield area."
+  },
+  {
     "id": "GD05-034-Choice",
     "cardCode": "GD05-034",
     "trigger": "Then:1",
@@ -7033,6 +7046,55 @@
     "sourceText": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage,"
   },
   {
+    "id": "GD05-035-Attack",
+    "cardCode": "GD05-035",
+    "trigger": "Attack",
+    "ops": [
+      "activateMainOf"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
+  },
+  {
+    "id": "GD05-035-Reaction",
+    "cardCode": "GD05-035",
+    "trigger": "Reaction:destroyedShieldInBattle",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "ap<=3",
+    "predicate": null,
+    "sourceText": "【Once per Turn】When this Unit destroys an enemy shield area card with damage, choose 1 enemy Unit with 3 or less AP. Deal 2 damage to it."
+  },
+  {
+    "id": "GD05-036-Then",
+    "cardCode": "GD05-036",
+    "trigger": "Then:1",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, deal 2 damage to all enemy Units whose Lv. is equal to or lower than that Unit."
+  },
+  {
+    "id": "GD05-036-WhenPaired",
+    "cardCode": "GD05-036",
+    "trigger": "When Paired",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;active;notSelf",
+    "predicate": null,
+    "sourceText": "【When Paired】You may choose 1 of your other active (MF) Units. Rest it."
+  },
+  {
     "id": "GD05-039-Attack",
     "cardCode": "GD05-039",
     "trigger": "Attack",
@@ -7043,6 +7105,18 @@
     "targetFilter": "trait:Phantom Pain;linkUnit",
     "predicate": null,
     "sourceText": "【Attack】Choose 1 of your (Phantom Pain) Linked Units. It gains <High-Maneuver> during this turn."
+  },
+  {
+    "id": "GD05-044-Attack",
+    "cardCode": "GD05-044",
+    "trigger": "Attack",
+    "ops": [
+      "activateMainOf"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
   },
   {
     "id": "GD05-046-Discard",
@@ -7167,6 +7241,79 @@
     "sourceText": "【Deploy】/【Attack】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
   },
   {
+    "id": "GD05-066-Attack",
+    "cardCode": "GD05-066",
+    "trigger": "Attack",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": "ownResource",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【Attack】【Once per Turn】Choose 1 of your rested Resources. Set it as active."
+  },
+  {
+    "id": "GD05-066-Deploy",
+    "cardCode": "GD05-066",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashUnitCountWithAnyTraitAtLeast:MF:2",
+    "sourceText": "【Deploy】You may choose 2 (MF) Unit cards from your trash. Exile them from the game."
+  },
+  {
+    "id": "GD05-066-Then",
+    "cardCode": "GD05-066",
+    "trigger": "Then:1",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, choose 1 (Special Move) Command card from your trash. Add it to your hand."
+  },
+  {
+    "id": "GD05-068-Attack",
+    "cardCode": "GD05-068",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】This Unit gets AP+2 during this battle."
+  },
+  {
+    "id": "GD05-069-Attack",
+    "cardCode": "GD05-069",
+    "trigger": "Attack",
+    "ops": [
+      "activateMainOf"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
+  },
+  {
+    "id": "GD05-069-Reaction",
+    "cardCode": "GD05-069",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 4 cards of your deck. You may reveal 1 (Special Move) Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
     "id": "GD05-071-Attack",
     "cardCode": "GD05-071",
     "trigger": "Attack",
@@ -7214,6 +7361,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Destroyed】Draw 1. Then, discard 1."
+  },
+  {
+    "id": "GD05-076-Attack",
+    "cardCode": "GD05-076",
+    "trigger": "Attack",
+    "ops": [
+      "activateMainOf"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
   },
   {
     "id": "GD05-079-ActivateMain",
@@ -7372,6 +7531,18 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD05-089-Attack",
+    "cardCode": "GD05-089",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerActivatedCommandTraitThisTurn:Special Move",
+    "sourceText": "【During Link】【Attack】If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn, choose 1 enemy Unit. Deal 2 damage to it."
+  },
+  {
     "id": "GD05-089-Burst",
     "cardCode": "GD05-089",
     "trigger": "Burst",
@@ -7527,6 +7698,32 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD05-097-Then",
+    "cardCode": "GD05-097",
+    "trigger": "Then:1",
+    "ops": [
+      "activateMainOf"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you discard a (Special Move) Command card with this effect, you may activate its 【Main】."
+  },
+  {
+    "id": "GD05-097-WhenPaired",
+    "cardCode": "GD05-097",
+    "trigger": "When Paired",
+    "ops": [
+      "thenTrigger",
+      "draw",
+      "discardNamed"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "chosenHasTrait:discard:Special Move",
+    "sourceText": "【When Paired】Draw 1. Then, discard 1."
   },
   {
     "id": "GD05-098-Burst",
@@ -7873,6 +8070,54 @@
     "sourceText": "【Main】Discard 1. If you do, draw 2."
   },
   {
+    "id": "GD05-112-AfterMain",
+    "cardCode": "GD05-112",
+    "trigger": "AfterMain",
+    "ops": [
+      "pairCardFromTrashAsPilot"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;unpaired",
+    "predicate": null,
+    "sourceText": "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
+  },
+  {
+    "id": "GD05-112-Main",
+    "cardCode": "GD05-112",
+    "trigger": "Main",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;not(hasKeyword:Breach)",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 of your (MF) Units without <Breach>. It gains <Breach 3> during this turn."
+  },
+  {
+    "id": "GD05-113-AfterMain",
+    "cardCode": "GD05-113",
+    "trigger": "AfterMain",
+    "ops": [
+      "pairCardFromTrashAsPilot"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;unpaired",
+    "predicate": null,
+    "sourceText": "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
+  },
+  {
+    "id": "GD05-113-Main",
+    "cardCode": "GD05-113",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;ap<=4",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 of your (MF) Units with 4 or less AP. It gets AP+2 during this turn."
+  },
+  {
     "id": "GD05-114-Main",
     "cardCode": "GD05-114",
     "trigger": "Main",
@@ -8010,6 +8255,54 @@
     "sourceText": "【Main】/【Action】Choose 1 enemy Unit with 4 or less HP. Rest it. Then, you may choose 1 of your Units with \"Shining Gundam\" in its card name. It gets <First Strike> during this turn."
   },
   {
+    "id": "GD05-121-AfterMain",
+    "cardCode": "GD05-121",
+    "trigger": "AfterMain",
+    "ops": [
+      "pairCardFromTrashAsPilot"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;unpaired",
+    "predicate": null,
+    "sourceText": "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
+  },
+  {
+    "id": "GD05-121-Main",
+    "cardCode": "GD05-121",
+    "trigger": "Main",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit. It gets AP-2 during this turn."
+  },
+  {
+    "id": "GD05-122-AfterMain",
+    "cardCode": "GD05-122",
+    "trigger": "AfterMain",
+    "ops": [
+      "pairCardFromTrashAsPilot"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:MF;unpaired",
+    "predicate": null,
+    "sourceText": "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
+  },
+  {
+    "id": "GD05-122-Main",
+    "cardCode": "GD05-122",
+    "trigger": "Main",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy Unit that is Lv.4 or lower. Rest it."
+  },
+  {
     "id": "GD05-123-Burst",
     "cardCode": "GD05-123",
     "trigger": "Burst",
@@ -8141,6 +8434,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD05-128-ActivateMain",
+    "cardCode": "GD05-128",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": "controllerLinkUnitWithTraitInPlay:MF",
+    "sourceText": "【Activate･Main】Rest this Base：If a friendly (MF) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
   },
   {
     "id": "GD05-128-Burst",

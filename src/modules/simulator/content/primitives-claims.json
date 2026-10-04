@@ -201,6 +201,10 @@
     "damageFirstShieldAreaCard": {
       "description": "N de dano na 1ª carta da área de escudo: a Base (dano de efeito, pela camada de dano) ou o escudo do topo (destruído). Sem Base nem escudo, nada.",
       "since": "GD05-033"
+    },
+    "activateMainOf": {
+      "description": "Roda o 【Main】 de outra carta (Command-Piloto pareada, Command descartada) como continuação, sem pagar custo nem mover a carta; conta como ativar o 【Main】 de uma Command (rulings Q376/Q397).",
+      "since": "GD05-044"
     }
   },
   "targetRefKinds": {
@@ -585,6 +589,10 @@
     "controllerHandCountAtLeast:<n>": {
       "description": "O controlador tem N ou mais cartas na mão.",
       "since": "GD05-002"
+    },
+    "controllerActivatedCommandTraitThisTurn:<value>": {
+      "description": "O controlador ativou neste turno o 【Main】/【Action】 de uma Command com o trait (só traits rastreados em TRACKED_COMMAND_TRAITS).",
+      "since": "GD05-089"
     }
   },
   "targetFilters": {
@@ -735,6 +743,10 @@
     "notBattling": {
       "description": "Unit fora do combate atual (nem a atacante nem a Unit alvo do ataque); sem combate, toda Unit.",
       "since": "GD05-049"
+    },
+    "not\\(<value>\\)": {
+      "description": "Negação de um filtro: not(<filtro>) — ex. not(hasKeyword:Breach).",
+      "since": "GD05-112"
     }
   }
 }

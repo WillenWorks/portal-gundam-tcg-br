@@ -94,6 +94,8 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
     // W7 (C10) — descarte é público (vai pro trash à vista)
     ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    // W7 — Command ativada é pública
+    ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: player.commandTraitsActivatedOnTurn } : {}),
   };
 }
 

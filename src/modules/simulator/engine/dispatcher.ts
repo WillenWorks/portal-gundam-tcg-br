@@ -1,7 +1,7 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer, specPairGateOpen } from "./types";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
-import { isFollowUpTrigger, resolveEffectSpec, specActiveCalls } from "./effectSpec";
+import { isFollowUpTrigger, resolveCallTargetIds, resolveEffectSpec, specActiveCalls } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import {
   checkTriggerLoopGuard,
@@ -14,6 +14,7 @@ import {
   paidForUnitEffectOccurrence,
   resourcePaymentAmount,
   attachQueuedTriggers,
+  markCommandTraitsActivated,
   pairingTriggerEntries,
 } from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
@@ -249,7 +250,13 @@ export function dispatchTrigger(
     const activeCalls = specActiveCalls(spec, ctx, opts.predicateResolver);
     const modeCall = activeCalls.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
     const chosenMode = modeCall ? (opts.targets?.[modeCall.key]?.[0] ?? modeCall.options[0]?.value) : undefined;
-    const followUps: Array<{ trigger: string; targets?: Record<string, string[]>; decidedBy?: "controller" | "opponent" }> = [];
+    const followUps: Array<{
+      trigger: string;
+      targets?: Record<string, string[]>;
+      decidedBy?: "controller" | "opponent";
+      /** outra carta como fonte (o 【Main】 da carta pareada, `activateMainOf`) */
+      source?: { code: string; instanceId: string };
+    }> = [];
     if (modeCall && chosenMode) {
       // alvo do modo já pronto só no caminho síncrono (bot/teste passa `targets.target` junto do modo); vindo da
       // fila de decisão só há a escolha do modo, e o modo pausa pra pedir o próprio alvo
@@ -262,13 +269,24 @@ export function dispatchTrigger(
     }
     for (const call of activeCalls) {
       if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger, decidedBy: call.decidedBy });
+      if (call.op === "activateMainOf") {
+        for (const id of resolveCallTargetIds(call.card, ctx)) {
+          const card = findCard(next, id);
+          if (card.def.cardType !== "COMMAND" || findTriggerSpecs(allSpecs, card.def.code, "Main").length === 0) continue;
+          followUps.push({ trigger: "Main", source: { code: card.def.code, instanceId: id } });
+        }
+      }
     }
     for (const followUp of followUps) {
       if (next.gameOver) break;
       // o alvo do passo anterior segue como alvo implícito `previousTarget` ("…whose Lv. is equal to or lower than the
       // Unit rested with this ability", GD03-113)
       const previousTarget = ctx.targets.target?.length ? { previousTarget: ctx.targets.target } : undefined;
-      const followUpSources = [{ code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget }];
+      const followUpSources = [
+        followUp.source ? { ...followUp.source } : { code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget },
+      ];
+      // rulings Q376/Q397 — ativar o 【Main】 de uma Command conta como "ativou o 【Main】" (GD05-068/089)
+      if (followUp.source) next = markCommandTraitsActivated(next, followUp.source.instanceId);
       // algo do próprio efeito pausou antes (ex. 【Destroyed】 da Unit que ele destruiu): a continuação espera na fila
       if (next.pendingDecision.A || next.pendingDecision.B) {
         next = attachQueuedTriggers(next, [

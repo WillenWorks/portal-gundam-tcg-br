@@ -69,7 +69,13 @@ export type TargetRef =
 export type TargetGroup =
   | { kind: "allFriendlyLinkUnits" }
   /** GD02-107 All-Range Attack — "Deal 1 damage to all enemy Units other than Link Units". */
-  | { kind: "allEnemyUnits"; maxLevel?: number; excludeLinkUnits?: boolean }
+  | {
+      kind: "allEnemyUnits";
+      maxLevel?: number;
+      excludeLinkUnits?: boolean;
+      /** W7 — GD05-036 "all enemy Units whose Lv. is equal to or lower than that Unit": Lv. do alvo nomeado `ctx.targets[maxLevelOf]` */
+      maxLevelOf?: string;
+    }
   /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
   | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
   /**
@@ -212,8 +218,11 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
       .map((c) => c.instanceId);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
+  const refId = group.maxLevelOf ? ctx.targets[group.maxLevelOf]?.[0] : undefined;
+  if (group.maxLevelOf && !refId) return [];
+  const maxLevel = refId ? (findCard(ctx.state, refId).def.level ?? 0) : group.maxLevel;
   return opponent.battleArea
-    .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+    .filter((u) => u.def.cardType === "UNIT" && (maxLevel === undefined || (u.def.level ?? 0) <= maxLevel))
     .filter((u) => !group.excludeLinkUnits || !isLinkUnit(ctx.state, u))
     .map((u) => u.instanceId);
 }
@@ -245,6 +254,11 @@ function resolveTarget(
 }
 
 /** Resolve pra 0+ instanceIds — usado por toda primitiva que consome `TargetRef` (única fonte de verdade pra aplicar a mesma ação a um GRUPO inteiro de alvos, não só a 1). */
+/** W7 — ids de um `TargetRef` no contexto (exportado pra quem despacha continuações, ex. `activateMainOf`) */
+export function resolveCallTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
+  return resolveTargetIds(ref, ctx);
+}
+
 function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   if (ref.kind === "group") return resolveTargetGroup(ref.group, ctx);
   // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
@@ -373,6 +387,12 @@ export type PrimitiveCall =
    * RESOURCE DECK (não é EX Resource, que sai do jogo ao pagar). Resource deck vazio: não acontece nada.
    */
   | { op: "placeResourceFromDeck"; player: PlayerRef; rested?: boolean }
+  /**
+   * W7 — "Activate 【Main】 on the card paired with this Unit" (GD05-035/044/069/076) e "you may activate its 【Main】"
+   * (GD05-097, a Command descartada): roda o 【Main】 da carta (`card`) como continuação, sem pagar custo e sem
+   * movê-la; conta como "ativou o 【Main】 de uma Command" (rulings Q376/Q397).
+   */
+  | { op: "activateMainOf"; card: TargetRef }
   /**
    * W7 — "Destroy the first N cards in that player's shield area" (GD05-107). A 1ª carta da área de escudo é a
    * Base, se houver (CR 13-1-2-2); depois os escudos do topo. Escudo destruído por efeito oferece o 【Burst】 ao
@@ -961,6 +981,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     // W7 (C9) — a escolha em si não muda o estado; o modo escolhido é despachado pelo `dispatchTrigger`
     case "chooseMode":
     case "thenTrigger":
+    case "activateMainOf":
       return [];
     case "destroyFirstShieldAreaCards": {
       const player = resolvePlayerRef(call.player, ctx.controller);
