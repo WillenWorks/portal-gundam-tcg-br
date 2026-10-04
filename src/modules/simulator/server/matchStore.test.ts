@@ -119,7 +119,7 @@ describe("applyAction", () => {
     expect(updated.state.activePlayer).toBe("A"); // ainda não trocou
     expect(updated.version).toBe(2);
 
-    updated = applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
+    applyAction(match.id, "user-2", { kind: "passEndPhaseAction" });
     updated = applyAction(match.id, "user-1", { kind: "passEndPhaseAction" });
     expect(updated.state.activePlayer).toBe("B");
     expect(updated.version).toBe(4);
@@ -637,8 +637,8 @@ describe("setAutoPass — auto-pass inteligente do Action Step (docs/19, Sessão
       owner: "B" as const, zone: "resourceArea" as const, rested: false, damage: 0, statModifiers: [], keywordGrants: [], usedKeywordsThisTurn: [], enteredZoneOnTurn: 1,
     }));
 
-    let m = applyAction(match.id, "user-1", { kind: "finishTurn" });
-    m = setAutoPass(match.id, "user-2", true);
+    applyAction(match.id, "user-1", { kind: "finishTurn" });
+    const m = setAutoPass(match.id, "user-2", true);
     // B tem jogada real -> auto-pass NÃO dispara, continua sendo a vez dele
     expect(m.state.endPhaseAction?.priority).toBe("B");
   });

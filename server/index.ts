@@ -1870,7 +1870,7 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
 app.get("/api/cards/:id/relations", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
-  let cardModelId: string | null = null;
+  let cardModelId: string | null;
   const model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
   if (model) {
     cardModelId = model.id;
@@ -2404,7 +2404,7 @@ app.get("/api/stats/metagame", async (req, res) => {
   const startDate = typeof req.query.startDate === "string" && req.query.startDate ? new Date(req.query.startDate) : undefined;
   const endDate = typeof req.query.endDate === "string" && req.query.endDate ? new Date(req.query.endDate) : undefined;
 
-  let seasonId: string | null = null;
+  let seasonId: string | null;
   let season: { id: string; code: string; name: string } | null = null;
   if (seasonParam === "all") {
     seasonId = null;
