@@ -224,3 +224,46 @@ describe("GD05-049 Sazabi — cada oponente escolhe 1 Unit fora de batalha", () 
     expect(s.combat?.step).toBe("block");
   });
 });
+
+describe("GD05-107 Interwoven Blessings — destrói as 2 primeiras cartas da área de escudo", () => {
+  const BURST_SHIELD: CardDef = { ...G["GD05-107"] };
+  /** GD05-107 é Lv.10 */
+  const tenResources = (s: GameState) => {
+    s.players.A.resourceArea = [];
+    for (let i = 0; i < 10; i++) placeCard(s, "A", RESOURCE, "resourceArea");
+  };
+
+  it("sem Base: os 2 escudos do topo; escudo com 【Burst】 oferece a decisão ao DONO", () => {
+    let s = game();
+    s.players.B.shields = [];
+    const burst = placeCard(s, "B", BURST_SHIELD, "shields");
+    const plain = placeCard(s, "B", SHIELD, "shields");
+    const third = placeCard(s, "B", SHIELD, "shields");
+    const cmd = placeCard(s, "A", G["GD05-107"], "hand");
+    tenResources(s);
+    s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main" });
+    expect(inZone(s, "B", "trash", burst) && inZone(s, "B", "trash", plain)).toBe(true);
+    expect(s.players.B.shields.map((c) => c.instanceId)).toEqual([third]);
+    expect(inZone(s, "A", "trash", cmd)).toBe(true);
+
+    const d = s.pendingDecision.B;
+    expect(d?.kind).toBe("burst");
+    expect(d?.kind === "burst" && d.cardInstanceId).toBe(burst);
+    const exBefore = s.players.B.resourceArea.length;
+    s = act(s, "B", { kind: "resolveBurstDecision", activate: true });
+    expect(s.players.B.resourceArea.length).toBe(exBefore + 1); // 【Burst】Place 1 EX Resource.
+    expect(s.pendingDecision.B).toBeNull();
+  });
+
+  it("com Base: a Base é a 1ª carta (destruída) e só 1 escudo sai", () => {
+    let s = game();
+    const base = placeCard(s, "B", { code: "TEST-BASE", nameEn: "Base", cardType: "BASE", color: "white", level: 1, cost: 1, ap: 0, hp: 5 }, "baseSection");
+    const top = s.players.B.shields[0].instanceId;
+    const cmd = placeCard(s, "A", G["GD05-107"], "hand");
+    tenResources(s);
+    s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main" });
+    expect(inZone(s, "B", "trash", base)).toBe(true);
+    expect(inZone(s, "B", "trash", top)).toBe(true);
+    expect(s.players.B.shields).toHaveLength(2);
+  });
+});

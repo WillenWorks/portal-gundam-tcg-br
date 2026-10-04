@@ -374,6 +374,17 @@ export type PrimitiveCall =
    */
   | { op: "placeResourceFromDeck"; player: PlayerRef; rested?: boolean }
   /**
+   * W7 — "Destroy the first N cards in that player's shield area" (GD05-107). A 1ª carta da área de escudo é a
+   * Base, se houver (CR 13-1-2-2); depois os escudos do topo. Escudo destruído por efeito oferece o 【Burst】 ao
+   * dono (CR 13-2-5-1) — `dispatchTrigger` abre a decisão.
+   */
+  | { op: "destroyFirstShieldAreaCards"; player: PlayerRef; count: number }
+  /**
+   * W7 — "deal N damage to the first card in your opponent's shield area" (GD05-033): Base (dano de efeito, pela
+   * camada de dano) ou o escudo do topo (qualquer dano destrói o escudo). Sem Base nem escudo, nada.
+   */
+  | { op: "damageFirstShieldAreaCard"; player: PlayerRef; amount: number }
+  /**
    * "Add N of your Shields to your hand" — o 【Deploy】 que TODA Base do jogo
    * tem (91/91 no dataset oficial, sem exceção; ver docs/18). Como shields
    * são face-down e o dono não vê a identidade (`viewState.ts`), a escolha de
@@ -951,6 +962,32 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "chooseMode":
     case "thenTrigger":
       return [];
+    case "destroyFirstShieldAreaCards": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const side = ctx.state.players[player];
+      const events: GameEvent[] = [];
+      let left = call.count;
+      const base = side.baseSection[0];
+      if (base && left > 0) {
+        events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+        left--;
+      }
+      const shields = Math.min(left, side.shields.length);
+      if (shields > 0) events.push({ type: "DAMAGE_SHIELD", player, count: shields });
+      return events;
+    }
+    case "damageFirstShieldAreaCard": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const side = ctx.state.players[player];
+      const base = side.baseSection[0];
+      if (base) {
+        const hit = incomingDamage(ctx.state, base, call.amount, effectSource(ctx));
+        const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume }];
+        if (hit.amount > 0 && base.damage + hit.amount >= effectiveHp(base, ctx.state)) events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+        return events;
+      }
+      return side.shields.length > 0 && call.amount > 0 ? [{ type: "DAMAGE_SHIELD", player, count: 1 }] : [];
+    }
     case "placeResourceFromDeck": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       const top = ctx.state.players[player].resourceDeck[0];

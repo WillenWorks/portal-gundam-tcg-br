@@ -13978,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 59,
+        "full": 60,
         "partial": 0,
-        "missing": 52,
+        "missing": 51,
         "withErrors": 0
       },
       "cards": [
@@ -16120,7 +16120,7 @@
         },
         {
           "code": "GD05-107",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16139,10 +16139,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-107-Main"
               ],
               "text": "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area."
             }

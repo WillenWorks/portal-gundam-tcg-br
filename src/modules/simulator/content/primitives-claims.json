@@ -193,6 +193,14 @@
     "thenTrigger": {
       "description": "\"If you do, choose …\" que depende de uma escolha anterior do mesmo efeito: roda como gatilho Then:<n> da mesma carta, com escolha própria (resolve a limitação E4: descarte + alvo numa fila só). A decisão da continuação guarda a origem (parentTrigger).",
       "since": "GD05-002"
+    },
+    "destroyFirstShieldAreaCards": {
+      "description": "Destrói as N primeiras cartas da área de escudo do jogador: a Base (se houver) e depois escudos do topo (CR 13-1-2-2). Escudo destruído por efeito oferece o 【Burst】 ao dono (CR 13-2-5-1).",
+      "since": "GD05-107"
+    },
+    "damageFirstShieldAreaCard": {
+      "description": "N de dano na 1ª carta da área de escudo: a Base (dano de efeito, pela camada de dano) ou o escudo do topo (destruído). Sem Base nem escudo, nada.",
+      "since": "GD05-033"
     }
   },
   "targetRefKinds": {

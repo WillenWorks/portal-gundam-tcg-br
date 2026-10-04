@@ -292,6 +292,10 @@ export function dispatchTrigger(
       if (!isFollowUpTrigger(trigger)) next = withParentTrigger(next, followUp.trigger, trigger);
     }
 
+    // W7 — escudo destruído por EFEITO (GD05-107/033) também oferece o 【Burst】 ao dono (CR 13-2-5-1). No Damage
+    // Step o combate tem caminho próprio; aqui só fora dele e sem decisão pendente desse jogador.
+    if (!next.gameOver && next.combat?.step !== "damage") next = offerBurstForShieldsDestroyedByEffect(before, next, allSpecs);
+
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
     // loop de specs desta carta — a decisão pendente resolve antes de seguir.
     // `gameOver` cobre o guard anti-loop estourando em qualquer ponto acima.
@@ -387,4 +391,20 @@ function withParentTrigger(state: GameState, followUpTrigger: string, parentTrig
     }
   }
   return state;
+}
+
+/** W7 — fila de 【Burst】 dos escudos que ESTE efeito destruiu (mesma decisão `burst` do Damage Step, sem 【Destroyed】 pendurado) */
+function offerBurstForShieldsDestroyedByEffect(before: GameState, after: GameState, specs: EffectSpec[]): GameState {
+  let next = after;
+  for (const p of ["A", "B"] as PlayerId[]) {
+    if (next.pendingDecision[p]) continue;
+    const [first, ...rest] = burstEligibleShieldIds(before, next, p, specs);
+    if (!first) continue;
+    next = applyEvent(next, {
+      type: "SET_PENDING_DECISION",
+      player: p,
+      decision: { kind: "burst", cardInstanceId: first, cardDef: findCard(next, first).def, choices: [], queuedInstanceIds: rest, pendingDestroyed: [] },
+    });
+  }
+  return next;
 }

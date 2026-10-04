@@ -7796,6 +7796,18 @@
     "sourceText": "【Burst】Place 1 EX Resource."
   },
   {
+    "id": "GD05-107-Main",
+    "cardCode": "GD05-107",
+    "trigger": "Main",
+    "ops": [
+      "destroyFirstShieldAreaCards"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area."
+  },
+  {
     "id": "GD05-109-Action",
     "cardCode": "GD05-109",
     "trigger": "Action",

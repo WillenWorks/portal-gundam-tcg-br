@@ -78,6 +78,16 @@ export const GD05_W7B_EFFECT_SPECS: EffectSpec[] = [
     sourceText: "They discard 1.",
   },
 
+  // GD05-107 Interwoven Blessings — no 1v1 "Choose 1 enemy player" é o oponente (sem escolha). Base primeiro, depois
+  // escudos do topo; escudo destruído oferece 【Burst】 ao dono.
+  {
+    id: "GD05-107-Main",
+    cardCode: "GD05-107",
+    trigger: "Main",
+    actions: [{ op: "destroyFirstShieldAreaCards", player: "opponent", count: 2 }],
+    sourceText: "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area.",
+  },
+
   // GD05-049 Sazabi — aproximação registrada: a Unit destruída por você não pode ser o próprio Sazabi
   {
     id: "GD05-049-Attack",
