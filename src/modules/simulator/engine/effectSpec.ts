@@ -343,6 +343,17 @@ export type PrimitiveCall =
    * (default defensivo — a camada de decisão sempre força a escolha). */
   | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[] }
   /**
+   * W7 (C9) — "choose 1 of the following effects and activate it: ■… ■…" (GD05-102/106). A escolha é ENUM
+   * (`enumChoice`); o modo escolhido roda depois como gatilho próprio `Mode:<value>` da mesma carta
+   * (`dispatchTrigger`), com alvo/escolhas próprios — o alvo de um modo só é pedido depois do modo.
+   */
+  | { op: "chooseMode"; key: string; options: { value: string; label: string }[] }
+  /**
+   * W7 — "Place 1 (rested) Resource" (GD01-025/107, GD05-106, EB01-021): CR 3-6-1, Resource sai do topo do
+   * RESOURCE DECK (não é EX Resource, que sai do jogo ao pagar). Resource deck vazio: não acontece nada.
+   */
+  | { op: "placeResourceFromDeck"; player: PlayerRef; rested?: boolean }
+  /**
    * "Add N of your Shields to your hand" — o 【Deploy】 que TODA Base do jogo
    * tem (91/91 no dataset oficial, sem exceção; ver docs/18). Como shields
    * são face-down e o dono não vê a identidade (`viewState.ts`), a escolha de
@@ -900,6 +911,17 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           position === "trash" ? { type: "MOVE_CARD", instanceId, toZone: "trash" } : { type: "MOVE_WITHIN_DECK", instanceId, position },
       );
     }
+    // W7 (C9) — a escolha em si não muda o estado; o modo escolhido é despachado pelo `dispatchTrigger`
+    case "chooseMode":
+      return [];
+    case "placeResourceFromDeck": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const top = ctx.state.players[player].resourceDeck[0];
+      if (!top) return [];
+      const events: GameEvent[] = [{ type: "DRAW_CARD", player, from: "resourceDeck", instanceId: top.instanceId }];
+      if (call.rested) events.push({ type: "REST_CARD", instanceId: top.instanceId });
+      return events;
+    }
     case "spawnTokenChoice": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       const chosen = ctx.targets[call.key]?.[0];
@@ -1435,6 +1457,7 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>
   | Extract<PrimitiveCall, { op: "discardNamed" }>
   | Extract<PrimitiveCall, { op: "spawnTokenChoice" }>
+  | Extract<PrimitiveCall, { op: "chooseMode" }>
   | Extract<PrimitiveCall, { op: "moveWithinDeck" }>
   | Extract<PrimitiveCall, { op: "deployFromTopFilterReveal" }>
   | Extract<PrimitiveCall, { op: "searchTrashToHand" }>
@@ -1450,6 +1473,7 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "lookAtTopFilterReveal":
     case "discardNamed":
     case "spawnTokenChoice":
+    case "chooseMode":
     case "deployFromTopFilterReveal":
     case "searchTrashToHand":
     case "pairFromTrashSearch":
