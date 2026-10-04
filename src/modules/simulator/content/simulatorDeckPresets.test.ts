@@ -4,6 +4,7 @@ import { GD01_TEST_DECKS } from "../fixtures/gd01TestDecks";
 import { META_DECKS_GD02_ERA } from "../fixtures/metaDecksGd02Era";
 import { GD03_TEST_DECKS } from "../fixtures/gd03Decks";
 import { GD04_TEST_DECKS } from "../fixtures/gd04Decks";
+import { ST09_DECKS } from "../fixtures/st09Decks";
 import { SIMULATOR_DECK_PRESETS } from "./simulatorDeckPresets";
 import { VALIDATED_DECKS, checkDeckListLegality } from "./validatedDecks";
 
@@ -15,6 +16,7 @@ const REGISTRIES: Record<string, { build: () => DeckList }>[] = [
   META_DECKS_GD02_ERA,
   GD03_TEST_DECKS,
   GD04_TEST_DECKS,
+  ST09_DECKS,
 ];
 
 function resolvePreset(key: string): (() => DeckList) | undefined {
@@ -30,9 +32,9 @@ describe("SIMULATOR_DECK_PRESETS", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("inclui os decks de teste do fechamento do GD03 e do GD04", () => {
+  it("inclui os decks do fechamento do GD03, do GD04 e do ST09", () => {
     const keys = new Set(SIMULATOR_DECK_PRESETS.map((p) => p.key));
-    for (const key of [...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS)]) {
+    for (const key of [...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS)]) {
       expect(keys.has(key), key).toBe(true);
     }
   });

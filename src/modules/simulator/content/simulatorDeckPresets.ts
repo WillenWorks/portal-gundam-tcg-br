@@ -32,9 +32,11 @@ export const SIMULATOR_DECK_PRESETS: SimulatorDeckPreset[] = [
   { key: "META-GD02-AGE-WING", label: "Meta GD02 · AGE × Wing" },
   { key: "META-GD02-TITANS", label: "Meta GD02 · Titans × Cyber-Newtype" },
   { key: "META-ST06-GQUUUUUUX", label: "Meta ST06 × GD02 · GQuuuuuuX" },
-  // Decks de teste do fechamento de cada set (fuzz + golden) — `fixtures/gd03Decks.ts`, `fixtures/gd04Decks.ts`
+  // Decks do fechamento de cada set (fuzz + golden) — `fixtures/gd03Decks.ts`, `fixtures/gd04Decks.ts`, `fixtures/st09Decks.ts`
   { key: "GD03-CYCLOPS", label: "Cyclops Team / Zeon (GD03)" },
   { key: "GD03-TITANS-VAGAN", label: "Titans / Vagan (GD03)" },
   { key: "GD04-ACADEMY-CB", label: "Academy / CB Trinity (GD04)" },
   { key: "GD04-VULTURE-MILITIA", label: "Vulture / Militia (GD04)" },
+  { key: "ST09-PURPLE-WHITE", label: "Minerva Squad Roxo/Branco (ST09)" },
+  { key: "ST09-RED-PURPLE", label: "Minerva Squad Vermelho/Roxo (ST09)" },
 ];

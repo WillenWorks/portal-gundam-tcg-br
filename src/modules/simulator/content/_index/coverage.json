@@ -837,6 +837,77 @@
         "faltando": 0
       }
     },
+    "ST09": {
+      "cards": [
+        {
+          "code": "ST09-001",
+          "name": "Impulse Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-002",
+          "name": "Force Impulse Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-003",
+          "name": "Saviour Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-004",
+          "name": "Freedom Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-005",
+          "name": "Zaku Warrior",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-006",
+          "name": "Sword Impulse Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-007",
+          "name": "Blast Impulse Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-008",
+          "name": "Shinn Asuka",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-009",
+          "name": "Giant Killing",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST09-010",
+          "name": "Minerva",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 8,
+        "implStar": 0,
+        "vanilla": 2,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
     "GD01": {
       "cards": [
         {

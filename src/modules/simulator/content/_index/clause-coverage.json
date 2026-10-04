@@ -2719,6 +2719,223 @@
         }
       ]
     },
+    "ST09": {
+      "counts": {
+        "vanilla": 2,
+        "full": 8,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST09-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-001-ActivateMain"
+              ],
+              "text": "【Activate·Main】②, return this Unit to the bottom of its owner's deck:Choose 1 Unit card with \"Impulse Gundam\" in its card name that is Lv.4 or higher from your trash. Deploy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Destroyed"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-002-Destroyed"
+              ],
+              "text": "【Destroyed】Choose 1 (Minerva Squad) Unit card without \"Force Impulse Gundam\" in its card name from your trash. Add it to your hand."
+            }
+          ]
+        },
+        {
+          "code": "ST09-003",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Breach"
+              ],
+              "text": "<Breach 3>"
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-003-WhenLinked"
+              ],
+              "text": "【When Linked】If there are 5 or more purple cards in your trash, deal 2 damage to all Units with 5 or less AP."
+            }
+          ]
+        },
+        {
+          "code": "ST09-004",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
+              "text": "While a friendly Base in play, this Unit gains <Suppression>."
+            }
+          ]
+        },
+        {
+          "code": "ST09-005",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST09-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-006-Deploy"
+              ],
+              "text": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit that is Lv.3 or lower. Destroy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-007",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST09-008",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-008-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-008-Attack"
+              ],
+              "text": "【Attack】If this is a (Minerva Squad) Unit, choose 1 of your Resources. Set it as active."
+            }
+          ]
+        },
+        {
+          "code": "ST09-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-009-Main",
+                "ST09-009-Action"
+              ],
+              "text": "【Main】/【Action】Choose 1 active enemy Unit with 4 or less AP. Destroy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-010",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-010-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-010-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
+            }
+          ]
+        }
+      ]
+    },
     "GD01": {
       "counts": {
         "vanilla": 28,
@@ -13748,223 +13965,6 @@
                 "GD04-130-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Exile 1 Command card from your trash:Choose 1 enemy Unit. It gets AP-1 during this turn."
-            }
-          ]
-        }
-      ]
-    },
-    "ST09": {
-      "counts": {
-        "vanilla": 2,
-        "full": 8,
-        "partial": 0,
-        "missing": 0,
-        "withErrors": 0
-      },
-      "cards": [
-        {
-          "code": "ST09-001",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Activate·Main"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-001-ActivateMain"
-              ],
-              "text": "【Activate·Main】②, return this Unit to the bottom of its owner's deck:Choose 1 Unit card with \"Impulse Gundam\" in its card name that is Lv.4 or higher from your trash. Deploy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-002",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Destroyed"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-002-Destroyed"
-              ],
-              "text": "【Destroyed】Choose 1 (Minerva Squad) Unit card without \"Force Impulse Gundam\" in its card name from your trash. Add it to your hand."
-            }
-          ]
-        },
-        {
-          "code": "ST09-003",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Breach"
-              ],
-              "text": "<Breach 3>"
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "When Linked"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-003-WhenLinked"
-              ],
-              "text": "【When Linked】If there are 5 or more purple cards in your trash, deal 2 damage to all Units with 5 or less AP."
-            }
-          ]
-        },
-        {
-          "code": "ST09-004",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Blocker"
-              ],
-              "text": "<Blocker>"
-            },
-            {
-              "i": 1,
-              "triggers": [],
-              "by": "structured",
-              "refs": [
-                "staticAbilities"
-              ],
-              "text": "While a friendly Base in play, this Unit gains <Suppression>."
-            }
-          ]
-        },
-        {
-          "code": "ST09-005",
-          "status": "vanilla",
-          "errors": [],
-          "clauses": []
-        },
-        {
-          "code": "ST09-006",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Deploy"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-006-Deploy"
-              ],
-              "text": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit that is Lv.3 or lower. Destroy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-007",
-          "status": "vanilla",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Blocker"
-              ],
-              "text": "<Blocker>"
-            }
-          ]
-        },
-        {
-          "code": "ST09-008",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Burst"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-008-Burst"
-              ],
-              "text": "【Burst】Add this card to your hand."
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "Attack"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-008-Attack"
-              ],
-              "text": "【Attack】If this is a (Minerva Squad) Unit, choose 1 of your Resources. Set it as active."
-            }
-          ]
-        },
-        {
-          "code": "ST09-009",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Main",
-                "Action"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-009-Main",
-                "ST09-009-Action"
-              ],
-              "text": "【Main】/【Action】Choose 1 active enemy Unit with 4 or less AP. Destroy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-010",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Burst"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-010-Burst"
-              ],
-              "text": "【Burst】Deploy this card."
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "Deploy"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-010-Deploy"
-              ],
-              "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
             }
           ]
         }
