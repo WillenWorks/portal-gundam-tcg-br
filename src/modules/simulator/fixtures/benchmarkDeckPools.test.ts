@@ -18,7 +18,13 @@ describe("benchmarkDeckPools", () => {
   it("all = união sem duplicatas", () => {
     const all = deckPool("all").map((d) => d.id);
     expect(new Set(all).size).toBe(all.length);
-    expect(all.length).toBe(deckPool("meta-gd02").length + deckPool("starters").length);
+    expect(all.length).toBe(deckPool("meta-gd02").length + deckPool("starters").length + deckPool("sets-novos").length);
+  });
+
+  it("sets-novos = GD03, GD04, ST09 e GD05, sem knownGaps", () => {
+    const ids = deckPool("sets-novos").map((d) => d.id);
+    for (const set of ["GD03", "GD04", "ST09", "GD05"]) expect(ids.some((id) => id.startsWith(`${set}-`)), set).toBe(true);
+    expect(deckPool("sets-novos").every((d) => d.knownGaps.length === 0)).toBe(true);
   });
 
   it("todo deck do pool monta uma DeckList de 50 + 10", () => {
@@ -31,14 +37,14 @@ describe("benchmarkDeckPools", () => {
 
   it("pool desconhecido lança listando os válidos", () => {
     expect(() => deckPool("nope" as never)).toThrow(/meta-gd02/);
-    expect(BENCHMARK_POOLS).toEqual(["starters", "meta-gd02", "all", "calib", "valid"]);
+    expect(BENCHMARK_POOLS).toEqual(["starters", "meta-gd02", "sets-novos", "all", "calib", "valid"]);
   });
 
-  it("calib e valid são disjuntos e cobrem o pool all", () => {
+  it("calib e valid são disjuntos e cobrem starters + meta-gd02", () => {
     const calib = deckPool("calib").map((d) => d.id);
     const valid = deckPool("valid").map((d) => d.id);
     expect(calib.filter((id) => valid.includes(id))).toEqual([]);
-    expect([...calib, ...valid].sort()).toEqual(deckPool("all").map((d) => d.id).sort());
+    expect([...calib, ...valid].sort()).toEqual([...deckPool("starters"), ...deckPool("meta-gd02")].map((d) => d.id).sort());
   });
 
   it("poolFromFile ↔ toPoolFileDeck: ida e volta preserva a lista", () => {
