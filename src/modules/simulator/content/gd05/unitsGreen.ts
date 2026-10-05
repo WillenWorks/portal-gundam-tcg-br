@@ -127,6 +127,15 @@ export const UNITS_GREEN: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Activate·Action"
+    ],
+    // W8
+    "damageReductions": [
+      {
+        "amount": 2,
+        "oncePerTurn": true,
+        "boardCondition": { "kind": "friendlyPilotInPlay", "trait": "Earth Federation" },
+        "sourceText": "【Once per Turn】When this Unit receives enemy damage, if you have an (Earth Federation) Pilot in play, reduce it by 2."
+      }
     ]
   },
   "GD05-022": {
@@ -246,6 +255,13 @@ export const UNITS_GREEN: Record<string, CardDef> = {
         "Prospera Mercury",
         "Ericht Samaya"
       ]
+    },
+    // W8 — "enemy Units whose Lv. ≤ (Lfrith/Gundnode suas + esta) are deployed rested"
+    "deploysRestedRule": {
+      "maxLevel": 0,
+      "enemyOnly": true,
+      "maxLevelFromNameCount": { "nameContainsAny": ["Gundam Lfrith", "Gundnode"], "plusSelf": true },
+      "sourceText": "Count up the number of your Units with \"Gundam Lfrith\"/\"Gundnode\" in their card name, plus this Unit. All enemy Units whose Lv. is equal to or lower than that number are deployed rested."
     }
   },
   "GD05-027": {
@@ -325,7 +341,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "values": [
         "Shaddiq Zenelli"
       ]
-    }
+    },
+    // W8 — ataca no turno do deploy, só Unit inimiga descansada
+    "attackOnDeployTurnVsRestedUnit": { "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." }
   },
   "GD05-031": {
     "code": "GD05-031",

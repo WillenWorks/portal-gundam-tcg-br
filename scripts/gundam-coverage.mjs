@@ -34,10 +34,10 @@ import { register } from "tsx/esm/api";
 register();
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c, GD04 na W5 e ST09 na W6 (sets fechados —
+// GD02 entrou no gate na W0.4 (auditoria cláusula a cláusula zerada); GD03 na W2c, GD04 na W5, ST09 na W6 e GD05 na W8 (sets fechados —
 // as cláusulas que dependem de motor novo estão em `content/deferred.ts` e seguem bloqueadas em
 // runtime por `server/deckCoverageGate.ts`).
-const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "GD01", "GD02", "GD03", "GD04"];
+const GATED_SETS = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "GD01", "GD02", "GD03", "GD04", "GD05"];
 
 function parseArgs(argv) {
   const out = { sets: GATED_SETS, all: false, gate: false, strict: false, outFile: null };
@@ -324,7 +324,6 @@ function auditCode(code) {
     deferrals: DEFERRALS_BY_CODE.get(code) ?? [],
   });
 }
-// GD05 (W6-prep): catálogo gerado, só auditoria por cláusula — entra no GATED_SETS no gate da W8.
 const CLAUSE_AUDIT_SETS = [...new Set([...GATED_SETS, "GD02", "GD03", "GD04", "ST09", "GD05"])];
 const clauseTotalsBySet = {};
 const clauseJsonSets = {};

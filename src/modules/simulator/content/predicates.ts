@@ -106,6 +106,13 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const mark = ctx.state.players[ctx.controller].ownUnitDestroyedByOwnEffectOnTurn;
     return !!mark && mark.turn === ctx.state.turnNumber && mark.traits.includes(ownDestroyedThisTurn[1]);
   }
+  // W8 — GD05-126 "If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play"
+  const unitNameLevel = predicate.match(/^controllerUnitNameContainsLevelAtLeast:(.+):(\d+)$/);
+  if (unitNameLevel) {
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(unitNameLevel[1]) && (c.def.level ?? 0) >= Number(unitNameLevel[2]),
+    );
+  }
   // W7 — GD05-089 "If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn"
   const activatedTrait = predicate.match(/^controllerActivatedCommandTraitThisTurn:(.+)$/);
   if (activatedTrait) {
@@ -794,6 +801,18 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // O candidato precisa ser um dos 2 lados do combate ATUAL, com o outro lado sendo uma Unit
   // AMIGA (do controller do efeito) com a keyword dada (mesmo padrão de excludeInstanceId de
   // `battlingEnemyLevelAtMost`, só que aqui o candidato JÁ É "quem eu sou" — a fonte do olhar).
+  // W8 — GD05-119 "enemy Unit that is battling one of your Units that is Lv.5 or higher"
+  const battlingFriendlyLevelAtLeast = filter.match(/^battlingFriendlyLevelAtLeast:(\d+)$/);
+  if (battlingFriendlyLevelAtLeast) {
+    const combat = ctx.state.combat;
+    if (!combat || combat.currentTarget === "player" || !ctx.sourceInstanceId) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId) opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && (opposing.def.level ?? 0) >= Number(battlingFriendlyLevelAtLeast[1]);
+  }
   const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
   if (battlingFriendlyHasKeyword) {
     if (!ctx.sourceInstanceId) return false;

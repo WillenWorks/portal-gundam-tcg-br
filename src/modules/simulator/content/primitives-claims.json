@@ -205,6 +205,14 @@
     "activateMainOf": {
       "description": "Roda o 【Main】 de outra carta (Command-Piloto pareada, Command descartada) como continuação, sem pagar custo nem mover a carta; conta como ativar o 【Main】 de uma Command (rulings Q376/Q397).",
       "since": "GD05-044"
+    },
+    "beginDamageOnlyBattle": {
+      "description": "Começa uma batalha entre a fonte e a Unit inimiga só com o Damage Step (CR 5-22-3; sem 【Attack】 nem \"when a Unit attacks\").",
+      "since": "GD05-017"
+    },
+    "deployAsUnit": {
+      "description": "A carta entra na Battle Area como Unit com AP/HP dados (não é Pilot), mantém Lv./traits; volta à CardDef original ao sair.",
+      "since": "GD05-089"
     }
   },
   "targetRefKinds": {
@@ -601,6 +609,10 @@
     "controllerUnitDestroyedByOwnTraitEffectThisTurn:<value>": {
       "description": "Neste turno, uma Unit do controlador foi destruída por efeito dele de uma carta com o trait (só traits em TRACKED_DESTROYER_TRAITS).",
       "since": "GD05-129"
+    },
+    "controllerUnitNameContainsLevelAtLeast:<value>:<n>": {
+      "description": "O controlador tem em jogo uma Unit com o texto no nome e Lv. N ou mais.",
+      "since": "GD05-126"
     }
   },
   "targetFilters": {
@@ -759,6 +771,10 @@
     "pairedUnitLinkWithTrait:<value>": {
       "description": "O Piloto candidato está pareado com uma Unit do trait e formou Link com ela.",
       "since": "GD05-127"
+    },
+    "battlingFriendlyLevelAtLeast:<n>": {
+      "description": "Unit inimiga em batalha com uma Unit do controlador de Lv. N ou mais.",
+      "since": "GD05-119"
     }
   }
 }

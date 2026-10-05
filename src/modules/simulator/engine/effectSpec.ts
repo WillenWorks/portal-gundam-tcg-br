@@ -34,6 +34,9 @@ export function resolvePlayerRef(ref: PlayerRef, controller: PlayerId): PlayerId
   return ref;
 }
 
+/** W8 — limite de EX Resources em jogo (FAQ GD05-018 Q351) */
+export const MAX_EX_RESOURCES = 5;
+
 export type TargetRef =
   | { kind: "self" }
   /** a Unit pareada com a fonte — se a fonte JÁ é Unit, é ela mesma; se é Pilot,
@@ -393,6 +396,10 @@ export type PrimitiveCall =
    * movê-la; conta como "ativou o 【Main】 de uma Command" (rulings Q376/Q397).
    */
   | { op: "activateMainOf"; card: TargetRef }
+  /** W8 — GD05-017 "Begin a battle between this Unit and it and only perform the damage step" (CR 5-22-3) */
+  | { op: "beginDamageOnlyBattle"; target: TargetRef }
+  /** W8 — GD05-089 "you may deploy it as an (AP3･HP3) Unit instead. (Don't treat it as a Pilot.)" */
+  | { op: "deployAsUnit"; target: TargetRef; ap: number; hp: number }
   /**
    * W7 — "Destroy the first N cards in that player's shield area" (GD05-107). A 1ª carta da área de escudo é a
    * Base, se houver (CR 13-1-2-2); depois os escudos do topo. Escudo destruído por efeito oferece o 【Burst】 ao
@@ -622,7 +629,7 @@ export interface CardDefFilter {
 /** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
 export function costRestsSecondaryTarget(spec: EffectSpec): boolean {
   const name = spec.secondaryTarget?.name;
-  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "named" && c.target.name === name);
+  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && (c.target.kind === "named" || c.target.kind === "namedGroup") && c.target.name === name);
 }
 
 /** W5 — custo "Rest 1 of your … Units" sem nenhuma Unit elegível */
@@ -635,7 +642,7 @@ export function costTargetShortfall(
 ): boolean {
   if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
   const st = spec.secondaryTarget;
-  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length === 0;
+  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length < (st.count ?? 1);
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
@@ -931,7 +938,9 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     }
     case "spawnToken": {
       const player = resolvePlayerRef(call.player, ctx.controller);
-      const count = call.count ?? 1;
+      // W8 — FAQ GD05-018 Q351: no máximo 5 EX Resources em jogo; o que passar disso não é colocado
+      const exInPlay = ctx.state.players[player].resourceArea.filter((r) => r.def.code === TOKEN_EX_RESOURCE_CODE).length;
+      const count = call.def.code === TOKEN_EX_RESOURCE_CODE ? Math.min(call.count ?? 1, Math.max(0, MAX_EX_RESOURCES - exInPlay)) : (call.count ?? 1);
       const events: GameEvent[] = Array.from(
         { length: count },
         (): GameEvent => ({ type: "SPAWN_TOKEN", player, def: call.def, zone: call.zone, rested: call.rested }),
@@ -983,6 +992,17 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
     case "thenTrigger":
     case "activateMainOf":
       return [];
+    case "deployAsUnit": {
+      return resolveTargetIds(call.target, ctx).map((instanceId): GameEvent => ({ type: "DEPLOY_AS_UNIT", instanceId, ap: call.ap, hp: call.hp }));
+    }
+    case "beginDamageOnlyBattle": {
+      const [targetId] = resolveTargetIds(call.target, ctx);
+      const attacker = findCard(ctx.state, ctx.sourceInstanceId);
+      if (!targetId || ctx.state.combat || attacker.zone !== "battleArea" || attacker.def.cardType !== "UNIT") return [];
+      const target = findCard(ctx.state, targetId);
+      if (target.zone !== "battleArea" || target.owner === attacker.owner) return [];
+      return [{ type: "BEGIN_DAMAGE_ONLY_BATTLE", attackerId: attacker.instanceId, attackingPlayer: attacker.owner, defendingPlayer: target.owner, targetId }];
+    }
     case "destroyFirstShieldAreaCards": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       const side = ctx.state.players[player];
@@ -1128,10 +1148,18 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].hand.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`deployFromHandTriggered: carta "${chosen}" não está na mão de ${player}`);
-      if (card.def.cardType !== "UNIT") throw new Error(`deployFromHandTriggered: "${card.def.code}" não é Unit`);
       if (!matchesCardDefFilter(card.def, call.filter)) {
         throw new Error(`deployFromHandTriggered: "${card.def.code}" não casa o filtro do efeito`);
       }
+      // W8 — GD05-130: Base da mão entra no lugar da atual (token sai do jogo, carta vai pro trash)
+      if (card.def.cardType === "BASE" && call.filter.cardType === "BASE") {
+        const existing = ctx.state.players[player].baseSection[0];
+        const replace: GameEvent[] = existing
+          ? [existing.def.isToken ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId } : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" }]
+          : [];
+        return [...replace, { type: "MOVE_CARD", instanceId: chosen, toZone: "baseSection" }];
+      }
+      if (card.def.cardType !== "UNIT") throw new Error(`deployFromHandTriggered: "${card.def.code}" não é Unit`);
       return [{ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
     case "deployFromTopFilterReveal": {
@@ -1206,6 +1234,16 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`deployFromTrashPayingCost: carta "${chosen}" não está na lixeira de ${player}`);
+      // W8 — GD05-093 "choose 1 (Neo Zeon) Base card from your trash. Deploy it.": Base entra no lugar da atual
+      if (card.def.cardType === "BASE" && call.filter.cardType === "BASE") {
+        if (!matchesCardDefFilter(card.def, call.filter)) throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
+        const baseCost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player));
+        const existing = ctx.state.players[player].baseSection[0];
+        const replace: GameEvent[] = existing
+          ? [existing.def.isToken ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId } : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" }]
+          : [];
+        return [...payResourceCostEvents(ctx.state, player, baseCost), ...replace, { type: "MOVE_CARD", instanceId: chosen, toZone: "baseSection" }];
+      }
       if (card.def.cardType !== "UNIT") throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não é Unit`);
       if (!matchesCardDefFilter(card.def, call.filter)) {
         throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
@@ -1313,7 +1351,9 @@ export type ReactionEvent =
    */
   | "destroyed"
   /** W7 — "When one of your Units is destroyed by an effect" (GD05-054): a carta do evento é a Unit destruída */
-  | "destroyedByEffect";
+  | "destroyedByEffect"
+  /** W8 — "When one of your EX Resources is exiled from the game" (GD05-018); detectado no fim da ação (1× por pagamento) */
+  | "exResourceExiled";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1428,6 +1468,8 @@ export interface EffectSpec {
      * regra do "Choose 1 X and 1 Y" da ST05-010). Quem usa condiciona o efeito do Y a `chosenNonEmpty`.
      */
     sequential?: boolean;
+    /** W8 — GD05-001/038 "Rest 2/3 of your … Units:": quantas Units o 2º alvo exige (padrão 1) */
+    count?: number;
   };
 }
 
@@ -1725,6 +1767,61 @@ export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolveP
 
 // re-exportado por conveniência pra quem só quer inspecionar dono/zona de um alvo antes de montar uma primitiva
 export { findCard, findCardOwner };
+
+/**
+ * W7 (C9) — FAQ GD05-102/106: um modo que exige escolher alvo/carta só pode ser escolhido se houver o que escolher.
+ * Devolve os valores de modo disponíveis do `chooseMode` de `spec` (os specs `Mode:<v>` da mesma carta).
+ */
+export function availableModeValues(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  allSpecs: EffectSpec[],
+  sourceInstanceId: string,
+  resolveFilter?: TargetFilterResolver,
+  predicateResolver?: PredicateResolver,
+): string[] | null {
+  const ctx: EffectContext = { state, controller, sourceInstanceId, turnNumber: state.turnNumber, targets: {} };
+  const modeCall = specActiveCalls(spec, ctx, predicateResolver).find(
+    (c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode",
+  );
+  if (!modeCall) return null;
+  return modeCall.options
+    .filter((o) =>
+      allSpecs
+        .filter((s) => s.cardCode === spec.cardCode && s.trigger === `Mode:${o.value}`)
+        .every((s) => {
+          if (specNeedsNamedTarget(s) && computeLegalTargets(state, s, controller, resolveFilter, sourceInstanceId).length === 0) return false;
+          for (const c of specActiveCalls(s, ctx, predicateResolver)) {
+            if (c.op === "searchTrashToHand") {
+              const p = resolvePlayerRef(c.player, controller);
+              if (!state.players[p].trash.some((t) => matchesCardDefFilter(t.def, c.filter))) return false;
+            }
+          }
+          return true;
+        }),
+    )
+    .map((o) => o.value);
+}
+
+/** W7 — FAQ GD05-102/106: Command de "choose 1 of the following effects" sem nenhum modo escolhível não pode ser jogada */
+export function commandHasNoAvailableMode(
+  state: GameState,
+  controller: PlayerId,
+  cardCode: string,
+  sourceInstanceId: string,
+  trigger: string,
+  allSpecs: EffectSpec[],
+  resolveFilter?: TargetFilterResolver,
+  predicateResolver?: PredicateResolver,
+): boolean {
+  return allSpecs
+    .filter((s) => s.cardCode === cardCode && s.trigger === trigger)
+    .some((s) => {
+      const modes = availableModeValues(state, s, controller, allSpecs, sourceInstanceId, resolveFilter, predicateResolver);
+      return modes !== null && modes.length === 0;
+    });
+}
 
 /** W7 (C9) — gatilho de continuação de um efeito (modo escolhido ou "If you do …"), não um gatilho de regra */
 export function isFollowUpTrigger(trigger: string): boolean {

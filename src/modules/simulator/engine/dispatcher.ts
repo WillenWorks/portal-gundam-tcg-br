@@ -170,7 +170,11 @@ export function dispatchTrigger(
     // gate de profundidade aqui: `dispatchDestroyedTriggers` já checa o guard
     // no próprio topo (docs/debates 2026-09-13 — um só ponto de verdade).
     next = dispatchDestroyedFromEffect(before, next, allSpecs, {
-      effectSource: { controller: current.owner, sourceId: sourceInstanceId },
+      effectSource: {
+        controller: current.owner,
+        sourceId: sourceInstanceId,
+        damagedIds: events.flatMap((e) => (e.type === "DAMAGE_UNIT" || e.type === "DAMAGE_BASE" ? [e.instanceId] : [])),
+      },
       predicateResolver: opts.predicateResolver,
       targetFilterResolver: opts.targetFilterResolver,
       cascadeDepth: cascadeDepth + 1,

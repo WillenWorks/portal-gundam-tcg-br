@@ -140,6 +140,10 @@ export const UNITS_RED: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Activate·Main"
+    ],
+    // W8
+    "staticAbilities": [
+      { "condition": "duringLink", "scope": "self", "keyword": "Suppression", "sourceText": "【During Link】This Unit gains <Suppression>." }
     ]
   },
   "GD05-039": {
@@ -357,6 +361,8 @@ export const UNITS_RED: Record<string, CardDef> = {
         "Allelujah Haptism",
         "Hallelujah Haptism"
       ]
-    }
+    },
+    // W8 — ataca no turno do deploy, só Unit inimiga descansada
+    "attackOnDeployTurnVsRestedUnit": { "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." }
   },
 };

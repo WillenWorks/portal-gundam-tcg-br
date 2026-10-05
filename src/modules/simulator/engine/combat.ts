@@ -73,7 +73,9 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
     const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
     const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
     const hasDeployTurnGrant = hasKeyword(attacker, "AttackOnDeployTurn", state);
-    if (!isLinkUnit && !hasDeployTurnGrant) {
+    // W8 — GD05-030/048/078: pode atacar no turno do deploy, mas só Unit inimiga descansada (`attackTargetError`)
+    const vsRestedOnly = !!attacker.def.attackOnDeployTurnVsRestedUnit;
+    if (!isLinkUnit && !hasDeployTurnGrant && !vsRestedOnly) {
       return "Unit recém-deployada não pode atacar no turno em que entrou em campo (Comprehensive Rules 3-2-4), exceto se for Link Unit (3-2-6-3) ou tiver a exceção concedida por efeito";
     }
   }
@@ -98,8 +100,17 @@ export function attackTargetError(state: GameState, attacker: CardInstance, targ
       return `${attacker.def.code}: esta Unit não pode escolher o jogador inimigo como alvo de ataque`;
     }
   }
+  // W8 — GD05-030/048/078: no turno do deploy (sem Link nem concessão) o alvo tem de ser Unit inimiga descansada
+  if (attacker.def.attackOnDeployTurnVsRestedUnit && attacker.enteredZoneOnTurn === state.turnNumber) {
+    const pilot = attacker.pairedPilotId ? findCard(state, attacker.pairedPilotId) : undefined;
+    const isLinkUnit = pilot ? satisfiesLinkCondition(effectivePilotDef(pilot), attacker.def) : false;
+    const restedUnit = typeof target === "object" && findCard(state, target.unitId).rested;
+    if (!isLinkUnit && !hasKeyword(attacker, "AttackOnDeployTurn", state) && !restedUnit) {
+      return `${attacker.def.code}: no turno em que entrou, só pode atacar Unit inimiga descansada`;
+    }
+  }
   // W2b (C4) — provocação: com alguma Unit inimiga "provocando", o ataque tem que mirar uma delas
-  const forced = forcedAttackTargets(state, defendingPlayer);
+  const forced = forcedAttackTargets(state, defendingPlayer, attacker);
   if (forced.length > 0 && (typeof target !== "object" || !forced.includes(target.unitId))) {
     return "Uma Unit inimiga obriga este ataque a mirar nela (\"choose this rested Unit as their attack target if possible\")";
   }
@@ -295,19 +306,24 @@ function breachEvents(
  * quanto no Pilot pareado com ela, nunca só num dos dois.
  */
 /** W2b (C4) — Units descansadas do defensor que "provocam" agora (ver `CardDef.forcedAttackTarget`). */
-export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId): string[] {
+export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId, attacker?: CardInstance): string[] {
   const side = state.players[defendingPlayer];
   const out = new Set<string>();
+  const attackerIsLink = !!attacker?.pairedPilotId && satisfiesLinkCondition(effectivePilotDef(findCard(state, attacker.pairedPilotId)), attacker.def);
   for (const card of side.battleArea) {
     const rule = card.def.forcedAttackTarget;
     if (!rule) continue;
+    if (rule.exceptLinkAttackers && attackerIsLink) continue;
     if (rule.condition === "duringPair" && !specPairGateOpen(state, card, { duringPair: true })) continue;
     if (rule.condition === "duringLink" && !specPairGateOpen(state, card, { duringLink: true })) continue;
     if (rule.boardCondition && !isBoardConditionMet(state, card.owner, rule.boardCondition, card.instanceId)) continue;
+    const paired = rule.scope === "pairedUnit" && card.pairedUnitId ? side.battleArea.find((u) => u.instanceId === card.pairedUnitId) : undefined;
     const pool =
       rule.scope === "self"
         ? [card]
-        : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && (u.def.traits ?? []).includes(rule.trait));
+        : rule.scope === "pairedUnit"
+          ? (paired ? [paired] : [])
+          : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && (u.def.traits ?? []).includes(rule.trait));
     for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
   }
   // W5 — GD04-107 "all enemy Units must choose that Unit as their attack target" (keyword sintética, este turno)

@@ -596,3 +596,16 @@ describe("AbilityResolutionModal", () => {
   });
 });
 
+
+describe("pickSecondaryTarget com custo \"Rest N\" (W8)", () => {
+  it("escolhe até N, clicar de novo remove; com N=1 continua alternando 1", () => {
+    let s: Record<string, string[]> = {};
+    s = pickSecondaryTarget(s, "spec", "u1", 2);
+    s = pickSecondaryTarget(s, "spec", "u2", 2);
+    s = pickSecondaryTarget(s, "spec", "u3", 2);
+    expect(s.spec).toEqual(["u1", "u2"]);
+    s = pickSecondaryTarget(s, "spec", "u1", 2);
+    expect(s.spec).toEqual(["u2"]);
+    expect(pickSecondaryTarget({ spec: ["a"] }, "spec", "b")).toEqual({ spec: ["b"] });
+  });
+});

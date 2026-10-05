@@ -214,3 +214,20 @@ describe("Phantom Pain / \"7+ cartas no trash do oponente\"", () => {
     expect(entry(s, "A", "GD05-127-Reaction")).toBeUndefined();
   });
 });
+
+describe("FAQ GD05-054 — destruída por DANO de efeito não é \"destroyed by an effect\"", () => {
+  it("Unit sua destruída por dano de efeito não compra; por \"destroy it\" compra", () => {
+    let s = game();
+    placeCard(s, "A", G["GD05-054"], "battleArea");
+    const weak = placeCard(s, "A", UNIT({ code: "TEST-WEAK", hp: 1 }), "battleArea");
+    const enemyThrone = placeCard(s, "B", G["GD05-038"], "battleArea");
+    const cbs = [1, 2, 3].map((i) => placeCard(s, "B", UNIT({ code: `TEST-CB${i}`, traits: ["CB"] }), "battleArea"));
+    s.activePlayer = "B";
+    const hand = s.players.A.hand.length;
+    s = act(s, "B", { kind: "activateAbility", sourceInstanceId: enemyThrone });
+    s = act(s, "B", { kind: "resolveAbility", resolutions: [{ specId: "GD05-038-ActivateMain", activate: true, targetIds: [weak], secondaryTargetIds: cbs }] });
+    expect(inZone(s, "A", "trash", weak)).toBe(true);
+    expect(s.players.A.hand.length).toBe(hand);
+    expect(s.players.A.ownUnitDestroyedByOwnEffectOnTurn).toBeUndefined();
+  });
+});

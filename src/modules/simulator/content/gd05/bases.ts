@@ -19,7 +19,17 @@ export const BASES: Record<string, CardDef> = {
       "Burst",
       "Deploy"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — aura: no turno do oponente, (Orb) não recebe dano de efeito inimigo ≤ 2
+    "damageReductions": [
+      {
+        "immuneIfAtMost": 2,
+        "kind": "effect",
+        "duringOpponentTurnOnly": true,
+        "aura": { "targetCondition": { "kind": "traitIs", "trait": "Orb" } },
+        "sourceText": "During your opponent's turn, friendly (Orb) Units can't receive 2 or less enemy effect damage."
+      }
+    ]
   },
   "GD05-124": {
     "code": "GD05-124",
@@ -38,7 +48,12 @@ export const BASES: Record<string, CardDef> = {
       "Burst",
       "Deploy"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — substituição no custo "Rest N of your Units" de Unit (League Militaire), no seu turno (FAQ Q418/Q419)
+    "restInsteadOfUnitCost": {
+      "sourceTrait": "League Militaire",
+      "sourceText": "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's effect, you may rest this Base instead."
+    }
   },
   "GD05-125": {
     "code": "GD05-125",

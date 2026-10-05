@@ -13978,15 +13978,15 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 81,
-        "partial": 1,
-        "missing": 29,
+        "full": 111,
+        "partial": 0,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
         {
           "code": "GD05-001",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14003,10 +14003,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-001-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 2 of your Units:Set this Unit as active."
             }
@@ -14064,14 +14063,16 @@
         },
         {
           "code": "GD05-004",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each of your (Orb) Units in play."
             },
             {
@@ -14079,10 +14080,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-004-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
             }
@@ -14106,21 +14106,26 @@
         },
         {
           "code": "GD05-006",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-006-DestroyedUnit",
+                "GD05-006-DestroyedShield"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, deploy 1 [Pluma]((Calamity War)·AP2·HP1) Unit token."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit gains the same number of <Repair 1> as the number of (Calamity War) Unit tokens you have in play."
             }
           ]
@@ -14143,14 +14148,16 @@
         },
         {
           "code": "GD05-008",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have a non-blue (Newtype) Pilot in play, this card in your hand gets cost -2."
             }
           ]
@@ -14245,21 +14252,23 @@
         },
         {
           "code": "GD05-016",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-016-Reaction"
+              ],
               "text": "When one of your (Orb) Units is deployed, this Unit gains <High-Maneuver> during this turn."
             }
           ]
         },
         {
           "code": "GD05-017",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14276,10 +14285,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-017-WhenPaired",
+                "GD05-017-Then"
               ],
               "text": "【When Paired】You may choose 3 (Londo Bell) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Begin a battle between this Unit and it and only perform the damage step."
             }
@@ -14287,14 +14296,16 @@
         },
         {
           "code": "GD05-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-018-Reaction"
+              ],
               "text": "When one of your EX Resources is exiled from the game, you may choose 1 of your Units. During this turn, when it receives enemy damage, reduce it by 3."
             },
             {
@@ -14302,10 +14313,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-018-Deploy"
               ],
               "text": "【Deploy】Place 3 EX Resources."
             }
@@ -14358,7 +14368,7 @@
         },
         {
           "code": "GD05-021",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14366,25 +14376,26 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-021-ActivateAction"
               ],
               "text": "【Activate·Action】【Once per Turn】①:This Unit gets AP+4 during this battle."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【Once per Turn】When this Unit receives enemy damage, if you have an (Earth Federation) Pilot in play, reduce it by 2."
             }
           ]
         },
         {
           "code": "GD05-022",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14401,10 +14412,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-022-ActivateAction"
               ],
               "text": "【Activate·Action】Exile 2 Command cards in your trash from the game:During this battle, when this Unit receives enemy damage, reduce it by 2."
             }
@@ -14467,14 +14477,16 @@
         },
         {
           "code": "GD05-026",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "deploysRestedRule"
+              ],
               "text": "Count up the number of your Units with \"Gundam Lfrith\"/\"Gundnode\" in their card name, plus this Unit. All enemy Units whose Lv. is equal to or lower than that number are deployed rested."
             }
           ]
@@ -14523,14 +14535,16 @@
         },
         {
           "code": "GD05-030",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -14658,14 +14672,16 @@
         },
         {
           "code": "GD05-038",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Suppression>."
             },
             {
@@ -14673,10 +14689,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-038-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 3 of your (CB) Units:Choose 1 enemy Unit. Deal 4 damage to it."
             }
@@ -14807,14 +14822,16 @@
         },
         {
           "code": "GD05-048",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -14876,21 +14893,25 @@
         },
         {
           "code": "GD05-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "Increase this Unit's AP by an amount equal to the amount of damage it has received."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-051-EndOfTurn"
+              ],
               "text": "At the end of your turn, you may choose 1 of your (Tekkadan) Units. Deal 1 damage to it. Set it as active."
             }
           ]
@@ -15024,7 +15045,7 @@
         },
         {
           "code": "GD05-059",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15032,10 +15053,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-059-Attack",
+                "GD05-059-Attack-HighManeuver"
               ],
               "text": "【Attack】Choose 1 of your active (Gjallarhorn) Units. Rest it. If you do, draw 1. This Unit gains <High-Maneuver> during this turn."
             }
@@ -15091,7 +15112,7 @@
         },
         {
           "code": "GD05-064",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15099,10 +15120,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-064-Deploy"
               ],
               "text": "【Deploy】If you deploy this Unit from your trash, choose 1 Pilot card with \"Shinn Asuka\" in its card name from your trash. Add it to your hand."
             }
@@ -15156,14 +15176,16 @@
         },
         {
           "code": "GD05-067",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While a rested enemy Unit is in play, this Unit gains <Suppression>."
             },
             {
@@ -15171,10 +15193,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-067-Attack"
               ],
               "text": "【Attack】Choose 1 enemy Unit. Rest it."
             }
@@ -15236,14 +15257,16 @@
         },
         {
           "code": "GD05-070",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-070-Reaction"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 of your rested (Preventer)/(G Team) Link Units. Set it as active. It can't attack during this turn."
             }
           ]
@@ -15371,14 +15394,16 @@
         },
         {
           "code": "GD05-078",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -15495,7 +15520,7 @@
         },
         {
           "code": "GD05-084",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15512,8 +15537,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "When one of your (League Militaire) Unit tokens receives enemy effect damage, reduce it by 1."
             }
           ]
@@ -15547,7 +15574,7 @@
         },
         {
           "code": "GD05-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15564,8 +15591,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "【During Link】Enemy Units other than Link Units choose this rested Unit as their attack target if possible when attacking."
             }
           ]
@@ -15599,7 +15628,7 @@
         },
         {
           "code": "GD05-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15616,15 +15645,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit and all your Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name get AP+1."
             }
           ]
         },
         {
           "code": "GD05-089",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15632,9 +15663,10 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:pilot-as-unit-deploy (W8)"
+                "GD05-089-Burst",
+                "GD05-089-Then"
               ],
               "text": "【Burst】Add this card to your hand. If there are 3 or more (MF) cards in your trash, you may deploy it as an (AP3·HP3) Unit instead."
             },
@@ -15738,7 +15770,7 @@
         },
         {
           "code": "GD05-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15757,10 +15789,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-093-WhenLinked"
               ],
               "text": "【When Linked】You may choose 1 (Neo Zeon) Base card from your trash. Deploy it."
             }
@@ -16150,7 +16181,7 @@
         },
         {
           "code": "GD05-108",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16158,10 +16189,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-108-Action"
               ],
               "text": "【Action】Choose 1 friendly rested (Academy) Unit. Change a battling enemy Unit's attack target to it."
             },
@@ -16433,7 +16463,7 @@
         },
         {
           "code": "GD05-119",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16441,10 +16471,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-119-Action"
               ],
               "text": "【Action】Choose 1 enemy Unit that is battling one of your Units that is Lv.5 or higher. It gets AP-3 during this battle."
             },
@@ -16548,7 +16577,7 @@
         },
         {
           "code": "GD05-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16576,15 +16605,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "During your opponent's turn, friendly (Orb) Units can't receive 2 or less enemy effect damage."
             }
           ]
         },
         {
           "code": "GD05-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16612,8 +16643,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "restInsteadOfUnitCost"
+              ],
               "text": "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's effect, you may rest this Base instead."
             }
           ]
@@ -16660,7 +16693,7 @@
         },
         {
           "code": "GD05-126",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16690,10 +16723,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-126-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】②:If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play, deploy 1 [Gundnode]((Quiet Zero)·AP2·HP2·<Breach 1>) Unit token."
             }
@@ -16819,7 +16851,7 @@
         },
         {
           "code": "GD05-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16849,10 +16881,10 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-130-Destroyed",
+                "GD05-130-Then"
               ],
               "text": "【Destroyed】You may exile this card in your trash from the game. If you do, you may deploy 1 Base card with \"Presidential Office\" in its card name from your hand."
             }
