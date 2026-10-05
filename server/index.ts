@@ -97,6 +97,7 @@ import {
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
+import { cardStatusRouter } from "./routes/cardStatus.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
@@ -5270,6 +5271,9 @@ app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([Use
   if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
   res.json(row);
 });
+
+// Status de cartas para o simulador ("apta" / "em revisão" / "fora do simulador")
+app.use(cardStatusRouter);
 
 // Telemetria e estatísticas analíticas de metagame geradas a partir das partidas do Simulador
 app.get("/api/simulator/stats/meta", async (req, res) => {
