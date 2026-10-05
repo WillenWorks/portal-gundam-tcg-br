@@ -139,12 +139,36 @@ export interface ClassifiedMetaCard {
   quadrant: MetaQuadrant;
 }
 
+export interface TournamentProvenanceItem {
+  id: string;
+  name: string;
+  date: string | null;
+  organizer: string | null;
+  playerCount: number | null;
+  tier: string;
+  sourceUrl: string | null;
+  deckCount: number;
+}
+
+export interface MetagameProvenance {
+  totalDecks: number;
+  totalTournaments: number;
+  startDate: string | null;
+  endDate: string | null;
+  tournaments: TournamentProvenanceItem[];
+}
+
 export interface SourceDeckEntry {
   id: string;
   name: string;
   shareId?: string;
   author: string;
   tournament?: string;
+  tournamentId?: string;
+  tournamentDate?: string | null;
+  organizer?: string | null;
+  tier?: string | null;
+  sourceUrl?: string | null;
   placement: string;
   date?: string;
 }
@@ -167,6 +191,7 @@ export interface CardUsageInfo {
 export interface ArchetypeMetaBreakdown {
   archetype: ArchetypeSummary;
   totalDecksSampled: number;
+  provenance?: MetagameProvenance;
   sourceDecks?: SourceDeckEntry[];
   coreBuild?: CoreBuildSummary;
   quadrants: {
@@ -216,6 +241,7 @@ export interface MetagameStatsResponse {
   season: { id: string; code: string; name: string } | null;
   setId: string | null;
   totalDecks: number;
+  provenance?: MetagameProvenance;
   topCards: MetagameTopCard[];
   colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>;
   colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }>;
@@ -224,6 +250,20 @@ export interface MetagameStatsResponse {
   trend: { windowStart: string; windowMid: string; windowEnd: string; priorCount: number; recentCount: number } | null;
   risingCards: MetagameTrendCard[];
   decliningCards: MetagameTrendCard[];
+}
+
+export interface PowerRankingTournamentPlacement {
+  tournamentId: string;
+  tournamentName: string;
+  date: string | null;
+  organizer: string | null;
+  tier: string | null;
+  sourceUrl: string | null;
+  playerCount: number | null;
+  placement: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
 }
 
 // Fase 2 -- Power Rankings semanal (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
@@ -241,6 +281,7 @@ export interface PowerRankingEntry {
   powerRankingScore: number;
   bestPlacement: number | null;
   sampleTournaments: Array<{ id: string; name: string }>;
+  tournamentPlacements?: PowerRankingTournamentPlacement[];
 }
 
 // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4).
@@ -954,7 +995,12 @@ export const api = {
   // Fase 2 -- Power Rankings semanal (só resultado real de torneio reportado, ver
   // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
   getPowerRankings: (params: { seasonId?: string; setId?: string } = {}) =>
-    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; rankings: PowerRankingEntry[] }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+    request<{
+      season: { id: string; code: string; name: string } | null;
+      setId: string | null;
+      rankings: PowerRankingEntry[];
+      provenance?: MetagameProvenance;
+    }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4). hasData normalmente vem false
   // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
   getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>

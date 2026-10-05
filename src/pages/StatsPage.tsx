@@ -17,6 +17,7 @@ import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS }
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
 import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
 import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
+import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
 const chartConfig = {
   value: { label: "Valor", color: "var(--primary)" },
@@ -535,6 +536,13 @@ export default function StatsPage() {
               {metagame?.season ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Temporada {metagame.season.code}</Badge> : selectedSeasonId === ALL_VALUE ? <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-400">Todas as temporadas</Badge> : null}
             </div>
             {!metagameLoading && !metagame?.totalDecks ? <p className="mt-4 text-xs text-slate-500">Ainda não há decks suficientes travados em resultado real pra esse recorte.</p> : null}
+            {metagame?.provenance && (
+              <DataSourceNote
+                provenance={metagame.provenance}
+                labelPrefix="Amostragem competitiva baseada em"
+                className="mt-5"
+              />
+            )}
           </CardContent>
         </Card>
 

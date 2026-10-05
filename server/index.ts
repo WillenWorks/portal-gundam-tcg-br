@@ -103,7 +103,7 @@ import {
   getMetaRecommendations,
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
-import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
+import { getPowerRankingsWithProvenance, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
@@ -2448,8 +2448,8 @@ app.get("/api/stats/power-rankings", async (req, res) => {
   const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
   const resolved = await resolveSeasonFilter(seasonParam);
   if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
-  const rankings = await getPowerRankings(prisma, { seasonId: resolved.seasonId, setId });
-  res.json({ season: resolved.season, setId: setId ?? null, rankings });
+  const result = await getPowerRankingsWithProvenance(prisma, { seasonId: resolved.seasonId, setId });
+  res.json({ season: resolved.season, setId: setId ?? null, rankings: result.rankings, provenance: result.provenance });
 });
 
 // Fase 3 (Matriz de Confrontos, SCAFFOLD -- ver §2.4). Sem UI de lançamento de

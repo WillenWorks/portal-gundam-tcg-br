@@ -5,15 +5,17 @@
  * público) pela mesma assinatura (carta+cores) -- quando não bate, avisa o usuário em
  * vez de fingir que existe núcleo matemático pra aquele arquétipo. */
 import { useEffect, useState } from "react";
-import { Trophy, Wrench, Telescope, Loader2 } from "lucide-react";
+import { Trophy, Wrench, Telescope, Loader2, ExternalLink, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api, type PowerRankingEntry } from "@/lib/api";
-import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT } from "@/lib/gundam-catalog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { api, type PowerRankingEntry, type MetagameProvenance } from "@/lib/api";
+import { GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, TOURNAMENT_TIER_OPTIONS } from "@/lib/gundam-catalog";
 import { BuildCoreDeckModal, type CoreCardItem } from "@/components/deck/BuildCoreDeckModal";
+import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
 const FALLBACK_SLICE_COLOR = "#94a3b8";
 
@@ -24,6 +26,8 @@ function vedaKeyFor(entry: PowerRankingEntry): string | null {
 
 export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { seasonId: string; setId?: string; onExploreArchetype: (key: string) => void }) {
   const [rankings, setRankings] = useState<PowerRankingEntry[]>([]);
+  const [provenance, setProvenance] = useState<MetagameProvenance | null>(null);
+  const [selectedPlacementsArchetype, setSelectedPlacementsArchetype] = useState<PowerRankingEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [buildingKey, setBuildingKey] = useState<string | null>(null);
   const [buildModal, setBuildModal] = useState<{ archetypeName: string; coreCards: CoreCardItem[]; suggestedCards: CoreCardItem[] } | null>(null);
@@ -31,8 +35,14 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
   useEffect(() => {
     setLoading(true);
     api.getPowerRankings({ seasonId, setId })
-      .then((res) => setRankings(res.rankings.slice(0, 10)))
-      .catch(() => setRankings([]))
+      .then((res) => {
+        setRankings(res.rankings.slice(0, 10));
+        setProvenance(res.provenance || null);
+      })
+      .catch(() => {
+        setRankings([]);
+        setProvenance(null);
+      })
       .finally(() => setLoading(false));
   }, [seasonId, setId]);
 
@@ -100,6 +110,15 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
           <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary uppercase text-[10px] tracking-wider">Fonte: Torneios Reportados</Badge>
         </div>
 
+        {provenance && (
+          <DataSourceNote
+            provenance={provenance}
+            labelPrefix="Power Rankings baseado em"
+            weightNote="Eventos maiores e com maior competitividade têm maior peso amostral no score."
+            className="mt-4"
+          />
+        )}
+
         {loading ? (
           <p className="mt-6 text-sm text-slate-400">Carregando ranking...</p>
         ) : !rankings.length ? (
@@ -140,6 +159,17 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                 </div>
 
                 <div className="flex shrink-0 flex-wrap gap-2">
+                  {entry.tournamentPlacements && entry.tournamentPlacements.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-none text-[11px] uppercase tracking-[0.1em] border-primary/30 text-primary hover:bg-primary/20"
+                      onClick={() => setSelectedPlacementsArchetype(entry)}
+                    >
+                      <Trophy className="mr-1 size-3 text-accent" />
+                      {entry.tournamentPlacements.length} {entry.tournamentPlacements.length === 1 ? "colocação" : "colocações"}
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" className="h-8 rounded-none text-[11px] uppercase tracking-[0.1em]" disabled={buildingKey === entry.archetype} onClick={() => startBuild(entry)}>
                     {buildingKey === entry.archetype ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Wrench className="mr-1 size-3" />} Iniciar Build Básica
                   </Button>
@@ -152,6 +182,107 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
           </div>
         )}
       </CardContent>
+
+      {selectedPlacementsArchetype && (
+        <Dialog open={Boolean(selectedPlacementsArchetype)} onOpenChange={(open) => !open && setSelectedPlacementsArchetype(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto rounded-none border-white/15 bg-slate-950 text-white panel-cut p-6">
+            <DialogHeader className="p-0 text-left">
+              <div className="flex items-center gap-2 text-xs uppercase font-mono tracking-[0.2em] text-primary">
+                <Trophy className="size-4 text-accent" />
+                <span>Colocações Competitivas em Torneios</span>
+              </div>
+              <DialogTitle className="mt-1 font-heading text-2xl uppercase text-white">
+                {selectedPlacementsArchetype.archetype}
+              </DialogTitle>
+              <p className="mt-1 text-xs text-slate-400">
+                Origem das {selectedPlacementsArchetype.tournamentPlacements?.length || 0} listas reportadas para este arquétipo e colocações alcançadas em cada evento.
+              </p>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">
+              {(!selectedPlacementsArchetype.tournamentPlacements || selectedPlacementsArchetype.tournamentPlacements.length === 0) ? (
+                <p className="py-6 text-center text-xs text-slate-500 font-mono">
+                  Nenhuma colocação detalhada encontrada para este arquétipo.
+                </p>
+              ) : (
+                selectedPlacementsArchetype.tournamentPlacements.map((p, idx) => {
+                  const tierObj = TOURNAMENT_TIER_OPTIONS.find((t) => t.value === p.tier);
+                  const tierLabel = tierObj?.label || p.tier || "Torneio Registrado";
+                  const dateStr = p.date ? new Date(p.date).toLocaleDateString("pt-BR") : null;
+                  const hasRecord = p.wins != null && p.losses != null;
+
+                  return (
+                    <div
+                      key={p.tournamentId ? `${p.tournamentId}-${idx}` : idx}
+                      className="panel-cut border border-white/10 bg-slate-900/60 p-3 transition-colors hover:border-primary/40"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="flex size-10 shrink-0 items-center justify-center panel-cut border border-primary/40 bg-primary/10 font-heading text-sm text-primary">
+                            {p.placement ? `${p.placement}º` : "Top"}
+                          </div>
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary text-[10px] font-mono uppercase">
+                                {tierLabel}
+                              </Badge>
+                              {dateStr && (
+                                <span className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
+                                  <Calendar className="size-3" />
+                                  {dateStr}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-heading text-base uppercase text-white truncate">
+                              {p.tournamentName}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                              {p.organizer && (
+                                <span>Organizador: <strong className="text-slate-200">{p.organizer}</strong></span>
+                              )}
+                              {hasRecord && (
+                                <span className="font-mono text-slate-300">
+                                  Campanha: {p.wins}V - {p.losses}D{p.draws ? ` - ${p.draws}E` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {p.sourceUrl && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 shrink-0 rounded-none border-primary/30 bg-primary/10 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 hover:text-white"
+                            asChild
+                          >
+                            <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="mr-1 size-3" />
+                              Fonte Oficial
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-white/10 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedPlacementsArchetype(null)}
+                className="rounded-none border-white/15 text-xs uppercase"
+              >
+                Fechar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {buildModal ? (
         <BuildCoreDeckModal

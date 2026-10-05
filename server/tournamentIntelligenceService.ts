@@ -1,5 +1,6 @@
 import { HostedEventMatchResult, HostedEventStatus, type PrismaClient } from "@prisma/client";
 import { NON_STATS_CARD_TYPES } from "../src/lib/deck-legality.ts";
+import type { MetagameProvenance, TournamentProvenanceItem } from "./metagameTrendsService.ts";
 
 export interface PowerRankingSignatureCard {
   id: string;
@@ -8,6 +9,20 @@ export interface PowerRankingSignatureCard {
   imageUrl: string | null;
   imageMediumUrl: string | null;
   color: string | null;
+}
+
+export interface PowerRankingTournamentPlacement {
+  tournamentId: string;
+  tournamentName: string;
+  date: string | null;
+  organizer: string | null;
+  tier: string | null;
+  sourceUrl: string | null;
+  playerCount: number | null;
+  placement: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
 }
 
 export interface PowerRankingEntry {
@@ -24,6 +39,12 @@ export interface PowerRankingEntry {
   powerRankingScore: number; // 0..10, composto normalizado (winrate ajustado + meta share relativo)
   bestPlacement: number | null;
   sampleTournaments: Array<{ id: string; name: string }>;
+  tournamentPlacements: PowerRankingTournamentPlacement[];
+}
+
+export interface PowerRankingsResult {
+  rankings: PowerRankingEntry[];
+  provenance: MetagameProvenance;
 }
 
 type ArchetypeEntryRow = {
@@ -32,7 +53,15 @@ type ArchetypeEntryRow = {
   wins: number | null;
   losses: number | null;
   draws: number | null;
-  tournament: { id: string; name: string };
+  tournament: {
+    id: string;
+    name: string;
+    dateStart?: Date | null;
+    organizer?: string | null;
+    participantCount?: number | null;
+    tier?: any;
+    sourceUrl?: string | null;
+  };
   deckSnapshot: {
     items: Array<{
       quantity: number;
@@ -92,10 +121,10 @@ function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>
  * isolado (1 vitória, 0 derrotas) dispare pro topo do ranking -- mesmo critério de
  * resiliência estatística já usado no motor VEDA pra amostras pequenas.
  */
-export async function getPowerRankings(
+export async function getPowerRankingsWithProvenance(
   prisma: PrismaClient,
   params: { seasonId?: string | null; setId?: string | null },
-): Promise<PowerRankingEntry[]> {
+): Promise<PowerRankingsResult> {
   const rows = await prisma.tournamentEntry.findMany({
     where: {
       archetype: { not: null },
@@ -107,7 +136,17 @@ export async function getPowerRankings(
       wins: true,
       losses: true,
       draws: true,
-      tournament: { select: { id: true, name: true } },
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          dateStart: true,
+          organizer: true,
+          participantCount: true,
+          tier: true,
+          sourceUrl: true,
+        },
+      },
       deckSnapshot: { select: { items: { select: { quantity: true, card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true, cardType: true, rarity: true, cost: true, setId: true, imageUrl: true, imageMediumUrl: true } } } } } },
     },
   });
@@ -116,7 +155,15 @@ export async function getPowerRankings(
     ? rows.filter((row) => row.deckSnapshot?.items.some((item) => item.card.setId === params.setId))
     : rows;
 
-  if (!scoped.length) return [];
+  const emptyProvenance: MetagameProvenance = {
+    totalDecks: 0,
+    totalTournaments: 0,
+    startDate: null,
+    endDate: null,
+    tournaments: [],
+  };
+
+  if (!scoped.length) return { rankings: [], provenance: emptyProvenance };
 
   const byArchetype = new Map<string, ArchetypeEntryRow[]>();
   for (const row of scoped) {
@@ -161,6 +208,22 @@ export async function getPowerRankings(
     const colors = Array.from(new Set(relevantItems.map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
     const signatureCard = relevantItems.length ? pickSignatureCard(relevantItems) : null;
 
+    const tournamentPlacements: PowerRankingTournamentPlacement[] = entries
+      .map((entry) => ({
+        tournamentId: entry.tournament.id,
+        tournamentName: entry.tournament.name,
+        date: entry.tournament.dateStart ? entry.tournament.dateStart.toISOString() : null,
+        organizer: entry.tournament.organizer ?? null,
+        tier: entry.tournament.tier ? String(entry.tournament.tier) : null,
+        sourceUrl: entry.tournament.sourceUrl ?? null,
+        playerCount: entry.tournament.participantCount ?? null,
+        placement: entry.placement ?? null,
+        wins: entry.wins ?? null,
+        losses: entry.losses ?? null,
+        draws: entry.draws ?? null,
+      }))
+      .sort((a, b) => (a.placement ?? 999) - (b.placement ?? 999));
+
     return {
       archetype,
       colors,
@@ -175,12 +238,13 @@ export async function getPowerRankings(
       adjustedWinRate,
       bestPlacement,
       sampleTournaments: Array.from(tournamentMap.entries()).map(([id, name]) => ({ id, name })),
+      tournamentPlacements,
     };
   });
 
   const maxShare = Math.max(...raw.map((r) => r.metaShare), 0.0001);
 
-  return raw
+  const rankings: PowerRankingEntry[] = raw
     .map((r) => ({
       archetype: r.archetype,
       colors: r.colors,
@@ -195,8 +259,60 @@ export async function getPowerRankings(
       powerRankingScore: Number((10 * (0.6 * r.adjustedWinRate + 0.4 * (r.metaShare / maxShare))).toFixed(1)),
       bestPlacement: r.bestPlacement,
       sampleTournaments: r.sampleTournaments,
+      tournamentPlacements: r.tournamentPlacements,
     }))
     .sort((a, b) => b.powerRankingScore - a.powerRankingScore || b.metaShare - a.metaShare);
+
+  // Proveniência global dos torneios que alimentam o Power Rankings
+  const globalTournaments = new Map<string, TournamentProvenanceItem>();
+  let earliestDate: Date | null = null;
+  let latestDate: Date | null = null;
+
+  for (const row of scoped) {
+    const t = row.tournament;
+    if (!t) continue;
+    if (t.dateStart) {
+      if (!earliestDate || t.dateStart.getTime() < earliestDate.getTime()) earliestDate = t.dateStart;
+      if (!latestDate || t.dateStart.getTime() > latestDate.getTime()) latestDate = t.dateStart;
+    }
+    const existing = globalTournaments.get(t.id);
+    if (existing) {
+      existing.deckCount += 1;
+    } else {
+      globalTournaments.set(t.id, {
+        id: t.id,
+        name: t.name,
+        date: t.dateStart ? t.dateStart.toISOString() : null,
+        organizer: t.organizer ?? null,
+        playerCount: t.participantCount ?? null,
+        tier: String(t.tier || "SMALL_OFFICIAL"),
+        sourceUrl: t.sourceUrl ?? null,
+        deckCount: 1,
+      });
+    }
+  }
+
+  const provenance: MetagameProvenance = {
+    totalDecks: totalEntries,
+    totalTournaments: globalTournaments.size,
+    startDate: earliestDate ? earliestDate.toISOString() : null,
+    endDate: latestDate ? latestDate.toISOString() : null,
+    tournaments: Array.from(globalTournaments.values()).sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da || b.deckCount - a.deckCount;
+    }),
+  };
+
+  return { rankings, provenance };
+}
+
+export async function getPowerRankings(
+  prisma: PrismaClient,
+  params: { seasonId?: string | null; setId?: string | null },
+): Promise<PowerRankingEntry[]> {
+  const result = await getPowerRankingsWithProvenance(prisma, params);
+  return result.rankings;
 }
 
 export interface MatchupCell {
