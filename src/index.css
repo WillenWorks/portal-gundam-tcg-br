@@ -19,6 +19,9 @@
    * de canto, barras) ganham 3px pra suavizar o corte reto sem descaracterizar a
    * assinatura militar. Os painéis grandes seguem no chanfro `.panel-cut`. */
   --radius-arena: 3px;
+  /* Breakpoints estendidos para widescreen (1920px Full HD e 2560px Ultrawide) */
+  --breakpoint-3xl: 120rem;
+  --breakpoint-4xl: 160rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -182,6 +185,120 @@
   }
   .scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Containers responsivos globais A2 (widescreen, notebooks e mobile) */
+  .container-wide {
+    width: 100%;
+    max-width: 1920px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-wide {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .container-wide {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  @media (min-width: 1536px) {
+    .container-wide {
+      padding-left: 2.5rem;
+      padding-right: 2.5rem;
+    }
+  }
+  @media (min-width: 1920px) {
+    .container-wide {
+      padding-left: 3rem;
+      padding-right: 3rem;
+    }
+  }
+
+  .container-ultrawide {
+    width: 100%;
+    max-width: 2400px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-ultrawide {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .container-ultrawide {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  @media (min-width: 1536px) {
+    .container-ultrawide {
+      padding-left: 2.5rem;
+      padding-right: 2.5rem;
+    }
+  }
+  @media (min-width: 1920px) {
+    .container-ultrawide {
+      padding-left: 3rem;
+      padding-right: 3rem;
+    }
+  }
+
+  .container-fluid {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-fluid {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .container-fluid {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+  @media (min-width: 1536px) {
+    .container-fluid {
+      padding-left: 2.5rem;
+      padding-right: 2.5rem;
+    }
+  }
+  @media (min-width: 1920px) {
+    .container-fluid {
+      padding-left: 3rem;
+      padding-right: 3rem;
+    }
+  }
+
+  .container-reading {
+    width: 100%;
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .container-reading {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
   }
 
   .surface-panel {

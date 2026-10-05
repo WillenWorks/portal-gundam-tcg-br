@@ -134,7 +134,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
   return (
     <div className="min-h-screen text-white dark:text-white light:text-slate-900">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/92 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-6 2xl:px-10">
+        <div className="mx-auto flex w-full max-w-[2400px] items-center justify-between gap-4 px-4 py-4 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12">
           <div className="flex min-w-0 items-center gap-3">
             <Button type="button" variant="outline" className="rounded-none border-white/20 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950 lg:hidden" onClick={() => setMobileSidebarOpen(true)}>
               <Menu className="size-4" />
@@ -170,7 +170,7 @@ export function PortalShell({ children, breadcrumbs }: { children: ReactNode; br
           </Button>
         </aside>
 
-        <div className="min-w-0 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 lg:py-8">
+        <div className="min-w-0 max-w-[2400px] px-4 py-6 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12 lg:py-8">
           <header className="mb-8 space-y-4">
             <Breadcrumb>
               <BreadcrumbList>
