@@ -119,7 +119,12 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — provocação do Piloto: a Unit pareada (descansada) atrai os ataques que não são de Link Unit
+    "forcedAttackTarget": { "condition": "duringLink", "scope": "pairedUnit", "exceptLinkAttackers": true },
+    "structuredSourceText": {
+      "forcedAttackTarget": "【During Link】Enemy Units other than Link Units choose this rested Unit as their attack target if possible when attacking."
+    }
   },
   "GD05-087": {
     "code": "GD05-087",
@@ -163,7 +168,20 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — "This Unit" = a pareada; as outras Lfrith/Gundnode pelo nome (sem somar 2× na pareada)
+    "staticAbilities": [
+      { "condition": "duringPair", "scope": "pairedUnit", "stat": "ap", "amount": 1, "sourceText": "This Unit and all your Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name get AP+1." },
+      {
+        "condition": "duringPair",
+        "scope": "allFriendlyUnits",
+        "stat": "ap",
+        "amount": 1,
+        "excludePairedUnit": true,
+        "targetCondition": { "kind": "nameContainsAny", "texts": ["Gundam Lfrith", "Gundnode"] },
+        "sourceText": "This Unit and all your Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name get AP+1."
+      }
+    ]
   },
   "GD05-089": {
     "code": "GD05-089",

@@ -175,7 +175,11 @@ function buildQueueEntry(
   if (choice.op === "searchTrashToHand" || choice.op === "pairFromTrashSearch" || choice.op === "deployFromTrashPayingCost") {
     const chooser = resolvePlayerRef(choice.player, player);
     const legalTrashIds = state.players[chooser].trash
-      .filter((c) => (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT") && matchesCardDefFilter(c.def, choice.filter))
+      .filter(
+        (c) =>
+          (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT" || (c.def.cardType === "BASE" && choice.filter.cardType === "BASE")) &&
+          matchesCardDefFilter(c.def, choice.filter),
+      )
       .map((c) => c.instanceId);
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
   }

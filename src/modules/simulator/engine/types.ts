@@ -60,13 +60,15 @@ export interface CardDef {
     condition?: StaticBoardCondition;
     amount: number;
     perEnemyUnit?: boolean;
+    /** W8 — GD05-004 "for each of your (Orb) Units in play" */
+    perFriendlyUnitWithTrait?: string;
     /** W4 — GD04-075 "Reduce the cost … by the number of (UN)/(Superpower Bloc) Command cards in your trash": `amount` × contagem */
     perTrashMatching?: { cardType?: CardType; anyTrait?: string[] };
   };
   /**
    * Redução ou modificação dinâmica de Nível na mão (ex.: ST08-001 Xi Gundam).
    */
-  dynamicLevel?: { condition: StaticBoardCondition; amount: number; perEnemyUnit?: boolean };
+  dynamicLevel?: { condition: StaticBoardCondition; amount: number; perEnemyUnit?: boolean; perFriendlyUnitWithTrait?: string };
   /**
    * Pilot nativo (`cardType: "PILOT"`): modificador impresso de AP que a Unit
    * pareada ganha enquanto pareada (Comprehensive Rules 3-3-5, sem depender de
@@ -196,9 +198,14 @@ export interface CardDef {
   forcedAttackTarget?: {
     condition: StaticEffectCondition;
     boardCondition?: StaticBoardCondition;
-    scope: "self" | "friendlyUnitsWithTrait";
+    /** W8 — "pairedUnit": texto de Piloto, "this rested Unit" = a Unit pareada (GD05-086) */
+    scope: "self" | "friendlyUnitsWithTrait" | "pairedUnit";
     trait?: string;
+    /** W8 — GD05-086 "Enemy Units other than Link Units": Link Unit atacante não é obrigada */
+    exceptLinkAttackers?: boolean;
   };
+  /** W8 — GD05-030/048/078 "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." */
+  attackOnDeployTurnVsRestedUnit?: { sourceText?: string };
   /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
   attackRestriction?: {
     requiresFriendlyUnitWithAnyTraitDeployedThisTurn?: string[];
@@ -411,7 +418,9 @@ export type StaticBoardCondition =
   /** W5 — GD04-123/ST07-015 "While you have a rested (Zeon) Unit in play" */
   | { kind: "friendlyRestedUnitWithTrait"; trait: string }
   /** W4 — GD04-037 "While you have a red (Super Soldier) Pilot in play" (Piloto pareado em campo) */
-  | { kind: "friendlyPilotInPlay"; trait: string; color?: string }
+  | { kind: "friendlyPilotInPlay"; trait: string; color?: string; notColor?: string }
+  /** W8 — GD05-067 "While a rested enemy Unit is in play" */
+  | { kind: "enemyRestedUnitInPlay" }
   /** W4 — GD04-039 "If there are 8 or more (Neo Zeon) cards in your trash" */
   | { kind: "trashTraitCountAtLeast"; trait: string; n: number }
   /** W2c — GD03-037 "while this Unit is battling an enemy Unit with a 【Destroyed】 effect" (`triggerKeywords` da inimiga). */
@@ -440,7 +449,9 @@ export type StaticTargetCondition =
   /** W2c — GD03-126 "All friendly Unit tokens" */
   | { kind: "isToken" }
   /** GD02-124 — "all friendly green (Earth Federation) Units": todas as condições juntas. */
-  | { kind: "allOf"; conditions: StaticTargetCondition[] };
+  | { kind: "allOf"; conditions: StaticTargetCondition[] }
+  /** W8 — GD05-088 "Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name" */
+  | { kind: "nameContainsAny"; texts: string[] };
 
 export interface StaticAbility {
   /** trecho literal do texto oficial que esta entrada implementa — a auditoria por cláusula (content/coverage/clauseAudit.ts) casa por ele */
@@ -460,6 +471,8 @@ export interface StaticAbility {
   targetCondition?: StaticTargetCondition;
   /** GD02-053 Gundam X — "all your OTHER (Vulture) Units get AP+2" — exclui a própria fonte do scope `allFriendlyUnits` (que por padrão a inclui). */
   excludeSelf?: boolean;
+  /** W8 — GD05-088 "This Unit and all your Units with …": a Unit pareada já tem a entrada própria, não soma 2× */
+  excludePairedUnit?: boolean;
   /** W2c — GD03-126 "during your opponent's turn" (espelho de `duringYourTurnOnly`) */
   duringOpponentTurnOnly?: boolean;
   /**
@@ -918,8 +931,12 @@ export function isBoardConditionMet(
         c.def.cardType === "PILOT" &&
         !!c.pairedUnitId &&
         (c.def.traits ?? []).includes(cond.trait) &&
-        (cond.color === undefined || c.def.color === cond.color),
+        (cond.color === undefined || c.def.color === cond.color) &&
+        (cond.notColor === undefined || c.def.color !== cond.notColor),
     );
+  }
+  if (cond.kind === "enemyRestedUnitInPlay") {
+    return state.players[otherPlayer(owner)].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested);
   }
   if (cond.kind === "trashTraitCountAtLeast") {
     return state.players[owner].trash.filter((c) => (c.def.traits ?? []).includes(cond.trait)).length >= cond.n;
@@ -982,6 +999,7 @@ export function isBoardConditionMet(
 
 /** Gate de `StaticAbility.targetCondition` (Lote 3) — condição sobre a carta RECEPTORA do bônus (o alvo de `scope`, não a fonte). */
 function isTargetConditionMet(target: CardInstance, state: GameState, cond: StaticTargetCondition): boolean {
+  if (cond.kind === "nameContainsAny") return cond.texts.some((t) => target.def.nameEn.includes(t));
   if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
   if (cond.kind === "colorIs") return target.def.color === cond.color;
   if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
@@ -1022,6 +1040,7 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (ability.duringOpponentTurnOnly && source.owner === state.activePlayer) continue;
       if (ability.boardCondition && !isBoardConditionMet(state, source.owner, ability.boardCondition, source.instanceId)) continue;
       if (ability.excludeSelf && source.instanceId === target.instanceId) continue;
+      if (ability.excludePairedUnit && source.pairedUnitId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
       if (includesTarget) bonus += ability.amountFrom ? ability.amount * staticAmountCount(state, source.owner, ability.amountFrom) : ability.amount;
@@ -1124,6 +1143,9 @@ export function effectiveCost(def: CardDef, state?: GameState, controller?: Play
     const enemyCount = state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT").length;
     return Math.max(0, base + def.dynamicCost.amount * enemyCount);
   }
+  if (def.dynamicCost.perFriendlyUnitWithTrait) {
+    return Math.max(0, base + def.dynamicCost.amount * friendlyUnitsWithTrait(state, controller, def.dynamicCost.perFriendlyUnitWithTrait));
+  }
   return Math.max(0, base + def.dynamicCost.amount);
 }
 
@@ -1153,7 +1175,15 @@ export function effectiveLevel(def: CardDef, state?: GameState, controller?: Pla
     const enemyCount = state.players[otherPlayer(controller)].battleArea.filter((c) => c.def.cardType === "UNIT").length;
     return Math.max(0, base + def.dynamicLevel.amount * enemyCount);
   }
+  if (def.dynamicLevel.perFriendlyUnitWithTrait) {
+    return Math.max(0, base + def.dynamicLevel.amount * friendlyUnitsWithTrait(state, controller, def.dynamicLevel.perFriendlyUnitWithTrait));
+  }
   return Math.max(0, base + def.dynamicLevel.amount);
+}
+
+/** W8 — Units do jogador em jogo com o trait (impresso ou concedido) — GD05-004 "for each of your (Orb) Units in play" */
+function friendlyUnitsWithTrait(state: GameState, player: PlayerId, trait: string): number {
+  return state.players[player].battleArea.filter((c) => c.def.cardType === "UNIT" && hasTrait(c, trait, state)).length;
 }
 
 /** Acha a 1ª `StaticAbility.keyword` ativa de alguma fonte na Battle Area de `card` que concede `keyword` (Lote 3) — mesmas regras de gate de `computeStaticStatBonus`; base pra `hasKeyword`/`keywordValue`. */

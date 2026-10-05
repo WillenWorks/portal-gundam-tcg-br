@@ -13978,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 81,
+        "full": 97,
         "partial": 1,
-        "missing": 29,
+        "missing": 13,
         "withErrors": 0
       },
       "cards": [
@@ -14064,14 +14064,16 @@
         },
         {
           "code": "GD05-004",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each of your (Orb) Units in play."
             },
             {
@@ -14079,10 +14081,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-004-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
             }
@@ -14143,14 +14144,16 @@
         },
         {
           "code": "GD05-008",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have a non-blue (Newtype) Pilot in play, this card in your hand gets cost -2."
             }
           ]
@@ -14245,14 +14248,16 @@
         },
         {
           "code": "GD05-016",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-016-Reaction"
+              ],
               "text": "When one of your (Orb) Units is deployed, this Unit gains <High-Maneuver> during this turn."
             }
           ]
@@ -14523,14 +14528,16 @@
         },
         {
           "code": "GD05-030",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -14807,14 +14814,16 @@
         },
         {
           "code": "GD05-048",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -15024,7 +15033,7 @@
         },
         {
           "code": "GD05-059",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15032,10 +15041,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-059-Attack",
+                "GD05-059-Attack-HighManeuver"
               ],
               "text": "【Attack】Choose 1 of your active (Gjallarhorn) Units. Rest it. If you do, draw 1. This Unit gains <High-Maneuver> during this turn."
             }
@@ -15091,7 +15100,7 @@
         },
         {
           "code": "GD05-064",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15099,10 +15108,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-064-Deploy"
               ],
               "text": "【Deploy】If you deploy this Unit from your trash, choose 1 Pilot card with \"Shinn Asuka\" in its card name from your trash. Add it to your hand."
             }
@@ -15156,14 +15164,16 @@
         },
         {
           "code": "GD05-067",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While a rested enemy Unit is in play, this Unit gains <Suppression>."
             },
             {
@@ -15171,10 +15181,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-067-Attack"
               ],
               "text": "【Attack】Choose 1 enemy Unit. Rest it."
             }
@@ -15236,14 +15245,16 @@
         },
         {
           "code": "GD05-070",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-070-Reaction"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 of your rested (Preventer)/(G Team) Link Units. Set it as active. It can't attack during this turn."
             }
           ]
@@ -15371,14 +15382,16 @@
         },
         {
           "code": "GD05-078",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -15547,7 +15560,7 @@
         },
         {
           "code": "GD05-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15564,8 +15577,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "【During Link】Enemy Units other than Link Units choose this rested Unit as their attack target if possible when attacking."
             }
           ]
@@ -15599,7 +15614,7 @@
         },
         {
           "code": "GD05-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15616,8 +15631,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit and all your Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name get AP+1."
             }
           ]
@@ -15738,7 +15755,7 @@
         },
         {
           "code": "GD05-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15757,10 +15774,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-093-WhenLinked"
               ],
               "text": "【When Linked】You may choose 1 (Neo Zeon) Base card from your trash. Deploy it."
             }
@@ -16150,7 +16166,7 @@
         },
         {
           "code": "GD05-108",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16158,10 +16174,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-108-Action"
               ],
               "text": "【Action】Choose 1 friendly rested (Academy) Unit. Change a battling enemy Unit's attack target to it."
             },
@@ -16433,7 +16448,7 @@
         },
         {
           "code": "GD05-119",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16441,10 +16456,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-119-Action"
               ],
               "text": "【Action】Choose 1 enemy Unit that is battling one of your Units that is Lv.5 or higher. It gets AP-3 during this battle."
             },
@@ -16660,7 +16674,7 @@
         },
         {
           "code": "GD05-126",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16690,10 +16704,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-126-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】②:If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play, deploy 1 [Gundnode]((Quiet Zero)·AP2·HP2·<Breach 1>) Unit token."
             }

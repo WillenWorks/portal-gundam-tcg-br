@@ -6838,6 +6838,18 @@
     "sourceText": "【Destroyed】If you have an (Orb) Pilot in play, draw 1."
   },
   {
+    "id": "GD05-004-WhenLinked",
+    "cardCode": "GD05-004",
+    "trigger": "When Linked",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
+  },
+  {
     "id": "GD05-011-Deploy",
     "cardCode": "GD05-011",
     "trigger": "Deploy",
@@ -6873,6 +6885,18 @@
     "targetFilter": "rested",
     "predicate": null,
     "sourceText": "【Deploy】Choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "GD05-016-Reaction",
+    "cardCode": "GD05-016",
+    "trigger": "Reaction:unitDeployed",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "When one of your (Orb) Units is deployed, this Unit gains <High-Maneuver> during this turn."
   },
   {
     "id": "GD05-019-Destroyed",
@@ -7255,6 +7279,31 @@
     "sourceText": "【Activate･Main】【Once per Turn】Choose 1 of your other Units. Destroy it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn."
   },
   {
+    "id": "GD05-059-Attack",
+    "cardCode": "GD05-059",
+    "trigger": "Attack",
+    "ops": [
+      "draw",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Gjallarhorn;active",
+    "predicate": "chosenNonEmpty:target",
+    "sourceText": "【Attack】Choose 1 of your active (Gjallarhorn) Units. Rest it. If you do, draw 1."
+  },
+  {
+    "id": "GD05-059-Attack-HighManeuver",
+    "cardCode": "GD05-059",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "This Unit gains <High-Maneuver> during this turn."
+  },
+  {
     "id": "GD05-060-Attack",
     "cardCode": "GD05-060",
     "trigger": "Attack",
@@ -7277,6 +7326,18 @@
     "targetFilter": "level<=2",
     "predicate": null,
     "sourceText": "【Deploy】/【Attack】Choose 1 enemy Unit that is Lv.2 or lower. Destroy it."
+  },
+  {
+    "id": "GD05-064-Deploy",
+    "cardCode": "GD05-064",
+    "trigger": "Deploy",
+    "ops": [
+      "searchTrashToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfDeployedFromTrash",
+    "sourceText": "【Deploy】If you deploy this Unit from your trash, choose 1 Pilot card with \"Shinn Asuka\" in its card name from your trash. Add it to your hand."
   },
   {
     "id": "GD05-066-Attack",
@@ -7316,6 +7377,18 @@
     "sourceText": "If you do, choose 1 (Special Move) Command card from your trash. Add it to your hand."
   },
   {
+    "id": "GD05-067-Attack",
+    "cardCode": "GD05-067",
+    "trigger": "Attack",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit. Rest it."
+  },
+  {
     "id": "GD05-068-Attack",
     "cardCode": "GD05-068",
     "trigger": "Attack",
@@ -7350,6 +7423,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 4 cards of your deck. You may reveal 1 (Special Move) Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "GD05-070-Reaction",
+    "cardCode": "GD05-070",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "rested;linkUnit;or(trait:Preventer|trait:G Team)",
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 of your rested (Preventer)/(G Team) Link Units. Set it as active. It can't attack during this turn."
   },
   {
     "id": "GD05-071-Attack",
@@ -7663,6 +7749,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD05-093-WhenLinked",
+    "cardCode": "GD05-093",
+    "trigger": "When Linked",
+    "ops": [
+      "deployFromTrashPayingCost"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】You may choose 1 (Neo Zeon) Base card from your trash. Deploy it."
   },
   {
     "id": "GD05-094-Burst",
@@ -8043,6 +8141,18 @@
     "sourceText": "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area."
   },
   {
+    "id": "GD05-108-Action",
+    "cardCode": "GD05-108",
+    "trigger": "Action",
+    "ops": [
+      "changeAttackTarget"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "rested;trait:Academy",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 friendly rested (Academy) Unit. Change a battling enemy Unit's attack target to it."
+  },
+  {
     "id": "GD05-109-Action",
     "cardCode": "GD05-109",
     "trigger": "Action",
@@ -8255,6 +8365,18 @@
     "sourceText": "【Main】Choose 1 enemy Unit. It gets AP-2 during this turn. If you use an EX Resource to play this card, rest the enemy Unit."
   },
   {
+    "id": "GD05-119-Action",
+    "cardCode": "GD05-119",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "battlingFriendlyLevelAtLeast:5",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 enemy Unit that is battling one of your Units that is Lv.5 or higher. It gets AP-3 during this battle."
+  },
+  {
     "id": "GD05-120-Action",
     "cardCode": "GD05-120",
     "trigger": "Action",
@@ -8424,6 +8546,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD05-126-ActivateMain",
+    "cardCode": "GD05-126",
+    "trigger": "Activate·Main",
+    "ops": [
+      "payResourceCost",
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerUnitNameContainsLevelAtLeast:Gundam Aerial:5",
+    "sourceText": "【Activate･Main】【Once per Turn】②：If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play, deploy 1 [Gundnode]((Quiet Zero)･AP2･HP2･<Breach 1>) Unit token."
   },
   {
     "id": "GD05-126-Burst",

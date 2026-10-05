@@ -357,6 +357,8 @@ export const UNITS_RED: Record<string, CardDef> = {
         "Allelujah Haptism",
         "Hallelujah Haptism"
       ]
-    }
+    },
+    // W8 — ataca no turno do deploy, só Unit inimiga descansada
+    "attackOnDeployTurnVsRestedUnit": { "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." }
   },
 };

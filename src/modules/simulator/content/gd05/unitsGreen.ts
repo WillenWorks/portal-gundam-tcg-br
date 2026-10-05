@@ -325,7 +325,9 @@ export const UNITS_GREEN: Record<string, CardDef> = {
       "values": [
         "Shaddiq Zenelli"
       ]
-    }
+    },
+    // W8 — ataca no turno do deploy, só Unit inimiga descansada
+    "attackOnDeployTurnVsRestedUnit": { "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." }
   },
   "GD05-031": {
     "code": "GD05-031",

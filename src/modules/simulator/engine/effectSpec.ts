@@ -1206,6 +1206,16 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].trash.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`deployFromTrashPayingCost: carta "${chosen}" não está na lixeira de ${player}`);
+      // W8 — GD05-093 "choose 1 (Neo Zeon) Base card from your trash. Deploy it.": Base entra no lugar da atual
+      if (card.def.cardType === "BASE" && call.filter.cardType === "BASE") {
+        if (!matchesCardDefFilter(card.def, call.filter)) throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
+        const baseCost = call.free ? 0 : Math.max(0, effectiveCost(card.def, ctx.state, player));
+        const existing = ctx.state.players[player].baseSection[0];
+        const replace: GameEvent[] = existing
+          ? [existing.def.isToken ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId } : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" }]
+          : [];
+        return [...payResourceCostEvents(ctx.state, player, baseCost), ...replace, { type: "MOVE_CARD", instanceId: chosen, toZone: "baseSection" }];
+      }
       if (card.def.cardType !== "UNIT") throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não é Unit`);
       if (!matchesCardDefFilter(card.def, call.filter)) {
         throw new Error(`deployFromTrashPayingCost: "${card.def.code}" não casa o filtro do efeito`);
