@@ -24,6 +24,7 @@ const rng = await import(sim("engine/rng.ts"));
 const features = await import(sim("engine/bot/features.ts"));
 const heuristic = await import(sim("engine/bot/heuristicPolicy.ts"));
 const neural = await import(sim("engine/bot/neuralPolicy.ts"));
+const ladder = await import(sim("engine/bot/ladder.ts"));
 const content = await import(sim("content/index.ts"));
 
 /** `mctsPolicy` da Lane 4A — import opcional, `null` se ainda não mergeou. */
@@ -52,6 +53,7 @@ export const ACTION_SPACE = features.ACTION_SPACE;
 
 export const heuristicPolicy = heuristic.heuristicPolicy;
 export const neuralPolicy = neural.neuralPolicy;
+export const wilsonInterval = ladder.wilsonInterval;
 
 export const ALL_EFFECT_SPECS = content.ALL_EFFECT_SPECS;
 export const defaultPredicateResolver = content.defaultPredicateResolver;
