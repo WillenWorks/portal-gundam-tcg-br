@@ -92,6 +92,11 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     // W5 — gatilho atrasado declarado por efeito resolvido: informação pública
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
+    // W7 (C10) — descarte é público (vai pro trash à vista)
+    ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    // W7 — Command ativada é pública
+    ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: player.commandTraitsActivatedOnTurn } : {}),
+    ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: player.ownUnitDestroyedByOwnEffectOnTurn } : {}),
   };
 }
 

@@ -249,9 +249,27 @@ describe("Primitivas existentes reaproveitadas (deployThisCard/spawnToken/addShi
     findCard(state, deathscytheId).pairedPilotId = meteorPilotId;
 
     const ctx = ctxFor(state, deathscytheId);
+    const topResourceId = state.players.A.resourceDeck[0].instanceId;
+    const resourceDeckBefore = state.players.A.resourceDeck.length;
     const events = resolveEffectSpec(GUNDAM_DEATHSCYTHE_WHEN_PAIRED, ctx, defaultPredicateResolver);
     const next = applyEvents(state, events);
-    expect(next.players.A.resourceArea.some((c) => c.rested)).toBe(true);
+    // CR 3-6-1 — o Resource é o topo do resource deck (permanente), não um EX Resource (sai do jogo ao pagar)
+    const placed = next.players.A.resourceArea.find((c) => c.instanceId === topResourceId);
+    expect(placed?.rested).toBe(true);
+    expect(placed?.def.isToken).toBeFalsy();
+    expect(next.players.A.resourceDeck).toHaveLength(resourceDeckBefore - 1);
+    expect(findCard(next, deathscytheId).keywordGrants.some((g) => g.keyword === "First Strike")).toBe(true);
+  });
+
+  it("GD01-025: resource deck vazio — não coloca Resource nenhum (e o First Strike vem mesmo assim)", () => {
+    const state = freshGame();
+    const deathscytheId = placeCard(state, "A", GD01_CARD_DEFS["GD01-025"], "battleArea");
+    const meteorPilotId = placeCard(state, "A", GD01_CARD_DEFS["GD01-090"], "battleArea");
+    findCard(state, deathscytheId).pairedPilotId = meteorPilotId;
+    state.players.A.resourceDeck = [];
+    const resourcesBefore = state.players.A.resourceArea.length;
+    const next = applyEvents(state, resolveEffectSpec(GUNDAM_DEATHSCYTHE_WHEN_PAIRED, ctxFor(state, deathscytheId), defaultPredicateResolver));
+    expect(next.players.A.resourceArea).toHaveLength(resourcesBefore);
     expect(findCard(next, deathscytheId).keywordGrants.some((g) => g.keyword === "First Strike")).toBe(true);
   });
 

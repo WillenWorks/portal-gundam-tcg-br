@@ -69,7 +69,13 @@ export type TargetRef =
 export type TargetGroup =
   | { kind: "allFriendlyLinkUnits" }
   /** GD02-107 All-Range Attack — "Deal 1 damage to all enemy Units other than Link Units". */
-  | { kind: "allEnemyUnits"; maxLevel?: number; excludeLinkUnits?: boolean }
+  | {
+      kind: "allEnemyUnits";
+      maxLevel?: number;
+      excludeLinkUnits?: boolean;
+      /** W7 — GD05-036 "all enemy Units whose Lv. is equal to or lower than that Unit": Lv. do alvo nomeado `ctx.targets[maxLevelOf]` */
+      maxLevelOf?: string;
+    }
   /** GD01-102 The Path to Victory or Defeat / ST07-009 Setsuna — "All friendly Units [with trait] ..." */
   | { kind: "allFriendlyUnits"; maxLevel?: number; trait?: string }
   /**
@@ -212,8 +218,11 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
       .map((c) => c.instanceId);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
+  const refId = group.maxLevelOf ? ctx.targets[group.maxLevelOf]?.[0] : undefined;
+  if (group.maxLevelOf && !refId) return [];
+  const maxLevel = refId ? (findCard(ctx.state, refId).def.level ?? 0) : group.maxLevel;
   return opponent.battleArea
-    .filter((u) => u.def.cardType === "UNIT" && (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel))
+    .filter((u) => u.def.cardType === "UNIT" && (maxLevel === undefined || (u.def.level ?? 0) <= maxLevel))
     .filter((u) => !group.excludeLinkUnits || !isLinkUnit(ctx.state, u))
     .map((u) => u.instanceId);
 }
@@ -245,6 +254,11 @@ function resolveTarget(
 }
 
 /** Resolve pra 0+ instanceIds — usado por toda primitiva que consome `TargetRef` (única fonte de verdade pra aplicar a mesma ação a um GRUPO inteiro de alvos, não só a 1). */
+/** W7 — ids de um `TargetRef` no contexto (exportado pra quem despacha continuações, ex. `activateMainOf`) */
+export function resolveCallTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
+  return resolveTargetIds(ref, ctx);
+}
+
 function resolveTargetIds(ref: TargetRef, ctx: EffectContext): string[] {
   if (ref.kind === "group") return resolveTargetGroup(ref.group, ctx);
   // Lote 4 — "namedGroup" consome TODO o array escolhido (0..max), nunca lança:
@@ -342,6 +356,54 @@ export type PrimitiveCall =
    * resolvida pela camada de decisão (`enumChoice`). Sem escolha → `options[0]`
    * (default defensivo — a camada de decisão sempre força a escolha). */
   | { op: "spawnTokenChoice"; player: PlayerRef; zone: Zone; key: string; options: { value: string; label: string; def: CardDef }[] }
+  /**
+   * W7 (C9) — "choose 1 of the following effects and activate it: ■… ■…" (GD05-102/106). A escolha é ENUM
+   * (`enumChoice`); o modo escolhido roda depois como gatilho próprio `Mode:<value>` da mesma carta
+   * (`dispatchTrigger`), com alvo/escolhas próprios — o alvo de um modo só é pedido depois do modo.
+   */
+  | {
+      op: "chooseMode";
+      key: string;
+      /** `decidedBy: "opponent"` (C10) — a continuação desse modo é decidida pelo oponente do controlador */
+      options: { value: string; label: string; decidedBy?: "controller" | "opponent" }[];
+    }
+  /**
+   * W7 (C9) — "If you do, choose …"/"Then, …" que depende de uma escolha anterior do MESMO efeito (descarte, carta
+   * do trash): roda depois como gatilho `Then:<n>` da mesma carta, pedindo a própria escolha (uma fila só não carrega
+   * descarte + alvo juntos — limitação E4). Fica dentro do `condition.then` quando o "if you do" depende de algo.
+   */
+  | {
+      op: "thenTrigger";
+      trigger: string;
+      /**
+       * W7 (C10) — "that enemy player may discard 1", "all enemy players each choose 1 of their Units": a escolha
+       * da continuação é do OPONENTE. O efeito continua sendo do controlador (`controller`/`opponent` nas
+       * primitivas resolvem pelo dono da carta); só a `PendingDecision` vai pro oponente.
+       */
+      decidedBy?: "controller" | "opponent";
+    }
+  /**
+   * W7 — "Place 1 (rested) Resource" (GD01-025/107, GD05-106, EB01-021): CR 3-6-1, Resource sai do topo do
+   * RESOURCE DECK (não é EX Resource, que sai do jogo ao pagar). Resource deck vazio: não acontece nada.
+   */
+  | { op: "placeResourceFromDeck"; player: PlayerRef; rested?: boolean }
+  /**
+   * W7 — "Activate 【Main】 on the card paired with this Unit" (GD05-035/044/069/076) e "you may activate its 【Main】"
+   * (GD05-097, a Command descartada): roda o 【Main】 da carta (`card`) como continuação, sem pagar custo e sem
+   * movê-la; conta como "ativou o 【Main】 de uma Command" (rulings Q376/Q397).
+   */
+  | { op: "activateMainOf"; card: TargetRef }
+  /**
+   * W7 — "Destroy the first N cards in that player's shield area" (GD05-107). A 1ª carta da área de escudo é a
+   * Base, se houver (CR 13-1-2-2); depois os escudos do topo. Escudo destruído por efeito oferece o 【Burst】 ao
+   * dono (CR 13-2-5-1) — `dispatchTrigger` abre a decisão.
+   */
+  | { op: "destroyFirstShieldAreaCards"; player: PlayerRef; count: number }
+  /**
+   * W7 — "deal N damage to the first card in your opponent's shield area" (GD05-033): Base (dano de efeito, pela
+   * camada de dano) ou o escudo do topo (qualquer dano destrói o escudo). Sem Base nem escudo, nada.
+   */
+  | { op: "damageFirstShieldAreaCard"; player: PlayerRef; amount: number }
   /**
    * "Add N of your Shields to your hand" — o 【Deploy】 que TODA Base do jogo
    * tem (91/91 no dataset oficial, sem exceção; ver docs/18). Como shields
@@ -441,7 +503,15 @@ export type PrimitiveCall =
    * senão lança. Sem escolha (`optional`, jogador declina) → todas as N vão pro
    * fundo. Ordenação pro fundo segue a ordem do topo (mesma limitação de
    * `moveWithinDeck`; a aleatoriedade só esconde info de quem já olhou). */
-  | { op: "lookAtTopFilterReveal"; player: PlayerRef; count: number; filter: CardDefFilter; revealName?: string }
+  | {
+      op: "lookAtTopFilterReveal";
+      player: PlayerRef;
+      count: number;
+      filter: CardDefFilter;
+      revealName?: string;
+      /** W7 — GD05-052 "place the top 3 cards of your deck into your trash. Add 1 … you placed": o resto vai pro trash, não pro fundo */
+      restTo?: "bottom" | "trash";
+    }
   /**
    * "You may deploy 1 <filtro> card from your hand." disparado por gatilho
    * (【When Paired】 de ST03-010 Full Frontal, docs/41) — deploy SEM pagar custo
@@ -643,7 +713,15 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           }
         }
       }
-      return [{ type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: chosen }];
+      // W7 (C10) — "They discard 1": descarte do oponente por efeito do controlador fica registrado no turno
+      return [
+        {
+          type: "DISCARD_TO_HAND_LIMIT",
+          player,
+          instanceIds: chosen,
+          ...(player !== ctx.controller ? { byEnemyEffectTurn: ctx.turnNumber } : {}),
+        },
+      ];
     }
     case "damageShield": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -771,15 +849,15 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       ];
     }
     case "grantDelayedReaction": {
-      const subjectId = call.subject ? resolveTargetIds(call.subject, ctx)[0] : undefined;
-      if (call.subject && !subjectId) return [];
-      return [
-        {
+      // W7 — `subject` em grupo ("Choose 1 to 2 of your Units", GD05-002): um gatilho atrasado por Unit escolhida
+      const subjectIds: Array<string | undefined> = call.subject ? resolveTargetIds(call.subject, ctx) : [undefined];
+      return subjectIds.map(
+        (subjectId): GameEvent => ({
           type: "ADD_DELAYED_REACTION",
           player: ctx.controller,
           entry: { specId: call.specId, sourceId: ctx.sourceInstanceId, subjectId, turn: ctx.turnNumber },
-        },
-      ];
+        }),
+      );
     }
     case "deployExBase": {
       const player = resolvePlayerRef(call.player, ctx.controller);
@@ -900,6 +978,45 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           position === "trash" ? { type: "MOVE_CARD", instanceId, toZone: "trash" } : { type: "MOVE_WITHIN_DECK", instanceId, position },
       );
     }
+    // W7 (C9) — a escolha em si não muda o estado; o modo escolhido é despachado pelo `dispatchTrigger`
+    case "chooseMode":
+    case "thenTrigger":
+    case "activateMainOf":
+      return [];
+    case "destroyFirstShieldAreaCards": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const side = ctx.state.players[player];
+      const events: GameEvent[] = [];
+      let left = call.count;
+      const base = side.baseSection[0];
+      if (base && left > 0) {
+        events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+        left--;
+      }
+      const shields = Math.min(left, side.shields.length);
+      if (shields > 0) events.push({ type: "DAMAGE_SHIELD", player, count: shields });
+      return events;
+    }
+    case "damageFirstShieldAreaCard": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const side = ctx.state.players[player];
+      const base = side.baseSection[0];
+      if (base) {
+        const hit = incomingDamage(ctx.state, base, call.amount, effectSource(ctx));
+        const events: GameEvent[] = [{ type: "DAMAGE_BASE", instanceId: base.instanceId, amount: hit.amount, consume: hit.consume }];
+        if (hit.amount > 0 && base.damage + hit.amount >= effectiveHp(base, ctx.state)) events.push({ type: "DESTROY_CARD", instanceId: base.instanceId });
+        return events;
+      }
+      return side.shields.length > 0 && call.amount > 0 ? [{ type: "DAMAGE_SHIELD", player, count: 1 }] : [];
+    }
+    case "placeResourceFromDeck": {
+      const player = resolvePlayerRef(call.player, ctx.controller);
+      const top = ctx.state.players[player].resourceDeck[0];
+      if (!top) return [];
+      const events: GameEvent[] = [{ type: "DRAW_CARD", player, from: "resourceDeck", instanceId: top.instanceId }];
+      if (call.rested) events.push({ type: "REST_CARD", instanceId: top.instanceId });
+      return events;
+    }
     case "spawnTokenChoice": {
       const player = resolvePlayerRef(call.player, ctx.controller);
       const chosen = ctx.targets[call.key]?.[0];
@@ -977,7 +1094,11 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       }
       for (const card of top) {
         if (card.instanceId === revealed) continue;
-        events.push({ type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" });
+        events.push(
+          call.restTo === "trash"
+            ? { type: "MOVE_CARD", instanceId: card.instanceId, toZone: "trash" }
+            : { type: "MOVE_WITHIN_DECK", instanceId: card.instanceId, position: "bottom" },
+        );
       }
       return events;
     }
@@ -1184,7 +1305,15 @@ export type ReactionEvent =
   /** W5 (C6) — "when you place an EX Resource" (a carta do evento é o EX Resource novo) */
   | "exResourcePlaced"
   /** W5 (C6) — "when you pay ① or more for one of your Units' effects" (valor pago = `reactionAmount`) */
-  | "paidForUnitEffect";
+  | "paidForUnitEffect"
+  /**
+   * W7 (C9) — a Unit do evento foi destruída (batalha ou efeito). Só via gatilho atrasado (`grantDelayedReaction`
+   * com `subject`): é o "It gains the following effect: ■【Destroyed】…" (GD05-104). `duringLink` do spec vale
+   * pelo estado da Unit na destruição (`DestroyedInBattle.wasLinkUnit`).
+   */
+  | "destroyed"
+  /** W7 — "When one of your Units is destroyed by an effect" (GD05-054): a carta do evento é a Unit destruída */
+  | "destroyedByEffect";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1435,6 +1564,7 @@ export type ChoicePrimitive =
   | Extract<PrimitiveCall, { op: "lookAtTopFilterReveal" }>
   | Extract<PrimitiveCall, { op: "discardNamed" }>
   | Extract<PrimitiveCall, { op: "spawnTokenChoice" }>
+  | Extract<PrimitiveCall, { op: "chooseMode" }>
   | Extract<PrimitiveCall, { op: "moveWithinDeck" }>
   | Extract<PrimitiveCall, { op: "deployFromTopFilterReveal" }>
   | Extract<PrimitiveCall, { op: "searchTrashToHand" }>
@@ -1450,6 +1580,7 @@ export function isChoicePrimitive(call: PrimitiveCall): call is ChoicePrimitive 
     case "lookAtTopFilterReveal":
     case "discardNamed":
     case "spawnTokenChoice":
+    case "chooseMode":
     case "deployFromTopFilterReveal":
     case "searchTrashToHand":
     case "pairFromTrashSearch":
@@ -1594,3 +1725,8 @@ export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolveP
 
 // re-exportado por conveniência pra quem só quer inspecionar dono/zona de um alvo antes de montar uma primitiva
 export { findCard, findCardOwner };
+
+/** W7 (C9) — gatilho de continuação de um efeito (modo escolhido ou "If you do …"), não um gatilho de regra */
+export function isFollowUpTrigger(trigger: string): boolean {
+  return trigger.startsWith("Mode:") || trigger.startsWith("Then:");
+}

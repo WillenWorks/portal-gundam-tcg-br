@@ -5,7 +5,9 @@ import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver
 import { callsNeedChoice, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
+  awaitingFollowUpOf,
   deferOrDispatchAbilities,
+  dispatchAfterMain,
   dispatchAnyPairingFromEffect,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
@@ -418,12 +420,20 @@ export function playCommand(
 
   // a carta pode já ter se movido (nenhum EffectSpec de Command faz isso hoje,
   // mas o dispatcher não impede) — só manda pro trash se ainda estiver na mão.
+  // W7 (C9) — o modo escolhido pausou pra alvo: a Command só vai pro trash quando ele resolver (`resolveAbility`)
+  if (awaitingFollowUpOf(next, cardInstanceId)) return next;
   const stillInHand = next.players[player].hand.some((c) => c.instanceId === cardInstanceId);
   if (stillInHand) {
     next = applyEvents(next, [{ type: "MOVE_CARD", instanceId: cardInstanceId, toZone: "trash" }]);
   }
   // W5 (C6) — "when you play and activate a Command card"
-  return dispatchCommandActivated(next, cardInstanceId, specs, {
+  next = dispatchCommandActivated(next, cardInstanceId, specs, {
+    predicateResolver: options.predicateResolver,
+    targetFilterResolver: options.targetFilterResolver,
+  });
+  // W7 — "After activating this card's 【Main】, you may pair this card from your trash…"
+  if (trigger !== "Main") return next;
+  return dispatchAfterMain(next, cardInstanceId, specs, {
     predicateResolver: options.predicateResolver,
     targetFilterResolver: options.targetFilterResolver,
   });

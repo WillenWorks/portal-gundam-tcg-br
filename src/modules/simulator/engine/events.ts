@@ -173,6 +173,9 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
+    ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
+    ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: { ...player.ownUnitDestroyedByOwnEffectOnTurn, traits: [...player.ownUnitDestroyedByOwnEffectOnTurn.traits] } } : {}),
   };
 }
 
@@ -418,8 +421,23 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       findCard(state, event.instanceId).usedKeywordsThisTurn.push(event.keyword);
       return state;
     }
+    case "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT": {
+      const player = state.players[event.player];
+      const prev = player.ownUnitDestroyedByOwnEffectOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.ownUnitDestroyedByOwnEffectOnTurn = { turn: event.turn, traits };
+      return state;
+    }
+    case "MARK_COMMAND_TRAITS_ACTIVATED": {
+      const player = state.players[event.player];
+      const prev = player.commandTraitsActivatedOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.commandTraitsActivatedOnTurn = { turn: event.turn, traits };
+      return state;
+    }
     case "DISCARD_TO_HAND_LIMIT": {
       const player = state.players[event.player];
+      if (event.byEnemyEffectTurn !== undefined && event.instanceIds.length > 0) player.discardedByEnemyEffectOnTurn = event.byEnemyEffectTurn;
       for (const id of event.instanceIds) {
         const card = removeFromZone(player, id);
         if (card) {

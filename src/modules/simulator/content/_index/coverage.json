@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "780 specs",
+  "generatedFrom": "846 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -2264,10 +2264,8 @@
         {
           "code": "GD02-094",
           "name": "Garrod Ran & Tiffa Adill",
-          "status": "implementada*",
-          "deferredClauses": [
-            "You may discard 1. If you do,"
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD02-095",
@@ -2487,8 +2485,8 @@
         }
       ],
       "counts": {
-        "impl": 102,
-        "implStar": 1,
+        "impl": 103,
+        "implStar": 0,
         "vanilla": 26,
         "deferida": 1,
         "faltando": 0
@@ -2877,10 +2875,8 @@
         {
           "code": "GD03-064",
           "name": "Defurse",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-065",
@@ -3179,10 +3175,8 @@
         {
           "code": "GD03-113",
           "name": "Human Karma",
-          "status": "deferida",
-          "deferredClauses": [
-            "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-114",
@@ -3211,10 +3205,8 @@
         {
           "code": "GD03-118",
           "name": "Awakened Potential",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-119",
@@ -3302,10 +3294,10 @@
         }
       ],
       "counts": {
-        "impl": 110,
-        "implStar": 3,
+        "impl": 113,
+        "implStar": 2,
         "vanilla": 16,
-        "deferida": 3,
+        "deferida": 1,
         "faltando": 0
       }
     },

@@ -403,6 +403,7 @@ function combatCandidates(state: GameState, seat: PlayerId, specs: EffectSpec[],
       for (const unit of friendlyUnits(state, seat)) {
         if (unit.rested) continue;
         if (!hasKeyword(unit, "Blocker", state)) continue;
+        if (hasKeyword(unit, "CannotActivateBlocker", state)) continue;
         out.push({ kind: "activateBlocker", blockerId: unit.instanceId });
       }
     }

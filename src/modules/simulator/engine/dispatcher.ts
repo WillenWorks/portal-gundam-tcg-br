@@ -1,7 +1,7 @@
 import type { CardInstance, GameState, PlayerId } from "./types";
 import { otherPlayer, specPairGateOpen } from "./types";
-import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { resolveEffectSpec } from "./effectSpec";
+import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, TargetFilterResolver } from "./effectSpec";
+import { isFollowUpTrigger, resolveCallTargetIds, resolveEffectSpec, specActiveCalls } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import {
   checkTriggerLoopGuard,
@@ -14,6 +14,7 @@ import {
   paidForUnitEffectOccurrence,
   resourcePaymentAmount,
   attachQueuedTriggers,
+  markCommandTraitsActivated,
   pairingTriggerEntries,
 } from "./abilityDispatch";
 import type { TriggerQueueBudget } from "./abilityDispatch";
@@ -169,6 +170,7 @@ export function dispatchTrigger(
     // gate de profundidade aqui: `dispatchDestroyedTriggers` já checa o guard
     // no próprio topo (docs/debates 2026-09-13 — um só ponto de verdade).
     next = dispatchDestroyedFromEffect(before, next, allSpecs, {
+      effectSource: { controller: current.owner, sourceId: sourceInstanceId },
       predicateResolver: opts.predicateResolver,
       targetFilterResolver: opts.targetFilterResolver,
       cascadeDepth: cascadeDepth + 1,
@@ -242,6 +244,76 @@ export function dispatchTrigger(
         queueBudget,
       });
     }
+
+    // W7 (C9) — continuações: o modo escolhido ("choose 1 of the following effects") e o "If you do, choose …"
+    // (`thenTrigger`) rodam como gatilho próprio da mesma carta (`Mode:<n>`/`Then:<n>`), pelo caminho que pausa
+    // quando pedem alvo/escolha. A decisão da continuação lembra a habilidade de origem (`parentTrigger`).
+    const activeCalls = specActiveCalls(spec, ctx, opts.predicateResolver);
+    const modeCall = activeCalls.find((c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode");
+    const chosenMode = modeCall ? (opts.targets?.[modeCall.key]?.[0] ?? modeCall.options[0]?.value) : undefined;
+    const followUps: Array<{
+      trigger: string;
+      targets?: Record<string, string[]>;
+      decidedBy?: "controller" | "opponent";
+      /** outra carta como fonte (o 【Main】 da carta pareada, `activateMainOf`) */
+      source?: { code: string; instanceId: string };
+    }> = [];
+    if (modeCall && chosenMode) {
+      // alvo do modo já pronto só no caminho síncrono (bot/teste passa `targets.target` junto do modo); vindo da
+      // fila de decisão só há a escolha do modo, e o modo pausa pra pedir o próprio alvo
+      const { [modeCall.key]: _mode, ...modeTargets } = opts.targets ?? {};
+      followUps.push({
+        trigger: `Mode:${chosenMode}`,
+        targets: Object.keys(modeTargets).length > 0 ? modeTargets : undefined,
+        decidedBy: modeCall.options.find((o) => o.value === chosenMode)?.decidedBy,
+      });
+    }
+    for (const call of activeCalls) {
+      if (call.op === "thenTrigger") followUps.push({ trigger: call.trigger, decidedBy: call.decidedBy });
+      if (call.op === "activateMainOf") {
+        for (const id of resolveCallTargetIds(call.card, ctx)) {
+          const card = findCard(next, id);
+          if (card.def.cardType !== "COMMAND" || findTriggerSpecs(allSpecs, card.def.code, "Main").length === 0) continue;
+          followUps.push({ trigger: "Main", source: { code: card.def.code, instanceId: id } });
+        }
+      }
+    }
+    for (const followUp of followUps) {
+      if (next.gameOver) break;
+      // o alvo do passo anterior segue como alvo implícito `previousTarget` ("…whose Lv. is equal to or lower than the
+      // Unit rested with this ability", GD03-113)
+      const previousTarget = ctx.targets.target?.length ? { previousTarget: ctx.targets.target } : undefined;
+      const followUpSources = [
+        followUp.source ? { ...followUp.source } : { code: current.def.code, instanceId: sourceInstanceId, implicitTargets: previousTarget },
+      ];
+      // rulings Q376/Q397 — ativar o 【Main】 de uma Command conta como "ativou o 【Main】" (GD05-068/089)
+      if (followUp.source) next = markCommandTraitsActivated(next, followUp.source.instanceId);
+      // algo do próprio efeito pausou antes (ex. 【Destroyed】 da Unit que ele destruiu): a continuação espera na fila
+      if (next.pendingDecision.A || next.pendingDecision.B) {
+        next = attachQueuedTriggers(next, [
+          {
+            owner: current.owner,
+            trigger: followUp.trigger,
+            sources: followUpSources,
+            decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
+          },
+        ]);
+        continue;
+      }
+      next = deferOrDispatchAbilities(next, current.owner, followUp.trigger, followUpSources, allSpecs, {
+        targets: followUp.targets,
+        predicateResolver: opts.predicateResolver,
+        targetFilterResolver: opts.targetFilterResolver,
+        cascadeDepth: cascadeDepth + 1,
+        queueBudget,
+        decider: followUp.decidedBy === "opponent" ? otherPlayer(current.owner) : undefined,
+      });
+      if (!isFollowUpTrigger(trigger)) next = withParentTrigger(next, followUp.trigger, trigger);
+    }
+
+    // W7 — escudo destruído por EFEITO (GD05-107/033) também oferece o 【Burst】 ao dono (CR 13-2-5-1). No Damage
+    // Step o combate tem caminho próprio; aqui só fora dele e sem decisão pendente desse jogador.
+    if (!next.gameOver && next.combat?.step !== "damage") next = offerBurstForShieldsDestroyedByEffect(before, next, allSpecs);
 
     // 【Destroyed】 que PAUSA (Char's Zaku Ⅱ fora de combate) trava o resto do
     // loop de specs desta carta — a decisão pendente resolve antes de seguir.
@@ -324,6 +396,33 @@ export function dispatchBurstForNewlyTrashedShields(
       predicateResolver,
       targetFilterResolver,
       allSpecs: specs,
+    });
+  }
+  return next;
+}
+
+/** W7 (C9) — marca a origem na decisão da continuação que acabou de pausar (a retomada do fluxo segue a origem) */
+function withParentTrigger(state: GameState, followUpTrigger: string, parentTrigger: string): GameState {
+  for (const p of ["A", "B"] as PlayerId[]) {
+    const d = state.pendingDecision[p];
+    if (d?.kind === "abilityResolution" && d.trigger === followUpTrigger && !d.parentTrigger) {
+      return { ...state, pendingDecision: { ...state.pendingDecision, [p]: { ...d, parentTrigger } } };
+    }
+  }
+  return state;
+}
+
+/** W7 — fila de 【Burst】 dos escudos que ESTE efeito destruiu (mesma decisão `burst` do Damage Step, sem 【Destroyed】 pendurado) */
+function offerBurstForShieldsDestroyedByEffect(before: GameState, after: GameState, specs: EffectSpec[]): GameState {
+  let next = after;
+  for (const p of ["A", "B"] as PlayerId[]) {
+    if (next.pendingDecision[p]) continue;
+    const [first, ...rest] = burstEligibleShieldIds(before, next, p, specs);
+    if (!first) continue;
+    next = applyEvent(next, {
+      type: "SET_PENDING_DECISION",
+      player: p,
+      decision: { kind: "burst", cardInstanceId: first, cardDef: findCard(next, first).def, choices: [], queuedInstanceIds: rest, pendingDestroyed: [] },
     });
   }
   return next;

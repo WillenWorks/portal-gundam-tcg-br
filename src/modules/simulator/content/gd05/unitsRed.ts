@@ -108,7 +108,16 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Biological CPU"
       ]
-    }
+    },
+    // W7 — "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
+    "dynamicCost": { "condition": { "kind": "enemyTrashCountAtLeast", "n": 7 }, "amount": -3 },
+    "dynamicLevel": { "condition": { "kind": "enemyTrashCountAtLeast", "n": 7 }, "amount": -3 },
+    "structuredSourceText": {
+      "dynamicCost": "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
+    },
+    "staticAbilities": [
+      { "condition": "duringLink", "scope": "self", "keyword": "Breach", "keywordValue": 3, "sourceText": "【During Link】This Unit gains <Breach 3>." }
+    ]
   },
   "GD05-038": {
     "code": "GD05-038",
@@ -203,6 +212,11 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Stellar Loussier"
       ]
+    },
+    // W7 (C10) — desconto no turno em que o oponente descartou por efeito seu (GD05-034/046)
+    "dynamicCost": { "condition": { "kind": "opponentDiscardedByYourEffectThisTurn" }, "amount": -2 },
+    "structuredSourceText": {
+      "dynamicCost": "During a turn where your opponent has discarded due to one of your effects, this card in your hand gets cost -2."
     }
   },
   "GD05-042": {

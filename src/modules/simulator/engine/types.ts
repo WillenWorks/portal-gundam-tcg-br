@@ -356,10 +356,16 @@ export type StaticEffectScope = "self" | "pairedUnit" | "allFriendlyUnits";
 export interface QueuedTrigger {
   owner: PlayerId;
   trigger: string;
+  /** W7 (C10) — quem decide, quando não é o dono (continuação decidida pelo oponente) */
+  decider?: PlayerId;
   sources: Array<{ code: string; instanceId: string; implicitTargets?: Record<string, string[]> }>;
 }
 
 export type StaticBoardCondition =
+  /** W7 (C10) — GD05-041 "During a turn where your opponent has discarded due to one of your effects" */
+  | { kind: "opponentDiscardedByYourEffectThisTurn" }
+  /** W7 — GD05-068 "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains … during this turn" */
+  | { kind: "activatedCommandWithTraitThisTurn"; trait: string }
   /** GD01-019 G-Sky Easy — "While 4 or more enemy Units are in play, ...". */
   | { kind: "enemyUnitCountAtLeast"; n: number }
   /** GD01-076 Zaku II Kai — "While there are 4 or more Command cards in your trash, ...". */
@@ -380,6 +386,8 @@ export type StaticBoardCondition =
   | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number }
   /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
   | { kind: "trashCountAtLeast"; n: number }
+  /** W7 — GD05-037/091 "While an enemy player has 7 or more cards in their trash" */
+  | { kind: "enemyTrashCountAtLeast"; n: number }
   /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
   | { kind: "baseColorInPlay"; color: string }
   /** GD02-023/031/124 — "while you are Lv.7 or higher" (nível do jogador = Resources em campo, igual ao predicate `controllerLevelAtLeast`). */
@@ -877,6 +885,9 @@ export function isBoardConditionMet(
       ).length >= cond.n
     );
   }
+  if (cond.kind === "enemyTrashCountAtLeast") {
+    return state.players[otherPlayer(owner)].trash.length >= cond.n;
+  }
   if (cond.kind === "trashCountAtLeast") {
     return state.players[owner].trash.length >= cond.n;
   }
@@ -925,6 +936,13 @@ export function isBoardConditionMet(
   }
   if (cond.kind === "friendlyUnitNameContains") {
     return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(cond.text));
+  }
+  if (cond.kind === "activatedCommandWithTraitThisTurn") {
+    const mark = state.players[owner].commandTraitsActivatedOnTurn;
+    return !!mark && mark.turn === state.turnNumber && mark.traits.includes(cond.trait);
+  }
+  if (cond.kind === "opponentDiscardedByYourEffectThisTurn") {
+    return state.players[otherPlayer(owner)].discardedByEnemyEffectOnTurn === state.turnNumber;
   }
   if (cond.kind === "noEnemyBase") {
     return (state.players[otherPlayer(owner)].baseSection ?? []).length === 0;
@@ -1252,6 +1270,8 @@ export interface DestroyedInBattle {
   wasPaired: boolean;
   wasLinkUnit?: boolean;
   formerPairedPilotId?: string;
+  /** W7 — destruída por um EFEITO: quem o controlava e a carta de origem ("destroyed by one of your (Neo Zeon) card's effects") */
+  byEffect?: { controller: PlayerId; sourceId: string };
 }
 
 export type PendingDecision =
@@ -1297,6 +1317,11 @@ export type PendingDecision =
        */
       kind: "abilityResolution";
       trigger: string;
+      /**
+       * W7 (C9) — continuação (`Mode:<n>`/`Then:<n>`): gatilho da habilidade de origem (【Attack】, 【Destroyed】,
+       * 【Main】…). A retomada do fluxo (Block Step, Damage Step, trash da Command) segue a origem, não a continuação.
+       */
+      parentTrigger?: string;
       queue: Array<{
         sourceInstanceId: string;
         specId: string;
@@ -1508,6 +1533,12 @@ export interface EndPhaseActionState {
 export interface PlayerState {
   /** W5 — "During this turn, when …" armados por efeito (limpos no fim do turno) */
   delayedReactions?: DelayedReaction[];
+  /** W7 (C10) — turno em que este jogador descartou por efeito do OPONENTE (GD05-041 "your opponent has discarded due to one of your effects") */
+  discardedByEnemyEffectOnTurn?: number;
+  /** W7 — traits de Command cujo 【Main】/【Action】 este jogador ativou no turno (só `TRACKED_COMMAND_TRAITS`) */
+  commandTraitsActivatedOnTurn?: { turn: number; traits: string[] };
+  /** W7 — traits das cartas cujo efeito, controlado por ESTE jogador, destruiu uma Unit dele no turno (só `TRACKED_DESTROYER_TRAITS`) */
+  ownUnitDestroyedByOwnEffectOnTurn?: { turn: number; traits: string[] };
   /**
    * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
    * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
@@ -1618,7 +1649,17 @@ export type GameEvent =
   | { type: "GRANT_KEYWORD"; instanceId: string; grant: KeywordGrant }
   | { type: "CLEAR_TURN_MODIFIERS"; turnNumber: number }
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
-  | { type: "DISCARD_TO_HAND_LIMIT"; player: PlayerId; instanceIds: string[] }
+  /** W7 — o jogador ativou o 【Main】/【Action】 de uma Command com estes traits (só os rastreados) */
+  | { type: "MARK_COMMAND_TRAITS_ACTIVATED"; player: PlayerId; traits: string[]; turn: number }
+  /** W7 — uma Unit do jogador foi destruída por efeito dele de uma carta com estes traits (só os rastreados) */
+  | { type: "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT"; player: PlayerId; traits: string[]; turn: number }
+  | {
+      type: "DISCARD_TO_HAND_LIMIT";
+      player: PlayerId;
+      instanceIds: string[];
+      /** W7 (C10) — descarte causado por efeito do oponente neste turno (marca `discardedByEnemyEffectOnTurn`) */
+      byEnemyEffectTurn?: number;
+    }
   | { type: "PAIR_CARDS"; pilotId: string; unitId: string; asPilotMode?: boolean }
   /** Cria uma instância nova em jogo a partir de um `CardDef` (token) — CR 3-1. Nunca usado no setup (setup.ts instancia direto); só por efeito de carta em tempo de jogo. */
   | { type: "SPAWN_TOKEN"; player: PlayerId; def: CardDef; zone: Zone; rested?: boolean }

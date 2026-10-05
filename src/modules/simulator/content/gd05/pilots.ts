@@ -220,7 +220,26 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W7 — "While an enemy player has 7 or more cards in their trash, this Unit gets AP+1 and HP+1." (a Unit pareada)
+    "staticAbilities": [
+      {
+        "condition": "duringPair",
+        "scope": "pairedUnit",
+        "stat": "ap",
+        "amount": 1,
+        "boardCondition": { "kind": "enemyTrashCountAtLeast", "n": 7 },
+        "sourceText": "While an enemy player has 7 or more cards in their trash, this Unit gets AP+1 and HP+1."
+      },
+      {
+        "condition": "duringPair",
+        "scope": "pairedUnit",
+        "stat": "hp",
+        "amount": 1,
+        "boardCondition": { "kind": "enemyTrashCountAtLeast", "n": 7 },
+        "sourceText": "While an enemy player has 7 or more cards in their trash, this Unit gets AP+1 and HP+1."
+      }
+    ]
   },
   "GD05-092": {
     "code": "GD05-092",

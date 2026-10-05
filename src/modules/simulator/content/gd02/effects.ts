@@ -145,15 +145,30 @@ export const GD02_092_SHAGIA_FROST_ATTACK: EffectSpec = {
   sourceText: "【During Link】【Attack】Choose 1 of your (New UNE) Units. It gets AP+2 during this turn.",
 };
 
-// GD02-094 Garrod Ran & Tiffa Adill — filtro de (Vulture) UNIT. O "You may discard 1. If you do,"
-// na frente depende de alvo+escolha na mesma fila (E4) — deferido em content/deferred.ts.
+// GD02-094 Garrod Ran & Tiffa Adill — "You may discard 1. If you do, look at the top 3…": o descarte e o olhar
+// são escolhas separadas (W7, continuação `Then:1`). Antes (E4) o olhar acontecia sem o descarte.
 export const GD02_094_GARROD_RAN_TIFFA_ADILL_WHEN_PAIRED: EffectSpec = {
   id: "GD02-094-WhenPaired",
   cardCode: "GD02-094",
   trigger: "When Paired",
+  optional: true,
+  condition: {
+    predicate: "controllerHandCountAtLeast:1",
+    then: [
+      { op: "discardNamed", player: "controller", name: "discard", n: 1 },
+      { op: "thenTrigger", trigger: "Then:1" },
+    ],
+  },
+  actions: [],
+  sourceText: "【When Paired】You may discard 1.",
+};
+export const GD02_094_GARROD_RAN_TIFFA_ADILL_THEN: EffectSpec = {
+  id: "GD02-094-Then",
+  cardCode: "GD02-094",
+  trigger: "Then:1",
   actions: [{ op: "lookAtTopFilterReveal", player: "controller", count: 3, filter: { cardType: "UNIT", anyTrait: ["Vulture"] } }],
   sourceText:
-    "look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
+    "If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck.",
 };
 
 // GD02-102/114/115 — 【Main】/【Action】 (só tinham o Action) com o filtro que faltava.
@@ -1218,6 +1233,7 @@ export const GD02_EFFECT_SPECS: EffectSpec[] = [
   GD02_088_FLIT_ASUNO_WHEN_LINKED,
   GD02_092_SHAGIA_FROST_ATTACK,
   GD02_094_GARROD_RAN_TIFFA_ADILL_WHEN_PAIRED,
+  GD02_094_GARROD_RAN_TIFFA_ADILL_THEN,
   ...GD02_102_MOUAR_S_DETERMINATION,
   GD02_104_TURNING_POINT_OF_HISTORY_MAIN,
   ...GD02_114_IT_S_NAME_IS_RYUSEI_GO,

@@ -1,7 +1,7 @@
-import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsChoice } from "./effectSpec";
+import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -10,7 +10,9 @@ import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, 
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   attachQueuedTriggers,
+  awaitingFollowUpOf,
   collectDestroyedInBattle,
+  dispatchAfterMain,
   deferOrDispatchAbilities,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
@@ -541,6 +543,8 @@ function applyPlayerActionInner(
         throw new Error("As resoluções precisam listar exatamente os efeitos pendentes");
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      // W7 (C9) — numa continuação (`Mode:`/`Then:`), a retomada do fluxo segue a habilidade de origem
+      const flowTrigger = decision.parentTrigger ?? decision.trigger;
       // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
       const commandSources = new Set<string>();
       for (const r of action.resolutions) {
@@ -627,7 +631,9 @@ function applyPlayerActionInner(
         // Unit pra mão e nunca devolvendo o shield real. `addShieldToHand` cai
         // no fallback "primeiros N shields" (shield é face-down, a escolha não
         // carrega informação).
-        const targets: Record<string, string[]> = { target: r.targetIds };
+        // W7 (C9) — escolha enum (modo, token, posição) não é alvo em campo: não vira `target` (o modo escolhido
+        // repassaria o valor "1"/"2" como id de carta pro gatilho `Mode:<n>`)
+        const targets: Record<string, string[]> = enumChoice ? {} : { target: r.targetIds };
         if (handChoice) targets.deploy = r.targetIds;
         if (deckReveal) targets.reveal = r.targetIds;
         if (handDiscard) targets.discard = r.targetIds;
@@ -669,7 +675,7 @@ function applyPlayerActionInner(
           continue;
         }
 
-        if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
+        if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets,
           predicateResolver,
@@ -683,11 +689,34 @@ function applyPlayerActionInner(
       // resolver. `playCommand` faz isso no fluxo síncrono; aqui é o fluxo
       // pausado.
       for (const srcId of commandSources) {
+        // W7 (C9) — o modo escolhido pausou pra alvo: a Command fica na mão até ele resolver (CR 3-4-4)
+        if (awaitingFollowUpOf(next, srcId)) continue;
         const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
         if (src && src.def.cardType === "COMMAND") {
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
           next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
+          // W7 — "After activating this card's 【Main】…" (a Command já está no trash)
+          if (flowTrigger === "Main") next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver });
         }
+      }
+      // W7 (C9) — a resolução abriu uma continuação ("If you do, choose …", alvo do modo): ela herda a origem e as
+      // filas desta decisão; a retomada do fluxo (Block/Damage Step, filas) espera a continuação resolver
+      const followUp = (["A", "B"] as PlayerId[]).find((p) => {
+        const d = next.pendingDecision[p];
+        return d?.kind === "abilityResolution" && isFollowUpTrigger(d.trigger);
+      });
+      if (followUp) {
+        const d = next.pendingDecision[followUp] as Extract<PendingDecision, { kind: "abilityResolution" }>;
+        return applyEvent(next, {
+          type: "SET_PENDING_DECISION",
+          player: followUp,
+          decision: {
+            ...d,
+            parentTrigger: d.parentTrigger ?? flowTrigger,
+            queuedTriggers: [...(d.queuedTriggers ?? []), ...(decision.queuedTriggers ?? [])],
+            ...(decision.queuedDestroyed && !d.queuedDestroyed ? { queuedDestroyed: decision.queuedDestroyed } : {}),
+          },
+        });
       }
       // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou
       // Units-com-【Destroyed】-que-pausa dos dois lados): agora que a decisão do
@@ -707,7 +736,7 @@ function applyPlayerActionInner(
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
-      if ((decision.trigger === "Attack" || decision.trigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
+      if ((flowTrigger === "Attack" || flowTrigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
       }
       // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44), 【Deploy】 encadeado por
@@ -718,15 +747,16 @@ function applyPlayerActionInner(
       // esperando esta escolha -> `finishDamageStep` fecha o Battle End Step
       // (ou pausa de novo, se sobrou mais alguma coisa — Burst→Destroyed→
       // CombatTrigger→BattleEnd, mesma ordem de sempre).
-      if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
+      if (flowTrigger === "Destroyed" || flowTrigger === "Deploy" || flowTrigger === "CombatTrigger") {
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2b — reação de combate: o combate estava parado no Damage Step -> segue a fila/Battle End
-      if (decision.trigger.startsWith("Reaction:") && next.combat?.step === "damage") {
+      // W7 — e gatilho atrasado (`Delayed:`), ex. o 【Destroyed】 concedido pelo GD05-104 numa Unit destruída em batalha
+      if ((flowTrigger.startsWith("Reaction:") || flowTrigger.startsWith("Delayed:")) && next.combat?.step === "damage") {
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
-      if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+      if ((flowTrigger.startsWith("Reaction:") || flowTrigger.startsWith("Delayed:")) && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
         return finishEndPhaseAndAdvance(next);
       }
       return next;
