@@ -345,8 +345,14 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
           idChoices.push([]);
           for (const id of q.handChoice.legalHandIds) idChoices.push([id]);
         } else if (q.handDiscard) {
-          if (q.handDiscard.legalHandIds.length === 0) idChoices.push([]);
-          for (const id of q.handDiscard.legalHandIds) idChoices.push([id]); // n=1 nas cartas de ST01-04
+          // W8 (achado do fuzz do GD05) — "discard 2" exige exatamente min(n, mão) cartas: antes só saíam escolhas de
+          // 1 carta (todas inválidas) e o "you may" nunca oferecia recusar → decisão sem nenhuma ação legal
+          const legal = q.handDiscard.legalHandIds;
+          const want = Math.min(q.handDiscard.n, legal.length);
+          if (want === 0) idChoices.push([]);
+          else if (want === 1) for (const id of legal) idChoices.push([id]);
+          else for (let i = 0; i + want <= legal.length && i < 6; i++) idChoices.push(legal.slice(i, i + want));
+          if (q.optional && want > 0) idChoices.push([]);
         } else if (q.deckReorder) {
           const ids = q.deckReorder.topCards.map((c) => c.instanceId).slice(0, q.deckReorder.slots.length);
           if (ids.length < 2) idChoices.push(ids);

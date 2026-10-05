@@ -4,6 +4,7 @@ import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks
 import { GD03_TEST_DECKS } from "../src/modules/simulator/fixtures/gd03Decks.ts";
 import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts";
 import { ST09_DECKS } from "../src/modules/simulator/fixtures/st09Decks.ts";
+import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
 import { GD02_CARD_DEFS } from "../src/modules/simulator/content/gd02/index.ts";
 import { GD03_CARD_DEFS } from "../src/modules/simulator/content/gd03/index.ts";
@@ -35,8 +36,8 @@ describe("deckCoverageGate — decks válidos (90 cartas GD01)", () => {
     }
   });
 
-  it("aprova os decks do GD03, do GD04 e do ST09 (presets da Fila Online/Convite/Treino)", () => {
-    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS, ...ST09_DECKS })) {
+  it("aprova os decks do GD03, do GD04, do ST09 e do GD05 (presets da Fila Online/Convite/Treino)", () => {
+    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS, ...ST09_DECKS, ...GD05_DECKS })) {
       const validation = validateDeckPayload(deck.build());
       expect(validation.valid, `${key}: ${JSON.stringify(validation.unplayableCards)}`).toBe(true);
       expect(validation.unplayableCards).toEqual([]);

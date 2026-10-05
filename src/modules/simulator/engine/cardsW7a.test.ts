@@ -570,3 +570,26 @@ describe("FAQ GD05-102/106 — modo sem alvo não pode ser escolhido", () => {
     expect(() => act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action" })).toThrow(/nenhum dos efeitos/);
   });
 });
+
+describe("achado do fuzz (W8) — decisão de \"discard 2\" sempre tem ação legal", () => {
+  it("GD05-002 【Attack】: o bot recebe descartes de 2 cartas válidos e a opção de recusar", () => {
+    let s = game();
+    const self = placeCard(s, "A", G["GD05-002"], "battleArea");
+    const pilot = placeCard(s, "A", PILOT(), "battleArea");
+    findCard(s, self).pairedPilotId = pilot;
+    findCard(s, pilot).pairedUnitId = self;
+    s.players.A.hand = [];
+    for (let i = 0; i < 3; i++) placeCard(s, "A", UNIT({ code: `TEST-H${i}` }), "hand");
+    s = act(s, "A", { kind: "declareAttack", attackerId: self, target: "player" });
+    const options = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, {
+      predicateResolver: defaultPredicateResolver,
+      targetFilterResolver: defaultTargetFilterResolver,
+    })
+      .filter((a) => a.kind === "resolveAbility")
+      .map((a) => (a.kind === "resolveAbility" ? a.resolutions[0] : null));
+    expect(options.some((r) => r?.activate === false)).toBe(true);
+    const discards = options.filter((r) => r?.activate && r.targetIds.length === 2);
+    expect(discards.length).toBeGreaterThan(0);
+    for (const r of discards) expect(() => act(s, "A", { kind: "resolveAbility", resolutions: [r!] })).not.toThrow();
+  });
+});
