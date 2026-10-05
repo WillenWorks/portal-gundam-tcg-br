@@ -16,7 +16,10 @@ import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS } from "@/lib/gundam-catalog";
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
 import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
+import { FormatArchetypeCoresPanel } from "@/components/stats/FormatArchetypeCoresPanel";
 import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
+import { WeeklyTrendsPanel } from "@/components/stats/WeeklyTrendsPanel";
+import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
 const chartConfig = {
   value: { label: "Valor", color: "var(--primary)" },
@@ -534,12 +537,32 @@ export default function StatsPage() {
               </div>
               {metagame?.season ? <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">Temporada {metagame.season.code}</Badge> : selectedSeasonId === ALL_VALUE ? <Badge className="rounded-none border border-white/15 bg-white/5 text-slate-400">Todas as temporadas</Badge> : null}
             </div>
-            {!metagameLoading && !metagame?.totalDecks ? <p className="mt-4 text-xs text-slate-500">Ainda não há decks suficientes travados em resultado real pra esse recorte.</p> : null}
+            {!metagameLoading && !metagame?.totalDecks ? (
+              <p className="mt-4 text-xs text-slate-500">Ainda não há decks suficientes travados em resultado real pra esse recorte.</p>
+            ) : !metagameLoading && metagame && metagame.totalDecks > 0 && metagame.totalDecks < 10 ? (
+              <div className="mt-4 flex items-center gap-2">
+                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs">
+                  Amostra preliminar (&lt; 10 listas)
+                </Badge>
+                <span className="text-xs text-slate-400">Poucos dados neste recorte — sujeito a variações pontuais.</span>
+              </div>
+            ) : null}
+            {metagame?.provenance && (
+              <DataSourceNote
+                provenance={metagame.provenance}
+                labelPrefix="Amostragem competitiva baseada em"
+                weightNote="Ponderação Amostral: Grandes Torneios e Regionais possuem peso superior a torneios locais na consolidação das métricas."
+                className="mt-5"
+              />
+            )}
           </CardContent>
         </Card>
 
         {/* Fase 2 -- Power Rankings semanal (só torneio reportado, ver §2.3/§5). */}
         <PowerRankingsPanel seasonId={selectedSeasonId} setId={selectedSetId === ALL_VALUE ? undefined : selectedSetId} onExploreArchetype={handleExploreArchetype} />
+
+        {/* Fase 3 -- Evolução Semanal dos Arquétipos & Amostragem (Fase 3, ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3/§3) */}
+        <WeeklyTrendsPanel seasonId={selectedSeasonId} />
 
         <div className="grid gap-6 xl:grid-cols-2">
           <Card className="panel-cut rounded-none surface-panel">
@@ -742,6 +765,9 @@ export default function StatsPage() {
           </Card>
         </div>
         
+        {/* Formatos GD01..GD05 e Núcleos de Arquétipo (Fase 2) */}
+        <FormatArchetypeCoresPanel />
+
         {/* Inteligência Algorítmica de Metagame ATMI */}
         <MetaAnalyticsPanel focusKey={atmiFocusKey} />
 

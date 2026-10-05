@@ -15,6 +15,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import gundamCardBack from "@/assets/gundam-card-back.png";
+import { DataSourceNote } from "@/components/stats/DataSourceNote";
+import { SourceDecksModal } from "@/components/deck/SourceDecksModal";
 
 const QUADRANT_CONFIG: Record<MetaQuadrant, {
   title: string;
@@ -70,6 +72,7 @@ export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; tok
   const [loadingArchetypes, setLoadingArchetypes] = useState(true);
   const [loadingBreakdown, setLoadingBreakdown] = useState(false);
   const [activeQuadrantTab, setActiveQuadrantTab] = useState<"ALL" | MetaQuadrant>("ALL");
+  const [sourceDecksModalOpen, setSourceDecksModalOpen] = useState(false);
 
   useEffect(() => {
     setLoadingArchetypes(true);
@@ -250,6 +253,15 @@ export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; tok
 
       {!loadingBreakdown && breakdown && (
         <div className="space-y-6">
+          {breakdown.provenance && (
+            <DataSourceNote
+              provenance={breakdown.provenance}
+              archetypeName={breakdown.archetype.name}
+              labelPrefix="Núcleo analítico baseado em"
+              weightNote="Listas de torneios com snapshots imutáveis e decks validados pela engine VEDA."
+            />
+          )}
+
           {/* Barra de Telemetria de Curva e Médias do Arquétipo */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="panel-cut border border-white/10 bg-slate-950/80 p-4">
@@ -329,9 +341,20 @@ export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; tok
               })}
             </div>
 
-            <p className="text-[11px] text-slate-400 font-mono">
-              Amostragem: {breakdown.totalDecksSampled ?? 0} {breakdown.totalDecksSampled === 1 ? "deck validado" : "decks validados"}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {breakdown.sourceDecks && breakdown.sourceDecks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSourceDecksModalOpen(true)}
+                  className="rounded-none border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-mono uppercase text-primary hover:bg-primary/20 transition-colors"
+                >
+                  Ver {breakdown.sourceDecks.length} {breakdown.sourceDecks.length === 1 ? "lista" : "listas"}
+                </button>
+              )}
+              <p className="text-[11px] text-slate-400 font-mono">
+                Amostragem: {breakdown.totalDecksSampled ?? 0} {breakdown.totalDecksSampled === 1 ? "deck validado" : "decks validados"}
+              </p>
+            </div>
           </div>
 
           {/* Renderização dos Quadrantes */}
@@ -379,6 +402,15 @@ export function MetaAnalyticsPanel({ focusKey }: { focusKey?: { key: string; tok
             })}
           </div>
         </div>
+      )}
+
+      {breakdown && breakdown.sourceDecks && (
+        <SourceDecksModal
+          open={sourceDecksModalOpen}
+          onClose={() => setSourceDecksModalOpen(false)}
+          archetypeName={breakdown.archetype.name}
+          sourceDecks={breakdown.sourceDecks}
+        />
       )}
     </div>
   );

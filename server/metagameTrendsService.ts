@@ -33,6 +33,25 @@ const TREND_LIMIT = 8;
 const MIN_SNAPSHOTS_FOR_TREND = 4;
 const MIN_PER_WINDOW_FOR_TREND = 2;
 
+export interface TournamentProvenanceItem {
+  id: string;
+  name: string;
+  date: string | null;
+  organizer: string | null;
+  playerCount: number | null;
+  tier: string;
+  sourceUrl: string | null;
+  deckCount: number;
+}
+
+export interface MetagameProvenance {
+  totalDecks: number;
+  totalTournaments: number;
+  startDate: string | null;
+  endDate: string | null;
+  tournaments: TournamentProvenanceItem[];
+}
+
 export interface MetagameStatsParams {
   seasonId: string | null;
   setId?: string;
@@ -59,6 +78,16 @@ type CardFields = {
 
 type ItemRow = { deckSnapshotId: string; quantity: number; card: CardFields | null };
 
+type SnapshotEventInfo = {
+  id: string;
+  name: string;
+  date: Date | null;
+  organizer: string | null;
+  playerCount: number | null;
+  tier: string;
+  sourceUrl: string | null;
+};
+
 function cardMatchesTrait(card: CardFields, trait: string) {
   return card.trait === trait || card.traits.includes(trait);
 }
@@ -74,26 +103,72 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
   const [reportEntries, hostedParticipants] = await Promise.all([
     prisma.tournamentEntry.findMany({
       where: { deckSnapshotId: { not: null }, tournament: { isActive: true, ...(seasonId ? { seasonId } : {}), ...eventDateFilter } },
-      select: { deckSnapshotId: true, wins: true, losses: true, draws: true, tournament: { select: { dateStart: true } } },
+      select: {
+        deckSnapshotId: true,
+        wins: true,
+        losses: true,
+        draws: true,
+        tournament: {
+          select: {
+            id: true,
+            name: true,
+            dateStart: true,
+            organizer: true,
+            participantCount: true,
+            tier: true,
+            sourceUrl: true,
+          },
+        },
+      },
     }),
     prisma.hostedEventParticipant.findMany({
       where: { deckSnapshotId: { not: null }, event: { status: HostedEventStatus.COMPLETED, isActive: true, ...(seasonId ? { seasonId } : {}), ...eventDateFilter } },
       select: {
         deckSnapshotId: true,
-        event: { select: { dateStart: true } },
+        event: {
+          select: {
+            id: true,
+            name: true,
+            dateStart: true,
+            venueName: true,
+            tier: true,
+            hoster: { select: { displayName: true, username: true } },
+            _count: { select: { participants: true } },
+          },
+        },
         matchesAsA: { select: { result: true } },
         matchesAsB: { select: { result: true } },
       },
     }),
   ]);
 
-  // Resultado (wins/losses/draws) e data do evento por snapshot -- só a PRIMEIRA
+  // Resultado (wins/losses/draws) e dados de evento por snapshot -- só a PRIMEIRA
   // ocorrência conta (um snapshot normalmente vincula a um único resultado histórico).
   const snapshotOutcome = new Map<string, { wins: number; losses: number; draws: number; eventDate: Date | null }>();
+  const snapshotEventMap = new Map<string, SnapshotEventInfo>();
+
   for (const entry of reportEntries) {
     if (!entry.deckSnapshotId || snapshotOutcome.has(entry.deckSnapshotId)) continue;
-    snapshotOutcome.set(entry.deckSnapshotId, { wins: entry.wins ?? 0, losses: entry.losses ?? 0, draws: entry.draws ?? 0, eventDate: entry.tournament.dateStart });
+    const tourney = entry.tournament as any;
+    snapshotOutcome.set(entry.deckSnapshotId, {
+      wins: entry.wins ?? 0,
+      losses: entry.losses ?? 0,
+      draws: entry.draws ?? 0,
+      eventDate: tourney?.dateStart ?? null,
+    });
+    if (tourney) {
+      snapshotEventMap.set(entry.deckSnapshotId, {
+        id: tourney.id || `tournament-${entry.deckSnapshotId}`,
+        name: tourney.name || "Torneio Reportado",
+        date: tourney.dateStart ?? null,
+        organizer: tourney.organizer ?? null,
+        playerCount: tourney.participantCount ?? null,
+        tier: String(tourney.tier || "SMALL_OFFICIAL"),
+        sourceUrl: tourney.sourceUrl ?? null,
+      });
+    }
   }
+
   for (const participant of hostedParticipants) {
     if (!participant.deckSnapshotId || snapshotOutcome.has(participant.deckSnapshotId)) continue;
     let wins = 0, losses = 0, draws = 0;
@@ -107,14 +182,39 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
       else if (m.result === HostedEventMatchResult.PLAYER_A_WIN) losses += 1;
       else if (m.result === HostedEventMatchResult.DRAW) draws += 1;
     }
-    snapshotOutcome.set(participant.deckSnapshotId, { wins, losses, draws, eventDate: participant.event.dateStart });
+    const ev = participant.event as any;
+    snapshotOutcome.set(participant.deckSnapshotId, {
+      wins,
+      losses,
+      draws,
+      eventDate: ev?.dateStart ?? null,
+    });
+    if (ev) {
+      snapshotEventMap.set(participant.deckSnapshotId, {
+        id: ev.id || `hosted-${participant.deckSnapshotId}`,
+        name: ev.name || "Evento ao Vivo",
+        date: ev.dateStart ?? null,
+        organizer: ev.venueName || ev.hoster?.displayName || ev.hoster?.username || "Organizador Local",
+        playerCount: ev._count?.participants ?? null,
+        tier: String(ev.tier || "UNOFFICIAL"),
+        sourceUrl: null,
+      });
+    }
   }
 
   const snapshotIds = Array.from(snapshotOutcome.keys());
+  const emptyProvenance: MetagameProvenance = {
+    totalDecks: 0,
+    totalTournaments: 0,
+    startDate: null,
+    endDate: null,
+    tournaments: [],
+  };
   // `never[]` (não `unknown[]`): no retorno união com os arrays reais, o tipo do item é preservado.
   const empty = {
     setId: setId ?? null,
     totalDecks: 0,
+    provenance: emptyProvenance,
     topCards: [] as never[],
     colorDistribution: [] as never[],
     colorCombos: [] as never[],
@@ -299,5 +399,60 @@ export async function getMetagameStats(prisma: PrismaClient, params: MetagameSta
     }
   }
 
-  return { setId: setId ?? null, totalDecks, topCards, colorDistribution, colorCombos, traitDistribution, seriesDistribution, trend, risingCards, decliningCards };
+  // Agregação de proveniência (torneios únicos da amostra elegível)
+  const tournamentMap = new Map<string, TournamentProvenanceItem>();
+  let earliestDate: Date | null = null;
+  let latestDate: Date | null = null;
+
+  for (const id of eligibleSnapshotIds) {
+    const ev = snapshotEventMap.get(id);
+    if (!ev) continue;
+    if (ev.date) {
+      if (!earliestDate || ev.date.getTime() < earliestDate.getTime()) earliestDate = ev.date;
+      if (!latestDate || ev.date.getTime() > latestDate.getTime()) latestDate = ev.date;
+    }
+    const existing = tournamentMap.get(ev.id);
+    if (existing) {
+      existing.deckCount += 1;
+    } else {
+      tournamentMap.set(ev.id, {
+        id: ev.id,
+        name: ev.name,
+        date: ev.date ? ev.date.toISOString() : null,
+        organizer: ev.organizer,
+        playerCount: ev.playerCount,
+        tier: ev.tier,
+        sourceUrl: ev.sourceUrl,
+        deckCount: 1,
+      });
+    }
+  }
+
+  const tournaments = Array.from(tournamentMap.values()).sort((a, b) => {
+    const da = a.date ? new Date(a.date).getTime() : 0;
+    const db = b.date ? new Date(b.date).getTime() : 0;
+    return db - da || b.deckCount - a.deckCount;
+  });
+
+  const provenance: MetagameProvenance = {
+    totalDecks,
+    totalTournaments: tournaments.length,
+    startDate: earliestDate ? earliestDate.toISOString() : null,
+    endDate: latestDate ? latestDate.toISOString() : null,
+    tournaments,
+  };
+
+  return {
+    setId: setId ?? null,
+    totalDecks,
+    provenance,
+    topCards,
+    colorDistribution,
+    colorCombos,
+    traitDistribution,
+    seriesDistribution,
+    trend,
+    risingCards,
+    decliningCards,
+  };
 }
