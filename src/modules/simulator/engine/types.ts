@@ -204,6 +204,12 @@ export interface CardDef {
     /** W8 — GD05-086 "Enemy Units other than Link Units": Link Unit atacante não é obrigada */
     exceptLinkAttackers?: boolean;
   };
+  /**
+   * W8 — GD05-124 White Ark: "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's
+   * effect, you may rest this Base instead." Substituição no custo "Rest N of your Units" de uma Unit com o trait: a
+   * Base entra no lugar de UMA das Units (FAQ Q419), e só se as N Units existirem (FAQ Q418).
+   */
+  restInsteadOfUnitCost?: { sourceTrait: string; sourceText?: string };
   /** W8 — GD05-030/048/078 "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." */
   attackOnDeployTurnVsRestedUnit?: { sourceText?: string };
   /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
@@ -624,6 +630,11 @@ export interface CardInstance {
   damage: number;
   /** pra Units: instanceId do Pilot pareado, se houver */
   pairedPilotId?: string;
+  /**
+   * W8 — GD05-089 "deploy it as an (AP3･HP3) Unit instead. (Don't treat it as a Pilot.)": a carta está em jogo como
+   * Unit (`def` é a forma de Unit) e esta é a CardDef original, restaurada quando ela sai da Battle Area.
+   */
+  unitFormOf?: CardDef;
   /** pra Pilots: instanceId da Unit pareada, se houver */
   pairedUnitId?: string;
   /** true quando um card Command/Pilot (`def.pilotMode`) foi jogado no modo Pilot (pareado), não no modo Command. Sempre limpo ao sair da Battle Area. */
@@ -1389,6 +1400,8 @@ export type PendingDecision =
        * 【Main】…). A retomada do fluxo (Block Step, Damage Step, trash da Command) segue a origem, não a continuação.
        */
       parentTrigger?: string;
+      /** W8 — continuação de um 【Burst】 (GD05-089): o resto da fila de 【Burst】 e os 【Destroyed】 do Damage Step */
+      burstContinuation?: { queuedInstanceIds: string[]; pendingDestroyed: DestroyedInBattle[] };
       queue: Array<{
         sourceInstanceId: string;
         specId: string;
@@ -1549,6 +1562,8 @@ export interface PendingCombatReaction {
 
 export interface CombatState {
   step: CombatStep;
+  /** W8 — batalha iniciada por efeito só com o Damage Step (GD05-017): `applyPlayerAction` roda o dano assim que assentar */
+  damageOnly?: boolean;
   attackerId: string;
   attackingPlayer: PlayerId;
   defendingPlayer: PlayerId;
@@ -1763,7 +1778,14 @@ export type GameEvent =
   | { type: "SET_CANNOT_ATTACK"; instanceId: string; turn: number }
   /** ST08-009 Jegan Ground Type-A — ver `CardInstance.cannotActivateUntilTurn`. */
   | { type: "SET_CANNOT_ACTIVATE"; instanceId: string; turn: number }
+  /** W8 — GD05-089: a carta entra na Battle Area como Unit (AP/HP dados; mantém Lv., traits e cor — FAQ Q390/Q391) */
+  | { type: "DEPLOY_AS_UNIT"; instanceId: string; ap: number; hp: number }
   | { type: "ATTACK_DECLARED"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; target: AttackTarget }
+  /**
+   * W8 — GD05-017 "Begin a battle between this Unit and it and only perform the damage step" (CR 5-22-3, FAQ Q346):
+   * combate já no Damage Step, sem Attack/Block/Action Step (sem 【Attack】 nem "when a Unit attacks").
+   */
+  | { type: "BEGIN_DAMAGE_ONLY_BATTLE"; attackerId: string; attackingPlayer: PlayerId; defendingPlayer: PlayerId; targetId: string }
   | { type: "BLOCK_DECLARED"; blockerId: string; newTarget: AttackTarget }
   | { type: "ACTION_PASS"; player: PlayerId }
   | { type: "COMBAT_STEP_CHANGE"; step: CombatStep }

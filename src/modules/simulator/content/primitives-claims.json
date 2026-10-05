@@ -205,6 +205,14 @@
     "activateMainOf": {
       "description": "Roda o 【Main】 de outra carta (Command-Piloto pareada, Command descartada) como continuação, sem pagar custo nem mover a carta; conta como ativar o 【Main】 de uma Command (rulings Q376/Q397).",
       "since": "GD05-044"
+    },
+    "beginDamageOnlyBattle": {
+      "description": "Começa uma batalha entre a fonte e a Unit inimiga só com o Damage Step (CR 5-22-3; sem 【Attack】 nem \"when a Unit attacks\").",
+      "since": "GD05-017"
+    },
+    "deployAsUnit": {
+      "description": "A carta entra na Battle Area como Unit com AP/HP dados (não é Pilot), mantém Lv./traits; volta à CardDef original ao sair.",
+      "since": "GD05-089"
     }
   },
   "targetRefKinds": {

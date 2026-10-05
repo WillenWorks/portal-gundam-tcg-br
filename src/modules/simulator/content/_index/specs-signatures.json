@@ -6936,6 +6936,55 @@
     "sourceText": "When one of your (Orb) Units is deployed, this Unit gains <High-Maneuver> during this turn."
   },
   {
+    "id": "GD05-017-Then",
+    "cardCode": "GD05-017",
+    "trigger": "Then:1",
+    "ops": [
+      "beginDamageOnlyBattle"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, choose 1 enemy Unit. Begin a battle between this Unit and it and only perform the damage step."
+  },
+  {
+    "id": "GD05-017-WhenPaired",
+    "cardCode": "GD05-017",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:Londo Bell:3",
+    "sourceText": "【When Paired】You may choose 3 (Londo Bell) cards from your trash. Exile them from the game."
+  },
+  {
+    "id": "GD05-018-Deploy",
+    "cardCode": "GD05-018",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Place 3 EX Resources."
+  },
+  {
+    "id": "GD05-018-Reaction",
+    "cardCode": "GD05-018",
+    "trigger": "Reaction:exResourceExiled",
+    "ops": [
+      "grantDamageModifier"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "When one of your EX Resources is exiled from the game, you may choose 1 of your Units. During this turn, when it receives enemy damage, reduce it by 3."
+  },
+  {
     "id": "GD05-019-Destroyed",
     "cardCode": "GD05-019",
     "trigger": "Destroyed",
@@ -7760,12 +7809,25 @@
     "cardCode": "GD05-089",
     "trigger": "Burst",
     "ops": [
+      "thenTrigger",
       "moveZone"
     ],
     "targetScope": null,
     "targetFilter": null,
-    "predicate": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:MF:3",
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD05-089-Then",
+    "cardCode": "GD05-089",
+    "trigger": "Then:1",
+    "ops": [
+      "deployAsUnit"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If there are 3 or more (MF) cards in your trash, you may deploy it as an (AP3･HP3) Unit instead."
   },
   {
     "id": "GD05-090-Burst",

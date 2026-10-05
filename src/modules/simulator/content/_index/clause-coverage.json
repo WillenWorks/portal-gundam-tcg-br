@@ -13978,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 107,
-        "partial": 1,
-        "missing": 3,
+        "full": 111,
+        "partial": 0,
+        "missing": 0,
         "withErrors": 0
       },
       "cards": [
@@ -14268,7 +14268,7 @@
         },
         {
           "code": "GD05-017",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14285,10 +14285,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-017-WhenPaired",
+                "GD05-017-Then"
               ],
               "text": "【When Paired】You may choose 3 (Londo Bell) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Begin a battle between this Unit and it and only perform the damage step."
             }
@@ -14296,14 +14296,16 @@
         },
         {
           "code": "GD05-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-018-Reaction"
+              ],
               "text": "When one of your EX Resources is exiled from the game, you may choose 1 of your Units. During this turn, when it receives enemy damage, reduce it by 3."
             },
             {
@@ -14311,10 +14313,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-018-Deploy"
               ],
               "text": "【Deploy】Place 3 EX Resources."
             }
@@ -15654,7 +15655,7 @@
         },
         {
           "code": "GD05-089",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15662,9 +15663,10 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:pilot-as-unit-deploy (W8)"
+                "GD05-089-Burst",
+                "GD05-089-Then"
               ],
               "text": "【Burst】Add this card to your hand. If there are 3 or more (MF) cards in your trash, you may deploy it as an (AP3·HP3) Unit instead."
             },
@@ -16613,7 +16615,7 @@
         },
         {
           "code": "GD05-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16641,8 +16643,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "restInsteadOfUnitCost"
+              ],
               "text": "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's effect, you may rest this Base instead."
             }
           ]

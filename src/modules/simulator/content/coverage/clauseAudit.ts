@@ -88,6 +88,7 @@ export const STRUCTURED_FIELDS = [
   "costModifierInTrash",
   "zeroCostWhenPairedWithUnitNameContains",
   "attackOnDeployTurnVsRestedUnit",
+  "restInsteadOfUnitCost",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([

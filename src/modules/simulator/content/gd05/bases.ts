@@ -48,7 +48,12 @@ export const BASES: Record<string, CardDef> = {
       "Burst",
       "Deploy"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — substituição no custo "Rest N of your Units" de Unit (League Militaire), no seu turno (FAQ Q418/Q419)
+    "restInsteadOfUnitCost": {
+      "sourceTrait": "League Militaire",
+      "sourceText": "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's effect, you may rest this Base instead."
+    }
   },
   "GD05-125": {
     "code": "GD05-125",

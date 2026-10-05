@@ -30,7 +30,7 @@ import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, React
 import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
-import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
+import { effectivePilotDef, hasTrait, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -44,6 +44,15 @@ import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition
  */
 export interface TriggerQueueBudget {
   count: number;
+}
+
+/** W8 — GD05-124: Bases que podem ser descansadas no lugar de uma Unit no custo "Rest N of your Units" desta fonte */
+export function substituteBasesForRestCost(state: GameState, player: PlayerId, spec: EffectSpec, sourceInstanceId: string): string[] {
+  if (!costRestsSecondaryTarget(spec) || state.activePlayer !== player) return [];
+  const source = findCard(state, sourceInstanceId);
+  return (state.players[player].baseSection ?? [])
+    .filter((b) => !b.rested && !!b.def.restInsteadOfUnitCost && hasTrait(source, b.def.restInsteadOfUnitCost.sourceTrait, state))
+    .map((b) => b.instanceId);
 }
 
 /** W7 (C9) — há continuação pendente (modo escolhido, "If you do …") desta carta: a habilidade ainda não terminou */
@@ -93,13 +102,16 @@ function buildQueueEntry(
           targetScope: spec.secondaryTarget.targetScope,
           sequential: spec.secondaryTarget.sequential,
           ...(spec.secondaryTarget.count ? { count: spec.secondaryTarget.count } : {}),
-          legalTargets: computeLegalTargets(
-            state,
-            { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
-            player,
-            targetFilterResolver,
-            sourceInstanceId,
-          ),
+          legalTargets: [
+            ...computeLegalTargets(
+              state,
+              { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
+              player,
+              targetFilterResolver,
+              sourceInstanceId,
+            ),
+            ...substituteBasesForRestCost(state, player, spec, sourceInstanceId),
+          ],
         }
       : undefined,
   };
