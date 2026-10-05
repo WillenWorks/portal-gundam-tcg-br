@@ -104,7 +104,9 @@
     "gundam:bot:counter": "node scripts/gundam-bot-counter.mjs",
     "gundam:bot:calibrate": "node scripts/gundam-bot-calibrate.mjs",
     "gundam:bot:pool-export": "node scripts/gundam-bot-pool-export.mjs",
-    "gundam:bot:refresh": "node scripts/gundam-bot-refresh.mjs"
+    "gundam:bot:refresh": "node scripts/gundam-bot-refresh.mjs",
+    "gundam:meta:scrape": "node scripts/gundam-meta-scrape.mjs",
+    "gundam:meta:cores": "node scripts/gundam-meta-cores.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
@@ -205,6 +207,7 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
     "jsdom": "^30.1.2",
+    "playwright": "~1.62.1",
     "prettier": "^3.9.9",
     "prisma": "^6.19.3",
     "tailwindcss": "^4.3.3",
