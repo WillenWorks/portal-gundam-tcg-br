@@ -6,3 +6,5 @@ export * from "./types";
 export * from "./keywords";
 export * from "./cardText";
 export * from "./useCardLanguage";
+export * from "./KeywordTooltip";
+export * from "./battleLogI18n";

@@ -269,4 +269,38 @@ describe("CardInspectorModal", () => {
     expect(screen.getByText("Ativo agora")).toBeInTheDocument();
     expect(screen.getByText("AP +2")).toBeInTheDocument();
   });
+
+  it("efeito: exibe selo 'Tradução pendente' quando falta effectPt e idioma é pt-BR", () => {
+    render(
+      <CardInspectorModal
+        card={card({ nameEn: "Sinanju", cardType: "UNIT" })}
+        art={{}}
+        onClose={vi.fn()}
+        effectEn="【Deploy】Draw 1 card."
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("Efeito")).toBeInTheDocument();
+    expect(screen.getByText("Tradução pendente")).toBeInTheDocument();
+    expect(screen.getByText("【Deploy】Draw 1 card.")).toBeInTheDocument();
+  });
+
+  it("telemetria: exibe selo de playability Apta no simulador e restrições ativas", () => {
+    render(
+      <CardInspectorModal
+        card={card(
+          { code: "ST01-001", nameEn: "Gundam", cardType: "UNIT", ap: 5, hp: 4 },
+          { cannotAttack: true, preventActivationNextTurn: true } as any,
+        )}
+        art={{}}
+        onClose={vi.fn()}
+        inPlay
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Abrir detalhes" }));
+    expect(screen.getByText("Apta no simulador")).toBeInTheDocument();
+    expect(screen.getByText("Restrições")).toBeInTheDocument();
+    expect(screen.getByText("Não pode atacar neste turno")).toBeInTheDocument();
+    expect(screen.getByText("Não desvira no próximo turno")).toBeInTheDocument();
+  });
 });
