@@ -18,44 +18,48 @@
  *   pnpm train:dataset --games=200 --seed=1
  *   pnpm train:dataset --games=20 --seed=7 --out=services/sim-trainer/data/meu.jsonl
  *   pnpm train:dataset --decks=ST01,ST02 --games=50
+ *   pnpm train:dataset --workers=4 --nice --rapido
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import process from "node:process";
+import { Worker } from "node:worker_threads";
+import { pathToFileURL } from "node:url";
 
 import {
   ENGINE_ROOT,
-  createGame,
-  actionOwner,
-  enumerateLegalActions,
-  applyPlayerAction,
-  viewStateFor,
-  createRng,
-  extractFeatures,
-  encodeAction,
-  legalActionMask,
-  heuristicPolicy,
-  randomLegal,
-  mctsPolicy,
-  ALL_EFFECT_SPECS,
-  defaultPredicateResolver,
-  defaultTargetFilterResolver,
   validatedDeckList,
   validatedDeckPairs,
   FEATURE_SIZE,
   ACTION_SPACE,
 } from "./engine.mjs";
-
-const HYPER = {
-  maxTurns: 60, // partida que passa disso é descartada (sem vencedor)
-  maxSteps: 60 * 400,
-};
+import {
+  policyPool,
+  runPlannedDatasetGames,
+} from "./datasetCore.mjs";
 
 function parseArgs(argv) {
-  const args = { games: 100, seed: 1, out: null, decks: null };
+  const args = {
+    games: 100,
+    seed: 1,
+    out: null,
+    decks: null,
+    workers: 1,
+    nice: false,
+    rapido: false,
+  };
   for (const a of argv) {
+    if (a === "--nice") {
+      args.nice = true;
+      continue;
+    }
+    if (a === "--rapido" || a === "--fast") {
+      args.rapido = true;
+      continue;
+    }
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
     const [, k, v] = m;
@@ -63,90 +67,40 @@ function parseArgs(argv) {
     else if (k === "seed") args.seed = Number(v);
     else if (k === "out") args.out = v;
     else if (k === "decks") args.decks = v.split(",").map((s) => s.trim().toUpperCase());
+    else if (k === "workers") args.workers = Number(v);
+    else if (k === "nice") args.nice = v === "true";
+    else if (k === "rapido") args.rapido = v === "true";
   }
   return args;
 }
 
-/** Pool de policies sorteadas por partida. `mcts` entra só se a Lane 4A forneceu. */
-function policyPool() {
-  const pool = [
-    { name: "random", make: () => randomLegal },
-    { name: "heuristic-facil", make: () => heuristicPolicy({ level: "facil" }) },
-    { name: "heuristic-normal", make: () => heuristicPolicy({ level: "normal" }) },
-  ];
-  if (mctsPolicy) {
-    pool.push({ name: "mcts", make: () => mctsPolicy({ iterations: 60 }) });
-  }
-  return pool;
-}
-
-function pick(pool, rng) {
-  return pool[Math.floor(rng() * pool.length)];
-}
-
-/**
- * Uma partida, gravando cada decisão. Espelha o laço de `runSelfPlay` (mesmo
- * motor puro, mesmas guardas) mas com telemetria por jogada.
- */
-function playAndRecord(deckA, deckB, seed, policyA, policyB, nameA, nameB) {
-  const rng = createRng((seed ^ 0x5eed1234) >>> 0);
-  let state = createGame(deckA, deckB, { seed, firstPlayer: "A", interactiveMulligan: true });
-  const samples = [];
-
-  for (let step = 0; step < HYPER.maxSteps; step++) {
-    if (state.gameOver) break;
-    if (state.turnNumber > HYPER.maxTurns) return { samples: [], winner: null };
-
-    const owner = actionOwner(state);
-    if (!owner) return { samples: [], winner: null };
-
-    let legal;
-    try {
-      legal = enumerateLegalActions(state, owner, ALL_EFFECT_SPECS, {
-        predicateResolver: defaultPredicateResolver,
-        targetFilterResolver: defaultTargetFilterResolver,
-      });
-    } catch {
-      return { samples: [], winner: null };
-    }
-    if (legal.length === 0) return { samples: [], winner: null };
-
-    const view = viewStateFor(state, owner);
-    const policy = owner === "A" ? policyA : policyB;
-    const policyName = owner === "A" ? nameA : nameB;
-    const action = policy(view, legal, rng);
-
-    // jogadas de `randomLegal` são ruído — a partida roda (diversidade de
-    // oponente / de resultado) mas os lances dela não viram alvo de treino.
-    if (legal.length >= 2 && policyName !== "random") {
-      samples.push({
-        seat: owner,
-        features: Array.from(extractFeatures(view, owner)),
-        actionIndex: encodeAction(action, view),
-        legalMask: Array.from(legalActionMask(legal, view)),
-      });
-    }
-
-    try {
-      state = applyPlayerAction(
-        state,
-        owner,
-        action,
-        ALL_EFFECT_SPECS,
-        defaultPredicateResolver,
-        defaultTargetFilterResolver,
-      );
-    } catch {
-      return { samples: [], winner: null };
+function concatFiles(sourceFiles, destFile) {
+  const destStream = fs.createWriteStream(destFile);
+  for (const src of sourceFiles) {
+    if (fs.existsSync(src)) {
+      const data = fs.readFileSync(src);
+      destStream.write(data);
+      try {
+        fs.unlinkSync(src);
+      } catch {
+        // Ignora erro de exclusão temporária
+      }
     }
   }
-
-  if (!state.gameOver) return { samples: [], winner: null };
-  return { samples, winner: state.gameOver.winner };
+  destStream.end();
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args.nice) {
+    try {
+      os.setPriority(0, os.constants.priority.PRIORITY_LOW);
+    } catch (err) {
+      console.warn(`[train:dataset] aviso: não foi possível definir prioridade baixa: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   const deckList = validatedDeckList();
   const byId = Object.fromEntries(deckList.map((d) => [d.id, d]));
 
@@ -162,9 +116,18 @@ async function main() {
     pairs = validatedDeckPairs();
   }
 
-  const pool = policyPool();
+  const pool = policyPool(args.rapido);
   const configHash = createHash("sha1")
-    .update(JSON.stringify({ games: args.games, seed: args.seed, pairs: pairs.map((p) => `${p[0].id}x${p[1].id}`), pool: pool.map((p) => p.name), FEATURE_SIZE, ACTION_SPACE }))
+    .update(
+      JSON.stringify({
+        games: args.games,
+        seed: args.seed,
+        pairs: pairs.map((p) => `${p[0].id}x${p[1].id}`),
+        pool: pool.map((p) => p.name),
+        FEATURE_SIZE,
+        ACTION_SPACE,
+      }),
+    )
     .digest("hex")
     .slice(0, 12);
 
@@ -172,11 +135,23 @@ async function main() {
     ? path.resolve(ENGINE_ROOT, args.out)
     : path.join(ENGINE_ROOT, "services/sim-trainer/data", `${configHash}.jsonl`);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  const stream = fs.createWriteStream(outPath);
+
+  const numWorkers = Math.max(1, Math.min(args.workers, os.cpus().length, pairs.length * args.games));
 
   console.log(
-    `[train:dataset] ${pairs.length} par(es) x ${args.games} partidas | policies: ${pool.map((p) => p.name).join(", ")} | seed ${args.seed}`,
+    `[train:dataset] ${pairs.length} par(es) x ${args.games} partidas | policies: ${pool.map((p) => p.name).join(", ")} | seed ${args.seed} | workers: ${numWorkers}${args.nice ? " (nice)" : ""}${args.rapido ? " (rapido)" : ""}`,
   );
+
+  const plannedSpecs = [];
+  for (const [deckA, deckB] of pairs) {
+    for (let g = 0; g < args.games; g++) {
+      plannedSpecs.push({
+        deckAId: deckA.id,
+        deckBId: deckB.id,
+        seed: args.seed + g,
+      });
+    }
+  }
 
   const started = Date.now();
   let totalGames = 0;
@@ -184,39 +159,67 @@ async function main() {
   let discarded = 0;
   let rows = 0;
 
-  const selectRng = createRng((args.seed ^ 0xabcdef) >>> 0);
+  if (numWorkers === 1) {
+    const plannedGames = plannedSpecs.map((spec) => ({
+      deckA: byId[spec.deckAId],
+      deckB: byId[spec.deckBId],
+      seed: spec.seed,
+    }));
 
-  for (const [deckA, deckB] of pairs) {
-    for (let g = 0; g < args.games; g++) {
-      const seed = args.seed + g;
-      totalGames++;
-      const poolA = pick(pool, selectRng);
-      const poolB = pick(pool, selectRng);
-      const shortName = (n) => (n === "random" ? "random" : "policy");
-      const { samples, winner } = playAndRecord(
-        deckA.build(),
-        deckB.build(),
-        seed,
-        poolA.make(),
-        poolB.make(),
-        shortName(poolA.name),
-        shortName(poolB.name),
-      );
-      if (winner === null || samples.length === 0) {
-        discarded++;
-        continue;
-      }
-      kept++;
-      for (const s of samples) {
-        const outcome = s.seat === winner ? 1 : -1;
-        stream.write(JSON.stringify({ features: s.features, actionIndex: s.actionIndex, legalMask: s.legalMask, outcome }) + "\n");
-        rows++;
-      }
+    const stats = await runPlannedDatasetGames(plannedGames, outPath, {
+      rapido: args.rapido,
+    });
+    totalGames = stats.totalGames;
+    kept = stats.kept;
+    discarded = stats.discarded;
+    rows = stats.rows;
+  } else {
+    // Dividir os specs entre os workers
+    const chunks = Array.from({ length: numWorkers }, () => []);
+    plannedSpecs.forEach((spec, i) => {
+      chunks[i % numWorkers].push(spec);
+    });
+
+    const workerUrl = new URL(pathToFileURL(path.join(ENGINE_ROOT, "scripts/train/datasetWorker.mjs")));
+    const workerTempFiles = [];
+    const workerPromises = chunks.map((chunkSpecs, idx) => {
+      if (chunkSpecs.length === 0) return Promise.resolve({ totalGames: 0, kept: 0, discarded: 0, rows: 0 });
+      const tempFile = path.join(path.dirname(outPath), `${configHash}-worker-${idx}-${Date.now()}.tmp.jsonl`);
+      workerTempFiles.push(tempFile);
+
+      return new Promise((resolve, reject) => {
+        const worker = new Worker(workerUrl, {
+          workerData: {
+            plannedSpecs: chunkSpecs,
+            outPath: tempFile,
+            rapido: args.rapido,
+            nice: args.nice,
+          },
+        });
+
+        worker.on("message", (msg) => {
+          if (msg.type === "done") resolve(msg.stats);
+          else if (msg.type === "error") reject(new Error(msg.error));
+        });
+        worker.on("error", reject);
+        worker.on("exit", (code) => {
+          if (code !== 0) reject(new Error(`Worker ${idx} saiu com código ${code}`));
+        });
+      });
+    });
+
+    const results = await Promise.all(workerPromises);
+    for (const res of results) {
+      totalGames += res.totalGames;
+      kept += res.kept;
+      discarded += res.discarded;
+      rows += res.rows;
     }
-    console.log(`[train:dataset]   ${deckA.id} x ${deckB.id}: ok`);
+
+    // Concatena arquivos temporários
+    concatFiles(workerTempFiles, outPath);
   }
 
-  await new Promise((resolve) => stream.end(resolve));
   const elapsed = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
     `[train:dataset] ${totalGames} partidas em ${elapsed}s | ${kept} usadas / ${discarded} descartadas | ${rows} amostras`,

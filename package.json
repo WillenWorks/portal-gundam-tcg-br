@@ -45,6 +45,7 @@
     "train:dataset-from-logs": "node scripts/train/dataset-from-logs.mjs",
     "train:fit": "node scripts/train/fit.mjs",
     "train:eval": "node scripts/train/eval.mjs",
+    "train:pipeline": "node scripts/train/pipeline.mjs",
     "gundam:index": "node scripts/gundam-index.mjs",
     "gundam:triage": "node scripts/gundam-triage.mjs",
     "gundam:fix": "node scripts/gundam-fix.mjs",
