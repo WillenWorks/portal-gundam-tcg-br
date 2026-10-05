@@ -1470,3 +1470,47 @@ export function mapApiRule(rule: any): RuleEntry {
     relatedPhase: rule.relatedPhase ?? undefined,
   };
 }
+
+export type PlayabilityStatus = "apta" | "revisao" | "fora";
+
+export interface CardStatusEntry {
+  code: string;
+  name?: string;
+  status: PlayabilityStatus;
+  motivo?: string;
+  set: string;
+  missingClauses?: string[];
+  totalClauses?: number;
+  implementedClauses?: number;
+}
+
+export interface SetStatusSummary {
+  set: string;
+  total: number;
+  aptas: number;
+  revisao: number;
+  fora: number;
+  percentAptas: number;
+}
+
+export interface CardStatusResponse {
+  cards: Record<string, CardStatusEntry>;
+  sets: Record<string, SetStatusSummary>;
+  summary: {
+    total: number;
+    aptas: number;
+    revisao: number;
+    fora: number;
+    percentAptas: number;
+  };
+  [code: string]: unknown;
+}
+
+export async function getCardPlayabilityStatus(): Promise<CardStatusResponse> {
+  return request<CardStatusResponse>("/simulator/card-status", undefined, { ttlMs: 10 * 60 * 1000 });
+}
+
+export async function getSingleCardPlayability(code: string): Promise<CardStatusEntry> {
+  return request<CardStatusEntry>(`/simulator/card-status/${encodeURIComponent(code)}`, undefined, { ttlMs: 10 * 60 * 1000 });
+}
+
