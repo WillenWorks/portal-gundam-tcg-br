@@ -3,6 +3,8 @@ import { isCardPlayable, validateDeckPayload } from "./deckCoverageGate.ts";
 import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks.ts";
 import { GD03_TEST_DECKS } from "../src/modules/simulator/fixtures/gd03Decks.ts";
 import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts";
+import { ST09_DECKS } from "../src/modules/simulator/fixtures/st09Decks.ts";
+import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
 import { GD02_CARD_DEFS } from "../src/modules/simulator/content/gd02/index.ts";
 import { GD03_CARD_DEFS } from "../src/modules/simulator/content/gd03/index.ts";
@@ -34,8 +36,8 @@ describe("deckCoverageGate — decks válidos (90 cartas GD01)", () => {
     }
   });
 
-  it("aprova os decks de teste do GD03 e do GD04 (presets da Fila Online/Convite/Treino)", () => {
-    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS })) {
+  it("aprova os decks do GD03, do GD04, do ST09 e do GD05 (presets da Fila Online/Convite/Treino)", () => {
+    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS, ...ST09_DECKS, ...GD05_DECKS })) {
       const validation = validateDeckPayload(deck.build());
       expect(validation.valid, `${key}: ${JSON.stringify(validation.unplayableCards)}`).toBe(true);
       expect(validation.unplayableCards).toEqual([]);
@@ -106,8 +108,12 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-113: 【Main】/【Action】 deferido)", () => {
-    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(false);
+  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-079: custo de descanso substituto, deferido)", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-079"])).toBe(false);
+  });
+
+  it("GD03-113 destravada na W7 (continuação com o Lv. da Unit descansada) é jogável", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-113"])).toBe(true);
   });
 
   it("GD03-104 destravada na W5 (alvos condicionais) é jogável", () => {

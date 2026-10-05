@@ -264,7 +264,7 @@ export const FIRST_CONTACT_MAIN: EffectSpec = {
   id: "GD01-107-Main",
   cardCode: "GD01-107",
   trigger: "Main",
-  actions: [{ op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea", rested: true }],
+  actions: [{ op: "placeResourceFromDeck", player: "controller", rested: true }],
   sourceText: "【Main】Place 1 rested Resource.",
 };
 
@@ -661,7 +661,7 @@ export const GUNDAM_DEATHSCYTHE_WHEN_PAIRED: EffectSpec = {
   condition: {
     predicate: "pairedPilotHasTrait:Operation Meteor",
     then: [
-      { op: "spawnToken", def: EX_RESOURCE_TOKEN, player: "controller", zone: "resourceArea", rested: true },
+      { op: "placeResourceFromDeck", player: "controller", rested: true },
       { op: "grantKeyword", target: { kind: "self" }, keyword: "First Strike", duration: "endOfTurn" },
     ],
   },

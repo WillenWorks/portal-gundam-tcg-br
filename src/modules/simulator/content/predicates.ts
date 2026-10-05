@@ -92,6 +92,36 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets.battleVictim?.[0];
     return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
   }
+  // W7 — GD05-053 "If this Unit is destroyed by one of your (Neo Zeon) card's effects" (alvo implícito `destroyedBy`)
+  const destroyedByOwnTrait = predicate.match(/^selfDestroyedByOwnEffectWithTrait:(.+)$/);
+  if (destroyedByOwnTrait) {
+    const sourceId = ctx.targets.destroyedBy?.[0];
+    if (!sourceId) return false;
+    const source = findCard(ctx.state, sourceId);
+    return source.owner === ctx.controller && (source.def.traits ?? []).includes(destroyedByOwnTrait[1]);
+  }
+  // W7 — GD05-129 "If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn"
+  const ownDestroyedThisTurn = predicate.match(/^controllerUnitDestroyedByOwnTraitEffectThisTurn:(.+)$/);
+  if (ownDestroyedThisTurn) {
+    const mark = ctx.state.players[ctx.controller].ownUnitDestroyedByOwnEffectOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.traits.includes(ownDestroyedThisTurn[1]);
+  }
+  // W8 — GD05-126 "If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play"
+  const unitNameLevel = predicate.match(/^controllerUnitNameContainsLevelAtLeast:(.+):(\d+)$/);
+  if (unitNameLevel) {
+    return ctx.state.players[ctx.controller].battleArea.some(
+      (c) => c.def.cardType === "UNIT" && c.def.nameEn.includes(unitNameLevel[1]) && (c.def.level ?? 0) >= Number(unitNameLevel[2]),
+    );
+  }
+  // W7 — GD05-089 "If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn"
+  const activatedTrait = predicate.match(/^controllerActivatedCommandTraitThisTurn:(.+)$/);
+  if (activatedTrait) {
+    const mark = ctx.state.players[ctx.controller].commandTraitsActivatedOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.traits.includes(activatedTrait[1]);
+  }
+  // W7 — GD05-002 "You may discard 2" só é oferecido com 2+ cartas na mão (sem isso o "If you do" nunca se cumpre)
+  const handAtLeast = predicate.match(/^controllerHandCountAtLeast:(\d+)$/);
+  if (handAtLeast) return ctx.state.players[ctx.controller].hand.length >= Number(handAtLeast[1]);
   // W5 — GD04-035 "if you have 3 or less cards in your hand"
   const handAtMost = predicate.match(/^controllerHandCountAtMost:(\d+)$/);
   if (handAtMost) return ctx.state.players[ctx.controller].hand.length <= Number(handAtMost[1]);
@@ -656,11 +686,20 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // GD01-101 Deep Devotion — "1 friendly Link Unit".
   if (filter === "linkUnit") return isPairedLinkUnit(ctx.state, candidate);
 
+  // W7 — GD05-112 "(MF) Units without <Breach>": `not(<filtro>)`
+  const notFilter = filter.match(/^not\((.+)\)$/);
+  if (notFilter) return !defaultTargetFilterResolver(notFilter[1], candidate, ctx);
   // W4 — GD04-063 "that is Lv.1 or lower or has 1 or less AP": `or(<filtro>|<filtro>)`
   const orFilter = filter.match(/^or\(([^|]+)\|([^|]+)\)$/);
   if (orFilter) return defaultTargetFilterResolver(orFilter[1], candidate, ctx) || defaultTargetFilterResolver(orFilter[2], candidate, ctx);
   // W4 — GD04-091 "1 undamaged enemy Unit"
   if (filter === "undamaged") return candidate.damage === 0;
+  // W7 (C10) — GD05-049 "each choose 1 of their non-battling Units" (fora do combate atual)
+  if (filter === "notBattling") {
+    const combat = ctx.state.combat;
+    if (!combat) return true;
+    return combat.attackerId !== candidate.instanceId && (combat.currentTarget === "player" || combat.currentTarget.unitId !== candidate.instanceId);
+  }
   // W2c — GD03-073 "1 enemy Unit battling this Unit" (a fonte é um dos 2 lados do combate atual)
   if (filter === "battlingSelf") {
     const combat = ctx.state.combat;
@@ -684,6 +723,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // W5 (C6) — GD04-020/085 "a (X) Command card using an EX Resource" (o Command do evento)
   if (filter === "paidWithEx") return candidate.paidWithExOnTurn === ctx.state.turnNumber;
   // W4 — GD04-004 "pair a Pilot with one of your blue Units": o candidato é o Piloto, a cor é da Unit
+  // W7 — GD05-127 "When a friendly (Phantom Pain) Unit links": o Piloto do evento pareou e formou Link com Unit do trait
+  const pairedUnitLinkWithTrait = filter.match(/^pairedUnitLinkWithTrait:(.+)$/);
+  if (pairedUnitLinkWithTrait) {
+    if (!candidate.pairedUnitId) return false;
+    const unit = findCard(ctx.state, candidate.pairedUnitId);
+    return (unit.def.traits ?? []).includes(pairedUnitLinkWithTrait[1]) && isPairedLinkUnit(ctx.state, unit);
+  }
   const pairedUnitColor = filter.match(/^pairedUnitColor:(.+)$/);
   if (pairedUnitColor) {
     return !!candidate.pairedUnitId && findCard(ctx.state, candidate.pairedUnitId).def.color === pairedUnitColor[1];
@@ -692,6 +738,12 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (pairedPilotTrait) {
     const pilot = candidate.pairedPilotId ? findCard(ctx.state, candidate.pairedPilotId) : undefined;
     return !!pilot && (effectivePilotDef(pilot).traits ?? []).includes(pairedPilotTrait[1]);
+  }
+
+  // W7 — GD05-002 "1 enemy Unit with the lowest Lv." (Lv. impresso; empate: qualquer uma das menores)
+  if (filter === "lowestLevel") {
+    const side = ctx.state.players[candidate.owner].battleArea.filter((c) => c.def.cardType === "UNIT");
+    return (candidate.def.level ?? 0) === Math.min(...side.map((c) => c.def.level ?? 0));
   }
 
   // GD03-049 — "1 enemy Unit with the lowest HP" (HP restante; empate: qualquer uma das menores)
@@ -713,6 +765,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     const subjectId = ctx.targets?.reactionSubject?.[0];
     if (!subjectId) return false;
     return (candidate.def.level ?? 0) <= (findCard(ctx.state, subjectId).def.level ?? 0);
+  }
+
+  // W7 (C9) — GD03-113 "…whose Lv. is equal to or lower than the Unit rested with this ability" (alvo do passo anterior)
+  if (filter === "level<=previousTarget") {
+    const previousId = ctx.targets?.previousTarget?.[0];
+    if (!previousId) return false;
+    return (candidate.def.level ?? 0) <= (findCard(ctx.state, previousId).def.level ?? 0);
   }
 
   if (filter === "level<=self") {
@@ -742,6 +801,18 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // O candidato precisa ser um dos 2 lados do combate ATUAL, com o outro lado sendo uma Unit
   // AMIGA (do controller do efeito) com a keyword dada (mesmo padrão de excludeInstanceId de
   // `battlingEnemyLevelAtMost`, só que aqui o candidato JÁ É "quem eu sou" — a fonte do olhar).
+  // W8 — GD05-119 "enemy Unit that is battling one of your Units that is Lv.5 or higher"
+  const battlingFriendlyLevelAtLeast = filter.match(/^battlingFriendlyLevelAtLeast:(\d+)$/);
+  if (battlingFriendlyLevelAtLeast) {
+    const combat = ctx.state.combat;
+    if (!combat || combat.currentTarget === "player" || !ctx.sourceInstanceId) return false;
+    let opposingId: string | undefined;
+    if (combat.attackerId === candidate.instanceId) opposingId = combat.currentTarget.unitId;
+    else if (combat.currentTarget.unitId === candidate.instanceId) opposingId = combat.attackerId;
+    if (!opposingId) return false;
+    const opposing = findCard(ctx.state, opposingId);
+    return opposing.owner === findCard(ctx.state, ctx.sourceInstanceId).owner && (opposing.def.level ?? 0) >= Number(battlingFriendlyLevelAtLeast[1]);
+  }
   const battlingFriendlyHasKeyword = filter.match(/^battlingFriendlyHasKeyword:(.+)$/);
   if (battlingFriendlyHasKeyword) {
     if (!ctx.sourceInstanceId) return false;

@@ -58,7 +58,7 @@ jobs:
           path: base
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: corepack enable
       - name: Install (só o head; a base reaproveita o node_modules)
         working-directory: head
@@ -96,7 +96,7 @@ jobs:
           path: base
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: corepack enable
       - name: Install
         working-directory: head
@@ -128,7 +128,7 @@ jobs:
           ref: ${{ env.HEAD_REF }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4

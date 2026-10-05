@@ -43,3 +43,26 @@ describe("【Burst】 padrão — toda carta implementada com o texto tem spec E
     expect(burstEligibleShieldIds(before, after, "B", ALL_EFFECT_SPECS)).toEqual([shield.instanceId]);
   });
 });
+
+describe("Resource × EX Resource (CR 3-6-1 / 5-17-3) — achado da W7", () => {
+  const calls = (s: (typeof ALL_EFFECT_SPECS)[number]) => [
+    ...(s.cost ?? []),
+    ...s.actions,
+    ...(s.condition?.then ?? []),
+    ...(s.condition?.else ?? []),
+    ...(s.condition2?.then ?? []),
+    ...(s.condition2?.else ?? []),
+  ];
+  const placesEx = (s: (typeof ALL_EFFECT_SPECS)[number]) =>
+    calls(s).some((c) => c.op === "spawnToken" && c.zone === "resourceArea");
+
+  it('"Place N (rested) Resource" sai do resource deck — nunca vira EX Resource', () => {
+    const wrong = ALL_EFFECT_SPECS.filter((s) => /place \d+ (rested )?Resource\b/i.test(s.sourceText) && placesEx(s)).map((s) => s.id);
+    expect(wrong).toEqual([]);
+  });
+
+  it("spec que coloca token na área de Resource tem \"EX Resource\" no texto", () => {
+    const wrong = ALL_EFFECT_SPECS.filter((s) => placesEx(s) && !/EX Resource/i.test(s.sourceText)).map((s) => s.id);
+    expect(wrong).toEqual([]);
+  });
+});

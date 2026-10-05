@@ -96,7 +96,11 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "When Linked"
-    ]
+    ],
+    // W8 — desconto por Unit (Orb) sem Lv.6+ em jogo
+    "dynamicCost": { "condition": { "kind": "noUnitLevelAtLeast", "maxLevel": 6 }, "amount": -1, "perFriendlyUnitWithTrait": "Orb" },
+    "dynamicLevel": { "condition": { "kind": "noUnitLevelAtLeast", "maxLevel": 6 }, "amount": -1, "perFriendlyUnitWithTrait": "Orb" },
+    "structuredSourceText": { "dynamicCost": "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each of your (Orb) Units in play." }
   },
   "GD05-005": {
     "code": "GD05-005",
@@ -131,6 +135,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     "hp": 6,
     "traits": [
       "Calamity War"
+    ],
+    // W8 — <Repair> = nº de tokens (Calamity War) em jogo
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Repair",
+        "keywordValueFromAmount": true,
+        "amountFrom": { "kind": "friendlyTokensWithTrait", "trait": "Calamity War" },
+        "sourceText": "This Unit gains the same number of <Repair 1> as the number of (Calamity War) Unit tokens you have in play."
+      }
     ]
   },
   "GD05-007": {
@@ -174,7 +189,10 @@ export const UNITS_BLUE: Record<string, CardDef> = {
       "values": [
         "Amuro Ray"
       ]
-    }
+    },
+    // W8
+    "dynamicCost": { "condition": { "kind": "friendlyPilotInPlay", "trait": "Newtype", "notColor": "blue" }, "amount": -2 },
+    "structuredSourceText": { "dynamicCost": "While you have a non-blue (Newtype) Pilot in play, this card in your hand gets cost -2." }
   },
   "GD05-009": {
     "code": "GD05-009",

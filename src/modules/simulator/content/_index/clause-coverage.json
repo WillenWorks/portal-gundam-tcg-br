@@ -2719,6 +2719,223 @@
         }
       ]
     },
+    "ST09": {
+      "counts": {
+        "vanilla": 2,
+        "full": 8,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST09-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Activate·Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-001-ActivateMain"
+              ],
+              "text": "【Activate·Main】②, return this Unit to the bottom of its owner's deck:Choose 1 Unit card with \"Impulse Gundam\" in its card name that is Lv.4 or higher from your trash. Deploy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Destroyed"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-002-Destroyed"
+              ],
+              "text": "【Destroyed】Choose 1 (Minerva Squad) Unit card without \"Force Impulse Gundam\" in its card name from your trash. Add it to your hand."
+            }
+          ]
+        },
+        {
+          "code": "ST09-003",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Breach"
+              ],
+              "text": "<Breach 3>"
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-003-WhenLinked"
+              ],
+              "text": "【When Linked】If there are 5 or more purple cards in your trash, deal 2 damage to all Units with 5 or less AP."
+            }
+          ]
+        },
+        {
+          "code": "ST09-004",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
+              "text": "While a friendly Base in play, this Unit gains <Suppression>."
+            }
+          ]
+        },
+        {
+          "code": "ST09-005",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST09-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-006-Deploy"
+              ],
+              "text": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit that is Lv.3 or lower. Destroy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-007",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST09-008",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-008-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Attack"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-008-Attack"
+              ],
+              "text": "【Attack】If this is a (Minerva Squad) Unit, choose 1 of your Resources. Set it as active."
+            }
+          ]
+        },
+        {
+          "code": "ST09-009",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-009-Main",
+                "ST09-009-Action"
+              ],
+              "text": "【Main】/【Action】Choose 1 active enemy Unit with 4 or less AP. Destroy it."
+            }
+          ]
+        },
+        {
+          "code": "ST09-010",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-010-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST09-010-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
+            }
+          ]
+        }
+      ]
+    },
     "GD01": {
       "counts": {
         "vanilla": 28,
@@ -5346,8 +5563,8 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 102,
-        "partial": 2,
+        "full": 103,
+        "partial": 1,
         "missing": 0,
         "withErrors": 0
       },
@@ -6922,7 +7139,7 @@
         },
         {
           "code": "GD02-094",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -6941,9 +7158,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:multi-choice-queue-entry (E4/W2)"
+                "GD02-094-WhenPaired",
+                "GD02-094-Then"
               ],
               "text": "【When Paired】You may discard 1. If you do, look at the top 3 cards of your deck. You may reveal 1 (Vulture) Unit card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             }
@@ -7997,8 +8215,8 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 110,
-        "partial": 6,
+        "full": 113,
+        "partial": 3,
         "missing": 0,
         "withErrors": 0
       },
@@ -9145,7 +9363,7 @@
         },
         {
           "code": "GD03-064",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -9153,9 +9371,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:optional-trash-search-then-discard (C9)"
+                "GD03-064-Deploy",
+                "GD03-064-Then"
               ],
               "text": "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1."
             }
@@ -10287,7 +10506,7 @@
         },
         {
           "code": "GD03-113",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10296,9 +10515,11 @@
                 "Main",
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:secondary-target-relative-level (C9)"
+                "GD03-113-Main",
+                "GD03-113-Action",
+                "GD03-113-Then"
               ],
               "text": "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it."
             }
@@ -10400,7 +10621,7 @@
         },
         {
           "code": "GD03-118",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10419,9 +10640,10 @@
               "triggers": [
                 "Action"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:optional-conditional-secondary-target (C9)"
+                "GD03-118-Action",
+                "GD03-118-Then"
               ],
               "text": "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn."
             }
@@ -13753,235 +13975,18 @@
         }
       ]
     },
-    "ST09": {
+    "GD05": {
       "counts": {
-        "vanilla": 2,
-        "full": 8,
+        "vanilla": 19,
+        "full": 111,
         "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
       "cards": [
         {
-          "code": "ST09-001",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Activate·Main"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-001-ActivateMain"
-              ],
-              "text": "【Activate·Main】②, return this Unit to the bottom of its owner's deck:Choose 1 Unit card with \"Impulse Gundam\" in its card name that is Lv.4 or higher from your trash. Deploy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-002",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Destroyed"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-002-Destroyed"
-              ],
-              "text": "【Destroyed】Choose 1 (Minerva Squad) Unit card without \"Force Impulse Gundam\" in its card name from your trash. Add it to your hand."
-            }
-          ]
-        },
-        {
-          "code": "ST09-003",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Breach"
-              ],
-              "text": "<Breach 3>"
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "When Linked"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-003-WhenLinked"
-              ],
-              "text": "【When Linked】If there are 5 or more purple cards in your trash, deal 2 damage to all Units with 5 or less AP."
-            }
-          ]
-        },
-        {
-          "code": "ST09-004",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Blocker"
-              ],
-              "text": "<Blocker>"
-            },
-            {
-              "i": 1,
-              "triggers": [],
-              "by": "structured",
-              "refs": [
-                "staticAbilities"
-              ],
-              "text": "While a friendly Base in play, this Unit gains <Suppression>."
-            }
-          ]
-        },
-        {
-          "code": "ST09-005",
-          "status": "vanilla",
-          "errors": [],
-          "clauses": []
-        },
-        {
-          "code": "ST09-006",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Deploy"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-006-Deploy"
-              ],
-              "text": "【Deploy】If you deploy this Unit from your trash, choose 1 enemy Unit that is Lv.3 or lower. Destroy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-007",
-          "status": "vanilla",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [],
-              "by": "keyword",
-              "refs": [
-                "Blocker"
-              ],
-              "text": "<Blocker>"
-            }
-          ]
-        },
-        {
-          "code": "ST09-008",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Burst"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-008-Burst"
-              ],
-              "text": "【Burst】Add this card to your hand."
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "Attack"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-008-Attack"
-              ],
-              "text": "【Attack】If this is a (Minerva Squad) Unit, choose 1 of your Resources. Set it as active."
-            }
-          ]
-        },
-        {
-          "code": "ST09-009",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Main",
-                "Action"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-009-Main",
-                "ST09-009-Action"
-              ],
-              "text": "【Main】/【Action】Choose 1 active enemy Unit with 4 or less AP. Destroy it."
-            }
-          ]
-        },
-        {
-          "code": "ST09-010",
-          "status": "full",
-          "errors": [],
-          "clauses": [
-            {
-              "i": 0,
-              "triggers": [
-                "Burst"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-010-Burst"
-              ],
-              "text": "【Burst】Deploy this card."
-            },
-            {
-              "i": 1,
-              "triggers": [
-                "Deploy"
-              ],
-              "by": "spec",
-              "refs": [
-                "ST09-010-Deploy"
-              ],
-              "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
-            }
-          ]
-        }
-      ]
-    },
-    "GD05": {
-      "counts": {
-        "vanilla": 19,
-        "full": 48,
-        "partial": 0,
-        "missing": 63,
-        "withErrors": 0
-      },
-      "cards": [
-        {
           "code": "GD05-001",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -13998,10 +14003,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-001-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 2 of your Units:Set this Unit as active."
             }
@@ -14009,7 +14013,7 @@
         },
         {
           "code": "GD05-002",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14017,10 +14021,11 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-002-Deploy",
+                "GD05-002-DestroyedUnit",
+                "GD05-002-DestroyedShield"
               ],
               "text": "【Deploy】 Choose 1 to 2 of your Units. During this turn, when they destroy an enemy card with battle damage, draw 1."
             },
@@ -14029,10 +14034,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-002-Attack",
+                "GD05-002-Then"
               ],
               "text": "【During Pair】【Attack】You may discard 2. If you do, choose 1 enemy Unit with the lowest Lv. Return it to the bottom of its owner's deck."
             }
@@ -14058,14 +14063,16 @@
         },
         {
           "code": "GD05-004",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have no Units that are Lv.6 or higher in play, this card in your hand gets Lv. -1 and cost -1 for each of your (Orb) Units in play."
             },
             {
@@ -14073,10 +14080,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-004-WhenLinked"
               ],
               "text": "【When Linked】Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
             }
@@ -14100,21 +14106,26 @@
         },
         {
           "code": "GD05-006",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-006-DestroyedUnit",
+                "GD05-006-DestroyedShield"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, deploy 1 [Pluma]((Calamity War)·AP2·HP1) Unit token."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit gains the same number of <Repair 1> as the number of (Calamity War) Unit tokens you have in play."
             }
           ]
@@ -14137,14 +14148,16 @@
         },
         {
           "code": "GD05-008",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While you have a non-blue (Newtype) Pilot in play, this card in your hand gets cost -2."
             }
           ]
@@ -14239,21 +14252,23 @@
         },
         {
           "code": "GD05-016",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-016-Reaction"
+              ],
               "text": "When one of your (Orb) Units is deployed, this Unit gains <High-Maneuver> during this turn."
             }
           ]
         },
         {
           "code": "GD05-017",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14270,10 +14285,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-017-WhenPaired",
+                "GD05-017-Then"
               ],
               "text": "【When Paired】You may choose 3 (Londo Bell) cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Begin a battle between this Unit and it and only perform the damage step."
             }
@@ -14281,14 +14296,16 @@
         },
         {
           "code": "GD05-018",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-018-Reaction"
+              ],
               "text": "When one of your EX Resources is exiled from the game, you may choose 1 of your Units. During this turn, when it receives enemy damage, reduce it by 3."
             },
             {
@@ -14296,10 +14313,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-018-Deploy"
               ],
               "text": "【Deploy】Place 3 EX Resources."
             }
@@ -14352,7 +14368,7 @@
         },
         {
           "code": "GD05-021",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14360,25 +14376,26 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-021-ActivateAction"
               ],
               "text": "【Activate·Action】【Once per Turn】①:This Unit gets AP+4 during this battle."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【Once per Turn】When this Unit receives enemy damage, if you have an (Earth Federation) Pilot in play, reduce it by 2."
             }
           ]
         },
         {
           "code": "GD05-022",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14395,10 +14412,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-022-ActivateAction"
               ],
               "text": "【Activate·Action】Exile 2 Command cards in your trash from the game:During this battle, when this Unit receives enemy damage, reduce it by 2."
             }
@@ -14424,7 +14440,7 @@
         },
         {
           "code": "GD05-024",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14432,10 +14448,10 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-024-Destroyed",
+                "GD05-024-Then"
               ],
               "text": "【Destroyed】Choose 1 green (Earth Federation) Pilot card from your trash. Add it to your hand. If you do, discard 1."
             }
@@ -14461,14 +14477,16 @@
         },
         {
           "code": "GD05-026",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "deploysRestedRule"
+              ],
               "text": "Count up the number of your Units with \"Gundam Lfrith\"/\"Gundnode\" in their card name, plus this Unit. All enemy Units whose Lv. is equal to or lower than that number are deployed rested."
             }
           ]
@@ -14517,14 +14535,16 @@
         },
         {
           "code": "GD05-030",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -14543,7 +14563,7 @@
         },
         {
           "code": "GD05-033",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14551,10 +14571,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-033-Attack"
               ],
               "text": "【Attack】You may choose 2 (Special Move) Command cards from your trash. Exile them from the game. If you do, deal 5 damage to the first card in your opponent's shield area."
             }
@@ -14562,28 +14581,36 @@
         },
         {
           "code": "GD05-034",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-034-Reaction",
+                "GD05-034-Choice",
+                "GD05-034-Discard",
+                "GD05-034-Keep",
+                "GD05-034-NoHand"
+              ],
               "text": "【During Pair】【Once per Turn】When this Unit destroys an enemy shield area card with battle damage, that enemy player may discard 1. If they don't discard with this effect, you may deploy 1 (Phantom Pain) Unit card that is Lv.4 or lower from your hand."
             }
           ]
         },
         {
           "code": "GD05-035",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-035-Reaction"
+              ],
               "text": "【Once per Turn】When this Unit destroys an enemy shield area card with damage, choose 1 enemy Unit with 3 or less AP. Deal 2 damage to it."
             },
             {
@@ -14591,10 +14618,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-035-Attack"
               ],
               "text": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
             }
@@ -14602,7 +14628,7 @@
         },
         {
           "code": "GD05-036",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14610,10 +14636,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-036-WhenPaired",
+                "GD05-036-Then"
               ],
               "text": "【When Paired】You may choose 1 of your other active (MF) Units. Rest it. If you do, deal 2 damage to all enemy Units whose Lv. is equal to or lower than that Unit."
             }
@@ -14621,35 +14647,41 @@
         },
         {
           "code": "GD05-037",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Breach 3>."
             }
           ]
         },
         {
           "code": "GD05-038",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Suppression>."
             },
             {
@@ -14657,10 +14689,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-038-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 3 of your (CB) Units:Choose 1 enemy Unit. Deal 4 damage to it."
             }
@@ -14704,14 +14735,16 @@
         },
         {
           "code": "GD05-041",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "During a turn where your opponent has discarded due to one of your effects, this card in your hand gets cost -2."
             }
           ]
@@ -14730,7 +14763,7 @@
         },
         {
           "code": "GD05-044",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14738,10 +14771,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-044-Attack"
               ],
               "text": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
             }
@@ -14765,7 +14797,7 @@
         },
         {
           "code": "GD05-046",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14773,10 +14805,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-046-WhenPaired",
+                "GD05-046-Discard"
               ],
               "text": "【When Paired·(Phantom Pain) Pilot】Choose 1 enemy player with 4 or more cards in their hand. They discard 1."
             }
@@ -14790,21 +14822,23 @@
         },
         {
           "code": "GD05-048",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
         },
         {
           "code": "GD05-049",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14821,10 +14855,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-049-Attack",
+                "GD05-049-Then"
               ],
               "text": "【Attack】You may choose 1 of your Units. Destroy it. If you do, all enemy players each choose 1 of their non-battling Units. Destroy them."
             }
@@ -14859,28 +14893,32 @@
         },
         {
           "code": "GD05-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "Increase this Unit's AP by an amount equal to the amount of damage it has received."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-051-EndOfTurn"
+              ],
               "text": "At the end of your turn, you may choose 1 of your (Tekkadan) Units. Deal 1 damage to it. Set it as active."
             }
           ]
         },
         {
           "code": "GD05-052",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14888,10 +14926,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-052-Deploy",
+                "GD05-052-Then"
               ],
               "text": "【Deploy】You may choose 1 of your other Units. Destroy it. If you do, place the top 3 cards of your deck into your trash. Add 1 (Neo Zeon) Unit card you placed from your deck with this effect to your hand."
             }
@@ -14899,7 +14937,7 @@
         },
         {
           "code": "GD05-053",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14907,10 +14945,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-053-Destroyed"
               ],
               "text": "【Destroyed】If this Unit is destroyed by one of your (Neo Zeon) card's effects, add it from your trash to your hand."
             }
@@ -14918,7 +14955,7 @@
         },
         {
           "code": "GD05-054",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14933,8 +14970,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-054-Reaction"
+              ],
               "text": "【Once per Turn】When one of your Units is destroyed by an effect, draw 1."
             }
           ]
@@ -14972,7 +15011,7 @@
         },
         {
           "code": "GD05-057",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14980,10 +15019,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-057-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Choose 1 of your other Units. Destroy it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn."
             }
@@ -15007,7 +15045,7 @@
         },
         {
           "code": "GD05-059",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15015,10 +15053,10 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-059-Attack",
+                "GD05-059-Attack-HighManeuver"
               ],
               "text": "【Attack】Choose 1 of your active (Gjallarhorn) Units. Rest it. If you do, draw 1. This Unit gains <High-Maneuver> during this turn."
             }
@@ -15074,7 +15112,7 @@
         },
         {
           "code": "GD05-064",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15082,10 +15120,9 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-064-Deploy"
               ],
               "text": "【Deploy】If you deploy this Unit from your trash, choose 1 Pilot card with \"Shinn Asuka\" in its card name from your trash. Add it to your hand."
             }
@@ -15109,7 +15146,7 @@
         },
         {
           "code": "GD05-066",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15117,10 +15154,10 @@
               "triggers": [
                 "Deploy"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Deploy"
+              "by": "spec",
+              "refs": [
+                "GD05-066-Deploy",
+                "GD05-066-Then"
               ],
               "text": "【Deploy】You may choose 2 (MF) Unit cards from your trash. Exile them from the game. If you do, choose 1 (Special Move) Command card from your trash. Add it to your hand."
             },
@@ -15129,10 +15166,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-066-Attack"
               ],
               "text": "【Attack】【Once per Turn】Choose 1 of your rested Resources. Set it as active."
             }
@@ -15140,14 +15176,16 @@
         },
         {
           "code": "GD05-067",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While a rested enemy Unit is in play, this Unit gains <Suppression>."
             },
             {
@@ -15155,10 +15193,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-067-Attack"
               ],
               "text": "【Attack】Choose 1 enemy Unit. Rest it."
             }
@@ -15166,14 +15203,16 @@
         },
         {
           "code": "GD05-068",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains <Suppression> during this turn."
             },
             {
@@ -15181,10 +15220,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-068-Attack"
               ],
               "text": "【During Link】【Attack】This Unit gets AP+2 during this battle."
             }
@@ -15192,14 +15230,16 @@
         },
         {
           "code": "GD05-069",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-069-Reaction"
+              ],
               "text": "During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 4 cards of your deck. You may reveal 1 (Special Move) Command card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
             },
             {
@@ -15207,10 +15247,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-069-Attack"
               ],
               "text": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
             }
@@ -15218,14 +15257,16 @@
         },
         {
           "code": "GD05-070",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-070-Reaction"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 of your rested (Preventer)/(G Team) Link Units. Set it as active. It can't attack during this turn."
             }
           ]
@@ -15329,7 +15370,7 @@
         },
         {
           "code": "GD05-076",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15337,10 +15378,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-076-Attack"
               ],
               "text": "【During Link】【Attack】Activate 【Main】 on the card paired with this Unit."
             }
@@ -15354,14 +15394,16 @@
         },
         {
           "code": "GD05-078",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "attackOnDeployTurnVsRestedUnit"
+              ],
               "text": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it."
             }
           ]
@@ -15478,7 +15520,7 @@
         },
         {
           "code": "GD05-084",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15495,8 +15537,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "When one of your (League Militaire) Unit tokens receives enemy effect damage, reduce it by 1."
             }
           ]
@@ -15530,7 +15574,7 @@
         },
         {
           "code": "GD05-086",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15547,8 +15591,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "forcedAttackTarget"
+              ],
               "text": "【During Link】Enemy Units other than Link Units choose this rested Unit as their attack target if possible when attacking."
             }
           ]
@@ -15582,7 +15628,7 @@
         },
         {
           "code": "GD05-088",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15599,15 +15645,17 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit and all your Units with \"Gundam Lfrith\" or \"Gundnode\" in their card name get AP+1."
             }
           ]
         },
         {
           "code": "GD05-089",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15615,12 +15663,10 @@
               "triggers": [
                 "Burst"
               ],
-              "by": "missing",
+              "by": "spec",
               "refs": [
-                "GD05-089-Burst"
-              ],
-              "missingTriggers": [
-                "Burst"
+                "GD05-089-Burst",
+                "GD05-089-Then"
               ],
               "text": "【Burst】Add this card to your hand. If there are 3 or more (MF) cards in your trash, you may deploy it as an (AP3·HP3) Unit instead."
             },
@@ -15629,10 +15675,9 @@
               "triggers": [
                 "Attack"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Attack"
+              "by": "spec",
+              "refs": [
+                "GD05-089-Attack"
               ],
               "text": "【During Link】【Attack】If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn, choose 1 enemy Unit. Deal 2 damage to it."
             }
@@ -15640,7 +15685,7 @@
         },
         {
           "code": "GD05-090",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15659,10 +15704,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-090-Destroyed"
               ],
               "text": "【Destroyed】Look at the top card of your deck. If it is a (Phantom Pain) card, you may reveal it and add it to your hand. Return any remaining card to the bottom of your deck."
             }
@@ -15670,7 +15714,7 @@
         },
         {
           "code": "GD05-091",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15687,8 +15731,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While an enemy player has 7 or more cards in their trash, this Unit gets AP+1 and HP+1."
             }
           ]
@@ -15724,7 +15770,7 @@
         },
         {
           "code": "GD05-093",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15743,10 +15789,9 @@
               "triggers": [
                 "When Linked"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Linked"
+              "by": "spec",
+              "refs": [
+                "GD05-093-WhenLinked"
               ],
               "text": "【When Linked】You may choose 1 (Neo Zeon) Base card from your trash. Deploy it."
             }
@@ -15839,7 +15884,7 @@
         },
         {
           "code": "GD05-097",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15858,10 +15903,10 @@
               "triggers": [
                 "When Paired"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "When Paired"
+              "by": "spec",
+              "refs": [
+                "GD05-097-WhenPaired",
+                "GD05-097-Then"
               ],
               "text": "【When Paired】Draw 1. Then, discard 1. If you discard a (Special Move) Command card with this effect, you may activate its 【Main】."
             }
@@ -15979,7 +16024,7 @@
         },
         {
           "code": "GD05-102",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15987,10 +16032,11 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-102-Action",
+                "GD05-102-Mode1",
+                "GD05-102-Mode2"
               ],
               "text": "【Action】When playing this card, choose 1 of the following effects and activate it:\n■Choose 1 enemy Unit with 5 or less HP. Return it to its owner's hand.\n■Choose 1 Unit. It recovers 3 HP."
             }
@@ -16027,7 +16073,7 @@
         },
         {
           "code": "GD05-104",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16035,10 +16081,10 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-104-Action",
+                "GD05-104-Granted"
               ],
               "text": "【Action】Choose 1 friendly (Shrike Team) Unit. It gains the following effect during this turn:\n■【During Link】【Destroyed】Choose 1 friendly (League Militaire) Unit. Set it as active."
             },
@@ -16086,7 +16132,7 @@
         },
         {
           "code": "GD05-106",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16094,10 +16140,11 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-106-Main",
+                "GD05-106-Mode1",
+                "GD05-106-Mode2"
               ],
               "text": "【Main】When playing this card, choose 1 of the following effects and activate it:\n■Place 1 rested Resource.\n■Choose 1 Pilot card that is Lv.5 or higher from your trash. Add it to your hand."
             }
@@ -16105,7 +16152,7 @@
         },
         {
           "code": "GD05-107",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16124,10 +16171,9 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-107-Main"
               ],
               "text": "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area."
             }
@@ -16135,7 +16181,7 @@
         },
         {
           "code": "GD05-108",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16143,10 +16189,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-108-Action"
               ],
               "text": "【Action】Choose 1 friendly rested (Academy) Unit. Change a battling enemy Unit's attack target to it."
             },
@@ -16239,7 +16284,7 @@
         },
         {
           "code": "GD05-112",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16247,10 +16292,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-112-Main",
+                "GD05-112-AfterMain"
               ],
               "text": "【Main】Choose 1 of your (MF) Units without <Breach>. It gains <Breach 3> during this turn. After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
             },
@@ -16267,7 +16312,7 @@
         },
         {
           "code": "GD05-113",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16275,10 +16320,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-113-Main",
+                "GD05-113-AfterMain"
               ],
               "text": "【Main】Choose 1 of your (MF) Units with 4 or less AP. It gets AP+2 during this turn. After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
             },
@@ -16418,7 +16463,7 @@
         },
         {
           "code": "GD05-119",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16426,10 +16471,9 @@
               "triggers": [
                 "Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Action"
+              "by": "spec",
+              "refs": [
+                "GD05-119-Action"
               ],
               "text": "【Action】Choose 1 enemy Unit that is battling one of your Units that is Lv.5 or higher. It gets AP-3 during this battle."
             },
@@ -16477,7 +16521,7 @@
         },
         {
           "code": "GD05-121",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16485,10 +16529,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-121-Main",
+                "GD05-121-AfterMain"
               ],
               "text": "【Main】Choose 1 enemy Unit. It gets AP-2 during this turn. After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
             },
@@ -16505,7 +16549,7 @@
         },
         {
           "code": "GD05-122",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16513,10 +16557,10 @@
               "triggers": [
                 "Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Main"
+              "by": "spec",
+              "refs": [
+                "GD05-122-Main",
+                "GD05-122-AfterMain"
               ],
               "text": "【Main】Choose 1 enemy Unit that is Lv.4 or lower. Rest it. After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units."
             },
@@ -16533,7 +16577,7 @@
         },
         {
           "code": "GD05-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16561,15 +16605,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "During your opponent's turn, friendly (Orb) Units can't receive 2 or less enemy effect damage."
             }
           ]
         },
         {
           "code": "GD05-124",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16597,8 +16643,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "restInsteadOfUnitCost"
+              ],
               "text": "During your turn, when you would rest a Unit with a friendly (League Militaire) Unit's effect, you may rest this Base instead."
             }
           ]
@@ -16645,7 +16693,7 @@
         },
         {
           "code": "GD05-126",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16675,10 +16723,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-126-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】②:If you have a Unit with \"Gundam Aerial\" in its card name that is Lv.5 or higher in play, deploy 1 [Gundnode]((Quiet Zero)·AP2·HP2·<Breach 1>) Unit token."
             }
@@ -16686,7 +16733,7 @@
         },
         {
           "code": "GD05-127",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16714,15 +16761,17 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-127-Reaction"
+              ],
               "text": "【Once per Turn】When a friendly (Phantom Pain) Unit links, choose 1 enemy Unit. It can't activate <Blocker> during this turn."
             }
           ]
         },
         {
           "code": "GD05-128",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16752,10 +16801,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-128-ActivateMain"
               ],
               "text": "【Activate·Main】Rest this Base:If a friendly (MF) Link Unit is in play, choose 1 friendly Unit. It gets AP+2 during this turn."
             }
@@ -16763,7 +16811,7 @@
         },
         {
           "code": "GD05-129",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16793,10 +16841,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-129-ActivateMain"
               ],
               "text": "【Activate·Main】Rest this Base:If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn, deploy 1 (Neo Zeon) Unit card that is Lv.3 or lower from your hand."
             }
@@ -16804,7 +16851,7 @@
         },
         {
           "code": "GD05-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16834,10 +16881,10 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-130-Destroyed",
+                "GD05-130-Then"
               ],
               "text": "【Destroyed】You may exile this card in your trash from the game. If you do, you may deploy 1 Base card with \"Presidential Office\" in its card name from your hand."
             }

@@ -22,6 +22,8 @@ import { GD01_TEST_DECKS } from "../src/modules/simulator/fixtures/gd01TestDecks
 import { META_DECKS_GD02_ERA } from "../src/modules/simulator/fixtures/metaDecksGd02Era.ts";
 import { GD03_TEST_DECKS } from "../src/modules/simulator/fixtures/gd03Decks.ts";
 import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts";
+import { ST09_DECKS } from "../src/modules/simulator/fixtures/st09Decks.ts";
+import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { validateDeckPayload, checkUserDeckSimulatorCoverage } from "./deckCoverageGate.ts";
 import {
   computeSwissStandings,
@@ -1869,7 +1871,7 @@ app.delete("/api/taxonomies/:id", authRequired, roleRequired([UserRole.ADMIN]), 
 app.get("/api/cards/:id/relations", async (req, res) => {
   setPublicCache(res, 30, 120);
   const id = String(req.params.id);
-  let cardModelId: string | null = null;
+  let cardModelId: string | null;
   const model = await prisma.cardModel.findUnique({ where: { id }, select: { id: true } });
   if (model) {
     cardModelId = model.id;
@@ -2403,7 +2405,7 @@ app.get("/api/stats/metagame", async (req, res) => {
   const startDate = typeof req.query.startDate === "string" && req.query.startDate ? new Date(req.query.startDate) : undefined;
   const endDate = typeof req.query.endDate === "string" && req.query.endDate ? new Date(req.query.endDate) : undefined;
 
-  let seasonId: string | null = null;
+  let seasonId: string | null;
   let season: { id: string; code: string; name: string } | null = null;
   if (seasonParam === "all") {
     seasonId = null;
@@ -4807,6 +4809,8 @@ const SIMULATOR_DECKS: Record<string, () => DeckList> = {
   ...Object.fromEntries(Object.entries(META_DECKS_GD02_ERA).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(GD03_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
   ...Object.fromEntries(Object.entries(GD04_TEST_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(ST09_DECKS).map(([key, deck]) => [key, deck.build])),
+  ...Object.fromEntries(Object.entries(GD05_DECKS).map(([key, deck]) => [key, deck.build])),
 };
 
 function resolveDeckKey(raw: unknown): { key: string; build: () => DeckList } | null {
@@ -4962,12 +4966,18 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       if (Object.hasOwn(META_DECKS_GD02_ERA, upper)) {
         return { key: upper, list: META_DECKS_GD02_ERA[upper].build() };
       }
-      // Decks de teste do fechamento do GD03 / GD04 (os mesmos do fuzz e do golden).
+      // Decks do fechamento do GD03 / GD04 / ST09 / GD05 (os mesmos do fuzz e do golden).
       if (Object.hasOwn(GD03_TEST_DECKS, upper)) {
         return { key: upper, list: GD03_TEST_DECKS[upper].build() };
       }
       if (Object.hasOwn(GD04_TEST_DECKS, upper)) {
         return { key: upper, list: GD04_TEST_DECKS[upper].build() };
+      }
+      if (Object.hasOwn(ST09_DECKS, upper)) {
+        return { key: upper, list: ST09_DECKS[upper].build() };
+      }
+      if (Object.hasOwn(GD05_DECKS, upper)) {
+        return { key: upper, list: GD05_DECKS[upper].build() };
       }
       // Busca deck do usuário no banco
       const dbDeck = await prisma.deck.findFirst({
@@ -4976,7 +4986,7 @@ app.post("/api/simulator/training/new", authRequired, async (req: RequestWithUse
       });
       if (!dbDeck) {
         throw new TrainingMatchError(
-          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS)].sort().join(", ")}).`,
+          `Deck "${id}" não encontrado no seu perfil nem entre os starters (${[...Object.keys(VALIDATED_DECKS), ...Object.keys(GD01_TEST_DECKS), ...Object.keys(META_DECKS_GD02_ERA), ...Object.keys(GD03_TEST_DECKS), ...Object.keys(GD04_TEST_DECKS), ...Object.keys(ST09_DECKS), ...Object.keys(GD05_DECKS)].sort().join(", ")}).`,
         );
       }
       const list = buildDeckListFromUserDeck(dbDeck);

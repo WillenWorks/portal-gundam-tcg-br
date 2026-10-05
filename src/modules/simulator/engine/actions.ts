@@ -1,7 +1,7 @@
-import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PlayerId, QueuedTrigger } from "./types";
+import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsChoice } from "./effectSpec";
+import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -10,7 +10,9 @@ import { advanceToMainPhase, beginEndPhaseActionStep, finishEndPhaseAndAdvance, 
 import { burstEligibleShieldIds, dispatchTrigger, findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import {
   attachQueuedTriggers,
+  awaitingFollowUpOf,
   collectDestroyedInBattle,
+  dispatchAfterMain,
   deferOrDispatchAbilities,
   dispatchCommandActivated,
   dispatchDestroyedFromEffect,
@@ -22,7 +24,7 @@ import {
   runEndOfTurnReactions,
 } from "./abilityDispatch";
 import { activateSupport } from "./keywords";
-import { finishGameSetup, mulliganNonce, redrawMulliganHand } from "./setup";
+import { finishGameSetup, mulliganNonce, redrawMulliganHand, TOKEN_EX_RESOURCE_CODE } from "./setup";
 import { createRng } from "./rng";
 import { effectiveCost, effectiveHp, hasKeyword, otherPlayer, pairedPilotFollowEvents } from "./types";
 import { incomingDamage } from "./damageLayer";
@@ -156,8 +158,74 @@ export function applyPlayerAction(
   predicateResolver?: PredicateResolver,
   targetFilterResolver?: TargetFilterResolver,
 ): GameState {
-  const result = applyPlayerActionInner(state, actingPlayer, action, specs, predicateResolver, targetFilterResolver);
+  let result = applyPlayerActionInner(state, actingPlayer, action, specs, predicateResolver, targetFilterResolver);
+  // W8 — GD05-018 "When one of your EX Resources is exiled from the game": 1× por ação/pagamento (FAQ), cada cópia
+  result = dispatchExResourceExiled(state, result, specs, predicateResolver, targetFilterResolver);
+  // W8 — GD05-017: batalha iniciada por efeito, só com o Damage Step — roda quando nada mais espera decisão
+  if (result.combat?.damageOnly && result.combat.step === "damage" && !result.pendingDecision.A && !result.pendingDecision.B && !result.gameOver) {
+    result = runDamageStep(result, result.combat.attackingPlayer, specs, predicateResolver, targetFilterResolver);
+  }
   return enforceZoneLimits(enforceLethalDamage(result, specs, predicateResolver, targetFilterResolver));
+}
+
+/**
+ * Damage Step + 【Burst】 + 【Destroyed】 + Battle End de uma batalha que chegou ao Damage Step — depois que os dois
+ * passaram o Action Step, ou numa batalha iniciada por efeito só com o Damage Step (W8, GD05-017).
+ */
+function runDamageStep(
+  stateAtDamage: GameState,
+  actingPlayer: PlayerId,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
+  const beforeDamage = stateAtDamage;
+  let next = resolveDamageStep(stateAtDamage);
+  if (next.gameOver) return next; // GAME_OVER pode disparar dentro do próprio Damage Step
+
+  // 【Destroyed】 (docs/44): Units que morreram neste Damage Step — capturado
+  // ANTES de qualquer dispatch (o snapshot `beforeDamage` ainda tem o
+  // `pairedPilotId`, que o 【During Pair】【Destroyed】 de Miguel's Ginn checa).
+  const destroyed = collectDestroyedInBattle(beforeDamage, next);
+
+  const defendingPlayer = beforeDamage.combat!.defendingPlayer;
+  const burstIds = burstEligibleShieldIds(beforeDamage, next, defendingPlayer, specs);
+  if (burstIds.length > 0) {
+    // PAUSA autoritativa (docs/19, Sessão 2): combate fica parado no Damage
+    // Step, o defensor decide via `resolveBurstDecision`. 【Burst】 primeiro,
+    // 【Destroyed】 depois (ver `resolveBurstDecision`); o Battle End só roda
+    // quando as duas filas esvaziam.
+    return setPendingBurst(next, defendingPlayer, burstIds, destroyed);
+  }
+
+  next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
+  return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+}
+
+/** W8 — EX Resource do jogador que saiu do jogo nesta ação (pagamento ou efeito) → reação `exResourceExiled` */
+function dispatchExResourceExiled(
+  before: GameState,
+  after: GameState,
+  specs: EffectSpec[],
+  predicateResolver?: PredicateResolver,
+  targetFilterResolver?: TargetFilterResolver,
+): GameState {
+  if (after.gameOver || !specs.some((s) => s.reaction?.event === "exResourceExiled")) return after;
+  let next = after;
+  for (const p of [after.activePlayer, otherPlayer(after.activePlayer)]) {
+    const exBefore = before.players[p].resourceArea.filter((r) => r.def.code === TOKEN_EX_RESOURCE_CODE).map((r) => r.instanceId);
+    if (!exBefore.some((id) => next.players[p].exile.some((c) => c.instanceId === id))) continue;
+    const sources = next.players[p].battleArea
+      .filter((c) => findTriggerSpecs(specs, c.def.code, "Reaction:exResourceExiled").length > 0)
+      .map((c) => ({ code: c.def.code, instanceId: c.instanceId }));
+    if (sources.length === 0) continue;
+    if (next.pendingDecision.A || next.pendingDecision.B) {
+      next = attachQueuedTriggers(next, [{ owner: p, trigger: "Reaction:exResourceExiled", sources }]);
+      continue;
+    }
+    next = deferOrDispatchAbilities(next, p, "Reaction:exResourceExiled", sources, specs, { predicateResolver, targetFilterResolver });
+  }
+  return next;
 }
 
 /** destruir uma Unit pode derrubar o HP de outra (aura que some) — repete até estabilizar, com teto */
@@ -306,30 +374,9 @@ function applyPlayerActionInner(
     case "passAction": {
       // passAction() já valida internamente que `actingPlayer` tem a prioridade
       // do Action Step agora (combat.actionPriority) — não precisa checar de novo aqui.
-      let next = passAction(state, actingPlayer);
+      const next = passAction(state, actingPlayer);
       if (next.combat?.step !== "damage") return next; // ainda falta o outro jogador passar
-
-      const beforeDamage = next;
-      next = resolveDamageStep(next);
-      if (next.gameOver) return next; // GAME_OVER pode disparar dentro do próprio Damage Step
-
-      // 【Destroyed】 (docs/44): Units que morreram neste Damage Step — capturado
-      // ANTES de qualquer dispatch (o snapshot `beforeDamage` ainda tem o
-      // `pairedPilotId`, que o 【During Pair】【Destroyed】 de Miguel's Ginn checa).
-      const destroyed = collectDestroyedInBattle(beforeDamage, next);
-
-      const defendingPlayer = beforeDamage.combat!.defendingPlayer;
-      const burstIds = burstEligibleShieldIds(beforeDamage, next, defendingPlayer, specs);
-      if (burstIds.length > 0) {
-        // PAUSA autoritativa (docs/19, Sessão 2): combate fica parado no Damage
-        // Step, o defensor decide via `resolveBurstDecision`. 【Burst】 primeiro,
-        // 【Destroyed】 depois (ver `resolveBurstDecision`); o Battle End só roda
-        // quando as duas filas esvaziam.
-        return setPendingBurst(next, defendingPlayer, burstIds, destroyed);
-      }
-
-      next = dispatchDestroyedTriggers(next, destroyed, specs, { predicateResolver, targetFilterResolver });
-      return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+      return runDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
     }
 
     case "finishTurn": {
@@ -478,6 +525,16 @@ function applyPlayerActionInner(
         if (decision.cardDef.cardType === "COMMAND" && dispatchable.some((s) => s.sourceText.includes("Activate this card's 【Main】"))) {
           next = dispatchCommandActivated(next, decision.cardInstanceId, specs, { predicateResolver, targetFilterResolver });
         }
+        // W8 — o 【Burst】 abriu uma continuação (GD05-089 "deploy it as a Unit instead"): a fila de 【Burst】 e o Damage
+        // Step esperam por ela (retomados no fim da `resolveAbility`)
+        const followUp = next.pendingDecision[actingPlayer];
+        if (followUp?.kind === "abilityResolution" && isFollowUpTrigger(followUp.trigger)) {
+          return applyEvent(next, {
+            type: "SET_PENDING_DECISION",
+            player: actingPlayer,
+            decision: { ...followUp, burstContinuation: { queuedInstanceIds: decision.queuedInstanceIds, pendingDestroyed: decision.pendingDestroyed ?? [] } },
+          });
+        }
       }
       if (decision.queuedInstanceIds.length > 0) {
         return setPendingBurst(next, actingPlayer, decision.queuedInstanceIds, decision.pendingDestroyed ?? []);
@@ -541,6 +598,8 @@ function applyPlayerActionInner(
         throw new Error("As resoluções precisam listar exatamente os efeitos pendentes");
       }
       let next = applyEvent(state, { type: "CLEAR_PENDING_DECISION", player: actingPlayer });
+      // W7 (C9) — numa continuação (`Mode:`/`Then:`), a retomada do fluxo segue a habilidade de origem
+      const flowTrigger = decision.parentTrigger ?? decision.trigger;
       // a ORDEM do array `resolutions` é a ordem escolhida pelo jogador.
       const commandSources = new Set<string>();
       for (const r of action.resolutions) {
@@ -616,6 +675,14 @@ function applyPlayerActionInner(
         if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
         }
+        // W8 — GD05-124 (FAQ Q419): a Base substitui no máximo UMA das Units do custo
+        if (q.secondaryTarget && secondaryIds.filter((id) => findCard(next, id).def.cardType === "BASE").length > 1) {
+          throw new Error(`Custo inválido pra ${r.specId} — a Base só substitui uma das Units.`);
+        }
+        // W8 — custo "Rest N of your Units": exatamente N, sem repetir
+        if (q.secondaryTarget?.count && r.activate && (secondaryIds.length !== q.secondaryTarget.count || new Set(secondaryIds).size !== secondaryIds.length)) {
+          throw new Error(`Custo inválido pra ${r.specId} — escolha ${q.secondaryTarget.count} Units diferentes.`);
+        }
         if (q.secondaryTarget && secondaryIds.length > 0 && !secondaryIds.every((id) => q.secondaryTarget!.legalTargets.includes(id))) {
           throw new Error(`Alvo secundário inválido pra ${r.specId} — não está entre os alvos legais.`);
         }
@@ -627,7 +694,9 @@ function applyPlayerActionInner(
         // Unit pra mão e nunca devolvendo o shield real. `addShieldToHand` cai
         // no fallback "primeiros N shields" (shield é face-down, a escolha não
         // carrega informação).
-        const targets: Record<string, string[]> = { target: r.targetIds };
+        // W7 (C9) — escolha enum (modo, token, posição) não é alvo em campo: não vira `target` (o modo escolhido
+        // repassaria o valor "1"/"2" como id de carta pro gatilho `Mode:<n>`)
+        const targets: Record<string, string[]> = enumChoice ? {} : { target: r.targetIds };
         if (handChoice) targets.deploy = r.targetIds;
         if (deckReveal) targets.reveal = r.targetIds;
         if (handDiscard) targets.discard = r.targetIds;
@@ -669,7 +738,7 @@ function applyPlayerActionInner(
           continue;
         }
 
-        if (decision.trigger === "Main" || decision.trigger === "Action") commandSources.add(q.sourceInstanceId);
+        if (flowTrigger === "Main" || flowTrigger === "Action") commandSources.add(q.sourceInstanceId);
         next = dispatchTrigger(next, q.sourceInstanceId, decision.trigger, specs.filter((s) => s.id === r.specId), {
           targets,
           predicateResolver,
@@ -683,11 +752,35 @@ function applyPlayerActionInner(
       // resolver. `playCommand` faz isso no fluxo síncrono; aqui é o fluxo
       // pausado.
       for (const srcId of commandSources) {
+        // W7 (C9) — o modo escolhido pausou pra alvo: a Command fica na mão até ele resolver (CR 3-4-4)
+        if (awaitingFollowUpOf(next, srcId)) continue;
         const src = next.players.A.hand.concat(next.players.B.hand).find((c) => c.instanceId === srcId);
         if (src && src.def.cardType === "COMMAND") {
           next = applyEvent(next, { type: "MOVE_CARD", instanceId: srcId, toZone: "trash" });
           next = dispatchCommandActivated(next, srcId, specs, { predicateResolver, targetFilterResolver });
+          // W7 — "After activating this card's 【Main】…" (a Command já está no trash)
+          if (flowTrigger === "Main") next = dispatchAfterMain(next, srcId, specs, { predicateResolver, targetFilterResolver });
         }
+      }
+      // W7 (C9) — a resolução abriu uma continuação ("If you do, choose …", alvo do modo): ela herda a origem e as
+      // filas desta decisão; a retomada do fluxo (Block/Damage Step, filas) espera a continuação resolver
+      const followUp = (["A", "B"] as PlayerId[]).find((p) => {
+        const d = next.pendingDecision[p];
+        return d?.kind === "abilityResolution" && isFollowUpTrigger(d.trigger);
+      });
+      if (followUp) {
+        const d = next.pendingDecision[followUp] as Extract<PendingDecision, { kind: "abilityResolution" }>;
+        return applyEvent(next, {
+          type: "SET_PENDING_DECISION",
+          player: followUp,
+          decision: {
+            ...d,
+            parentTrigger: d.parentTrigger ?? flowTrigger,
+            ...(decision.burstContinuation && !d.burstContinuation ? { burstContinuation: decision.burstContinuation } : {}),
+            queuedTriggers: [...(d.queuedTriggers ?? []), ...(decision.queuedTriggers ?? [])],
+            ...(decision.queuedDestroyed && !d.queuedDestroyed ? { queuedDestroyed: decision.queuedDestroyed } : {}),
+          },
+        });
       }
       // docs/45 — 【Destroyed】 cross-player enfileirado (efeito AoE que matou
       // Units-com-【Destroyed】-que-pausa dos dois lados): agora que a decisão do
@@ -706,8 +799,18 @@ function applyPlayerActionInner(
         next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
         if (next.pendingDecision.A || next.pendingDecision.B) return next;
       }
+      // W8 — continuação de 【Burst】 resolvida: segue a fila de 【Burst】, depois os 【Destroyed】 e o Battle End
+      if (decision.burstContinuation && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
+        const { queuedInstanceIds, pendingDestroyed } = decision.burstContinuation;
+        if (queuedInstanceIds.length > 0) return setPendingBurst(next, actingPlayer, queuedInstanceIds, pendingDestroyed);
+        if (next.combat?.step === "damage") {
+          next = dispatchDestroyedTriggers(next, pendingDestroyed, specs, { predicateResolver, targetFilterResolver });
+          return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
+        }
+        return next;
+      }
       // veio de 【Attack】: o combate estava parado no Attack Step -> segue pro Block Step.
-      if ((decision.trigger === "Attack" || decision.trigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
+      if ((flowTrigger === "Attack" || flowTrigger === "Reaction:attack") && !next.gameOver && next.combat?.step === "attack") {
         return proceedToBlockStep(next);
       }
       // veio de 【Destroyed】 (Char's Zaku Ⅱ, docs/44), 【Deploy】 encadeado por
@@ -718,15 +821,16 @@ function applyPlayerActionInner(
       // esperando esta escolha -> `finishDamageStep` fecha o Battle End Step
       // (ou pausa de novo, se sobrou mais alguma coisa — Burst→Destroyed→
       // CombatTrigger→BattleEnd, mesma ordem de sempre).
-      if (decision.trigger === "Destroyed" || decision.trigger === "Deploy" || decision.trigger === "CombatTrigger") {
+      if (flowTrigger === "Destroyed" || flowTrigger === "Deploy" || flowTrigger === "CombatTrigger") {
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2b — reação de combate: o combate estava parado no Damage Step -> segue a fila/Battle End
-      if (decision.trigger.startsWith("Reaction:") && next.combat?.step === "damage") {
+      // W7 — e gatilho atrasado (`Delayed:`), ex. o 【Destroyed】 concedido pelo GD05-104 numa Unit destruída em batalha
+      if ((flowTrigger.startsWith("Reaction:") || flowTrigger.startsWith("Delayed:")) && next.combat?.step === "damage") {
         return finishDamageStep(next, actingPlayer, specs, predicateResolver, targetFilterResolver);
       }
       // W2a — a decisão veio de uma reação no End Step: retoma o fim de turno
-      if (decision.trigger.startsWith("Reaction:") && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
+      if ((flowTrigger.startsWith("Reaction:") || flowTrigger.startsWith("Delayed:")) && pausedInEndStep(next) && !next.pendingDecision.A && !next.pendingDecision.B && !next.gameOver) {
         return finishEndPhaseAndAdvance(next);
       }
       return next;

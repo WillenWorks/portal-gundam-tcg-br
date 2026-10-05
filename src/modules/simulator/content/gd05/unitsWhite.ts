@@ -46,6 +46,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
+    ],
+    // W8
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Suppression",
+        "boardCondition": { "kind": "enemyRestedUnitInPlay" },
+        "sourceText": "While a rested enemy Unit is in play, this Unit gains <Suppression>."
+      }
     ]
   },
   "GD05-068": {
@@ -69,6 +79,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
+    ],
+    // W7 — "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains <Suppression> during this turn"
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Suppression",
+        "boardCondition": { "kind": "activatedCommandWithTraitThisTurn", "trait": "Special Move" },
+        "sourceText": "When you activate a (Special Move) Command's 【Main】/【Action】, this Unit gains <Suppression> during this turn."
+      }
     ]
   },
   "GD05-069": {
@@ -277,7 +297,9 @@ export const UNITS_WHITE: Record<string, CardDef> = {
       "values": [
         "Duo Maxwell"
       ]
-    }
+    },
+    // W8 — ataca no turno do deploy, só Unit inimiga descansada
+    "attackOnDeployTurnVsRestedUnit": { "sourceText": "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." }
   },
   "GD05-079": {
     "code": "GD05-079",

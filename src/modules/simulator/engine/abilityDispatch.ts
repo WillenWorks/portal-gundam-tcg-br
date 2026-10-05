@@ -14,7 +14,10 @@ import {
   callsNeedChoice,
   callsNeedNamedTarget,
   computeLegalTargets,
+  costRestsSecondaryTarget,
   discardCandidateHandIds,
+  availableModeValues,
+  isFollowUpTrigger,
   matchesCardDefFilter,
   peekAndReorderDeck,
   resolvePlayerRef,
@@ -24,10 +27,10 @@ import {
   specNeedsNamedTarget,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
-import { applyEvents, findCard } from "./events";
+import { applyEvent, applyEvents, findCard } from "./events";
 import { TOKEN_EX_RESOURCE_CODE } from "./setup";
 import type { CardInstance, DestroyedInBattle, GameEvent, GameState, PendingDecision, PlayerId, QueuedTrigger } from "./types";
-import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
+import { effectivePilotDef, hasTrait, isActingAsPilot, otherPlayer, satisfiesLinkCondition, specPairGateOpen } from "./types";
 
 /**
  * Orçamento COMPARTILHADO (mesma referência ao longo de toda a árvore de
@@ -41,6 +44,23 @@ import { effectivePilotDef, isActingAsPilot, otherPlayer, satisfiesLinkCondition
  */
 export interface TriggerQueueBudget {
   count: number;
+}
+
+/** W8 — GD05-124: Bases que podem ser descansadas no lugar de uma Unit no custo "Rest N of your Units" desta fonte */
+export function substituteBasesForRestCost(state: GameState, player: PlayerId, spec: EffectSpec, sourceInstanceId: string): string[] {
+  if (!costRestsSecondaryTarget(spec) || state.activePlayer !== player) return [];
+  const source = findCard(state, sourceInstanceId);
+  return (state.players[player].baseSection ?? [])
+    .filter((b) => !b.rested && !!b.def.restInsteadOfUnitCost && hasTrait(source, b.def.restInsteadOfUnitCost.sourceTrait, state))
+    .map((b) => b.instanceId);
+}
+
+/** W7 (C9) — há continuação pendente (modo escolhido, "If you do …") desta carta: a habilidade ainda não terminou */
+export function awaitingFollowUpOf(state: GameState, sourceInstanceId: string): boolean {
+  return (["A", "B"] as PlayerId[]).some((p) => {
+    const d = state.pendingDecision[p];
+    return d?.kind === "abilityResolution" && isFollowUpTrigger(d.trigger) && d.queue.some((q) => q.sourceInstanceId === sourceInstanceId);
+  });
 }
 
 type AbilityQueueEntry = Extract<PendingDecision, { kind: "abilityResolution" }>["queue"][number];
@@ -59,6 +79,8 @@ function buildQueueEntry(
   targetFilterResolver?: TargetFilterResolver,
   activeCalls?: PrimitiveCall[],
   implicitTargets?: Record<string, string[]>,
+  /** W7 — todos os specs (modos disponíveis do `chooseMode`, FAQ GD05-102/106) */
+  allSpecs?: EffectSpec[],
 ): AbilityQueueEntry {
   const needsTarget = activeCalls ? callsNeedNamedTarget(activeCalls) : specNeedsNamedTarget(spec);
   const entry: AbilityQueueEntry = {
@@ -79,13 +101,17 @@ function buildQueueEntry(
           name: spec.secondaryTarget.name,
           targetScope: spec.secondaryTarget.targetScope,
           sequential: spec.secondaryTarget.sequential,
-          legalTargets: computeLegalTargets(
-            state,
-            { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
-            player,
-            targetFilterResolver,
-            sourceInstanceId,
-          ),
+          ...(spec.secondaryTarget.count ? { count: spec.secondaryTarget.count } : {}),
+          legalTargets: [
+            ...computeLegalTargets(
+              state,
+              { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
+              player,
+              targetFilterResolver,
+              sourceInstanceId,
+            ),
+            ...substituteBasesForRestCost(state, player, spec, sourceInstanceId),
+          ],
         }
       : undefined,
   };
@@ -102,8 +128,10 @@ function buildQueueEntry(
   if (choice.op === "deployFromHandTriggered" || choice.op === "pairFromHandSearch") {
     const chooser = resolvePlayerRef(choice.player, player);
     const wantsPilot = choice.op === "pairFromHandSearch";
+    // W8 — GD05-130: `filter.cardType: "BASE"` deploya Base da mão
+    const wantedType = wantsPilot ? "PILOT" : choice.filter.cardType === "BASE" ? "BASE" : "UNIT";
     const legalHandIds = state.players[chooser].hand
-      .filter((c) => c.def.cardType === (wantsPilot ? "PILOT" : "UNIT") && matchesCardDefFilter(c.def, choice.filter))
+      .filter((c) => c.def.cardType === wantedType && matchesCardDefFilter(c.def, choice.filter))
       .map((c) => c.instanceId);
     return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
   }
@@ -118,7 +146,9 @@ function buildQueueEntry(
   if (choice.op === "discardNamed") {
     // W6 (GD05-111) — o Command em resolução ainda está na mão até o fim do efeito: não descarta a si mesmo
     const resolvingCommand = state.players[player].hand.find((c) => c.instanceId === entry.sourceInstanceId && c.def.cardType === "COMMAND");
-    const rawCandidates = discardCandidateHandIds(spec, state, player, implicitTargets, activeCalls).filter(
+    // W7 (C10) — "They discard 1": a mão é a de quem descarta (oponente do controlador), não a do controlador
+    const discarder = resolvePlayerRef(choice.player, player);
+    const rawCandidates = discardCandidateHandIds(spec, state, discarder, implicitTargets, activeCalls).filter(
       (id) => id !== resolvingCommand?.instanceId,
     );
     // Lote 5 (docs/debates 2026-09-13) — GD01-023 "Discard 1 (Zeon)/(Neo Zeon) Unit card"
@@ -129,6 +159,18 @@ function buildQueueEntry(
       handDiscard: {
         n: choice.n,
         legalHandIds,
+        label: spec.sourceText,
+      },
+    };
+  }
+
+  if (choice.op === "chooseMode") {
+    const available = availableModeValues(state, spec, player, allSpecs ?? [], sourceInstanceId, targetFilterResolver) ?? [];
+    return {
+      ...entry,
+      enumChoice: {
+        key: choice.key,
+        options: choice.options.filter((o) => !allSpecs || available.includes(o.value)).map((o) => ({ value: o.value, label: o.label })),
         label: spec.sourceText,
       },
     };
@@ -164,7 +206,11 @@ function buildQueueEntry(
   if (choice.op === "searchTrashToHand" || choice.op === "pairFromTrashSearch" || choice.op === "deployFromTrashPayingCost") {
     const chooser = resolvePlayerRef(choice.player, player);
     const legalTrashIds = state.players[chooser].trash
-      .filter((c) => (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT") && matchesCardDefFilter(c.def, choice.filter))
+      .filter(
+        (c) =>
+          (choice.op !== "deployFromTrashPayingCost" || c.def.cardType === "UNIT" || (c.def.cardType === "BASE" && choice.filter.cardType === "BASE")) &&
+          matchesCardDefFilter(c.def, choice.filter),
+      )
       .map((c) => c.instanceId);
     return { ...entry, trashSearch: { legalTrashIds, label: spec.sourceText } };
   }
@@ -231,6 +277,8 @@ export function deferOrDispatchAbilities(
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
     queueBudget?: TriggerQueueBudget;
+    /** W7 (C10) — quem toma a decisão (padrão: `player`, o controlador). A fila é montada pelo controlador. */
+    decider?: PlayerId;
   } = {},
 ): GameState {
   const cascadeDepth = opts.cascadeDepth ?? 0;
@@ -277,7 +325,8 @@ export function deferOrDispatchAbilities(
 
   const interactive = activeEntries.filter(
     ({ spec, activeCalls }) =>
-      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls),
+      // W8 — custo "Rest N of your Units" sem alvo próprio (GD05-001) também é escolha do jogador
+      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls) || costRestsSecondaryTarget(spec),
   );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
@@ -311,7 +360,7 @@ export function deferOrDispatchAbilities(
   return applyEvents(next, [
     {
       type: "SET_PENDING_DECISION",
-      player,
+      player: opts.decider ?? player,
       decision: {
         kind: "abilityResolution",
         trigger,
@@ -319,7 +368,7 @@ export function deferOrDispatchAbilities(
         // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
         // `resolveAbility` valida contra isto (nunca confia no cliente).
         queue: interactive.map(({ spec, sourceInstanceId, activeCalls, implicitTargets }) =>
-          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets),
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets, specs),
         ),
       },
     },
@@ -525,7 +574,7 @@ export function drainQueuedTriggers(
   for (let i = 0; i < entries.length; i++) {
     if (next.gameOver) return next;
     const entry = entries[i];
-    next = deferOrDispatchAbilities(next, entry.owner, entry.trigger, entry.sources, specs, opts);
+    next = deferOrDispatchAbilities(next, entry.owner, entry.trigger, entry.sources, specs, { ...opts, decider: entry.decider });
     if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, entries.slice(i + 1));
   }
   return next;
@@ -617,16 +666,38 @@ export function dispatchDestroyedFromEffect(
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
     queueBudget?: TriggerQueueBudget;
+    /**
+     * W7 — o efeito que destruiu (ausente = regra de jogo / custo). `damagedIds`: Units que esse efeito destruiu por
+     * DANO — essas não contam como "destroyed by an effect" (FAQ GD05-054: só "destroy it"; CR 13-2-5-1 separa
+     * "destroyed by damage or an effect").
+     */
+    effectSource?: { controller: PlayerId; sourceId: string; damagedIds?: string[] };
   } = {},
 ): GameState {
-  const destroyed = collectDestroyed(before, after).filter((d) => {
-    const card = findCard(after, d.instanceId);
-    return findTriggerSpecs(specs, card.def.code, "Destroyed").some(
-      (s) => !((s.duringPair ?? false) && !d.wasPaired) && !((s.duringLink ?? false) && !d.wasLinkUnit),
-    );
-  });
+  // W7 — todas as destruídas seguem: além do 【Destroyed】 impresso há o concedido (`Delayed:destroyed`, GD05-104) e as
+  // reações "destroyed by an effect" (GD05-054), que o filtro antigo (só quem tinha 【Destroyed】 impresso) descartava
+  const src = opts.effectSource;
+  const destroyed = collectDestroyed(before, after).map((d) =>
+    src && !(src.damagedIds ?? []).includes(d.instanceId) ? { ...d, byEffect: { controller: src.controller, sourceId: src.sourceId } } : d,
+  );
   if (destroyed.length === 0) return after;
-  return dispatchDestroyedTriggers(after, destroyed, specs, opts);
+  const next = opts.effectSource ? markOwnUnitDestroyedByOwnEffect(before, after, destroyed) : after;
+  return dispatchDestroyedTriggers(next, destroyed, specs, opts);
+}
+
+/** W7 — traits de "destroyed by one of your (X) card's effects" que alguma carta consulta (GD05-053/129) */
+export const TRACKED_DESTROYER_TRAITS: readonly string[] = ["Neo Zeon"];
+
+function markOwnUnitDestroyedByOwnEffect(before: GameState, state: GameState, destroyed: DestroyedInBattle[]): GameState {
+  let next = state;
+  for (const d of destroyed) {
+    if (!d.byEffect || d.byEffect.controller !== d.owner) continue;
+    if (findCard(before, d.instanceId).def.cardType !== "UNIT") continue;
+    const traits = (findCard(before, d.byEffect.sourceId).def.traits ?? []).filter((t) => TRACKED_DESTROYER_TRAITS.includes(t));
+    if (traits.length === 0) continue;
+    next = applyEvent(next, { type: "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT", player: d.owner, traits, turn: next.turnNumber });
+  }
+  return next;
 }
 
 /**
@@ -679,6 +750,9 @@ export function dispatchDestroyedTriggers(
 
   let next = state;
   const interactiveByOwner: Record<PlayerId, AbilitySource[]> = { A: [], B: [] };
+  // W7 (C9) — efeito concedido "■【Destroyed】…" (gatilho atrasado `destroyed`): entra na fila depois dos
+  // 【Destroyed】 impressos e espera se algum deles pausar
+  const delayed = [...delayedDestroyedEntries(state, ordered, specs), ...destroyedByEffectReactionEntries(state, ordered, specs, opts.targetFilterResolver)];
 
   for (const d of ordered) {
     const card = findCard(next, d.instanceId);
@@ -690,9 +764,14 @@ export function dispatchDestroyedTriggers(
     // Lote 5 (docs/debates 2026-09-13) — GD01-005: o Pilot que estava pareado
     // ANTES da destruição vira alvo implícito "formerPairedPilot", disponível
     // pra `moveZone`/`discardNamed` do spec sem escolha do jogador.
-    const implicitTargets: Record<string, string[]> | undefined = d.formerPairedPilotId
-      ? { formerPairedPilot: [d.formerPairedPilotId] }
-      : undefined;
+    const implicitTargets: Record<string, string[]> | undefined =
+      d.formerPairedPilotId || d.byEffect
+        ? {
+            ...(d.formerPairedPilotId ? { formerPairedPilot: [d.formerPairedPilotId] } : {}),
+            // W7 — GD05-053 "If this Unit is destroyed by one of your (Neo Zeon) card's effects"
+            ...(d.byEffect ? { destroyedBy: [d.byEffect.sourceId] } : {}),
+          }
+        : undefined;
 
     const interactive = triggerSpecs.filter(
       (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
@@ -705,7 +784,7 @@ export function dispatchDestroyedTriggers(
         ...dispatchOpts,
         targets: implicitTargets ?? {},
       });
-      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return next; // encadeamento pausou (ou guard estourou)
+      if (next.gameOver || next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, delayed); // encadeamento pausou (ou guard estourou)
     }
     if (interactive.length > 0) {
       interactiveByOwner[d.owner].push({ code: card.def.code, instanceId: d.instanceId, implicitTargets });
@@ -739,7 +818,46 @@ export function dispatchDestroyedTriggers(
       });
     }
   }
-  return next;
+  if (delayed.length === 0 || next.gameOver) return next;
+  if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, delayed);
+  return drainQueuedTriggers(next, delayed, specs, { ...opts, cascadeDepth, queueBudget });
+}
+
+/** W7 — "When one of your Units is destroyed by an effect" (GD05-054): reação `destroyedByEffect`, enfileirada como os atrasados */
+function destroyedByEffectReactionEntries(
+  state: GameState,
+  destroyed: DestroyedInBattle[],
+  specs: EffectSpec[],
+  targetFilterResolver?: TargetFilterResolver,
+): QueuedTrigger[] {
+  if (!specsListenTo(specs, "destroyedByEffect")) return [];
+  const out: QueuedTrigger[] = [];
+  for (const d of destroyed) {
+    if (!d.byEffect || findCard(state, d.instanceId).def.cardType !== "UNIT") continue;
+    const occ: ReactionOccurrence = { event: "destroyedByEffect", subjectId: d.instanceId, owner: d.owner, effectController: d.byEffect.controller };
+    const sources = reactionListeners(state, occ, specs, targetFilterResolver);
+    if (sources.length > 0) out.push({ owner: d.owner, trigger: "Reaction:destroyedByEffect", sources });
+  }
+  return out;
+}
+
+/** W7 (C9) — gatilhos atrasados `destroyed` armados neste turno sobre as Units destruídas agora */
+function delayedDestroyedEntries(state: GameState, destroyed: DestroyedInBattle[], specs: EffectSpec[]): QueuedTrigger[] {
+  const out: QueuedTrigger[] = [];
+  for (const d of destroyed) {
+    for (const entry of state.players[d.owner].delayedReactions ?? []) {
+      if (entry.turn !== state.turnNumber || (entry.subjectId && entry.subjectId !== d.instanceId)) continue;
+      const spec = specs.find((s) => s.id === entry.specId);
+      if (spec?.reaction?.event !== "destroyed") continue;
+      if ((spec.duringLink && !d.wasLinkUnit) || (spec.duringPair && !d.wasPaired)) continue;
+      out.push({
+        owner: d.owner,
+        trigger: "Delayed:destroyed",
+        sources: [{ code: spec.cardCode, instanceId: entry.sourceId, implicitTargets: { reactionSubject: [d.instanceId] } }],
+      });
+    }
+  }
+  return out;
 }
 
 /**
@@ -1006,16 +1124,52 @@ export function unitDeployedEntries(state: GameState, unitId: string, specs: Eff
 }
 
 /**
- * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
- * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
+ * W7 — "After activating this card's 【Main】, you may pair this card from your trash with one of your (MF) Units"
+ * (GD05-112/113/121/122): gatilho `AfterMain` da Command depois que ela resolveu e foi pro trash. Se outra decisão
+ * pausou no caminho, espera na fila dela.
  */
-export function dispatchCommandActivated(
+export function dispatchAfterMain(
   state: GameState,
   commandId: string,
   specs: EffectSpec[],
   opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
 ): GameState {
   if (state.gameOver) return state;
+  const card = findCard(state, commandId);
+  if (card.zone !== "trash" || findTriggerSpecs(specs, card.def.code, "AfterMain").length === 0) return state;
+  const sources = [{ code: card.def.code, instanceId: commandId }];
+  if (state.pendingDecision.A || state.pendingDecision.B) {
+    return attachQueuedTriggers(state, [{ owner: card.owner, trigger: "AfterMain", sources }]);
+  }
+  return deferOrDispatchAbilities(state, card.owner, "AfterMain", sources, specs, opts);
+}
+
+/**
+ * W7 — traits de Command que alguma carta consulta ("When you activate a (Special Move) Command's 【Main】/【Action】").
+ * Só esses são registrados: um evento a cada Command jogada mudaria o log (e o golden) sem ninguém ler.
+ */
+export const TRACKED_COMMAND_TRAITS: readonly string[] = ["Special Move"];
+
+export function markCommandTraitsActivated(state: GameState, commandId: string): GameState {
+  const card = findCard(state, commandId);
+  if (card.def.cardType !== "COMMAND") return state;
+  const traits = (card.def.traits ?? []).filter((t) => TRACKED_COMMAND_TRAITS.includes(t));
+  if (traits.length === 0) return state;
+  return applyEvent(state, { type: "MARK_COMMAND_TRAITS_ACTIVATED", player: card.owner, traits, turn: state.turnNumber });
+}
+
+/**
+ * W5 (C6) — "when you play and activate a Command card": o Command já resolveu e está no trash.
+ * Chamado pelos 2 caminhos de `playCommand` (síncrono e pausado pra escolha).
+ */
+export function dispatchCommandActivated(
+  stateIn: GameState,
+  commandId: string,
+  specs: EffectSpec[],
+  opts: { predicateResolver?: PredicateResolver; targetFilterResolver?: TargetFilterResolver } = {},
+): GameState {
+  if (stateIn.gameOver) return stateIn;
+  const state = markCommandTraitsActivated(stateIn, commandId);
   const card = findCard(state, commandId);
   const occ: ReactionOccurrence = { event: "commandActivated", subjectId: commandId, owner: card.owner };
   // auditoria A8 — a resolução pausou numa cascata (ex. 【Destroyed】 com escolha): a reação espera na fila da decisão
@@ -1087,14 +1241,19 @@ export function runEndOfTurnReactions(
   if (!delayedEnd && !specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
   let next = state;
   const active = state.activePlayer;
+  // W8 — reações com escolha ("you may choose 1 of your … Units", GD05-051): ficam pra uma decisão no fim (o End Step
+  // espera e `resolveAbility` retoma o fim de turno — `pausedInEndStep`)
+  const interactive: QueuedTrigger[] = [];
   for (const owner of [active, otherPlayer(active)]) {
     for (const unit of next.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT")) {
       const occ: ReactionOccurrence = { event: "endOfTurn", subjectId: unit.instanceId, owner };
       for (const src of reactionListeners(next, occ, specs, targetFilterResolver)) {
         const listener = findCard(next, src.instanceId);
-        const auto = findTriggerSpecs(specs, listener.def.code, "Reaction:endOfTurn").filter(
-          (s) => !(s.optional ?? false) && !specNeedsNamedTarget(s) && !specNeedsChoice(s),
-        );
+        const all = findTriggerSpecs(specs, listener.def.code, "Reaction:endOfTurn");
+        const auto = all.filter((s) => !(s.optional ?? false) && !specNeedsNamedTarget(s) && !specNeedsChoice(s));
+        if (auto.length < all.length && !interactive.some((q) => q.sources.some((x) => x.instanceId === src.instanceId))) {
+          interactive.push({ owner, trigger: "Reaction:endOfTurn", sources: [src] });
+        }
         if (auto.length === 0) continue;
         next = dispatchTrigger(next, src.instanceId, "Reaction:endOfTurn", auto, {
           targets: src.implicitTargets,
@@ -1114,5 +1273,7 @@ export function runEndOfTurnReactions(
       if (next.gameOver) return next;
     }
   }
-  return next;
+  if (interactive.length === 0 || next.gameOver) return next;
+  if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, interactive);
+  return drainQueuedTriggers(next, interactive, specs, { predicateResolver, targetFilterResolver });
 }

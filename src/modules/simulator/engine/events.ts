@@ -127,6 +127,11 @@ function removeFromZone(player: PlayerState, instanceId: string): CardInstance |
     const idx = arr.findIndex((c) => c.instanceId === instanceId);
     if (idx !== -1) {
       const [card] = arr.splice(idx, 1);
+      // W8 — GD05-089: a forma de Unit só existe na Battle Area
+      if (zone === "battleArea" && card.unitFormOf) {
+        card.def = card.unitFormOf;
+        card.unitFormOf = undefined;
+      }
       return card;
     }
   }
@@ -173,6 +178,9 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     // W5 — só existe quando há gatilho atrasado armado (não vira chave `undefined` no snapshot)
     ...(player.delayedReactions ? { delayedReactions: player.delayedReactions } : {}),
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
+    ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
+    ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
+    ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: { ...player.ownUnitDestroyedByOwnEffectOnTurn, traits: [...player.ownUnitDestroyedByOwnEffectOnTurn.traits] } } : {}),
   };
 }
 
@@ -418,8 +426,23 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
       findCard(state, event.instanceId).usedKeywordsThisTurn.push(event.keyword);
       return state;
     }
+    case "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT": {
+      const player = state.players[event.player];
+      const prev = player.ownUnitDestroyedByOwnEffectOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.ownUnitDestroyedByOwnEffectOnTurn = { turn: event.turn, traits };
+      return state;
+    }
+    case "MARK_COMMAND_TRAITS_ACTIVATED": {
+      const player = state.players[event.player];
+      const prev = player.commandTraitsActivatedOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.commandTraitsActivatedOnTurn = { turn: event.turn, traits };
+      return state;
+    }
     case "DISCARD_TO_HAND_LIMIT": {
       const player = state.players[event.player];
+      if (event.byEnemyEffectTurn !== undefined && event.instanceIds.length > 0) player.discardedByEnemyEffectOnTurn = event.byEnemyEffectTurn;
       for (const id of event.instanceIds) {
         const card = removeFromZone(player, id);
         if (card) {
@@ -486,6 +509,34 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
           state.combat.actionPriority = state.combat.defendingPlayer;
         }
       }
+      return state;
+    }
+    case "BEGIN_DAMAGE_ONLY_BATTLE": {
+      state.combat = {
+        step: "damage",
+        damageOnly: true,
+        attackerId: event.attackerId,
+        attackingPlayer: event.attackingPlayer,
+        defendingPlayer: event.defendingPlayer,
+        originalTarget: { unitId: event.targetId },
+        currentTarget: { unitId: event.targetId },
+        actionPasses: { A: true, B: true },
+        actionPriority: event.defendingPlayer,
+      };
+      return state;
+    }
+    case "DEPLOY_AS_UNIT": {
+      const owner = findCardOwner(state, event.instanceId);
+      const player = state.players[owner];
+      const card = removeFromZone(player, event.instanceId);
+      if (!card) return state;
+      const original = card.def;
+      card.unitFormOf = original;
+      card.def = { ...original, cardType: "UNIT", ap: event.ap, hp: event.hp, pilotMode: undefined, link: undefined };
+      card.zone = "battleArea";
+      card.rested = false;
+      card.enteredZoneOnTurn = state.turnNumber;
+      player.battleArea.push(card);
       return state;
     }
     case "COMBAT_ENDED": {

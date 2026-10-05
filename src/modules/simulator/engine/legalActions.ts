@@ -1,7 +1,7 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
+import { commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
@@ -128,6 +128,8 @@ function commandPlayCandidates(
   opts: EnumerateOptions,
 ): LegalAction[] {
   const def = card.def;
+  // W7 — FAQ GD05-102/106: sem nenhum modo escolhível, não dá pra jogar
+  if (commandHasNoAvailableMode(state, seat, def.code, card.instanceId, trigger, specs, opts.targetFilterResolver)) return [];
   const specWithSecondary = findTriggerSpecs(specs, def.code, trigger).find((s) => s.secondaryTarget);
   if (specWithSecondary?.secondaryTarget) {
     const primaryIds = computeLegalTargets(state, specWithSecondary, seat, opts.targetFilterResolver, card.instanceId);
@@ -343,8 +345,14 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
           idChoices.push([]);
           for (const id of q.handChoice.legalHandIds) idChoices.push([id]);
         } else if (q.handDiscard) {
-          if (q.handDiscard.legalHandIds.length === 0) idChoices.push([]);
-          for (const id of q.handDiscard.legalHandIds) idChoices.push([id]); // n=1 nas cartas de ST01-04
+          // W8 (achado do fuzz do GD05) — "discard 2" exige exatamente min(n, mão) cartas: antes só saíam escolhas de
+          // 1 carta (todas inválidas) e o "you may" nunca oferecia recusar → decisão sem nenhuma ação legal
+          const legal = q.handDiscard.legalHandIds;
+          const want = Math.min(q.handDiscard.n, legal.length);
+          if (want === 0) idChoices.push([]);
+          else if (want === 1) for (const id of legal) idChoices.push([id]);
+          else for (let i = 0; i + want <= legal.length && i < 6; i++) idChoices.push(legal.slice(i, i + want));
+          if (q.optional && want > 0) idChoices.push([]);
         } else if (q.deckReorder) {
           const ids = q.deckReorder.topCards.map((c) => c.instanceId).slice(0, q.deckReorder.slots.length);
           if (ids.length < 2) idChoices.push(ids);
@@ -359,10 +367,13 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         }
         // docs/47 Fase 5 — ST05-010 Mikazuki Augus: 2º pool de alvo com escopo
         // próprio, combinado (produto) com as escolhas do pool primário acima.
+        // W8 — com `count` (custo "Rest N"), uma escolha gulosa com as N primeiras (mesma postura do `targetCount`)
         const secondaryChoices: string[][] = q.secondaryTarget
-          ? q.secondaryTarget.legalTargets.length > 0
-            ? q.secondaryTarget.legalTargets.map((id) => [id])
-            : [[]]
+          ? q.secondaryTarget.count && q.secondaryTarget.count > 1
+            ? [q.secondaryTarget.legalTargets.slice(0, q.secondaryTarget.count)]
+            : q.secondaryTarget.legalTargets.length > 0
+              ? q.secondaryTarget.legalTargets.map((id) => [id])
+              : [[]]
           : [[]];
         for (const targetIds of idChoices) {
           for (const secondaryTargetIds of secondaryChoices) {
@@ -403,6 +414,7 @@ function combatCandidates(state: GameState, seat: PlayerId, specs: EffectSpec[],
       for (const unit of friendlyUnits(state, seat)) {
         if (unit.rested) continue;
         if (!hasKeyword(unit, "Blocker", state)) continue;
+        if (hasKeyword(unit, "CannotActivateBlocker", state)) continue;
         out.push({ kind: "activateBlocker", blockerId: unit.instanceId });
       }
     }

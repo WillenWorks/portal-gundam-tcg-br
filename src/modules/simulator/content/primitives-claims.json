@@ -181,6 +181,38 @@
     "copyKeywordsFromTrashCard": {
       "description": "A fonte ganha AP+N e as keywords impressas (da lista) de uma Unit escolhida em qualquer trash; valores somam (CR 13-1-2-5).",
       "since": "GD04-067"
+    },
+    "chooseMode": {
+      "description": "\"choose 1 of the following effects\" (■): escolha enum do modo; o modo escolhido roda como gatilho Mode:<valor> da mesma carta, com alvo próprio pedido depois do modo.",
+      "since": "GD05-102"
+    },
+    "placeResourceFromDeck": {
+      "description": "\"Place 1 (rested) Resource\": topo do resource deck para a área de Resource (CR 3-6-1), descansado opcional; resource deck vazio = nada. Não é EX Resource.",
+      "since": "GD01-025"
+    },
+    "thenTrigger": {
+      "description": "\"If you do, choose …\" que depende de uma escolha anterior do mesmo efeito: roda como gatilho Then:<n> da mesma carta, com escolha própria (resolve a limitação E4: descarte + alvo numa fila só). A decisão da continuação guarda a origem (parentTrigger).",
+      "since": "GD05-002"
+    },
+    "destroyFirstShieldAreaCards": {
+      "description": "Destrói as N primeiras cartas da área de escudo do jogador: a Base (se houver) e depois escudos do topo (CR 13-1-2-2). Escudo destruído por efeito oferece o 【Burst】 ao dono (CR 13-2-5-1).",
+      "since": "GD05-107"
+    },
+    "damageFirstShieldAreaCard": {
+      "description": "N de dano na 1ª carta da área de escudo: a Base (dano de efeito, pela camada de dano) ou o escudo do topo (destruído). Sem Base nem escudo, nada.",
+      "since": "GD05-033"
+    },
+    "activateMainOf": {
+      "description": "Roda o 【Main】 de outra carta (Command-Piloto pareada, Command descartada) como continuação, sem pagar custo nem mover a carta; conta como ativar o 【Main】 de uma Command (rulings Q376/Q397).",
+      "since": "GD05-044"
+    },
+    "beginDamageOnlyBattle": {
+      "description": "Começa uma batalha entre a fonte e a Unit inimiga só com o Damage Step (CR 5-22-3; sem 【Attack】 nem \"when a Unit attacks\").",
+      "since": "GD05-017"
+    },
+    "deployAsUnit": {
+      "description": "A carta entra na Battle Area como Unit com AP/HP dados (não é Pilot), mantém Lv./traits; volta à CardDef original ao sair.",
+      "since": "GD05-089"
     }
   },
   "targetRefKinds": {
@@ -561,6 +593,26 @@
     "battleVictimApAtMost:<n>": {
       "description": "A carta em battleVictim (a Unit do evento de batalha) tem N ou menos AP.",
       "since": "GD04-126"
+    },
+    "controllerHandCountAtLeast:<n>": {
+      "description": "O controlador tem N ou mais cartas na mão.",
+      "since": "GD05-002"
+    },
+    "controllerActivatedCommandTraitThisTurn:<value>": {
+      "description": "O controlador ativou neste turno o 【Main】/【Action】 de uma Command com o trait (só traits rastreados em TRACKED_COMMAND_TRAITS).",
+      "since": "GD05-089"
+    },
+    "selfDestroyedByOwnEffectWithTrait:<value>": {
+      "description": "Esta Unit foi destruída por efeito de uma carta do próprio controlador com o trait (alvo implícito destroyedBy).",
+      "since": "GD05-053"
+    },
+    "controllerUnitDestroyedByOwnTraitEffectThisTurn:<value>": {
+      "description": "Neste turno, uma Unit do controlador foi destruída por efeito dele de uma carta com o trait (só traits em TRACKED_DESTROYER_TRAITS).",
+      "since": "GD05-129"
+    },
+    "controllerUnitNameContainsLevelAtLeast:<value>:<n>": {
+      "description": "O controlador tem em jogo uma Unit com o texto no nome e Lv. N ou mais.",
+      "since": "GD05-126"
     }
   },
   "targetFilters": {
@@ -703,6 +755,26 @@
     "nameContains:<value>": {
       "description": "O nome (EN) do candidato contém o trecho.",
       "since": "GD04-021"
+    },
+    "lowestLevel": {
+      "description": "Unit com o menor Lv. impresso entre as Units do lado dela (empate: qualquer uma das menores).",
+      "since": "GD05-002"
+    },
+    "notBattling": {
+      "description": "Unit fora do combate atual (nem a atacante nem a Unit alvo do ataque); sem combate, toda Unit.",
+      "since": "GD05-049"
+    },
+    "not\\(<value>\\)": {
+      "description": "Negação de um filtro: not(<filtro>) — ex. not(hasKeyword:Breach).",
+      "since": "GD05-112"
+    },
+    "pairedUnitLinkWithTrait:<value>": {
+      "description": "O Piloto candidato está pareado com uma Unit do trait e formou Link com ela.",
+      "since": "GD05-127"
+    },
+    "battlingFriendlyLevelAtLeast:<n>": {
+      "description": "Unit inimiga em batalha com uma Unit do controlador de Lv. N ou mais.",
+      "since": "GD05-119"
     }
   }
 }

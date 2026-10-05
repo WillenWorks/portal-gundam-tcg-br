@@ -171,12 +171,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     reason: "efeito contínuo que concede keyword à Unit INIMIGA em batalha ainda não existe — o spec antigo dava First Strike à própria Unit (removido)",
     blockedBy: "engine:attack-rule-extensions (C4)",
   },
-  {
-    cardCode: "GD02-094",
-    clause: "You may discard 1. If you do,",
-    reason: "uma entrada da fila não carrega descarte + revelar do topo juntos (E4) — o olhar/revelar acontece sem o custo de descarte",
-    blockedBy: "engine:multi-choice-queue-entry (E4/W2)",
-  },
   // W0.5 — ordem de efeitos simultâneos (CR 10-1-6). O motor já segue 10-1-6-8 (【Burst】 antes de
   // todos) e 10-1-6-6 (efeitos do jogador ativo antes dos do standby — `dispatchDestroyedTriggers`);
   // efeitos com escolha (alvo, "you may", mão/deck) já vão pra fila em que o jogador escolhe a ordem.
@@ -203,6 +197,14 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
     kind: "approximation",
   },
+  // W7 (C10) — decidido com o usuário em 2026-10-04 (sem Q&A oficial da carta)
+  {
+    cardCode: "GD05-049",
+    clause: "【Attack】You may choose 1 of your Units. Destroy it.",
+    reason: "\"1 of your Units\" não oferece o próprio Sazabi (o texto não exclui; sem ruling, ficou de fora para o 【Attack】 não destruir o atacante)",
+    blockedBy: "engine:ruling-pendente-GD05-049 (aproximação aceita)",
+    kind: "approximation",
+  },
   // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
   {
     cardCode: "*",
@@ -213,12 +215,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     kind: "approximation",
   },
   // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
-  {
-    cardCode: "GD03-064",
-    clause: "【Deploy】You may choose 1 (X-Rounder) card from your trash and add it to your hand. If you do, discard 1.",
-    reason: "\"If you do, discard 1\" depois de uma busca opcional no trash ainda não encadeia — o 【Deploy】 não faz nada",
-    blockedBy: "engine:optional-trash-search-then-discard (C9)",
-  },
   {
     cardCode: "GD03-079",
     clause: "When you rest your Base with one of your Units' effects, you may rest this Unit instead.",
@@ -236,17 +232,5 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
     clause: "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand.",
     reason: "Lv. da Unit destruída do Piloto como limite de alvo (\"equal to or lower than this Unit\") ainda não existe",
     blockedBy: "engine:destroyed-pilot-unit-level-filter (C5)",
-  },
-  {
-    cardCode: "GD03-113",
-    clause: "【Main】/【Action】Choose 1 active friendly Unit. Rest it. If you do, choose 1 enemy Unit whose Lv. is equal to or lower than the Unit rested with this ability. Deal 3 damage to it.",
-    reason: "Lv. da Unit restada pela própria habilidade como limite do 2º alvo ainda não existe",
-    blockedBy: "engine:secondary-target-relative-level (C9)",
-  },
-  {
-    cardCode: "GD03-118",
-    clause: "【Action】Choose 1 rested enemy Unit that is Lv.4 or lower. Return it to its owner's hand. Then, if there are 2 or more cards with \"Awakened Potential\" in their card name in your trash, you may choose 1 friendly Unit. It gains <Blocker> during this turn.",
-    reason: "\"Then, … you may choose 1 friendly Unit\" (2º alvo opcional condicionado) ainda não existe",
-    blockedBy: "engine:optional-conditional-secondary-target (C9)",
   },
 ] as const;

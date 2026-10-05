@@ -2241,7 +2241,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (usesBoardTargetingForSecondary(q)) {
         for (const id of q.secondaryTarget!.legalTargets) {
           const side = sideOfUnit(id);
-          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "secondary", side, max: 1 });
+          if (side) abilityUnitTargetsByInstance.set(id, { specId: q.specId, pool: "secondary", side, max: q.secondaryTarget?.count ?? 1 });
         }
       }
     }
@@ -2372,7 +2372,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             // `AbilityResolutionModal` também lê, igual clicar numa pill lá dentro.
             if (abilityTarget) {
               if (abilityTarget.pool === "secondary") {
-                setAbilitySecondaryTargets((s) => pickSecondaryTarget(s, abilityTarget.specId, u.instanceId));
+                setAbilitySecondaryTargets((s) => pickSecondaryTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
               } else if (abilityTarget.max > 1) {
                 setAbilityTargets((s) => toggleMultiTarget(s, abilityTarget.specId, u.instanceId, abilityTarget.max));
               } else {
