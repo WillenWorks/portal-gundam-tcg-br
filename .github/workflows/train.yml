@@ -1,0 +1,150 @@
+name: Train Bot
+
+# Pipeline de treinamento online do bot (docs/agentes/prompts/A5-treino-bot-llm-zero.md).
+# Roda exclusivamente sob demanda via workflow_dispatch; nunca em PR nem em push automático.
+# Produz artefatos com dataset, modelo/pesos e relatório de avaliação.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rapido:
+        description: "Execução rápida de fumaça (poucas partidas/épocas para validação ágil)"
+        type: boolean
+        default: true
+      games:
+        description: "Partidas por par no dataset (vazio = padrão do perfil)"
+        required: false
+        default: ""
+      epochs:
+        description: "Épocas de treino no fit (vazio = padrão do perfil)"
+        required: false
+        default: ""
+      evalGames:
+        description: "Partidas de avaliação por par (vazio = padrão do perfil)"
+        required: false
+        default: ""
+      decks:
+        description: "Decks específicos separados por vírgula (ex: ST01,ST02; vazio = padrão)"
+        required: false
+        default: ""
+      seed:
+        description: "Seed base para reprodutibilidade"
+        required: false
+        default: "1"
+
+concurrency:
+  group: train-bot-online
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: corepack pnpm exec prisma generate
+
+      - name: Run Training Pipeline (online)
+        id: pipeline
+        run: |
+          ARGS="--perfil=online"
+          if [ "${{ inputs.rapido }}" = "true" ]; then
+            ARGS="$ARGS --rapido"
+          fi
+          if [ -n "${{ inputs.games }}" ]; then
+            ARGS="$ARGS --games=${{ inputs.games }}"
+          fi
+          if [ -n "${{ inputs.epochs }}" ]; then
+            ARGS="$ARGS --epochs=${{ inputs.epochs }}"
+          fi
+          if [ -n "${{ inputs.evalGames }}" ]; then
+            ARGS="$ARGS --evalGames=${{ inputs.evalGames }}"
+          fi
+          if [ -n "${{ inputs.decks }}" ]; then
+            ARGS="$ARGS --decks=${{ inputs.decks }}"
+          fi
+          if [ -n "${{ inputs.seed }}" ]; then
+            ARGS="$ARGS --seed=${{ inputs.seed }}"
+          fi
+          
+          echo "Executando: corepack pnpm train:pipeline $ARGS"
+          corepack pnpm train:pipeline $ARGS
+
+      - name: Upload Training Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-training-report
+          path: |
+            docs/bot/train-*.json
+            docs/bot/latest-train-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Trained Model Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-trained-model
+          path: services/sim-trainer/models/**
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Dataset Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-training-dataset
+          path: services/sim-trainer/data/*.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish Job Summary
+        if: always()
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const reportPath = "docs/bot/latest-train-report.json";
+            if (!fs.existsSync(reportPath)) {
+              console.log("Nenhum relatório encontrado para sumarizar.");
+              process.exit(0);
+            }
+            const r = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const summary = [
+              "## 🤖 Relatório de Treino do Bot Gundam TCG",
+              `- **Perfil:** \`${r.perfil}\` ${r.rapido ? "(modo rápido)" : ""}`,
+              `- **Engine SHA:** \`${r.engineSha}\``,
+              `- **Tempo total:** ${r.totalDurationSeconds}s`,
+              `- **Dataset:** \`${r.dataset?.path ?? "N/A"}\` (${r.dataset?.durationMs ? (r.dataset.durationMs / 1000).toFixed(1) + "s" : ""})`,
+              `- **Modelo:** \`${r.fit?.modelDir ?? "N/A"}\``,
+              `- **Acurácia Policy:** ${r.fit?.policyAccuracy !== null && r.fit?.policyAccuracy !== undefined ? (r.fit.policyAccuracy * 100).toFixed(1) + "%" : "N/A"}`,
+              `- **MAE Valor:** ${r.fit?.valueMae !== null && r.fit?.valueMae !== undefined ? r.fit.valueMae.toFixed(3) : "N/A"}`,
+              "",
+              "### Avaliação contra Baseline",
+              r.evaluation?.vsHeuristic ? `- **vs Heurística:** ${(r.evaluation.vsHeuristic.winrate * 100).toFixed(1)}% Wilson [${(r.evaluation.vsHeuristic.wilson?.low * 100).toFixed(1)}%, ${(r.evaluation.vsHeuristic.wilson?.high * 100).toFixed(1)}%]` : "",
+              r.evaluation?.vsSecond ? `- **vs ${r.evaluation.vsSecond.label}:** ${(r.evaluation.vsSecond.winrate * 100).toFixed(1)}%` : "",
+              "",
+              `### Veredito de Promoção: ${r.evaluation?.approved ? "✅ APROVADO" : "❌ REPROVADO"}`,
+            ].filter(Boolean).join("\n");
+            const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+            if (summaryFile) fs.appendFileSync(summaryFile, summary + "\n");
+            console.log(summary);
+          '
