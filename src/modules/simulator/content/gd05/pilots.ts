@@ -82,7 +82,16 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — aura sobre os tokens (League Militaire)
+    "damageReductions": [
+      {
+        "amount": 1,
+        "kind": "effect",
+        "aura": { "targetCondition": { "kind": "allOf", "conditions": [{ "kind": "isToken" }, { "kind": "traitIs", "trait": "League Militaire" }] } },
+        "sourceText": "When one of your (League Militaire) Unit tokens receives enemy effect damage, reduce it by 1."
+      }
+    ]
   },
   "GD05-085": {
     "code": "GD05-085",

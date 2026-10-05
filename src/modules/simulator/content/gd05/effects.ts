@@ -8,6 +8,7 @@ import { GD05_W7B_EFFECT_SPECS } from "./effectsW7b";
 import { GD05_W7C_EFFECT_SPECS } from "./effectsW7c";
 import { GD05_W7D_EFFECT_SPECS } from "./effectsW7d";
 import { GD05_W8A_EFFECT_SPECS } from "./effectsW8a";
+import { GD05_W8B_EFFECT_SPECS } from "./effectsW8b";
 
 /**
  * Wave GD05 — EffectSpecs. W6-prep: só os textos padrão de 【Burst】 e o 【Deploy】 padrão das Bases;
@@ -43,4 +44,5 @@ export const GD05_EFFECT_SPECS: EffectSpec[] = [
   ...GD05_W7C_EFFECT_SPECS,
   ...GD05_W7D_EFFECT_SPECS,
   ...GD05_W8A_EFFECT_SPECS,
+  ...GD05_W8B_EFFECT_SPECS,
 ];

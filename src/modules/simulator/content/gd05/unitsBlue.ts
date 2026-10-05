@@ -135,6 +135,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     "hp": 6,
     "traits": [
       "Calamity War"
+    ],
+    // W8 — <Repair> = nº de tokens (Calamity War) em jogo
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "keyword": "Repair",
+        "keywordValueFromAmount": true,
+        "amountFrom": { "kind": "friendlyTokensWithTrait", "trait": "Calamity War" },
+        "sourceText": "This Unit gains the same number of <Repair 1> as the number of (Calamity War) Unit tokens you have in play."
+      }
     ]
   },
   "GD05-007": {

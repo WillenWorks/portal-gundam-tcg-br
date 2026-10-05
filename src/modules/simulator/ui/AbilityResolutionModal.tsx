@@ -64,7 +64,10 @@ export function pickSecondaryTarget(
   secondaryTargets: Record<string, string[]>,
   specId: string,
   instanceId: string,
+  /** W8 — custo "Rest N of your Units" (`secondaryTarget.count`): escolhe até N */
+  max = 1,
 ): Record<string, string[]> {
+  if (max > 1) return toggleMultiTarget(secondaryTargets, specId, instanceId, max);
   return { ...secondaryTargets, [specId]: secondaryTargets[specId]?.[0] === instanceId ? [] : [instanceId] };
 }
 
@@ -168,7 +171,7 @@ export function AbilityResolutionModal({
   const pickSingle = (specId: string, instanceId: string) => setTargets((s) => pickSingleTarget(s, specId, instanceId));
 
   const pickSecondary = (specId: string, instanceId: string) =>
-    setSecondaryTargets((s) => pickSecondaryTarget(s, specId, instanceId));
+    setSecondaryTargets((s) => pickSecondaryTarget(s, specId, instanceId, decision.queue.find((q) => q.specId === specId)?.secondaryTarget?.count ?? 1));
 
   const toggleMulti = (specId: string, instanceId: string, max: number) =>
     setTargets((s) => toggleMultiTarget(s, specId, instanceId, max));
@@ -201,7 +204,8 @@ export function AbilityResolutionModal({
       if (chosen.length < Math.min(min, optionsFor(specId).length)) return false;
     }
     if (q.secondaryTarget && q.secondaryTarget.legalTargets.length > 0) {
-      return (secondaryTargets[specId] ?? []).length > 0;
+      // W8 — custo "Rest N": exatamente N
+      return (secondaryTargets[specId] ?? []).length >= (q.secondaryTarget.count ?? 1);
     }
     return true;
   });

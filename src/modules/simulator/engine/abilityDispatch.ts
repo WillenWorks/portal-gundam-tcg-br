@@ -14,6 +14,7 @@ import {
   callsNeedChoice,
   callsNeedNamedTarget,
   computeLegalTargets,
+  costRestsSecondaryTarget,
   discardCandidateHandIds,
   isFollowUpTrigger,
   matchesCardDefFilter,
@@ -88,6 +89,7 @@ function buildQueueEntry(
           name: spec.secondaryTarget.name,
           targetScope: spec.secondaryTarget.targetScope,
           sequential: spec.secondaryTarget.sequential,
+          ...(spec.secondaryTarget.count ? { count: spec.secondaryTarget.count } : {}),
           legalTargets: computeLegalTargets(
             state,
             { targetScope: spec.secondaryTarget.targetScope, targetFilter: spec.secondaryTarget.targetFilter },
@@ -111,8 +113,10 @@ function buildQueueEntry(
   if (choice.op === "deployFromHandTriggered" || choice.op === "pairFromHandSearch") {
     const chooser = resolvePlayerRef(choice.player, player);
     const wantsPilot = choice.op === "pairFromHandSearch";
+    // W8 — GD05-130: `filter.cardType: "BASE"` deploya Base da mão
+    const wantedType = wantsPilot ? "PILOT" : choice.filter.cardType === "BASE" ? "BASE" : "UNIT";
     const legalHandIds = state.players[chooser].hand
-      .filter((c) => c.def.cardType === (wantsPilot ? "PILOT" : "UNIT") && matchesCardDefFilter(c.def, choice.filter))
+      .filter((c) => c.def.cardType === wantedType && matchesCardDefFilter(c.def, choice.filter))
       .map((c) => c.instanceId);
     return { ...entry, handChoice: { legalHandIds, label: spec.sourceText } };
   }
@@ -294,7 +298,8 @@ export function deferOrDispatchAbilities(
 
   const interactive = activeEntries.filter(
     ({ spec, activeCalls }) =>
-      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls),
+      // W8 — custo "Rest N of your Units" sem alvo próprio (GD05-001) também é escolha do jogador
+      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls) || costRestsSecondaryTarget(spec),
   );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
@@ -1202,14 +1207,19 @@ export function runEndOfTurnReactions(
   if (!delayedEnd && !specs.some((s) => s.reaction?.event === "endOfTurn")) return state;
   let next = state;
   const active = state.activePlayer;
+  // W8 — reações com escolha ("you may choose 1 of your … Units", GD05-051): ficam pra uma decisão no fim (o End Step
+  // espera e `resolveAbility` retoma o fim de turno — `pausedInEndStep`)
+  const interactive: QueuedTrigger[] = [];
   for (const owner of [active, otherPlayer(active)]) {
     for (const unit of next.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT")) {
       const occ: ReactionOccurrence = { event: "endOfTurn", subjectId: unit.instanceId, owner };
       for (const src of reactionListeners(next, occ, specs, targetFilterResolver)) {
         const listener = findCard(next, src.instanceId);
-        const auto = findTriggerSpecs(specs, listener.def.code, "Reaction:endOfTurn").filter(
-          (s) => !(s.optional ?? false) && !specNeedsNamedTarget(s) && !specNeedsChoice(s),
-        );
+        const all = findTriggerSpecs(specs, listener.def.code, "Reaction:endOfTurn");
+        const auto = all.filter((s) => !(s.optional ?? false) && !specNeedsNamedTarget(s) && !specNeedsChoice(s));
+        if (auto.length < all.length && !interactive.some((q) => q.sources.some((x) => x.instanceId === src.instanceId))) {
+          interactive.push({ owner, trigger: "Reaction:endOfTurn", sources: [src] });
+        }
         if (auto.length === 0) continue;
         next = dispatchTrigger(next, src.instanceId, "Reaction:endOfTurn", auto, {
           targets: src.implicitTargets,
@@ -1229,5 +1239,7 @@ export function runEndOfTurnReactions(
       if (next.gameOver) return next;
     }
   }
-  return next;
+  if (interactive.length === 0 || next.gameOver) return next;
+  if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, interactive);
+  return drainQueuedTriggers(next, interactive, specs, { predicateResolver, targetFilterResolver });
 }

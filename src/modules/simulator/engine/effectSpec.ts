@@ -622,7 +622,7 @@ export interface CardDefFilter {
 /** W5 — o custo descansa a Unit escolhida no 2º alvo (GD04-006/122/125 "Rest 1 of your … Units:") */
 export function costRestsSecondaryTarget(spec: EffectSpec): boolean {
   const name = spec.secondaryTarget?.name;
-  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && c.target.kind === "named" && c.target.name === name);
+  return !!name && (spec.cost ?? []).some((c) => c.op === "rest" && (c.target.kind === "named" || c.target.kind === "namedGroup") && c.target.name === name);
 }
 
 /** W5 — custo "Rest 1 of your … Units" sem nenhuma Unit elegível */
@@ -635,7 +635,7 @@ export function costTargetShortfall(
 ): boolean {
   if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
   const st = spec.secondaryTarget;
-  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length === 0;
+  return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length < (st.count ?? 1);
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
@@ -1128,10 +1128,18 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       if (!chosen) return [];
       const card = ctx.state.players[player].hand.find((c) => c.instanceId === chosen);
       if (!card) throw new Error(`deployFromHandTriggered: carta "${chosen}" não está na mão de ${player}`);
-      if (card.def.cardType !== "UNIT") throw new Error(`deployFromHandTriggered: "${card.def.code}" não é Unit`);
       if (!matchesCardDefFilter(card.def, call.filter)) {
         throw new Error(`deployFromHandTriggered: "${card.def.code}" não casa o filtro do efeito`);
       }
+      // W8 — GD05-130: Base da mão entra no lugar da atual (token sai do jogo, carta vai pro trash)
+      if (card.def.cardType === "BASE" && call.filter.cardType === "BASE") {
+        const existing = ctx.state.players[player].baseSection[0];
+        const replace: GameEvent[] = existing
+          ? [existing.def.isToken ? { type: "REMOVE_CARD_FROM_GAME", instanceId: existing.instanceId } : { type: "MOVE_CARD", instanceId: existing.instanceId, toZone: "trash" }]
+          : [];
+        return [...replace, { type: "MOVE_CARD", instanceId: chosen, toZone: "baseSection" }];
+      }
+      if (card.def.cardType !== "UNIT") throw new Error(`deployFromHandTriggered: "${card.def.code}" não é Unit`);
       return [{ type: "MOVE_CARD", instanceId: chosen, toZone: "battleArea" }];
     }
     case "deployFromTopFilterReveal": {
@@ -1438,6 +1446,8 @@ export interface EffectSpec {
      * regra do "Choose 1 X and 1 Y" da ST05-010). Quem usa condiciona o efeito do Y a `chosenNonEmpty`.
      */
     sequential?: boolean;
+    /** W8 — GD05-001/038 "Rest 2/3 of your … Units:": quantas Units o 2º alvo exige (padrão 1) */
+    count?: number;
   };
 }
 

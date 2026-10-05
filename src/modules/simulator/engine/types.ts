@@ -220,7 +220,16 @@ export interface CardDef {
    */
   damageReductions?: DamageReduction[];
   /** W5 (C12) — GD04-022 "【During Link】All Units that are Lv.3 or lower other than Unit tokens are deployed rested." (dos 2 lados) */
-  deploysRestedRule?: { maxLevel: number; excludeTokens?: boolean; duringLink?: boolean; sourceText?: string };
+  deploysRestedRule?: {
+    maxLevel: number;
+    excludeTokens?: boolean;
+    duringLink?: boolean;
+    sourceText?: string;
+    /** W8 — GD05-026 "All enemy Units …": só Units do oponente de quem tem a regra */
+    enemyOnly?: boolean;
+    /** W8 — GD05-026 Lv. máximo = nº das suas Units com o texto no nome + esta Unit (substitui `maxLevel`) */
+    maxLevelFromNameCount?: { nameContainsAny: string[]; plusSelf?: boolean };
+  };
   /** W5 (C12) — GD04-033 "【During Link】All your Units gain (Neo Zeon)." (lido por `hasTrait`) */
   grantsTraitToFriendlyUnits?: { trait: string; duringLink?: boolean; sourceText?: string };
   /**
@@ -483,7 +492,13 @@ export interface StaticAbility {
   amountFrom?:
     | { kind: "trashUniqueNames"; cardTypes: CardType[]; trait: string }
     /** W4 — GD04-034 "AP+2 for each of your rested (CB) Units" */
-    | { kind: "friendlyRestedUnitsWithTrait"; trait: string };
+    | { kind: "friendlyRestedUnitsWithTrait"; trait: string }
+    /** W8 — GD05-006 "as the number of (Calamity War) Unit tokens you have in play" */
+    | { kind: "friendlyTokensWithTrait"; trait: string }
+    /** W8 — GD05-051 "by an amount equal to the amount of damage it has received" (a própria fonte) */
+    | { kind: "selfDamage" };
+  /** W8 — valor da keyword concedida pela contagem de `amountFrom` (GD05-006 <Repair> = nº de tokens) */
+  keywordValueFromAmount?: boolean;
 }
 
 /**
@@ -693,6 +708,15 @@ export interface DamageReduction {
   sourceNotToken?: boolean;
   /** GD04-088 "When this Unit is blocked by an enemy Unit that is Lv.N or lower" — só o dano dessa batalha */
   whenBlockedByMaxLevel?: number;
+  /**
+   * W8 — redução de OUTRA carta sobre Units amigas (GD05-084 Piloto: "your (League Militaire) Unit tokens"; GD05-123
+   * Base: "friendly (Orb) Units"). A carta que tem o texto só precisa estar em jogo; `targetCondition` filtra a Unit.
+   */
+  aura?: { targetCondition?: StaticTargetCondition };
+  /** W8 — GD05-123 "can't receive 2 or less … damage": imune quando o dano é ≤ N (acima disso, nada muda) */
+  immuneIfAtMost?: number;
+  /** W8 — GD05-123 "During your opponent's turn" (turno do oponente do dono da Unit) */
+  duringOpponentTurnOnly?: boolean;
   sourceText?: string;
 }
 
@@ -858,7 +882,14 @@ export function entersRestedByRule(state: GameState, unit: CardInstance): boolea
     if (!rule || c.instanceId === unit.instanceId) return false;
     if (rule.duringLink && !isLinkedUnit(state, c)) return false;
     if (rule.excludeTokens && unit.def.isToken) return false;
-    return (unit.def.level ?? 0) <= rule.maxLevel;
+    if (rule.enemyOnly && unit.owner === c.owner) return false;
+    const from = rule.maxLevelFromNameCount;
+    const maxLevel = from
+      ? state.players[c.owner].battleArea.filter(
+          (u) => u.def.cardType === "UNIT" && u.instanceId !== c.instanceId && from.nameContainsAny.some((t) => u.def.nameEn.includes(t)),
+        ).length + (from.plusSelf ? 1 : 0)
+      : rule.maxLevel;
+    return (unit.def.level ?? 0) <= maxLevel;
   });
 }
 
@@ -998,7 +1029,7 @@ export function isBoardConditionMet(
 }
 
 /** Gate de `StaticAbility.targetCondition` (Lote 3) — condição sobre a carta RECEPTORA do bônus (o alvo de `scope`, não a fonte). */
-function isTargetConditionMet(target: CardInstance, state: GameState, cond: StaticTargetCondition): boolean {
+export function isTargetConditionMet(target: CardInstance, state: GameState, cond: StaticTargetCondition): boolean {
   if (cond.kind === "nameContainsAny") return cond.texts.some((t) => target.def.nameEn.includes(t));
   if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
   if (cond.kind === "colorIs") return target.def.color === cond.color;
@@ -1016,7 +1047,11 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
   return source.instanceId === target.instanceId; // "self"
 }
 
-function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>): number {
+function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>, source?: CardInstance): number {
+  if (from.kind === "selfDamage") return source?.damage ?? 0;
+  if (from.kind === "friendlyTokensWithTrait") {
+    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.def.isToken && (c.def.traits ?? []).includes(from.trait)).length;
+  }
   if (from.kind === "friendlyRestedUnitsWithTrait") {
     return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(from.trait)).length;
   }
@@ -1043,7 +1078,7 @@ function computeStaticStatBonus(target: CardInstance, state: GameState, stat: St
       if (ability.excludePairedUnit && source.pairedUnitId === target.instanceId) continue;
       const includesTarget = matchesStaticScope(source, target, ability.scope);
       if (includesTarget && ability.targetCondition && !isTargetConditionMet(target, state, ability.targetCondition)) continue;
-      if (includesTarget) bonus += ability.amountFrom ? ability.amount * staticAmountCount(state, source.owner, ability.amountFrom) : ability.amount;
+      if (includesTarget) bonus += ability.amountFrom ? ability.amount * staticAmountCount(state, source.owner, ability.amountFrom, source) : ability.amount;
     }
   }
   return bonus;
@@ -1255,9 +1290,11 @@ export function keywordValue(card: CardInstance, keyword: string, state?: GameSt
     total += valueOf(tag);
   }
   const staticAbility = state ? findActiveStaticKeywordAbility(card, keyword, state) : undefined;
-  if (staticAbility) {
+  if (staticAbility && state) {
     found = true;
-    total += staticAbility.keywordValue ?? 0;
+    total += staticAbility.keywordValueFromAmount && staticAbility.amountFrom
+      ? staticAmountCount(state, card.owner, staticAbility.amountFrom, card)
+      : (staticAbility.keywordValue ?? 0);
   }
   if (found) return total;
   return hasKeyword(card, keyword, state) ? 0 : null;
@@ -1443,6 +1480,8 @@ export type PendingDecision =
           legalTargets: string[];
           /** ver `EffectSpec.secondaryTarget.sequential` */
           sequential?: boolean;
+          /** W8 — quantas escolher (custo "Rest N of your Units"); padrão 1 */
+          count?: number;
         };
         /**
          * docs/47 Fase 6 — presente só quando esta entrada da fila NÃO vem de um

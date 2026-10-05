@@ -359,10 +359,13 @@ function pendingDecisionCandidates(state: GameState, seat: PlayerId, specs: Effe
         }
         // docs/47 Fase 5 — ST05-010 Mikazuki Augus: 2º pool de alvo com escopo
         // próprio, combinado (produto) com as escolhas do pool primário acima.
+        // W8 — com `count` (custo "Rest N"), uma escolha gulosa com as N primeiras (mesma postura do `targetCount`)
         const secondaryChoices: string[][] = q.secondaryTarget
-          ? q.secondaryTarget.legalTargets.length > 0
-            ? q.secondaryTarget.legalTargets.map((id) => [id])
-            : [[]]
+          ? q.secondaryTarget.count && q.secondaryTarget.count > 1
+            ? [q.secondaryTarget.legalTargets.slice(0, q.secondaryTarget.count)]
+            : q.secondaryTarget.legalTargets.length > 0
+              ? q.secondaryTarget.legalTargets.map((id) => [id])
+              : [[]]
           : [[]];
         for (const targetIds of idChoices) {
           for (const secondaryTargetIds of secondaryChoices) {

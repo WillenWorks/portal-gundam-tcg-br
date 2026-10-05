@@ -19,7 +19,17 @@ export const BASES: Record<string, CardDef> = {
       "Burst",
       "Deploy"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    // W8 — aura: no turno do oponente, (Orb) não recebe dano de efeito inimigo ≤ 2
+    "damageReductions": [
+      {
+        "immuneIfAtMost": 2,
+        "kind": "effect",
+        "duringOpponentTurnOnly": true,
+        "aura": { "targetCondition": { "kind": "traitIs", "trait": "Orb" } },
+        "sourceText": "During your opponent's turn, friendly (Orb) Units can't receive 2 or less enemy effect damage."
+      }
+    ]
   },
   "GD05-124": {
     "code": "GD05-124",

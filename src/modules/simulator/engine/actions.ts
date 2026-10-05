@@ -620,6 +620,10 @@ function applyPlayerActionInner(
         if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
         }
+        // W8 — custo "Rest N of your Units": exatamente N, sem repetir
+        if (q.secondaryTarget?.count && r.activate && (secondaryIds.length !== q.secondaryTarget.count || new Set(secondaryIds).size !== secondaryIds.length)) {
+          throw new Error(`Custo inválido pra ${r.specId} — escolha ${q.secondaryTarget.count} Units diferentes.`);
+        }
         if (q.secondaryTarget && secondaryIds.length > 0 && !secondaryIds.every((id) => q.secondaryTarget!.legalTargets.includes(id))) {
           throw new Error(`Alvo secundário inválido pra ${r.specId} — não está entre os alvos legais.`);
         }

@@ -2,6 +2,7 @@ import { findCard } from "./events";
 import {
   effectivePilotDef,
   isBoardConditionMet,
+  isTargetConditionMet,
   satisfiesLinkCondition,
   type CardInstance,
   type DamageConsumption,
@@ -55,6 +56,8 @@ function isLinked(state: GameState, target: CardInstance): boolean {
 
 function reductionApplies(state: GameState, target: CardInstance, holder: CardInstance, r: DamageReduction, src: DamageSource, marker: string): boolean {
   if (r.kind && r.kind !== src.kind) return false;
+  if (r.duringOpponentTurnOnly && state.activePlayer === target.owner) return false;
+  if (r.aura?.targetCondition && !isTargetConditionMet(target, state, r.aura.targetCondition)) return false;
   if (r.oncePerTurn && holder.usedKeywordsThisTurn.includes(marker)) return false;
   if (r.duringLink && !isLinked(state, target)) return false;
   if (r.boardCondition && !isBoardConditionMet(state, target.owner, r.boardCondition, target.instanceId)) return false;
@@ -80,14 +83,32 @@ export function incomingDamage(state: GameState, target: CardInstance, amount: n
   const holders: CardInstance[] = fromEnemy ? [target] : [];
   if (fromEnemy && target.pairedPilotId) holders.push(findCard(state, target.pairedPilotId));
 
+  // W8 — reduções "aura" de outras cartas amigas em jogo (Piloto/Base/Unit) sobre esta Unit
+  const side = state.players[target.owner];
+  const auraHolders = fromEnemy
+    ? [...side.battleArea, ...(side.baseSection ?? [])].filter((c) => (effectivePilotDef(c).damageReductions ?? []).some((r) => r.aura))
+    : [];
+
+  const applyReduction = (holder: CardInstance, r: DamageReduction, i: number) => {
+    if (remaining <= 0) return;
+    const marker = `damageReduction:${i}`;
+    if (!reductionApplies(state, target, holder, r, src, marker)) return;
+    if (r.immuneIfAtMost !== undefined) {
+      if (remaining <= r.immuneIfAtMost) remaining = 0;
+    } else {
+      remaining = r.immune ? 0 : Math.max(0, remaining - (r.amount ?? 0));
+    }
+    if (r.oncePerTurn) markers.push({ instanceId: holder.instanceId, marker });
+  };
   for (const holder of holders) {
     const reductions = holder === target ? holder.def.damageReductions : effectivePilotDef(holder).damageReductions;
     (reductions ?? []).forEach((r, i) => {
-      if (remaining <= 0) return;
-      const marker = `damageReduction:${i}`;
-      if (!reductionApplies(state, target, holder, r, src, marker)) return;
-      remaining = r.immune ? 0 : Math.max(0, remaining - (r.amount ?? 0));
-      if (r.oncePerTurn) markers.push({ instanceId: holder.instanceId, marker });
+      if (!r.aura) applyReduction(holder, r, i);
+    });
+  }
+  for (const holder of auraHolders) {
+    (effectivePilotDef(holder).damageReductions ?? []).forEach((r, i) => {
+      if (r.aura && target.def.cardType === "UNIT") applyReduction(holder, r, i);
     });
   }
 

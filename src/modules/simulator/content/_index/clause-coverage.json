@@ -13978,15 +13978,15 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 97,
+        "full": 107,
         "partial": 1,
-        "missing": 13,
+        "missing": 3,
         "withErrors": 0
       },
       "cards": [
         {
           "code": "GD05-001",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14003,10 +14003,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-001-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 2 of your Units:Set this Unit as active."
             }
@@ -14107,21 +14106,26 @@
         },
         {
           "code": "GD05-006",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-006-DestroyedUnit",
+                "GD05-006-DestroyedShield"
+              ],
               "text": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, deploy 1 [Pluma]((Calamity War)·AP2·HP1) Unit token."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "This Unit gains the same number of <Repair 1> as the number of (Calamity War) Unit tokens you have in play."
             }
           ]
@@ -14363,7 +14367,7 @@
         },
         {
           "code": "GD05-021",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14371,25 +14375,26 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-021-ActivateAction"
               ],
               "text": "【Activate·Action】【Once per Turn】①:This Unit gets AP+4 during this battle."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "【Once per Turn】When this Unit receives enemy damage, if you have an (Earth Federation) Pilot in play, reduce it by 2."
             }
           ]
         },
         {
           "code": "GD05-022",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14406,10 +14411,9 @@
               "triggers": [
                 "Activate·Action"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Action"
+              "by": "spec",
+              "refs": [
+                "GD05-022-ActivateAction"
               ],
               "text": "【Activate·Action】Exile 2 Command cards in your trash from the game:During this battle, when this Unit receives enemy damage, reduce it by 2."
             }
@@ -14472,14 +14476,16 @@
         },
         {
           "code": "GD05-026",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "deploysRestedRule"
+              ],
               "text": "Count up the number of your Units with \"Gundam Lfrith\"/\"Gundnode\" in their card name, plus this Unit. All enemy Units whose Lv. is equal to or lower than that number are deployed rested."
             }
           ]
@@ -14665,14 +14671,16 @@
         },
         {
           "code": "GD05-038",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Suppression>."
             },
             {
@@ -14680,10 +14688,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-038-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Rest 3 of your (CB) Units:Choose 1 enemy Unit. Deal 4 damage to it."
             }
@@ -14885,21 +14892,25 @@
         },
         {
           "code": "GD05-051",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "Increase this Unit's AP by an amount equal to the amount of damage it has received."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-051-EndOfTurn"
+              ],
               "text": "At the end of your turn, you may choose 1 of your (Tekkadan) Units. Deal 1 damage to it. Set it as active."
             }
           ]
@@ -15508,7 +15519,7 @@
         },
         {
           "code": "GD05-084",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15525,8 +15536,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "When one of your (League Militaire) Unit tokens receives enemy effect damage, reduce it by 1."
             }
           ]
@@ -16562,7 +16575,7 @@
         },
         {
           "code": "GD05-123",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16590,8 +16603,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "damageReductions"
+              ],
               "text": "During your opponent's turn, friendly (Orb) Units can't receive 2 or less enemy effect damage."
             }
           ]
@@ -16832,7 +16847,7 @@
         },
         {
           "code": "GD05-130",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16862,10 +16877,10 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-130-Destroyed",
+                "GD05-130-Then"
               ],
               "text": "【Destroyed】You may exile this card in your trash from the game. If you do, you may deploy 1 Base card with \"Presidential Office\" in its card name from your hand."
             }

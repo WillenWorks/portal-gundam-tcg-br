@@ -68,7 +68,18 @@ export const UNITS_PURPLE: Record<string, CardDef> = {
       "values": [
         "Mikazuki Augus"
       ]
-    }
+    },
+    // W8 — AP + dano recebido
+    "staticAbilities": [
+      {
+        "condition": "always",
+        "scope": "self",
+        "stat": "ap",
+        "amount": 1,
+        "amountFrom": { "kind": "selfDamage" },
+        "sourceText": "Increase this Unit's AP by an amount equal to the amount of damage it has received."
+      }
+    ]
   },
   "GD05-052": {
     "code": "GD05-052",

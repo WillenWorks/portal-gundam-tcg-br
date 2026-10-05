@@ -6764,6 +6764,19 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD05-001-ActivateMain",
+    "cardCode": "GD05-001",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】Rest 2 of your Units：Set this Unit as active."
+  },
+  {
     "id": "GD05-002-Attack",
     "cardCode": "GD05-002",
     "trigger": "Attack",
@@ -6850,6 +6863,30 @@
     "sourceText": "【When Linked】Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
   },
   {
+    "id": "GD05-006-DestroyedShield",
+    "cardCode": "GD05-006",
+    "trigger": "Reaction:destroyedShieldInBattle",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, deploy 1 [Pluma]((Calamity War)･AP2･HP1) Unit token."
+  },
+  {
+    "id": "GD05-006-DestroyedUnit",
+    "cardCode": "GD05-006",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when this Unit destroys an enemy card with battle damage, deploy 1 [Pluma]((Calamity War)･AP2･HP1) Unit token."
+  },
+  {
     "id": "GD05-011-Deploy",
     "cardCode": "GD05-011",
     "trigger": "Deploy",
@@ -6921,6 +6958,32 @@
     "targetFilter": null,
     "predicate": "controllerTrashCardCountWithTraitAtLeast:Londo Bell:2",
     "sourceText": "【Deploy】If there are 2 or more (Londo Bell) cards in your trash, place 1 EX Resource."
+  },
+  {
+    "id": "GD05-021-ActivateAction",
+    "cardCode": "GD05-021",
+    "trigger": "Activate·Action",
+    "ops": [
+      "payResourceCost",
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Action】【Once per Turn】①：This Unit gets AP+4 during this battle."
+  },
+  {
+    "id": "GD05-022-ActivateAction",
+    "cardCode": "GD05-022",
+    "trigger": "Activate·Action",
+    "ops": [
+      "moveZone",
+      "grantDamageModifier"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Action】Exile 2 Command cards in your trash from the game：During this battle, when this Unit receives enemy damage, reduce it by 2."
   },
   {
     "id": "GD05-023-Deploy",
@@ -7119,6 +7182,19 @@
     "sourceText": "【When Paired】You may choose 1 of your other active (MF) Units. Rest it."
   },
   {
+    "id": "GD05-038-ActivateMain",
+    "cardCode": "GD05-038",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】Rest 3 of your (CB) Units：Choose 1 enemy Unit. Deal 4 damage to it."
+  },
+  {
     "id": "GD05-039-Attack",
     "cardCode": "GD05-039",
     "trigger": "Attack",
@@ -7214,6 +7290,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Destroyed】Place the top 2 cards of your deck into your trash."
+  },
+  {
+    "id": "GD05-051-EndOfTurn",
+    "cardCode": "GD05-051",
+    "trigger": "Reaction:endOfTurn",
+    "ops": [
+      "damageUnit",
+      "setActive"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Tekkadan",
+    "predicate": null,
+    "sourceText": "At the end of your turn, you may choose 1 of your (Tekkadan) Units. Deal 1 damage to it. Set it as active."
   },
   {
     "id": "GD05-052-Deploy",
@@ -8717,6 +8806,31 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD05-130-Destroyed",
+    "cardCode": "GD05-130",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Destroyed】You may exile this card in your trash from the game."
+  },
+  {
+    "id": "GD05-130-Then",
+    "cardCode": "GD05-130",
+    "trigger": "Then:1",
+    "ops": [
+      "deployFromHandTriggered"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "If you do, you may deploy 1 Base card with \"Presidential Office\" in its card name from your hand."
   },
   {
     "id": "ST01-002-WhenPaired",
