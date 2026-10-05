@@ -65,7 +65,8 @@ export const META_CORES: MetaCoreFile = ${JSON.stringify(data)};
 
 const FIXTURE = path.join(ROOT, "src/modules/simulator/fixtures/metaCores.ts");
 if (args.check === "true") {
-  const same = fs.existsSync(FIXTURE) && fs.readFileSync(FIXTURE, "utf8") === body;
+  // o checkout no Windows pode trazer CRLF
+  const same = fs.existsSync(FIXTURE) && fs.readFileSync(FIXTURE, "utf8").replace(/\r\n/g, "\n") === body;
   console.log(same ? "[meta-cores] fixture em dia" : "[meta-cores] fixture desatualizada");
   process.exit(same ? 0 : 1);
 }
