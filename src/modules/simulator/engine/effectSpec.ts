@@ -1746,6 +1746,61 @@ export function resolveEffectSpec(spec: EffectSpec, ctx: EffectContext, resolveP
 // re-exportado por conveniência pra quem só quer inspecionar dono/zona de um alvo antes de montar uma primitiva
 export { findCard, findCardOwner };
 
+/**
+ * W7 (C9) — FAQ GD05-102/106: um modo que exige escolher alvo/carta só pode ser escolhido se houver o que escolher.
+ * Devolve os valores de modo disponíveis do `chooseMode` de `spec` (os specs `Mode:<v>` da mesma carta).
+ */
+export function availableModeValues(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  allSpecs: EffectSpec[],
+  sourceInstanceId: string,
+  resolveFilter?: TargetFilterResolver,
+  predicateResolver?: PredicateResolver,
+): string[] | null {
+  const ctx: EffectContext = { state, controller, sourceInstanceId, turnNumber: state.turnNumber, targets: {} };
+  const modeCall = specActiveCalls(spec, ctx, predicateResolver).find(
+    (c): c is Extract<PrimitiveCall, { op: "chooseMode" }> => c.op === "chooseMode",
+  );
+  if (!modeCall) return null;
+  return modeCall.options
+    .filter((o) =>
+      allSpecs
+        .filter((s) => s.cardCode === spec.cardCode && s.trigger === `Mode:${o.value}`)
+        .every((s) => {
+          if (specNeedsNamedTarget(s) && computeLegalTargets(state, s, controller, resolveFilter, sourceInstanceId).length === 0) return false;
+          for (const c of specActiveCalls(s, ctx, predicateResolver)) {
+            if (c.op === "searchTrashToHand") {
+              const p = resolvePlayerRef(c.player, controller);
+              if (!state.players[p].trash.some((t) => matchesCardDefFilter(t.def, c.filter))) return false;
+            }
+          }
+          return true;
+        }),
+    )
+    .map((o) => o.value);
+}
+
+/** W7 — FAQ GD05-102/106: Command de "choose 1 of the following effects" sem nenhum modo escolhível não pode ser jogada */
+export function commandHasNoAvailableMode(
+  state: GameState,
+  controller: PlayerId,
+  cardCode: string,
+  sourceInstanceId: string,
+  trigger: string,
+  allSpecs: EffectSpec[],
+  resolveFilter?: TargetFilterResolver,
+  predicateResolver?: PredicateResolver,
+): boolean {
+  return allSpecs
+    .filter((s) => s.cardCode === cardCode && s.trigger === trigger)
+    .some((s) => {
+      const modes = availableModeValues(state, s, controller, allSpecs, sourceInstanceId, resolveFilter, predicateResolver);
+      return modes !== null && modes.length === 0;
+    });
+}
+
 /** W7 (C9) — gatilho de continuação de um efeito (modo escolhido ou "If you do …"), não um gatilho de regra */
 export function isFollowUpTrigger(trigger: string): boolean {
   return trigger.startsWith("Mode:") || trigger.startsWith("Then:");

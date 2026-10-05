@@ -16,6 +16,7 @@ import {
   computeLegalTargets,
   costRestsSecondaryTarget,
   discardCandidateHandIds,
+  availableModeValues,
   isFollowUpTrigger,
   matchesCardDefFilter,
   peekAndReorderDeck,
@@ -69,6 +70,8 @@ function buildQueueEntry(
   targetFilterResolver?: TargetFilterResolver,
   activeCalls?: PrimitiveCall[],
   implicitTargets?: Record<string, string[]>,
+  /** W7 — todos os specs (modos disponíveis do `chooseMode`, FAQ GD05-102/106) */
+  allSpecs?: EffectSpec[],
 ): AbilityQueueEntry {
   const needsTarget = activeCalls ? callsNeedNamedTarget(activeCalls) : specNeedsNamedTarget(spec);
   const entry: AbilityQueueEntry = {
@@ -149,7 +152,19 @@ function buildQueueEntry(
     };
   }
 
-  if (choice.op === "spawnTokenChoice" || choice.op === "chooseMode") {
+  if (choice.op === "chooseMode") {
+    const available = availableModeValues(state, spec, player, allSpecs ?? [], sourceInstanceId, targetFilterResolver) ?? [];
+    return {
+      ...entry,
+      enumChoice: {
+        key: choice.key,
+        options: choice.options.filter((o) => !allSpecs || available.includes(o.value)).map((o) => ({ value: o.value, label: o.label })),
+        label: spec.sourceText,
+      },
+    };
+  }
+
+  if (choice.op === "spawnTokenChoice") {
     return {
       ...entry,
       enumChoice: {
@@ -341,7 +356,7 @@ export function deferOrDispatchAbilities(
         // deck) calculados UMA VEZ aqui, no servidor — a UI só lista,
         // `resolveAbility` valida contra isto (nunca confia no cliente).
         queue: interactive.map(({ spec, sourceInstanceId, activeCalls, implicitTargets }) =>
-          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets),
+          buildQueueEntry(state, player, spec, sourceInstanceId, opts.targetFilterResolver, activeCalls, implicitTargets, specs),
         ),
       },
     },
@@ -639,13 +654,20 @@ export function dispatchDestroyedFromEffect(
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
     queueBudget?: TriggerQueueBudget;
-    /** W7 — o efeito que destruiu (ausente = regra de jogo / custo, não "destroyed by an effect") */
-    effectSource?: { controller: PlayerId; sourceId: string };
+    /**
+     * W7 — o efeito que destruiu (ausente = regra de jogo / custo). `damagedIds`: Units que esse efeito destruiu por
+     * DANO — essas não contam como "destroyed by an effect" (FAQ GD05-054: só "destroy it"; CR 13-2-5-1 separa
+     * "destroyed by damage or an effect").
+     */
+    effectSource?: { controller: PlayerId; sourceId: string; damagedIds?: string[] };
   } = {},
 ): GameState {
   // W7 — todas as destruídas seguem: além do 【Destroyed】 impresso há o concedido (`Delayed:destroyed`, GD05-104) e as
   // reações "destroyed by an effect" (GD05-054), que o filtro antigo (só quem tinha 【Destroyed】 impresso) descartava
-  const destroyed = collectDestroyed(before, after).map((d) => (opts.effectSource ? { ...d, byEffect: opts.effectSource } : d));
+  const src = opts.effectSource;
+  const destroyed = collectDestroyed(before, after).map((d) =>
+    src && !(src.damagedIds ?? []).includes(d.instanceId) ? { ...d, byEffect: { controller: src.controller, sourceId: src.sourceId } } : d,
+  );
   if (destroyed.length === 0) return after;
   const next = opts.effectSource ? markOwnUnitDestroyedByOwnEffect(before, after, destroyed) : after;
   return dispatchDestroyedTriggers(next, destroyed, specs, opts);

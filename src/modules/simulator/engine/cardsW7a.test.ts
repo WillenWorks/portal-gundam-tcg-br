@@ -79,6 +79,7 @@ const inZone = (state: GameState, player: PlayerId, zone: "battleArea" | "hand" 
 describe("GD05-106 Mutual Attraction — 【Main】 escolha de modo", () => {
   it("o motor pede o modo; ■1 coloca o topo do resource deck descansado e a Command vai pro trash", () => {
     let s = game();
+    placeCard(s, "A", PILOT({ code: "TEST-PILOT-5", level: 5 }), "trash"); // ■2 só é escolhível com Pilot Lv.5+ no trash
     const cmd = placeCard(s, "A", G["GD05-106"], "hand");
     const topResource = s.players.A.resourceDeck[0].instanceId;
     s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main" });
@@ -114,6 +115,7 @@ describe("GD05-106 Mutual Attraction — 【Main】 escolha de modo", () => {
 
   it("o bot enxerga os 2 modos como ações legais da decisão", () => {
     let s = game();
+    placeCard(s, "A", PILOT({ code: "TEST-PILOT-5", level: 5 }), "trash");
     const cmd = placeCard(s, "A", G["GD05-106"], "hand");
     s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main" });
     const modes = enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, { targetFilterResolver: defaultTargetFilterResolver })
@@ -546,5 +548,25 @@ describe("deferidas destravadas pela continuação (E4 / C9): GD02-094, GD03-064
       expect(entry(s, "A", "GD03-118-Then")).toBeUndefined();
       expect(inZone(s, "A", "trash", cmd)).toBe(true);
     });
+  });
+});
+
+describe("FAQ GD05-102/106 — modo sem alvo não pode ser escolhido", () => {
+  it("GD05-106 sem Pilot Lv.5+ no trash: só o ■1 é oferecido", () => {
+    let s = game();
+    placeCard(s, "A", PILOT({ code: "TEST-PILOT-4", level: 4 }), "trash");
+    const cmd = placeCard(s, "A", G["GD05-106"], "hand");
+    s = act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Main" });
+    expect(entry(s, "A", "GD05-106-Main")?.enumChoice?.options.map((o) => o.value)).toEqual(["1"]);
+  });
+
+  it("GD05-102 sem nenhuma Unit em jogo: não pode ser jogada", () => {
+    const s = game();
+    const cmd = placeCard(s, "A", G["GD05-102"], "hand");
+    s.endPhaseAction = { priority: "A", passedBy: [] } as never;
+    expect(enumerateLegalActions(s, "A", ALL_EFFECT_SPECS, { targetFilterResolver: defaultTargetFilterResolver }).some(
+      (a) => a.kind === "playCommand" && a.cardInstanceId === cmd,
+    )).toBe(false);
+    expect(() => act(s, "A", { kind: "playCommand", cardInstanceId: cmd, trigger: "Action" })).toThrow(/nenhum dos efeitos/);
   });
 });

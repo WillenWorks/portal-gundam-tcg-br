@@ -94,12 +94,14 @@ export function incomingDamage(state: GameState, target: CardInstance, amount: n
     const marker = `damageReduction:${i}`;
     if (!reductionApplies(state, target, holder, r, src, marker)) return;
     if (r.immuneIfAtMost !== undefined) {
-      if (remaining <= r.immuneIfAtMost) remaining = 0;
-    } else {
-      remaining = r.immune ? 0 : Math.max(0, remaining - (r.amount ?? 0));
+      // FAQ GD05-123 — vale sobre o dano JÁ reduzido pelos outros efeitos: checado no fim (`atMostChecks`)
+      atMostChecks.push(r.immuneIfAtMost);
+      return;
     }
+    remaining = r.immune ? 0 : Math.max(0, remaining - (r.amount ?? 0));
     if (r.oncePerTurn) markers.push({ instanceId: holder.instanceId, marker });
   };
+  const atMostChecks: number[] = [];
   for (const holder of holders) {
     const reductions = holder === target ? holder.def.damageReductions : effectivePilotDef(holder).damageReductions;
     (reductions ?? []).forEach((r, i) => {
@@ -127,6 +129,7 @@ export function incomingDamage(state: GameState, target: CardInstance, amount: n
     remaining = m.immune ? 0 : Math.max(0, remaining - (m.amount ?? 0));
     if (m.scope === "next") dropNext = true;
   }
+  if (remaining > 0 && atMostChecks.some((n) => remaining <= n)) remaining = 0;
 
   const consume: DamageConsumption | undefined = markers.length || dropNext ? { markers: markers.length ? markers : undefined, dropNext: dropNext || undefined } : undefined;
   return { amount: remaining, consume };

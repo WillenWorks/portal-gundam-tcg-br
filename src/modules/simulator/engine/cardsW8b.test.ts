@@ -246,3 +246,15 @@ describe("GD05-130 Presidential Office", () => {
     expect(hasKeyword(findCard(s, other), "Blocker", s)).toBe(false);
   });
 });
+
+describe("FAQ GD05-123 — dano 3+ reduzido a ≤2 por outro efeito também não é recebido", () => {
+  it("com -1 temporário, 3 vira 2 e a Unit (Orb) fica imune no turno do oponente", () => {
+    const s = game();
+    placeCard(s, "A", G["GD05-123"], "baseSection");
+    const orb = placeCard(s, "A", UNIT({ code: "TEST-ORB", traits: ["Orb"] }), "battleArea");
+    findCard(s, orb).damageModifiers = [{ amount: 1, scope: "turn", turn: s.turnNumber }];
+    s.activePlayer = "B";
+    expect(incomingDamage(s, findCard(s, orb), 3, { kind: "effect", controller: "B", sourceId: "x" }).amount).toBe(0);
+    expect(incomingDamage(s, findCard(s, orb), 4, { kind: "effect", controller: "B", sourceId: "x" }).amount).toBe(3);
+  });
+});

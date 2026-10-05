@@ -2,7 +2,7 @@ import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./t
 import { effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { callsNeedChoice, specActiveCalls } from "./effectSpec";
+import { callsNeedChoice, commandHasNoAvailableMode, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
 import {
   awaitingFollowUpOf,
@@ -364,6 +364,9 @@ export function playCommand(
     throw new Error(`Nível insuficiente pra jogar ${card.def.code}: precisa de ${effectiveLevel(card.def, state, player)} recursos em campo`);
   }
 
+  if (commandHasNoAvailableMode(state, player, card.def.code, cardInstanceId, trigger, specs, options.targetFilterResolver, options.predicateResolver)) {
+    throw new Error(`${card.def.code}: nenhum dos efeitos pode ser escolhido agora (não há alvo para nenhum modo)`);
+  }
   const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);
   // W5 (C6) — "using an EX Resource": o pagamento tirou um EX Resource do jogo. Só emite quando
   // muda algo (sem EX e sem marca antiga = nada), pra não poluir o log de toda Command jogada.
