@@ -108,7 +108,16 @@ export const UNITS_RED: Record<string, CardDef> = {
       "values": [
         "Biological CPU"
       ]
-    }
+    },
+    // W7 — "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
+    "dynamicCost": { "condition": { "kind": "enemyTrashCountAtLeast", "n": 7 }, "amount": -3 },
+    "dynamicLevel": { "condition": { "kind": "enemyTrashCountAtLeast", "n": 7 }, "amount": -3 },
+    "structuredSourceText": {
+      "dynamicCost": "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
+    },
+    "staticAbilities": [
+      { "condition": "duringLink", "scope": "self", "keyword": "Breach", "keywordValue": 3, "sourceText": "【During Link】This Unit gains <Breach 3>." }
+    ]
   },
   "GD05-038": {
     "code": "GD05-038",

@@ -1311,7 +1311,9 @@ export type ReactionEvent =
    * com `subject`): é o "It gains the following effect: ■【Destroyed】…" (GD05-104). `duringLink` do spec vale
    * pelo estado da Unit na destruição (`DestroyedInBattle.wasLinkUnit`).
    */
-  | "destroyed";
+  | "destroyed"
+  /** W7 — "When one of your Units is destroyed by an effect" (GD05-054): a carta do evento é a Unit destruída */
+  | "destroyedByEffect";
 
 export interface ReactionSpec {
   event: ReactionEvent;

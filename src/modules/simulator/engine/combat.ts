@@ -209,6 +209,8 @@ export function activateBlocker(state: GameState, blockerId: string): GameState 
   if (blocker.zone !== "battleArea") throw new Error("Blocker precisa estar na Battle Area");
   if (blocker.rested) throw new Error("Blocker precisa estar active pra ser ativado");
   if (!hasKeyword(blocker, "Blocker", state)) throw new Error("Essa Unit não tem <Blocker>");
+  // W7 — GD05-127 "It can't activate <Blocker> during this turn" (restrição concedida, como `CannotTargetPlayer`)
+  if (hasKeyword(blocker, "CannotActivateBlocker", state)) throw new Error("Essa Unit não pode ativar <Blocker> neste turno");
 
   const events: GameEvent[] = [
     { type: "REST_CARD", instanceId: blockerId },

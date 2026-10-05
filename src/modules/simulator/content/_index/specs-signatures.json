@@ -7217,6 +7217,44 @@
     "sourceText": "If you do, place the top 3 cards of your deck into your trash. Add 1 (Neo Zeon) Unit card you placed from your deck with this effect to your hand."
   },
   {
+    "id": "GD05-053-Destroyed",
+    "cardCode": "GD05-053",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfDestroyedByOwnEffectWithTrait:Neo Zeon",
+    "sourceText": "【Destroyed】If this Unit is destroyed by one of your (Neo Zeon) card's effects, add it from your trash to your hand."
+  },
+  {
+    "id": "GD05-054-Reaction",
+    "cardCode": "GD05-054",
+    "trigger": "Reaction:destroyedByEffect",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When one of your Units is destroyed by an effect, draw 1."
+  },
+  {
+    "id": "GD05-057-ActivateMain",
+    "cardCode": "GD05-057",
+    "trigger": "Activate·Main",
+    "ops": [
+      "destroy",
+      "setActive",
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "notSelf",
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】Choose 1 of your other Units. Destroy it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn."
+  },
+  {
     "id": "GD05-060-Attack",
     "cardCode": "GD05-060",
     "trigger": "Attack",
@@ -8436,6 +8474,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "GD05-127-Reaction",
+    "cardCode": "GD05-127",
+    "trigger": "Reaction:pilotPaired",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When a friendly (Phantom Pain) Unit links, choose 1 enemy Unit. It can't activate <Blocker> during this turn."
+  },
+  {
     "id": "GD05-128-ActivateMain",
     "cardCode": "GD05-128",
     "trigger": "Activate·Main",
@@ -8471,6 +8521,19 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "GD05-129-ActivateMain",
+    "cardCode": "GD05-129",
+    "trigger": "Activate·Main",
+    "ops": [
+      "rest",
+      "deployFromHandTriggered"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerUnitDestroyedByOwnTraitEffectThisTurn:Neo Zeon",
+    "sourceText": "【Activate･Main】Rest this Base：If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn, deploy 1 (Neo Zeon) Unit card that is Lv.3 or lower from your hand."
   },
   {
     "id": "GD05-129-Burst",

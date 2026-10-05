@@ -593,6 +593,14 @@
     "controllerActivatedCommandTraitThisTurn:<value>": {
       "description": "O controlador ativou neste turno o 【Main】/【Action】 de uma Command com o trait (só traits rastreados em TRACKED_COMMAND_TRAITS).",
       "since": "GD05-089"
+    },
+    "selfDestroyedByOwnEffectWithTrait:<value>": {
+      "description": "Esta Unit foi destruída por efeito de uma carta do próprio controlador com o trait (alvo implícito destroyedBy).",
+      "since": "GD05-053"
+    },
+    "controllerUnitDestroyedByOwnTraitEffectThisTurn:<value>": {
+      "description": "Neste turno, uma Unit do controlador foi destruída por efeito dele de uma carta com o trait (só traits em TRACKED_DESTROYER_TRAITS).",
+      "since": "GD05-129"
     }
   },
   "targetFilters": {
@@ -747,6 +755,10 @@
     "not\\(<value>\\)": {
       "description": "Negação de um filtro: not(<filtro>) — ex. not(hasKeyword:Breach).",
       "since": "GD05-112"
+    },
+    "pairedUnitLinkWithTrait:<value>": {
+      "description": "O Piloto candidato está pareado com uma Unit do trait e formou Link com ela.",
+      "since": "GD05-127"
     }
   }
 }

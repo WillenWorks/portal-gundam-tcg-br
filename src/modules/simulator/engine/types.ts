@@ -386,6 +386,8 @@ export type StaticBoardCondition =
   | { kind: "friendlyUnitWithTraitCountAtLeast"; trait: string; cardType?: CardType; n: number }
   /** GD02-053 Gundam X — "while there are 7 or more cards in your trash" (contagem simples, qualquer tipo — versão StaticAbility de `controllerTrashCountAtLeast`). */
   | { kind: "trashCountAtLeast"; n: number }
+  /** W7 — GD05-037/091 "While an enemy player has 7 or more cards in their trash" */
+  | { kind: "enemyTrashCountAtLeast"; n: number }
   /** GD02-072 Hyaku-Shiki — "while a friendly white Base is in play" (versão StaticAbility do predicate `controllerHasBaseColor`). */
   | { kind: "baseColorInPlay"; color: string }
   /** GD02-023/031/124 — "while you are Lv.7 or higher" (nível do jogador = Resources em campo, igual ao predicate `controllerLevelAtLeast`). */
@@ -883,6 +885,9 @@ export function isBoardConditionMet(
       ).length >= cond.n
     );
   }
+  if (cond.kind === "enemyTrashCountAtLeast") {
+    return state.players[otherPlayer(owner)].trash.length >= cond.n;
+  }
   if (cond.kind === "trashCountAtLeast") {
     return state.players[owner].trash.length >= cond.n;
   }
@@ -1265,6 +1270,8 @@ export interface DestroyedInBattle {
   wasPaired: boolean;
   wasLinkUnit?: boolean;
   formerPairedPilotId?: string;
+  /** W7 — destruída por um EFEITO: quem o controlava e a carta de origem ("destroyed by one of your (Neo Zeon) card's effects") */
+  byEffect?: { controller: PlayerId; sourceId: string };
 }
 
 export type PendingDecision =
@@ -1530,6 +1537,8 @@ export interface PlayerState {
   discardedByEnemyEffectOnTurn?: number;
   /** W7 — traits de Command cujo 【Main】/【Action】 este jogador ativou no turno (só `TRACKED_COMMAND_TRAITS`) */
   commandTraitsActivatedOnTurn?: { turn: number; traits: string[] };
+  /** W7 — traits das cartas cujo efeito, controlado por ESTE jogador, destruiu uma Unit dele no turno (só `TRACKED_DESTROYER_TRAITS`) */
+  ownUnitDestroyedByOwnEffectOnTurn?: { turn: number; traits: string[] };
   /**
    * GD04-101 — "During this turn, friendly Units can't be destroyed by enemy effects": turno em que vale.
    * Ruling Q287: protege só de efeitos que DESTROEM ("destroy it"); dano de efeito ainda destrói.
@@ -1642,6 +1651,8 @@ export type GameEvent =
   | { type: "MARK_KEYWORD_USED"; instanceId: string; keyword: string }
   /** W7 — o jogador ativou o 【Main】/【Action】 de uma Command com estes traits (só os rastreados) */
   | { type: "MARK_COMMAND_TRAITS_ACTIVATED"; player: PlayerId; traits: string[]; turn: number }
+  /** W7 — uma Unit do jogador foi destruída por efeito dele de uma carta com estes traits (só os rastreados) */
+  | { type: "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT"; player: PlayerId; traits: string[]; turn: number }
   | {
       type: "DISCARD_TO_HAND_LIMIT";
       player: PlayerId;

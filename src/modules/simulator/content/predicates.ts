@@ -92,6 +92,20 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const id = ctx.targets.battleVictim?.[0];
     return !!id && effectiveAp(findCard(ctx.state, id), ctx.state) <= Number(victimApAtMost[1]);
   }
+  // W7 — GD05-053 "If this Unit is destroyed by one of your (Neo Zeon) card's effects" (alvo implícito `destroyedBy`)
+  const destroyedByOwnTrait = predicate.match(/^selfDestroyedByOwnEffectWithTrait:(.+)$/);
+  if (destroyedByOwnTrait) {
+    const sourceId = ctx.targets.destroyedBy?.[0];
+    if (!sourceId) return false;
+    const source = findCard(ctx.state, sourceId);
+    return source.owner === ctx.controller && (source.def.traits ?? []).includes(destroyedByOwnTrait[1]);
+  }
+  // W7 — GD05-129 "If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn"
+  const ownDestroyedThisTurn = predicate.match(/^controllerUnitDestroyedByOwnTraitEffectThisTurn:(.+)$/);
+  if (ownDestroyedThisTurn) {
+    const mark = ctx.state.players[ctx.controller].ownUnitDestroyedByOwnEffectOnTurn;
+    return !!mark && mark.turn === ctx.state.turnNumber && mark.traits.includes(ownDestroyedThisTurn[1]);
+  }
   // W7 — GD05-089 "If you have activated a (Special Move) Command card's 【Main】/【Action】 during this turn"
   const activatedTrait = predicate.match(/^controllerActivatedCommandTraitThisTurn:(.+)$/);
   if (activatedTrait) {
@@ -702,6 +716,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   // W5 (C6) — GD04-020/085 "a (X) Command card using an EX Resource" (o Command do evento)
   if (filter === "paidWithEx") return candidate.paidWithExOnTurn === ctx.state.turnNumber;
   // W4 — GD04-004 "pair a Pilot with one of your blue Units": o candidato é o Piloto, a cor é da Unit
+  // W7 — GD05-127 "When a friendly (Phantom Pain) Unit links": o Piloto do evento pareou e formou Link com Unit do trait
+  const pairedUnitLinkWithTrait = filter.match(/^pairedUnitLinkWithTrait:(.+)$/);
+  if (pairedUnitLinkWithTrait) {
+    if (!candidate.pairedUnitId) return false;
+    const unit = findCard(ctx.state, candidate.pairedUnitId);
+    return (unit.def.traits ?? []).includes(pairedUnitLinkWithTrait[1]) && isPairedLinkUnit(ctx.state, unit);
+  }
   const pairedUnitColor = filter.match(/^pairedUnitColor:(.+)$/);
   if (pairedUnitColor) {
     return !!candidate.pairedUnitId && findCard(ctx.state, candidate.pairedUnitId).def.color === pairedUnitColor[1];

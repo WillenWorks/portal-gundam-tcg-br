@@ -96,6 +96,7 @@ function redactPlayerState(player: PlayerState, viewer: PlayerId): ViewPlayerSta
     ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
     // W7 — Command ativada é pública
     ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: player.commandTraitsActivatedOnTurn } : {}),
+    ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: player.ownUnitDestroyedByOwnEffectOnTurn } : {}),
   };
 }
 

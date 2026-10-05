@@ -175,6 +175,7 @@ function cloneManualPlayer(player: PlayerState): PlayerState {
     ...(player.indestructibleByEnemyEffectsTurn !== undefined ? { indestructibleByEnemyEffectsTurn: player.indestructibleByEnemyEffectsTurn } : {}),
     ...(player.discardedByEnemyEffectOnTurn !== undefined ? { discardedByEnemyEffectOnTurn: player.discardedByEnemyEffectOnTurn } : {}),
     ...(player.commandTraitsActivatedOnTurn ? { commandTraitsActivatedOnTurn: { ...player.commandTraitsActivatedOnTurn, traits: [...player.commandTraitsActivatedOnTurn.traits] } } : {}),
+    ...(player.ownUnitDestroyedByOwnEffectOnTurn ? { ownUnitDestroyedByOwnEffectOnTurn: { ...player.ownUnitDestroyedByOwnEffectOnTurn, traits: [...player.ownUnitDestroyedByOwnEffectOnTurn.traits] } } : {}),
   };
 }
 
@@ -418,6 +419,13 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
     }
     case "MARK_KEYWORD_USED": {
       findCard(state, event.instanceId).usedKeywordsThisTurn.push(event.keyword);
+      return state;
+    }
+    case "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT": {
+      const player = state.players[event.player];
+      const prev = player.ownUnitDestroyedByOwnEffectOnTurn;
+      const traits = prev && prev.turn === event.turn ? [...new Set([...prev.traits, ...event.traits])] : [...event.traits];
+      player.ownUnitDestroyedByOwnEffectOnTurn = { turn: event.turn, traits };
       return state;
     }
     case "MARK_COMMAND_TRAITS_ACTIVATED": {

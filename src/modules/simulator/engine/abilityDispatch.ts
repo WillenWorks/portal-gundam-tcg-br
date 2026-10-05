@@ -630,16 +630,31 @@ export function dispatchDestroyedFromEffect(
     targetFilterResolver?: TargetFilterResolver;
     cascadeDepth?: number;
     queueBudget?: TriggerQueueBudget;
+    /** W7 — o efeito que destruiu (ausente = regra de jogo / custo, não "destroyed by an effect") */
+    effectSource?: { controller: PlayerId; sourceId: string };
   } = {},
 ): GameState {
-  const destroyed = collectDestroyed(before, after).filter((d) => {
-    const card = findCard(after, d.instanceId);
-    return findTriggerSpecs(specs, card.def.code, "Destroyed").some(
-      (s) => !((s.duringPair ?? false) && !d.wasPaired) && !((s.duringLink ?? false) && !d.wasLinkUnit),
-    );
-  });
+  // W7 — todas as destruídas seguem: além do 【Destroyed】 impresso há o concedido (`Delayed:destroyed`, GD05-104) e as
+  // reações "destroyed by an effect" (GD05-054), que o filtro antigo (só quem tinha 【Destroyed】 impresso) descartava
+  const destroyed = collectDestroyed(before, after).map((d) => (opts.effectSource ? { ...d, byEffect: opts.effectSource } : d));
   if (destroyed.length === 0) return after;
-  return dispatchDestroyedTriggers(after, destroyed, specs, opts);
+  const next = opts.effectSource ? markOwnUnitDestroyedByOwnEffect(before, after, destroyed) : after;
+  return dispatchDestroyedTriggers(next, destroyed, specs, opts);
+}
+
+/** W7 — traits de "destroyed by one of your (X) card's effects" que alguma carta consulta (GD05-053/129) */
+export const TRACKED_DESTROYER_TRAITS: readonly string[] = ["Neo Zeon"];
+
+function markOwnUnitDestroyedByOwnEffect(before: GameState, state: GameState, destroyed: DestroyedInBattle[]): GameState {
+  let next = state;
+  for (const d of destroyed) {
+    if (!d.byEffect || d.byEffect.controller !== d.owner) continue;
+    if (findCard(before, d.instanceId).def.cardType !== "UNIT") continue;
+    const traits = (findCard(before, d.byEffect.sourceId).def.traits ?? []).filter((t) => TRACKED_DESTROYER_TRAITS.includes(t));
+    if (traits.length === 0) continue;
+    next = applyEvent(next, { type: "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT", player: d.owner, traits, turn: next.turnNumber });
+  }
+  return next;
 }
 
 /**
@@ -694,7 +709,7 @@ export function dispatchDestroyedTriggers(
   const interactiveByOwner: Record<PlayerId, AbilitySource[]> = { A: [], B: [] };
   // W7 (C9) — efeito concedido "■【Destroyed】…" (gatilho atrasado `destroyed`): entra na fila depois dos
   // 【Destroyed】 impressos e espera se algum deles pausar
-  const delayed = delayedDestroyedEntries(state, ordered, specs);
+  const delayed = [...delayedDestroyedEntries(state, ordered, specs), ...destroyedByEffectReactionEntries(state, ordered, specs, opts.targetFilterResolver)];
 
   for (const d of ordered) {
     const card = findCard(next, d.instanceId);
@@ -706,9 +721,14 @@ export function dispatchDestroyedTriggers(
     // Lote 5 (docs/debates 2026-09-13) — GD01-005: o Pilot que estava pareado
     // ANTES da destruição vira alvo implícito "formerPairedPilot", disponível
     // pra `moveZone`/`discardNamed` do spec sem escolha do jogador.
-    const implicitTargets: Record<string, string[]> | undefined = d.formerPairedPilotId
-      ? { formerPairedPilot: [d.formerPairedPilotId] }
-      : undefined;
+    const implicitTargets: Record<string, string[]> | undefined =
+      d.formerPairedPilotId || d.byEffect
+        ? {
+            ...(d.formerPairedPilotId ? { formerPairedPilot: [d.formerPairedPilotId] } : {}),
+            // W7 — GD05-053 "If this Unit is destroyed by one of your (Neo Zeon) card's effects"
+            ...(d.byEffect ? { destroyedBy: [d.byEffect.sourceId] } : {}),
+          }
+        : undefined;
 
     const interactive = triggerSpecs.filter(
       (s) => (s.optional ?? false) || specNeedsNamedTarget(s) || specNeedsChoice(s),
@@ -758,6 +778,24 @@ export function dispatchDestroyedTriggers(
   if (delayed.length === 0 || next.gameOver) return next;
   if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, delayed);
   return drainQueuedTriggers(next, delayed, specs, { ...opts, cascadeDepth, queueBudget });
+}
+
+/** W7 — "When one of your Units is destroyed by an effect" (GD05-054): reação `destroyedByEffect`, enfileirada como os atrasados */
+function destroyedByEffectReactionEntries(
+  state: GameState,
+  destroyed: DestroyedInBattle[],
+  specs: EffectSpec[],
+  targetFilterResolver?: TargetFilterResolver,
+): QueuedTrigger[] {
+  if (!specsListenTo(specs, "destroyedByEffect")) return [];
+  const out: QueuedTrigger[] = [];
+  for (const d of destroyed) {
+    if (!d.byEffect || findCard(state, d.instanceId).def.cardType !== "UNIT") continue;
+    const occ: ReactionOccurrence = { event: "destroyedByEffect", subjectId: d.instanceId, owner: d.owner, effectController: d.byEffect.controller };
+    const sources = reactionListeners(state, occ, specs, targetFilterResolver);
+    if (sources.length > 0) out.push({ owner: d.owner, trigger: "Reaction:destroyedByEffect", sources });
+  }
+  return out;
 }
 
 /** W7 (C9) — gatilhos atrasados `destroyed` armados neste turno sobre as Units destruídas agora */

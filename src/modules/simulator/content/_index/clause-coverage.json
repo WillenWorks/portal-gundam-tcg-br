@@ -13978,9 +13978,9 @@
     "GD05": {
       "counts": {
         "vanilla": 19,
-        "full": 74,
+        "full": 81,
         "partial": 1,
-        "missing": 36,
+        "missing": 29,
         "withErrors": 0
       },
       "cards": [
@@ -14633,21 +14633,25 @@
         },
         {
           "code": "GD05-037",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "dynamicCost"
+              ],
               "text": "While an enemy player has 7 or more cards in their trash, this card in your hand gets Lv. -3 and cost -3."
             },
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "【During Link】This Unit gains <Breach 3>."
             }
           ]
@@ -14912,7 +14916,7 @@
         },
         {
           "code": "GD05-053",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14920,10 +14924,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Destroyed"
+              "by": "spec",
+              "refs": [
+                "GD05-053-Destroyed"
               ],
               "text": "【Destroyed】If this Unit is destroyed by one of your (Neo Zeon) card's effects, add it from your trash to your hand."
             }
@@ -14931,7 +14934,7 @@
         },
         {
           "code": "GD05-054",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14946,8 +14949,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-054-Reaction"
+              ],
               "text": "【Once per Turn】When one of your Units is destroyed by an effect, draw 1."
             }
           ]
@@ -14985,7 +14990,7 @@
         },
         {
           "code": "GD05-057",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -14993,10 +14998,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-057-ActivateMain"
               ],
               "text": "【Activate·Main】【Once per Turn】Choose 1 of your other Units. Destroy it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn."
             }
@@ -15678,7 +15682,7 @@
         },
         {
           "code": "GD05-091",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -15695,8 +15699,10 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "structured",
+              "refs": [
+                "staticAbilities"
+              ],
               "text": "While an enemy player has 7 or more cards in their trash, this Unit gets AP+1 and HP+1."
             }
           ]
@@ -16695,7 +16701,7 @@
         },
         {
           "code": "GD05-127",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16723,8 +16729,10 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "missing",
-              "refs": [],
+              "by": "spec",
+              "refs": [
+                "GD05-127-Reaction"
+              ],
               "text": "【Once per Turn】When a friendly (Phantom Pain) Unit links, choose 1 enemy Unit. It can't activate <Blocker> during this turn."
             }
           ]
@@ -16771,7 +16779,7 @@
         },
         {
           "code": "GD05-129",
-          "status": "missing",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -16801,10 +16809,9 @@
               "triggers": [
                 "Activate·Main"
               ],
-              "by": "missing",
-              "refs": [],
-              "missingTriggers": [
-                "Activate·Main"
+              "by": "spec",
+              "refs": [
+                "GD05-129-ActivateMain"
               ],
               "text": "【Activate·Main】Rest this Base:If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn, deploy 1 (Neo Zeon) Unit card that is Lv.3 or lower from your hand."
             }
