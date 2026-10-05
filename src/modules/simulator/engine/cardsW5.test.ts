@@ -657,25 +657,7 @@ describe("W5d — modificadores de regra (C12) e o resto do GD04", () => {
     expect(dmg(s, weak)).toBe(1);
   });
 
-  it("069 【During Link】 (aproximação): pagou ① por efeito de outra Unit (Militia) → no fim do turno, 1 Unit (Militia) descansada fica ativa", () => {
-    let state = game();
-    resources(state, "A", 3);
-    const self = placeCard(state, "A", G["GD04-069"], "battleArea");
-    const link = G["GD04-069"].link;
-    pair(state, self, placeCard(state, "A", link?.kind === "pilotName" ? PILOT({ nameEn: link.values[0] }) : PILOT({ traits: link?.values ?? [] }), "battleArea"));
-    const militia = placeCard(state, "A", UNIT({ code: "TEST-MILITIA", traits: ["Militia"] }), "battleArea", { rested: true });
-    state = dispatchTrigger(
-      state,
-      militia,
-      "Activate·Main",
-      [{ id: "T-pay", cardCode: "TEST-MILITIA", trigger: "Activate·Main", cost: [{ op: "payResourceCost", player: "controller", n: 1 }], actions: [], sourceText: "t" }],
-      { allSpecs: ALL_EFFECT_SPECS, ...OPTS },
-    );
-    state = act(state, "A", { kind: "finishTurn" });
-    if (state.endPhaseAction) state = act(state, state.endPhaseAction.priority, { kind: "passEndPhaseAction" });
-    if (state.endPhaseAction) state = act(state, state.endPhaseAction.priority, { kind: "passEndPhaseAction" });
-    expect(findCard(state, militia).rested).toBe(false);
-  });
+  // 069: o fim do turno agora pausa pra escolha — coberto em cardsW85.test.ts (W8.5)
 });
 
 describe("W5 — fluxo real: efeitos com alvo em campo que não é o `target` da ação pausam pra escolha", () => {

@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "871 specs",
+  "generatedFrom": "894 specs",
   "sets": {
     "ST01": {
       "cards": [
@@ -619,15 +619,13 @@
         {
           "code": "ST06-015",
           "name": "Kaneban Co., Ltd.",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         }
       ],
       "counts": {
-        "impl": 10,
-        "implStar": 1,
+        "impl": 11,
+        "implStar": 0,
         "vanilla": 4,
         "deferida": 0,
         "faltando": 0
@@ -799,10 +797,8 @@
         {
           "code": "ST08-011",
           "name": "Lane Aim",
-          "status": "implementada*",
-          "deferredClauses": [
-            "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "ST08-012",
@@ -830,8 +826,8 @@
         }
       ],
       "counts": {
-        "impl": 11,
-        "implStar": 1,
+        "impl": 12,
+        "implStar": 0,
         "vanilla": 3,
         "deferida": 0,
         "faltando": 0
@@ -904,6 +900,113 @@
         "impl": 8,
         "implStar": 0,
         "vanilla": 2,
+        "deferida": 0,
+        "faltando": 0
+      }
+    },
+    "ST10": {
+      "cards": [
+        {
+          "code": "ST10-001",
+          "name": "Zeta Gundam (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-002",
+          "name": "Zeta Gundam",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-003",
+          "name": "Gundam Mk-II (AEUG)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-004",
+          "name": "Super Gundam",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-005",
+          "name": "Nemo",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-006",
+          "name": "Phoenix Gundam (Power Unleashed) (EX)",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-007",
+          "name": "Gundam Barbatos 4th Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-008",
+          "name": "Gundam Barbatos 1st Form",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-009",
+          "name": "Graze Duel Type",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-010",
+          "name": "Mobile Worker (Tekkadan)",
+          "status": "vanilla",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-011",
+          "name": "Kamille Bidan",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-012",
+          "name": "Mark Guilder",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-013",
+          "name": "Tactical Training",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-014",
+          "name": "Unlocking the Development Diagram",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-015",
+          "name": "Diffuse Beam Cannon",
+          "status": "implementada",
+          "deferredClauses": []
+        },
+        {
+          "code": "ST10-016",
+          "name": "Luna Mana & Carry Base",
+          "status": "implementada",
+          "deferredClauses": []
+        }
+      ],
+      "counts": {
+        "impl": 11,
+        "implStar": 0,
+        "vanilla": 5,
         "deferida": 0,
         "faltando": 0
       }
@@ -2136,10 +2239,8 @@
         {
           "code": "GD02-073",
           "name": "Carta's Graze Ritter (Ground Type)",
-          "status": "deferida",
-          "deferredClauses": [
-            "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD02-074",
@@ -2485,10 +2586,10 @@
         }
       ],
       "counts": {
-        "impl": 103,
+        "impl": 104,
         "implStar": 0,
         "vanilla": 26,
-        "deferida": 1,
+        "deferida": 0,
         "faltando": 0
       }
     },
@@ -2965,10 +3066,8 @@
         {
           "code": "GD03-079",
           "name": "G-Defenser",
-          "status": "deferida",
-          "deferredClauses": [
-            "When you rest your Base with one of your Units' effects, you may rest this Unit instead."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-080",
@@ -3075,10 +3174,8 @@
         {
           "code": "GD03-097",
           "name": "Wistario Afam",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-098",
@@ -3089,10 +3186,8 @@
         {
           "code": "GD03-099",
           "name": "Emma Sheen",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD03-100",
@@ -3294,10 +3389,10 @@
         }
       ],
       "counts": {
-        "impl": 113,
-        "implStar": 2,
+        "impl": 116,
+        "implStar": 0,
         "vanilla": 16,
-        "deferida": 1,
+        "deferida": 0,
         "faltando": 0
       }
     },
@@ -3498,10 +3593,8 @@
         {
           "code": "GD04-033",
           "name": "Neo Zeong",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Link】All your Units gain (Neo Zeon)."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD04-034",
@@ -3716,10 +3809,8 @@
         {
           "code": "GD04-069",
           "name": "∀ Gundam",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD04-070",
@@ -4089,8 +4180,8 @@
         }
       ],
       "counts": {
-        "impl": 110,
-        "implStar": 2,
+        "impl": 112,
+        "implStar": 0,
         "vanilla": 18,
         "deferida": 0,
         "faltando": 0
@@ -4389,10 +4480,8 @@
         {
           "code": "GD05-049",
           "name": "Sazabi",
-          "status": "implementada*",
-          "deferredClauses": [
-            "【Attack】You may choose 1 of your Units. Destroy it."
-          ]
+          "status": "implementada",
+          "deferredClauses": []
         },
         {
           "code": "GD05-050",
@@ -4882,8 +4971,8 @@
         }
       ],
       "counts": {
-        "impl": 110,
-        "implStar": 1,
+        "impl": 111,
+        "implStar": 0,
         "vanilla": 19,
         "deferida": 0,
         "faltando": 0

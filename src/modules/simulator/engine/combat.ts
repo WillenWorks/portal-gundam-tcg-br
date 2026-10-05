@@ -10,6 +10,7 @@ import {
   pairedPilotFollowEvents,
   satisfiesLinkCondition,
   specPairGateOpen,
+  hasTrait,
 } from "./types";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { battleDamageVictim, incomingDamage } from "./damageLayer";
@@ -59,7 +60,7 @@ export function attackIneligibilityReason(state: GameState, attacker: CardInstan
       (c) =>
         c.def.cardType === "UNIT" &&
         c.enteredZoneOnTurn === state.turnNumber &&
-        (c.def.traits ?? []).some((t) => traits.includes(t)),
+        traits.some((t) => hasTrait(c, t, state)),
     );
     if (!deployedThisTurn) return `${attacker.def.code}: esta Unit só pode atacar num turno em que uma Unit (${traits.join("/")}) sua entrou em jogo`;
   }
@@ -323,7 +324,7 @@ export function forcedAttackTargets(state: GameState, defendingPlayer: PlayerId,
         ? [card]
         : rule.scope === "pairedUnit"
           ? (paired ? [paired] : [])
-          : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && (u.def.traits ?? []).includes(rule.trait));
+          : side.battleArea.filter((u) => u.def.cardType === "UNIT" && !!rule.trait && hasTrait(u, rule.trait, state));
     for (const unit of pool) if (unit.def.cardType === "UNIT" && unit.rested) out.add(unit.instanceId);
   }
   // W5 — GD04-107 "all enemy Units must choose that Unit as their attack target" (keyword sintética, este turno)
@@ -397,7 +398,7 @@ function combatTriggerEvents(attacker: CardInstance, state: GameState, on: Comba
       // GD02-093 Olba Frost — "destroys an enemy Unit paired with a (Newtype) Pilot ...".
       if (trigger.requiresEnemyPairedPilotTrait) {
         const enemyPilot = destroyedEnemy?.pairedPilotId ? findCard(state, destroyedEnemy.pairedPilotId) : undefined;
-        if (!enemyPilot || !(enemyPilot.def.traits ?? []).includes(trigger.requiresEnemyPairedPilotTrait)) continue;
+        if (!enemyPilot || !hasTrait(enemyPilot, trigger.requiresEnemyPairedPilotTrait, state)) continue;
       }
       // "【Once per Turn】" — mesmo mecanismo de <Support>/<Repair>, chave sintética por `on`.
       const usageMarker = `combatTrigger:${trigger.on}`;
@@ -477,8 +478,8 @@ function allyCombatTriggerEvents(actor: CardInstance, state: GameState, on: Comb
     for (const def of sources) {
       for (const trigger of def.allyCombatTriggers ?? []) {
         if (trigger.on !== on) continue;
-        if (trigger.requiresActorTrait && !(actor.def.traits ?? []).includes(trigger.requiresActorTrait)) continue;
-        if (trigger.requiresPairedPilotTrait && !(pilot && (pilot.def.traits ?? []).includes(trigger.requiresPairedPilotTrait))) continue;
+        if (trigger.requiresActorTrait && !hasTrait(actor, trigger.requiresActorTrait, state)) continue;
+        if (trigger.requiresPairedPilotTrait && !(pilot && hasTrait(pilot, trigger.requiresPairedPilotTrait, state))) continue;
         const conditionMet =
           trigger.condition === "always"
             ? true
@@ -735,6 +736,11 @@ export function resolveDamageStep(state: GameState): GameState {
     }
     if (destroyed(defenderId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: attacker.instanceId, owner: attacker.owner, victimId: defenderId });
     if (destroyed(attackerVictimId)) reactions.push({ event: "destroyedEnemyInBattle", subjectId: blockerOrTargetId, owner: defenderOwner, victimId: attackerVictimId });
+  }
+  // W8.5 — compra de gatilho de combate (CombatTrigger "draw", <Repair> com compra) é "draw with an effect" (ST08-011)
+  for (const pid of [attacker.owner, combat.defendingPlayer]) {
+    const draw = events.find((e) => e.type === "DRAW_CARD" && e.player === pid && e.from === "deck" && e.instanceId);
+    if (draw && draw.type === "DRAW_CARD" && draw.instanceId) reactions.push({ event: "drewByEffect", subjectId: draw.instanceId, owner: pid });
   }
   if (reactions.length > 0 && next.combat) next.combat.pendingReactions = reactions;
   // docs/47 Fase 6 — sobrevive em `combat` (limpo só em `COMBAT_ENDED`, mesmo

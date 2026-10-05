@@ -135,7 +135,8 @@ describe("W2c — exilar do trash (C3)", () => {
     const offered = () => enumerateLegalActions(state, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "activateAbility");
     expect(offered()).toHaveLength(1);
 
-    const after = act(state, "A", { kind: "activateAbility", sourceInstanceId: self });
+    // W9 — 5 elegíveis pra 3: a ação oferecida já leva a escolha do exílio (sem ela, vira decisão)
+    const after = act(state, "A", offered()[0]);
     expect(keywordValue(findCard(after, self), "Breach", after)).toBe(4);
     expect(exiled(after, "A")).toBe(3);
     expect(enumerateLegalActions(after, "A", ALL_EFFECT_SPECS, OPTS).filter((a) => a.kind === "activateAbility")).toHaveLength(0);

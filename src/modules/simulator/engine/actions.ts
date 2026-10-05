@@ -1,7 +1,7 @@
 import type { AttackTarget, DestroyedInBattle, GameState, PendingCombatTriggerChoice, PendingDecision, PlayerId, QueuedTrigger } from "./types";
 import { isHiddenCard, type ViewGameState } from "./viewState";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice } from "./effectSpec";
+import { costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, isFollowUpTrigger, specNeedsChoice, trashExileChoice } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
 import { canPayLevel, deployCard, playCommand } from "./deploy";
 import { costRestsSelf, specResourceCost } from "./costs";
@@ -80,6 +80,8 @@ export type PlayerAction =
       cardInstanceId: string;
       trigger: "Main" | "Action";
       resourceInstanceIds?: string[];
+      /** W9 — ST10-014: carta da mão descartada pro custo alternativo */
+      altCostDiscardId?: string;
       targets?: Record<string, string[]>;
     }
   | { kind: "declareAttack"; attackerId: string; target: AttackTarget }
@@ -120,7 +122,7 @@ export type PlayerAction =
        * da entrada da fila, se houver (ST05-010 Mikazuki Augus 【When Paired】).
        * Igual a `targetIds`: 0 ou 1 id, virando `ctx.targets[secondaryTarget.name]`.
        */
-      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>;
+      resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[]; trashExileIds?: string[] }>;
     }
   /**
    * Resolve a `PendingDecision.mulligan` de início de partida (Comprehensive
@@ -312,6 +314,7 @@ function applyPlayerActionInner(
     case "playCommand":
       return playCommand(state, actingPlayer, action.cardInstanceId, action.trigger, specs, {
         resourceInstanceIds: action.resourceInstanceIds,
+        altCostDiscardId: action.altCostDiscardId,
         targets: action.targets,
         predicateResolver,
         targetFilterResolver,
@@ -442,7 +445,10 @@ function applyPlayerActionInner(
         // W5 — custo "Rest 1 of your … Units": sem a Unit do custo escolhida, vira decisão (alvo + Unit do custo)
         const costTarget = usable.find(costRestsSecondaryTarget)?.secondaryTarget?.name;
         // auditoria A25 — escolha fora do tabuleiro (trash/deck/mão: GD04-067) também vira decisão quando não veio pronta
-        const choiceMissing = usable.some(specNeedsChoice) && !action.targets;
+        const choiceMissing =
+          (usable.some(specNeedsChoice) && !action.targets) ||
+          // W9 — custo/efeito de exilar do trash com mais elegíveis que o necessário: o jogador escolhe quais
+          (usable.some((s) => trashExileChoice(state, s, actingPlayer)) && !action.targets?.trashExile);
         if ((costTarget && !action.targets?.[costTarget]?.length) || choiceMissing) {
           return deferOrDispatchAbilities(state, actingPlayer, trigger, [{ code: source.def.code, instanceId: action.sourceInstanceId }], specs, {
             predicateResolver,
@@ -675,6 +681,14 @@ function applyPlayerActionInner(
         if (trashSearch && r.targetIds.length > 0 && !r.targetIds.every((id) => trashSearch.legalTrashIds.includes(id))) {
           throw new Error(`Carta inválida pra ${r.specId} — não está entre as cartas elegíveis da lixeira.`);
         }
+        // W9 — cartas do trash a exilar: exatamente N, sem repetir, entre as elegíveis (sem escolha = as N primeiras)
+        const exileIds = r.trashExileIds ?? [];
+        if (q.trashExile && exileIds.length > 0) {
+          const legal = q.trashExile.legalTrashIds;
+          if (exileIds.length !== q.trashExile.count || new Set(exileIds).size !== exileIds.length || !exileIds.every((id) => legal.includes(id))) {
+            throw new Error(`Exílio inválido pra ${r.specId} — escolha ${q.trashExile.count} carta(s) elegíveis do trash.`);
+          }
+        }
         // W8 — GD05-124 (FAQ Q419): a Base substitui no máximo UMA das Units do custo
         if (q.secondaryTarget && secondaryIds.filter((id) => findCard(next, id).def.cardType === "BASE").length > 1) {
           throw new Error(`Custo inválido pra ${r.specId} — a Base só substitui uma das Units.`);
@@ -703,6 +717,7 @@ function applyPlayerActionInner(
         if (deckReorder) deckReorder.slots.forEach((slot, i) => { targets[slot.name] = r.targetIds[i] ? [r.targetIds[i]] : []; });
         if (enumChoice) targets[enumChoice.key] = r.targetIds;
         if (trashSearch) targets.trashSearch = r.targetIds;
+        if (q.trashExile && exileIds.length > 0) targets.trashExile = exileIds;
         if (q.secondaryTarget) targets[q.secondaryTarget.name] = secondaryIds;
         // Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) que o motor já
         // resolveu (ex. `formerPairedPilot`, ver `DestroyedInBattle.formerPairedPilotId`),

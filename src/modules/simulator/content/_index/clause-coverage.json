@@ -1750,8 +1750,8 @@
     "ST06": {
       "counts": {
         "vanilla": 4,
-        "full": 10,
-        "partial": 1,
+        "full": 11,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -2047,7 +2047,7 @@
         },
         {
           "code": "ST06-015",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2075,9 +2075,9 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reactive-trigger-bus (C1)"
+                "ST06-015-UnitLinked"
               ],
               "text": "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
             }
@@ -2406,8 +2406,8 @@
     "ST08": {
       "counts": {
         "vanilla": 3,
-        "full": 11,
-        "partial": 1,
+        "full": 12,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -2576,7 +2576,7 @@
         },
         {
           "code": "ST08-011",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2593,9 +2593,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reactive-trigger-bus (C1)"
+                "ST08-011-DrewByEffect"
               ],
               "text": "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
             }
@@ -2931,6 +2931,338 @@
                 "ST09-010-Deploy"
               ],
               "text": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
+            }
+          ]
+        }
+      ]
+    },
+    "ST10": {
+      "counts": {
+        "vanilla": 5,
+        "full": 11,
+        "partial": 0,
+        "missing": 0,
+        "withErrors": 0
+      },
+      "cards": [
+        {
+          "code": "ST10-001",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST10-001-DestroyedShieldInBattle"
+              ],
+              "text": "When this Unit destroys an enemy shield area card with battle damage, set it as active. It can't choose the same enemy player or enemy team as its attack target during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST10-002",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-002-Deploy",
+                "ST10-002-Then"
+              ],
+              "text": "【Deploy·Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:\n■Choose 1 enemy Unit with 4 or less HP. Rest it."
+            }
+          ]
+        },
+        {
+          "code": "ST10-003",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST10-004",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Repair"
+              ],
+              "text": "<Repair 2>"
+            }
+          ]
+        },
+        {
+          "code": "ST10-005",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": []
+        },
+        {
+          "code": "ST10-006",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "spec",
+              "refs": [
+                "ST10-006-DestroyedEnemyInBattle"
+              ],
+              "text": "【During Pair】During your turn, when this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 3 or less HP. Return it to its owner's hand."
+            }
+          ]
+        },
+        {
+          "code": "ST10-007",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-007-WhenLinked",
+                "ST10-007-Then"
+              ],
+              "text": "【When Linked·Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:\n■Choose 1 Command card that is Lv.4 or lower from your trash. Add it to your hand."
+            }
+          ]
+        },
+        {
+          "code": "ST10-008",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-008-Deploy",
+                "ST10-008-Then"
+              ],
+              "text": "【Deploy·Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:\n■Draw a number of cards equal to the number of enemy players. Then, discard the same number of cards you drew with this effect."
+            }
+          ]
+        },
+        {
+          "code": "ST10-009",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST10-010",
+          "status": "vanilla",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "keyword",
+              "refs": [
+                "Blocker"
+              ],
+              "text": "<Blocker>"
+            }
+          ]
+        },
+        {
+          "code": "ST10-011",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-011-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Linked"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-011-WhenLinked"
+              ],
+              "text": "【When Linked】If 2 or more rested Units are in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Rest it."
+            }
+          ]
+        },
+        {
+          "code": "ST10-012",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-012-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "When Paired"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-012-WhenPaired"
+              ],
+              "text": "【When Paired】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-2 during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST10-013",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-013-Burst"
+              ],
+              "text": "【Burst】Add this card to your hand."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main",
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-013-Main",
+                "ST10-013-Action"
+              ],
+              "text": "【Main】/【Action】Choose 1 (G Generation) Unit that is Lv.5 or higher. It recovers 2 HP and gets AP+2 during this turn."
+            }
+          ]
+        },
+        {
+          "code": "ST10-014",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [],
+              "by": "structured",
+              "refs": [
+                "altPlayByDiscard"
+              ],
+              "text": "When playing this card from your hand, you may discard 1 (G Generation) Unit card. If you do, play this card as if it has 2 Lv. and cost."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Main"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-014-Main"
+              ],
+              "text": "【Main】Draw 2."
+            }
+          ]
+        },
+        {
+          "code": "ST10-015",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Action"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-015-Action"
+              ],
+              "text": "【Action】If a friendly (G Generation) Unit is in play, choose 1 enemy Unit. It gets AP-3 during this battle."
+            },
+            {
+              "i": 1,
+              "triggers": [],
+              "by": "pilotMode",
+              "refs": [
+                "Claire Heathrow"
+              ],
+              "text": "【Pilot】[Claire Heathrow]"
+            }
+          ]
+        },
+        {
+          "code": "ST10-016",
+          "status": "full",
+          "errors": [],
+          "clauses": [
+            {
+              "i": 0,
+              "triggers": [
+                "Burst"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-016-Burst"
+              ],
+              "text": "【Burst】Deploy this card."
+            },
+            {
+              "i": 1,
+              "triggers": [
+                "Deploy"
+              ],
+              "by": "spec",
+              "refs": [
+                "ST10-016-Deploy"
+              ],
+              "text": "【Deploy】Add 1 of your Shields to your hand. Then, all friendly (G Generation) Units recover 1 HP."
             }
           ]
         }
@@ -5563,8 +5895,8 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 103,
-        "partial": 1,
+        "full": 104,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -6719,15 +7051,15 @@
         },
         {
           "code": "GD02-073",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:attack-rule-extensions (C4)"
+                "battleOpponentGainsFirstStrike"
               ],
               "text": "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>."
             }
@@ -8215,8 +8547,8 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 113,
-        "partial": 3,
+        "full": 116,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -9627,15 +9959,15 @@
         },
         {
           "code": "GD03-079",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:replacement-rest-cost (C2)"
+                "restInsteadOfBase"
               ],
               "text": "When you rest your Base with one of your Units'effects, you may rest this Unit instead."
             }
@@ -10076,7 +10408,7 @@
         },
         {
           "code": "GD03-097",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10093,9 +10425,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reaction-deck-look-choose (C9)"
+                "GD03-097-DestroyedEnemyInBattle"
               ],
               "text": "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
             }
@@ -10130,7 +10462,7 @@
         },
         {
           "code": "GD03-099",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10149,9 +10481,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:destroyed-pilot-unit-level-filter (C5)"
+                "GD03-099-Destroyed"
               ],
               "text": "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand."
             }
@@ -11104,8 +11436,8 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 111,
-        "partial": 1,
+        "full": 112,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -11670,7 +12002,7 @@
         },
         {
           "code": "GD04-033",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11685,9 +12017,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "approximated",
+              "by": "structured",
               "refs": [
-                "engine:trait-grant-everywhere (aproximação aceita)"
+                "grantsTraitToFriendlyUnits"
               ],
               "text": "【During Link】All your Units gain (Neo Zeon)."
             }

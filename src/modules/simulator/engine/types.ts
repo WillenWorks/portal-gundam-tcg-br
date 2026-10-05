@@ -210,6 +210,22 @@ export interface CardDef {
    * Base entra no lugar de UMA das Units (FAQ Q419), e só se as N Units existirem (FAQ Q418).
    */
   restInsteadOfUnitCost?: { sourceTrait: string; sourceText?: string };
+  /**
+   * W8.5 — GD03-079 G-Defenser "When you rest your Base with one of your Units' effects, you may rest this Unit instead."
+   * A Unit entra como alvo alternativo das habilidades de Unit que descansam a sua Base (`EffectSpec.baseRestSubstitutable`),
+   * só se houver uma Base que poderia ser descansada (FAQ Q425).
+   */
+  restInsteadOfBase?: { sourceText?: string };
+  /**
+   * W9 — ST10-014 "When playing this card from your hand, you may discard 1 (G Generation) Unit card. If you do, play
+   * this card as if it has 2 Lv. and cost." A carta descartada vem em `playCommand.altCostDiscardId`.
+   */
+  altPlayByDiscard?: { cardType: CardType; trait: string; level: number; cost: number; sourceText?: string };
+  /**
+   * W8.5 — GD02-073 "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>." Vale só
+   * enquanto a Unit inimiga batalha com esta (FAQ Q185: se outra bloqueia, ela perde o <First Strike>).
+   */
+  battleOpponentGainsFirstStrike?: { sourceText?: string };
   /** W8 — GD05-030/048/078 "On the turn this Unit is deployed, it may choose a rested enemy Unit as its attack target and attack it." */
   attackOnDeployTurnVsRestedUnit?: { sourceText?: string };
   /** W2b (C4) — GD03-081: "This Unit can only attack during a turn when one of your (Superpower Bloc)/(UN) Units is deployed." */
@@ -874,8 +890,8 @@ function isLinkedUnit(state: GameState, unit: CardInstance): boolean {
 
 /**
  * W5 (C12) — trait impresso OU concedido por efeito contínuo (GD04-033 "All your Units gain (Neo Zeon)").
- * Lido pelos filtros de alvo `trait:`/`anyTrait:` (e por isso pelos `subjectFilter` de reação); condições
- * de board e custos ainda leem o trait impresso (aproximação registrada em `deferred.ts`).
+ * W8.5 — lido em TODO lugar que pergunta trait de carta (filtros, condições de board, custos, contagens);
+ * fora da área de batalha vale só o impresso (FAQ GD04 Q335).
  */
 export function hasTrait(card: CardInstance, trait: string, state?: GameState): boolean {
   if ((card.def.traits ?? []).includes(trait)) return true;
@@ -936,7 +952,7 @@ export function isBoardConditionMet(
     const ownerState = state.players[owner];
     return (
       ownerState.battleArea.filter(
-        (c) => (cond.cardType ? c.def.cardType === cond.cardType : true) && (c.def.traits ?? []).includes(cond.trait),
+        (c) => (cond.cardType ? c.def.cardType === cond.cardType : true) && hasTrait(c, cond.trait, state),
       ).length >= cond.n
     );
   }
@@ -952,7 +968,7 @@ export function isBoardConditionMet(
   if (cond.kind === "friendlyUnitWithAnyTraitCountAtLeast") {
     return (
       state.players[owner].battleArea.filter(
-        (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => cond.traits.includes(t)),
+        (c) => c.def.cardType === "UNIT" && cond.traits.some((t) => hasTrait(c, t, state)),
       ).length >= cond.n
     );
   }
@@ -961,7 +977,7 @@ export function isBoardConditionMet(
   }
   if (cond.kind === "friendlyBaseInPlay") return (state.players[owner].baseSection ?? []).length > 0;
   if (cond.kind === "friendlyRestedUnitWithTrait") {
-    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(cond.trait));
+    return state.players[owner].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested && hasTrait(c, cond.trait, state));
   }
   if (cond.kind === "selfRested") {
     const self = excludeInstanceId ? findInBattleArea(state, owner, excludeInstanceId) ?? state.players[owner].baseSection?.find((c) => c.instanceId === excludeInstanceId) : undefined;
@@ -972,7 +988,7 @@ export function isBoardConditionMet(
       (c) =>
         c.def.cardType === "PILOT" &&
         !!c.pairedUnitId &&
-        (c.def.traits ?? []).includes(cond.trait) &&
+        hasTrait(c, cond.trait, state) &&
         (cond.color === undefined || c.def.color === cond.color) &&
         (cond.notColor === undefined || c.def.color !== cond.notColor),
     );
@@ -981,7 +997,7 @@ export function isBoardConditionMet(
     return state.players[otherPlayer(owner)].battleArea.some((c) => c.def.cardType === "UNIT" && c.rested);
   }
   if (cond.kind === "trashTraitCountAtLeast") {
-    return state.players[owner].trash.filter((c) => (c.def.traits ?? []).includes(cond.trait)).length >= cond.n;
+    return state.players[owner].trash.filter((c) => hasTrait(c, cond.trait, state)).length >= cond.n;
   }
   if (cond.kind === "battlingEnemyHasTrigger") {
     const combat = state.combat;
@@ -1023,7 +1039,7 @@ export function isBoardConditionMet(
   if (cond.kind === "friendlyOtherLinkUnitTraitCountAtLeast") {
     return (
       otherUnits.filter((c) => {
-        if (!(c.def.traits ?? []).includes(cond.trait) || !c.pairedPilotId) return false;
+        if (!hasTrait(c, cond.trait, state) || !c.pairedPilotId) return false;
         const pilot = ownerState.battleArea.find((p) => p.instanceId === c.pairedPilotId);
         return !!pilot && satisfiesLinkCondition(effectivePilotDef(pilot), c.def);
       }).length >= cond.n
@@ -1034,7 +1050,7 @@ export function isBoardConditionMet(
   }
   // friendlyOtherUnitTraitCountAtLeast
   return (
-    ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(cond.trait))
+    ownerState.battleArea.filter((c) => !excluded.has(c.instanceId) && c.def.cardType === "UNIT" && hasTrait(c, cond.trait, state))
       .length >= cond.n
   );
 }
@@ -1044,7 +1060,7 @@ export function isTargetConditionMet(target: CardInstance, state: GameState, con
   if (cond.kind === "nameContainsAny") return cond.texts.some((t) => target.def.nameEn.includes(t));
   if (cond.kind === "apAtLeast") return effectiveAp(target, state) >= cond.n;
   if (cond.kind === "colorIs") return target.def.color === cond.color;
-  if (cond.kind === "traitIs") return (target.def.traits ?? []).includes(cond.trait);
+  if (cond.kind === "traitIs") return hasTrait(target, cond.trait, state);
   if (cond.kind === "isDamaged") return target.damage > 0;
   if (cond.kind === "remainingHpAtMost") return effectiveHp(target, state) - target.damage <= cond.n;
   if (cond.kind === "isToken") return !!target.def.isToken;
@@ -1061,14 +1077,14 @@ function matchesStaticScope(source: CardInstance, target: CardInstance, scope: S
 function staticAmountCount(state: GameState, owner: PlayerId, from: NonNullable<StaticAbility["amountFrom"]>, source?: CardInstance): number {
   if (from.kind === "selfDamage") return source?.damage ?? 0;
   if (from.kind === "friendlyTokensWithTrait") {
-    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.def.isToken && (c.def.traits ?? []).includes(from.trait)).length;
+    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.def.isToken && hasTrait(c, from.trait, state)).length;
   }
   if (from.kind === "friendlyRestedUnitsWithTrait") {
-    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(from.trait)).length;
+    return state.players[owner].battleArea.filter((c) => c.def.cardType === "UNIT" && c.rested && hasTrait(c, from.trait, state)).length;
   }
   const names = new Set(
     state.players[owner].trash
-      .filter((c) => from.cardTypes.includes(c.def.cardType) && (c.def.traits ?? []).includes(from.trait))
+      .filter((c) => from.cardTypes.includes(c.def.cardType) && hasTrait(c, from.trait, state))
       .map((c) => c.def.nameEn),
   );
   return names.size;
@@ -1181,7 +1197,7 @@ export function effectiveCost(def: CardDef, state?: GameState, controller?: Play
     const count = state.players[controller].trash.filter(
       (c) =>
         (perTrash.cardType === undefined || c.def.cardType === perTrash.cardType) &&
-        (perTrash.anyTrait === undefined || (c.def.traits ?? []).some((t) => perTrash.anyTrait?.includes(t))),
+        (perTrash.anyTrait === undefined || perTrash.anyTrait?.some((t) => hasTrait(c, t, state))),
     ).length;
     return Math.max(0, base + def.dynamicCost.amount * count);
   }
@@ -1268,7 +1284,19 @@ export function hasKeyword(card: CardInstance, keyword: string, state?: GameStat
   // auditoria A27 — concessão com valor ("Breach 3") também é <Breach>
   const fromGrant = card.keywordGrants.some((g) => keywordNameMatches(g.keyword, keyword));
   const fromStatic = state ? findActiveStaticKeywordAbility(card, keyword, state) !== undefined : false;
-  return fromDef || fromGrant || fromStatic;
+  const fromBattleOpponent = keyword === "First Strike" && !!state && battleOpponentGrantsFirstStrike(card, state);
+  return fromDef || fromGrant || fromStatic || fromBattleOpponent;
+}
+
+/** W8.5 — GD02-073: a Unit que batalha com esta, no turno do dono desta, ganha <First Strike> (FAQ Q185) */
+function battleOpponentGrantsFirstStrike(card: CardInstance, state: GameState): boolean {
+  const combat = state.combat;
+  if (!combat || combat.currentTarget === "player") return false;
+  const targetId = combat.currentTarget.unitId;
+  const opponentId = combat.attackerId === card.instanceId ? targetId : targetId === card.instanceId ? combat.attackerId : null;
+  if (!opponentId) return false;
+  const opponent = [...state.players.A.battleArea, ...state.players.B.battleArea].find((c) => c.instanceId === opponentId);
+  return !!opponent?.def.battleOpponentGainsFirstStrike && opponent.owner !== card.owner && state.activePlayer !== opponent.owner;
 }
 
 /**
@@ -1348,6 +1376,8 @@ export interface DestroyedInBattle {
   wasPaired: boolean;
   wasLinkUnit?: boolean;
   formerPairedPilotId?: string;
+  /** W8.5 — Piloto destruído junto com a Unit: a Unit com que estava pareado ("this Unit" do texto do Piloto, GD03-099) */
+  formerPairedUnitId?: string;
   /** W7 — destruída por um EFEITO: quem o controlava e a carta de origem ("destroyed by one of your (Neo Zeon) card's effects") */
   byEffect?: { controller: PlayerId; sourceId: string };
 }
@@ -1469,6 +1499,11 @@ export type PendingDecision =
          */
         trashSearch?: { legalTrashIds: string[]; label: string };
         /**
+         * W9 — "exile N … cards from your trash" com mais de N elegíveis: o jogador escolhe EXATAMENTE `count`
+         * (`resolution.trashExileIds` → `ctx.targets.trashExile`). Sem escolha (bot), vale as N primeiras.
+         */
+        trashExile?: { legalTrashIds: string[]; count: number; label: string };
+        /**
          * Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) IMPLÍCITO(S), calculados
          * pelo motor (não escolhidos pelo jogador), ex. `{ formerPairedPilot: [instanceId] }`
          * — o Pilot que estava pareado com a Unit destruída ANTES do `DESTROY_CARD`
@@ -1552,7 +1587,7 @@ export type PendingDecision =
 
 /** W2b — ocorrência de reação de combate (ver `ReactionEvent` em effectSpec.ts) */
 export interface PendingCombatReaction {
-  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy";
+  event: "battleDamageToEnemyUnit" | "destroyedEnemyInBattle" | "destroyedShieldInBattle" | "damagedByEnemy" | "drewByEffect";
   /** a Unit que causou o dano / destruiu */
   subjectId: string;
   owner: PlayerId;

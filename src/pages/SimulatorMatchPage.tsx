@@ -114,7 +114,7 @@ import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
 import { fieldAbilityFor, type FieldAbility } from "@/modules/simulator/ui/abilityIntent";
-import { findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
+import { findAltDiscardCandidates, findEligibleSacrifices, playableModes, type PlayabilityContext } from "@/modules/simulator/ui/handPlayability";
 import { getScaledDuration } from "@/modules/simulator/ui/animationSettings";
 import {
   handleOpponentCommandCast,
@@ -535,7 +535,7 @@ function useMediaQuery(query: string): boolean {
 // -----------------------------------------------------------------------------
 
 type PendingAction =
-  | { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action"; sacrificeInstanceId?: string }
+  | { kind: "deploy" | "command"; cardInstanceId: string; trigger?: "Main" | "Action"; sacrificeInstanceId?: string; altDiscardId?: string }
   /** 【Activate·Main】 de carta em campo (Etapa 3) — `cardInstanceId` = a carta em campo. */
   | { kind: "activateAbility"; cardInstanceId: string; abilityCost: number; abilityNeedsTarget: boolean; cardName: string };
 /** Um jeito de jogar a carta em preview. Cards Command/Pilot (`def.pilotMode`) têm 2 modos ("Jogar como Comando" / "Jogar como Piloto"); o resto tem 1. */
@@ -1738,7 +1738,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       ? pending.abilityCost
       : pending?.kind === "deploy" && pending.sacrificeInstanceId
         ? 0
-        : pendingCard
+        : pending?.kind === "command" && pending.altDiscardId && pendingCard?.def.altPlayByDiscard
+          ? pendingCard.def.altPlayByDiscard.cost
+          : pendingCard
           ? pending?.kind === "deploy" && pendingCard.def.zeroCostWhenPairedWithUnitNameContains && selected[0]
             ? effectiveDeployCost(pendingCard.def, view as unknown as GameState, seat, selected[0])
             : effectiveCost(pendingCard.def, view as unknown as GameState, seat)
@@ -1900,6 +1902,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
         trigger: pending.trigger ?? "Main",
+        altCostDiscardId: pending.altDiscardId,
         targets,
         resourceInstanceIds: nextResources.length > 0 ? nextResources : undefined,
       });
@@ -1971,19 +1974,19 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     setSecondarySelected([]);
     setSelectedResources([]);
   };
-  const startCommand = (card: CardInstance) => {
+  const startCommand = (card: CardInstance, altDiscardId?: string) => {
     if (!commandTrigger) return;
     // docs/54 tarefa 3 — sem alvo e custo 0: resolve na hora, sem passar pelo
     // estado `pending` (nunca chega a piscar um HUD "escolha o alvo/recurso").
-    const effCost = effectiveCost(card.def, view as unknown as GameState, seat);
+    const effCost = altDiscardId && card.def.altPlayByDiscard ? card.def.altPlayByDiscard.cost : effectiveCost(card.def, view as unknown as GameState, seat);
     const specs = findTriggerSpecs(ALL_EFFECT_SPECS, card.def.code, commandTrigger);
     const needsTarget = specs.some((s) => specNeedsNamedTarget(s));
     if (effCost === 0 && !needsTarget) {
       sfx.playDeploy();
-      runAction({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: commandTrigger });
+      runAction({ kind: "playCommand", cardInstanceId: card.instanceId, trigger: commandTrigger, altCostDiscardId: altDiscardId });
       return;
     }
-    setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger });
+    setPending({ kind: "command", cardInstanceId: card.instanceId, trigger: commandTrigger, altDiscardId });
     setSecondarySelected([]);
   };
   /** 【Activate·Main】 de carta em campo (Etapa 3) — abre o fluxo de custo/alvo (mesmo do deploy). */
@@ -2065,6 +2068,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         kind: "playCommand",
         cardInstanceId: pending.cardInstanceId,
         trigger: pending.trigger ?? "Main",
+        altCostDiscardId: pending.altDiscardId,
         targets,
         resourceInstanceIds,
       });
@@ -2115,7 +2119,27 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       if (modes.includes("deploy")) out.push(asPilot);
       return out;
     }
-    if (c.def?.cardType === "COMMAND") return modes.length ? [plain("Jogar", startCommand)] : [];
+    if (c.def?.cardType === "COMMAND") {
+      if (!modes.length) return [];
+      // W9 — ST10-014: custo alternativo por descarte (uma opção por carta elegível)
+      const altCandidates = findAltDiscardCandidates(c.def, ctx, c.instanceId);
+      if (altCandidates.length === 0) return [plain("Jogar", startCommand)];
+      const out: HandPlayMode[] = [];
+      const normalCost = effectiveCost(c.def, ctx.state, ctx.controller);
+      if (ctx.activeResources >= normalCost && ctx.totalResources >= effectiveLevel(c.def, ctx.state, ctx.controller)) {
+        out.push(plain(`Jogar Normal (Custo ${normalCost})`, startCommand));
+      }
+      for (const d of altCandidates) {
+        out.push({
+          label: `Descartar ${d.def.nameEn} (Lv./Custo ${c.def.altPlayByDiscard!.cost})`,
+          run: () => {
+            setPreview(null);
+            startCommand(c, d.instanceId);
+          },
+        });
+      }
+      return out;
+    }
 
     // Verificação de sacrifício alternativo (GD01-002 Unicorn Gundam, etc.)
     const eligibleSacrifices = findEligibleSacrifices(c.def, ctx);

@@ -1,5 +1,5 @@
 import type { CardDef, CardInstance, Duration, GameEvent, GameState, PlayerId, StatKey, Zone } from "./types";
-import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveAp, effectiveCost, effectiveHp, effectivePilotDef, hasKeyword, hasTrait, otherPlayer, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { findCard, findCardOwner } from "./events";
 import { payResourceCostEvents } from "./costs";
 import { EX_BASE_TOKEN, TOKEN_EX_RESOURCE_CODE } from "./setup";
@@ -165,7 +165,7 @@ function resolveAmount(call: { amount: number; amountFrom?: AmountFrom }, ctx: E
   if (from.kind === "reactionAmount") return call.amount * Number(ctx.targets.reactionAmount?.[0] ?? 0);
   if (from.kind === "namedCount") return call.amount * (ctx.targets[from.name]?.length ?? 0);
   if (from.kind === "topOfDeckTraitCount") {
-    return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => (c.def.traits ?? []).includes(from.trait)).length;
+    return call.amount * ctx.state.players[ctx.controller].deck.slice(0, from.n).filter((c) => hasTrait(c, from.trait, ctx.state)).length;
   }
   return call.amount * ctx.state.players[ctx.controller].battleArea.filter((c) => c.def.cardType === "UNIT" && !!c.def.isToken).length;
 }
@@ -182,7 +182,7 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
         (u) =>
           u.def.cardType === "UNIT" &&
           (group.maxLevel === undefined || (u.def.level ?? 0) <= group.maxLevel) &&
-          (!group.trait || (u.def.traits ?? []).includes(group.trait)),
+          (!group.trait || hasTrait(u, group.trait, ctx.state)),
       )
       .map((u) => u.instanceId);
   }
@@ -201,12 +201,12 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   }
   if (group.kind === "firstOwnHandUnitWithTrait") {
     const owner = ctx.state.players[ctx.controller];
-    const match = owner.hand.find((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(group.trait));
+    const match = owner.hand.find((c) => c.def.cardType === "UNIT" && hasTrait(c, group.trait, ctx.state));
     return match ? [match.instanceId] : [];
   }
   if (group.kind === "firstRestedFriendlyUnitWithTrait") {
     const unit = ctx.state.players[ctx.controller].battleArea.find(
-      (c) => c.def.cardType === "UNIT" && c.rested && (c.def.traits ?? []).includes(group.trait),
+      (c) => c.def.cardType === "UNIT" && c.rested && hasTrait(c, group.trait, ctx.state),
     );
     return unit ? [unit.instanceId] : [];
   }
@@ -215,10 +215,10 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[ctx.controller];
-    return owner.trash
-      .filter((c) => matchesCardDefFilter(c.def, group.filter))
-      .slice(0, group.count)
-      .map((c) => c.instanceId);
+    const eligible = owner.trash.filter((c) => matchesCardDefFilter(c.def, group.filter)).map((c) => c.instanceId);
+    // W9 — o jogador escolhe quais (CR 10-2-2-1 / Q194); sem escolha (bot, fluxo antigo), as N primeiras
+    const chosen = (ctx.targets.trashExile ?? []).filter((id) => eligible.includes(id)).slice(0, group.count);
+    return [...chosen, ...eligible.filter((id) => !chosen.includes(id))].slice(0, group.count);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   const refId = group.maxLevelOf ? ctx.targets[group.maxLevelOf]?.[0] : undefined;
@@ -645,6 +645,26 @@ export function costTargetShortfall(
   return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length < (st.count ?? 1);
 }
 
+/**
+ * W9 — "exile N … cards from your trash" com mais de N elegíveis: o jogador escolhe quais (antes era sempre as N
+ * primeiras — aproximação geral). Olha custo + chamadas ativas; `undefined` = não há escolha a fazer.
+ */
+export function trashExileChoice(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  activeCalls?: PrimitiveCall[],
+): { legalTrashIds: string[]; count: number } | undefined {
+  const calls = [...(spec.cost ?? []), ...(activeCalls ?? [...(spec.actions ?? []), ...(spec.condition?.then ?? [])])];
+  for (const c of calls) {
+    if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") continue;
+    const group = c.target.group;
+    const legalTrashIds = state.players[controller].trash.filter((card) => matchesCardDefFilter(card.def, group.filter)).map((card) => card.instanceId);
+    if (legalTrashIds.length > group.count) return { legalTrashIds, count: group.count };
+  }
+  return undefined;
+}
+
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */
 export function exileCostShortfall(state: GameState, spec: EffectSpec, controller: PlayerId): boolean {
   return (spec.cost ?? []).some((c) => {
@@ -954,7 +974,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
           const usageMarker = "onExResourcePlaced";
           if (reaction.oncePerTurn && listener.usedKeywordsThisTurn.includes(usageMarker)) continue;
           const target = ctx.state.players[player].battleArea.find(
-            (c) => c.def.cardType === "UNIT" && (!reaction.requiresTargetTrait || (c.def.traits ?? []).includes(reaction.requiresTargetTrait)),
+            (c) => c.def.cardType === "UNIT" && (!reaction.requiresTargetTrait || hasTrait(c, reaction.requiresTargetTrait, ctx.state)),
           );
           if (!target) continue;
           if (reaction.oncePerTurn) events.push({ type: "MARK_KEYWORD_USED", instanceId: listener.instanceId, keyword: usageMarker });
@@ -1276,7 +1296,7 @@ export function compilePrimitive(call: PrimitiveCall, ctx: EffectContext): GameE
       for (const card of milled) {
         events.push({ type: "MOVE_CARD", instanceId: card.instanceId, toZone: "trash" });
       }
-      if (call.drawIfTraitMilled && milled.some((c) => (c.def.traits ?? []).includes(call.drawIfTraitMilled!))) {
+      if (call.drawIfTraitMilled && milled.some((c) => hasTrait(c, call.drawIfTraitMilled!, ctx.state))) {
         events.push({ type: "DRAW_CARD", player, from: "deck", instanceId: null });
       }
       return events;
@@ -1353,7 +1373,11 @@ export type ReactionEvent =
   /** W7 — "When one of your Units is destroyed by an effect" (GD05-054): a carta do evento é a Unit destruída */
   | "destroyedByEffect"
   /** W8 — "When one of your EX Resources is exiled from the game" (GD05-018); detectado no fim da ação (1× por pagamento) */
-  | "exResourceExiled";
+  | "exResourceExiled"
+  /** W8.5 — "When a friendly (Clan) Unit links" (ST06-015): pareamento que formou Link Unit; a carta do evento é a Unit */
+  | "unitLinked"
+  /** W8.5 — "When you draw with an effect" (ST08-011): 1× por efeito que comprou do deck; a carta do evento é a 1ª comprada */
+  | "drewByEffect";
 
 export interface ReactionSpec {
   event: ReactionEvent;
@@ -1425,6 +1449,11 @@ export interface EffectSpec {
   /** GD02-075 Rick Dias (Red) / GD02-069 Zeta Gundam — "Choose 1 active friendly Base." */
   /** GD02-120 Aspiring Pilot — "Choose 1 of your (AEUG) Units/Bases." (pool = Units E Bases do controller, filtro de trait aplica aos dois.) */
   targetScope?: "enemyUnit" | "ownResource" | "friendlyUnit" | "anyUnit" | "friendlyBase" | "friendlyUnitOrBase" | "battlingBaseOrShield" | "enemyUnitOrBase";
+  /**
+   * W8.5 — habilidade de Unit que descansa a sua Base escolhida (GD02-069/075): uma Unit com `CardDef.restInsteadOfBase`
+   * (GD03-079) entra como alvo alternativo, se houver Base elegível.
+   */
+  baseRestSubstitutable?: boolean;
   /**
    * Restrição do texto oficial ALÉM da categoria ampla de `targetScope` — ex.
    * "with 2 or less HP" (Guntank), "Lv.5 or lower" (Aerial), "rested"
@@ -1509,7 +1538,7 @@ export type TargetFilterResolver = (
  */
 export function computeLegalTargets(
   state: GameState,
-  spec: Pick<EffectSpec, "targetScope" | "targetFilter">,
+  spec: Pick<EffectSpec, "targetScope" | "targetFilter" | "baseRestSubstitutable">,
   controller: PlayerId,
   resolveFilter?: TargetFilterResolver,
   sourceInstanceId?: string,
@@ -1547,13 +1576,21 @@ export function computeLegalTargets(
                   })()
                 : state.players[controller].resourceArea;
 
-  if (!spec.targetFilter) return pool.map((c) => c.instanceId);
-  if (!resolveFilter) {
+  if (spec.targetFilter && !resolveFilter) {
     throw new Error(`EffectSpec com targetFilter "${spec.targetFilter}" mas nenhum TargetFilterResolver foi passado`);
   }
-  return pool
-    .filter((c) => resolveFilter(spec.targetFilter!, c, { state, sourceInstanceId, targets: implicitTargets }))
-    .map((c) => c.instanceId);
+  const passes = (c: CardInstance) => !spec.targetFilter || resolveFilter!(spec.targetFilter, c, { state, sourceInstanceId, targets: implicitTargets });
+  const legal = pool.filter(passes);
+  // W8.5 — GD03-079 "When you rest your Base with one of your Units' effects, you may rest this Unit instead": só
+  // quando há uma Base que poderia ser escolhida (FAQ Q425)
+  if (scope === "friendlyBase" && spec.baseRestSubstitutable && legal.length > 0) {
+    legal.push(
+      ...state.players[controller].battleArea.filter(
+        (c) => c.def.cardType === "UNIT" && !!c.def.restInsteadOfBase && c.instanceId !== sourceInstanceId && passes(c),
+      ),
+    );
+  }
+  return legal.map((c) => c.instanceId);
 }
 
 /**

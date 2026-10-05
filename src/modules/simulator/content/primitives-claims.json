@@ -378,6 +378,10 @@
       "description": "O controller tem outra Unit (além da fonte) em campo com o trait dado.",
       "since": "GD01-007 Noin's Aries"
     },
+    "restedUnitsInPlayAtLeast:<n>": {
+      "description": "N+ Units descansadas em jogo, dos dois lados (FAQ ST10 Q307).",
+      "since": "ST10-011 Kamille Bidan"
+    },
     "controllerOtherRestedUnitCountAtLeast:<n>": {
       "description": "O controller tem N+ outras Units rested em campo (além da fonte).",
       "since": "GD01-047 Shamblo"

@@ -46,20 +46,20 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (topOfDeckHasAnyTrait) {
     const n = Number(topOfDeckHasAnyTrait[1]);
     const traits = topOfDeckHasAnyTrait[2].split(",");
-    return ctx.state.players[ctx.controller].deck.slice(0, n).some((c) => (c.def.traits ?? []).some((t) => traits.includes(t)));
+    return ctx.state.players[ctx.controller].deck.slice(0, n).some((c) => traits.some((t) => hasTrait(c, t, ctx.state)));
   }
   // W2c — GD03-084 "Then, if it is a (Jupitris) Unit": o alvo escolhido tem o trait.
   const chosenHasTrait = predicate.match(/^chosenHasTrait:(.+):(.+)$/);
   if (chosenHasTrait) {
     const id = ctx.targets[chosenHasTrait[1]]?.[0];
-    return !!id && (findCard(ctx.state, id).def.traits ?? []).includes(chosenHasTrait[2]);
+    return !!id && hasTrait(findCard(ctx.state, id), chosenHasTrait[2], ctx.state);
   }
   // W3 — GD04-003/118 "If you have 3 or more (League Militaire) Units in play" (conta a própria fonte).
   const controllerUnitCountWithAnyTrait = predicate.match(/^controllerUnitCountWithAnyTraitAtLeast:(.+):(\d+)$/);
   if (controllerUnitCountWithAnyTrait) {
     const traits = controllerUnitCountWithAnyTrait[1].split(",");
     const count = ctx.state.players[ctx.controller].battleArea.filter(
-      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
+      (c) => c.def.cardType === "UNIT" && traits.some((t) => hasTrait(c, t, ctx.state)),
     ).length;
     return count >= Number(controllerUnitCountWithAnyTrait[2]);
   }
@@ -84,7 +84,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const enemyUnitWithTrait = predicate.match(/^enemyUnitWithTraitInPlay:(.+)$/);
   if (enemyUnitWithTrait) {
     const opponent = ctx.state.players[ctx.controller === "A" ? "B" : "A"];
-    return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(enemyUnitWithTrait[1]));
+    return opponent.battleArea.some((c) => c.def.cardType === "UNIT" && hasTrait(c, enemyUnitWithTrait[1], ctx.state));
   }
   // W5 — GD04-126 "from an enemy Unit with 3 or less AP" (a Unit que causou o dano de batalha)
   const victimApAtMost = predicate.match(/^battleVictimApAtMost:(\d+)$/);
@@ -98,7 +98,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const sourceId = ctx.targets.destroyedBy?.[0];
     if (!sourceId) return false;
     const source = findCard(ctx.state, sourceId);
-    return source.owner === ctx.controller && (source.def.traits ?? []).includes(destroyedByOwnTrait[1]);
+    return source.owner === ctx.controller && hasTrait(source, destroyedByOwnTrait[1], ctx.state);
   }
   // W7 — GD05-129 "If one of your Units has been destroyed by one of your (Neo Zeon) card's effects during this turn"
   const ownDestroyedThisTurn = predicate.match(/^controllerUnitDestroyedByOwnTraitEffectThisTurn:(.+)$/);
@@ -196,7 +196,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const source = findCard(ctx.state, ctx.sourceInstanceId);
     if (!source.pairedPilotId) return false;
     const pilot = findCard(ctx.state, source.pairedPilotId);
-    return pilot.def.traits?.includes(pairedPilotHasTrait[1]) ?? false;
+    return hasTrait(pilot, pairedPilotHasTrait[1], ctx.state);
   }
   // GD01-044 Kshatriya — 【When Paired･(Cyber-Newtype)/(Newtype) Pilot】 — OR entre traits
   // (mesma convenção de vírgula de `controllerTrashUnitCountWithAnyTraitAtLeast`).
@@ -206,7 +206,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     if (!source.pairedPilotId) return false;
     const pilot = findCard(ctx.state, source.pairedPilotId);
     const traits = pairedPilotHasAnyTrait[1].split(",");
-    return (pilot.def.traits ?? []).some((t) => traits.includes(t));
+    return traits.some((t) => hasTrait(pilot, t, ctx.state));
   }
   // GD03-101 A Healthy Curiosity — "if there are 2 or more cards with \"A Healthy Curiosity\" in their card name in your trash".
   const controllerTrashCardCountNamedAtLeast = predicate.match(/^controllerTrashCardCountNamedAtLeast:(.+):(\d+)$/);
@@ -236,10 +236,16 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerOtherUnitWithTrait) {
     const owner = ctx.state.players[ctx.controller];
     return owner.battleArea.some(
-      (u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerOtherUnitWithTrait[1]),
+      (u) => u.instanceId !== ctx.sourceInstanceId && u.def.cardType === "UNIT" && hasTrait(u, controllerOtherUnitWithTrait[1], ctx.state),
     );
   }
   // GD01-047 Shamblo — 【Attack】"If 2 or more other rested friendly Units are in play, ...".
+  // W9 — ST10-011 "If 2 or more rested Units are in play" (dos dois lados, FAQ Q307)
+  const restedUnitsInPlayAtLeast = predicate.match(/^restedUnitsInPlayAtLeast:(\d+)$/);
+  if (restedUnitsInPlayAtLeast) {
+    const all = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return all.filter((u) => u.def.cardType === "UNIT" && u.rested).length >= Number(restedUnitsInPlayAtLeast[1]);
+  }
   const controllerOtherRestedUnitCountAtLeast = predicate.match(/^controllerOtherRestedUnitCountAtLeast:(\d+)$/);
   if (controllerOtherRestedUnitCountAtLeast) {
     const owner = ctx.state.players[ctx.controller];
@@ -269,13 +275,13 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const controllerUnitWithTraitInPlay = predicate.match(/^controllerUnitWithTraitInPlay:(.+)$/);
   if (controllerUnitWithTraitInPlay) {
     const owner = ctx.state.players[ctx.controller];
-    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerUnitWithTraitInPlay[1]));
+    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && hasTrait(u, controllerUnitWithTraitInPlay[1], ctx.state));
   }
   // ST06-014 Clan Battle — 【Activate･Main】"If a friendly (Clan) Link Unit is in play, ...".
   const controllerLinkUnitWithTraitInPlay = predicate.match(/^controllerLinkUnitWithTraitInPlay:(.+)$/);
   if (controllerLinkUnitWithTraitInPlay) {
     const owner = ctx.state.players[ctx.controller];
-    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(controllerLinkUnitWithTraitInPlay[1]) && isPairedLinkUnit(ctx.state, u));
+    return owner.battleArea.some((u) => u.def.cardType === "UNIT" && hasTrait(u, controllerLinkUnitWithTraitInPlay[1], ctx.state) && isPairedLinkUnit(ctx.state, u));
   }
   // ST03-011 Char Aznable — 【Attack】"if it is a Link Unit" — a fonte é o Pilot,
   // "this Unit" é a Unit pareada com ele.
@@ -289,7 +295,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const noTokenWithTrait = predicate.match(/^noControllerUnitTokenWithTrait:(.+)$/);
   if (noTokenWithTrait) {
     const owner = ctx.state.players[ctx.controller];
-    return !owner.battleArea.some((c) => c.def.isToken && c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(noTokenWithTrait[1]));
+    return !owner.battleArea.some((c) => c.def.isToken && c.def.cardType === "UNIT" && hasTrait(c, noTokenWithTrait[1], ctx.state));
   }
   // ST04-001 Aile Strike Gundam — 【When Paired･Lv.4 or Higher Pilot】.
   const pairedPilotLevelAtLeast = predicate.match(/^pairedPilotLevelAtLeast:(\d+)$/);
@@ -339,7 +345,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerTrashCardCountWithAnyTraitAtLeast) {
     const traits = controllerTrashCardCountWithAnyTraitAtLeast[1].split(",");
     return (
-      ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).some((t) => traits.includes(t))).length >=
+      ctx.state.players[ctx.controller].trash.filter((c) => traits.some((t) => hasTrait(c, t, ctx.state))).length >=
       Number(controllerTrashCardCountWithAnyTraitAtLeast[2])
     );
   }
@@ -354,7 +360,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     const traits = controllerTrashUnitCountWithAnyTraitAtLeast[1].split(",");
     const min = Number(controllerTrashUnitCountWithAnyTraitAtLeast[2]);
     const count = ctx.state.players[ctx.controller].trash.filter(
-      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).some((t) => traits.includes(t)),
+      (c) => c.def.cardType === "UNIT" && traits.some((t) => hasTrait(c, t, ctx.state)),
     ).length;
     return count >= min;
   }
@@ -371,7 +377,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
       (c) =>
         c.instanceId !== ctx.sourceInstanceId &&
         c.def.cardType === "UNIT" &&
-        (c.def.traits ?? []).some((t) => traits.includes(t)),
+        traits.some((t) => hasTrait(c, t, ctx.state)),
     ).length;
     return count >= min;
   }
@@ -397,7 +403,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerTrashCardCountWithTraitAtLeast) {
     const trait = controllerTrashCardCountWithTraitAtLeast[1];
     const min = Number(controllerTrashCardCountWithTraitAtLeast[2]);
-    const count = ctx.state.players[ctx.controller].trash.filter((c) => (c.def.traits ?? []).includes(trait)).length;
+    const count = ctx.state.players[ctx.controller].trash.filter((c) => hasTrait(c, trait, ctx.state)).length;
     return count >= min;
   }
   // ST08-006 Penelope — 【During Pair】【Attack】"reveal 1 (Earth Federation) Unit
@@ -411,7 +417,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerHandHasUnitWithTrait) {
     const trait = controllerHandHasUnitWithTrait[1];
     return ctx.state.players[ctx.controller].hand.some(
-      (c) => c.def.cardType === "UNIT" && (c.def.traits ?? []).includes(trait),
+      (c) => c.def.cardType === "UNIT" && hasTrait(c, trait, ctx.state),
     );
   }
   // GD03-001 Gundam NT-1 — 【When Paired】"Deal 1 damage to it. When this effect
@@ -433,7 +439,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (controllerHasLinkUnitWithTrait) {
     const trait = controllerHasLinkUnitWithTrait[1];
     return ctx.state.players[ctx.controller].battleArea.some(
-      (u) => u.def.cardType === "UNIT" && (u.def.traits ?? []).includes(trait) && isPairedLinkUnit(ctx.state, u),
+      (u) => u.def.cardType === "UNIT" && hasTrait(u, trait, ctx.state) && isPairedLinkUnit(ctx.state, u),
     );
   }
   // ST07-010 Tieria Erde — "If it is your opponent's turn"
@@ -493,7 +499,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   if (formerPairedPilotHasTrait) {
     const pilotId = ctx.targets.formerPairedPilot?.[0];
     if (!pilotId) return false;
-    return (findCard(ctx.state, pilotId).def.traits ?? []).includes(formerPairedPilotHasTrait[1]);
+    return hasTrait(findCard(ctx.state, pilotId), formerPairedPilotHasTrait[1], ctx.state);
   }
   // GD02-021 Gundam AGE-1 Normal — "if you are Lv.7 or higher, ...". Nível do JOGADOR (não de
   // uma carta) = quantidade de Resources em campo, mesma fórmula de `canPayLevel` (deploy.ts).
@@ -524,7 +530,7 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
   const selfHasTrait = predicate.match(/^selfHasTrait:(.+)$/);
   if (selfHasTrait) {
     const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
-    return !!selfUnit && (selfUnit.def.traits ?? []).includes(selfHasTrait[1]);
+    return !!selfUnit && hasTrait(selfUnit, selfHasTrait[1], ctx.state);
   }
   // W6 — ST09-003 "If there are 5 or more purple cards in your trash" (qualquer tipo de carta)
   const trashColorCount = predicate.match(/^controllerTrashColorCountAtLeast:(.+):(\d+)$/);
@@ -728,7 +734,7 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
   if (pairedUnitLinkWithTrait) {
     if (!candidate.pairedUnitId) return false;
     const unit = findCard(ctx.state, candidate.pairedUnitId);
-    return (unit.def.traits ?? []).includes(pairedUnitLinkWithTrait[1]) && isPairedLinkUnit(ctx.state, unit);
+    return hasTrait(unit, pairedUnitLinkWithTrait[1], ctx.state) && isPairedLinkUnit(ctx.state, unit);
   }
   const pairedUnitColor = filter.match(/^pairedUnitColor:(.+)$/);
   if (pairedUnitColor) {
@@ -765,6 +771,13 @@ export const defaultTargetFilterResolver: TargetFilterResolver = (filter, candid
     const subjectId = ctx.targets?.reactionSubject?.[0];
     if (!subjectId) return false;
     return (candidate.def.level ?? 0) <= (findCard(ctx.state, subjectId).def.level ?? 0);
+  }
+
+  // W8.5 — GD03-099 (【Destroyed】 do Piloto): "equal to or lower than this Unit" = a Unit com que estava pareado (FAQ Q243)
+  if (filter === "level<=formerPairedUnit") {
+    const unitId = ctx.targets?.formerPairedUnit?.[0];
+    if (!unitId) return false;
+    return (candidate.def.level ?? 0) <= (findCard(ctx.state, unitId).def.level ?? 0);
   }
 
   // W7 (C9) — GD03-113 "…whose Lv. is equal to or lower than the Unit rested with this ability" (alvo do passo anterior)

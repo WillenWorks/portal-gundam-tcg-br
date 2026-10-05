@@ -25,6 +25,7 @@ import {
   specChoicePrimitive,
   specNeedsChoice,
   specNeedsNamedTarget,
+  trashExileChoice,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
@@ -115,6 +116,9 @@ function buildQueueEntry(
         }
       : undefined,
   };
+  // W9 — "exile N … from your trash" com mais de N elegíveis: o jogador escolhe quais
+  const exile = trashExileChoice(state, spec, player, activeCalls);
+  if (exile) entry.trashExile = { ...exile, label: spec.sourceText };
 
   const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
   if (!choice) return entry;
@@ -326,7 +330,12 @@ export function deferOrDispatchAbilities(
   const interactive = activeEntries.filter(
     ({ spec, activeCalls }) =>
       // W8 — custo "Rest N of your Units" sem alvo próprio (GD05-001) também é escolha do jogador
-      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls) || costRestsSecondaryTarget(spec),
+      (spec.optional ?? false) ||
+      callsNeedNamedTarget(activeCalls) ||
+      callsNeedChoice(activeCalls) ||
+      costRestsSecondaryTarget(spec) ||
+      // W9 — escolha das cartas a exilar do trash
+      !!trashExileChoice(state, spec, player, activeCalls),
   );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.
@@ -417,6 +426,7 @@ export function collectDestroyed(before: GameState, after: GameState): Destroyed
         wasPaired,
         wasLinkUnit,
         formerPairedPilotId: card.pairedPilotId,
+        ...(card.pairedUnitId ? { formerPairedUnitId: card.pairedUnitId } : {}),
       });
     }
   }
@@ -501,9 +511,17 @@ export function dispatchAnyPairingFromEffect(
   const pairedPilots = newPairings
     .map((np) => ({ np, pilotId: findCard(next, np.unitInstanceId).pairedPilotId }))
     .filter((p): p is { np: (typeof newPairings)[number]; pilotId: string } => !!p.pilotId);
+  // W8.5 — "when a friendly … Unit links" (ST06-015): o pareamento formou Link Unit
+  const linked = newPairings.filter((np) => {
+    const unit = findCard(next, np.unitInstanceId);
+    return !!unit.pairedPilotId && satisfiesLinkCondition(effectivePilotDef(findCard(next, unit.pairedPilotId)), unit.def);
+  });
   return dispatchReactions(
     next,
-    pairedPilots.map(({ np, pilotId }) => ({ event: "pilotPaired", subjectId: pilotId, owner: np.owner })),
+    [
+      ...pairedPilots.map(({ np, pilotId }) => ({ event: "pilotPaired" as const, subjectId: pilotId, owner: np.owner })),
+      ...linked.map((np) => ({ event: "unitLinked" as const, subjectId: np.unitInstanceId, owner: np.owner })),
+    ],
     specs,
     opts,
   );
@@ -693,7 +711,8 @@ function markOwnUnitDestroyedByOwnEffect(before: GameState, state: GameState, de
   for (const d of destroyed) {
     if (!d.byEffect || d.byEffect.controller !== d.owner) continue;
     if (findCard(before, d.instanceId).def.cardType !== "UNIT") continue;
-    const traits = (findCard(before, d.byEffect.sourceId).def.traits ?? []).filter((t) => TRACKED_DESTROYER_TRAITS.includes(t));
+    const destroyer = findCard(before, d.byEffect.sourceId);
+    const traits = TRACKED_DESTROYER_TRAITS.filter((t) => hasTrait(destroyer, t, before));
     if (traits.length === 0) continue;
     next = applyEvent(next, { type: "MARK_OWN_UNIT_DESTROYED_BY_OWN_EFFECT", player: d.owner, traits, turn: next.turnNumber });
   }
@@ -765,9 +784,11 @@ export function dispatchDestroyedTriggers(
     // ANTES da destruição vira alvo implícito "formerPairedPilot", disponível
     // pra `moveZone`/`discardNamed` do spec sem escolha do jogador.
     const implicitTargets: Record<string, string[]> | undefined =
-      d.formerPairedPilotId || d.byEffect
+      d.formerPairedPilotId || d.byEffect || d.formerPairedUnitId
         ? {
             ...(d.formerPairedPilotId ? { formerPairedPilot: [d.formerPairedPilotId] } : {}),
+            // W8.5 — GD03-099 (Piloto): "this Unit" = a Unit com que estava pareado
+            ...(d.formerPairedUnitId ? { formerPairedUnit: [d.formerPairedUnitId] } : {}),
             // W7 — GD05-053 "If this Unit is destroyed by one of your (Neo Zeon) card's effects"
             ...(d.byEffect ? { destroyedBy: [d.byEffect.sourceId] } : {}),
           }
@@ -950,6 +971,14 @@ export function collectEffectReactions(
     seen.add(key);
     out.push({ event, subjectId: card.instanceId, owner: card.owner, effectController });
   };
+  // W8.5 — "when you draw with an effect" (ST08-011): 1 ocorrência por jogador que comprou do deck neste efeito
+  for (const pid of ["A", "B"] as PlayerId[]) {
+    const draw = events.find((e) => e.type === "DRAW_CARD" && e.player === pid && e.from === "deck" && e.instanceId);
+    if (draw && draw.type === "DRAW_CARD" && draw.instanceId) {
+      const drawn = before.players[pid].deck.find((c) => c.instanceId === draw.instanceId);
+      if (drawn) push("drewByEffect", drawn);
+    }
+  }
   // estado de descanso acompanhado evento a evento (um efeito que descansa e depois ativa a
   // mesma Unit gera as 2 transições)
   const restedNow = new Map<string, boolean>();
@@ -1264,11 +1293,15 @@ export function runEndOfTurnReactions(
         if (next.gameOver) return next;
       }
     }
-    // W5 — gatilhos atrasados de fim de turno (GD04-069), só os sem escolha (mesma regra de cima)
+    // W5 — gatilhos atrasados de fim de turno (GD04-069); W8.5 — os com escolha vão pra mesma decisão do fim de turno
     for (const entry of next.players[owner].delayedReactions ?? []) {
       if (entry.turn !== next.turnNumber) continue;
       const spec = specs.find((s) => s.id === entry.specId);
-      if (!spec || spec.reaction?.event !== "endOfTurn" || specNeedsNamedTarget(spec) || specNeedsChoice(spec)) continue;
+      if (!spec || spec.reaction?.event !== "endOfTurn") continue;
+      if ((spec.optional ?? false) || specNeedsNamedTarget(spec) || specNeedsChoice(spec)) {
+        interactive.push({ owner, trigger: spec.trigger, sources: [{ code: findCard(next, entry.sourceId).def.code, instanceId: entry.sourceId }] });
+        continue;
+      }
       next = dispatchTrigger(next, entry.sourceId, spec.trigger, [spec], { predicateResolver, targetFilterResolver, allSpecs: specs });
       if (next.gameOver) return next;
     }

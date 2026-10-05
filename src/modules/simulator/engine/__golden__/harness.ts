@@ -31,6 +31,7 @@ import { GD03_TEST_DECKS } from "../../fixtures/gd03Decks";
 import { GD04_TEST_DECKS } from "../../fixtures/gd04Decks";
 import { ST09_DECKS } from "../../fixtures/st09Decks";
 import { GD05_DECKS } from "../../fixtures/gd05Decks";
+import { ST10_TEST_DECKS } from "../../fixtures/st10Decks";
 
 export type DeckKey =
   | "ST01" | "ST02" | "ST03" | "ST04" | "ST05" | "GD01"
@@ -39,7 +40,8 @@ export type DeckKey =
   | "GD03-CYCLOPS" | "GD03-TITANS-VAGAN"
   | "GD04-ACADEMY-CB" | "GD04-VULTURE-MILITIA"
   | "ST09-PURPLE-WHITE" | "ST09-RED-PURPLE"
-  | "GD05-G-GUNDAM" | "GD05-NEO-ZEON";
+  | "GD05-G-GUNDAM" | "GD05-NEO-ZEON"
+  | "ST10-G-GENERATION" | "GD05-ORB";
 
 const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   ST01: buildSt01DeckList,
@@ -65,6 +67,8 @@ const DECK_BUILDERS: Record<DeckKey, () => DeckList> = {
   "ST09-RED-PURPLE": ST09_DECKS["ST09-RED-PURPLE"].build,
   "GD05-G-GUNDAM": GD05_DECKS["GD05-G-GUNDAM"].build,
   "GD05-NEO-ZEON": GD05_DECKS["GD05-NEO-ZEON"].build,
+  "ST10-G-GENERATION": ST10_TEST_DECKS["ST10-G-GENERATION"].build,
+  "GD05-ORB": GD05_DECKS["GD05-ORB"].build,
 };
 
 /** limite de turnos da partida golden — fixado aqui pra não depender do default de `runSelfPlay`. */
@@ -186,7 +190,13 @@ const GD05_PAIRS: GoldenPair[] = [
   { key: `GD05-G-GUNDAM_vs_GD05-NEO-ZEON_seed${GD05_SEED}`, a: "GD05-G-GUNDAM", b: "GD05-NEO-ZEON", seed: GD05_SEED },
 ];
 
-export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS, ...ST05_PAIRS, ...GD02_ERA_PAIRS, ...GD03_PAIRS, ...GD04_PAIRS, ...ST09_PAIRS, ...GD05_PAIRS];
+/** W9 — ST10 fechado: 1 par (ST10 puro × Orb do GD05 — Development N com escolha no exílio, custo alternativo), seed 32. */
+const ST10_SEED = GD05_SEED + GD05_PAIRS.length;
+const ST10_PAIRS: GoldenPair[] = [
+  { key: `ST10-G-GENERATION_vs_GD05-ORB_seed${ST10_SEED}`, a: "ST10-G-GENERATION", b: "GD05-ORB", seed: ST10_SEED },
+];
+
+export const GOLDEN_PAIRS: GoldenPair[] = [...ST01_04_PAIRS, ...GD01_PAIRS, ...ST05_PAIRS, ...GD02_ERA_PAIRS, ...GD03_PAIRS, ...GD04_PAIRS, ...ST09_PAIRS, ...GD05_PAIRS, ...ST10_PAIRS];
 
 /**
  * Campos do `GameState` que NÃO fazem parte da lógica de regras e precisam

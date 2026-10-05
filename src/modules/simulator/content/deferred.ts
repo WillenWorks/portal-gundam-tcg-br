@@ -150,27 +150,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
   //   jogada da mão) e sem reusar `deployCard`.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Achados da auditoria por cláusula (W0.3) — cláusulas que nunca tiveram efeito no motor e
-  // dependem dos pacotes de capacidade do plano "simulador até GD05" (C1 gatilhos reativos,
-  // C2 camada de dano). Registradas aqui em vez de parecer "cobertas" por outro spec da carta.
-  {
-    cardCode: "ST06-015",
-    clause: "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn.",
-    reason: "não há gatilho reativo de \"quando uma Unit aliada linka\" — o efeito não acontece",
-    blockedBy: "engine:reactive-trigger-bus (C1)",
-  },
-  {
-    cardCode: "ST08-011",
-    clause: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
-    reason: "não há gatilho reativo de \"quando você compra por efeito\" — o efeito não acontece",
-    blockedBy: "engine:reactive-trigger-bus (C1)",
-  },
-  {
-    cardCode: "GD02-073",
-    clause: "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>.",
-    reason: "efeito contínuo que concede keyword à Unit INIMIGA em batalha ainda não existe — o spec antigo dava First Strike à própria Unit (removido)",
-    blockedBy: "engine:attack-rule-extensions (C4)",
-  },
   // W0.5 — ordem de efeitos simultâneos (CR 10-1-6). O motor já segue 10-1-6-8 (【Burst】 antes de
   // todos) e 10-1-6-6 (efeitos do jogador ativo antes dos do standby — `dispatchDestroyedTriggers`);
   // efeitos com escolha (alvo, "you may", mão/deck) já vão pra fila em que o jogador escolhe a ordem.
@@ -181,56 +160,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
   },
-  // W5 — aproximações aceitas (o efeito acontece, com a diferença descrita)
-  {
-    cardCode: "GD04-069",
-    clause:
-      "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
-    reason: "\"choose 1\" no fim do turno vira automático: a 1ª Unit (Militia) descansada fica ativa (o fim do turno não pausa pra escolha)",
-    blockedBy: "engine:end-of-turn-choice (aproximação aceita)",
-    kind: "approximation",
-  },
-  {
-    cardCode: "GD04-033",
-    clause: "【During Link】All your Units gain (Neo Zeon).",
-    reason: "o trait concedido vale nos filtros de alvo e de reação (`hasTrait`); condições de board e custos ainda leem o trait impresso",
-    blockedBy: "engine:trait-grant-everywhere (aproximação aceita)",
-    kind: "approximation",
-  },
-  // W7 (C10) — decidido com o usuário em 2026-10-04 (sem Q&A oficial da carta)
-  {
-    cardCode: "GD05-049",
-    clause: "【Attack】You may choose 1 of your Units. Destroy it.",
-    reason: "\"1 of your Units\" não oferece o próprio Sazabi (o texto não exclui; sem ruling, ficou de fora para o 【Attack】 não destruir o atacante)",
-    blockedBy: "engine:ruling-pendente-GD05-049 (aproximação aceita)",
-    kind: "approximation",
-  },
-  // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
-  {
-    cardCode: "*",
-    clause: "Exilar N cartas do trash (custo ou efeito \"choose N … from your trash. Exile them\")",
-    reason:
-      "o motor exila as N primeiras cartas elegíveis do trash em vez de o jogador escolher (GD02-111, GD03-009/015/035/050/054/059, GD04-049/065/071/130) — muda o resultado só quando a identidade das cartas importa depois (contagens por nome/trait no trash, GD04-067)",
-    blockedBy: "engine:exile-choice-from-trash (aproximação aceita; escolha entra com o C3 Development N, W9)",
-    kind: "approximation",
-  },
-  // W2c — GD03: o que ainda depende de motor novo (pacotes C1/C2/C5/C8/C9 das próximas waves).
-  {
-    cardCode: "GD03-079",
-    clause: "When you rest your Base with one of your Units' effects, you may rest this Unit instead.",
-    reason: "substituição \"rest this Unit instead\" do custo de restar a Base ainda não existe",
-    blockedBy: "engine:replacement-rest-cost (C2)",
-  },
-  {
-    cardCode: "GD03-097",
-    clause: "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash.",
-    reason: "olhar o topo e escolher qual volta a partir de reação de combate ainda não existe",
-    blockedBy: "engine:reaction-deck-look-choose (C9)",
-  },
-  {
-    cardCode: "GD03-099",
-    clause: "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand.",
-    reason: "Lv. da Unit destruída do Piloto como limite de alvo (\"equal to or lower than this Unit\") ainda não existe",
-    blockedBy: "engine:destroyed-pilot-unit-level-filter (C5)",
-  },
+  // W8.5 (2026-10-05) — saíram daqui: ST06-015, ST08-011, GD02-073, GD03-079/097/099 (eram sem efeito) e
+  // GD04-033, GD04-069, GD05-049 (eram aproximações). W9 — a escolha no "exilar N do trash" virou regra (`trashExile`); sobra só a ordem dos automáticos simultâneos.
 ] as const;

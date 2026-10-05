@@ -131,7 +131,10 @@ export const GD04_W5_EFFECT_SPECS: EffectSpec[] = [
     cardCode: "GD04-069",
     trigger: "Delayed:endOfTurn",
     reaction: { event: "endOfTurn", subject: "friendly" },
-    actions: [{ op: "setActive", target: { kind: "group", group: { kind: "firstRestedFriendlyUnitWithTrait", trait: "Militia" } } }],
+    // W8.5 — o fim de turno pausa pra escolha (antes: a 1ª Militia descansada, aproximação)
+    actions: [{ op: "setActive", target: { kind: "named", name: "target" } }],
+    targetScope: "friendlyUnit",
+    targetFilter: "trait:Militia",
     sourceText:
       "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active.",
   },
