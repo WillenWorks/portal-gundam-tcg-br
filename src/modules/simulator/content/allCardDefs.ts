@@ -14,6 +14,7 @@ import { GD04_CARD_DEFS } from "./gd04";
 import { GD05_CARD_DEFS } from "./gd05";
 import { ST09_CARD_DEFS } from "./st09";
 import { ST10_CARD_DEFS } from "./st10";
+import { EB01_CARD_DEFS } from "./eb01";
 
 /**
  * Catálogo canônico de todas as definições de cartas (CardDef) oficiais
@@ -32,6 +33,7 @@ export const ALL_CARD_DEFS: Record<string, CardDef> = {
   ...Object.values(ST08_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(ST09_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(ST10_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
+  ...Object.values(EB01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD01_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD02_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),
   ...Object.values(GD03_CARD_DEFS).reduce((acc, c) => ({ ...acc, [c.code.toUpperCase()]: c }), {}),

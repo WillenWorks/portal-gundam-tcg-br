@@ -1,5 +1,1094 @@
 [
   {
+    "id": "EB01-001-ActivateMain",
+    "cardCode": "EB01-001",
+    "trigger": "Activate·Main",
+    "ops": [
+      "moveZone",
+      "rest",
+      "preventActivationNextTurn"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "damaged;level<=7",
+    "predicate": null,
+    "sourceText": "【Activate･Main】【Once per Turn】Exile 2 Command cards from your trash from the game：Choose 1 damaged enemy Unit that is Lv.7 or lower. Rest it. It won't be set as active during the start phase of your opponent's next turn."
+  },
+  {
+    "id": "EB01-002-Attack",
+    "cardCode": "EB01-002",
+    "trigger": "Attack",
+    "ops": [
+      "setActive"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "otherRestedUnitsInPlayAtLeast:3",
+    "sourceText": "【During Link】【Attack】【Once per Turn】If 3 or more other rested Units are in play, set this Unit as active."
+  },
+  {
+    "id": "EB01-002-Deploy",
+    "cardCode": "EB01-002",
+    "trigger": "Deploy",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": null,
+    "predicate": "controllerOtherUnitWithTrait:G Generation",
+    "sourceText": "【Deploy】If another friendly (G Generation) Unit is in play, choose 1 Unit belonging to each enemy player. Rest them."
+  },
+  {
+    "id": "EB01-005-Deploy",
+    "cardCode": "EB01-005",
+    "trigger": "Deploy",
+    "ops": [
+      "setActive",
+      "draw"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 rested Unit belonging to another player. Set it as active. Draw 1."
+  },
+  {
+    "id": "EB01-006-Deploy",
+    "cardCode": "EB01-006",
+    "trigger": "Deploy",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 of your Units. It gains <Repair 1> during this turn."
+  },
+  {
+    "id": "EB01-008-Deploy",
+    "cardCode": "EB01-008",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:1",
+    "sourceText": "【Deploy･Development 1】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-008-Then",
+    "cardCode": "EB01-008",
+    "trigger": "Then:1",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■Choose 1 friendly Unit. It recovers 2 HP."
+  },
+  {
+    "id": "EB01-009-Deploy",
+    "cardCode": "EB01-009",
+    "trigger": "Deploy",
+    "ops": [
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】All enemy players each choose 1 of their active Units."
+  },
+  {
+    "id": "EB01-009-Then",
+    "cardCode": "EB01-009",
+    "trigger": "Then:1",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "active",
+    "predicate": null,
+    "sourceText": "Rest them."
+  },
+  {
+    "id": "EB01-010-Deploy",
+    "cardCode": "EB01-010",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:3",
+    "sourceText": "【Deploy･Development 3】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-010-Then",
+    "cardCode": "EB01-010",
+    "trigger": "Then:1",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": null,
+    "sourceText": "■Choose 1 rested enemy Unit. Deal 2 damage to it."
+  },
+  {
+    "id": "EB01-013-Attack",
+    "cardCode": "EB01-013",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "opponentHandCountAtLeast:6",
+    "sourceText": "【Attack】If an enemy player has 6 or more cards in their hand, this Unit gets AP+2 during this turn."
+  },
+  {
+    "id": "EB01-015-Destroyed",
+    "cardCode": "EB01-015",
+    "trigger": "Destroyed",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "rested",
+    "predicate": "restedUnitsInPlayAtLeast:2",
+    "sourceText": "【Destroyed】If there are 2 or more other rested Units in play, choose 1 rested enemy Unit. Deal 1 damage to it."
+  },
+  {
+    "id": "EB01-017-Destroyed",
+    "cardCode": "EB01-017",
+    "trigger": "Destroyed",
+    "ops": [
+      "draw",
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "duringDamageStep",
+    "sourceText": "【Destroyed】If this Unit is destroyed with battle damage, you and the player who destroyed this Unit draw 1."
+  },
+  {
+    "id": "EB01-018-Attack",
+    "cardCode": "EB01-018",
+    "trigger": "Attack",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 friendly Unit. It recovers 1 HP."
+  },
+  {
+    "id": "EB01-019-Attack",
+    "cardCode": "EB01-019",
+    "trigger": "Attack",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "otherRestedUnitsInPlayAtLeast:2",
+    "sourceText": "【Attack】If there are 2 or more other rested Units in play, this Unit gains <High-Maneuver> during this battle."
+  },
+  {
+    "id": "EB01-020-ActivateAction",
+    "cardCode": "EB01-020",
+    "trigger": "Activate·Action",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Activate･Action】【Once per Turn】Choose 1 Unit. It recovers 1 HP."
+  },
+  {
+    "id": "EB01-021-WhenPaired",
+    "cardCode": "EB01-021",
+    "trigger": "When Paired",
+    "ops": [
+      "placeResourceFromDeck"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "pairedPilotHasTrait:G Generation;controllerTrashUnitCountWithAnyTraitAtLeast:G Generation:2",
+    "sourceText": "【When Paired･(G Generation) Pilot】If there are 2 or more (G Generation) Unit cards in your trash, place 1 rested Resource."
+  },
+  {
+    "id": "EB01-022-EndOfTurn",
+    "cardCode": "EB01-022",
+    "trigger": "Reaction:endOfTurn",
+    "ops": [
+      "destroy",
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "pairedPilotHasTrait:G Generation",
+    "sourceText": "【During Pair･(G Generation) Pilot】At the end of your turn, you may destroy this Unit. If you do, deploy 3 [Gundam Exia]((G Generation)･AP2･HP2) Unit tokens."
+  },
+  {
+    "id": "EB01-024-Attack",
+    "cardCode": "EB01-024",
+    "trigger": "Attack",
+    "ops": [
+      "damageUnit"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hasKeyword:Blocker;level<=5",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 enemy Unit with <Blocker> that is Lv.5 or lower. Deal 2 damage to it."
+  },
+  {
+    "id": "EB01-027-Deploy",
+    "cardCode": "EB01-027",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:2",
+    "sourceText": "【Deploy･Development 2】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-027-Then",
+    "cardCode": "EB01-027",
+    "trigger": "Then:1",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "■Choose 1 friendly (G Generation) Unit. It gains <Breach 1> during this turn."
+  },
+  {
+    "id": "EB01-030-Deploy",
+    "cardCode": "EB01-030",
+    "trigger": "Deploy",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Look at the top 3 cards of your deck. You may reveal 1 (G Generation) Unit card that is Lv.3 among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "EB01-034-WhenLinked",
+    "cardCode": "EB01-034",
+    "trigger": "When Linked",
+    "ops": [
+      "lookAtTopFilterReveal"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【When Linked】Look at the top 3 cards of your deck. You may reveal 1 (G Generation) Unit card that is Lv.3 among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  {
+    "id": "EB01-035-UnitDeployed",
+    "cardCode": "EB01-035",
+    "trigger": "Reaction:unitDeployed",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "When another friendly (G Generation) Unit that is Lv.3 is deployed, this Unit gains <Breach 1> during this turn."
+  },
+  {
+    "id": "EB01-038-Deploy",
+    "cardCode": "EB01-038",
+    "trigger": "Deploy",
+    "ops": [
+      "spawnToken"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Place 1 EX Resource."
+  },
+  {
+    "id": "EB01-041-Deploy",
+    "cardCode": "EB01-041",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=4",
+    "predicate": null,
+    "sourceText": "【Deploy】Choose 1 Unit with 4 or less HP belonging to each enemy player. Return them to their owners' hands."
+  },
+  {
+    "id": "EB01-043-Attack",
+    "cardCode": "EB01-043",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=5",
+    "predicate": "controllerUnitWithKeywordInPlay:Blocker",
+    "sourceText": "【Attack】If a friendly Unit with <Blocker> is in play, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-2 during this battle."
+  },
+  {
+    "id": "EB01-045-WhenPaired",
+    "cardCode": "EB01-045",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hasKeyword:Repair",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 enemy Unit with <Repair>. Return it to its owner's hand."
+  },
+  {
+    "id": "EB01-046-Attack",
+    "cardCode": "EB01-046",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level>=4",
+    "predicate": null,
+    "sourceText": "【During Pair】【Attack】Choose 1 enemy Unit that is Lv.4 or higher. It gets AP-2 during this battle."
+  },
+  {
+    "id": "EB01-047-Then",
+    "cardCode": "EB01-047",
+    "trigger": "Then:1",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "■This Unit gains <High-Maneuver> during this turn."
+  },
+  {
+    "id": "EB01-047-WhenPaired",
+    "cardCode": "EB01-047",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:1",
+    "sourceText": "【When Paired･Development 1】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-052-Deploy",
+    "cardCode": "EB01-052",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": "enemyUnitCountAtLeast:3",
+    "sourceText": "【Deploy】If 3 or more enemy Units are in play, choose 1 enemy Unit with 2 or less HP. Return it to its owner's hand."
+  },
+  {
+    "id": "EB01-057-Deploy",
+    "cardCode": "EB01-057",
+    "trigger": "Deploy",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active;level<=3;level>=3",
+    "predicate": null,
+    "sourceText": "【Deploy】You may choose 1 active friendly Unit that is Lv.3. Rest it."
+  },
+  {
+    "id": "EB01-057-Then",
+    "cardCode": "EB01-057",
+    "trigger": "Then:1",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=2",
+    "predicate": null,
+    "sourceText": "If you do, choose 1 enemy Unit that is Lv.2 or lower. Return it to its owner's hand."
+  },
+  {
+    "id": "EB01-060-Then",
+    "cardCode": "EB01-060",
+    "trigger": "Then:1",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=4",
+    "predicate": null,
+    "sourceText": "■Choose 1 enemy Unit that is Lv.4 or lower. Return it to its owner's hand."
+  },
+  {
+    "id": "EB01-060-WhenPaired",
+    "cardCode": "EB01-060",
+    "trigger": "When Paired",
+    "ops": [
+      "moveZone",
+      "thenTrigger"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "controllerTrashCardCountWithAnyTraitAtLeast:G Generation:3",
+    "sourceText": "【When Paired･Development 3】You may exile the specified number of (G Generation) cards in your trash from the game. If you do, activate the following effect:"
+  },
+  {
+    "id": "EB01-061-Burst",
+    "cardCode": "EB01-061",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-061-WhenPaired",
+    "cardCode": "EB01-061",
+    "trigger": "When Paired",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": "controllerUnitWithTraitInPlay:G Generation",
+    "sourceText": "【When Paired】If a friendly (G Generation) Unit is in play, choose 1 enemy Unit that is Lv.3 or lower. Rest it."
+  },
+  {
+    "id": "EB01-062-Burst",
+    "cardCode": "EB01-062",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-063-Burst",
+    "cardCode": "EB01-063",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-064-Burst",
+    "cardCode": "EB01-064",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-065-Burst",
+    "cardCode": "EB01-065",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-065-WhenLinked",
+    "cardCode": "EB01-065",
+    "trigger": "When Linked",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【When Linked】Choose 1 friendly (G Generation) Unit. It gains <Breach 1> during this turn."
+  },
+  {
+    "id": "EB01-066-Burst",
+    "cardCode": "EB01-066",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-067-Burst",
+    "cardCode": "EB01-067",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-068-Burst",
+    "cardCode": "EB01-068",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-069-Attack",
+    "cardCode": "EB01-069",
+    "trigger": "Attack",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Attack】Choose 1 friendly Unit with <Blocker>. It gets AP+2 during this turn."
+  },
+  {
+    "id": "EB01-069-Burst",
+    "cardCode": "EB01-069",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-070-ActivateAction",
+    "cardCode": "EB01-070",
+    "trigger": "Activate·Action",
+    "ops": [
+      "payResourceCost",
+      "modifyStat"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": null,
+    "predicate": "isOpponentTurn",
+    "sourceText": "【During Link】【Activate･Action】【Once per Turn】①：If it is your opponent's turn, choose 1 Unit. It gets AP+1 during this battle."
+  },
+  {
+    "id": "EB01-070-Burst",
+    "cardCode": "EB01-070",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-071-Burst",
+    "cardCode": "EB01-071",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-072-Burst",
+    "cardCode": "EB01-072",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-072-WhenPaired",
+    "cardCode": "EB01-072",
+    "trigger": "When Paired",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active;hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【When Paired】Choose 1 active friendly Unit with <Blocker> and 1 enemy Unit that is Lv.4 or lower. Rest them."
+  },
+  {
+    "id": "EB01-073-Burst",
+    "cardCode": "EB01-073",
+    "trigger": "Burst",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Draw 1."
+  },
+  {
+    "id": "EB01-073-Main",
+    "cardCode": "EB01-073",
+    "trigger": "Main",
+    "ops": [
+      "draw"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "restedUnitsInPlayAtLeast:6",
+    "sourceText": "【Main】If there are 6 or more rested Units in play, draw 2."
+  },
+  {
+    "id": "EB01-074-Action",
+    "cardCode": "EB01-074",
+    "trigger": "Action",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active;trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 active friendly (G Generation) Unit. Rest it."
+  },
+  {
+    "id": "EB01-074-Burst",
+    "cardCode": "EB01-074",
+    "trigger": "Burst",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=3",
+    "predicate": null,
+    "sourceText": "【Burst】Choose 1 enemy Unit with 3 or less HP. Rest it."
+  },
+  {
+    "id": "EB01-074-Main",
+    "cardCode": "EB01-074",
+    "trigger": "Main",
+    "ops": [
+      "rest",
+      "thenTrigger"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active;trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 active friendly (G Generation) Unit. Rest it."
+  },
+  {
+    "id": "EB01-074-Then",
+    "cardCode": "EB01-074",
+    "trigger": "Then:1",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "active",
+    "predicate": null,
+    "sourceText": "If you do, all enemy players each choose 1 of their active Units. Rest them."
+  },
+  {
+    "id": "EB01-075-Action",
+    "cardCode": "EB01-075",
+    "trigger": "Action",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 2 or less HP. Rest them."
+  },
+  {
+    "id": "EB01-075-Main",
+    "cardCode": "EB01-075",
+    "trigger": "Main",
+    "ops": [
+      "rest"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 2 or less HP. Rest them."
+  },
+  {
+    "id": "EB01-076-Action",
+    "cardCode": "EB01-076",
+    "trigger": "Action",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly (G Generation) Unit. It recovers 3 HP."
+  },
+  {
+    "id": "EB01-076-Main",
+    "cardCode": "EB01-076",
+    "trigger": "Main",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 friendly (G Generation) Unit. It recovers 3 HP."
+  },
+  {
+    "id": "EB01-077-Burst",
+    "cardCode": "EB01-077",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-080-Action",
+    "cardCode": "EB01-080",
+    "trigger": "Action",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 (G Generation) Unit. During this turn, it may choose an active enemy Unit as its attack target."
+  },
+  {
+    "id": "EB01-080-Main",
+    "cardCode": "EB01-080",
+    "trigger": "Main",
+    "ops": [
+      "grantAttackTargetRelax"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 (G Generation) Unit. During this turn, it may choose an active enemy Unit as its attack target."
+  },
+  {
+    "id": "EB01-081-Action",
+    "cardCode": "EB01-081",
+    "trigger": "Action",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 2 or less HP. Return them to their owners' hands."
+  },
+  {
+    "id": "EB01-081-Burst",
+    "cardCode": "EB01-081",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "EB01-081-Main",
+    "cardCode": "EB01-081",
+    "trigger": "Main",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 to 2 enemy Units with 2 or less HP. Return them to their owners' hands."
+  },
+  {
+    "id": "EB01-082-Action",
+    "cardCode": "EB01-082",
+    "trigger": "Action",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【Action】Choose 1 Unit that is Lv.3 or lower belonging to each enemy player. Return them to their owners' hands."
+  },
+  {
+    "id": "EB01-082-Burst",
+    "cardCode": "EB01-082",
+    "trigger": "Burst",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=3",
+    "predicate": null,
+    "sourceText": "【Burst】Activate this card's 【Action】."
+  },
+  {
+    "id": "EB01-083-Action",
+    "cardCode": "EB01-083",
+    "trigger": "Action",
+    "ops": [
+      "modifyStat"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": null,
+    "predicate": "isOpponentTurn",
+    "sourceText": "【Action】If it is your opponent's turn, choose 1 Unit. It gets AP+3 during this turn."
+  },
+  {
+    "id": "EB01-084-Action",
+    "cardCode": "EB01-084",
+    "trigger": "Action",
+    "ops": [
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Unit with <Blocker>. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "EB01-084-Main",
+    "cardCode": "EB01-084",
+    "trigger": "Main",
+    "ops": [
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "anyUnit",
+    "targetFilter": "hasKeyword:Blocker",
+    "predicate": null,
+    "sourceText": "【Main】/【Action】Choose 1 Unit with <Blocker>. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "EB01-085-Burst",
+    "cardCode": "EB01-085",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-085-Deploy",
+    "cardCode": "EB01-085",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "EB01-085-DeployRest",
+    "cardCode": "EB01-085",
+    "trigger": "Deploy",
+    "ops": [
+      "rest",
+      "rest"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "active;color:blue;trait:G Generation",
+    "predicate": null,
+    "sourceText": "Then, you may choose 1 active friendly blue (G Generation) Unit and 1 enemy Unit. Rest them."
+  },
+  {
+    "id": "EB01-086-Burst",
+    "cardCode": "EB01-086",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-086-Deploy",
+    "cardCode": "EB01-086",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "EB01-086-UnitLinked",
+    "cardCode": "EB01-086",
+    "trigger": "Reaction:unitLinked",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When a friendly (G Generation) Unit links, it gains <Repair 2> during this turn."
+  },
+  {
+    "id": "EB01-087-Burst",
+    "cardCode": "EB01-087",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-087-Deploy",
+    "cardCode": "EB01-087",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand."
+  },
+  {
+    "id": "EB01-087-DestroyedEnemyInBattle",
+    "cardCode": "EB01-087",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "heal"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】During your turn, when a friendly green (G Generation) Unit destroys an enemy Unit with battle damage, choose 1 friendly Unit. It recovers 2 HP."
+  },
+  {
+    "id": "EB01-088-Burst",
+    "cardCode": "EB01-088",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-089-Burst",
+    "cardCode": "EB01-089",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-089-Deploy",
+    "cardCode": "EB01-089",
+    "trigger": "Deploy",
+    "ops": [
+      "addShieldToHand",
+      "setActive",
+      "preventAttackThisTurn"
+    ],
+    "targetScope": "friendlyUnit",
+    "targetFilter": "rested;color:white;trait:G Generation",
+    "predicate": null,
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, choose 1 rested friendly white (G Generation) Unit. Set it as active. It can't attack during this turn."
+  },
+  {
+    "id": "EB01-090-Burst",
+    "cardCode": "EB01-090",
+    "trigger": "Burst",
+    "ops": [
+      "deployThisCard"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Burst】Deploy this card."
+  },
+  {
+    "id": "EB01-090-Deploy",
+    "cardCode": "EB01-090",
+    "trigger": "Deploy",
+    "ops": [
+      "moveZone",
+      "addShieldToHand"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "hp<=2",
+    "predicate": "isControllersTurn",
+    "sourceText": "【Deploy】Add 1 of your Shields to your hand. Then, if it is your turn, choose 1 Unit with 2 or less HP belonging to each enemy player. Return them to their owners' hands."
+  },
+  {
     "id": "GD01-001-WhenPaired",
     "cardCode": "GD01-001",
     "trigger": "When Paired",

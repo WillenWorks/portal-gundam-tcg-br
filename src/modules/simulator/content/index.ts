@@ -14,6 +14,7 @@ import { GD04_EFFECT_SPECS } from "./gd04";
 import { GD05_EFFECT_SPECS } from "./gd05";
 import { ST09_EFFECT_SPECS } from "./st09";
 import { ST10_EFFECT_SPECS } from "./st10";
+import { EB01_EFFECT_SPECS } from "./eb01";
 
 export { defaultPredicateResolver, defaultTargetFilterResolver } from "./predicates";
 export { DEFERRED_CLAUSES, type DeferredClause } from "./deferred";
@@ -24,6 +25,7 @@ export { GD04_EFFECT_SPECS, GD04_CARD_DEFS } from "./gd04";
 export { GD05_EFFECT_SPECS, GD05_CARD_DEFS } from "./gd05";
 export { ST09_EFFECT_SPECS, ST09_CARD_DEFS } from "./st09";
 export { ST10_EFFECT_SPECS, ST10_CARD_DEFS } from "./st10";
+export { EB01_EFFECT_SPECS, EB01_CARD_DEFS } from "./eb01";
 export { ST05_EFFECT_SPECS } from "./st05";
 export { ST06_EFFECT_SPECS } from "./st06";
 export { ST07_EFFECT_SPECS } from "./st07";
@@ -54,6 +56,7 @@ export const ALL_EFFECT_SPECS: EffectSpec[] = [
   ...ST08_EFFECT_SPECS,
   ...ST09_EFFECT_SPECS,
   ...ST10_EFFECT_SPECS,
+  ...EB01_EFFECT_SPECS,
   ...GD01_EFFECT_SPECS,
   ...GD02_EFFECT_SPECS,
   ...GD03_EFFECT_SPECS,

@@ -110,7 +110,7 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
   });
 
   it("carta com efeito e sem implementação é bloqueada (EB01, ainda fora do motor)", () => {
-    const eb01 = { ...GD03_CARD_DEFS["GD03-079"], code: "EB01-002" };
+    const eb01 = { ...GD03_CARD_DEFS["GD03-079"], code: "EB01-003" };
     expect(isCardPlayable(eb01)).toBe(false);
   });
 
