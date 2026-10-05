@@ -242,6 +242,10 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   "GD03-079": {
     "code": "GD03-079",
     "nameEn": "G-Defenser",
+    // W8.5 — substituição: entra no lugar da Base nas habilidades de Unit que a descansam (FAQ Q425)
+    "restInsteadOfBase": {
+      "sourceText": "When you rest your Base with one of your Units' effects, you may rest this Unit instead."
+    },
     "cardType": "UNIT",
     "color": "white",
     "level": 3,

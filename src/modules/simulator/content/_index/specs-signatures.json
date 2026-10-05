@@ -3945,6 +3945,19 @@
     "sourceText": "【Burst】Add this card to your hand."
   },
   {
+    "id": "GD03-097-DestroyedEnemyInBattle",
+    "cardCode": "GD03-097",
+    "trigger": "Reaction:destroyedEnemyInBattle",
+    "ops": [
+      "moveWithinDeck",
+      "moveWithinDeck"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
+  },
+  {
     "id": "GD03-098-Burst",
     "cardCode": "GD03-098",
     "trigger": "Burst",
@@ -3979,6 +3992,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "GD03-099-Destroyed",
+    "cardCode": "GD03-099",
+    "trigger": "Destroyed",
+    "ops": [
+      "moveZone"
+    ],
+    "targetScope": "enemyUnit",
+    "targetFilter": "level<=formerPairedUnit",
+    "predicate": "controllerHasBaseColor:white",
+    "sourceText": "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand."
   },
   {
     "id": "GD03-100-Burst",
@@ -5427,8 +5452,8 @@
     "ops": [
       "setActive"
     ],
-    "targetScope": null,
-    "targetFilter": null,
+    "targetScope": "friendlyUnit",
+    "targetFilter": "trait:Militia",
     "predicate": null,
     "sourceText": "【During Link】At the end of a turn where you have paid ① or more for one of your other (Militia)/(Dianna Counter) Units' effects, choose 1 of your (Militia) Units. Set it as active."
   },
@@ -7300,7 +7325,7 @@
       "thenTrigger"
     ],
     "targetScope": "friendlyUnit",
-    "targetFilter": "notSelf",
+    "targetFilter": null,
     "predicate": null,
     "sourceText": "【Attack】You may choose 1 of your Units. Destroy it."
   },
@@ -10140,6 +10165,18 @@
     "sourceText": "【Deploy】Add 1 of your Shields to your hand."
   },
   {
+    "id": "ST06-015-UnitLinked",
+    "cardCode": "ST06-015",
+    "trigger": "Reaction:unitLinked",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": null,
+    "sourceText": "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
+  },
+  {
     "id": "ST07-001-EndOfTurn",
     "cardCode": "ST07-001",
     "trigger": "EndOfTurn",
@@ -10405,6 +10442,18 @@
     "targetFilter": null,
     "predicate": null,
     "sourceText": "【Burst】Add this card to your hand."
+  },
+  {
+    "id": "ST08-011-DrewByEffect",
+    "cardCode": "ST08-011",
+    "trigger": "Reaction:drewByEffect",
+    "ops": [
+      "grantKeyword"
+    ],
+    "targetScope": null,
+    "targetFilter": null,
+    "predicate": "selfColorIs:blue",
+    "sourceText": "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
   },
   {
     "id": "ST08-012-Main",

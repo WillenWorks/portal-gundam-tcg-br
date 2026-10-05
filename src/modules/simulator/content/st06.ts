@@ -228,10 +228,22 @@ export const KANEBAN_DEPLOY: EffectSpec = {
   sourceText: "【Deploy】Add 1 of your Shields to your hand.",
 };
 
+// ST06-015 Kaneban Co., Ltd. — W8.5: "When a friendly (Clan) Unit links" (reação `unitLinked`, pareamento que forma Link)
+export const KANEBAN_UNIT_LINKED: EffectSpec = {
+  id: "ST06-015-UnitLinked",
+  cardCode: "ST06-015",
+  trigger: "Reaction:unitLinked",
+  reaction: { event: "unitLinked", subject: "friendly", subjectFilter: "trait:Clan" },
+  oncePerTurn: true,
+  actions: [{ op: "grantKeyword", target: { kind: "named", name: "reactionSubject" }, keyword: "Breach 3", duration: "endOfTurn" }],
+  sourceText: "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn.",
+};
+
 export const ST06_EFFECT_SPECS: EffectSpec[] = [
   // auditoria por cláusula (W0.3): 【Burst】 padrão que faltava
   ...["ST06-009", "ST06-010"].map(stdAddToHandBurst),
   ...["ST06-014", "ST06-015"].map(stdDeployThisBurst),
+  KANEBAN_UNIT_LINKED,
   GQUUUUUUX_WHEN_LINKED,
   GQUUUUUUX_DEPLOY,
   RED_GUNDAM_ATTACK,

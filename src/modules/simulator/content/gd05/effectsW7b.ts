@@ -88,7 +88,7 @@ export const GD05_W7B_EFFECT_SPECS: EffectSpec[] = [
     sourceText: "【Main】Choose 1 enemy player. Destroy the first 2 cards in that player's shield area.",
   },
 
-  // GD05-049 Sazabi — aproximação registrada: a Unit destruída por você não pode ser o próprio Sazabi
+  // GD05-049 Sazabi — "1 of your Units" não exclui o próprio Sazabi (W8.5: sem ruling, vale o texto)
   {
     id: "GD05-049-Attack",
     cardCode: "GD05-049",
@@ -99,7 +99,6 @@ export const GD05_W7B_EFFECT_SPECS: EffectSpec[] = [
       { op: "thenTrigger", trigger: "Then:1", decidedBy: "opponent" },
     ],
     targetScope: "friendlyUnit",
-    targetFilter: "notSelf",
     sourceText: "【Attack】You may choose 1 of your Units. Destroy it.",
   },
   {

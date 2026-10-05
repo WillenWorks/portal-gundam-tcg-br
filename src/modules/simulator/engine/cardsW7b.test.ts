@@ -201,7 +201,8 @@ describe("GD05-049 Sazabi — cada oponente escolhe 1 Unit fora de batalha", () 
     const spare = placeCard(s, "B", UNIT({ code: "TEST-SPARE" }), "battleArea");
 
     s = act(s, "A", { kind: "declareAttack", attackerId: sazabi, target: { unitId: target } });
-    expect(entry(s, "A", "GD05-049-Attack")?.legalTargets).toEqual([fodder]);
+    // W8.5 — o próprio Sazabi também pode ser escolhido ("1 of your Units" não o exclui)
+    expect(entry(s, "A", "GD05-049-Attack")?.legalTargets.sort()).toEqual([sazabi, fodder].sort());
     s = resolve(s, "A", "GD05-049-Attack", [fodder]);
     expect(inZone(s, "A", "trash", fodder)).toBe(true);
 
