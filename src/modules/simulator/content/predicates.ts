@@ -240,6 +240,20 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     );
   }
   // GD01-047 Shamblo — 【Attack】"If 2 or more other rested friendly Units are in play, ...".
+  // W10 — EB01: "this Unit is rested", "2 or more OTHER rested Units in play" (dos dois lados, Q310/Q317),
+  // "destroyed with battle damage" (morreu no Damage Step), "a friendly Unit with <X> is in play"
+  if (predicate === "selfIsRested") return findCard(ctx.state, ctx.sourceInstanceId).rested;
+  if (predicate === "duringDamageStep") return ctx.state.combat?.step === "damage";
+  const otherRestedUnitsInPlayAtLeast = predicate.match(/^otherRestedUnitsInPlayAtLeast:(\d+)$/);
+  if (otherRestedUnitsInPlayAtLeast) {
+    const selfUnit = resolveSelfUnit(ctx.state, ctx.sourceInstanceId);
+    const all = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return all.filter((u) => u.def.cardType === "UNIT" && u.rested && u.instanceId !== selfUnit?.instanceId).length >= Number(otherRestedUnitsInPlayAtLeast[1]);
+  }
+  const controllerUnitWithKeywordInPlay = predicate.match(/^controllerUnitWithKeywordInPlay:(.+)$/);
+  if (controllerUnitWithKeywordInPlay) {
+    return ctx.state.players[ctx.controller].battleArea.some((u) => u.def.cardType === "UNIT" && hasKeyword(u, controllerUnitWithKeywordInPlay[1], ctx.state));
+  }
   // W9 — ST10-011 "If 2 or more rested Units are in play" (dos dois lados, FAQ Q307)
   const restedUnitsInPlayAtLeast = predicate.match(/^restedUnitsInPlayAtLeast:(\d+)$/);
   if (restedUnitsInPlayAtLeast) {
