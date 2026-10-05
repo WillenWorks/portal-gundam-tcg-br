@@ -139,12 +139,36 @@ export interface ClassifiedMetaCard {
   quadrant: MetaQuadrant;
 }
 
+export interface TournamentProvenanceItem {
+  id: string;
+  name: string;
+  date: string | null;
+  organizer: string | null;
+  playerCount: number | null;
+  tier: string;
+  sourceUrl: string | null;
+  deckCount: number;
+}
+
+export interface MetagameProvenance {
+  totalDecks: number;
+  totalTournaments: number;
+  startDate: string | null;
+  endDate: string | null;
+  tournaments: TournamentProvenanceItem[];
+}
+
 export interface SourceDeckEntry {
   id: string;
   name: string;
   shareId?: string;
   author: string;
   tournament?: string;
+  tournamentId?: string;
+  tournamentDate?: string | null;
+  organizer?: string | null;
+  tier?: string | null;
+  sourceUrl?: string | null;
   placement: string;
   date?: string;
 }
@@ -167,6 +191,7 @@ export interface CardUsageInfo {
 export interface ArchetypeMetaBreakdown {
   archetype: ArchetypeSummary;
   totalDecksSampled: number;
+  provenance?: MetagameProvenance;
   sourceDecks?: SourceDeckEntry[];
   coreBuild?: CoreBuildSummary;
   quadrants: {
@@ -216,6 +241,7 @@ export interface MetagameStatsResponse {
   season: { id: string; code: string; name: string } | null;
   setId: string | null;
   totalDecks: number;
+  provenance?: MetagameProvenance;
   topCards: MetagameTopCard[];
   colorDistribution: Array<{ color: string; decks: number; presenceRate: number | null }>;
   colorCombos: Array<{ combo: string; decks: number; presenceRate: number | null }>;
@@ -226,6 +252,20 @@ export interface MetagameStatsResponse {
   decliningCards: MetagameTrendCard[];
 }
 
+export interface PowerRankingTournamentPlacement {
+  tournamentId: string;
+  tournamentName: string;
+  date: string | null;
+  organizer: string | null;
+  tier: string | null;
+  sourceUrl: string | null;
+  playerCount: number | null;
+  placement: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+}
+
 // Fase 2 -- Power Rankings semanal (ver PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
 export interface PowerRankingEntry {
   archetype: string;
@@ -233,6 +273,8 @@ export interface PowerRankingEntry {
   signatureCard: { id: string; code: string; name: string; imageUrl: string | null; imageMediumUrl: string | null; color: string | null } | null;
   deckCount: number;
   metaShare: number;
+  topCutConversion?: number;
+  isSmallSample?: boolean;
   wins: number;
   losses: number;
   draws: number;
@@ -241,6 +283,108 @@ export interface PowerRankingEntry {
   powerRankingScore: number;
   bestPlacement: number | null;
   sampleTournaments: Array<{ id: string; name: string }>;
+  tournamentPlacements?: PowerRankingTournamentPlacement[];
+}
+
+export interface FormatCardDetail {
+  code: string;
+  name: string;
+  namePt: string | null;
+  imageUrl: string | null;
+  imageMediumUrl: string | null;
+  color: string | null;
+  cardType: string;
+  cost: number | null;
+  level: number | null;
+  tier: "core" | "flex" | "tech";
+  inclusionRate: number;
+  modeCopies: number;
+  avgCopies: number;
+}
+
+export interface FormatArchetypeSummary {
+  id: string;
+  name: string;
+  colors: string[];
+  keyCard: string;
+  keyCardDetail: FormatCardDetail | null;
+  lists: number;
+  share: number;
+  top8Share: number;
+  winShare: number;
+  points: number;
+  isSmallSample: boolean;
+  sampleWarning: string | null;
+  cards: {
+    core: FormatCardDetail[];
+    flex: FormatCardDetail[];
+    tech: FormatCardDetail[];
+  };
+  medianDecklist: Record<string, number>;
+}
+
+export interface FormatMetaResponse {
+  format: string;
+  totalLists: number;
+  totalEvents: number;
+  generatedAt: string;
+  sourceUrl: string;
+  archetypes: FormatArchetypeSummary[];
+  provenance: MetagameProvenance;
+}
+
+export interface FormatOverviewItem {
+  format: string;
+  totalLists: number;
+  totalEvents: number;
+  archetypeCount: number;
+  topArchetypes: Array<{ name: string; share: number; colors: string[] }>;
+}
+
+export interface ArchetypeEvolutionPoint {
+  format: string;
+  lists: number;
+  share: number;
+  top8Share: number;
+  winShare: number;
+  points: number;
+}
+
+export interface ArchetypeEvolution {
+  name: string;
+  colors: string[];
+  points: ArchetypeEvolutionPoint[];
+}
+
+export interface WeeklyArchetypeTrend {
+  name: string;
+  colors: string[];
+  lists: number;
+  share: number;
+  winRate: number | null;
+  isSmallSample: boolean;
+}
+
+export interface WeeklyTrendPoint {
+  weekKey: string;
+  weekLabel: string;
+  startDate: string;
+  endDate: string;
+  totalLists: number;
+  totalEvents: number;
+  isSmallSample: boolean;
+  sampleWarning: string | null;
+  archetypes: WeeklyArchetypeTrend[];
+}
+
+export interface WeeklyTrendsResponse {
+  season: { id: string; code: string; name: string } | null;
+  seasonId: string | null;
+  tier: string | null;
+  weeks: WeeklyTrendPoint[];
+  topArchetypes: string[];
+  provenance: MetagameProvenance;
+  weightNote: string;
 }
 
 // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4).
@@ -953,8 +1097,33 @@ export const api = {
     request<MetagameStatsResponse>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 2 -- Power Rankings semanal (só resultado real de torneio reportado, ver
   // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
-  getPowerRankings: (params: { seasonId?: string; setId?: string } = {}) =>
-    request<{ season: { id: string; code: string; name: string } | null; setId: string | null; rankings: PowerRankingEntry[] }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  getPowerRankings: (params: { seasonId?: string; setId?: string; tier?: string; startDate?: string; endDate?: string } = {}) =>
+    request<{
+      season: { id: string; code: string; name: string } | null;
+      setId: string | null;
+      tier: string | null;
+      startDate: string | null;
+      endDate: string | null;
+      rankings: PowerRankingEntry[];
+      provenance?: MetagameProvenance;
+    }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Fase 2 -- Formatos / Temporadas (GD01..GD05) e Núcleos de Arquétipo
+  getFormatList: () =>
+    request<FormatOverviewItem[]>("/stats/formats", undefined, { ttlMs: 300_000 }),
+  getFormatEvolution: () =>
+    request<ArchetypeEvolution[]>("/stats/formats/evolution", undefined, { ttlMs: 300_000 }),
+  getFormatMeta: (format: string, params: { color?: string; minLists?: number } = {}) =>
+    request<FormatMetaResponse>(
+      `/stats/formats/${encodeURIComponent(format)}${toQuery({
+        color: params.color,
+        minLists: params.minLists != null ? String(params.minLists) : undefined,
+      })}`,
+      undefined,
+      { ttlMs: 300_000 },
+    ),
+  // Fase 3 -- Evolução Temporal Semanal (Metagame & Rankings)
+  getWeeklyTrends: (params: { seasonId?: string; tier?: string; startDate?: string; endDate?: string } = {}) =>
+    request<WeeklyTrendsResponse>(`/stats/weekly-trends${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4). hasData normalmente vem false
   // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
   getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>

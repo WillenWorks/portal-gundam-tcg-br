@@ -104,8 +104,9 @@ import {
   getMetaRecommendations,
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
-import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
+import { getPowerRankingsWithProvenance, getMatchupMatrix, getWeeklyTrends } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
+import { getAvailableFormats, getFormatMetaBreakdown, getFormatsEvolution } from "./seasonFormatMetaService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
@@ -2447,10 +2448,48 @@ app.get("/api/stats/power-rankings", async (req, res) => {
   setPublicCache(res, 60, 300);
   const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
   const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const tier = typeof req.query.tier === "string" && req.query.tier ? req.query.tier : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? req.query.endDate : undefined;
   const resolved = await resolveSeasonFilter(seasonParam);
   if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
-  const rankings = await getPowerRankings(prisma, { seasonId: resolved.seasonId, setId });
-  res.json({ season: resolved.season, setId: setId ?? null, rankings });
+  const result = await getPowerRankingsWithProvenance(prisma, {
+    seasonId: resolved.seasonId,
+    setId,
+    tier,
+    startDate,
+    endDate,
+  });
+  res.json({
+    season: resolved.season,
+    setId: setId ?? null,
+    tier: tier ?? null,
+    startDate: startDate ?? null,
+    endDate: endDate ?? null,
+    rankings: result.rankings,
+    provenance: result.provenance,
+  });
+});
+
+// Fase 3 (Evolução Temporal Semanal dos Arquétipos e Sinalização de Amostra)
+app.get("/api/stats/weekly-trends", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const tier = typeof req.query.tier === "string" && req.query.tier ? req.query.tier : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? req.query.endDate : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const result = await getWeeklyTrends(prisma, {
+    seasonId: resolved.seasonId,
+    tier,
+    startDate,
+    endDate,
+  });
+  res.json({
+    season: resolved.season,
+    ...result,
+  });
 });
 
 // Fase 3 (Matriz de Confrontos, SCAFFOLD -- ver §2.4). Sem UI de lançamento de
@@ -2466,6 +2505,29 @@ app.get("/api/stats/matchup-matrix", async (req, res) => {
   else if (windowParam === "90d") sinceDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const matrix = await getMatchupMatrix(prisma, { seasonId: resolved.seasonId, sinceDate });
   res.json({ season: resolved.season, window: windowParam, ...matrix });
+});
+
+// Fase 2 (Stats por temporada/formato GD01..GD05 e núcleo do arquétipo, ver prompt A6 §2)
+app.get("/api/stats/formats", (_req, res) => {
+  setPublicCache(res, 300, 1800);
+  const formats = getAvailableFormats();
+  res.json(formats);
+});
+
+app.get("/api/stats/formats/evolution", (_req, res) => {
+  setPublicCache(res, 300, 1800);
+  const evolution = getFormatsEvolution();
+  res.json(evolution);
+});
+
+app.get("/api/stats/formats/:format", async (req, res) => {
+  setPublicCache(res, 300, 1800);
+  const format = String(req.params.format);
+  const color = typeof req.query.color === "string" ? req.query.color : undefined;
+  const minLists = typeof req.query.minLists === "string" ? Number(req.query.minLists) : undefined;
+  const result = await getFormatMetaBreakdown(prisma, format, { color, minLists });
+  if (!result) return res.status(404).json({ error: `Formato ${format} não encontrado.` });
+  res.json(result);
 });
 
 // Terminal 3 (docs/54 §8.3, "Zero Local Intelligence") -- Painel de Metagame Regional

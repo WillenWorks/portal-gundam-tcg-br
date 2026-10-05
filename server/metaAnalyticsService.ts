@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { classifyMetaCard, computePairwiseLift, computeSlotRigidity } from "../src/lib/meta-analytics.ts";
 import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "../src/lib/deck-legality.ts";
 import { VALIDATED_DECKS } from "../src/modules/simulator/content/validatedDecks.ts";
+import type { MetagameProvenance, TournamentProvenanceItem } from "./metagameTrendsService.ts";
 
 export interface SignatureCardInfo {
   id: string;
@@ -57,7 +58,13 @@ export interface RawDeckData {
   shareId?: string;
   author?: string;
   date?: string;
+  tournamentId?: string;
   tournamentName?: string;
+  tournamentDate?: string;
+  organizer?: string;
+  tier?: string;
+  sourceUrl?: string;
+  placement?: string;
   items: Array<{
     quantity: number;
     card: {
@@ -83,6 +90,11 @@ export interface SourceDeckEntry {
   shareId?: string;
   author: string;
   tournament?: string;
+  tournamentId?: string;
+  tournamentDate?: string | null;
+  organizer?: string | null;
+  tier?: string | null;
+  sourceUrl?: string | null;
   placement: string;
   date?: string;
 }
@@ -137,6 +149,78 @@ export async function fetchEligibleDecks(prisma: PrismaClient): Promise<RawDeckD
       .filter((i) => !NON_STATS_SECTIONS.includes(i.section as any) && !NON_STATS_CARD_TYPES.includes(i.card.cardType as any))
       .map((i) => ({ quantity: i.quantity, card: i.card })),
   })).filter((d) => d.items.length > 0);
+
+  // Carrega decks reais de torneios reportados com deckSnapshot
+  try {
+    const tournamentEntries = await prisma.tournamentEntry.findMany({
+      where: {
+        tournament: { isActive: true },
+        deckSnapshotId: { not: null },
+      },
+      include: {
+        tournament: {
+          select: {
+            id: true,
+            name: true,
+            organizer: true,
+            tier: true,
+            sourceUrl: true,
+            dateStart: true,
+          },
+        },
+        deckSnapshot: {
+          include: {
+            items: {
+              where: { section: "main" },
+              include: {
+                card: {
+                  select: {
+                    id: true,
+                    code: true,
+                    nameEn: true,
+                    namePt: true,
+                    imageUrl: true,
+                    imageMediumUrl: true,
+                    color: true,
+                    cardType: true,
+                    rarity: true,
+                    cost: true,
+                    level: true,
+                    traits: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const te of tournamentEntries) {
+      if (!te.deckSnapshot?.items.length) continue;
+      const filteredItems = te.deckSnapshot.items
+        .filter((i) => !NON_STATS_SECTIONS.includes(i.section as any) && !NON_STATS_CARD_TYPES.includes(i.card.cardType as any))
+        .map((i) => ({ quantity: i.quantity, card: i.card }));
+      if (!filteredItems.length) continue;
+
+      eligible.push({
+        id: te.deckSnapshotId || te.id,
+        name: te.archetype ? `${te.archetype} (${te.tournament.name})` : te.tournament.name,
+        author: te.playerName || "Piloto Competitivo",
+        date: te.tournament.dateStart ? new Date(te.tournament.dateStart).toLocaleDateString("pt-BR") : undefined,
+        tournamentId: te.tournament.id,
+        tournamentName: te.tournament.name,
+        tournamentDate: te.tournament.dateStart ? te.tournament.dateStart.toISOString() : undefined,
+        organizer: te.tournament.organizer || undefined,
+        tier: te.tournament.tier ? String(te.tournament.tier) : undefined,
+        sourceUrl: te.tournament.sourceUrl || undefined,
+        placement: te.placement ? `${te.placement}º lugar` : undefined,
+        items: filteredItems,
+      });
+    }
+  } catch {
+    // Safe fallback se tournamentEntry não estiver presente no mock de testes
+  }
 
   // Se houver menos de 4 decks no banco, complementa com os decks validados do simulador
   if (eligible.length < 4) {
@@ -304,6 +388,7 @@ export async function getArchetypeBreakdown(
 ): Promise<{
   archetype: ArchetypeSummary;
   totalDecksSampled: number;
+  provenance: MetagameProvenance;
   sourceDecks: SourceDeckEntry[];
   coreBuild: CoreBuildSummary;
   quadrants: {
@@ -462,7 +547,12 @@ export async function getArchetypeBreakdown(
     shareId: d.shareId,
     author: d.author || "Piloto OZ",
     tournament: d.tournamentName || "Metagame Regional / Liga Oficial",
-    placement: `#${index + 1}`,
+    tournamentId: d.tournamentId,
+    tournamentDate: d.tournamentDate,
+    organizer: d.organizer,
+    tier: d.tier,
+    sourceUrl: d.sourceUrl,
+    placement: d.placement || `#${index + 1}`,
     date: d.date || "2026",
   }));
 
@@ -555,9 +645,52 @@ export async function getArchetypeBreakdown(
     share: Number((totalArchetypeDecks / allDecks.length).toFixed(4)),
   };
 
+  const tournamentMap = new Map<string, TournamentProvenanceItem>();
+  let earliestDate: Date | null = null;
+  let latestDate: Date | null = null;
+
+  for (const d of archetypeDecks) {
+    if (d.tournamentName) {
+      const key = d.tournamentId || d.tournamentName;
+      if (d.tournamentDate) {
+        const dt = new Date(d.tournamentDate);
+        if (!earliestDate || dt.getTime() < earliestDate.getTime()) earliestDate = dt;
+        if (!latestDate || dt.getTime() > latestDate.getTime()) latestDate = dt;
+      }
+      const existing = tournamentMap.get(key);
+      if (existing) {
+        existing.deckCount += 1;
+      } else {
+        tournamentMap.set(key, {
+          id: d.tournamentId || key,
+          name: d.tournamentName,
+          date: d.tournamentDate || null,
+          organizer: d.organizer || null,
+          playerCount: null,
+          tier: d.tier || "SMALL_OFFICIAL",
+          sourceUrl: d.sourceUrl || null,
+          deckCount: 1,
+        });
+      }
+    }
+  }
+
+  const provenance: MetagameProvenance = {
+    totalDecks: totalArchetypeDecks,
+    totalTournaments: tournamentMap.size,
+    startDate: earliestDate ? earliestDate.toISOString() : null,
+    endDate: latestDate ? latestDate.toISOString() : null,
+    tournaments: Array.from(tournamentMap.values()).sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da || b.deckCount - a.deckCount;
+    }),
+  };
+
   return {
     archetype: summary,
     totalDecksSampled: totalArchetypeDecks,
+    provenance,
     sourceDecks,
     coreBuild,
     quadrants: {
