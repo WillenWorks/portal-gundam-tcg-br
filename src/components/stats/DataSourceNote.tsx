@@ -107,9 +107,14 @@ export function DataSourceNote({
     <>
       {variant === "inline" && (
         <div className={`flex flex-wrap items-center justify-between gap-2 rounded-none border border-primary/20 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 panel-cut ${className}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <Database className="size-3.5 shrink-0 text-primary" />
-            <span className="truncate">{summaryText}</span>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Database className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate">{summaryText}</span>
+            </div>
+            {weightNote && (
+              <span className="text-[11px] text-slate-400 pl-5">{weightNote}</span>
+            )}
           </div>
           {tournamentsCount > 0 ? (
             <Button

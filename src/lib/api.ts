@@ -356,6 +356,37 @@ export interface ArchetypeEvolution {
   points: ArchetypeEvolutionPoint[];
 }
 
+export interface WeeklyArchetypeTrend {
+  name: string;
+  colors: string[];
+  lists: number;
+  share: number;
+  winRate: number | null;
+  isSmallSample: boolean;
+}
+
+export interface WeeklyTrendPoint {
+  weekKey: string;
+  weekLabel: string;
+  startDate: string;
+  endDate: string;
+  totalLists: number;
+  totalEvents: number;
+  isSmallSample: boolean;
+  sampleWarning: string | null;
+  archetypes: WeeklyArchetypeTrend[];
+}
+
+export interface WeeklyTrendsResponse {
+  season: { id: string; code: string; name: string } | null;
+  seasonId: string | null;
+  tier: string | null;
+  weeks: WeeklyTrendPoint[];
+  topArchetypes: string[];
+  provenance: MetagameProvenance;
+  weightNote: string;
+}
+
 // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4).
 export interface MatchupCell {
   archetypeA: string;
@@ -1090,6 +1121,9 @@ export const api = {
       undefined,
       { ttlMs: 300_000 },
     ),
+  // Fase 3 -- Evolução Temporal Semanal (Metagame & Rankings)
+  getWeeklyTrends: (params: { seasonId?: string; tier?: string; startDate?: string; endDate?: string } = {}) =>
+    request<WeeklyTrendsResponse>(`/stats/weekly-trends${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4). hasData normalmente vem false
   // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
   getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>

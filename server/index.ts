@@ -103,7 +103,7 @@ import {
   getMetaRecommendations,
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
-import { getPowerRankingsWithProvenance, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
+import { getPowerRankingsWithProvenance, getMatchupMatrix, getWeeklyTrends } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
 import { getAvailableFormats, getFormatMetaBreakdown, getFormatsEvolution } from "./seasonFormatMetaService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
@@ -2467,6 +2467,27 @@ app.get("/api/stats/power-rankings", async (req, res) => {
     endDate: endDate ?? null,
     rankings: result.rankings,
     provenance: result.provenance,
+  });
+});
+
+// Fase 3 (Evolução Temporal Semanal dos Arquétipos e Sinalização de Amostra)
+app.get("/api/stats/weekly-trends", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const tier = typeof req.query.tier === "string" && req.query.tier ? req.query.tier : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? req.query.endDate : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const result = await getWeeklyTrends(prisma, {
+    seasonId: resolved.seasonId,
+    tier,
+    startDate,
+    endDate,
+  });
+  res.json({
+    season: resolved.season,
+    ...result,
   });
 });
 

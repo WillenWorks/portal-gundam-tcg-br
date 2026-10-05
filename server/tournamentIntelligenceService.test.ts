@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPowerRankings, getPowerRankingsWithProvenance } from "./tournamentIntelligenceService.ts";
+import { getPowerRankings, getPowerRankingsWithProvenance, getWeeklyTrends } from "./tournamentIntelligenceService.ts";
 
 const day = (n: number) => new Date(`2026-02-0${n}T12:00:00.000Z`);
 
@@ -141,5 +141,39 @@ describe("tournamentIntelligenceService - Power Rankings & Provenance", () => {
     expect(result.provenance.totalDecks).toBe(0);
     expect(result.provenance.totalTournaments).toBe(0);
     expect(result.provenance.tournaments).toEqual([]);
+  });
+
+  it("calcula série temporal semanal e sinalização de amostra pequena com getWeeklyTrends", async () => {
+    const fakePrisma = {
+      tournamentEntry: {
+        findMany: async () => FAKE_ENTRIES,
+      },
+    } as any;
+
+    const result = await getWeeklyTrends(fakePrisma, {});
+    expect(result.weeks.length).toBeGreaterThan(0);
+    expect(result.topArchetypes).toContain("Wing Zero");
+    expect(result.provenance.totalDecks).toBe(3);
+    expect(result.provenance.totalTournaments).toBe(2);
+
+    const week1 = result.weeks[0];
+    expect(week1).toBeDefined();
+    expect(week1.totalLists).toBe(3);
+    // 3 listas < 6 => isSmallSample true
+    expect(week1.isSmallSample).toBe(true);
+    expect(week1.sampleWarning).toContain("Amostra semanal reduzida");
+
+    const wing = week1.archetypes.find((a) => a.name === "Wing Zero");
+    expect(wing).toBeDefined();
+    expect(wing?.lists).toBe(2);
+    expect(wing?.share).toBeCloseTo(2 / 3, 2);
+    expect(wing?.winRate).toBeGreaterThan(0);
+
+    const zeon = week1.archetypes.find((a) => a.name === "Zeon Aggro");
+    expect(zeon).toBeDefined();
+    expect(zeon?.lists).toBe(1);
+    expect(zeon?.share).toBeCloseTo(1 / 3, 2);
+    // 1 lista < 3 => isSmallSample true
+    expect(zeon?.isSmallSample).toBe(true);
   });
 });
