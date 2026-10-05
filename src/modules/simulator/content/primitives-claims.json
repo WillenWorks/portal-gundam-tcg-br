@@ -378,6 +378,13 @@
       "description": "O controller tem outra Unit (além da fonte) em campo com o trait dado.",
       "since": "GD01-007 Noin's Aries"
     },
+    "selfIsRested": { "description": "A fonte está descansada.", "since": "EB01-003" },
+    "duringDamageStep": { "description": "A batalha está no Damage Step (destruída com dano de batalha).", "since": "EB01-017 Haro" },
+    "otherRestedUnitsInPlayAtLeast:<n>": {
+      "description": "N+ outras Units descansadas em jogo, dos dois lados, sem contar \"this Unit\" (FAQ EB01 Q310/Q317).",
+      "since": "EB01-002 Hi-Nu Gundam (EX)"
+    },
+    "controllerUnitWithKeywordInPlay:<value>": { "description": "O controller tem uma Unit com a keyword em jogo.", "since": "EB01-043" },
     "restedUnitsInPlayAtLeast:<n>": {
       "description": "N+ Units descansadas em jogo, dos dois lados (FAQ ST10 Q307).",
       "since": "ST10-011 Kamille Bidan"
