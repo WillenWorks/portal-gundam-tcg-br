@@ -357,8 +357,9 @@ export function handleGetCardStatus(req: Request, res: Response): void {
  * Handler HTTP para consulta por parâmetro de rota: GET /api/simulator/card-status/:code
  */
 export function handleGetCardStatusByCode(req: Request, res: Response): void {
-  const code = req.params.code;
-  res.json(getCardStatus(code));
+  const rawCode = req.params.code;
+  const code = Array.isArray(rawCode) ? rawCode[0] : rawCode;
+  res.json(getCardStatus(code || ""));
 }
 
 export const cardStatusRouter = Router();
