@@ -115,7 +115,9 @@ interface AbilityResolutionModalProps {
   setSecondaryTargets: Dispatch<SetStateAction<Record<string, string[]>>>;
   activate: Record<string, boolean>;
   setActivate: Dispatch<SetStateAction<Record<string, boolean>>>;
-  onResolve: (resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>) => void;
+  onResolve: (
+    resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[]; trashExileIds?: string[] }>,
+  ) => void;
 }
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -148,6 +150,16 @@ export function AbilityResolutionModal({
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
   /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
   const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
+  /** W9 — cartas do trash a exilar (specId → instanceIds), exatamente `trashExile.count` */
+  const [exiles, setExiles] = useState<Record<string, string[]>>({});
+  const toggleExile = (specId: string, instanceId: string, max: number) =>
+    setExiles((s) => {
+      const cur = s[specId] ?? [];
+      if (cur.includes(instanceId)) return { ...s, [specId]: cur.filter((id) => id !== instanceId) };
+      return cur.length >= max ? s : { ...s, [specId]: [...cur, instanceId] };
+    });
+  /** a escolha do exílio vale quando o efeito ativa (obrigatório, ou "you may" ligado) */
+  const exileActive = (specId: string) => !itemFor(specId).optional || Boolean(activate[specId]);
 
   const itemFor = (specId: string) => decision.queue.find((q) => q.specId === specId)!;
   const optionsFor = (specId: string) => itemFor(specId).legalTargets.map((instanceId) => ({ instanceId, label: resolveLabel(instanceId) }));
@@ -189,6 +201,7 @@ export function AbilityResolutionModal({
   const canConfirm = order.every((specId) => {
     const q = itemFor(specId);
     const chosen = targets[specId] ?? [];
+    if (q.trashExile && exileActive(specId) && (exiles[specId] ?? []).length !== q.trashExile.count) return false;
     if (q.deckTopReveal) return true; // revelar 1 ou nenhuma — sempre válido
     if (q.handDiscard) return q.handDiscard.legalHandIds.length === 0 || chosen.length > 0;
     if (q.deckReorder) {
@@ -231,6 +244,7 @@ export function AbilityResolutionModal({
           activate: on,
           targetIds: q.needsTarget ? chosen : [],
           secondaryTargetIds: q.secondaryTarget ? (on ? secondaryChosen : []) : undefined,
+          ...(q.trashExile && exileActive(specId) ? { trashExileIds: exiles[specId] ?? [] } : {}),
         };
       }),
     );
@@ -516,6 +530,27 @@ export function AbilityResolutionModal({
                           onClick={() => pickSingle(specId, opt.value)}
                         >
                           {opt.label}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {q.trashExile && exileActive(specId) ? (
+                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
+                    <p className="text-[10px] text-muted-portal">
+                      Exilar do trash — escolha {q.trashExile.count} de {q.trashExile.legalTrashIds.length} carta(s) ({(exiles[specId] ?? []).length}/
+                      {q.trashExile.count}):
+                    </p>
+                    <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
+                      {q.trashExile.legalTrashIds.map((instanceId) => (
+                        <Toggle
+                          key={instanceId}
+                          compact={isSingle}
+                          active={(exiles[specId] ?? []).includes(instanceId)}
+                          onClick={() => toggleExile(specId, instanceId, q.trashExile!.count)}
+                        >
+                          {resolveLabel(instanceId)}
                         </Toggle>
                       ))}
                     </div>

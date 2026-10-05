@@ -60,12 +60,26 @@ export function findEligibleSacrifices(def: CardDef, ctx: PlayabilityContext): C
   });
 }
 
+/** W9 — ST10-014: cartas da mão que pagam o custo alternativo por descarte (uma por nome), se o Lv./custo alternativo couber */
+export function findAltDiscardCandidates(def: CardDef, ctx: PlayabilityContext, selfInstanceId?: string): CardInstance[] {
+  const alt = def.altPlayByDiscard;
+  if (!alt || !ctx.state || !ctx.controller) return [];
+  if (ctx.activeResources < alt.cost || ctx.totalResources < alt.level) return [];
+  const seen = new Set<string>();
+  return (ctx.state.players[ctx.controller]?.hand ?? []).filter((c) => {
+    if (c.instanceId === selfInstanceId || c.def?.cardType !== alt.cardType || !(c.def?.traits ?? []).includes(alt.trait)) return false;
+    if (seen.has(c.def.code)) return false;
+    seen.add(c.def.code);
+    return true;
+  });
+}
+
 /** Checa se o jogador pode bancar a carta: ou pelo custo efetivo + nível, ou via deploy alternativo por sacrifício. */
 export function canAffordCard(def: CardDef, ctx: PlayabilityContext): boolean {
   const cost = effectiveCost(def, ctx.state, ctx.controller);
   const normalAffordable = ctx.activeResources >= cost && ctx.totalResources >= effectiveLevel(def, ctx.state, ctx.controller);
   if (normalAffordable) return true;
-  return findEligibleSacrifices(def, ctx).length > 0;
+  return findEligibleSacrifices(def, ctx).length > 0 || findAltDiscardCandidates(def, ctx).length > 0;
 }
 
 /** Modos de jogo possíveis AGORA. Vazio = injogável (carta fica esmaecida). */

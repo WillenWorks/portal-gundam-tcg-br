@@ -160,15 +160,6 @@ export const DEFERRED_CLAUSES: readonly DeferredClause[] = [
       "efeitos AUTOMÁTICOS (sem escolha) de cartas diferentes do mesmo jogador resolvem na ordem em que dispararam, e antes dos que têm escolha — perguntar a ordem pararia a partida a cada coincidência, mesmo quando a ordem não muda o resultado",
     blockedBy: "engine:simultaneous-automatic-trigger-order (aproximação aceita)",
   },
-  // Auditoria A6 — CR 10-2-2-1 / ruling Q194: em "choose N … from your trash. Exile them" o JOGADOR escolhe.
-  {
-    cardCode: "*",
-    clause: "Exilar N cartas do trash (custo ou efeito \"choose N … from your trash. Exile them\")",
-    reason:
-      "o motor exila as N primeiras cartas elegíveis do trash em vez de o jogador escolher (GD02-111, GD03-009/015/035/050/054/059, GD04-049/065/071/130) — muda o resultado só quando a identidade das cartas importa depois (contagens por nome/trait no trash, GD04-067)",
-    blockedBy: "engine:exile-choice-from-trash (aproximação aceita; escolha entra com o C3 Development N, W9)",
-    kind: "approximation",
-  },
   // W8.5 (2026-10-05) — saíram daqui: ST06-015, ST08-011, GD02-073, GD03-079/097/099 (eram sem efeito) e
-  // GD04-033, GD04-069, GD05-049 (eram aproximações). Sobram só as duas regras gerais acima.
+  // GD04-033, GD04-069, GD05-049 (eram aproximações). W9 — a escolha no "exilar N do trash" virou regra (`trashExile`); sobra só a ordem dos automáticos simultâneos.
 ] as const;

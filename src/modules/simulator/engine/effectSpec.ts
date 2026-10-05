@@ -215,10 +215,10 @@ function resolveTargetGroup(group: TargetGroup, ctx: EffectContext): string[] {
   }
   if (group.kind === "firstNInTrash") {
     const owner = ctx.state.players[ctx.controller];
-    return owner.trash
-      .filter((c) => matchesCardDefFilter(c.def, group.filter))
-      .slice(0, group.count)
-      .map((c) => c.instanceId);
+    const eligible = owner.trash.filter((c) => matchesCardDefFilter(c.def, group.filter)).map((c) => c.instanceId);
+    // W9 — o jogador escolhe quais (CR 10-2-2-1 / Q194); sem escolha (bot, fluxo antigo), as N primeiras
+    const chosen = (ctx.targets.trashExile ?? []).filter((id) => eligible.includes(id)).slice(0, group.count);
+    return [...chosen, ...eligible.filter((id) => !chosen.includes(id))].slice(0, group.count);
   }
   const opponent = ctx.state.players[otherPlayer(ctx.controller)];
   const refId = group.maxLevelOf ? ctx.targets[group.maxLevelOf]?.[0] : undefined;
@@ -643,6 +643,26 @@ export function costTargetShortfall(
   if (!costRestsSecondaryTarget(spec) || !spec.secondaryTarget) return false;
   const st = spec.secondaryTarget;
   return computeLegalTargets(state, { targetScope: st.targetScope, targetFilter: st.targetFilter }, controller, resolveFilter, sourceInstanceId).length < (st.count ?? 1);
+}
+
+/**
+ * W9 — "exile N … cards from your trash" com mais de N elegíveis: o jogador escolhe quais (antes era sempre as N
+ * primeiras — aproximação geral). Olha custo + chamadas ativas; `undefined` = não há escolha a fazer.
+ */
+export function trashExileChoice(
+  state: GameState,
+  spec: EffectSpec,
+  controller: PlayerId,
+  activeCalls?: PrimitiveCall[],
+): { legalTrashIds: string[]; count: number } | undefined {
+  const calls = [...(spec.cost ?? []), ...(activeCalls ?? [...(spec.actions ?? []), ...(spec.condition?.then ?? [])])];
+  for (const c of calls) {
+    if (c.op !== "moveZone" || c.toZone !== "exile" || c.target.kind !== "group" || c.target.group.kind !== "firstNInTrash") continue;
+    const group = c.target.group;
+    const legalTrashIds = state.players[controller].trash.filter((card) => matchesCardDefFilter(card.def, group.filter)).map((card) => card.instanceId);
+    if (legalTrashIds.length > group.count) return { legalTrashIds, count: group.count };
+  }
+  return undefined;
 }
 
 /** W2c (C3) — custo "exile N <filtro> cards from your trash" (moveZone → exile de `firstNInTrash`) sem cartas suficientes. */

@@ -217,6 +217,11 @@ export interface CardDef {
    */
   restInsteadOfBase?: { sourceText?: string };
   /**
+   * W9 — ST10-014 "When playing this card from your hand, you may discard 1 (G Generation) Unit card. If you do, play
+   * this card as if it has 2 Lv. and cost." A carta descartada vem em `playCommand.altCostDiscardId`.
+   */
+  altPlayByDiscard?: { cardType: CardType; trait: string; level: number; cost: number; sourceText?: string };
+  /**
    * W8.5 — GD02-073 "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>." Vale só
    * enquanto a Unit inimiga batalha com esta (FAQ Q185: se outra bloqueia, ela perde o <First Strike>).
    */
@@ -1493,6 +1498,11 @@ export type PendingDecision =
          * `ctx.targets.trashSearch` (ou o `name` custom do `searchTrashToHand`).
          */
         trashSearch?: { legalTrashIds: string[]; label: string };
+        /**
+         * W9 — "exile N … cards from your trash" com mais de N elegíveis: o jogador escolhe EXATAMENTE `count`
+         * (`resolution.trashExileIds` → `ctx.targets.trashExile`). Sem escolha (bot), vale as N primeiras.
+         */
+        trashExile?: { legalTrashIds: string[]; count: number; label: string };
         /**
          * Lote 5 (docs/debates 2026-09-13) — GD01-005: alvo(s) IMPLÍCITO(S), calculados
          * pelo motor (não escolhidos pelo jogador), ex. `{ formerPairedPilot: [instanceId] }`
