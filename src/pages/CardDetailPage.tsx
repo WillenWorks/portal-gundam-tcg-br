@@ -112,8 +112,8 @@ export default function CardDetailPage() {
       {error ? <Card className="panel-cut border-red-400/40"><CardContent className="p-6 text-red-300">{error}</CardContent></Card> : null}
       {!card && !error ? <Card className="panel-cut surface-panel"><CardContent className="p-6 text-slate-400">Carregando detalhe da carta…</CardContent></Card> : null}
       {card ? <>
-        <section className="grid gap-6 lg:grid-cols-[minmax(280px,0.62fr)_minmax(0,1.38fr)]">
-          <div className="mx-auto w-full max-w-[460px] space-y-3">
+        <section className="grid gap-6 lg:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)] 2xl:grid-cols-[480px_1fr] 3xl:grid-cols-[540px_1fr]">
+          <div className="mx-auto w-full max-w-[460px] 2xl:max-w-[480px] 3xl:max-w-[540px] space-y-3">
             <button type="button" onClick={() => artUrl && setZoomOpen(true)} className="group relative block w-full overflow-hidden border border-primary/30 bg-slate-950/60 text-left" aria-label="Ampliar imagem da carta">
               <div className="aspect-[63/88]">{artUrl ? <img src={artUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" /> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Sem arte vinculada</div>}</div>
               {artUrl ? <span className="absolute bottom-3 right-3 inline-flex items-center gap-2 border border-white/20 bg-slate-950/85 px-3 py-2 text-xs uppercase tracking-[0.14em] text-white"><Expand className="size-4" />Ampliar</span> : null}
@@ -244,8 +244,8 @@ export default function CardDetailPage() {
         ) : null}
 
         <section className="grid gap-6 lg:grid-cols-2">
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Relações</h2>{editorialRelations.length ? <div className="grid gap-3">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] || relation.relationType} />)}</div> : <p className="text-sm leading-7 text-slate-400">Nenhuma relação confirmada para esta carta ainda.</p>}</CardContent></Card>
-          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Mais para explorar</h2><p className="text-xs leading-5 text-slate-500">Sugestões por trait, mídia ou coleção.</p>{recommendations.length ? <div className="grid gap-3">{recommendations.map((item) => <MiniCard key={item.id} item={item} />)}</div> : <p className="text-sm text-slate-400">Ainda não há recomendações suficientes.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Relações</h2>{editorialRelations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{editorialRelations.map((relation) => <MiniCard key={relation.id} item={relation.relatedCard} eyebrow={RELATION_LABELS[relation.relationType] || relation.relationType} />)}</div> : <p className="text-sm leading-7 text-slate-400">Nenhuma relação confirmada para esta carta ainda.</p>}</CardContent></Card>
+          <Card className="panel-cut rounded-none surface-panel"><CardContent className="space-y-4 p-5"><h2 className="font-heading text-3xl uppercase">Mais para explorar</h2><p className="text-xs leading-5 text-slate-500">Sugestões por trait, mídia ou coleção.</p>{recommendations.length ? <div className="grid gap-3 sm:grid-cols-1 xl:grid-cols-2">{recommendations.map((item) => <MiniCard key={item.id} item={item} />)}</div> : <p className="text-sm text-slate-400">Ainda não há recomendações suficientes.</p>}</CardContent></Card>
         </section>
 
         <section>

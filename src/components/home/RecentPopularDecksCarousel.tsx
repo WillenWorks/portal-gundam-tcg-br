@@ -101,7 +101,7 @@ export function RecentPopularDecksCarousel() {
   };
 
   return (
-    <section className="relative mx-auto max-w-[1760px] px-4 py-8 sm:px-6 lg:px-8">
+    <section className="relative container-ultrawide py-8">
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-md shadow-2xl">
         {/* Glow de fundo */}
         <div className="pointer-events-none absolute -top-24 -right-24 size-80 rounded-full bg-cyan-500/10 blur-3xl" />
