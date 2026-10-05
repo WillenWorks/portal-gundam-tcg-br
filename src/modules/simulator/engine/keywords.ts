@@ -1,5 +1,5 @@
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types";
-import { effectivePilotDef, hasKeyword, keywordValue, satisfiesLinkCondition } from "./types";
+import { effectivePilotDef, hasKeyword, hasTrait, keywordValue, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 
 /**
@@ -51,7 +51,7 @@ export function activateSupport(state: GameState, sourceId: string, targetId: st
   if (onSupportUsed) {
     const pilot = source.pairedPilotId ? findCard(state, source.pairedPilotId) : undefined;
     const pilotOk = !onSupportUsed.requiresPairedPilotTrait || (!!pilot && (effectivePilotDef(pilot).traits ?? []).includes(onSupportUsed.requiresPairedPilotTrait));
-    const targetOk = !onSupportUsed.requiresTargetTrait || (target.def.traits ?? []).includes(onSupportUsed.requiresTargetTrait);
+    const targetOk = !onSupportUsed.requiresTargetTrait || hasTrait(target, onSupportUsed.requiresTargetTrait, state);
     const usageMarker = "onSupportUsed";
     const alreadyUsed = !!onSupportUsed.oncePerTurn && source.usedKeywordsThisTurn.includes(usageMarker);
     if (pilotOk && targetOk && !alreadyUsed) {

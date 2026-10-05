@@ -108,8 +108,13 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("W0.4 — carta com a cláusula deferida é bloqueada (GD03-079: custo de descanso substituto, deferido)", () => {
-    expect(isCardPlayable(GD03_CARD_DEFS["GD03-079"])).toBe(false);
+  it("carta com efeito e sem implementação é bloqueada (ST10, ainda fora do motor)", () => {
+    const st10 = { ...GD03_CARD_DEFS["GD03-079"], code: "ST10-001" };
+    expect(isCardPlayable(st10)).toBe(false);
+  });
+
+  it("GD03-079 destravada na W8.5 (substituição da Base) é jogável", () => {
+    expect(isCardPlayable(GD03_CARD_DEFS["GD03-079"])).toBe(true);
   });
 
   it("GD03-113 destravada na W7 (continuação com o Lv. da Unit descansada) é jogável", () => {

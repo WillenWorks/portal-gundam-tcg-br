@@ -1,5 +1,5 @@
 import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
-import { effectiveDeployCost, effectiveLevel, effectivePilotDef, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
+import { effectiveDeployCost, effectiveLevel, effectivePilotDef, hasTrait, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, commandHasNoAvailableMode, specActiveCalls } from "./effectSpec";
@@ -164,7 +164,7 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
       if (altGen.level !== undefined && (sac.def.level ?? 0) !== altGen.level) {
         throw new Error(`A Unit sacrificada precisa ser de Lv.${altGen.level}`);
       }
-      if (altGen.trait && !sac.def.traits?.includes(altGen.trait)) {
+      if (altGen.trait && !hasTrait(sac, altGen.trait, state)) {
         throw new Error(`A Unit sacrificada precisa ter o traço "${altGen.trait}"`);
       }
       if (altGen.requiresLink) {

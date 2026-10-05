@@ -1750,8 +1750,8 @@
     "ST06": {
       "counts": {
         "vanilla": 4,
-        "full": 10,
-        "partial": 1,
+        "full": 11,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -2047,7 +2047,7 @@
         },
         {
           "code": "ST06-015",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2075,9 +2075,9 @@
             {
               "i": 2,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reactive-trigger-bus (C1)"
+                "ST06-015-UnitLinked"
               ],
               "text": "【Once per Turn】When a friendly (Clan) Unit links, it gains <Breach 3> during this turn."
             }
@@ -2406,8 +2406,8 @@
     "ST08": {
       "counts": {
         "vanilla": 3,
-        "full": 11,
-        "partial": 1,
+        "full": 12,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -2576,7 +2576,7 @@
         },
         {
           "code": "ST08-011",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -2593,9 +2593,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reactive-trigger-bus (C1)"
+                "ST08-011-DrewByEffect"
               ],
               "text": "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
             }
@@ -5563,8 +5563,8 @@
     "GD02": {
       "counts": {
         "vanilla": 26,
-        "full": 103,
-        "partial": 1,
+        "full": 104,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -6719,15 +6719,15 @@
         },
         {
           "code": "GD02-073",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:attack-rule-extensions (C4)"
+                "battleOpponentGainsFirstStrike"
               ],
               "text": "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>."
             }
@@ -8215,8 +8215,8 @@
     "GD03": {
       "counts": {
         "vanilla": 16,
-        "full": 113,
-        "partial": 3,
+        "full": 116,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -9627,15 +9627,15 @@
         },
         {
           "code": "GD03-079",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
               "i": 0,
               "triggers": [],
-              "by": "deferred",
+              "by": "structured",
               "refs": [
-                "engine:replacement-rest-cost (C2)"
+                "restInsteadOfBase"
               ],
               "text": "When you rest your Base with one of your Units'effects, you may rest this Unit instead."
             }
@@ -10076,7 +10076,7 @@
         },
         {
           "code": "GD03-097",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10093,9 +10093,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:reaction-deck-look-choose (C9)"
+                "GD03-097-DestroyedEnemyInBattle"
               ],
               "text": "【During Link】【Once per Turn】During your turn, when this Unit destroys an enemy Unit with battle damage, look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash."
             }
@@ -10130,7 +10130,7 @@
         },
         {
           "code": "GD03-099",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -10149,9 +10149,9 @@
               "triggers": [
                 "Destroyed"
               ],
-              "by": "deferred",
+              "by": "spec",
               "refs": [
-                "engine:destroyed-pilot-unit-level-filter (C5)"
+                "GD03-099-Destroyed"
               ],
               "text": "【During Link】【Destroyed】If a friendly white Base is in play, choose 1 enemy Unit whose Lv. is equal to or lower than this Unit. Return it to its owner's hand."
             }
@@ -11104,8 +11104,8 @@
     "GD04": {
       "counts": {
         "vanilla": 18,
-        "full": 111,
-        "partial": 1,
+        "full": 112,
+        "partial": 0,
         "missing": 0,
         "withErrors": 0
       },
@@ -11670,7 +11670,7 @@
         },
         {
           "code": "GD04-033",
-          "status": "partial",
+          "status": "full",
           "errors": [],
           "clauses": [
             {
@@ -11685,9 +11685,9 @@
             {
               "i": 1,
               "triggers": [],
-              "by": "approximated",
+              "by": "structured",
               "refs": [
-                "engine:trait-grant-everywhere (aproximação aceita)"
+                "grantsTraitToFriendlyUnits"
               ],
               "text": "【During Link】All your Units gain (Neo Zeon)."
             }

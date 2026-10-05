@@ -65,6 +65,10 @@ export const UNITS_WHITE: Record<string, CardDef> = {
   "GD02-073": {
     code: "GD02-073",
     nameEn: "Carta's Graze Ritter (Ground Type)",
+    // W8.5 — a Unit inimiga que batalha com esta, no turno do oponente, ganha <First Strike> (FAQ Q185)
+    battleOpponentGainsFirstStrike: {
+      sourceText: "During your opponent's turn, the enemy Unit battling this Unit gains <First Strike>.",
+    },
     cardType: "UNIT",
     color: "white",
     level: 4,

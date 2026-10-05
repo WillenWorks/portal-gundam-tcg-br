@@ -89,6 +89,8 @@ export const STRUCTURED_FIELDS = [
   "zeroCostWhenPairedWithUnitNameContains",
   "attackOnDeployTurnVsRestedUnit",
   "restInsteadOfUnitCost",
+  "restInsteadOfBase",
+  "battleOpponentGainsFirstStrike",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([

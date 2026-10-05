@@ -129,6 +129,22 @@ export const LANE_AIM_BURST: EffectSpec = {
   sourceText: "【Burst】Add this card to your hand.",
 };
 
+// ST08-011 Lane Aim — W8.5: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn."
+// Texto de Piloto: vale pareado (`duringPair`), "this" = a Unit pareada (reação `drewByEffect`, 1× por efeito que compra).
+export const LANE_AIM_DREW_BY_EFFECT: EffectSpec = {
+  id: "ST08-011-DrewByEffect",
+  cardCode: "ST08-011",
+  trigger: "Reaction:drewByEffect",
+  reaction: { event: "drewByEffect", subject: "friendly" },
+  duringPair: true,
+  condition: {
+    predicate: "selfColorIs:blue",
+    then: [{ op: "grantKeyword", target: { kind: "pairedUnit" }, keyword: "High-Maneuver", duration: "endOfTurn" }],
+  },
+  actions: [],
+  sourceText: "When you draw with an effect, if this is a blue Unit, it gains <High-Maneuver> during this turn.",
+};
+
 // ST08-012 Words for Hathaway — 【Main】Choose 1 friendly Link Unit. It gains [Breach 1] during this turn.
 export const WORDS_FOR_HATHAWAY_MAIN: EffectSpec = {
   id: "ST08-012-Main",
@@ -243,6 +259,7 @@ export const ST08_EFFECT_SPECS: EffectSpec[] = [
   HATHAWAY_BURST,
   HATHAWAY_WHEN_PAIRED,
   LANE_AIM_BURST,
+  LANE_AIM_DREW_BY_EFFECT,
   WORDS_FOR_HATHAWAY_MAIN,
   LADY_LUCK_MAIN,
   LADY_LUCK_ACTION,

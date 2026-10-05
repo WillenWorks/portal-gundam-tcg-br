@@ -939,6 +939,8 @@ export const GD02_075_RICK_DIAS_RED_ATTACK: EffectSpec = {
   },
   actions: [{ op: "rest", target: { kind: "named", name: "target" } }],
   targetScope: "friendlyBase",
+  // W8.5 — GD03-079 G-Defenser pode ser descansada no lugar da Base
+  baseRestSubstitutable: true,
   targetFilter: "active",
   secondaryTarget: { name: "enemyTarget", targetScope: "enemyUnit", targetFilter: "level<=4" },
   sourceText: "【Attack】Choose 1 active friendly Base. Rest it. If you do, choose 1 enemy Unit that is Lv.4 or lower. It gets AP-2 during this battle.",
@@ -961,6 +963,8 @@ export const GD02_069_ZETA_GUNDAM_ACTIVATE_MAIN: EffectSpec = {
   },
   actions: [],
   targetScope: "friendlyBase",
+  // W8.5 — GD03-079 G-Defenser pode ser descansada no lugar da Base
+  baseRestSubstitutable: true,
   targetFilter: "active",
   sourceText: "【During Link】【Activate･Main】【Once per Turn】Choose 1 active friendly Base. Rest it. If you do, set this Unit as active. It can't choose the enemy player as its attack target during this turn.",
 };
