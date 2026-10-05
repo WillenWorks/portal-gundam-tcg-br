@@ -240,6 +240,12 @@ export const defaultPredicateResolver: PredicateResolver = (predicate, ctx: Effe
     );
   }
   // GD01-047 Shamblo — 【Attack】"If 2 or more other rested friendly Units are in play, ...".
+  // W9 — ST10-011 "If 2 or more rested Units are in play" (dos dois lados, FAQ Q307)
+  const restedUnitsInPlayAtLeast = predicate.match(/^restedUnitsInPlayAtLeast:(\d+)$/);
+  if (restedUnitsInPlayAtLeast) {
+    const all = [...ctx.state.players.A.battleArea, ...ctx.state.players.B.battleArea];
+    return all.filter((u) => u.def.cardType === "UNIT" && u.rested).length >= Number(restedUnitsInPlayAtLeast[1]);
+  }
   const controllerOtherRestedUnitCountAtLeast = predicate.match(/^controllerOtherRestedUnitCountAtLeast:(\d+)$/);
   if (controllerOtherRestedUnitCountAtLeast) {
     const owner = ctx.state.players[ctx.controller];

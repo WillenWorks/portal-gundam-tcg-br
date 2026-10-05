@@ -1,6 +1,6 @@
 import type { CardDef, GameEvent, GameState, PlayerId, QueuedTrigger } from "./types";
 import { effectiveDeployCost, effectiveLevel, effectivePilotDef, hasTrait, pairedPilotFollowEvents, satisfiesLinkCondition } from "./types";
-import { applyEvents, findCard } from "./events";
+import { applyEvent, applyEvents, findCard } from "./events";
 import type { EffectContext, EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
 import { callsNeedChoice, commandHasNoAvailableMode, specActiveCalls } from "./effectSpec";
 import { dispatchTrigger, findTriggerSpecs } from "./dispatcher";
@@ -313,8 +313,21 @@ export function deployCard(state: GameState, player: PlayerId, cardInstanceId: s
   return next;
 }
 
+/** W9 — `CardDef.altPlayByDiscard`: valida a carta a descartar e devolve o def com Lv./custo alternativos */
+export function altPlayDef(state: GameState, player: PlayerId, card: { def: CardDef; instanceId: string }, discardId: string): CardDef {
+  const alt = card.def.altPlayByDiscard;
+  if (!alt) throw new Error(`${card.def.code} não tem custo alternativo por descarte`);
+  const discard = state.players[player].hand.find((c) => c.instanceId === discardId);
+  if (!discard || discard.instanceId === card.instanceId || discard.def.cardType !== alt.cardType || !(discard.def.traits ?? []).includes(alt.trait)) {
+    throw new Error(`${card.def.code}: a carta descartada precisa ser 1 ${alt.cardType} (${alt.trait}) da sua mão`);
+  }
+  return { ...card.def, level: alt.level, cost: alt.cost };
+}
+
 export interface PlayCommandOptions {
   resourceInstanceIds?: string[];
+  /** W9 — custo alternativo por descarte (`CardDef.altPlayByDiscard`, ST10-014): a carta da mão descartada */
+  altCostDiscardId?: string;
   targets?: Record<string, string[]>;
   predicateResolver?: PredicateResolver;
   targetFilterResolver?: TargetFilterResolver;
@@ -360,14 +373,18 @@ export function playCommand(
     if (priority !== player) throw new Error("Não é a prioridade desse jogador no Action Step");
   }
 
-  if (!canPayLevel(state, player, card.def)) {
-    throw new Error(`Nível insuficiente pra jogar ${card.def.code}: precisa de ${effectiveLevel(card.def, state, player)} recursos em campo`);
+  // W9 — ST10-014: descarta 1 carta elegível e joga com Lv./custo alternativos
+  const alt = options.altCostDiscardId ? altPlayDef(state, player, card, options.altCostDiscardId) : null;
+  const payDef = alt ?? card.def;
+  if (!canPayLevel(state, player, payDef)) {
+    throw new Error(`Nível insuficiente pra jogar ${card.def.code}: precisa de ${effectiveLevel(payDef, state, player)} recursos em campo`);
   }
+  if (alt && options.altCostDiscardId) state = applyEvent(state, { type: "DISCARD_TO_HAND_LIMIT", player, instanceIds: [options.altCostDiscardId] });
 
   if (commandHasNoAvailableMode(state, player, card.def.code, cardInstanceId, trigger, specs, options.targetFilterResolver, options.predicateResolver)) {
     throw new Error(`${card.def.code}: nenhum dos efeitos pode ser escolhido agora (não há alvo para nenhum modo)`);
   }
-  const costEvents = payCostEvents(state, player, card.def, options.resourceInstanceIds);
+  const costEvents = payCostEvents(state, player, payDef, options.resourceInstanceIds);
   // W5 (C6) — "using an EX Resource": o pagamento tirou um EX Resource do jogo. Só emite quando
   // muda algo (sem EX e sem marca antiga = nada), pra não poluir o log de toda Command jogada.
   const withEx = costEvents.some(

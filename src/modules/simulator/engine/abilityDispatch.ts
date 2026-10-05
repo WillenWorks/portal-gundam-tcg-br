@@ -25,6 +25,7 @@ import {
   specChoicePrimitive,
   specNeedsChoice,
   specNeedsNamedTarget,
+  trashExileChoice,
 } from "./effectSpec";
 import type { EffectContext, EffectSpec, PredicateResolver, PrimitiveCall, ReactionEvent, TargetFilterResolver } from "./effectSpec";
 import { applyEvent, applyEvents, findCard } from "./events";
@@ -115,6 +116,9 @@ function buildQueueEntry(
         }
       : undefined,
   };
+  // W9 — "exile N … from your trash" com mais de N elegíveis: o jogador escolhe quais
+  const exile = trashExileChoice(state, spec, player, activeCalls);
+  if (exile) entry.trashExile = { ...exile, label: spec.sourceText };
 
   const choice = activeCalls ? callsChoicePrimitive(activeCalls) : specChoicePrimitive(spec);
   if (!choice) return entry;
@@ -326,7 +330,12 @@ export function deferOrDispatchAbilities(
   const interactive = activeEntries.filter(
     ({ spec, activeCalls }) =>
       // W8 — custo "Rest N of your Units" sem alvo próprio (GD05-001) também é escolha do jogador
-      (spec.optional ?? false) || callsNeedNamedTarget(activeCalls) || callsNeedChoice(activeCalls) || costRestsSecondaryTarget(spec),
+      (spec.optional ?? false) ||
+      callsNeedNamedTarget(activeCalls) ||
+      callsNeedChoice(activeCalls) ||
+      costRestsSecondaryTarget(spec) ||
+      // W9 — escolha das cartas a exilar do trash
+      !!trashExileChoice(state, spec, player, activeCalls),
   );
 
   // alvo já veio pronto (compat com testes/IA) ou nada precisa de interação: resolve tudo na hora.

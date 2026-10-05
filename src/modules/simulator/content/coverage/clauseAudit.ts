@@ -91,6 +91,7 @@ export const STRUCTURED_FIELDS = [
   "restInsteadOfUnitCost",
   "restInsteadOfBase",
   "battleOpponentGainsFirstStrike",
+  "altPlayByDiscard",
 ] as const satisfies ReadonlyArray<keyof CardDef>;
 
 const TIMING_TRIGGERS = new Set([

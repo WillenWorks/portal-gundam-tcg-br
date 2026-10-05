@@ -1,7 +1,7 @@
 import type { AttackTarget, CardInstance, GameState, PlayerId } from "./types";
 import { effectiveCost, effectiveDeployCost, hasKeyword, specPairGateOpen } from "./types";
 import type { EffectSpec, PredicateResolver, TargetFilterResolver } from "./effectSpec";
-import { commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget } from "./effectSpec";
+import { commandHasNoAvailableMode, computeLegalTargets, costRestsSecondaryTarget, costTargetShortfall, exileCostShortfall, specNeedsNamedTarget, trashExileChoice } from "./effectSpec";
 import { findTriggerSpecs, specOncePerTurnMarker } from "./dispatcher";
 import { canActivateBlocker } from "./combat";
 import { canPayLevel } from "./deploy";
@@ -216,6 +216,7 @@ function activateAbilityCandidates(
         continue;
       }
       if (payableAbilitySpecs.length > 0) {
+        const before = out.length;
         const { ids, someSpecNeeds, targetCount } = neededTargetIds(
           state,
           seat,
@@ -235,6 +236,14 @@ function activateAbilityCandidates(
           out.push({ kind: "activateAbility", sourceInstanceId: card.instanceId });
         }
         // `someSpecNeeds && ids.length === 0` — ver comentário equivalente em `mainPhaseCandidates` (wave ST05).
+        // W9 — custo de exilar do trash com escolha: o bot manda as N primeiras (o de antes), sem abrir decisão
+        const exile = payableAbilitySpecs.map((s) => trashExileChoice(state, s, seat)).find(Boolean);
+        if (exile) {
+          for (let i = before; i < out.length; i++) {
+            const a = out[i];
+            if (a.kind === "activateAbility") out[i] = { ...a, targets: { ...(a.targets ?? {}), trashExile: exile.legalTrashIds.slice(0, exile.count) } };
+          }
+        }
       } else {
         // <Support N> — alvo é outra Unit amiga
         for (const other of friendlyUnits(state, seat)) {
@@ -257,6 +266,17 @@ function mainPhaseCandidates(state: GameState, seat: PlayerId, specs: EffectSpec
     const affordable = canPayLevel(state, seat, def) && canAfford(state, seat, effectiveCost(def, state, seat));
     // GD03-085 — custo 0 ao parear com a Unit certa: sem recurso pro custo cheio, só esse pareamento
     if (!affordable) {
+      // W9 — ST10-014: custo alternativo por descarte (só quando o normal não cabe)
+      const alt = def.altPlayByDiscard;
+      if (alt && def.cardType === "COMMAND" && def.triggerKeywords?.includes("Main")) {
+        const altDef = { ...def, level: alt.level, cost: alt.cost };
+        const discard = state.players[seat].hand.find(
+          (c) => c.instanceId !== card.instanceId && c.def.cardType === alt.cardType && (c.def.traits ?? []).includes(alt.trait),
+        );
+        if (discard && canPayLevel(state, seat, altDef) && canAfford(state, seat, alt.cost)) {
+          out.push(...commandPlayCandidates(state, seat, card, "Main", specs, opts).map((a) => ({ ...a, altCostDiscardId: discard.instanceId })));
+        }
+      }
       if (def.zeroCostWhenPairedWithUnitNameContains && canPayLevel(state, seat, def)) {
         for (const unit of friendlyUnits(state, seat)) {
           if (unit.pairedPilotId || unit.def.cannotBePaired) continue;
