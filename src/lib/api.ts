@@ -273,6 +273,8 @@ export interface PowerRankingEntry {
   signatureCard: { id: string; code: string; name: string; imageUrl: string | null; imageMediumUrl: string | null; color: string | null } | null;
   deckCount: number;
   metaShare: number;
+  topCutConversion?: number;
+  isSmallSample?: boolean;
   wins: number;
   losses: number;
   draws: number;
@@ -282,6 +284,76 @@ export interface PowerRankingEntry {
   bestPlacement: number | null;
   sampleTournaments: Array<{ id: string; name: string }>;
   tournamentPlacements?: PowerRankingTournamentPlacement[];
+}
+
+export interface FormatCardDetail {
+  code: string;
+  name: string;
+  namePt: string | null;
+  imageUrl: string | null;
+  imageMediumUrl: string | null;
+  color: string | null;
+  cardType: string;
+  cost: number | null;
+  level: number | null;
+  tier: "core" | "flex" | "tech";
+  inclusionRate: number;
+  modeCopies: number;
+  avgCopies: number;
+}
+
+export interface FormatArchetypeSummary {
+  id: string;
+  name: string;
+  colors: string[];
+  keyCard: string;
+  keyCardDetail: FormatCardDetail | null;
+  lists: number;
+  share: number;
+  top8Share: number;
+  winShare: number;
+  points: number;
+  isSmallSample: boolean;
+  sampleWarning: string | null;
+  cards: {
+    core: FormatCardDetail[];
+    flex: FormatCardDetail[];
+    tech: FormatCardDetail[];
+  };
+  medianDecklist: Record<string, number>;
+}
+
+export interface FormatMetaResponse {
+  format: string;
+  totalLists: number;
+  totalEvents: number;
+  generatedAt: string;
+  sourceUrl: string;
+  archetypes: FormatArchetypeSummary[];
+  provenance: MetagameProvenance;
+}
+
+export interface FormatOverviewItem {
+  format: string;
+  totalLists: number;
+  totalEvents: number;
+  archetypeCount: number;
+  topArchetypes: Array<{ name: string; share: number; colors: string[] }>;
+}
+
+export interface ArchetypeEvolutionPoint {
+  format: string;
+  lists: number;
+  share: number;
+  top8Share: number;
+  winShare: number;
+  points: number;
+}
+
+export interface ArchetypeEvolution {
+  name: string;
+  colors: string[];
+  points: ArchetypeEvolutionPoint[];
 }
 
 // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4).
@@ -994,13 +1066,30 @@ export const api = {
     request<MetagameStatsResponse>(`/stats/metagame${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
   // Fase 2 -- Power Rankings semanal (só resultado real de torneio reportado, ver
   // PLANO_METAGAME_TORNEIOS_TELEMETRIA.md §2.3).
-  getPowerRankings: (params: { seasonId?: string; setId?: string } = {}) =>
+  getPowerRankings: (params: { seasonId?: string; setId?: string; tier?: string; startDate?: string; endDate?: string } = {}) =>
     request<{
       season: { id: string; code: string; name: string } | null;
       setId: string | null;
+      tier: string | null;
+      startDate: string | null;
+      endDate: string | null;
       rankings: PowerRankingEntry[];
       provenance?: MetagameProvenance;
     }>(`/stats/power-rankings${toQuery(params)}`, undefined, { ttlMs: 60_000 }),
+  // Fase 2 -- Formatos / Temporadas (GD01..GD05) e Núcleos de Arquétipo
+  getFormatList: () =>
+    request<FormatOverviewItem[]>("/stats/formats", undefined, { ttlMs: 300_000 }),
+  getFormatEvolution: () =>
+    request<ArchetypeEvolution[]>("/stats/formats/evolution", undefined, { ttlMs: 300_000 }),
+  getFormatMeta: (format: string, params: { color?: string; minLists?: number } = {}) =>
+    request<FormatMetaResponse>(
+      `/stats/formats/${encodeURIComponent(format)}${toQuery({
+        color: params.color,
+        minLists: params.minLists != null ? String(params.minLists) : undefined,
+      })}`,
+      undefined,
+      { ttlMs: 300_000 },
+    ),
   // Fase 3 -- Matriz de Confrontos (SCAFFOLD, ver §2.4). hasData normalmente vem false
   // até existir captura de arquétipo/iniciativa por partida em evento ao vivo.
   getMatchupMatrix: (params: { seasonId?: string; window?: "30d" | "90d" | "all" } = {}) =>

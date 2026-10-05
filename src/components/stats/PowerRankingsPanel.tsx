@@ -5,7 +5,7 @@
  * público) pela mesma assinatura (carta+cores) -- quando não bate, avisa o usuário em
  * vez de fingir que existe núcleo matemático pra aquele arquétipo. */
 import { useEffect, useState } from "react";
-import { Trophy, Wrench, Telescope, Loader2, ExternalLink, Calendar } from "lucide-react";
+import { Trophy, Wrench, Telescope, Loader2, ExternalLink, Calendar, Filter, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,9 +32,20 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
   const [buildingKey, setBuildingKey] = useState<string | null>(null);
   const [buildModal, setBuildModal] = useState<{ archetypeName: string; coreCards: CoreCardItem[]; suggestedCards: CoreCardItem[] } | null>(null);
 
+  // Filtros de tipo de evento (tier) e período (datas)
+  const [selectedTier, setSelectedTier] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   useEffect(() => {
     setLoading(true);
-    api.getPowerRankings({ seasonId, setId })
+    api.getPowerRankings({
+      seasonId,
+      setId,
+      tier: selectedTier === "ALL" ? undefined : selectedTier,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    })
       .then((res) => {
         setRankings(res.rankings.slice(0, 10));
         setProvenance(res.provenance || null);
@@ -44,7 +55,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
         setProvenance(null);
       })
       .finally(() => setLoading(false));
-  }, [seasonId, setId]);
+  }, [seasonId, setId, selectedTier, startDate, endDate]);
 
   const startBuild = async (entry: PowerRankingEntry) => {
     const key = vedaKeyFor(entry);
@@ -119,6 +130,58 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
           />
         )}
 
+        {/* Filtros de Tier e Período */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-400 font-mono">
+            <Filter className="size-3.5 text-primary" />
+            <span className="uppercase tracking-wider text-[11px]">Tipo de Torneio:</span>
+          </div>
+          <select
+            value={selectedTier}
+            onChange={(e) => setSelectedTier(e.target.value)}
+            className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2.5 text-xs text-white"
+          >
+            <option value="ALL">Todos os tipos de evento</option>
+            {TOURNAMENT_TIER_OPTIONS.map((tier) => (
+              <option key={tier.value} value={tier.value}>
+                {tier.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex flex-wrap items-center gap-2 text-slate-400 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">De:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+            />
+            <span className="uppercase tracking-wider text-[11px]">Até:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="field-shell h-8 rounded-none border border-white/15 bg-slate-950/70 px-2 text-xs text-white"
+            />
+          </div>
+
+          {(selectedTier !== "ALL" || startDate || endDate) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSelectedTier("ALL");
+                setStartDate("");
+                setEndDate("");
+              }}
+              className="h-8 px-2 text-xs text-slate-400 hover:text-white"
+            >
+              <X className="mr-1 size-3" /> Limpar filtros
+            </Button>
+          )}
+        </div>
+
         {loading ? (
           <p className="mt-6 text-sm text-slate-400">Carregando ranking...</p>
         ) : !rankings.length ? (
@@ -140,13 +203,30 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                     {entry.colors.map((c) => <span key={c} title={GAME_COLOR_LABEL_PT[c] || c} className="size-2.5 rounded-full" style={{ backgroundColor: GAME_COLOR_HEX[c] || FALLBACK_SLICE_COLOR }} />)}
                   </div>
                   <p className="mt-1 font-heading text-xl uppercase leading-tight text-white">{entry.archetype}</p>
-                  <p className="text-xs text-slate-500">{entry.deckCount} entrada(s){entry.bestPlacement ? ` · melhor colocação: ${entry.bestPlacement}º` : ""}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <p className="text-xs text-slate-500">{entry.deckCount} entrada(s){entry.bestPlacement ? ` · melhor: ${entry.bestPlacement}º` : ""}</p>
+                    {entry.isSmallSample && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] uppercase font-mono tracking-wider text-amber-400 border-amber-500/40 bg-amber-500/10"
+                        title="Amostra pequena de torneios — métricas podem ter maior volatilidade."
+                      >
+                        Poucos dados
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-6 text-center">
+                <div className="flex shrink-0 items-center gap-4 sm:gap-6 text-center">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Meta Share</p>
                     <p className="font-heading text-xl text-white">{Math.round(entry.metaShare * 100)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Top Cut</p>
+                    <p className="font-heading text-xl text-sky-400" title="Proporção de listas deste arquétipo que atingiram o Top 8">
+                      {entry.topCutConversion != null ? `${Math.round(entry.topCutConversion * 100)}%` : "—"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Winrate</p>

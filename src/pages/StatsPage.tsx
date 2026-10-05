@@ -16,6 +16,7 @@ import { NON_STATS_SECTIONS, NON_STATS_CARD_TYPES } from "@/lib/deck-legality";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX, GAME_COLOR_LABEL_PT, COLOR_OPTIONS } from "@/lib/gundam-catalog";
 import { MetaAnalyticsPanel } from "@/components/stats/MetaAnalyticsPanel";
 import { PowerRankingsPanel } from "@/components/stats/PowerRankingsPanel";
+import { FormatArchetypeCoresPanel } from "@/components/stats/FormatArchetypeCoresPanel";
 import { MatchupMatrixPanel } from "@/components/stats/MatchupMatrixPanel";
 import { DataSourceNote } from "@/components/stats/DataSourceNote";
 
@@ -750,6 +751,9 @@ export default function StatsPage() {
           </Card>
         </div>
         
+        {/* Formatos GD01..GD05 e Núcleos de Arquétipo (Fase 2) */}
+        <FormatArchetypeCoresPanel />
+
         {/* Inteligência Algorítmica de Metagame ATMI */}
         <MetaAnalyticsPanel focusKey={atmiFocusKey} />
 

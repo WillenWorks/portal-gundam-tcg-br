@@ -31,6 +31,8 @@ export interface PowerRankingEntry {
   signatureCard: PowerRankingSignatureCard | null;
   deckCount: number;
   metaShare: number; // 0..1, sobre o total de entradas com arquétipo declarado no recorte
+  topCutConversion: number; // 0..1, proporção de listas que atingiram o Top 8 do evento
+  isSmallSample: boolean; // true se deckCount < 4 (alerta de amostra pequena)
   wins: number;
   losses: number;
   draws: number;
@@ -123,12 +125,27 @@ function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>
  */
 export async function getPowerRankingsWithProvenance(
   prisma: PrismaClient,
-  params: { seasonId?: string | null; setId?: string | null },
+  params: {
+    seasonId?: string | null;
+    setId?: string | null;
+    tier?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
 ): Promise<PowerRankingsResult> {
+  const whereTournament: any = { isActive: true };
+  if (params.seasonId) whereTournament.seasonId = params.seasonId;
+  if (params.tier && params.tier !== "ALL") whereTournament.tier = params.tier;
+  if (params.startDate || params.endDate) {
+    whereTournament.dateStart = {};
+    if (params.startDate) whereTournament.dateStart.gte = new Date(params.startDate);
+    if (params.endDate) whereTournament.dateStart.lte = new Date(params.endDate);
+  }
+
   const rows = await prisma.tournamentEntry.findMany({
     where: {
       archetype: { not: null },
-      tournament: { isActive: true, ...(params.seasonId ? { seasonId: params.seasonId } : {}) },
+      tournament: whereTournament,
     },
     select: {
       archetype: true,
@@ -224,12 +241,18 @@ export async function getPowerRankingsWithProvenance(
       }))
       .sort((a, b) => (a.placement ?? 999) - (b.placement ?? 999));
 
+    const topCutEntries = entries.filter((e) => e.placement != null && e.placement <= 8).length;
+    const topCutConversion = entries.length > 0 ? Number((topCutEntries / entries.length).toFixed(4)) : 0;
+    const isSmallSample = entries.length < 4;
+
     return {
       archetype,
       colors,
       signatureCard,
       deckCount: entries.length,
       metaShare: totalEntries > 0 ? Number((entries.length / totalEntries).toFixed(4)) : 0,
+      topCutConversion,
+      isSmallSample,
       wins,
       losses,
       draws,
@@ -251,6 +274,8 @@ export async function getPowerRankingsWithProvenance(
       signatureCard: r.signatureCard,
       deckCount: r.deckCount,
       metaShare: r.metaShare,
+      topCutConversion: r.topCutConversion,
+      isSmallSample: r.isSmallSample,
       wins: r.wins,
       losses: r.losses,
       draws: r.draws,
@@ -309,7 +334,13 @@ export async function getPowerRankingsWithProvenance(
 
 export async function getPowerRankings(
   prisma: PrismaClient,
-  params: { seasonId?: string | null; setId?: string | null },
+  params: {
+    seasonId?: string | null;
+    setId?: string | null;
+    tier?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
 ): Promise<PowerRankingEntry[]> {
   const result = await getPowerRankingsWithProvenance(prisma, params);
   return result.rankings;
