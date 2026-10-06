@@ -889,7 +889,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             origin: originCenter,
             dest: rectCenter(board.rectOf(destKey)),
             cardW: originRect.width,
-            kind: wasUnit ? "destroyed" : "discarded",
+            kind: isExileMove.has(id) ? "exiled" : wasUnit ? "destroyed" : "discarded",
             code: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.code : undefined,
             nameEn: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.nameEn : undefined,
             cardType: !isHidden(departed) && (departed as CardInstance).def ? (departed as CardInstance).def.cardType : undefined,

@@ -219,11 +219,17 @@ export function BattleSlot({
   );
   const isToken = Boolean(unit.def.isToken);
 
-  const showAttack = Boolean(actions?.onAttack) && !unit.rested;
+  const currentTurn = state?.turnNumber ?? 1;
+  const isCannotAttack = Boolean(unit.cannotAttackUntilTurn && unit.cannotAttackUntilTurn >= currentTurn);
+  const isCannotActivate = Boolean(unit.cannotActivateUntilTurn && unit.cannotActivateUntilTurn >= currentTurn);
+  const cannotTargetPlayer = Boolean(unit.def.attackTargetRules?.cannotTargetPlayer);
+  const isAttackTargetRelax = Boolean(unit.attackTargetRelaxUntilTurn && unit.attackTargetRelaxUntilTurn.turn >= currentTurn);
+
+  const showAttack = Boolean(actions?.onAttack) && !unit.rested && !isCannotAttack;
   // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
   // decisão mais crítica do Block Step, precisa se destacar das outras ações.
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
-  const showActivate = Boolean(actions?.onActivate);
+  const showActivate = Boolean(actions?.onActivate) && !isCannotActivate;
 
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
@@ -485,6 +491,38 @@ export function BattleSlot({
                 title="Proteção: O primeiro dano sofrido a cada turno é anulado"
               >
                 GUARD
+              </span>
+            ) : null}
+            {isCannotAttack ? (
+              <span
+                className="rounded-r-xs bg-rose-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-rose-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não pode atacar neste turno"
+              >
+                NO ATK
+              </span>
+            ) : null}
+            {isCannotActivate ? (
+              <span
+                className="rounded-r-xs bg-sky-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-sky-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não ativa na próxima start phase"
+              >
+                FREEZE
+              </span>
+            ) : null}
+            {cannotTargetPlayer ? (
+              <span
+                className="rounded-r-xs bg-amber-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-amber-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não pode escolher o jogador como alvo de ataque"
+              >
+                NO FACE
+              </span>
+            ) : null}
+            {isAttackTargetRelax ? (
+              <span
+                className="rounded-r-xs bg-emerald-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-emerald-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Alvo de ataque relaxado: pode escolher alvos protegidos"
+              >
+                RELAX
               </span>
             ) : null}
           </div>
