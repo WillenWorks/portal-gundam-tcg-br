@@ -64,9 +64,13 @@ import {
   touchPresence,
   submitSideboard,
   generateBugShortCode,
+  collectCardsInvolved,
   publicDeckKeys,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
+import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
+import { buildBattleLog } from "../src/modules/simulator/ui/battleLog.ts";
+import { saveBugReportToDisk } from "./services/bugReportDiskService.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
@@ -5284,16 +5288,49 @@ app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestW
     return res.status(403).json({ error: "Só jogadores logados podem reportar uma situação." });
   }
   const reporterId = user!.userId;
-  const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+  const body = req.body as {
+    note?: unknown;
+    screenshotBase64?: unknown;
+    snapshot?: unknown;
+  };
+  const note = typeof body?.note === "string" ? body.note.slice(0, 4000) : undefined;
+  const screenshotBase64 = typeof body?.screenshotBase64 === "string" ? body.screenshotBase64 : undefined;
+  const clientSnapshot = body?.snapshot && typeof body.snapshot === "object" ? (body.snapshot as Record<string, unknown>) : undefined;
 
   if (bugReportRateLimiter.isLimited(reporterId)) {
     return res.status(429).json({ error: "Você já enviou vários relatos na última hora. Tente novamente mais tarde." });
   }
 
   try {
-    await loadMatch(String(req.params.id));
+    const match = await loadMatch(String(req.params.id));
+    if (!match) {
+      return res.status(404).json({ error: "Partida não encontrada." });
+    }
     const result = await reportSituation(String(req.params.id), reporterId, note);
     bugReportRateLimiter.record(reporterId);
+
+    const seat = seatFor(match, reporterId) ?? "A";
+    const view = viewStateFor(match.state, seat);
+    const battleLog = buildBattleLog(view);
+    const cardsInvolved = collectCardsInvolved(match.state);
+
+    // Salva o relatório de bug no disco com Markdown, print e dados completos para agentes de IA
+    void saveBugReportToDisk({
+      shortCode: result.shortCode,
+      matchId: String(req.params.id),
+      reporterId,
+      seat,
+      note,
+      engineVersion: match.state.engineVersion ?? "dev",
+      gameState: match.state,
+      battleLog,
+      cardsInvolved,
+      screenshotBase64,
+      clientSnapshot: clientSnapshot as any,
+    }).catch((diskErr) => {
+      console.warn(`[SIMULADOR][BUG-REPORT ${result.shortCode}] Falha ao salvar no disco:`, diskErr);
+    });
+
     res.json(result);
   } catch (err) {
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });

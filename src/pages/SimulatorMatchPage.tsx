@@ -182,23 +182,13 @@ import {
   FirstPlayerReveal,
   SideboardModal,
   ZeroCoachHud,
+  BattleLogPanel,
+  useCardArtLookup,
+  captureSimulatorSnapshot,
+  type BugReportSnapshot,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
-const ART_SET_CODES = ["ST01", "ST02", "ST03", "ST04", "ST05", "GD01"];
-/** Só pra resolver a arte de recursos/EX/tokens genéricos que não estejam em ART_SET_CODES. */
-const GENERIC_ART_SET_CODES: string[] = [];
-/** Código do motor -> código do catálogo (arte canônica). */
-const ART_CODE_ALIASES: Record<string, string> = {
-  "ST01-RESOURCE": "R-001",
-  "ST02-RESOURCE": "R-001",
-  "ST03-RESOURCE": "R-001",
-  "ST04-RESOURCE": "R-001",
-  "ST05-RESOURCE": "R-001",
-  "RESOURCE-01": "R-001",
-  "TOKEN-EX-BASE": "EXB-001",
-  "TOKEN-EX-RESOURCE": "EXR-001",
-};
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
@@ -448,73 +438,8 @@ function findPublicCard(view: ViewGameState, instanceId: string): CardInstance |
 // Arte real das cartas -- lookup code -> imagem, buscado uma vez por partida.
 // -----------------------------------------------------------------------------
 
-type CardArt = { imageUrl?: string; imageSmallUrl?: string };
-
-/** Formato cru devolvido por `GET /api/cards` (flattenModel, server/index.ts) -- só os campos que interessam aqui. */
-type RawApiCard = {
-  code?: string;
-  nameEn?: string;
-  imageUrl?: string;
-  imageSmallUrl?: string;
-  imageMediumUrl?: string;
-  effectPt?: string | null;
-  effectEn?: string | null;
-};
-
-interface CardArtLookup {
-  art: Record<string, CardArt>;
-  artLoading: boolean;
-  /** code -> { pt, en } do efeito — o CardDef do motor não carrega isso. O inspetor
-   *  mostra PT por padrão e um toggle PT/EN quando os dois vêm e diferem. */
-  cardText: Record<string, { pt?: string; en?: string }>;
-  /** nameEn minúsculo -> { code, art } — pra resolver o piloto de um link `pilotName`. */
-  cardByName: Record<string, { code: string; art: CardArt }>;
-}
-
-function useCardArtLookup(): CardArtLookup {
-  const [state, setState] = useState<Omit<CardArtLookup, "artLoading">>({ art: {}, cardText: {}, cardByName: {} });
-  const [artLoading, setArtLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([...ART_SET_CODES, ...GENERIC_ART_SET_CODES].map((setCode) => api.listCards({ setCode })))
-      .then((results) => {
-        if (cancelled) return;
-        const art: Record<string, CardArt> = {};
-        const cardText: Record<string, { pt?: string; en?: string }> = {};
-        const cardByName: Record<string, { code: string; art: CardArt }> = {};
-        for (const list of results as RawApiCard[][]) {
-          for (const raw of list) {
-            if (!raw?.code) continue;
-            const entry: CardArt = {
-              imageUrl: raw.imageMediumUrl ?? raw.imageUrl,
-              imageSmallUrl: raw.imageSmallUrl ?? raw.imageMediumUrl ?? raw.imageUrl,
-            };
-            art[raw.code] = entry;
-            if (raw.effectPt || raw.effectEn) {
-              cardText[raw.code] = { pt: raw.effectPt || undefined, en: raw.effectEn || undefined };
-            }
-            if (raw.nameEn) cardByName[raw.nameEn.trim().toLowerCase()] = { code: raw.code, art: entry };
-          }
-        }
-        // aliases: código do motor (ST01-RESOURCE, TOKEN-EX-BASE, ...) -> arte canônica do catálogo.
-        for (const [alias, real] of Object.entries(ART_CODE_ALIASES)) {
-          if (art[real] && !art[alias]) art[alias] = art[real];
-          if (cardText[real] && !cardText[alias]) cardText[alias] = cardText[real];
-        }
-        setState({ art, cardText, cardByName });
-      })
-      .catch(() => {
-        // Sem arte não impede a partida -- os cards caem no fallback "sem arte" abaixo.
-      })
-      .finally(() => !cancelled && setArtLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { ...state, artLoading };
-}
+// CardArtLookup e useCardArtLookup foram unificados em @/modules/simulator/ui com
+// catálogo completo (100% dos sets ST01-ST10, GD01-GD05, EB01) e fallback de tradução i18n.
 
 /** Acompanha uma media query (retrato pequeno / tela larga). */
 function useMediaQuery(query: string): boolean {
@@ -606,8 +531,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [logOpen, setLogOpen] = useState(false);
   /** ZERO SYSTEM — Assistente Tático In-Game (Atalho 'Z'). */
   const [zeroCoachOpen, setZeroCoachOpen] = useState(false);
-  /** docs/44 Fase 3 §5.1 — modal de bug report ("Reportar situação"). `code` != null = já enviado, mostra o BUG-XXXXXX. */
-  const [bugReport, setBugReport] = useState<{ open: boolean; busy: boolean; code: string | null }>({ open: false, busy: false, code: null });
+  /** docs/44 Fase 3 §5.1 — modal de bug report enriquecido com snapshot e screenshot. `code` != null = já enviado, mostra o BUG-XXXXXX. */
+  const [bugReport, setBugReport] = useState<{
+    open: boolean;
+    busy: boolean;
+    capturing: boolean;
+    code: string | null;
+    snapshot: BugReportSnapshot | null;
+  }>({ open: false, busy: false, capturing: false, code: null, snapshot: null });
 
   // Atalho de teclado 'Z' para alternar o Zero Coach HUD
   useEffect(() => {
@@ -1262,11 +1193,34 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   };
 
+  const openBugReport = async () => {
+    setBugReport({ open: true, busy: false, capturing: true, code: null, snapshot: null });
+    try {
+      const rootEl = document.getElementById("simulator-match-root") || document.body;
+      const snap = await captureSimulatorSnapshot(rootEl, {
+        matchId,
+        seat,
+        opponentSeat,
+        matchView,
+        view,
+        battleLog,
+      });
+      setBugReport((s) => ({ ...s, capturing: false, snapshot: snap }));
+    } catch (err) {
+      console.warn("Falha ao capturar snapshot para o bug report:", err);
+      setBugReport((s) => ({ ...s, capturing: false }));
+    }
+  };
+
   const submitBugReport = async (note: string) => {
     setBugReport((s) => ({ ...s, busy: true }));
     try {
-      const { shortCode } = await api.reportSimulatorSituation(matchId, note || undefined);
-      setBugReport({ open: true, busy: false, code: shortCode });
+      const { shortCode } = await api.reportSimulatorSituation(matchId, {
+        note: note || undefined,
+        screenshotBase64: bugReport.snapshot?.screenshotBase64,
+        snapshot: bugReport.snapshot as unknown as Record<string, unknown>,
+      });
+      setBugReport((s) => ({ ...s, busy: false, code: shortCode }));
     } catch (err) {
       setBugReport((s) => ({ ...s, busy: false }));
       toast.error(errorMessage(err, "Não deu pra registrar o problema."));
@@ -2820,7 +2774,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   }
 
   const content = (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
+    <div id="simulator-match-root" className="relative flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
       {/* Header enxuto (capturas 3): sem barra — só ⚙ Config + 🐞 Bug flutuando
           no canto, liberando o topo pro tabuleiro. */}
       <div className="pointer-events-none absolute left-2 top-2 z-40 flex items-center gap-1.5">
@@ -2855,8 +2809,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             variant="outline"
             size="icon"
             className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
-            onClick={() => setBugReport({ open: true, busy: false, code: null })}
-            title="Relatar um problema com esta partida"
+            onClick={openBugReport}
+            title="Relatar um problema com esta partida (captura print e dados da partida)"
             aria-label="Relatar um problema com esta partida"
           >
             <Bug className="size-4" />
@@ -3019,12 +2973,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           />
         </div>
-        {/* espelho da asa esquerda — mantém a arena centrada quando o inspetor cresce */}
-        {/* V6.4 (docs/36) — 22rem → 28rem (pedido do Willen: "a carta na
-            lateral e as informações textuais podem ser aumentadas ainda"),
-            espelho em sincronia com o `max-w` do `CardInspectorPanel` acima
-            pra arena continuar centrada. */}
-        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1" aria-hidden /> : null}
+        {/* Asa direita em widescreen — Painel de Histórico de Combate (substitui o antigo espelho vazio por telemetria útil) */}
+        {isWide && !boardExpanded ? (
+          <BattleLogPanel
+            entries={battleLog}
+            onCollapse={() => setBoardExpanded(true)}
+            className="hidden xl:flex min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1 max-h-full overflow-hidden"
+          />
+        ) : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do
@@ -3295,9 +3251,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {bugReport.open ? (
         <BugReportModal
           busy={bugReport.busy}
+          capturing={bugReport.capturing}
           shortCode={bugReport.code}
+          snapshot={bugReport.snapshot}
           onSubmit={submitBugReport}
-          onClose={() => setBugReport({ open: false, busy: false, code: null })}
+          onClose={() => setBugReport({ open: false, busy: false, capturing: false, code: null, snapshot: null })}
         />
       ) : null}
 
