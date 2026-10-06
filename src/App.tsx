@@ -10,28 +10,28 @@ import { FactionProvider } from "@/contexts/FactionContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GlobalLoader } from "@/components/layout/GlobalLoader";
 import Home from "@/pages/Home";
-import DashboardPage from "@/pages/DashboardPage";
-import CardsPage from "@/pages/CardsPage";
-import CardDetailPage from "@/pages/CardDetailPage";
-import RulesPage from "@/pages/RulesPage";
-import RulingDetailPage from "@/pages/RulingDetailPage";
-import ProfilePage from "@/pages/ProfilePage";
-import PublicProfilePage from "@/pages/PublicProfilePage";
-import SharedDeckPage from "@/pages/SharedDeckPage";
-import PublicBinderPage from "@/pages/PublicBinderPage";
-import PublicDecksPage from "@/pages/PublicDecksPage";
-import CollectionsPage from "@/pages/CollectionsPage";
-import SetDetailPage from "@/pages/SetDetailPage";
-import SeriesHubPage from "@/pages/SeriesHubPage";
-import SeriesDetailPage from "@/pages/SeriesDetailPage";
-import ArticlesPage from "@/pages/ArticlesPage";
-import ArticleDetailPage from "@/pages/ArticleDetailPage";
 import NotFound from "@/pages/NotFound";
-import BinderPage from "@/pages/BinderPage";
-import BinderListPage from "@/pages/BinderListPage";
-import AuthPage from "@/pages/AuthPage";
-import TournamentsPage from "@/pages/TournamentsPage";
-import ChangelogPage from "@/pages/ChangelogPage";
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const CardsPage = lazy(() => import("@/pages/CardsPage"));
+const CardDetailPage = lazy(() => import("@/pages/CardDetailPage"));
+const RulesPage = lazy(() => import("@/pages/RulesPage"));
+const RulingDetailPage = lazy(() => import("@/pages/RulingDetailPage"));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
+const PublicProfilePage = lazy(() => import("@/pages/PublicProfilePage"));
+const SharedDeckPage = lazy(() => import("@/pages/SharedDeckPage"));
+const PublicBinderPage = lazy(() => import("@/pages/PublicBinderPage"));
+const PublicDecksPage = lazy(() => import("@/pages/PublicDecksPage"));
+const CollectionsPage = lazy(() => import("@/pages/CollectionsPage"));
+const SetDetailPage = lazy(() => import("@/pages/SetDetailPage"));
+const SeriesHubPage = lazy(() => import("@/pages/SeriesHubPage"));
+const SeriesDetailPage = lazy(() => import("@/pages/SeriesDetailPage"));
+const ArticlesPage = lazy(() => import("@/pages/ArticlesPage"));
+const ArticleDetailPage = lazy(() => import("@/pages/ArticleDetailPage"));
+const BinderPage = lazy(() => import("@/pages/BinderPage"));
+const BinderListPage = lazy(() => import("@/pages/BinderListPage"));
+const AuthPage = lazy(() => import("@/pages/AuthPage"));
+const TournamentsPage = lazy(() => import("@/pages/TournamentsPage"));
+const ChangelogPage = lazy(() => import("@/pages/ChangelogPage"));
 
 const DeckbuilderPage = lazy(() => import("@/pages/DeckbuilderPage"));
 const DeckListPage = lazy(() => import("@/pages/DeckListPage"));
@@ -100,7 +100,8 @@ function RequireAuth({ children, adminOnly = false, hosterOnly = false }: { chil
 function AppRouter() {
   return (
     <Router hook={useHashLocationWithQuery}>
-      <Switch>
+      <Suspense fallback={<GlobalLoader label="Carregando portal" />}>
+        <Switch>
         <Route path="/login" component={AuthPage} />
         <Route path="/portal">{() => <RequireAuth><DashboardPage /></RequireAuth>}</Route>
         <Route path="/binders">{() => <RequireAuth><BinderListPage /></RequireAuth>}</Route>
@@ -191,6 +192,7 @@ function AppRouter() {
         <Route path="/:section">{(params) => <Home targetSection={params.section} />}</Route>
         <Route component={NotFound} />
       </Switch>
+      </Suspense>
     </Router>
   );
 }
