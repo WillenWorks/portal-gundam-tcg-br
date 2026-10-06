@@ -1,7 +1,7 @@
 /* Catálogo público de cartas — filtros compostos via /api/cards, estado sincronizado com a URL, paginado. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Copy } from "lucide-react";
+import { Copy, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -177,6 +177,16 @@ export default function CardsPage() {
                 <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Limpar filtros</button>
                 <Badge variant="outline" className="h-11 rounded-none border-white/20 px-3 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
                 <Badge className="h-11 rounded-none border border-accent/40 bg-accent/10 px-3 text-accent">{total} resultados</Badge>
+                {filters.keyword ? (
+                  <Link
+                    href={`/rules?relatedKeyword=${encodeURIComponent(filters.keyword)}`}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-none border border-primary/40 bg-primary/10 px-3 text-xs uppercase tracking-[0.16em] text-primary transition hover:bg-primary/20"
+                    title={isPt ? `Abrir regra de ${filters.keyword} no Glossário` : `Open ${filters.keyword} rule in Glossary`}
+                  >
+                    <HelpCircle className="size-3.5" />
+                    <span>{isPt ? `Glossário: ${filters.keyword}` : `Glossary: ${filters.keyword}`}</span>
+                  </Link>
+                ) : null}
               </div>
             </div>
 
