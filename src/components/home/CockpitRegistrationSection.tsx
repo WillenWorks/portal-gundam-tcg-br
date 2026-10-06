@@ -162,7 +162,7 @@ export function CockpitRegistrationSection() {
       <div className="pointer-events-none absolute inset-0 bg-grid-tech opacity-30" />
       <div className="pointer-events-none absolute -right-20 top-1/2 size-96 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
 
-      <div className="relative mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8">
+      <div className="relative container-ultrawide">
         <div className="overflow-hidden rounded-2xl border border-white/15 bg-slate-950/90 shadow-2xl backdrop-blur-xl">
           <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] xl:grid-cols-[1.2fr_0.8fr]">
             {/* LADO ESQUERDO: IMAGEM CINEMATOGRÁFICA DA CABINE DO GUNDAM */}

@@ -131,7 +131,7 @@ export function LatestCardsCarousel({ limit = 30, className }: LatestCardsCarous
   };
 
   return (
-    <section className={cn("relative mx-auto max-w-[1760px] px-4 py-6 sm:px-6 lg:px-8", className)}>
+    <section className={cn("relative container-ultrawide py-6", className)}>
       {/* Container Principal Estilo Terminal Militar / Dark Tech */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/75 p-4 sm:p-6 lg:p-7 shadow-2xl backdrop-blur-xl light:border-slate-300 light:bg-white light:shadow-md">
         {/* Marca d'água técnica de fundo */}

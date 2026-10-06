@@ -181,7 +181,7 @@ export function HomeDirectivesSection() {
       ref={sectionRef}
       className="relative isolate overflow-hidden border-b border-white/10 py-10 sm:py-12 lg:py-16"
     >
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8">
+      <div className="container-ultrawide">
         {/* Layout Bipartido: Lado Direito Maior (lg:grid-cols-[1fr_1.35fr]) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.35fr] xl:grid-cols-[1fr_1.4fr] gap-6 lg:gap-8 items-stretch">
           
