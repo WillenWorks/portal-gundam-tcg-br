@@ -109,4 +109,14 @@ describe("CardDepartureAnimation", () => {
     expect(container.querySelector(".sim-anim-depart-destroy")).toBeNull();
     expect(onDone).toHaveBeenCalledWith(CARD.id);
   });
+
+  it("carta exilada usa a borda roxa de exílio e chama onDone", () => {
+    mockMatchMedia(false);
+    const exiled: DepartingCard = { ...CARD, id: "exile-1-v7", kind: "exiled" };
+    const onDone = vi.fn();
+    const { container } = render(<CardDepartureAnimation cards={[exiled]} onDone={onDone} />);
+    expect(container.querySelector(".border-purple-400\\/90")).not.toBeNull();
+    advance(420);
+    expect(onDone).toHaveBeenCalledWith("exile-1-v7");
+  });
 });
