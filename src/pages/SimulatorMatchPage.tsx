@@ -182,23 +182,11 @@ import {
   FirstPlayerReveal,
   SideboardModal,
   ZeroCoachHud,
+  BattleLogPanel,
+  useCardArtLookup,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
-const ART_SET_CODES = ["ST01", "ST02", "ST03", "ST04", "ST05", "GD01"];
-/** Só pra resolver a arte de recursos/EX/tokens genéricos que não estejam em ART_SET_CODES. */
-const GENERIC_ART_SET_CODES: string[] = [];
-/** Código do motor -> código do catálogo (arte canônica). */
-const ART_CODE_ALIASES: Record<string, string> = {
-  "ST01-RESOURCE": "R-001",
-  "ST02-RESOURCE": "R-001",
-  "ST03-RESOURCE": "R-001",
-  "ST04-RESOURCE": "R-001",
-  "ST05-RESOURCE": "R-001",
-  "RESOURCE-01": "R-001",
-  "TOKEN-EX-BASE": "EXB-001",
-  "TOKEN-EX-RESOURCE": "EXR-001",
-};
 /** Espelha `ABANDON_THRESHOLD_MS` do servidor (matchStore.ts) -- só usado aqui pra habilitar o botão na hora certa; quem decide de verdade é sempre o servidor. */
 const ABANDON_THRESHOLD_MS = 180_000;
 /** Retrato + tela pequena: em vez de girar o board via CSS (bugava toque/overflow),
@@ -448,73 +436,8 @@ function findPublicCard(view: ViewGameState, instanceId: string): CardInstance |
 // Arte real das cartas -- lookup code -> imagem, buscado uma vez por partida.
 // -----------------------------------------------------------------------------
 
-type CardArt = { imageUrl?: string; imageSmallUrl?: string };
-
-/** Formato cru devolvido por `GET /api/cards` (flattenModel, server/index.ts) -- só os campos que interessam aqui. */
-type RawApiCard = {
-  code?: string;
-  nameEn?: string;
-  imageUrl?: string;
-  imageSmallUrl?: string;
-  imageMediumUrl?: string;
-  effectPt?: string | null;
-  effectEn?: string | null;
-};
-
-interface CardArtLookup {
-  art: Record<string, CardArt>;
-  artLoading: boolean;
-  /** code -> { pt, en } do efeito — o CardDef do motor não carrega isso. O inspetor
-   *  mostra PT por padrão e um toggle PT/EN quando os dois vêm e diferem. */
-  cardText: Record<string, { pt?: string; en?: string }>;
-  /** nameEn minúsculo -> { code, art } — pra resolver o piloto de um link `pilotName`. */
-  cardByName: Record<string, { code: string; art: CardArt }>;
-}
-
-function useCardArtLookup(): CardArtLookup {
-  const [state, setState] = useState<Omit<CardArtLookup, "artLoading">>({ art: {}, cardText: {}, cardByName: {} });
-  const [artLoading, setArtLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([...ART_SET_CODES, ...GENERIC_ART_SET_CODES].map((setCode) => api.listCards({ setCode })))
-      .then((results) => {
-        if (cancelled) return;
-        const art: Record<string, CardArt> = {};
-        const cardText: Record<string, { pt?: string; en?: string }> = {};
-        const cardByName: Record<string, { code: string; art: CardArt }> = {};
-        for (const list of results as RawApiCard[][]) {
-          for (const raw of list) {
-            if (!raw?.code) continue;
-            const entry: CardArt = {
-              imageUrl: raw.imageMediumUrl ?? raw.imageUrl,
-              imageSmallUrl: raw.imageSmallUrl ?? raw.imageMediumUrl ?? raw.imageUrl,
-            };
-            art[raw.code] = entry;
-            if (raw.effectPt || raw.effectEn) {
-              cardText[raw.code] = { pt: raw.effectPt || undefined, en: raw.effectEn || undefined };
-            }
-            if (raw.nameEn) cardByName[raw.nameEn.trim().toLowerCase()] = { code: raw.code, art: entry };
-          }
-        }
-        // aliases: código do motor (ST01-RESOURCE, TOKEN-EX-BASE, ...) -> arte canônica do catálogo.
-        for (const [alias, real] of Object.entries(ART_CODE_ALIASES)) {
-          if (art[real] && !art[alias]) art[alias] = art[real];
-          if (cardText[real] && !cardText[alias]) cardText[alias] = cardText[real];
-        }
-        setState({ art, cardText, cardByName });
-      })
-      .catch(() => {
-        // Sem arte não impede a partida -- os cards caem no fallback "sem arte" abaixo.
-      })
-      .finally(() => !cancelled && setArtLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { ...state, artLoading };
-}
+// CardArtLookup e useCardArtLookup foram unificados em @/modules/simulator/ui com
+// catálogo completo (100% dos sets ST01-ST10, GD01-GD05, EB01) e fallback de tradução i18n.
 
 /** Acompanha uma media query (retrato pequeno / tela larga). */
 function useMediaQuery(query: string): boolean {
@@ -3019,12 +2942,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             }
           />
         </div>
-        {/* espelho da asa esquerda — mantém a arena centrada quando o inspetor cresce */}
-        {/* V6.4 (docs/36) — 22rem → 28rem (pedido do Willen: "a carta na
-            lateral e as informações textuais podem ser aumentadas ainda"),
-            espelho em sincronia com o `max-w` do `CardInspectorPanel` acima
-            pra arena continuar centrada. */}
-        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1" aria-hidden /> : null}
+        {/* Asa direita em widescreen — Painel de Histórico de Combate (substitui o antigo espelho vazio por telemetria útil) */}
+        {isWide && !boardExpanded ? (
+          <BattleLogPanel
+            entries={battleLog}
+            onCollapse={() => setBoardExpanded(true)}
+            className="hidden xl:flex min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1 max-h-full overflow-hidden"
+          />
+        ) : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do

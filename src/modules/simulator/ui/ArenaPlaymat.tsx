@@ -162,14 +162,10 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         // as peças). `--card-w-std`, derivada 1 vez aqui, é a ÚNICA fonte —
         // todo mundo (incluindo Battle Row/Mão agora) referencia ela, nunca
         // mais reescreve `*0.62` cada um por conta própria.
-        // Frente 4 (feedback Willen 2ª rodada): 0.62 → 0.66 — a peça-padrão
-        // (Unit/Base/Shield/Deck) ganha ~6% de largura relativa.
-        "[--card-w-std:calc(var(--card-w)*0.66)]",
-        // V6.2 (docs/33): `expanded` solta a trava de 16:9 — sem isso, a caixa
-        // do canvas nunca crescia além de altura×16/9 mesmo com as asas
-        // escondidas (largura sobrando ficava sempre de fora, inalcançável,
-        // print "CapturaWide2" do Willen). Modo normal mantém 16:9.
-        expanded ? "h-full w-full" : "aspect-[16/9] max-h-full max-w-full",
+        // Redesenho Widescreen — proporção visual equilibrada de cartas e estações
+        "[--card-w-std:clamp(2.6rem,calc(var(--card-w)*0.78),5.4rem)]",
+        // Em telas desktop ou quando expanded, aproveita todo o container flex sem pillarboxing forçado
+        expanded ? "h-full w-full" : "aspect-[16/9] lg:aspect-auto h-full w-full max-h-full max-w-full",
         "panel-cut hero-surface border",
         skin.containerClasses,
         className,
@@ -178,11 +174,9 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
     >
       <div className="flex min-h-0 flex-1 flex-col" style={TABLE_STYLE}>
         {/* ── Metade do oponente (recuada, ancorada na seam) ────────────── */}
-        {/* Sprint 6 — o grupo [pilhas][teatro][base/shields] é CENTRADO com gap
-            pequeno; o teatro não é mais `flex-1` (era o que abria o vão lateral). */}
         <div
           className={cn(
-            "flex min-h-0 flex-1 items-end justify-center gap-2 px-2 opacity-90 transition-all duration-700",
+            "flex min-h-0 flex-1 items-end justify-center gap-2 sm:gap-3 2xl:gap-4 px-2 opacity-90 transition-all duration-700",
             skin.oppClasses,
             highlightSide === "self" && "brightness-75 opacity-70 shadow-[inset_0_0_50px_rgba(244,63,94,0.2)] ring-1 ring-rose-500/30",
             highlightSide === "opponent" && "brightness-110 opacity-100 shadow-[inset_0_0_60px_rgba(56,189,248,0.4)] ring-2 ring-cyan-400/70",
@@ -196,16 +190,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
 
         <Seam />
 
-        {/* ── Metade do jogador (primeiro plano) ─────────────────────────────
-            `pt-3`: recua o campo do jogador da seam (pedido do Willen) pra os
-            botões do canto sup. direito das Units NÃO caírem em cima da Battle
-            Area do oponente / da seam. Sobra espaço no rodapé do canvas.
-            `groupRef` (V6.2, docs/33): mede o grupo [Shield/Teatro/Deck] deste
-            lado — já naturalmente sem stretch (`items-start`, não
-            `items-stretch`) — pra `useArenaScale` calcular `--card-w` a
-            partir do tamanho REAL renderizado, não de uma fórmula chutada. Só
-            precisa medir 1 dos 2 lados (mesmo tamanho — o oponente só tem o
-            `scale(.96)` cosmético por cima, não muda o card-w necessário). */}
+        {/* ── Metade do jogador (primeiro plano) ───────────────────────────── */}
         <div
           className={cn(
             "flex min-h-0 flex-1 items-start justify-center px-2 pt-3 transition-all duration-700",
@@ -214,12 +199,7 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
             highlightSide === "opponent" && "brightness-75 opacity-70 shadow-[inset_0_0_50px_rgba(244,63,94,0.2)] ring-1 ring-rose-500/30",
           )}
         >
-          {/* `groupRef` vai no wrapper INTERNO, não nesta linha — esta linha é
-              `flex-1` (altura ALOCADA pela metade jogador/oponente, não o
-              tamanho natural do conteúdo); o wrapper interno não tem
-              `flex-1`/stretch nenhum, então mede exatamente o que os 3 filhos
-              pedem de verdade (nem mais, nem menos). `gap-2` migrou pra cá. */}
-          <div ref={groupRef} className="flex items-start gap-2">
+          <div ref={groupRef} className="flex items-start justify-center gap-2 sm:gap-3 2xl:gap-4">
             <ShieldStation side={self} compact={compact} stationRef={self.shieldStationRef} />
             <SelfTheater side={self} />
             <DeckStation side={self} stationRef={self.deckStationRef} />

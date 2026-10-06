@@ -9,3 +9,4 @@ export * from "./useCardLanguage";
 export * from "./KeywordTooltip";
 export * from "./battleLogI18n";
 export * from "./decisionText";
+export * from "./translatedCardsData";
