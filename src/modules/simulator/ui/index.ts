@@ -33,6 +33,8 @@ export { CardInspectorPanel } from "./CardInspectorPanel";
 export { ArenaPlaymat, type ArenaSide } from "./ArenaPlaymat";
 export { RotateDevicePrompt } from "./RotateDevicePrompt";
 export { CombatLane } from "./CombatLane";
+export { AbilityTargetLane, type TargetLanePoint } from "./AbilityTargetLane";
+export { EffectResolutionOverlay, type EffectResolutionCue } from "./EffectResolutionOverlay";
 export { DeckDealAnimation, type DeckDealMode, type DeckDealPoint } from "./DeckDealAnimation";
 export { CardDepartureAnimation, type DepartingCard, type DepartureDest } from "./CardDepartureAnimation";
 export { CommandCastAnimation, type CommandCastPoint } from "./CommandCastAnimation";

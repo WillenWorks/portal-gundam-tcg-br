@@ -4,7 +4,7 @@
  * BASE"): a carta + a barra de HP + o número de dano sobreposto contam tudo.
  * EX Base = moldura dourada (`--accent`). `title`/`aria-label` carregam a
  * leitura textual como tooltip. Alvo legal realçado em verde. */
-import { Crosshair, Zap } from "lucide-react";
+import { CheckCircle2, Crosshair, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardInstance } from "@/modules/simulator/engine/types";
 import { effectiveHp } from "@/modules/simulator/engine/types";
@@ -30,15 +30,40 @@ interface BaseCardGaugeProps {
   /** docs/55 tarefa 5 — golpe de ataque direto acabou de acertar (fase "strike"
    *  da coreografia de combate): tremor/flash breve. O pai controla a duração. */
   struck?: boolean;
+  /** Alvo legal de habilidade em andamento ("ally" = glow verde, "enemy" = glow vermelho). */
+  abilityTargetPool?: "ally" | "enemy" | null;
+  /** Já selecionado como alvo de habilidade. */
+  abilitySelected?: boolean;
+  /** Fonte ativa disparando ou ativando efeito/habilidade. */
+  isAbilitySource?: boolean;
+  /** Ref para medição do DOM na arena. */
+  registerRef?: (el: HTMLElement | null) => void;
 }
 
 // V6.3 (docs/34): `--card-w-std` (tamanho-padrão único), não mais `*0.62` à mão.
 const WIDTH = "w-[var(--card-w-std,2.17rem)]";
 
-export function BaseCardGauge({ base, art, legalTarget, targetingActive, selected, onSelect, onInspect, onHoverCard, onActivate, busy, struck }: BaseCardGaugeProps) {
+export function BaseCardGauge({
+  base,
+  art,
+  legalTarget,
+  targetingActive,
+  selected,
+  onSelect,
+  onInspect,
+  onHoverCard,
+  onActivate,
+  busy,
+  struck,
+  abilityTargetPool,
+  abilitySelected,
+  isAbilitySource,
+  registerRef,
+}: BaseCardGaugeProps) {
   if (!base) {
     return (
       <div
+        ref={registerRef}
         title={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
         aria-label={legalTarget ? "Atacar jogador (Base)" : "Base: nenhuma em jogo"}
         onClick={legalTarget && onSelect ? () => onSelect(null as any) : undefined}
@@ -60,6 +85,7 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
   const title = `Base${isEx ? " EX" : ""} · ${remaining}/${maxHp} HP${base.rested ? " · Rested" : ""}${base.damage > 0 ? ` · ${base.damage} de dano` : ""}`;
 
   const isInvalidTarget = Boolean(targetingActive && !legalTarget);
+  const isAbilityTarget = Boolean(abilityTargetPool);
   // Frente 4 (docs/38 §3.1) — o botão de "olho" foi eliminado. Inspeção agora
   // é por clique na área neutra da carta (ver `bodyInspects` abaixo). O cluster
   // do canto guarda só ações OPERACIONAIS (ex.: Ativar habilidade da Base tipo
@@ -68,7 +94,7 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
   if (onActivate) cornerActions.push({ key: "activate", icon: Zap, label: "Ativar habilidade", tone: "accent", disabled: busy, onClick: () => onActivate(base) });
 
   // clique na carta (fora de seleção de alvo) abre o inspetor.
-  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget;
+  const bodyInspects = Boolean(onInspect) && !legalTarget && !isInvalidTarget && !isAbilityTarget;
 
   const hoverProps = onHoverCard
     ? {
@@ -81,6 +107,7 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
 
   return (
     <div
+      ref={registerRef}
       {...hoverProps}
       title={title}
       aria-label={title}
@@ -95,29 +122,57 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
         // docs/55 tarefa 5 — impacto de ataque direto: flash/tremor vermelho
         // breve (o pai controla a duração via `struck`), some sozinho.
         struck && "z-20 scale-105 ring-4 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.9)]",
+        isAbilitySource && "z-25 ring-2 ring-amber-400 border-amber-300 shadow-[0_0_20px_rgba(251,191,36,0.85)] animate-pulse",
         legalTarget
           ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
-          : selected
-            ? "border-primary"
-            : isInvalidTarget
-              ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
-              : base.rested
-                ? "border-slate-600/40 opacity-75"
-                : isEx
-                  ? "border-accent/60"
-                  : "border-amber-500/25",
+          : abilitySelected
+            ? cn(
+                "z-20 scale-[1.03]",
+                abilityTargetPool === "enemy"
+                  ? "border-rose-300 ring-4 ring-rose-300 shadow-[0_0_22px_rgba(244,63,94,0.95)]"
+                  : "border-emerald-300 ring-4 ring-emerald-300 shadow-[0_0_22px_rgba(52,211,153,0.95)]",
+              )
+            : abilityTargetPool === "ally"
+              ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
+              : abilityTargetPool === "enemy"
+                ? "z-20 border-rose-500 ring-2 ring-rose-500 shadow-[0_0_16px_rgba(244,63,94,0.85)] animate-pulse scale-[1.02]"
+                : selected
+                  ? "border-primary"
+                  : isInvalidTarget
+                    ? "border-white/5 opacity-35 grayscale-[75%] contrast-75 brightness-75 pointer-events-none select-none"
+                    : base.rested
+                      ? "border-slate-600/40 opacity-75"
+                      : isEx
+                        ? "border-accent/60"
+                        : "border-amber-500/25",
       )}
     >
+      {isAbilitySource ? (
+        <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 rounded-full border border-amber-300 bg-amber-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.8)]">
+          <Zap className="size-2 text-amber-300 animate-pulse" />
+          <span>Ativando</span>
+        </div>
+      ) : null}
+
       <div
-        role={legalTarget || bodyInspects ? "button" : undefined}
-        tabIndex={legalTarget || bodyInspects ? 0 : undefined}
-        aria-label={bodyInspects ? `Ver ${base.def.nameEn}` : undefined}
+        role={legalTarget || isAbilityTarget || bodyInspects ? "button" : undefined}
+        tabIndex={legalTarget || isAbilityTarget || bodyInspects ? 0 : undefined}
+        aria-label={
+          isAbilityTarget
+            ? `${abilitySelected ? "Desfazer alvo" : "Selecionar como alvo"}: ${base.def.nameEn}`
+            : bodyInspects
+              ? `Ver ${base.def.nameEn}`
+              : undefined
+        }
+        aria-pressed={isAbilityTarget ? abilitySelected : undefined}
         onClick={
           legalTarget && onSelect
             ? () => onSelect(base)
-            : bodyInspects && onInspect
-              ? () => onInspect(base)
-              : undefined
+            : isAbilityTarget && onSelect
+              ? () => onSelect(base)
+              : bodyInspects && onInspect
+                ? () => onInspect(base)
+                : undefined
         }
         onKeyDown={
           legalTarget && onSelect
@@ -127,16 +182,23 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
                   onSelect(base);
                 }
               }
-            : bodyInspects && onInspect
+            : isAbilityTarget && onSelect
               ? (e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    onInspect(base);
+                    onSelect(base);
                   }
                 }
-              : undefined
+              : bodyInspects && onInspect
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onInspect(base);
+                    }
+                  }
+                : undefined
         }
-        className={cn("relative block aspect-[63/88] w-full", legalTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
+        className={cn("relative block aspect-[63/88] w-full", legalTarget || isAbilityTarget || bodyInspects ? "cursor-pointer" : "cursor-default")}
       >
         <CardFace
           nameEn={base.def?.nameEn ?? ""}
@@ -154,6 +216,25 @@ export function BaseCardGauge({ base, art, legalTarget, targetingActive, selecte
                 className="flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse"
               >
                 <Crosshair className="size-3/4" />
+              </span>
+            </div>
+          ) : null}
+          {isAbilityTarget ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-[clamp(1.5rem,calc(var(--card-w-std,2.17rem)*0.55),2.6rem)] items-center justify-center rounded-full border",
+                  abilitySelected
+                    ? abilityTargetPool === "enemy"
+                      ? "border-rose-300 bg-rose-950/80 text-rose-200 shadow-[0_0_16px_rgba(244,63,94,0.9)]"
+                      : "border-emerald-300 bg-emerald-950/80 text-emerald-200 shadow-[0_0_16px_rgba(52,211,153,0.9)]"
+                    : abilityTargetPool === "enemy"
+                      ? "border-rose-500 bg-rose-950/70 text-rose-300 shadow-[0_0_14px_rgba(244,63,94,0.75)] animate-pulse"
+                      : "border-emerald-400 bg-emerald-950/70 text-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] animate-pulse",
+                )}
+              >
+                {abilitySelected ? <CheckCircle2 className="size-3/4" /> : <Crosshair className="size-3/4" />}
               </span>
             </div>
           ) : null}

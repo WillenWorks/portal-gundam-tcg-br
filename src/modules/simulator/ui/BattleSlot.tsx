@@ -77,6 +77,8 @@ interface BattleSlotProps {
   /** já escolhida como alvo da decisão de habilidade em andamento — glow por
    *  cima da carta inteira, distinto de `selected` (que é do targeting geral). */
   abilitySelected?: boolean;
+  /** Fonte ativa disparando ou ativando efeito/habilidade. */
+  isAbilitySource?: boolean;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -128,6 +130,7 @@ export function BattleSlot({
   emptySlotActive,
   abilityTargetPool,
   abilitySelected,
+  isAbilitySource,
 }: BattleSlotProps) {
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
@@ -253,6 +256,7 @@ export function BattleSlot({
         "hover:z-30 focus-within:z-30",
         isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
+        isAbilitySource && "z-25 ring-2 ring-amber-400 border-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.85)] animate-pulse",
         legalTarget
           ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : abilitySelected
@@ -273,6 +277,12 @@ export function BattleSlot({
                     : "border-primary/20",
       )}
     >
+      {isAbilitySource ? (
+        <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 rounded-full border border-amber-300 bg-amber-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.8)]">
+          <Zap className="size-2 text-amber-300 animate-pulse" />
+          <span>Ativando</span>
+        </div>
+      ) : null}
       {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
           (pareamento / mira de efeito). Inspecionar é sempre pelo botão "Ver"
           no canto — remove o conflito "clicar em Atacar abre a imagem".
