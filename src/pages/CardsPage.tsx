@@ -1,7 +1,7 @@
 /* Catálogo público de cartas — filtros compostos via /api/cards, estado sincronizado com a URL, paginado. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Copy } from "lucide-react";
+import { Copy, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ParallaxHeroBanner } from "@/components/catalog/ParallaxHeroBanner";
+import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
+import { SetPlayabilityProgress } from "@/components/catalog/SetPlayabilityProgress";
+import { useAllCardsPlayability } from "@/components/catalog/useCardPlayability";
 import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
@@ -42,6 +45,7 @@ const defaultFilters: CardFilters = {
   keyword: "",
   setCode: "",
   rarity: "",
+  playability: "",
   sort: "code_asc",
 };
 
@@ -61,6 +65,7 @@ function readFiltersFromLocation(): { filters: CardFilters; page: number; pageSi
       keyword: params.get("keyword") ?? "",
       setCode: params.get("setCode") ?? "",
       rarity: normalizeRarityLabel(params.get("rarity") ?? "") || (params.get("rarity") ?? ""),
+      playability: params.get("playability") ?? "",
       sort: params.get("sort") ?? "code_asc",
     },
     page: Number(params.get("page")) || 1,
@@ -111,17 +116,39 @@ export default function CardsPage() {
   // /cards/filters devolveu e expande de volta na hora de consultar.
   const rarityGroups = useMemo(() => groupRaritiesByLabel(meta.rarities), [meta.rarities]);
 
+  const { cards: playabilityMap } = useAllCardsPlayability();
+
   useEffect(() => {
     setLoading(true);
-    const apiFilters: CardFilters = { ...filters, rarity: expandRarityFilter(filters.rarity ?? "", rarityGroups) };
-    api.listCardsPage(apiFilters, { page, pageSize })
-      .then((result) => {
-        setCards(result.items);
-        setTotal(result.total);
-        setTotalPages(result.totalPages);
-      })
-      .finally(() => setLoading(false));
-  }, [filters, page, pageSize, rarityGroups]);
+    const { playability, ...restFilters } = filters;
+    const apiFilters: CardFilters = { ...restFilters, rarity: expandRarityFilter(restFilters.rarity ?? "", rarityGroups) };
+
+    if (playability) {
+      api.listCards(apiFilters)
+        .then((items) => {
+          const filtered = items.filter((card) => {
+            const cardCode = card.code ? card.code.toUpperCase() : "";
+            const status = playabilityMap[cardCode]?.status ?? "fora";
+            return status === playability;
+          });
+          setTotal(filtered.length);
+          const computedTotalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+          setTotalPages(computedTotalPages);
+          const safePage = Math.min(page, computedTotalPages);
+          const start = (safePage - 1) * pageSize;
+          setCards(filtered.slice(start, start + pageSize));
+        })
+        .finally(() => setLoading(false));
+    } else {
+      api.listCardsPage(apiFilters, { page, pageSize })
+        .then((result) => {
+          setCards(result.items);
+          setTotal(result.total);
+          setTotalPages(result.totalPages);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [filters, page, pageSize, rarityGroups, playabilityMap]);
 
   useEffect(() => {
     navigate(buildHash(basePath, filters, page, pageSize), { replace: true });
@@ -171,6 +198,19 @@ export default function CardsPage() {
                 className="field-shell h-11 flex-1 text-sm light:border-slate-300/80 light:bg-white light:text-slate-900"
               />
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFilter("playability", filters.playability === "apta" ? "" : "apta")}
+                  className={`inline-flex h-11 items-center rounded-none border px-4 text-xs uppercase tracking-[0.18em] transition-colors ${
+                    filters.playability === "apta"
+                      ? "border-emerald-400 bg-emerald-500/20 text-emerald-300 font-bold"
+                      : "border-white/15 bg-white/5 nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"
+                  }`}
+                  title="Filtrar apenas cartas 100% implementadas no simulador"
+                >
+                  <CheckCircle2 className="mr-2 size-4 text-emerald-400" />
+                  {filters.playability === "apta" ? "Só aptas (ativo)" : "Só aptas"}
+                </button>
                 <button type="button" onClick={copySearchLink} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950"><Copy className="mr-2 size-4" />Copiar busca</button>
                 <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center rounded-none border border-white/15 bg-white/5 px-4 text-xs uppercase tracking-[0.18em] nav-hover-soft dark:text-white light:border-slate-400/90 light:bg-white light:text-slate-950">Limpar filtros</button>
                 <Badge variant="outline" className="h-11 rounded-none border-white/20 px-3 text-slate-300 dark:text-slate-300 light:border-slate-300/80 light:text-slate-700">{activeFilters > 0 ? `${activeFilters} filtros ativos` : "sem filtros extras"}</Badge>
@@ -186,11 +226,17 @@ export default function CardsPage() {
               <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
 
-            {/* Barra de Parâmetros de Lore & Ordenação */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Barra de Parâmetros de Lore, Simulador & Ordenação */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
               <select value={filters.series ?? ""} onChange={(event) => setFilter("series", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as séries</option>{meta.series.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <MultiSelectFilter label="Traits" options={meta.traits} value={filters.trait ?? ""} onChange={(v) => setFilter("trait", v)} />
               <select value={filters.keyword ?? ""} onChange={(event) => setFilter("keyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.keywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <select value={filters.playability ?? ""} onChange={(event) => setFilter("playability", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900">
+                <option value="">Status no simulador</option>
+                <option value="apta">Apenas aptas (100%)</option>
+                <option value="revisao">Em revisão no motor</option>
+                <option value="fora">Fora do simulador</option>
+              </select>
               <select value={filters.sort ?? "code_asc"} onChange={(event) => setFilter("sort", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="code_asc">Ordenar por código</option><option value="created_desc">Últimas cadastradas</option><option value="name_asc">Ordenar por nome</option><option value="cost_asc">Menor custo</option><option value="cost_desc">Maior custo</option></select>
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
                 <span className="shrink-0">Por página</span>
@@ -201,6 +247,9 @@ export default function CardsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Painel com progresso de implementação por set no motor */}
+        <SetPlayabilityProgress />
 
         {loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Carregando catálogo...</p> : null}
 
@@ -217,6 +266,10 @@ export default function CardsPage() {
                   ) : (
                     <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">Sem arte</div>
                   )}
+                  {/* Selo A3: Status no simulador no canto superior esquerdo */}
+                  <div className="absolute left-1 top-1 z-10 flex flex-col items-start gap-1">
+                    <CardPlayabilityBadge code={card.code} size="xs" />
+                  </div>
                   <div className="absolute right-1 top-1 flex flex-col items-end gap-1">
                     {rarityLabel ? <span className={`rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.06em] backdrop-blur-sm ${RARITY_BADGE_STYLE[rarityLabel] ?? DEFAULT_RARITY_STYLE}`}>{rarityLabel}</span> : null}
                     {card.color ? (
