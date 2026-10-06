@@ -44,49 +44,78 @@ export function SourceDecksModal({
             sourceDecks.map((deck, idx) => (
               <div
                 key={deck.id || idx}
-                className="flex items-center justify-between gap-3 border border-white/10 bg-slate-900/60 p-3 panel-cut hover:border-primary/40 transition"
+                className="flex flex-wrap items-center justify-between gap-3 border border-white/10 bg-slate-900/60 p-3 panel-cut hover:border-primary/40 transition"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="flex size-9 shrink-0 items-center justify-center border border-white/10 bg-slate-950 text-xs font-mono font-bold text-primary">
                     {deck.placement?.includes("1") || idx === 0 ? (
                       <Trophy className="size-4 text-amber-400" />
                     ) : (
-                      `#${idx + 1}`
+                      deck.placement ? `${deck.placement}º` : `#${idx + 1}`
                     )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-white">{deck.name}</p>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400 font-mono">
                       <span>Piloto: {deck.author}</span>
                       {deck.tournament && (
                         <>
                           <span>·</span>
-                          <span className="text-primary">{deck.tournament}</span>
+                          <span className="text-primary font-medium">{deck.tournament}</span>
                         </>
                       )}
-                      {deck.date && (
+                      {deck.tier && (
                         <>
                           <span>·</span>
-                          <span>{new Date(deck.date).toLocaleDateString("pt-BR")}</span>
+                          <span className="rounded-none border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                            {deck.tier}
+                          </span>
+                        </>
+                      )}
+                      {deck.organizer && (
+                        <>
+                          <span>·</span>
+                          <span className="text-slate-300">Org: {deck.organizer}</span>
+                        </>
+                      )}
+                      {(deck.date || deck.tournamentDate) && (
+                        <>
+                          <span>·</span>
+                          <span>{new Date(deck.date || deck.tournamentDate!).toLocaleDateString("pt-BR")}</span>
                         </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {deck.shareId && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 rounded-none border-white/15 bg-white/5 text-xs text-slate-200 hover:text-white"
-                    asChild
-                  >
-                    <a href={`#/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
-                      <ExternalLink className="size-3.5 mr-1" />
-                      Ver Deck
-                    </a>
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {deck.sourceUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-none border-primary/30 bg-primary/10 text-xs text-primary hover:bg-primary/20 hover:text-white"
+                      asChild
+                    >
+                      <a href={deck.sourceUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-3.5 mr-1" />
+                        Fonte Oficial
+                      </a>
+                    </Button>
+                  )}
+                  {deck.shareId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 shrink-0 rounded-none border-white/15 bg-white/5 text-xs text-slate-200 hover:text-white"
+                      asChild
+                    >
+                      <a href={`#/deck/${deck.shareId}`} target="_blank" rel="noreferrer">
+                        <ExternalLink className="size-3.5 mr-1" />
+                        Ver Deck
+                      </a>
+                    </Button>
+                  )}
+                </div>
               </div>
             ))
           )}

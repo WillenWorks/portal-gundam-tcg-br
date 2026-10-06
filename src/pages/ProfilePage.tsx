@@ -80,7 +80,7 @@ export default function ProfilePage() {
 
   return (
     <PortalShell breadcrumbs={[{ label: "Configurações" }]}>
-      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr] 2xl:grid-cols-[1fr_1fr]">
         <div className="space-y-6">
           <Card className="panel-cut rounded-none border-primary/30 hero-surface">
             <CardContent className="space-y-5 p-6">

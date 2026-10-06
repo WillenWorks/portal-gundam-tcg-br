@@ -10,7 +10,7 @@ export function AboutAnaheimHubSection() {
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-[650px] rounded-full bg-cyan-500/5 blur-[140px]" />
       <div className="pointer-events-none absolute -left-20 bottom-0 size-80 rounded-full bg-blue-600/5 blur-[100px]" />
 
-      <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-[1400px] 2xl:max-w-[1600px] 3xl:max-w-[1800px] px-4 sm:px-6 lg:px-8">
         {/* Card Grande Institucional */}
         <div className="relative overflow-hidden rounded-2xl border border-cyan-500/30 bg-gradient-to-b from-slate-900/90 via-slate-950/95 to-slate-950 p-8 sm:p-12 lg:p-16 shadow-[0_0_50px_rgba(6,182,212,0.12)] backdrop-blur-2xl">
           {/* Efeito sutil de linhas de escaneamento militar */}

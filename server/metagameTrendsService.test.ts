@@ -146,4 +146,60 @@ describe("getMetagameStats", () => {
     expect(stats.risingCards).toEqual([]);
     expect(stats.decliningCards).toEqual([]);
   });
+
+  it("computa proveniência detalhada (totalDecks, totalTournaments, datas, tier e link)", async () => {
+    const prisma = {
+      tournamentEntry: {
+        findMany: async () => [
+          {
+            deckSnapshotId: "S1",
+            wins: 2,
+            losses: 0,
+            draws: 0,
+            tournament: {
+              id: "T1",
+              name: "Regional SP 2026",
+              dateStart: day(1),
+              organizer: "Bandai Namco Brasil",
+              participantCount: 128,
+              tier: "LARGE_OFFICIAL",
+              sourceUrl: "https://gundam-gcg.com/events/sp2026",
+            },
+          },
+          {
+            deckSnapshotId: "S2",
+            wins: 1,
+            losses: 1,
+            draws: 0,
+            tournament: {
+              id: "T2",
+              name: "Store Championship Curitiba",
+              dateStart: day(5),
+              organizer: "Loja Gundam Sul",
+              participantCount: 32,
+              tier: "SMALL_OFFICIAL",
+              sourceUrl: null,
+            },
+          },
+        ],
+      },
+      hostedEventParticipant: { findMany: async () => [] },
+      deckSnapshotItem: {
+        findMany: async ({ where }: { where: { deckSnapshotId: { in: string[] } } }) =>
+          where.deckSnapshotId.in.flatMap((id) => (SNAPSHOT_ITEMS[id] || []).map((item) => ({ deckSnapshotId: id, ...item }))),
+      },
+    } as any;
+
+    const stats = await getMetagameStats(prisma, { seasonId: null });
+    expect(stats.provenance).toBeDefined();
+    expect(stats.provenance.totalDecks).toBe(2);
+    expect(stats.provenance.totalTournaments).toBe(2);
+    expect(stats.provenance.startDate).toBe(day(1).toISOString());
+    expect(stats.provenance.endDate).toBe(day(5).toISOString());
+    expect(stats.provenance.tournaments).toHaveLength(2);
+    expect(stats.provenance.tournaments[0].name).toBe("Store Championship Curitiba");
+    expect(stats.provenance.tournaments[0].tier).toBe("SMALL_OFFICIAL");
+    expect(stats.provenance.tournaments[1].sourceUrl).toBe("https://gundam-gcg.com/events/sp2026");
+    expect(stats.provenance.tournaments[1].organizer).toBe("Bandai Namco Brasil");
+  });
 });

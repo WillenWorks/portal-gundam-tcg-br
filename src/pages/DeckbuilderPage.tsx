@@ -1396,7 +1396,7 @@ export default function DeckbuilderPage() {
         </div>
 
         {activeTab === "montar" ? (
-        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr] 2xl:grid-cols-[1fr_1fr] 3xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="panel-cut rounded-none surface-panel">
           <CardContent className="p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -1421,7 +1421,7 @@ export default function DeckbuilderPage() {
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
-            <div className="mt-6 grid grid-cols-3 gap-2.5 sm:grid-cols-5 xl:grid-cols-6">
+            <div className="mt-6 grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9">
               {loadingPool ? <p className="col-span-full text-sm text-muted-portal">Carregando pool filtrada...</p> : null}
               {!loadingPool && !cards.length ? <p className="col-span-full text-sm text-muted-portal">Nenhuma carta encontrada nessa combinação de filtros.</p> : null}
               {cards.map((card) => {
@@ -1509,7 +1509,7 @@ export default function DeckbuilderPage() {
                 <Badge className={`rounded-none border ${stats.resourceDeckCount === DECK_RESOURCE_SIZE ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300" : "border-amber-400/40 bg-amber-400/10 text-amber-300"}`}>{stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}</Badge>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
-              <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8 max-h-[400px] overflow-auto pr-1">
+              <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-9 3xl:grid-cols-10 4xl:grid-cols-12 max-h-[400px] overflow-auto pr-1">
                 {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>

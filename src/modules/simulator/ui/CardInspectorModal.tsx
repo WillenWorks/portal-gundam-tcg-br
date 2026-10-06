@@ -5,12 +5,15 @@
  * modificadores) fica numa GAVETA lateral que abre pelo botão tático na borda
  * direita da carta. Se a carta for uma Unit com link `pilotName`, o(s) nome(s)
  * do piloto viram chips com POPOVER de hover mostrando a arte do piloto. */
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRight, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CardDef, CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { effectiveAp, effectiveHp, effectivePilotDef } from "@/modules/simulator/engine/types";
 import { artSrc, type ArtLookup, type CardArt } from "./cardArt";
+import { KeywordTooltip } from "@/i18n/KeywordTooltip";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
+import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
 
 /** AP/HP a exibir por tipo de carta (feedback Willen 3ª rodada — Command não
  *  tem AP/HP, não mostrar "0"). Unit: AP+HP efetivos/base. Base: só HP.
@@ -193,11 +196,16 @@ export function CardInspectorModal({
         {/* ── Gaveta de telemetria ─────────────────────────────────────── */}
         {drawerOpen ? (
           <aside className="panel-cut surface-panel ml-8 flex max-h-[80vh] w-72 flex-col overflow-y-auto border border-primary/25 p-3">
-            <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>
-            <p className="text-[10px] text-muted-portal">
-              {def?.code} · {def?.cardType}
-              {def?.color ? ` · ${def.color}` : ""}
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-heading text-sm font-bold leading-tight text-soft">{def.nameEn}</p>
+                <p className="text-[10px] text-muted-portal">
+                  {def?.code} · {def?.cardType}
+                  {def?.color ? ` · ${def.color}` : ""}
+                </p>
+              </div>
+              <CardInspectorPlayabilityBadge code={def.code} />
+            </div>
 
             <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
               {def.cost !== undefined ? <Attr label="Custo" value={def.cost} /> : null}
@@ -220,9 +228,7 @@ export function CardInspectorModal({
             ) : uniqueKeywords.length ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {uniqueKeywords.map((k) => (
-                  <span key={k} className="border border-primary/30 bg-primary/10 px-1 text-[9px] font-medium text-primary">
-                    {k}
-                  </span>
+                  <KeywordTooltip key={k} keyword={k} />
                 ))}
               </div>
             ) : null}
@@ -231,11 +237,26 @@ export function CardInspectorModal({
               <div className="mt-2 border-t border-white/10 pt-2">
                 <p className="mb-1 text-[9px] uppercase tracking-wide text-emerald-500/80">Ativo agora</p>
                 <div className="flex flex-wrap gap-1">
-                  {[...activeBuffs, ...grantedKeywords].map((b) => (
+                  {activeBuffs.map((b) => (
                     <span key={b} className="border border-emerald-400/40 bg-emerald-500/10 px-1 text-[9px] font-medium text-emerald-300">
                       {b}
                     </span>
                   ))}
+                  {grantedKeywords.map((k) => (
+                    <KeywordTooltip key={k} keyword={k} className="border-emerald-400/40 bg-emerald-500/10 text-emerald-300" />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {inPlay && ((card as any).cannotAttack || (card as any).preventActivationNextTurn || (card as any).cannotTargetPlayer || (card as any).grantAttackTargetRelax) ? (
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <p className="mb-1 text-[9px] uppercase tracking-wide text-amber-500/90">Restrições</p>
+                <div className="flex flex-wrap gap-1">
+                  {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não pode atacar neste turno</span> : null}
+                  {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não desvira no próximo turno</span> : null}
+                  {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1 text-[9px] font-medium text-amber-300">Não pode atacar jogador</span> : null}
+                  {(card as any).grantAttackTargetRelax ? <span className="border border-cyan-400/40 bg-cyan-500/10 px-1 text-[9px] font-medium text-cyan-300">Pode mirar Unidade ativa</span> : null}
                 </div>
               </div>
             ) : null}
@@ -271,18 +292,32 @@ export function CardEffectText({
   effectText?: string;
   className?: string;
 }) {
+  const { isPt } = useCardLanguage();
   const pt = effectPt?.trim() || undefined;
   const en = effectEn?.trim() || undefined;
   const generic = effectText?.trim() || undefined;
   const hasToggle = Boolean(pt && en && pt !== en);
-  const [lang, setLang] = useState<"pt" | "en">("pt");
+  const [lang, setLang] = useState<"pt" | "en">(isPt ? "pt" : "en");
+
+  useEffect(() => {
+    setLang(isPt ? "pt" : "en");
+  }, [isPt]);
+
+  const isPending = isPt && !pt && Boolean(en || generic);
   const body = hasToggle ? (lang === "pt" ? pt : en) : (pt ?? generic ?? en);
   if (!body) return null;
 
   return (
     <div className={className}>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <p className="text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[9px] uppercase tracking-wide text-slate-500">Efeito</p>
+          {isPending ? (
+            <span className="border border-amber-400/40 bg-amber-400/10 px-1 text-[8px] font-semibold uppercase tracking-wider text-amber-300">
+              Tradução pendente
+            </span>
+          ) : null}
+        </div>
         {hasToggle ? (
           <div className="flex overflow-hidden rounded-arena border border-white/15 text-[8px] font-bold uppercase tracking-wide">
             {(["pt", "en"] as const).map((option) => (

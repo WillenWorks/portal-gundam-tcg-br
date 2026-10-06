@@ -79,4 +79,33 @@ describe("CardInspectorPanel", () => {
     );
     expect(screen.getByText("Recursos insuficientes.")).toBeInTheDocument();
   });
+
+  it("telemetria: exibe selo Apta no simulador e restrições ativas", () => {
+    render(
+      <CardInspectorPanel
+        card={card(
+          { code: "GD02-001", nameEn: "Wing Gundam", cardType: "UNIT", cost: 4, level: 3, ap: 4, hp: 3 },
+          { cannotAttack: true } as any,
+        )}
+        art={{}}
+        inPlay
+      />,
+    );
+    expect(screen.getByText("Apta no simulador")).toBeInTheDocument();
+    expect(screen.getByText("Restrições")).toBeInTheDocument();
+    expect(screen.getByText("Não pode atacar neste turno")).toBeInTheDocument();
+  });
+
+  it("efeito: exibe selo 'Tradução pendente' quando falta effectPt", () => {
+    render(
+      <CardInspectorPanel
+        card={card({ nameEn: "Banshee", cardType: "UNIT" })}
+        art={{}}
+        effectEn="【Deploy】Rest 1 enemy Unit."
+      />,
+    );
+    expect(screen.getByText("Efeito")).toBeInTheDocument();
+    expect(screen.getByText("Tradução pendente")).toBeInTheDocument();
+    expect(screen.getByText("【Deploy】Rest 1 enemy Unit.")).toBeInTheDocument();
+  });
 });
