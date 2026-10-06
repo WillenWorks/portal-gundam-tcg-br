@@ -96,4 +96,14 @@ describe("ActionDock", () => {
     const { container: open } = render(<ActionDock {...BASE} logOpen={true} />);
     expect(open.querySelector("aside")?.className).toContain("lg:right-[16.5rem]");
   });
+
+  it("com hasPendingDecision=true, exibe 'Sua vez · Decisão'", () => {
+    render(<ActionDock {...BASE} hasPendingDecision={true} />);
+    expect(screen.getByText(/sua vez · decisão/i)).toBeInTheDocument();
+  });
+
+  it("com oppDecisionLabel informado, exibe o rótulo de decisão do oponente", () => {
+    render(<ActionDock {...BASE} yourTurn={false} oppDecisionLabel="Oponente escolhendo alvos..." />);
+    expect(screen.getByText(/oponente escolhendo alvos\.\.\./i)).toBeInTheDocument();
+  });
 });

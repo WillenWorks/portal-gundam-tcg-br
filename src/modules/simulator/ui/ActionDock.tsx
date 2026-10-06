@@ -46,6 +46,10 @@ export interface ActionDockProps {
   pingMs?: number | null;
   logOpen: boolean;
   logCount: number;
+  /** Verdadeiro quando o jogador atual tem uma decisão interativa pendente (Burst, AbilityResolution, etc.). */
+  hasPendingDecision?: boolean;
+  /** Rótulo ou indicação de decisão do oponente em andamento. */
+  oppDecisionLabel?: string;
   onEndTurn?: () => void;
   /** passa o Passo de Ação quando em prioridade de ação. */
   onPassAction?: () => void;
@@ -64,6 +68,8 @@ export function ActionDock({
   pingMs,
   logOpen,
   logCount,
+  hasPendingDecision,
+  oppDecisionLabel,
   onEndTurn,
   onPassAction,
   onToggleLog,
@@ -87,14 +93,32 @@ export function ActionDock({
           <p
             className={cn(
               "text-[clamp(0.6875rem,1.5vw,0.8125rem)] font-black uppercase tracking-wide",
-              yourTurn || inActionStep ? "text-primary" : "text-muted-portal",
+              hasPendingDecision
+                ? "text-amber-300 flex items-center gap-1.5"
+                : oppDecisionLabel
+                  ? "text-amber-200/90 flex items-center gap-1.5"
+                  : yourTurn || inActionStep
+                    ? "text-primary"
+                    : "text-muted-portal",
             )}
           >
-            {inActionStep
-              ? `Sua vez · ${phaseLabel}`
-              : yourTurn
-                ? `Sua vez · ${phaseLabel}`
-                : "Vez do oponente"}
+            {hasPendingDecision ? (
+              <>
+                <span className="size-2 rounded-full bg-amber-400 animate-pulse" />
+                Sua vez · Decisão
+              </>
+            ) : oppDecisionLabel ? (
+              <>
+                <span className="size-2 rounded-full bg-amber-400/80 animate-pulse" />
+                {oppDecisionLabel}
+              </>
+            ) : inActionStep ? (
+              `Sua vez · ${phaseLabel}`
+            ) : yourTurn ? (
+              `Sua vez · ${phaseLabel}`
+            ) : (
+              "Vez do oponente"
+            )}
           </p>
           {timerSeconds !== null ? (
             <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-portal">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { ArtLookup } from "./cardArt";
 import { CardFace } from "./CardFace";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 interface BurstModalProps {
   decision: Extract<PendingDecision, { kind: "burst" }>;
@@ -16,11 +17,21 @@ interface BurstModalProps {
 }
 
 export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) {
+  const { language } = useCardLanguage();
+  const isEn = language === "EN";
+
+  const queueSuffix =
+    decision.queuedInstanceIds?.length > 0
+      ? isEn
+        ? ` (+${decision.queuedInstanceIds.length} in queue)`
+        : ` (+${decision.queuedInstanceIds.length} na fila)`
+      : "";
+
   return (
     <div className="pointer-events-none fixed top-3 inset-x-0 z-[80] flex justify-center px-3 animate-in slide-in-from-top-3 fade-in duration-200 motion-reduce:animate-none">
-      <div className="pointer-events-auto panel-cut hero-surface mx-auto flex w-[min(96vw,44rem)] items-center justify-between gap-3.5 border-2 border-amber-400 bg-slate-950/95 px-4 py-2.5 shadow-[0_4px_28px_rgba(0,0,0,0.9),0_0_30px_rgba(251,191,36,0.45)] backdrop-blur-md">
+      <div className="pointer-events-auto panel-cut hero-surface mx-auto flex w-[min(96vw,44rem)] flex-wrap items-center justify-between gap-3 border-2 border-amber-400 bg-slate-950/95 px-3.5 py-2.5 shadow-[0_4px_28px_rgba(0,0,0,0.9),0_0_30px_rgba(251,191,36,0.45)] backdrop-blur-md sm:flex-nowrap">
         {/* Lado Esquerdo: Miniatura da carta + Informação Tática */}
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="h-12 w-9 shrink-0 overflow-hidden rounded border border-amber-400/80 shadow-[0_0_12px_rgba(251,191,36,0.5)]">
             <CardFace
               nameEn={decision.cardDef?.nameEn ?? ""}
@@ -38,28 +49,28 @@ export function BurstModal({ decision, art, busy, onResolve }: BurstModalProps) 
               <p className="truncate text-xs font-bold text-white">{decision.cardDef?.nameEn ?? "Carta"}</p>
             </div>
             <p className="mt-0.5 truncate text-[10px] text-amber-200/80">
-              Sua shield foi quebrada. Ativar o efeito de Burst?
-              {decision.queuedInstanceIds?.length > 0 ? ` (+${decision.queuedInstanceIds.length} na fila)` : ""}
+              {isEn ? "Shield broken. Activate Burst effect?" : "Sua shield foi quebrada. Ativar o efeito de Burst?"}
+              {queueSuffix}
             </p>
           </div>
         </div>
 
         {/* Lado Direito: Ações Imediatas */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
           <Button
-            className="h-8 rounded-arena bg-amber-400 px-3.5 text-xs font-black text-black shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:bg-amber-300"
+            className="min-h-11 flex-1 rounded-arena bg-amber-400 px-3.5 text-xs font-black text-black shadow-[0_0_14px_rgba(251,191,36,0.5)] hover:bg-amber-300 sm:h-8 sm:min-h-0 sm:flex-initial"
             disabled={busy}
             onClick={() => onResolve(true)}
           >
-            Ativar efeito
+            {isEn ? "Activate effect" : "Ativar efeito"}
           </Button>
           <Button
             variant="outline"
-            className="h-8 rounded-arena border-white/20 px-3 text-xs text-slate-300 hover:border-white/40 hover:bg-white/5"
+            className="min-h-11 flex-1 rounded-arena border-white/20 px-3 text-xs text-slate-300 hover:border-white/40 hover:bg-white/5 sm:h-8 sm:min-h-0 sm:flex-initial"
             disabled={busy}
             onClick={() => onResolve(false)}
           >
-            Mandar pro trash
+            {isEn ? "Send to trash" : "Mandar pro trash"}
           </Button>
         </div>
       </div>

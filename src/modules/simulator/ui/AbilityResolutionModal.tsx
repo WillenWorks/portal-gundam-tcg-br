@@ -123,6 +123,39 @@ interface AbilityResolutionModalProps {
   ) => void;
   /** Opcional: resolvedor de dados da carta para tradução customizada (ou usa o cache global). */
   cardLookup?: (code: string) => CardTextInput | null | undefined;
+  /** Quantidade de cartas (G Generation) disponíveis no trash para Development N */
+  devTrashCount?: number;
+}
+
+/**
+ * Resolve o título e o cabeçalho tático de gatilho, identificando continuações (Passo 2 de 2)
+ * como 'Then:1', 'Mode:<n>' e 'parentTrigger' (Development N, If you do..., etc.).
+ */
+export function resolveTriggerModalHeader(
+  trigger: string,
+  parentTrigger?: string,
+  lang: "PT_BR" | "EN" = "PT_BR",
+): { title: string; isContinuation: boolean; stepBadge?: string } {
+  const isContinuation = Boolean(parentTrigger || trigger.startsWith("Then:") || trigger.startsWith("Mode:"));
+  if (isContinuation) {
+    const parentLabel = parentTrigger ? getTriggerModalLabel(parentTrigger, lang) : undefined;
+    if (lang === "EN") {
+      return {
+        title: parentLabel ? `Step 2 · Continuation of ${parentLabel}` : "Step 2 · Effect continuation",
+        isContinuation: true,
+        stepBadge: "Step 2 of 2",
+      };
+    }
+    return {
+      title: parentLabel ? `Passo 2 · Continuação de ${parentLabel}` : "Passo 2 · Continuação do efeito",
+      isContinuation: true,
+      stepBadge: "Passo 2 de 2",
+    };
+  }
+  return {
+    title: getTriggerModalLabel(trigger, lang),
+    isContinuation: false,
+  };
 }
 
 export function AbilityResolutionModal({
@@ -138,6 +171,7 @@ export function AbilityResolutionModal({
   setActivate,
   onResolve,
   cardLookup,
+  devTrashCount,
 }: AbilityResolutionModalProps) {
   const { language } = useCardLanguage();
   const strings = getDecisionModalStrings(language);
@@ -244,6 +278,11 @@ export function AbilityResolutionModal({
     );
 
   const isSingle = order.length === 1;
+  const { title: triggerTitle, stepBadge } = resolveTriggerModalHeader(
+    decision.trigger,
+    decision.parentTrigger,
+    language,
+  );
 
   return (
     <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
@@ -256,10 +295,17 @@ export function AbilityResolutionModal({
         )}
       >
         <div className={cn("flex items-center justify-between gap-2 border-b border-white/10", isSingle ? "pb-1" : "pb-1.5")}>
-          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300">
-            <Sparkles className="size-3.5" /> {getTriggerModalLabel(decision.trigger, language)}
-          </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300 truncate">
+              <Sparkles className="size-3.5 shrink-0" /> {triggerTitle}
+            </p>
+            {stepBadge ? (
+              <span className="shrink-0 rounded border border-cyan-400/60 bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.3)]">
+                {stepBadge}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {!isSingle ? (
               <span className="text-[10px] text-muted-portal">{strings.orderAndChoose}</span>
             ) : null}
@@ -282,6 +328,7 @@ export function AbilityResolutionModal({
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
             const opts = optionsFor(specId);
+            const isDevCard = q.trashExile || q.label.includes("Development") || q.label.includes("G Generation");
             return (
               <li
                 key={specId}
@@ -311,6 +358,15 @@ export function AbilityResolutionModal({
                     </span>
                   ) : null}
                 </div>
+
+                {devTrashCount !== undefined && isDevCard ? (
+                  <div className="mt-1 inline-flex items-center gap-1.5 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300">
+                    <Sparkles className="size-3 shrink-0 text-amber-400" />
+                    <span>
+                      Development · <strong className="font-bold text-amber-200">{devTrashCount}</strong> {language === "EN" ? `(G Generation) card${devTrashCount === 1 ? "" : "s"} in trash` : `carta${devTrashCount === 1 ? "" : "s"} (G Generation) no trash`}
+                    </span>
+                  </div>
+                ) : null}
 
                 {showActivateToggle(specId) ? (
                   <div className={cn("flex gap-1", isSingle ? "mt-1" : "mt-2")}>
@@ -535,21 +591,42 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.trashExile && exileActive(specId) ? (
-                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                    <p className="text-[10px] text-muted-portal">
-                      {strings.trashExilePrompt(q.trashExile.count, q.trashExile.legalTrashIds.length, (exiles[specId] ?? []).length)}
-                    </p>
+                  <div className={cn(isSingle ? "mt-1 space-y-1" : "mt-2 space-y-1.5")}>
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                      <p className="text-muted-portal">
+                        {strings.trashExilePrompt(q.trashExile.count, q.trashExile.legalTrashIds.length, (exiles[specId] ?? []).length)}
+                      </p>
+                      {(exiles[specId] ?? []).length === q.trashExile.count ? (
+                        <span className="inline-flex items-center gap-1 rounded border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-300">
+                          ✓ {language === "EN" ? "Ready" : "Pronto"} ({q.trashExile.count}/{q.trashExile.count})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded border border-amber-400/50 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                          {language === "EN"
+                            ? `Choose ${q.trashExile.count - (exiles[specId] ?? []).length} more`
+                            : `Falta escolher ${q.trashExile.count - (exiles[specId] ?? []).length}`}
+                        </span>
+                      )}
+                    </div>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                      {q.trashExile.legalTrashIds.map((instanceId) => (
-                        <Toggle
-                          key={instanceId}
-                          compact={isSingle}
-                          active={(exiles[specId] ?? []).includes(instanceId)}
-                          onClick={() => toggleExile(specId, instanceId, q.trashExile!.count)}
-                        >
-                          {resolveLabel(instanceId)}
-                        </Toggle>
-                      ))}
+                      {q.trashExile.legalTrashIds.map((instanceId) => {
+                        const isChosen = (exiles[specId] ?? []).includes(instanceId);
+                        return (
+                          <Toggle
+                            key={instanceId}
+                            compact={isSingle}
+                            active={isChosen}
+                            onClick={() => toggleExile(specId, instanceId, q.trashExile!.count)}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {isChosen ? (
+                                <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                              ) : null}
+                              {resolveLabel(instanceId)}
+                            </span>
+                          </Toggle>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}

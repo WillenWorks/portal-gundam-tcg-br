@@ -11,12 +11,19 @@ import {
   toggleMultiTarget,
   usesBoardTargetingForPrimary,
   usesBoardTargetingForSecondary,
+  resolveTriggerModalHeader,
 } from "./AbilityResolutionModal";
 
 afterEach(cleanup);
 
 type AR = Extract<PendingDecision, { kind: "abilityResolution" }>;
-type ResolveArgs = Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[] }>;
+type ResolveArgs = Array<{
+  specId: string;
+  activate: boolean;
+  targetIds: string[];
+  secondaryTargetIds?: string[];
+  trashExileIds?: string[];
+}>;
 
 // V0 (docs/25): as opções já vêm prontas em `legalTargets` (calculadas no
 // servidor) — o teste só precisa de um `resolveLabel` fixo pra mapear id -> nome.
@@ -37,12 +44,14 @@ function Harness({
   resolveHandLabel,
   busy,
   onResolve,
+  devTrashCount,
 }: {
   decision: AR;
   resolveLabel?: (id: string) => string;
   resolveHandLabel?: (id: string) => string;
   busy?: boolean;
   onResolve: (resolutions: ResolveArgs) => void;
+  devTrashCount?: number;
 }) {
   const resolveLabelFn = resolveLabelProp ?? resolveLabel;
   const [targets, setTargets] = useState<Record<string, string[]>>({});
@@ -99,6 +108,7 @@ function Harness({
         activate={activate}
         setActivate={setActivate}
         onResolve={onResolve}
+        devTrashCount={devTrashCount}
       />
     </>
   );
@@ -607,5 +617,111 @@ describe("pickSecondaryTarget com custo \"Rest N\" (W8)", () => {
     s = pickSecondaryTarget(s, "spec", "u1", 2);
     expect(s.spec).toEqual(["u2"]);
     expect(pickSecondaryTarget({ spec: ["a"] }, "spec", "b")).toEqual({ spec: ["b"] });
+  });
+});
+
+describe("resolveTriggerModalHeader (Fase 2)", () => {
+  it("trata trigger comum sem continuação", () => {
+    const res = resolveTriggerModalHeader("Deploy", undefined, "PT_BR");
+    expect(res.isContinuation).toBe(false);
+    expect(res.title).toContain("【Deploy】");
+  });
+
+  it("trata continuação Then:1 e Mode: com parentTrigger", () => {
+    const resPt = resolveTriggerModalHeader("Then:1", "When Paired", "PT_BR");
+    expect(resPt.isContinuation).toBe(true);
+    expect(resPt.stepBadge).toBe("Passo 2 de 2");
+    expect(resPt.title).toContain("Passo 2 · Continuação de");
+    expect(resPt.title).toContain("【When Paired】");
+
+    const resEn = resolveTriggerModalHeader("Mode:2", "Attack", "EN");
+    expect(resEn.isContinuation).toBe(true);
+    expect(resEn.stepBadge).toBe("Step 2 of 2");
+    expect(resEn.title).toContain("Step 2 · Continuation of");
+    expect(resEn.title).toContain("【Attack】");
+  });
+});
+
+describe("trashExile no AbilityResolutionModal (Fase 2)", () => {
+  it("exige exatamente N cartas do trash, atualiza badge de contagem e envia trashExileIds", () => {
+    const onResolve = vi.fn();
+    const decision: AR = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          sourceInstanceId: "u1",
+          specId: "spec-dev",
+          label: "Development 2 - Exile 2 cards from trash",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+          trashExile: {
+            count: 2,
+            legalTrashIds: ["t1", "t2", "t3"],
+            label: "Exile 2 cards",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        decision={decision}
+        resolveLabel={(id) => (id === "t1" ? "Trash 1" : id === "t2" ? "Trash 2" : "Trash 3")}
+        onResolve={onResolve}
+      />,
+    );
+
+    expect(screen.getByText(/Falta escolher 2/i)).toBeInTheDocument();
+    const confirmBtn = screen.getByRole("button", { name: /confirmar/i });
+    expect(confirmBtn).toBeDisabled();
+
+    // Clica na primeira carta
+    fireEvent.click(screen.getByRole("button", { name: /Trash 1/i }));
+    expect(screen.getByText(/Falta escolher 1/i)).toBeInTheDocument();
+    expect(confirmBtn).toBeDisabled();
+
+    // Clica na segunda carta
+    fireEvent.click(screen.getByRole("button", { name: /Trash 2/i }));
+    expect(screen.getByText(/Pronto \(2\/2\)/i)).toBeInTheDocument();
+    expect(confirmBtn).not.toBeDisabled();
+
+    // Confirma
+    fireEvent.click(confirmBtn);
+    expect(onResolve).toHaveBeenCalledWith([
+      {
+        specId: "spec-dev",
+        activate: true,
+        targetIds: [],
+        trashExileIds: ["t1", "t2"],
+      },
+    ]);
+  });
+});
+
+describe("devTrashCount badge (Fase 2)", () => {
+  it("exibe badge de contagem de Development no trash", () => {
+    const decision: AR = {
+      kind: "abilityResolution",
+      trigger: "Deploy",
+      queue: [
+        {
+          sourceInstanceId: "u1",
+          specId: "spec-dev-1",
+          label: "【Development 2】",
+          optional: false,
+          needsTarget: false,
+          targetScope: "enemyUnit",
+          legalTargets: [],
+        },
+      ],
+    };
+
+    render(<Harness decision={decision} devTrashCount={4} onResolve={vi.fn()} />);
+    expect(screen.getByText(/Development ·/i)).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(screen.getByText(/cartas \(G Generation\) no trash/i)).toBeInTheDocument();
   });
 });
