@@ -34,6 +34,7 @@ import {
   defaultTargetFilterResolver,
   validatedDeckList,
   validatedDeckPairs,
+  getEngineSha,
 } from "./engine.mjs";
 import { readModelArtifacts } from "./model.mjs";
 
@@ -163,6 +164,24 @@ async function main() {
 
   const modelDir = path.resolve(ENGINE_ROOT, args.model);
 
+  let modelManifest = null;
+  const manifestPath = path.join(modelDir, "manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    try {
+      modelManifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    } catch {
+      modelManifest = null;
+    }
+  }
+
+  const currentEngineSha = getEngineSha();
+  const modelEngineSha = modelManifest?.engineSha ?? "desconhecido";
+  const engineCompatible = modelEngineSha === "desconhecido" || modelEngineSha === currentEngineSha;
+
+  if (!engineCompatible) {
+    console.warn(`[train:eval] ⚠️ AVISO: Motor atual (${currentEngineSha}) difere do motor de treino do modelo (${modelEngineSha}).`);
+  }
+
   const handle = await neuralPolicy({
     modelDir,
     loadArtifacts: (dir) => readModelArtifacts(dir),
@@ -219,6 +238,9 @@ async function main() {
       modelDir: path.relative(ENGINE_ROOT, modelDir),
       elapsedSeconds: elapsed,
       pairsCount: pairs.length,
+      currentEngineSha,
+      modelEngineSha,
+      engineCompatible,
       vsHeuristic,
       vsSecond: {
         label: secondLabel,

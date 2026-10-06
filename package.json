@@ -46,6 +46,7 @@
     "train:fit": "node scripts/train/fit.mjs",
     "train:eval": "node scripts/train/eval.mjs",
     "train:pipeline": "node scripts/train/pipeline.mjs",
+    "train:promote": "node scripts/train/promote.mjs",
     "gundam:index": "node scripts/gundam-index.mjs",
     "gundam:triage": "node scripts/gundam-triage.mjs",
     "gundam:fix": "node scripts/gundam-fix.mjs",

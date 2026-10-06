@@ -17,7 +17,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import process from "node:process";
 
-import { ENGINE_ROOT, FEATURE_SIZE, ACTION_SPACE } from "./engine.mjs";
+import { ENGINE_ROOT, FEATURE_SIZE, ACTION_SPACE, getEngineSha } from "./engine.mjs";
 import { loadTf } from "./tf.mjs";
 import { buildPolicyValueModel, nodeFileSaveIO } from "./model.mjs";
 
@@ -35,7 +35,7 @@ const HYPER = {
 };
 
 function parseArgs(argv) {
-  const args = { data: null, out: null, epochs: HYPER.epochs, batch: HYPER.batchSize, lr: HYPER.learningRate, nice: false };
+  const args = { data: null, out: null, epochs: HYPER.epochs, batch: HYPER.batchSize, lr: HYPER.learningRate, nice: false, engineSha: null };
   for (const a of argv) {
     if (a === "--nice") {
       args.nice = true;
@@ -50,6 +50,7 @@ function parseArgs(argv) {
     else if (k === "batch") args.batch = Number(v);
     else if (k === "lr") args.lr = Number(v);
     else if (k === "nice") args.nice = v === "true";
+    else if (k === "engineSha") args.engineSha = v;
   }
   return args;
 }
@@ -152,8 +153,13 @@ async function main() {
 
   await model.save(nodeFileSaveIO(outDir));
 
+  const engineSha = args.engineSha || getEngineSha();
+
   const manifest = {
     createdAt: new Date().toISOString(),
+    trainedAt: new Date().toISOString(),
+    engineSha,
+    modelHash: configHash,
     featureSize: FEATURE_SIZE,
     actionSpace: ACTION_SPACE,
     arch: model.arch,
