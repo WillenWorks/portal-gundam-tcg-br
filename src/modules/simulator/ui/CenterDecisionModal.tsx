@@ -10,10 +10,12 @@
  * declaração de vitória por abandono do oponente (rara, não bloqueia jogadas
  * do dia a dia).
  */
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock } from "lucide-react";
 import type { ActionDockState } from "./ActionDock";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 export interface CenterDecisionModalProps {
   state: ActionDockState;
@@ -42,6 +44,19 @@ export function CenterDecisionModal({
   onClaimAbandon,
   confirmEndTurnOpen,
 }: CenterDecisionModalProps) {
+  const { language } = useCardLanguage();
+  const isEn = language === "EN";
+
+  useEffect(() => {
+    if (!confirmEndTurnOpen || !onCancelEndTurn) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancelEndTurn();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [confirmEndTurnOpen, onCancelEndTurn]);
   // docs/52 — jogada regular NUNCA abre modal central: essas decisões vivem
   // agora no TopTacticalHUD/ActionDock. `oppDecision`/`gameOver` já não tinham
   // modal central antes (GameOverOverlay assume o fim de jogo).
@@ -71,11 +86,15 @@ export function CenterDecisionModal({
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">
-                Sua Vez · {state.phaseLabel}
+                {isEn ? `Your Turn · ${state.phaseLabel}` : `Sua Vez · ${state.phaseLabel}`}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-portal">
-                {state.turnNumber !== undefined ? `Turno ${state.turnNumber} · ` : ""}
-                {state.timerSeconds !== null ? `${state.timerSeconds}s restantes` : "Deseja encerrar o turno?"}
+                {state.turnNumber !== undefined ? `${isEn ? "Turn" : "Turno"} ${state.turnNumber} · ` : ""}
+                {state.timerSeconds !== null
+                  ? `${state.timerSeconds}s ${isEn ? "left" : "restantes"}`
+                  : isEn
+                    ? "Do you want to end your turn?"
+                    : "Deseja encerrar o turno?"}
               </p>
             </div>
             <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
@@ -85,7 +104,7 @@ export function CenterDecisionModal({
                 disabled={busy}
                 onClick={onEndTurn}
               >
-                Encerrar Turno
+                {isEn ? "End Turn" : "Encerrar Turno"}
               </Button>
               <Button
                 size="lg"
@@ -94,7 +113,7 @@ export function CenterDecisionModal({
                 disabled={busy}
                 onClick={onCancelEndTurn}
               >
-                Continuar Jogando
+                {isEn ? "Continue Playing" : "Continuar Jogando"}
               </Button>
             </div>
           </div>
@@ -108,10 +127,12 @@ export function CenterDecisionModal({
             </div>
             <div>
               <p className="text-sm font-black uppercase tracking-[0.2em] text-amber-300">
-                Oponente Inativo
+                {isEn ? "Opponent Inactive" : "Oponente Inativo"}
               </p>
               <p className="mt-1 text-xs text-soft">
-                O oponente está inativo há {state.idleSeconds}s. Você pode declarar vitória por W.O.:
+                {isEn
+                  ? `The opponent has been inactive for ${state.idleSeconds}s. You can claim victory by forfeit:`
+                  : `O oponente está inativo há ${state.idleSeconds}s. Você pode declarar vitória por W.O.:`}
               </p>
             </div>
             <div className="mt-2 flex w-full justify-center">
@@ -121,7 +142,7 @@ export function CenterDecisionModal({
                 disabled={busy}
                 onClick={onClaimAbandon}
               >
-                Declarar Vitória por Abandono
+                {isEn ? "Claim Victory by Abandon" : "Declarar Vitória por Abandono"}
               </Button>
             </div>
           </div>

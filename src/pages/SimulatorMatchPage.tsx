@@ -108,7 +108,7 @@ import { useMatchTransport } from "@/modules/simulator/network/useMatchTransport
 import { sfx } from "@/modules/simulator/audio/soundEffects";
 
 import { attackTargetError } from "@/modules/simulator/engine/combat";
-import { otherPlayer, hasKeyword, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
+import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
@@ -2678,8 +2678,29 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     if (myPendingDecision?.kind === "mulligan") return "Decida sua mão inicial (Mulligan)";
     if (oppPendingDecision?.kind === "mulligan") return "Oponente decidindo a mão inicial (Mulligan)…";
     if (myBurstDecision) return "Shield quebrada — resolva o 【Burst】";
+    if (oppPendingDecision?.kind === "burst") return "Aguardando o oponente resolver o 【Burst】…";
     if (myPendingDecision?.kind === "triggerOrder") return "Ordene os gatilhos que vão resolver";
-    if (myPendingDecision?.kind === "abilityResolution") return "Resolva o efeito ativado";
+    if (oppPendingDecision?.kind === "triggerOrder") return "Aguardando o oponente ordenar os gatilhos…";
+    if (myPendingDecision?.kind === "abilityResolution") {
+      const isContinuation = Boolean(
+        myPendingDecision.parentTrigger ||
+        myPendingDecision.trigger.startsWith("Then:") ||
+        myPendingDecision.trigger.startsWith("Mode:"),
+      );
+      if (view.phase === "end") {
+        return isContinuation
+          ? "Fim de Turno — Passo 2: resolva a continuação do efeito"
+          : "Fim de Turno — resolva o efeito ativado";
+      }
+      return isContinuation
+        ? "Passo 2: resolva a continuação do efeito"
+        : "Resolva o efeito ativado";
+    }
+    if (oppPendingDecision?.kind === "abilityResolution") {
+      return view.phase === "end"
+        ? "Fim de Turno — aguardando o oponente resolver a habilidade…"
+        : "Aguardando o oponente resolver a habilidade…";
+    }
     if (myPendingDecision?.kind === "zoneOverflow") return "Battle Area cheia — escolha 1 Unit pra descartar";
     if (oppPendingDecision?.kind === "zoneOverflow") return "Oponente escolhendo qual Unit descartar (Battle Area cheia)…";
     if (pending?.kind === "activateAbility") {
@@ -2779,7 +2800,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             ? "a mão inicial (Mulligan)"
             : oppPendingDecision.kind === "zoneOverflow"
               ? "qual Unit descartar (Battle Area cheia)"
-              : "uma decisão";
+              : oppPendingDecision.kind === "triggerOrder"
+                ? "a ordem dos gatilhos"
+                : oppPendingDecision.kind === "abilityResolution"
+                  ? "o efeito da habilidade"
+                  : "uma decisão";
       return {
         kind: "oppDecision",
         label: `Aguardando o oponente resolver ${what}…`,
@@ -3167,6 +3192,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             if (enemyUnit) return enemyUnit.def.nameEn;
             const friendlyUnit = publicUnits(view.players[seat]).find((u) => u.instanceId === instanceId);
             if (friendlyUnit) return friendlyUnit.def.nameEn;
+            // GD05-124 (Base no lugar de Unit) e GD03-079 (descansa no lugar da Base)
+            const myBase = view.players[seat].baseSection.find((c) => !isHidden(c) && c.instanceId === instanceId);
+            if (myBase && !isHidden(myBase)) {
+              return `${myBase.def.nameEn} (Base Aliada)`;
+            }
+            const oppBase = view.players[opponentSeat].baseSection.find((c) => !isHidden(c) && c.instanceId === instanceId);
+            if (oppBase && !isHidden(oppBase)) {
+              return `${oppBase.def.nameEn} (Base Inimiga)`;
+            }
             const myTrashCard = view.players[seat].trash.find((c) => !isHidden(c) && c.instanceId === instanceId);
             if (myTrashCard && !isHidden(myTrashCard)) return myTrashCard.def.nameEn;
             const oppTrashCard = view.players[opponentSeat].trash.find((c) => !isHidden(c) && c.instanceId === instanceId);
@@ -3176,6 +3210,9 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             );
             const resourceIndex = myRestedResources.findIndex((r) => r.instanceId === instanceId);
             if (resourceIndex >= 0) return `Recurso ${resourceIndex + 1} (gasto)`;
+            const allMyResources = view.players[seat].resourceArea.filter((c) => !isHidden(c)) as CardInstance[];
+            const activeResIndex = allMyResources.findIndex((r) => r.instanceId === instanceId);
+            if (activeResIndex >= 0) return `Recurso ${activeResIndex + 1}`;
             return "Carta";
           }}
           // ST03-010 Full Frontal 【When Paired】 / ST04-002 Strike Gundam 【Deploy】
@@ -3196,6 +3233,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             return "Carta";
           }}
           busy={busy}
+          devTrashCount={view.players[seat].trash.filter((c) => !isHidden(c) && c.def?.traits?.includes("G Generation")).length}
           targets={abilityTargets}
           setTargets={setAbilityTargets}
           secondaryTargets={abilitySecondaryTargets}
@@ -3211,6 +3249,10 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           // públicas na view (nunca precisa de resolveLabel/lookup escondido).
           units={publicUnits(view.players[seat]).filter((u) => myPendingDecision.legalTargets.includes(u.instanceId))}
           busy={busy}
+          getEffectiveStats={(u) => ({
+            ap: effectiveAp(u, view as unknown as GameState),
+            hp: effectiveHp(u, view as unknown as GameState),
+          })}
           onResolve={(instanceId) => runAction({ kind: "resolveZoneOverflow", instanceId })}
         />
       ) : null}
@@ -3451,6 +3493,20 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
           pingMs={transportKind === "socket" ? lastPingMs : null}
           logOpen={logOpen}
           logCount={battleLog.length}
+          hasPendingDecision={Boolean(myPendingDecision || myBurstDecision)}
+          oppDecisionLabel={
+            oppPendingDecision
+              ? oppPendingDecision.kind === "burst"
+                ? "Oponente: Burst"
+                : oppPendingDecision.kind === "mulligan"
+                  ? "Oponente: Mulligan"
+                  : oppPendingDecision.kind === "zoneOverflow"
+                    ? "Oponente: Área cheia"
+                    : oppPendingDecision.kind === "triggerOrder"
+                      ? "Oponente: Gatilhos"
+                      : "Oponente: Decidindo"
+              : undefined
+          }
           onEndTurn={() => setShowEndTurnConfirm(true)}
           onPassAction={hudPassAction}
           onToggleLog={() => setLogOpen((o) => !o)}
