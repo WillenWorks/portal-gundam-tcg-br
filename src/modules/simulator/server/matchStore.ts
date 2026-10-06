@@ -700,7 +700,7 @@ export function generateBugShortCode(): string {
   return `BUG-${code}`;
 }
 
-function collectCardsInvolved(state: GameState): string[] {
+export function collectCardsInvolved(state: GameState): string[] {
   const codes = new Set<string>();
   for (const player of ["A", "B"] as PlayerId[]) {
     for (const zone of [state.players[player].battleArea, state.players[player].baseSection]) {

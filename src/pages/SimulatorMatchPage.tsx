@@ -184,6 +184,8 @@ import {
   ZeroCoachHud,
   BattleLogPanel,
   useCardArtLookup,
+  captureSimulatorSnapshot,
+  type BugReportSnapshot,
 } from "@/modules/simulator/ui";
 
 const PHASE_LABEL: Record<string, string> = { start: "Manutenção", draw: "Compra", resource: "Recurso", main: "Principal", end: "Final" };
@@ -529,8 +531,14 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   const [logOpen, setLogOpen] = useState(false);
   /** ZERO SYSTEM — Assistente Tático In-Game (Atalho 'Z'). */
   const [zeroCoachOpen, setZeroCoachOpen] = useState(false);
-  /** docs/44 Fase 3 §5.1 — modal de bug report ("Reportar situação"). `code` != null = já enviado, mostra o BUG-XXXXXX. */
-  const [bugReport, setBugReport] = useState<{ open: boolean; busy: boolean; code: string | null }>({ open: false, busy: false, code: null });
+  /** docs/44 Fase 3 §5.1 — modal de bug report enriquecido com snapshot e screenshot. `code` != null = já enviado, mostra o BUG-XXXXXX. */
+  const [bugReport, setBugReport] = useState<{
+    open: boolean;
+    busy: boolean;
+    capturing: boolean;
+    code: string | null;
+    snapshot: BugReportSnapshot | null;
+  }>({ open: false, busy: false, capturing: false, code: null, snapshot: null });
 
   // Atalho de teclado 'Z' para alternar o Zero Coach HUD
   useEffect(() => {
@@ -1185,11 +1193,34 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     }
   };
 
+  const openBugReport = async () => {
+    setBugReport({ open: true, busy: false, capturing: true, code: null, snapshot: null });
+    try {
+      const rootEl = document.getElementById("simulator-match-root") || document.body;
+      const snap = await captureSimulatorSnapshot(rootEl, {
+        matchId,
+        seat,
+        opponentSeat,
+        matchView,
+        view,
+        battleLog,
+      });
+      setBugReport((s) => ({ ...s, capturing: false, snapshot: snap }));
+    } catch (err) {
+      console.warn("Falha ao capturar snapshot para o bug report:", err);
+      setBugReport((s) => ({ ...s, capturing: false }));
+    }
+  };
+
   const submitBugReport = async (note: string) => {
     setBugReport((s) => ({ ...s, busy: true }));
     try {
-      const { shortCode } = await api.reportSimulatorSituation(matchId, note || undefined);
-      setBugReport({ open: true, busy: false, code: shortCode });
+      const { shortCode } = await api.reportSimulatorSituation(matchId, {
+        note: note || undefined,
+        screenshotBase64: bugReport.snapshot?.screenshotBase64,
+        snapshot: bugReport.snapshot as unknown as Record<string, unknown>,
+      });
+      setBugReport((s) => ({ ...s, busy: false, code: shortCode }));
     } catch (err) {
       setBugReport((s) => ({ ...s, busy: false }));
       toast.error(errorMessage(err, "Não deu pra registrar o problema."));
@@ -2743,7 +2774,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
   }
 
   const content = (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
+    <div id="simulator-match-root" className="relative flex h-full w-full flex-col overflow-hidden bg-slate-950 text-soft">
       {/* Header enxuto (capturas 3): sem barra — só ⚙ Config + 🐞 Bug flutuando
           no canto, liberando o topo pro tabuleiro. */}
       <div className="pointer-events-none absolute left-2 top-2 z-40 flex items-center gap-1.5">
@@ -2778,8 +2809,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             variant="outline"
             size="icon"
             className="pointer-events-auto size-8 rounded-arena border-amber-500/40 bg-slate-950/70 text-amber-400 hover:bg-amber-500/10"
-            onClick={() => setBugReport({ open: true, busy: false, code: null })}
-            title="Relatar um problema com esta partida"
+            onClick={openBugReport}
+            title="Relatar um problema com esta partida (captura print e dados da partida)"
             aria-label="Relatar um problema com esta partida"
           >
             <Bug className="size-4" />
@@ -3220,9 +3251,11 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
       {bugReport.open ? (
         <BugReportModal
           busy={bugReport.busy}
+          capturing={bugReport.capturing}
           shortCode={bugReport.code}
+          snapshot={bugReport.snapshot}
           onSubmit={submitBugReport}
-          onClose={() => setBugReport({ open: false, busy: false, code: null })}
+          onClose={() => setBugReport({ open: false, busy: false, capturing: false, code: null, snapshot: null })}
         />
       ) : null}
 

@@ -20,11 +20,11 @@ describe("BattleLogPanel", () => {
 
   it("renderiza entradas com estilos e classes de cada tipo", () => {
     const entries: BattleLogEntry[] = [
-      { text: "Turno 1 do Jogador A", kind: "turn" },
-      { text: "Jogador A baixou Gundam", kind: "play" },
-      { text: "Gundam atacou a Base inimiga", kind: "combat" },
-      { text: "Base sofreu 1 de dano", kind: "damage" },
-      { text: "Habilidade ativada", kind: "effect" },
+      { seq: 1, text: "Turno 1 do Jogador A", kind: "turn" },
+      { seq: 2, text: "Jogador A baixou Gundam", kind: "play" },
+      { seq: 3, text: "Gundam atacou a Base inimiga", kind: "combat" },
+      { seq: 4, text: "Base sofreu 1 de dano", kind: "damage" },
+      { seq: 5, text: "Habilidade ativada", kind: "effect" },
     ];
     render(<BattleLogPanel entries={entries} />);
     expect(screen.getByText(/Log de combate \(5\)/i)).toBeInTheDocument();

@@ -54,3 +54,4 @@ export { BattleLogPanel } from "./BattleLogPanel";
 export { buildBattleLog, describeEvent, makeNameResolver, type BattleLogEntry, type BattleLogKind } from "./battleLog";
 export { ZeroCoachHud, type ZeroCoachHudProps } from "./ZeroCoachHud";
 export { useCardArtLookup, loadSimulatorCardLookup, CANONICAL_ART_ALIASES } from "./cardArtService";
+export { captureSimulatorSnapshot, type BugReportSnapshot, type CaptureContext } from "./captureSnapshot";

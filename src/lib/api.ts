@@ -1308,9 +1308,17 @@ export const api = {
   /** Liga/desliga o auto-pass de Action Step do assento (docs/19, Sessão 2). */
   setSimulatorAutoPass: (id: string, value: boolean) =>
     request<SimulatorMatchView>(`/simulator/matches/${id}/auto-pass`, { method: "POST", body: JSON.stringify({ value }) }),
-  /** Bug report in-game (docs/44 Fase 3 §5.1) — o servidor congela o GameState + battleLog + cartas em jogo e devolve o `shortCode` ("BUG-XXXXXX") pra acompanhar. */
-  reportSimulatorSituation: (id: string, note?: string) =>
-    request<{ shortCode: string }>(`/simulator/matches/${id}/report`, { method: "POST", body: JSON.stringify({ note }) }),
+  /** Bug report in-game (docs/44 Fase 3 §5.1) — o servidor congela o GameState + battleLog + cartas em jogo, screenshot e snapshot e devolve o `shortCode` ("BUG-XXXXXX") pra acompanhar. */
+  reportSimulatorSituation: (
+    id: string,
+    payload?: string | { note?: string; screenshotBase64?: string; snapshot?: Record<string, unknown> }
+  ) => {
+    const body = typeof payload === "string" ? { note: payload } : (payload ?? {});
+    return request<{ shortCode: string }>(`/simulator/matches/${id}/report`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
   /** Só funciona depois de 3min sem nenhum sinal de vida do oponente -- o servidor rejeita antes disso (ver matchStore.claimAbandonWin). */
   claimSimulatorAbandonWin: (id: string) => request<SimulatorMatchView>(`/simulator/matches/${id}/claim-abandon-win`, { method: "POST" }),
   /** "Sair da partida" = desistência imediata (concede a vitória ao oponente). Ver matchStore.resignMatch. */
