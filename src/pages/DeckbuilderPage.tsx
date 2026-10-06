@@ -1,7 +1,9 @@
 /* Deckbuilder tático — filtros reais da pool, persistência por usuário, diagnóstico operacional e navegação contextual. */
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   BrainCircuit,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Download,
@@ -46,6 +48,10 @@ import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { ZeroCopilotDrawer } from "@/components/deckbuilder/ZeroCopilotDrawer";
+import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
+import { useAllCardsPlayability } from "@/components/catalog/useCardPlayability";
+import { DeckSimulatorNotice, DeckSimulatorPill, type UnplayableCardSummary } from "@/components/deck/DeckSimulatorNotice";
+import type { CardStatusEntry, PlayabilityStatus } from "@/lib/api";
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -145,7 +151,7 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  igual ao padrão de deckbuilder de jogo real (Master Duel, MTG Arena, YGO Omega) em vez
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
-function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onOpenGallery, onSwapExComponent, onPreview }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void; onPreview: (card: CardRecord) => void }) {
+function PoolCardTile({ card, qtyInDeck, limit, section, playabilityEntry, onAdd, onDecrement, onOpenGallery, onSwapExComponent, onPreview }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; playabilityEntry?: CardStatusEntry | null; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void; onPreview: (card: CardRecord) => void }) {
   const exSection = card.type === "EX_BASE" ? "ex_base" : card.type === "EX_RESOURCE" ? "ex_resource" : null;
   const banned = limit === 0;
   const atLimit = qtyInDeck >= limit;
@@ -153,6 +159,7 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
   const printId = card.printId || card.id;
   const modelId = card.cardModelId || card.id;
   const handleClick = () => (exSection ? onSwapExComponent(exSection, printId) : onAdd(card));
+  const isUnplayable = playabilityEntry && playabilityEntry.status !== "apta";
   return (
     <div className="group relative">
       <button
@@ -160,7 +167,13 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         onClick={handleClick}
         disabled={!exSection && atLimit}
         title={exSection ? `Usar essa arte pro ${exSection === "ex_base" ? "EX Base" : "EX Resource"} do deck` : banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
-        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${!exSection && atLimit ? "opacity-45" : ""}`}
+        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${
+          banned
+            ? "border-red-400/50"
+            : isUnplayable
+              ? "border-amber-400/60 shadow-[0_0_8px_rgba(251,191,36,0.2)] group-hover:border-amber-300"
+              : "border-white/15 group-hover:border-primary/60"
+        } ${!exSection && atLimit ? "opacity-45" : ""}`}
       >
         {image ? (
           <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
@@ -184,6 +197,17 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         </button>
       ) : null}
 
+      {!exSection && card.code ? (
+        <div className="absolute left-1 top-8 z-10">
+          <CardPlayabilityBadge
+            code={card.code}
+            entry={playabilityEntry}
+            size="xs"
+            showLabel={false}
+          />
+        </div>
+      ) : null}
+
       {!exSection ? (
         <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100">
           <button type="button" onClick={() => onDecrement(printId)} disabled={qtyInDeck <= 0} title={`Remover 1 cópia`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500 disabled:pointer-events-none disabled:opacity-30">
@@ -204,13 +228,20 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
 /** Tile compacto da decklist — mesma grade visual da pool, mas clicar remove uma
  *  cópia (simétrico: pool adiciona, decklist remove). Botão "+" só aparece no
  *  hover, pra não competir com o clique principal. */
-function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onPreview: (card: CardRecord) => void }) {
+function DeckGridTile({ row, playabilityEntry, onIncrement, onDecrement, onOpenGallery, onPreview }: { row: DeckRow; playabilityEntry?: CardStatusEntry | null; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onPreview: (card: CardRecord) => void }) {
   const image = row.imageMediumUrl || row.imageUrl;
   const printId = row.printId || row.id;
   const modelId = row.cardModelId || row.id;
+  const isUnplayable = playabilityEntry && playabilityEntry.status !== "apta";
   return (
     <div className="group relative">
-      <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/50">
+      <div
+        className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${
+          isUnplayable
+            ? "border-amber-400/80 shadow-[0_0_8px_rgba(251,191,36,0.25)] group-hover:border-amber-300"
+            : "border-white/15 group-hover:border-primary/50"
+        }`}
+      >
         {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
         <div className="absolute inset-x-0 bottom-6 bg-slate-950/90 p-1.5 text-left">
@@ -220,6 +251,16 @@ function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview 
       <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">
         <ImagesIcon className="size-3.5" />
       </button>
+      {row.code ? (
+        <div className="absolute left-1 top-8 z-10">
+          <CardPlayabilityBadge
+            code={row.code}
+            entry={playabilityEntry}
+            size="xs"
+            showLabel={false}
+          />
+        </div>
+      ) : null}
       <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100">
         <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
           <Minus className="size-3.5" />
@@ -432,6 +473,8 @@ export default function DeckbuilderPage() {
   const deckId = params?.id && params.id !== "new" && params.id !== "novo" ? params.id : null;
 
   const [cards, setCards] = useState<CardRecord[]>([]);
+  const { cards: playabilityCards, isReady: playabilityReady } = useAllCardsPlayability();
+  const [filterOnlyPlayable, setFilterOnlyPlayable] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [selectedShareId, setSelectedShareId] = useState<string | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
@@ -506,15 +549,38 @@ export default function DeckbuilderPage() {
     return legalityData.rules.maxCopiesDefault;
   };
 
-  const loadCards = async (filters: PoolFilters = poolFilters, page: number = poolPage) => {
+  const loadCards = async (
+    filters: PoolFilters = poolFilters,
+    page: number = poolPage,
+    onlyPlayable: boolean = filterOnlyPlayable,
+  ) => {
     setLoadingPool(true);
     try {
-      const result = await api.listCardsPage({ ...filters, sort: "code_asc" }, { page, pageSize: poolPageSize });
-      const mapped = result.items.map(mapApiCard);
-      setCards(mapped);
-      cacheCards(mapped);
-      setPoolTotal(result.total);
-      setPoolTotalPages(result.totalPages);
+      if (onlyPlayable && playabilityReady) {
+        const result = await api.listCards({ ...filters, sort: "code_asc" });
+        const allMapped = (result as any[]).map(mapApiCard);
+        const filtered = allMapped.filter((card) => {
+          const cardCode = card.code?.trim().toUpperCase();
+          const entry = cardCode ? playabilityCards[cardCode] : null;
+          return entry ? entry.status === "apta" : false;
+        });
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / poolPageSize));
+        const safePage = Math.min(page, totalPages);
+        const start = (safePage - 1) * poolPageSize;
+        const paged = filtered.slice(start, start + poolPageSize);
+        setCards(paged);
+        cacheCards(paged);
+        setPoolTotal(total);
+        setPoolTotalPages(totalPages);
+      } else {
+        const result = await api.listCardsPage({ ...filters, sort: "code_asc" }, { page, pageSize: poolPageSize });
+        const mapped = result.items.map(mapApiCard);
+        setCards(mapped);
+        cacheCards(mapped);
+        setPoolTotal(result.total);
+        setPoolTotalPages(result.totalPages);
+      }
     } finally {
       setLoadingPool(false);
     }
@@ -666,8 +732,8 @@ export default function DeckbuilderPage() {
   }, [poolQueryDraft]);
 
   useEffect(() => {
-    loadCards(poolFilters, poolPage).catch(() => undefined);
-  }, [poolFilters, poolPage, poolPageSize]);
+    loadCards(poolFilters, poolPage, filterOnlyPlayable).catch(() => undefined);
+  }, [poolFilters, poolPage, poolPageSize, filterOnlyPlayable, playabilityReady]);
 
   const deckRows = useMemo(
     () =>
@@ -681,6 +747,43 @@ export default function DeckbuilderPage() {
   );
 
   const mainDeckRows = useMemo(() => deckRows.filter((row) => row.section !== "resource" && !NON_COUNTED_SECTIONS.has(row.section)), [deckRows]);
+
+  // Diagnóstico de jogabilidade no simulador em tempo real (docs/agentes/prompts/A3-status-cartas.md)
+  const deckPlayability = useMemo(() => {
+    const unplayableMap = new Map<string, UnplayableCardSummary>();
+    let totalUnplayableCopies = 0;
+
+    for (const row of mainDeckRows) {
+      const code = row.code?.trim().toUpperCase();
+      if (!code) continue;
+      const entry = playabilityCards[code] || null;
+      const status: PlayabilityStatus = entry?.status ?? (playabilityReady ? "fora" : "apta");
+      if (status !== "apta") {
+        totalUnplayableCopies += row.quantity;
+        const existing = unplayableMap.get(code);
+        if (existing) {
+          existing.count += row.quantity;
+        } else {
+          unplayableMap.set(code, {
+            card: row,
+            entry,
+            count: row.quantity,
+            status,
+            motivo: entry?.motivo,
+            missingClauses: entry?.missingClauses,
+          });
+        }
+      }
+    }
+
+    const unplayableCards = Array.from(unplayableMap.values());
+    return {
+      playable: unplayableCards.length === 0,
+      unplayableCards,
+      totalUnplayableCopies,
+      unplayableCodes: unplayableCards.map((c) => c.card.code),
+    };
+  }, [mainDeckRows, playabilityCards, playabilityReady]);
   const [mainViewMode, setMainViewMode] = useState<"grid" | "type">("grid");
   const [mainTileColumns, setMainTileColumns] = useState(8);
   const [mainSortField, setMainSortField] = useState<"default" | "color" | "level" | "cost" | "trait" | "name">("default");
@@ -973,6 +1076,7 @@ export default function DeckbuilderPage() {
     setPoolPage(1);
     setPoolQueryDraft("");
     setPoolFilters(defaultPoolFilters);
+    setFilterOnlyPlayable(false);
   };
 
   const increment = (card: CardRecord) => {
@@ -1327,6 +1431,12 @@ export default function DeckbuilderPage() {
                 <span className={`inline-flex size-2 rounded-full ${liveLegality.valid ? "bg-emerald-400" : "bg-amber-400"}`} />
                 {liveLegality.valid ? "Válido" : `${liveLegality.issues.length} pendência(s)`} · {stats.mainDeckCount}/{DECK_MAIN_SIZE} · {stats.resourceDeckCount}/{DECK_RESOURCE_SIZE}
               </div>
+
+              <DeckSimulatorPill
+                isPlayable={deckPlayability.playable}
+                unplayableCount={deckPlayability.unplayableCards.length}
+                unplayableCodes={deckPlayability.unplayableCodes}
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -1418,6 +1528,25 @@ export default function DeckbuilderPage() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{poolTotal} cartas encontradas</Badge>
               <Badge variant="outline" className="rounded-none border-white/20 text-soft">{poolActiveFilters} filtros ativos</Badge>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const next = !filterOnlyPlayable;
+                  setFilterOnlyPlayable(next);
+                  setPoolPage(1);
+                  loadCards(poolFilters, 1, next);
+                }}
+                className={`rounded-none border text-xs uppercase tracking-wider transition ${
+                  filterOnlyPlayable
+                    ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                    : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                }`}
+                title="Filtrar pool para exibir apenas cartas 100% aptas para jogar no simulador"
+              >
+                <CheckCircle2 className={`mr-1.5 size-3.5 ${filterOnlyPlayable ? "text-emerald-400" : "text-slate-400"}`} />
+                {filterOnlyPlayable ? "Só aptas no simulador" : "Todas as cartas"}
+              </Button>
               <Button variant="outline" className="rounded-none border-white/15 bg-white/5 text-white nav-hover-soft hover:text-white light:border-slate-400/90 light:bg-white light:text-slate-950" onClick={resetPoolFilters}>Limpar filtros</Button>
             </div>
 
@@ -1428,7 +1557,21 @@ export default function DeckbuilderPage() {
                 const qtyInDeck = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === card.id).reduce((sum, entry) => sum + entry.quantity, 0);
                 const limit = getCopyLimit(card.id, card.type);
                 const section = getSectionForCardType(card.type);
-                return <PoolCardTile key={card.id} card={card} qtyInDeck={qtyInDeck} limit={limit} section={section} onAdd={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onSwapExComponent={setExComponentArt} onPreview={setPreviewCard} />;
+                return (
+                  <PoolCardTile
+                    key={card.id}
+                    card={card}
+                    qtyInDeck={qtyInDeck}
+                    limit={limit}
+                    section={section}
+                    playabilityEntry={playabilityCards[card.code?.trim().toUpperCase()] || null}
+                    onAdd={increment}
+                    onDecrement={decrement}
+                    onOpenGallery={setAltArtModelId}
+                    onSwapExComponent={setExComponentArt}
+                    onPreview={setPreviewCard}
+                  />
+                );
               })}
             </div>
 
@@ -1473,7 +1616,7 @@ export default function DeckbuilderPage() {
               <div className="mt-6 max-h-[440px] overflow-auto pr-1">
                 {!mainDeckRows.length ? <p className="text-sm text-muted-portal">Seu deck principal ainda está vazio. Use a pool filtrada à esquerda para começar.</p> : mainViewMode === "grid" || mainSortField !== "default" ? (
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
-                    {sortedMainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                    {sortedMainDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} playabilityEntry={playabilityCards[row.code?.trim().toUpperCase()] || null} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                   </div>
                 ) : (
                   <div className="space-y-5">
@@ -1481,13 +1624,19 @@ export default function DeckbuilderPage() {
                       <div key={group.type}>
                         <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">{group.label} · {group.rows.reduce((sum, r) => sum + r.quantity, 0)}</p>
                         <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${mainTileColumns}, minmax(0, 1fr))` }}>
-                          {group.rows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
+                          {group.rows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} playabilityEntry={playabilityCards[row.code?.trim().toUpperCase()] || null} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />)}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+              <DeckSimulatorNotice
+                unplayableCards={deckPlayability.unplayableCards}
+                totalUnplayableCopies={deckPlayability.totalUnplayableCopies}
+                mainDeckCount={stats.mainDeckCount}
+                expectedDeckSize={DECK_MAIN_SIZE}
+              />
               {pilotCoverageGaps.length ? (
                 <div className="mt-4 border border-amber-400/30 bg-amber-500/10 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Cobertura de Piloto de Link · {pilotCoverageGaps.length}</p>
@@ -1510,7 +1659,7 @@ export default function DeckbuilderPage() {
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Só cartas do tipo Resource entram aqui — sem limite de cópia entre si.</p>
               <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-9 3xl:grid-cols-10 4xl:grid-cols-12 max-h-[400px] overflow-auto pr-1">
-                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
+                {resourceDeckRows.length ? resourceDeckRows.map((row) => <DeckGridTile key={row.printId || row.id} row={row} playabilityEntry={playabilityCards[row.code?.trim().toUpperCase()] || null} onIncrement={increment} onDecrement={decrement} onOpenGallery={setAltArtModelId} onPreview={setPreviewCard} />) : <p className="col-span-full text-sm text-muted-portal">Nenhuma carta de recurso adicionada ainda — filtre por tipo "Resource" na pool.</p>}
               </div>
             </CardContent>
           </Card>
@@ -2080,6 +2229,19 @@ export default function DeckbuilderPage() {
               />
               <span>Definir como meu deck principal ativo</span>
             </label>
+
+            {!deckPlayability.playable ? (
+              <div
+                data-testid="save-modal-simulator-warning"
+                className="border border-amber-500/40 bg-amber-950/30 p-2.5 text-xs text-amber-200/90 leading-relaxed"
+              >
+                <div className="flex items-center gap-1.5 font-bold text-amber-300 uppercase mb-1">
+                  <AlertTriangle className="size-3.5" />
+                  Atenção: Cartas em revisão no simulador
+                </div>
+                Este projeto contém {deckPlayability.unplayableCards.length} carta(s) ainda em revisão ({deckPlayability.unplayableCodes.join(", ")}). Você pode salvá-lo normalmente, mas ele só poderá entrar em partidas do simulador quando o motor implementar todas as cláusulas pendentes.
+              </div>
+            ) : null}
 
             <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
               <Button
