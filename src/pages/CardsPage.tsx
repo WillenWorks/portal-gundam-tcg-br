@@ -14,6 +14,7 @@ import { api, type CardFilters } from "@/lib/api";
 import { CARD_TYPE_OPTIONS, GAME_COLOR_HEX } from "@/lib/gundam-catalog";
 import { MultiSelectFilter } from "@/components/catalog/MultiSelectFilter";
 import { normalizeRarityLabel, groupRaritiesByLabel, expandRarityFilter } from "@/lib/rarityLabels";
+import { useCardLanguage } from "@/i18n";
 
 const cardTypeLabel = (value?: string | null) => CARD_TYPE_OPTIONS.find((item) => item.value === value)?.label || value || "—";
 
@@ -90,6 +91,7 @@ function buildShareUrl(basePath: string, filters: CardFilters, page: number, pag
 }
 
 export default function CardsPage() {
+  const { isPt } = useCardLanguage();
   const [location, navigate] = useLocation();
   const basePath = useMemo(() => location.split("?")[0], [location]);
   const initial = useMemo(() => readFiltersFromLocation(), []);
@@ -182,7 +184,7 @@ export default function CardsPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MultiSelectFilter label="Cores" options={meta.colors} value={filters.color ?? ""} onChange={(v) => setFilter("color", v)} />
               <select value={filters.cardType ?? ""} onChange={(event) => setFilter("cardType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todos os tipos</option>{meta.cardTypes.map((item) => <option key={item} value={item}>{cardTypeLabel(item)}</option>)}</select>
-              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as coleções</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.namePt || item.nameEn}</option>)}</select>
+              <select value={filters.setCode ?? ""} onChange={(event) => setFilter("setCode", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as coleções</option>{meta.sets.map((item) => <option key={item.code} value={item.code}>{item.code} · {isPt ? (item.namePt || item.nameEn) : (item.nameEn || item.namePt)}</option>)}</select>
               <select value={filters.rarity ?? ""} onChange={(event) => setFilter("rarity", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm text-white light:border-slate-300/80 light:bg-white light:text-slate-900"><option value="">Todas as raridades</option>{rarityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
 
@@ -206,6 +208,7 @@ export default function CardsPage() {
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10">
           {cards.map((card) => {
+            const cardName = isPt ? (card.namePt || card.nameEn) : (card.nameEn || card.namePt);
             const traitText = (card.traits || []).join(", ") || card.trait || "";
             const seriesText = card.series || card.sourceTitle || "";
             const rarityLabel = card.rarity ? normalizeRarityLabel(card.rarity) : "";
@@ -213,7 +216,7 @@ export default function CardsPage() {
               <div key={card.id} className="group">
                 <Link href={`/cards/${card.id}`} className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 bg-slate-950/60 transition-all duration-200 group-hover:scale-[1.03] group-hover:border-primary/60">
                   {card.imageMediumUrl || card.imageUrl ? (
-                    <img src={card.imageMediumUrl || card.imageUrl} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" loading="lazy" />
+                    <img src={card.imageMediumUrl || card.imageUrl} alt={cardName} className="h-full w-full object-cover" loading="lazy" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">Sem arte</div>
                   )}
@@ -227,7 +230,7 @@ export default function CardsPage() {
                 </Link>
                 <div className="mt-1.5 space-y-0.5 px-0.5">
                   <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">{card.code}</p>
-                  <p className="line-clamp-2 min-h-[2.2em] text-[13px] font-semibold leading-tight text-white dark:text-white light:text-slate-900">{card.namePt || card.nameEn}</p>
+                  <p className="line-clamp-2 min-h-[2.2em] text-[13px] font-semibold leading-tight text-white dark:text-white light:text-slate-900">{cardName}</p>
                   {traitText || seriesText ? (
                     <button
                       type="button"
