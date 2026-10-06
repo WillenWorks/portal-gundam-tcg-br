@@ -567,6 +567,7 @@ export type CardFilters = {
   link?: string;
   relation?: string;
   status?: string;
+  playability?: string;
   sort?: string;
 };
 
@@ -1496,16 +1497,18 @@ export interface SetStatusSummary {
   percentAptas: number;
 }
 
+export interface OverallStatusSummary {
+  total: number;
+  aptas: number;
+  revisao: number;
+  fora: number;
+  percentAptas: number;
+}
+
 export interface CardStatusResponse {
   cards: Record<string, CardStatusEntry>;
   sets: Record<string, SetStatusSummary>;
-  summary: {
-    total: number;
-    aptas: number;
-    revisao: number;
-    fora: number;
-    percentAptas: number;
-  };
+  summary: OverallStatusSummary;
   [code: string]: unknown;
 }
 

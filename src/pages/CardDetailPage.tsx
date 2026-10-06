@@ -15,6 +15,8 @@ import { normalizeRarityLabel } from "@/lib/rarityLabels";
 import { useCardLanguage, cardText, KeywordTooltip, getTranslationPendingBadge } from "@/i18n";
 import { CardInspectorPlayabilityBadge } from "@/modules/simulator/ui/CardInspectorPlayabilityBadge";
 import type { CardLanguage } from "@/i18n/types";
+import { CardPlayabilityBadge } from "@/components/catalog/CardPlayabilityBadge";
+import { CardPlayabilityDetailBox } from "@/components/catalog/CardPlayabilityDetailBox";
 
 const RELATION_LABELS: Record<string, string> = {
   PILOT_OF: "Piloto",
@@ -161,6 +163,8 @@ export default function CardDetailPage() {
                 </Link>
               ) : null}
               {card.legalityStatus ? <Badge variant="outline" className="rounded-none border-emerald-400/40 bg-emerald-400/10 text-emerald-300">{card.legalityStatus}</Badge> : null}
+              {/* Selo A3: Status de jogabilidade no simulador */}
+              <CardPlayabilityBadge code={selectedPrint?.code || card.code} size="sm" asLink />
               {prints.length > 1 ? <Badge variant="outline" className="rounded-none border-white/20 text-slate-400">{prints.length} artes</Badge> : null}
               {card.publicDeckCount ? (
                 <Link href="/stats">
@@ -255,6 +259,11 @@ export default function CardDetailPage() {
               )}
             </div>
           </CardContent></Card>
+        </section>
+
+        {/* Status de jogabilidade e o que falta no simulador (A3) */}
+        <section>
+          <CardPlayabilityDetailBox code={selectedPrint?.code || card.code} />
         </section>
 
         {cardStats?.hasEnoughData ? (
