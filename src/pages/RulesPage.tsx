@@ -1,10 +1,9 @@
-/* Base de regras v10 — navegação hierárquica (grupo temático → categoria → pergunta)
- * em accordion quando não há busca ativa, lista plana quando há. Grupos batem com a
- * estrutura real do Comprehensive Rules oficial (Preparação → Turno → Batalha →
- * Keywords → Terminologia → Motor de Regras), não é ordem arbitrária. */
+/* Base de regras v11 — navegação hierárquica (grupo temático → categoria → pergunta),
+ * glossário canônico de keywords e mecânicas oficiais (CR seção 13), diagramas visuais
+ * de fluxo (turno e batalha) e busca integrada. Segue preferência de conta (PT_BR / EN). */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronRight, Copy } from "lucide-react";
+import { BookOpen, ChevronRight, Copy, Sparkles, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { PublicShell } from "@/components/layout/PublicShell";
@@ -15,6 +14,10 @@ import { Input } from "@/components/ui/input";
 import { api, mapApiRule, type RulingFilters } from "@/lib/api";
 import { translateRuleTitle } from "@/lib/ruleLabels";
 import type { RuleEntry } from "@/modules/core/types";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
+import { ALL_KEYWORDS, getKeywordDefinition } from "@/i18n/keywords";
+import type { KeywordCategory } from "@/i18n/types";
+import { KeywordTooltip } from "@/i18n/KeywordTooltip";
 
 const defaultFilters: RulingFilters = { q: "", sourceType: "", relatedKeyword: "", title: "", sort: "updated_desc" };
 const sourceLabels: Record<string, string> = { OFFICIAL_RULES: "Official Rules", OFFICIAL_FAQ: "Official FAQ", COMMUNITY_EXPLAINER: "Community Explainer" };
@@ -32,10 +35,18 @@ const PHASE_GROUPS: Array<{ key: string; label: string; phases: string[] }> = [
   { key: "engine", label: "Motor de Regras", phases: ["effects", "rules_management"] },
 ];
 
+/** Categorias para filtragem no Glossário de Keywords */
+const GLOSSARY_CATEGORIES: Array<{ key: KeywordCategory | "all"; labelPt: string; labelEn: string }> = [
+  { key: "all", labelPt: "Todas as categorias", labelEn: "All categories" },
+  { key: "effect_keyword", labelPt: "Keywords de Efeito", labelEn: "Effect Keywords" },
+  { key: "trigger_keyword", labelPt: "Gatilhos de Ativação", labelEn: "Trigger Keywords" },
+  { key: "mechanic", labelPt: "Mecânicas de Jogo", labelEn: "Game Mechanics" },
+  { key: "phase_or_step", labelPt: "Fases e Etapas", labelEn: "Phases & Steps" },
+];
+
 /** Diagrama visual por mecânica -- só pros grupos com uma sequência linear de passos
  *  clara no Comprehensive Rules oficial (Turno, Batalha). Conteúdo vem direto das
- *  rulings oficiais já cadastradas (turn_flow, end_phase, battle), não é invenção --
- *  ver data/rulings-batch-02.json e 03.json pra conferir contra a fonte. */
+ *  rulings oficiais já cadastradas (turn_flow, end_phase, battle), não é invenção. */
 type FlowStep = { label: string; detail?: string };
 type MechanicDiagram = { title: string; steps: FlowStep[]; notes?: string[] };
 
@@ -81,9 +92,6 @@ const MECHANIC_DIAGRAMS: Record<string, MechanicDiagram[]> = {
   ],
 };
 
-/** Uma sequência de passos conectados por seta, no mesmo estilo tático (cortes de
- *  painel, cor de destaque) do resto do site -- pensado pra ficar legível tanto
- *  numa fileira única (desktop) quanto quebrando em linhas (mobile). */
 function MechanicFlow({ diagram }: { diagram: MechanicDiagram }) {
   return (
     <div className="border border-white/10 bg-slate-950/40 p-4 light:border-slate-300/80 light:bg-slate-50">
@@ -109,10 +117,7 @@ function MechanicFlow({ diagram }: { diagram: MechanicDiagram }) {
   );
 }
 
-// Lê os filtros da URL REAL (?relatedKeyword=Burst), não do hash -- o wouter guarda a
-// query da navegação em window.location.search mesmo em roteamento por hash (ver
-// src/lib/hashLocationWithQuery.ts), então é ali que um link com keyword embutida
-// (clique numa keyword em outra página) deixa o valor.
+// Lê os filtros da URL REAL (?relatedKeyword=Burst), não do hash
 function readFiltersFromLocation(): RulingFilters {
   const params = new URLSearchParams(window.location.search);
   return { q: params.get("q") ?? "", sourceType: params.get("sourceType") ?? "", relatedKeyword: params.get("relatedKeyword") ?? "", title: params.get("title") ?? "", sort: params.get("sort") ?? "updated_desc" };
@@ -125,8 +130,6 @@ function buildHash(filters: RulingFilters) {
   return query ? `/rules?${query}` : "/rules";
 }
 
-// O link de busca copiado precisa refletir a mesma URL real que o app produz ao navegar
-// (query em window.location.search, hash só com o caminho).
 function buildShareUrl(filters: RulingFilters) {
   const target = buildHash(filters);
   const [path, query = ""] = target.split("?");
@@ -134,9 +137,7 @@ function buildShareUrl(filters: RulingFilters) {
   return `${window.location.origin}${window.location.pathname}${search}#${path}`;
 }
 
-// Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA
-// direto ali, sem sair da página -- só quem quiser o detalhe completo (fonte,
-// metadados, carta vinculada, mais rulings da mesma categoria) clica no link.
+// Item folha do accordion: mostra a PERGUNTA como gatilho e expande a RESPOSTA direto ali
 function RuleRow({ item }: { item: RuleEntry }) {
   const hasExtra = Boolean(item.examplePlayPt) || Boolean(item.relatedCards?.length);
   return (
@@ -144,7 +145,13 @@ function RuleRow({ item }: { item: RuleEntry }) {
       <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline dark:text-white light:text-slate-900 [&>svg]:mt-1">
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-left">
           <span className="min-w-0 flex-1">{item.questionPt || item.title}</span>
-          {item.relatedKeyword ? <Badge variant="outline" className="shrink-0 rounded-none border-accent/40 text-accent">{item.relatedKeyword}</Badge> : null}
+          {item.relatedKeyword ? (
+            <KeywordTooltip keyword={item.relatedKeyword} showLink={false}>
+              <Badge variant="outline" className="shrink-0 rounded-none border-accent/40 text-accent cursor-help">
+                {item.relatedKeyword}
+              </Badge>
+            </KeywordTooltip>
+          ) : null}
         </span>
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4 pt-0">
@@ -160,16 +167,235 @@ function RuleRow({ item }: { item: RuleEntry }) {
   );
 }
 
+/** Destaque canônico da keyword quando filtrada */
+function CanonicalKeywordBanner({
+  keyword,
+  isPt,
+  onClear,
+}: {
+  keyword: string;
+  isPt: boolean;
+  onClear?: () => void;
+}) {
+  const def = getKeywordDefinition(keyword, isPt ? "PT_BR" : "EN");
+  if (!def) return null;
+
+  const categoryLabel = {
+    effect_keyword: isPt ? "Keyword de Efeito" : "Effect Keyword",
+    trigger_keyword: isPt ? "Gatilho de Ativação" : "Trigger Keyword",
+    mechanic: isPt ? "Mecânica de Jogo" : "Game Mechanic",
+    phase_or_step: isPt ? "Fase / Etapa" : "Phase / Step",
+  }[def.category];
+
+  return (
+    <div className="panel-cut border border-accent/40 bg-accent/10 p-5 text-white shadow-lg">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2 max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-heading text-2xl uppercase tracking-wider text-accent">{def.name}</span>
+            <span className="font-mono text-sm text-slate-400">{def.raw}</span>
+            <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/20 text-accent text-xs">
+              {categoryLabel}
+            </Badge>
+            {def.rulesSection ? (
+              <Badge variant="outline" className="rounded-none border-white/20 font-mono text-xs text-slate-300">
+                {def.rulesSection}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="text-sm leading-relaxed text-slate-200">
+            {isPt ? def.descriptionPt : def.descriptionEn}
+          </p>
+          {(isPt ? def.examplePt : def.exampleEn) ? (
+            <p className="text-xs leading-relaxed text-slate-400">
+              <span className="font-semibold uppercase tracking-wider text-slate-500">
+                {isPt ? "Exemplo prático: " : "Practical example: "}
+              </span>
+              {isPt ? def.examplePt : def.exampleEn}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/cards?keyword=${encodeURIComponent(def.name.split(" ")[0])}`}
+            className="inline-flex items-center gap-1.5 rounded-none border border-primary/40 bg-primary/20 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-primary transition hover:bg-primary/30"
+          >
+            <span>{isPt ? "Ver cartas com esta keyword" : "View cards with this keyword"}</span>
+            <ExternalLink className="size-3" />
+          </Link>
+          {onClear ? (
+            <button
+              type="button"
+              onClick={onClear}
+              className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-slate-400 transition hover:text-white hover:bg-white/10"
+            >
+              {isPt ? "Limpar filtro" : "Clear filter"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Visão completa do Glossário Canônico de Keywords e Mecânicas */
+function GlossarySection({
+  isPt,
+  onSelectKeyword,
+}: {
+  isPt: boolean;
+  onSelectKeyword: (keyword: string) => void;
+}) {
+  const [selectedCategory, setSelectedCategory] = useState<KeywordCategory | "all">("all");
+  const [search, setSearch] = useState("");
+
+  const filteredKeywords = useMemo(() => {
+    return ALL_KEYWORDS.filter((item) => {
+      if (selectedCategory !== "all" && item.category !== selectedCategory) return false;
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      const desc = (isPt ? item.descriptionPt : item.descriptionEn).toLowerCase();
+      const name = item.name.toLowerCase();
+      const raw = item.raw.toLowerCase();
+      return name.includes(q) || raw.includes(q) || desc.includes(q);
+    });
+  }, [selectedCategory, search, isPt]);
+
+  return (
+    <div className="space-y-6">
+      {/* Controles do Glossário */}
+      <Card className="panel-cut rounded-none surface-panel">
+        <CardContent className="space-y-4 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={isPt ? "Buscar keyword por nome ou efeito..." : "Search keyword by name or effect..."}
+                className="pl-9 rounded-none h-10 text-sm"
+              />
+            </div>
+            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+              {filteredKeywords.length} {isPt ? "termos encontrados" : "terms found"}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-white/10">
+            {GLOSSARY_CATEGORIES.map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setSelectedCategory(cat.key)}
+                className={`rounded-none px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition ${
+                  selectedCategory === cat.key
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "border border-white/15 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {isPt ? cat.labelPt : cat.labelEn}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grid de Cards de Keywords */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {filteredKeywords.map((item) => {
+          const categoryLabel = {
+            effect_keyword: isPt ? "Keyword de Efeito" : "Effect Keyword",
+            trigger_keyword: isPt ? "Gatilho de Ativação" : "Trigger Keyword",
+            mechanic: isPt ? "Mecânica de Jogo" : "Game Mechanic",
+            phase_or_step: isPt ? "Fase / Etapa" : "Phase / Step",
+          }[item.category];
+
+          const description = isPt ? item.descriptionPt : item.descriptionEn;
+          const example = isPt ? item.examplePt : item.exampleEn;
+
+          return (
+            <Card key={item.id} className="panel-cut rounded-none surface-panel flex flex-col justify-between">
+              <CardContent className="p-5 space-y-3 flex-1 flex flex-col">
+                <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5">
+                  <div>
+                    <span className="font-heading text-lg uppercase tracking-wide text-white">{item.name}</span>
+                    <span className="ml-2 font-mono text-xs text-primary">{item.raw}</span>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 rounded-none border-primary/30 text-[10px] uppercase text-primary">
+                    {categoryLabel}
+                  </Badge>
+                </div>
+
+                <p className="text-xs leading-relaxed text-slate-300 flex-1">{description}</p>
+
+                {example ? (
+                  <p className="text-[11px] leading-relaxed text-slate-400 bg-white/5 p-2 border-l-2 border-primary/50">
+                    <span className="font-semibold text-slate-300">{isPt ? "Exemplo: " : "Example: "}</span>
+                    {example}
+                  </p>
+                ) : null}
+
+                <div className="flex items-center justify-between pt-3 border-t border-white/10 text-xs">
+                  {item.rulesSection ? (
+                    <span className="font-mono text-[11px] text-slate-500">{item.rulesSection}</span>
+                  ) : <span />}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelectKeyword(item.name.split(" ")[0])}
+                      className="text-xs uppercase tracking-[0.14em] text-accent hover:underline flex items-center gap-1"
+                    >
+                      <span>{isPt ? "Ver rulings" : "View rulings"}</span>
+                      <ChevronRight className="size-3" />
+                    </button>
+                    <Link
+                      href={`/cards?keyword=${encodeURIComponent(item.name.split(" ")[0])}`}
+                      className="text-xs uppercase tracking-[0.14em] text-slate-400 hover:text-white"
+                      title={isPt ? "Ver cartas com esta keyword" : "View cards"}
+                    >
+                      <ExternalLink className="size-3" />
+                    </Link>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function RulesPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const { isPt } = useCardLanguage();
+  const [activeTab, setActiveTab] = useState<"browse" | "glossary">("browse");
   const [filters, setFilters] = useState<RulingFilters>(() => readFiltersFromLocation());
   const [rules, setRules] = useState<RuleEntry[]>([]);
   const [allRules, setAllRules] = useState<RuleEntry[]>([]);
   const [meta, setMeta] = useState<{ sourceTypes: string[]; relatedKeywords: string[]; titles: string[] }>({ sourceTypes: [], relatedKeywords: [], titles: [] });
   const [loading, setLoading] = useState(true);
 
+  // Sincroniza estado quando a URL mudar externamente (por clique de links/tooltips)
+  useEffect(() => {
+    const fromUrl = readFiltersFromLocation();
+    setFilters((prev) => {
+      if (
+        prev.q === fromUrl.q &&
+        prev.sourceType === fromUrl.sourceType &&
+        prev.relatedKeyword === fromUrl.relatedKeyword &&
+        prev.title === fromUrl.title &&
+        prev.sort === fromUrl.sort
+      ) {
+        return prev;
+      }
+      return fromUrl;
+    });
+  }, [location]);
+
   useEffect(() => { api.getRulingFilters().then(setMeta).catch(() => undefined); }, []);
-  // Carrega tudo 1 vez, sem filtro -- alimenta a navegacao em accordion (modo "navegar").
+  // Carrega tudo 1 vez, sem filtro -- alimenta a navegacao em accordion
   useEffect(() => { api.listRulings({ sort: "title_asc" }).then((result) => setAllRules(result.map(mapApiRule))).catch(() => undefined); }, []);
   useEffect(() => {
     setLoading(true);
@@ -219,55 +445,194 @@ export default function RulesPage() {
   return (
     <PublicShell title="Regras" description="Explicação mecânica em português das keywords, fases e situações de jogo — a keyword em si sempre fica em inglês, como aparece na carta. Baseado nas regras e FAQs oficiais, redigido do zero.">
       <div className="space-y-6">
+        {/* Painel Superior de Navegação & Filtros */}
         <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
           <CardContent className="space-y-5 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Base de regras</p>
-                <h2 className="mt-2 font-heading text-4xl uppercase">{searchMode ? "Resultado da busca" : "Navegue por assunto"}</h2>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{searchMode ? `${rules.length} resultado(s) encontrado(s).` : "Organizado na mesma ordem do jogo: preparação, turno, batalha, keywords, terminologia."}</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-slate-400 light:text-slate-500">Base de regras & Glossário</p>
+                <h2 className="mt-2 font-heading text-4xl uppercase">
+                  {searchMode ? "Resultado da busca" : activeTab === "glossary" ? "Glossário de Keywords" : "Navegue por assunto"}
+                </h2>
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
+                  {searchMode
+                    ? `${rules.length} resultado(s) encontrado(s).`
+                    : activeTab === "glossary"
+                      ? "Dicionário canônico com todas as keywords, gatilhos e mecânicas oficiais com seções das Comprehensive Rules."
+                      : "Organizado na mesma ordem do jogo: preparação, turno, batalha, keywords, terminologia."}
+                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">{allRules.length} itens no total</Badge>
-                <button type="button" onClick={copySearchLink} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900"><Copy className="mr-2 size-4" />Copiar busca</button>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge className="rounded-none border border-accent/40 bg-accent/10 text-accent">
+                  {allRules.length} rulings oficiais
+                </Badge>
+                <Badge variant="outline" className="rounded-none border-primary/40 bg-primary/10 text-primary">
+                  {ALL_KEYWORDS.length} keywords no glossário
+                </Badge>
+                <button
+                  type="button"
+                  onClick={copySearchLink}
+                  className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900"
+                >
+                  <Copy className="mr-2 size-4" />Copiar busca
+                </button>
               </div>
             </div>
+
+            {/* Alternância de Abas Principais (quando não há busca ativa) */}
+            {!searchMode && (
+              <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("browse")}
+                  className={`inline-flex items-center gap-2 rounded-none px-4 py-2 text-xs uppercase tracking-[0.18em] transition ${
+                    activeTab === "browse"
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "border border-white/15 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <BookOpen className="size-4" />
+                  <span>Perguntas & Fluxo do Turno</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("glossary")}
+                  className={`inline-flex items-center gap-2 rounded-none px-4 py-2 text-xs uppercase tracking-[0.18em] transition ${
+                    activeTab === "glossary"
+                      ? "bg-accent text-accent-foreground font-semibold"
+                      : "border border-white/15 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <Sparkles className="size-4" />
+                  <span>Glossário de Keywords & Mecânicas</span>
+                </button>
+              </div>
+            )}
+
+            {/* Linha de Busca e Seletores de Filtros */}
             <div className="grid gap-4 xl:grid-cols-5">
-              <Input value={filters.q ?? ""} onChange={(event) => setFilter("q", event.target.value)} placeholder="Buscar por título, pergunta ou resposta" className="rounded-none xl:col-span-2" />
-              <select value={filters.title ?? ""} onChange={(event) => setFilter("title", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as categorias</option>{meta.titles.map((item) => <option key={item} value={item}>{translateRuleTitle(item)}</option>)}</select>
-              <select value={filters.sourceType ?? ""} onChange={(event) => setFilter("sourceType", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as fontes</option>{meta.sourceTypes.map((item) => <option key={item} value={item}>{sourceLabels[item] || item}</option>)}</select>
-              <select value={filters.relatedKeyword ?? ""} onChange={(event) => setFilter("relatedKeyword", event.target.value)} className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"><option value="">Todas as keywords</option>{meta.relatedKeywords.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              <Input
+                value={filters.q ?? ""}
+                onChange={(event) => setFilter("q", event.target.value)}
+                placeholder="Buscar por título, pergunta ou resposta"
+                className="rounded-none xl:col-span-2"
+              />
+              <select
+                value={filters.title ?? ""}
+                onChange={(event) => setFilter("title", event.target.value)}
+                className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"
+              >
+                <option value="">Todas as categorias</option>
+                {meta.titles.map((item) => (
+                  <option key={item} value={item}>{translateRuleTitle(item)}</option>
+                ))}
+              </select>
+              <select
+                value={filters.sourceType ?? ""}
+                onChange={(event) => setFilter("sourceType", event.target.value)}
+                className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"
+              >
+                <option value="">Todas as fontes</option>
+                {meta.sourceTypes.map((item) => (
+                  <option key={item} value={item}>{sourceLabels[item] || item}</option>
+                ))}
+              </select>
+              <select
+                value={filters.relatedKeyword ?? ""}
+                onChange={(event) => setFilter("relatedKeyword", event.target.value)}
+                className="h-10 rounded-none border border-white/15 bg-slate-950/70 px-3 text-sm dark:text-white light:bg-white light:text-slate-900"
+              >
+                <option value="">Todas as keywords</option>
+                {meta.relatedKeywords.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
             </div>
+
             {searchMode ? (
               <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:text-slate-600">{activeFilters} filtro(s) ativo(s)</Badge>
-                <button type="button" onClick={() => setFilters(defaultFilters)} className="rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Limpar e voltar pra navegação</button>
+                <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:text-slate-600">
+                  {activeFilters} filtro(s) ativo(s)
+                </Badge>
+                <button
+                  type="button"
+                  onClick={() => setFilters(defaultFilters)}
+                  className="rounded-none border border-white/15 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900"
+                >
+                  Limpar e voltar pra navegação
+                </button>
               </div>
             ) : null}
           </CardContent>
         </Card>
 
+        {/* Destaque Canônico da Keyword quando filtrada */}
+        {filters.relatedKeyword ? (
+          <CanonicalKeywordBanner
+            keyword={filters.relatedKeyword}
+            isPt={isPt}
+            onClear={() => setFilter("relatedKeyword", "")}
+          />
+        ) : null}
+
+        {/* Conteúdo Principal */}
         {searchMode ? (
-          loading ? <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Buscando...</p> : !rules.length ? (
-            <Card className="panel-cut rounded-none surface-panel"><CardContent className="p-8 text-center text-sm text-muted-portal">Nenhuma regra encontrada com esse filtro.</CardContent></Card>
+          loading ? (
+            <p className="text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">Buscando...</p>
+          ) : !rules.length ? (
+            <Card className="panel-cut rounded-none surface-panel">
+              <CardContent className="p-8 text-center text-sm text-muted-portal">
+                Nenhuma ruling encontrada com esse filtro. Veja a definição canônica acima ou limpe o filtro.
+              </CardContent>
+            </Card>
           ) : (
             <div className="space-y-4">
               {rules.map((item) => (
                 <Card key={item.id} className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
                   <CardContent className="p-5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{translateRuleTitle(item.title)}</Badge>
-                      <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.source}</Badge>
-                      {item.relatedKeyword ? <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent">{item.relatedKeyword}</Badge> : null}
+                      <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">
+                        {translateRuleTitle(item.title)}
+                      </Badge>
+                      <Badge variant="outline" className="rounded-none border-white/20 text-slate-300 dark:text-slate-300 light:text-slate-600">
+                        {item.source}
+                      </Badge>
+                      {item.relatedKeyword ? (
+                        <KeywordTooltip keyword={item.relatedKeyword} showLink={false}>
+                          <Badge variant="outline" className="rounded-none border-accent/40 bg-accent/10 text-accent cursor-help">
+                            {item.relatedKeyword}
+                          </Badge>
+                        </KeywordTooltip>
+                      ) : null}
                     </div>
-                    <p className="mt-4 text-sm font-medium leading-6 dark:text-white light:text-slate-900">{item.questionPt || item.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">{item.summaryPt}</p>
-                    <div className="mt-4"><Link href={`/rules/${item.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900">Abrir detalhe</Link></div>
+                    <p className="mt-4 text-sm font-medium leading-6 dark:text-white light:text-slate-900">
+                      {item.questionPt || item.title}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300 dark:text-slate-300 light:text-slate-600">
+                      {item.summaryPt}
+                    </p>
+                    <div className="mt-4">
+                      <Link
+                        href={`/rules/${item.id}`}
+                        className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] transition hover:bg-white/10 dark:text-white light:text-slate-900"
+                      >
+                        Abrir detalhe
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )
+        ) : activeTab === "glossary" ? (
+          <GlossarySection
+            isPt={isPt}
+            onSelectKeyword={(kw) => {
+              setFilter("relatedKeyword", kw);
+              setActiveTab("browse");
+            }}
+          />
         ) : (
           <Card className="panel-cut rounded-none surface-panel dark:text-white light:text-slate-900">
             <CardContent className="p-2 sm:p-4">
@@ -275,23 +640,37 @@ export default function RulesPage() {
                 {grouped.map((group) => (
                   <AccordionItem key={group.key} value={group.key} className="border-white/10">
                     <AccordionTrigger className="px-3 text-lg uppercase tracking-wide hover:no-underline">
-                      <span className="flex items-center gap-3"><span>{group.label}</span><Badge variant="outline" className="rounded-none border-white/20 text-xs text-slate-400 dark:text-slate-400 light:text-slate-500">{group.count}</Badge></span>
+                      <span className="flex items-center gap-3">
+                        <span>{group.label}</span>
+                        <Badge variant="outline" className="rounded-none border-white/20 text-xs text-slate-400 dark:text-slate-400 light:text-slate-500">
+                          {group.count}
+                        </Badge>
+                      </span>
                     </AccordionTrigger>
                     <AccordionContent className="px-1">
                       {MECHANIC_DIAGRAMS[group.key] ? (
                         <div className="mb-3 space-y-3 px-2">
-                          {MECHANIC_DIAGRAMS[group.key].map((diagram) => <MechanicFlow key={diagram.title} diagram={diagram} />)}
+                          {MECHANIC_DIAGRAMS[group.key].map((diagram) => (
+                            <MechanicFlow key={diagram.title} diagram={diagram} />
+                          ))}
                         </div>
                       ) : null}
                       <Accordion type="multiple" className="w-full">
                         {group.categories.map((cat) => (
                           <AccordionItem key={cat.title} value={cat.title} className="border-white/5">
                             <AccordionTrigger className="px-3 py-2.5 text-sm text-slate-300 hover:no-underline dark:text-slate-300 light:text-slate-600">
-                              <span className="flex items-center gap-3">{translateRuleTitle(cat.title)}<Badge variant="outline" className="rounded-none border-white/15 text-[11px] text-slate-500">{cat.rows.length}</Badge></span>
+                              <span className="flex items-center gap-3">
+                                {translateRuleTitle(cat.title)}
+                                <Badge variant="outline" className="rounded-none border-white/15 text-[11px] text-slate-500">
+                                  {cat.rows.length}
+                                </Badge>
+                              </span>
                             </AccordionTrigger>
                             <AccordionContent className="p-0">
                               <Accordion type="multiple" className="w-full border-t border-white/10">
-                                {cat.rows.map((row) => <RuleRow key={row.id} item={row} />)}
+                                {cat.rows.map((row) => (
+                                  <RuleRow key={row.id} item={row} />
+                                ))}
                               </Accordion>
                             </AccordionContent>
                           </AccordionItem>

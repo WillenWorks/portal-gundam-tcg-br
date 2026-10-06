@@ -46,6 +46,18 @@ import { LOW_COST_MAX, lowCostStats } from "@/lib/deck-cost-stats";
 import { earliestPlayableTurn, isBoardDevelopmentCard } from "@/lib/opening-hand-score";
 import { ExportDeckImageModal } from "@/components/deck/ExportDeckImageModal";
 import { ZeroCopilotDrawer } from "@/components/deckbuilder/ZeroCopilotDrawer";
+import { useCardLanguage, cardText, KeywordTooltip, getTranslationPendingBadge } from "@/i18n";
+import { CardInspectorPlayabilityBadge } from "@/modules/simulator/ui/CardInspectorPlayabilityBadge";
+import { formatCardText } from "@/lib/utils";
+import type { CardLanguage } from "@/i18n/types";
+
+function getCardDisplayName(card: { name?: string; namePt?: string; nameEn?: string } | null | undefined, isPt: boolean): string {
+  if (!card) return "";
+  if (isPt) {
+    return card.namePt || card.name || card.nameEn || "";
+  }
+  return card.nameEn || card.name || card.namePt || "";
+}
 
 type DeckVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
 type PoolFilters = Pick<CardFilters, "q" | "color" | "cardType" | "series" | "trait">;
@@ -146,6 +158,8 @@ type DeckRow = CardRecord & { quantity: number; section: string };
  *  da linha de texto que existia antes. Badge de quantidade no canto quando já está no
  *  deck; nome/custo só aparecem no hover, pra não poluir a grade. */
 function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onOpenGallery, onSwapExComponent, onPreview }: { card: CardRecord; qtyInDeck: number; limit: number; section: "main" | "resource"; onAdd: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onSwapExComponent: (section: "ex_base" | "ex_resource", printId: string) => void; onPreview: (card: CardRecord) => void }) {
+  const { isPt } = useCardLanguage();
+  const cardName = getCardDisplayName(card, isPt);
   const exSection = card.type === "EX_BASE" ? "ex_base" : card.type === "EX_RESOURCE" ? "ex_resource" : null;
   const banned = limit === 0;
   const atLimit = qtyInDeck >= limit;
@@ -159,13 +173,13 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         type="button"
         onClick={handleClick}
         disabled={!exSection && atLimit}
-        title={exSection ? `Usar essa arte pro ${exSection === "ex_base" ? "EX Base" : "EX Resource"} do deck` : banned ? `${card.namePt || card.name} — banida` : atLimit ? `${card.namePt || card.name} — limite atingido` : `Adicionar ${card.namePt || card.name}`}
+        title={exSection ? `Usar essa arte pro ${exSection === "ex_base" ? "EX Base" : "EX Resource"} do deck` : banned ? `${cardName} — banida` : atLimit ? `${cardName} — limite atingido` : `Adicionar ${cardName}`}
         className={`relative block aspect-[63/88] w-full overflow-hidden border transition ${banned ? "border-red-400/50" : "border-white/15 group-hover:border-primary/60"} ${!exSection && atLimit ? "opacity-45" : ""}`}
       >
         {image ? (
-          <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
+          <img src={image} alt={cardName} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]" />
         ) : (
-          <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{card.namePt || card.name}</div>
+          <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>
         )}
 
         {!exSection && qtyInDeck > 0 ? <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{qtyInDeck}</span> : null}
@@ -174,7 +188,7 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
         {!banned && !exSection && section === "resource" ? <span className="absolute inset-x-0 top-0 bg-accent/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-slate-950">recurso</span> : null}
 
         <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
-          <p className="truncate text-[11px] font-medium text-white">{card.namePt || card.name}</p>
+          <p className="truncate text-[11px] font-medium text-white">{cardName}</p>
         </div>
       </button>
 
@@ -205,29 +219,31 @@ function PoolCardTile({ card, qtyInDeck, limit, section, onAdd, onDecrement, onO
  *  cópia (simétrico: pool adiciona, decklist remove). Botão "+" só aparece no
  *  hover, pra não competir com o clique principal. */
 function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview }: { row: DeckRow; onIncrement: (card: CardRecord) => void; onDecrement: (printId: string) => void; onOpenGallery: (modelId: string) => void; onPreview: (card: CardRecord) => void }) {
+  const { isPt } = useCardLanguage();
+  const cardName = getCardDisplayName(row, isPt);
   const image = row.imageMediumUrl || row.imageUrl;
   const printId = row.printId || row.id;
   const modelId = row.cardModelId || row.id;
   return (
     <div className="group relative">
       <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15 transition group-hover:border-primary/50">
-        {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+        {image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
         <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
         <div className="absolute inset-x-0 bottom-6 bg-slate-950/90 p-1.5 text-left">
-          <p className="truncate text-[11px] font-medium text-white">{row.namePt || row.name}</p>
+          <p className="truncate text-[11px] font-medium text-white">{cardName}</p>
         </div>
       </div>
       <button type="button" onClick={() => onOpenGallery(modelId)} title="Ver todas as artes desta carta" className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">
         <ImagesIcon className="size-3.5" />
       </button>
       <div className="absolute inset-x-1 bottom-1 flex items-center justify-between opacity-100 transition lg:opacity-0 lg:group-hover:opacity-100">
-        <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
+        <button type="button" onClick={() => onDecrement(printId)} title={`Remover 1 cópia de ${cardName}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-red-500">
           <Minus className="size-3.5" />
         </button>
         <button type="button" onClick={() => onPreview(row)} title="Ver imagem grande" className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-white/20">
           <Eye className="size-3.5" />
         </button>
-        <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${row.namePt || row.name}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground">
+        <button type="button" onClick={() => onIncrement(row)} title={`Adicionar mais uma cópia de ${cardName}`} className="flex size-6 items-center justify-center rounded-full bg-slate-950/85 text-white transition hover:bg-primary hover:text-primary-foreground">
           <Plus className="size-3.5" />
         </button>
       </div>
@@ -239,14 +255,16 @@ function DeckGridTile({ row, onIncrement, onDecrement, onOpenGallery, onPreview 
  *  mostrar "1" seria ruído) e com um botão de reset no lugar de +/-, já que a
  *  troca de arte acontece clicando na carta na pool (ver PoolCardTile), não aqui. */
 function ExComponentTile({ label, row, onReset }: { label: string; row: DeckRow | undefined; onReset: () => void }) {
+  const { isPt } = useCardLanguage();
+  const cardName = getCardDisplayName(row, isPt);
   const image = row?.imageMediumUrl || row?.imageUrl;
   return (
     <div className="group relative">
       <div className="relative block aspect-[63/88] w-full overflow-hidden border border-white/15">
-        {image ? <img src={image} alt={row?.namePt || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
+        {image ? <img src={image} alt={cardName || label} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{label}</div>}
         <span className="absolute inset-x-0 top-0 bg-slate-700/90 py-0.5 text-center text-[9px] uppercase tracking-[0.16em] text-white">{label}</span>
         <div className="absolute inset-x-0 bottom-0 bg-slate-950/90 p-1.5 text-left">
-          <p className="truncate text-[10px] font-medium text-white">{row?.namePt || row?.name || "Carregando…"}</p>
+          <p className="truncate text-[10px] font-medium text-white">{cardName || "Carregando…"}</p>
         </div>
       </div>
       <button type="button" onClick={onReset} title={`Voltar ${label} pra arte padrão`} className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-slate-950/80 text-[13px] text-white opacity-100 transition hover:bg-primary hover:text-primary-foreground lg:opacity-0 lg:group-hover:opacity-100">↺</button>
@@ -273,6 +291,7 @@ function AltArtModal({
   onIncrement: (card: CardRecord) => void;
   onDecrement: (printId: string) => void;
 }) {
+  const { isPt } = useCardLanguage();
   const [prints, setPrints] = useState<CardRecord[] | null>(null);
   const [modelLabel, setModelLabel] = useState("");
 
@@ -282,13 +301,13 @@ function AltArtModal({
     setPrints(null);
     api.getCard(modelId).then((data) => {
       if (!active) return;
-      setModelLabel(data.namePt || data.nameEn || "");
+      setModelLabel(getCardDisplayName(data, isPt));
       const modelFields = { cardModelId: modelId, nameEn: data.nameEn, namePt: data.namePt, cardType: data.cardType, color: data.color, cost: data.cost, level: data.level, ap: data.ap, hp: data.hp, trait: data.trait, series: data.series, sourceTitle: data.sourceTitle, keywordTags: data.keywordTags, effectPt: data.effectPt, effectEn: data.effectEn };
       const mapped = (data.prints || []).map((print: any) => mapApiCard({ ...print, ...modelFields }));
       setPrints(mapped);
     }).catch(() => { if (active) setPrints([]); });
     return () => { active = false; };
-  }, [modelId]);
+  }, [modelId, isPt]);
 
   if (!modelId) return null;
   const limit = prints?.[0] ? getCopyLimit(modelId, prints[0].type) : 4;
@@ -315,7 +334,7 @@ function AltArtModal({
               return (
                 <div key={printId} className="border border-white/10 bg-slate-900/60 p-2.5">
                   <div className="aspect-[63/88] overflow-hidden border border-white/10 bg-slate-950/70">
-                    {image ? <img src={image} alt={print.namePt || print.name} className="h-full w-full object-cover" /> : null}
+                    {image ? <img src={image} alt={getCardDisplayName(print, isPt)} className="h-full w-full object-cover" /> : null}
                   </div>
                   <p className="mt-2 truncate text-[11px] text-slate-400">{print.code}</p>
                   <div className="mt-2 flex items-center justify-center gap-2.5">
@@ -334,24 +353,108 @@ function AltArtModal({
   );
 }
 
-/** Preview em alta resolução — só a imagem grande + link pra abrir o detalhe da carta
- *  numa aba nova (não navega pra fora do deckbuilder, senão perde o estado da sessão). */
+/** Preview em alta resolução com detalhes, tradução de efeito, keywords e selo de jogabilidade. */
 function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: number }) | null; onClose: () => void }) {
+  const { isPt } = useCardLanguage();
+  const [langOverride, setLangOverride] = useState<CardLanguage | null>(null);
   if (!card) return null;
+  const activeLang: CardLanguage = langOverride ?? (isPt ? "PT_BR" : "EN");
+  const isEffectivePt = activeLang === "PT_BR";
+  const displayName = getCardDisplayName(card, isEffectivePt);
+  const secondaryName = isEffectivePt ? (card.nameEn || card.name) : (card.namePt || "");
   const image = card.imageLargeUrl || card.imageMediumUrl || card.imageUrl;
   const modelId = card.cardModelId || card.id;
+  const resolvedEffect = cardText(card, undefined, activeLang);
+  const keywords = Array.from(new Set([...(card.keywords || []), ...(card.triggerKeywords || [])]));
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent aria-describedby={undefined} className="w-[380px] max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white">
-        <DialogTitle className="sr-only">{`Carta ampliada: ${card.namePt || card.name}`}</DialogTitle>
-        <div className="mx-auto h-[447px] w-[320px] overflow-hidden border border-white/10 bg-slate-950/70">
-          {image ? <img src={image} alt={card.namePt || card.name} className="h-full w-full object-cover" /> : null}
-        </div>
-        <div className="flex flex-col items-center gap-2 pt-1">
-          {card.quantity !== undefined ? <p className="text-sm text-slate-400">{card.quantity}x nesse deck</p> : null}
-          <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-none border border-white/15 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.16em] text-white nav-hover-soft hover:text-white">
-            <ExternalLink className="size-3.5" />Abrir detalhe
-          </a>
+      <DialogContent aria-describedby={undefined} className="sm:max-w-xl max-h-[90vh] overflow-y-auto border-white/10 bg-slate-950 text-white p-5">
+        <DialogTitle className="sr-only">{`Carta ampliada: ${displayName}`}</DialogTitle>
+        <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
+          <div className="space-y-2">
+            <div className="aspect-[63/88] w-full overflow-hidden border border-white/10 bg-slate-950/70">
+              {image ? <img src={image} alt={displayName} className="h-full w-full object-cover" /> : null}
+            </div>
+            {card.quantity !== undefined ? <p className="text-center text-xs text-slate-400">{card.quantity}x nesse deck</p> : null}
+            <div className="flex justify-center">
+              <a href={`/#/cards/${modelId}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-none border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-white nav-hover-soft hover:text-white">
+                <ExternalLink className="size-3" />Abrir detalhe
+              </a>
+            </div>
+          </div>
+          <div className="space-y-3 min-w-0">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-mono text-[11px] uppercase tracking-wider text-slate-400">{card.code}</p>
+                <CardInspectorPlayabilityBadge code={card.code} />
+              </div>
+              <h3 className="font-heading text-xl uppercase leading-tight mt-0.5">{displayName}</h3>
+              {secondaryName && secondaryName !== displayName ? (
+                <p className="text-xs text-slate-400">{secondaryName}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 text-xs text-slate-300">
+              <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">{card.color}</span>
+              <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">{card.type}</span>
+              <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">Custo: {card.cost}</span>
+              {card.level !== undefined ? <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">Lv: {card.level}</span> : null}
+              {card.ap !== undefined ? <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">AP: {card.ap}</span> : null}
+              {card.hp !== undefined ? <span className="border border-white/10 bg-white/5 px-1.5 py-0.5">HP: {card.hp}</span> : null}
+            </div>
+
+            {card.trait || card.series ? (
+              <p className="text-xs text-slate-400">
+                {card.trait ? <span><span className="text-slate-500">Trait:</span> {card.trait} </span> : null}
+                {card.series ? <span><span className="text-slate-500">Mídia:</span> {card.series}</span> : null}
+              </p>
+            ) : null}
+
+            {keywords.length > 0 ? (
+              <div className="flex flex-wrap gap-1 border-t border-white/10 pt-2">
+                {keywords.map((kw) => (
+                  <KeywordTooltip key={kw} keyword={kw} showLink={false}>
+                    <span className="border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{kw}</span>
+                  </KeywordTooltip>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="border-t border-white/10 pt-2 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="uppercase tracking-wider text-slate-400 font-semibold">
+                  {isEffectivePt ? "Efeito" : "Effect"}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {resolvedEffect.isPending ? (
+                    <span className="text-amber-300 border border-amber-400/40 bg-amber-500/10 px-1 py-0.5">
+                      {getTranslationPendingBadge(activeLang)}
+                    </span>
+                  ) : null}
+                  <div className="inline-flex rounded-none border border-white/20 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setLangOverride("PT_BR")}
+                      className={`px-1.5 py-0.5 transition ${activeLang === "PT_BR" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
+                    >
+                      PT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLangOverride("EN")}
+                      className={`px-1.5 py-0.5 transition ${activeLang === "EN" ? "bg-primary font-bold text-primary-foreground" : "text-slate-400 hover:text-white"}`}
+                    >
+                      EN
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-line max-h-40 overflow-y-auto pr-1">
+                {formatCardText(resolvedEffect.text || card.effect) || (isEffectivePt ? "Sem texto de efeito cadastrado." : "No effect text registered.")}
+              </p>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -371,6 +474,7 @@ function CardPreviewModal({ card, onClose }: { card: (CardRecord & { quantity?: 
 // + "como ler" e um marcador data-metric, auditado por DeckbuilderPage.metrics.test.
 
 function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { label: string; value: string } | null; rows: DeckRow[]; onClose: () => void; onPreviewCard: (card: DeckRow) => void }) {
+  const { isPt } = useCardLanguage();
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
   if (!title) return null;
   const total = rows.reduce((sum, r) => sum + r.quantity, 0);
@@ -394,9 +498,10 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
           <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
             {rows.map((row) => {
               const image = row.imageMediumUrl || row.imageUrl;
+              const cardName = getCardDisplayName(row, isPt);
               return (
                 <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="group relative block aspect-[63/88] overflow-hidden border border-white/15 transition hover:border-primary/50">
-                  {image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{row.namePt || row.name}</div>}
+                  {image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-slate-950/80 p-2 text-center text-[10px] uppercase tracking-[0.18em] text-slate-500">{cardName}</div>}
                   <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{row.quantity}</span>
                 </button>
               );
@@ -406,11 +511,12 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
           <div className="space-y-2">
             {rows.map((row) => {
               const image = row.imageMediumUrl || row.imageUrl;
+              const cardName = getCardDisplayName(row, isPt);
               return (
                 <button key={row.printId || row.id} type="button" onClick={() => onPreviewCard(row)} className="flex w-full items-center gap-3 border border-white/10 bg-white/5 p-2 text-left transition hover:border-primary/40 hover:bg-white/10">
-                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={row.namePt || row.name} className="h-full w-full object-cover" /> : null}</div>
+                  <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950/70">{image ? <img src={image} alt={cardName} className="h-full w-full object-cover" /> : null}</div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium heading-portal">{row.namePt || row.name}</p>
+                    <p className="truncate text-sm font-medium heading-portal">{cardName}</p>
                     <p className="text-xs text-slate-500">{row.code} · {row.color}</p>
                   </div>
                   <span className="shrink-0 text-sm text-muted-portal">{row.quantity}x</span>
@@ -428,6 +534,7 @@ function StatDetailModal({ title, rows, onClose, onPreviewCard }: { title: { lab
 export default function DeckbuilderPage() {
   const [, navigate] = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const { isPt } = useCardLanguage();
   const [, params] = useRoute<{ id: string }>("/deckbuilder/:id");
   const deckId = params?.id && params.id !== "new" && params.id !== "novo" ? params.id : null;
 
@@ -691,9 +798,9 @@ export default function DeckbuilderPage() {
       if (mainSortField === "level") return (a.level ?? 0) - (b.level ?? 0);
       if (mainSortField === "cost") return (a.cost ?? 0) - (b.cost ?? 0);
       if (mainSortField === "trait") return (a.trait || "").localeCompare(b.trait || "");
-      return (a.namePt || a.name || "").localeCompare(b.namePt || b.name || "");
+      return getCardDisplayName(a, isPt).localeCompare(getCardDisplayName(b, isPt));
     });
-  }, [mainDeckRows, mainSortField]);
+  }, [mainDeckRows, mainSortField, isPt]);
   const groupedMainRows = useMemo(() => groupCardsByType(sortedMainDeckRows), [sortedMainDeckRows]);
   const resourceDeckRows = useMemo(() => deckRows.filter((row) => row.section === "resource"), [deckRows]);
   const exBaseRow = useMemo(() => deckRows.find((row) => row.section === "ex_base"), [deckRows]);
@@ -985,7 +1092,7 @@ export default function DeckbuilderPage() {
     const limit = getCopyLimit(modelId, card.type);
     const currentTotal = entries.filter((entry) => (cardCache[entry.cardId]?.cardModelId || entry.cardId) === modelId).reduce((sum, entry) => sum + entry.quantity, 0);
     if (currentTotal >= limit) {
-      toast.error(limit === 0 ? `${card.namePt || card.name} está banida — não pode ser usada.` : `Limite de ${limit} cópia(s) de "${card.namePt || card.name}" já atingido.`);
+      toast.error(limit === 0 ? `${getCardDisplayName(card, isPt)} está banida — não pode ser usada.` : `Limite de ${limit} cópia(s) de "${getCardDisplayName(card, isPt)}" já atingido.`);
       return;
     }
     // Limite do deck de recursos é no TOTAL (exatamente 10), separado do limite por
@@ -1013,18 +1120,18 @@ export default function DeckbuilderPage() {
         cardType: card?.type,
         isPilot: card?.type === "Pilot" || Boolean(card?.pilotName),
         color: card?.color,
-        name: card?.name || card?.namePt,
+        name: getCardDisplayName(card, isPt) || card?.name || "",
         effect: card?.effect,
         imageUrl: card?.imageUrl,
       };
     });
-  }, [entries, cardCache]);
+  }, [entries, cardCache, isPt]);
 
   const handleZeroCopilotAdd = async (cardCode: string) => {
     const foundInCache = Object.values(cardCache).find((c) => c.code === cardCode);
     if (foundInCache) {
       increment(foundInCache);
-      toast.success(`+1 cópia de ${foundInCache.namePt || foundInCache.name} adicionada ao deck.`);
+      toast.success(`+1 cópia de ${getCardDisplayName(foundInCache, isPt)} adicionada ao deck.`);
       return;
     }
     try {
@@ -1034,7 +1141,7 @@ export default function DeckbuilderPage() {
         const record = mapApiCard(found);
         cacheCards([record]);
         increment(record);
-        toast.success(`+1 cópia de ${record.namePt || record.name} adicionada ao deck.`);
+        toast.success(`+1 cópia de ${getCardDisplayName(record, isPt)} adicionada ao deck.`);
       } else {
         toast.error(`Carta ${cardCode} não encontrada no arsenal.`);
       }
@@ -1177,8 +1284,8 @@ export default function DeckbuilderPage() {
       toast.error("Monte pelo menos uma carta para copiar a decklist.");
       return;
     }
-    const mainText = mainDeckRows.map((row) => `${row.quantity}x ${row.code} - ${row.namePt || row.name}`).join("\n");
-    const resourceText = resourceDeckRows.map((row) => `${row.quantity}x ${row.code} - ${row.namePt || row.name}`).join("\n");
+    const mainText = mainDeckRows.map((row) => `${row.quantity}x ${row.code} - ${getCardDisplayName(row, isPt)}`).join("\n");
+    const resourceText = resourceDeckRows.map((row) => `${row.quantity}x ${row.code} - ${getCardDisplayName(row, isPt)}`).join("\n");
     const text = [`Deck principal (${stats.mainDeckCount}/${DECK_MAIN_SIZE}):`, mainText || "(vazio)", "", `Deck de recursos (${stats.resourceDeckCount}/${DECK_RESOURCE_SIZE}):`, resourceText || "(vazio)"].join("\n");
     await navigator.clipboard.writeText(text);
     toast.success("Decklist copiada em texto.");
@@ -1635,7 +1742,7 @@ export default function DeckbuilderPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{card.code}</p>
-                        <p className="truncate text-sm font-medium heading-portal">{card.namePt || card.name}</p>
+                        <p className="truncate text-sm font-medium heading-portal">{getCardDisplayName(card, isPt)}</p>
                         <p className="text-[11px] text-muted-portal">{card.color} · custo {card.cost}</p>
                       </div>
                       <Button size="sm" className="shrink-0 rounded-none bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => increment(card)}>+</Button>
@@ -1976,7 +2083,7 @@ export default function DeckbuilderPage() {
           shareId={selectedShareId || "OZ-SPEC"}
           mainCards={mainDeckRows.map((r) => ({
             code: r.code,
-            name: r.namePt || r.name,
+            name: getCardDisplayName(r, isPt),
             quantity: r.quantity,
             imageUrl: r.imageUrl,
             imageMediumUrl: r.imageMediumUrl,
@@ -1985,7 +2092,7 @@ export default function DeckbuilderPage() {
           }))}
           resourceCards={resourceDeckRows.map((r) => ({
             code: r.code,
-            name: r.namePt || r.name,
+            name: getCardDisplayName(r, isPt),
             quantity: r.quantity,
             imageUrl: r.imageUrl,
             imageMediumUrl: r.imageMediumUrl,
@@ -1994,7 +2101,7 @@ export default function DeckbuilderPage() {
           }))}
           exCards={[exBaseRow, exResourceRow].filter(Boolean).map((r: any) => ({
             code: r.code,
-            name: r.namePt || r.name,
+            name: getCardDisplayName(r, isPt),
             quantity: r.quantity,
             imageUrl: r.imageUrl,
             imageMediumUrl: r.imageMediumUrl,
