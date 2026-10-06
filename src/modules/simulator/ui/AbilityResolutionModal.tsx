@@ -25,6 +25,9 @@ import { ArrowDown, ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PendingDecision } from "@/modules/simulator/engine/types";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
+import { getDecisionModalStrings, getTriggerModalLabel, resolveDecisionText } from "@/i18n/decisionText";
+import type { CardTextInput } from "@/i18n/types";
 
 type Decision = Extract<PendingDecision, { kind: "abilityResolution" }>;
 type QueueItem = Decision["queue"][number];
@@ -118,21 +121,42 @@ interface AbilityResolutionModalProps {
   onResolve: (
     resolutions: Array<{ specId: string; activate: boolean; targetIds: string[]; secondaryTargetIds?: string[]; trashExileIds?: string[] }>,
   ) => void;
+  /** Opcional: resolvedor de dados da carta para tradução customizada (ou usa o cache global). */
+  cardLookup?: (code: string) => CardTextInput | null | undefined;
+  /** Quantidade de cartas (G Generation) disponíveis no trash para Development N */
+  devTrashCount?: number;
 }
 
-const TRIGGER_LABEL: Record<string, string> = {
-  "When Paired": "Vínculo resolvido — 【When Paired】",
-  Attack: "Ataque declarado — 【Attack】",
-  Deploy: "Carta implantada — 【Deploy】",
-  Main: "Comando — 【Main】",
-  Action: "Comando — 【Action】",
-  "Reaction:effectDamage": "Reação — Unit recebeu dano de efeito",
-  "Reaction:restedByEffect": "Reação — Unit descansada por efeito",
-  "Reaction:setActiveByEffect": "Reação — Unit ativada por efeito",
-  "Reaction:pilotPaired": "Reação — Piloto pareado",
-  "Reaction:attack": "Reação — ataque declarado",
-  "Reaction:endOfTurn": "Reação — fim do turno",
-};
+/**
+ * Resolve o título e o cabeçalho tático de gatilho, identificando continuações (Passo 2 de 2)
+ * como 'Then:1', 'Mode:<n>' e 'parentTrigger' (Development N, If you do..., etc.).
+ */
+export function resolveTriggerModalHeader(
+  trigger: string,
+  parentTrigger?: string,
+  lang: "PT_BR" | "EN" = "PT_BR",
+): { title: string; isContinuation: boolean; stepBadge?: string } {
+  const isContinuation = Boolean(parentTrigger || trigger.startsWith("Then:") || trigger.startsWith("Mode:"));
+  if (isContinuation) {
+    const parentLabel = parentTrigger ? getTriggerModalLabel(parentTrigger, lang) : undefined;
+    if (lang === "EN") {
+      return {
+        title: parentLabel ? `Step 2 · Continuation of ${parentLabel}` : "Step 2 · Effect continuation",
+        isContinuation: true,
+        stepBadge: "Step 2 of 2",
+      };
+    }
+    return {
+      title: parentLabel ? `Passo 2 · Continuação de ${parentLabel}` : "Passo 2 · Continuação do efeito",
+      isContinuation: true,
+      stepBadge: "Passo 2 de 2",
+    };
+  }
+  return {
+    title: getTriggerModalLabel(trigger, lang),
+    isContinuation: false,
+  };
+}
 
 export function AbilityResolutionModal({
   decision,
@@ -146,7 +170,11 @@ export function AbilityResolutionModal({
   activate,
   setActivate,
   onResolve,
+  cardLookup,
+  devTrashCount,
 }: AbilityResolutionModalProps) {
+  const { language } = useCardLanguage();
+  const strings = getDecisionModalStrings(language);
   const [order, setOrder] = useState<string[]>(() => decision.queue.map((q) => q.specId));
   /** docs/47 Classe A — atribuição carta→posição pra `deckReorder` (specId → slotName → instanceId). */
   const [reorder, setReorder] = useState<Record<string, Record<string, string>>>({});
@@ -250,6 +278,11 @@ export function AbilityResolutionModal({
     );
 
   const isSingle = order.length === 1;
+  const { title: triggerTitle, stepBadge } = resolveTriggerModalHeader(
+    decision.trigger,
+    decision.parentTrigger,
+    language,
+  );
 
   return (
     <div className="fixed top-2 inset-x-0 z-[75] pointer-events-none flex justify-center px-2 animate-in slide-in-from-top-2 fade-in duration-200 motion-reduce:animate-none">
@@ -262,12 +295,19 @@ export function AbilityResolutionModal({
         )}
       >
         <div className={cn("flex items-center justify-between gap-2 border-b border-white/10", isSingle ? "pb-1" : "pb-1.5")}>
-          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300">
-            <Sparkles className="size-3.5" /> {TRIGGER_LABEL[decision.trigger] ?? decision.trigger}
-          </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.16em] text-amber-300 truncate">
+              <Sparkles className="size-3.5 shrink-0" /> {triggerTitle}
+            </p>
+            {stepBadge ? (
+              <span className="shrink-0 rounded border border-cyan-400/60 bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.3)]">
+                {stepBadge}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {!isSingle ? (
-              <span className="text-[10px] text-muted-portal">Ordene e escolha os alvos:</span>
+              <span className="text-[10px] text-muted-portal">{strings.orderAndChoose}</span>
             ) : null}
             <Button
               size="sm"
@@ -278,7 +318,7 @@ export function AbilityResolutionModal({
               disabled={busy || !canConfirm}
               onClick={confirm}
             >
-              Confirmar
+              {strings.confirm}
             </Button>
           </div>
         </div>
@@ -288,6 +328,7 @@ export function AbilityResolutionModal({
             const q = itemFor(specId);
             const on = Boolean(activate[specId]);
             const opts = optionsFor(specId);
+            const isDevCard = q.trashExile || q.label.includes("Development") || q.label.includes("G Generation");
             return (
               <li
                 key={specId}
@@ -304,7 +345,7 @@ export function AbilityResolutionModal({
                     </span>
                   ) : null}
                   <span className={cn("min-w-0 flex-1 text-soft", isSingle ? "text-[11px] leading-tight" : "text-xs leading-snug")}>
-                    {q.label}
+                    {resolveDecisionText({ label: q.label, specId: q.specId, trigger: decision.trigger }, language, cardLookup)}
                   </span>
                   {!isSingle ? (
                     <span className="flex shrink-0">
@@ -318,13 +359,22 @@ export function AbilityResolutionModal({
                   ) : null}
                 </div>
 
+                {devTrashCount !== undefined && isDevCard ? (
+                  <div className="mt-1 inline-flex items-center gap-1.5 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300">
+                    <Sparkles className="size-3 shrink-0 text-amber-400" />
+                    <span>
+                      Development · <strong className="font-bold text-amber-200">{devTrashCount}</strong> {language === "EN" ? `(G Generation) card${devTrashCount === 1 ? "" : "s"} in trash` : `carta${devTrashCount === 1 ? "" : "s"} (G Generation) no trash`}
+                    </span>
+                  </div>
+                ) : null}
+
                 {showActivateToggle(specId) ? (
                   <div className={cn("flex gap-1", isSingle ? "mt-1" : "mt-2")}>
                     <Toggle compact={isSingle} active={on} onClick={() => setActivate((s) => ({ ...s, [specId]: true }))}>
-                      Ativar
+                      {strings.activate}
                     </Toggle>
                     <Toggle compact={isSingle} active={!on} onClick={() => setActivate((s) => ({ ...s, [specId]: false }))}>
-                      Pular
+                      {strings.skip}
                     </Toggle>
                   </div>
                 ) : null}
@@ -337,12 +387,15 @@ export function AbilityResolutionModal({
                           side={q.targetScope === "friendlyUnit" ? "ally" : q.targetScope === "enemyUnit" ? "enemy" : "both"}
                           count={(targets[specId] ?? []).length}
                           max={q.targetCount?.max ?? 1}
-                          label="Selecione no tabuleiro ou abaixo:"
+                          label={strings.boardTargetPrompt}
                           compact={isSingle}
+                          allyLabel={strings.ally}
+                          enemyLabel={strings.enemy}
+                          selectedCountText={strings.multiTargetCount((targets[specId] ?? []).length, q.targetCount?.max ?? 1)}
                         />
                       ) : q.targetCount && q.targetCount.max > 1 ? (
                         <span className="text-[10px] text-amber-300 shrink-0">
-                          Escolha de {q.targetCount.min ?? 1} a {q.targetCount.max} alvos (selecionados: {(targets[specId] ?? []).length}/{q.targetCount.max}):
+                          {strings.multiTargetRange(q.targetCount.min ?? 1, q.targetCount.max, (targets[specId] ?? []).length)}
                         </span>
                       ) : null}
                       <div className="scrollbar-ghost flex flex-wrap items-center gap-1">
@@ -372,7 +425,7 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhum alvo legal — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>{strings.noLegalTargets}</p>
                   )
                 ) : null}
 
@@ -384,11 +437,13 @@ export function AbilityResolutionModal({
                           side={q.secondaryTarget.targetScope === "friendlyUnit" ? "ally" : q.secondaryTarget.targetScope === "enemyUnit" ? "enemy" : "both"}
                           count={(secondaryTargets[specId] ?? []).length}
                           max={1}
-                          label="E também (no tabuleiro ou abaixo):"
+                          label={strings.boardSecondaryTargetPrompt}
                           compact={isSingle}
+                          allyLabel={strings.ally}
+                          enemyLabel={strings.enemy}
                         />
                       ) : (
-                        <span className="text-[10px] text-amber-300 shrink-0">E também:</span>
+                        <span className="text-[10px] text-amber-300 shrink-0">{strings.also}</span>
                       )}
                       <div className="scrollbar-ghost flex flex-wrap items-center gap-1">
                         {q.secondaryTarget.legalTargets.map((instanceId) => {
@@ -416,14 +471,14 @@ export function AbilityResolutionModal({
                       </div>
                     </div>
                   ) : (
-                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhum alvo legal pro 2º escolhido — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>{strings.noLegalSecondaryTargets}</p>
                   )
                 ) : null}
 
                 {on && q.handChoice ? (
                   q.handChoice.legalHandIds.length > 0 ? (
                     <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                      <p className="text-[10px] text-muted-portal">Escolha 1 Unidade da sua mão pra implantar sem custo:</p>
+                      <p className="text-[10px] text-muted-portal">{strings.handChoicePrompt}</p>
                       <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handChoice.legalHandIds.map((instanceId) => (
                           <Toggle
@@ -432,21 +487,20 @@ export function AbilityResolutionModal({
                             active={(targets[specId] ?? []).includes(instanceId)}
                             onClick={() => pickSingle(specId, instanceId)}
                           >
-                            {resolveHandLabel?.(instanceId) ?? "Carta"}
+                            {resolveHandLabel?.(instanceId) ?? strings.unnamedCard}
                           </Toggle>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Nenhuma Unidade elegível na mão — o efeito não faz nada.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>{strings.noEligibleHandUnits}</p>
                   )
                 ) : null}
 
                 {q.deckTopReveal ? (
                   <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
-                      Topo do deck ({q.deckTopReveal.count}) — revele 1 Unidade (Zeon)/(Neo Zeon) ou nenhuma. O resto vai
-                      pro fundo.
+                      {strings.deckTopRevealPrompt(q.deckTopReveal.count)}
                     </p>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.deckTopReveal.topCards.map((card) => {
@@ -460,12 +514,12 @@ export function AbilityResolutionModal({
                             onClick={() => pickSingle(specId, card.instanceId)}
                           >
                             {card.def.nameEn}
-                            {revealable ? "" : " (não revelável)"}
+                            {revealable ? "" : strings.notRevealable}
                           </Toggle>
                         );
                       })}
                       <Toggle compact={isSingle} active={(targets[specId] ?? []).length === 0} onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}>
-                        Não revelar
+                        {strings.doNotReveal}
                       </Toggle>
                     </div>
                   </div>
@@ -474,7 +528,7 @@ export function AbilityResolutionModal({
                 {q.handDiscard ? (
                   q.handDiscard.legalHandIds.length > 0 ? (
                     <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                      <p className="text-[10px] text-muted-portal">Escolha 1 carta da mão pra descartar:</p>
+                      <p className="text-[10px] text-muted-portal">{strings.handDiscardPrompt}</p>
                       <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                         {q.handDiscard.legalHandIds.map((instanceId) => (
                           <Toggle
@@ -483,20 +537,20 @@ export function AbilityResolutionModal({
                             active={(targets[specId] ?? []).includes(instanceId)}
                             onClick={() => pickSingle(specId, instanceId)}
                           >
-                            {resolveHandLabel?.(instanceId) ?? "Carta"}
+                            {resolveHandLabel?.(instanceId) ?? strings.unnamedCard}
                           </Toggle>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>Mão vazia — nada pra descartar.</p>
+                    <p className={cn("text-[10px] text-muted-portal", isSingle ? "mt-1" : "mt-2")}>{strings.emptyHandPrompt}</p>
                   )
                 ) : null}
 
                 {q.deckReorder ? (
                   <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
-                      Topo do deck — coloque 1 no topo e 1 no fundo:
+                      {strings.deckReorderPrompt}
                     </p>
                     <div className="space-y-1">
                       {q.deckReorder.topCards.map((card) => (
@@ -509,7 +563,7 @@ export function AbilityResolutionModal({
                               active={(reorder[specId] ?? {})[slot.name] === card.instanceId}
                               onClick={() => assignReorder(specId, slot.name, card.instanceId)}
                             >
-                              {slot.position === "top" ? "↑ topo" : slot.position === "trash" ? "→ trash" : "↓ fundo"}
+                              {slot.position === "top" ? strings.reorderTop : slot.position === "trash" ? strings.reorderTrash : strings.reorderBottom}
                             </Toggle>
                           ))}
                         </div>
@@ -520,7 +574,7 @@ export function AbilityResolutionModal({
 
                 {q.enumChoice ? (
                   <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                    <p className="text-[10px] text-muted-portal">Escolha:</p>
+                    <p className="text-[10px] text-muted-portal">{strings.choosePrompt}</p>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.enumChoice.options.map((opt) => (
                         <Toggle
@@ -537,22 +591,42 @@ export function AbilityResolutionModal({
                 ) : null}
 
                 {q.trashExile && exileActive(specId) ? (
-                  <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
-                    <p className="text-[10px] text-muted-portal">
-                      Exilar do trash — escolha {q.trashExile.count} de {q.trashExile.legalTrashIds.length} carta(s) ({(exiles[specId] ?? []).length}/
-                      {q.trashExile.count}):
-                    </p>
+                  <div className={cn(isSingle ? "mt-1 space-y-1" : "mt-2 space-y-1.5")}>
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[10px]">
+                      <p className="text-muted-portal">
+                        {strings.trashExilePrompt(q.trashExile.count, q.trashExile.legalTrashIds.length, (exiles[specId] ?? []).length)}
+                      </p>
+                      {(exiles[specId] ?? []).length === q.trashExile.count ? (
+                        <span className="inline-flex items-center gap-1 rounded border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-300">
+                          ✓ {language === "EN" ? "Ready" : "Pronto"} ({q.trashExile.count}/{q.trashExile.count})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded border border-amber-400/50 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                          {language === "EN"
+                            ? `Choose ${q.trashExile.count - (exiles[specId] ?? []).length} more`
+                            : `Falta escolher ${q.trashExile.count - (exiles[specId] ?? []).length}`}
+                        </span>
+                      )}
+                    </div>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
-                      {q.trashExile.legalTrashIds.map((instanceId) => (
-                        <Toggle
-                          key={instanceId}
-                          compact={isSingle}
-                          active={(exiles[specId] ?? []).includes(instanceId)}
-                          onClick={() => toggleExile(specId, instanceId, q.trashExile!.count)}
-                        >
-                          {resolveLabel(instanceId)}
-                        </Toggle>
-                      ))}
+                      {q.trashExile.legalTrashIds.map((instanceId) => {
+                        const isChosen = (exiles[specId] ?? []).includes(instanceId);
+                        return (
+                          <Toggle
+                            key={instanceId}
+                            compact={isSingle}
+                            active={isChosen}
+                            onClick={() => toggleExile(specId, instanceId, q.trashExile!.count)}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {isChosen ? (
+                                <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                              ) : null}
+                              {resolveLabel(instanceId)}
+                            </span>
+                          </Toggle>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
@@ -560,7 +634,7 @@ export function AbilityResolutionModal({
                 {q.trashSearch ? (
                   <div className={cn(isSingle ? "mt-1 space-y-0.5" : "mt-2 space-y-1")}>
                     <p className="text-[10px] text-muted-portal">
-                      Lixeira ({q.trashSearch.legalTrashIds.length} cartas) — escolha 1 carta (ou nenhuma):
+                      {strings.trashSearchPrompt(q.trashSearch.legalTrashIds.length)}
                     </p>
                     <div className="scrollbar-ghost flex gap-1 overflow-x-auto pb-1">
                       {q.trashSearch.legalTrashIds.map((instanceId) => (
@@ -578,7 +652,7 @@ export function AbilityResolutionModal({
                         active={(targets[specId] ?? []).length === 0}
                         onClick={() => setTargets((s) => ({ ...s, [specId]: [] }))}
                       >
-                        Nenhuma
+                        {strings.none}
                       </Toggle>
                     </div>
                   </div>
@@ -603,29 +677,35 @@ function BoardTargetHint({
   max,
   label = "Selecione no tabuleiro:",
   compact = false,
+  allyLabel = "aliado",
+  enemyLabel = "inimigo",
+  selectedCountText,
 }: {
   side: "ally" | "enemy" | "both";
   count: number;
   max: number;
   label?: string;
   compact?: boolean;
+  allyLabel?: string;
+  enemyLabel?: string;
+  selectedCountText?: string;
 }) {
   const swatch =
     side === "ally" ? (
       <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
-        <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+        <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> {allyLabel}
       </span>
     ) : side === "enemy" ? (
       <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
-        <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+        <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> {enemyLabel}
       </span>
     ) : (
       <span className="inline-flex items-center gap-2">
         <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
-          <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> aliado
+          <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" /> {allyLabel}
         </span>
         <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
-          <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> inimigo
+          <span className="size-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" /> {enemyLabel}
         </span>
       </span>
     );
@@ -634,7 +714,7 @@ function BoardTargetHint({
       {label} {swatch}
       {max > 1 ? (
         <span className="text-amber-300">
-          ({count}/{max} selecionado{max === 1 ? "" : "s"})
+          {selectedCountText ?? `(${count}/${max} selecionado${max === 1 ? "" : "s"})`}
         </span>
       ) : null}
     </span>

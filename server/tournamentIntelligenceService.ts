@@ -1,5 +1,6 @@
 import { HostedEventMatchResult, HostedEventStatus, type PrismaClient } from "@prisma/client";
 import { NON_STATS_CARD_TYPES } from "../src/lib/deck-legality.ts";
+import type { MetagameProvenance, TournamentProvenanceItem } from "./metagameTrendsService.ts";
 
 export interface PowerRankingSignatureCard {
   id: string;
@@ -10,12 +11,28 @@ export interface PowerRankingSignatureCard {
   color: string | null;
 }
 
+export interface PowerRankingTournamentPlacement {
+  tournamentId: string;
+  tournamentName: string;
+  date: string | null;
+  organizer: string | null;
+  tier: string | null;
+  sourceUrl: string | null;
+  playerCount: number | null;
+  placement: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+}
+
 export interface PowerRankingEntry {
   archetype: string;
   colors: string[];
   signatureCard: PowerRankingSignatureCard | null;
   deckCount: number;
   metaShare: number; // 0..1, sobre o total de entradas com arquétipo declarado no recorte
+  topCutConversion: number; // 0..1, proporção de listas que atingiram o Top 8 do evento
+  isSmallSample: boolean; // true se deckCount < 4 (alerta de amostra pequena)
   wins: number;
   losses: number;
   draws: number;
@@ -24,6 +41,12 @@ export interface PowerRankingEntry {
   powerRankingScore: number; // 0..10, composto normalizado (winrate ajustado + meta share relativo)
   bestPlacement: number | null;
   sampleTournaments: Array<{ id: string; name: string }>;
+  tournamentPlacements: PowerRankingTournamentPlacement[];
+}
+
+export interface PowerRankingsResult {
+  rankings: PowerRankingEntry[];
+  provenance: MetagameProvenance;
 }
 
 type ArchetypeEntryRow = {
@@ -32,7 +55,15 @@ type ArchetypeEntryRow = {
   wins: number | null;
   losses: number | null;
   draws: number | null;
-  tournament: { id: string; name: string };
+  tournament: {
+    id: string;
+    name: string;
+    dateStart?: Date | null;
+    organizer?: string | null;
+    participantCount?: number | null;
+    tier?: any;
+    sourceUrl?: string | null;
+  };
   deckSnapshot: {
     items: Array<{
       quantity: number;
@@ -92,14 +123,29 @@ function pickSignatureCard(items: NonNullable<ArchetypeEntryRow["deckSnapshot"]>
  * isolado (1 vitória, 0 derrotas) dispare pro topo do ranking -- mesmo critério de
  * resiliência estatística já usado no motor VEDA pra amostras pequenas.
  */
-export async function getPowerRankings(
+export async function getPowerRankingsWithProvenance(
   prisma: PrismaClient,
-  params: { seasonId?: string | null; setId?: string | null },
-): Promise<PowerRankingEntry[]> {
+  params: {
+    seasonId?: string | null;
+    setId?: string | null;
+    tier?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
+): Promise<PowerRankingsResult> {
+  const whereTournament: any = { isActive: true };
+  if (params.seasonId) whereTournament.seasonId = params.seasonId;
+  if (params.tier && params.tier !== "ALL") whereTournament.tier = params.tier;
+  if (params.startDate || params.endDate) {
+    whereTournament.dateStart = {};
+    if (params.startDate) whereTournament.dateStart.gte = new Date(params.startDate);
+    if (params.endDate) whereTournament.dateStart.lte = new Date(params.endDate);
+  }
+
   const rows = await prisma.tournamentEntry.findMany({
     where: {
       archetype: { not: null },
-      tournament: { isActive: true, ...(params.seasonId ? { seasonId: params.seasonId } : {}) },
+      tournament: whereTournament,
     },
     select: {
       archetype: true,
@@ -107,7 +153,17 @@ export async function getPowerRankings(
       wins: true,
       losses: true,
       draws: true,
-      tournament: { select: { id: true, name: true } },
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          dateStart: true,
+          organizer: true,
+          participantCount: true,
+          tier: true,
+          sourceUrl: true,
+        },
+      },
       deckSnapshot: { select: { items: { select: { quantity: true, card: { select: { id: true, code: true, nameEn: true, namePt: true, color: true, cardType: true, rarity: true, cost: true, setId: true, imageUrl: true, imageMediumUrl: true } } } } } },
     },
   });
@@ -116,7 +172,15 @@ export async function getPowerRankings(
     ? rows.filter((row) => row.deckSnapshot?.items.some((item) => item.card.setId === params.setId))
     : rows;
 
-  if (!scoped.length) return [];
+  const emptyProvenance: MetagameProvenance = {
+    totalDecks: 0,
+    totalTournaments: 0,
+    startDate: null,
+    endDate: null,
+    tournaments: [],
+  };
+
+  if (!scoped.length) return { rankings: [], provenance: emptyProvenance };
 
   const byArchetype = new Map<string, ArchetypeEntryRow[]>();
   for (const row of scoped) {
@@ -161,12 +225,34 @@ export async function getPowerRankings(
     const colors = Array.from(new Set(relevantItems.map((item) => item.card.color).filter((c): c is string => Boolean(c)))).sort();
     const signatureCard = relevantItems.length ? pickSignatureCard(relevantItems) : null;
 
+    const tournamentPlacements: PowerRankingTournamentPlacement[] = entries
+      .map((entry) => ({
+        tournamentId: entry.tournament.id,
+        tournamentName: entry.tournament.name,
+        date: entry.tournament.dateStart ? entry.tournament.dateStart.toISOString() : null,
+        organizer: entry.tournament.organizer ?? null,
+        tier: entry.tournament.tier ? String(entry.tournament.tier) : null,
+        sourceUrl: entry.tournament.sourceUrl ?? null,
+        playerCount: entry.tournament.participantCount ?? null,
+        placement: entry.placement ?? null,
+        wins: entry.wins ?? null,
+        losses: entry.losses ?? null,
+        draws: entry.draws ?? null,
+      }))
+      .sort((a, b) => (a.placement ?? 999) - (b.placement ?? 999));
+
+    const topCutEntries = entries.filter((e) => e.placement != null && e.placement <= 8).length;
+    const topCutConversion = entries.length > 0 ? Number((topCutEntries / entries.length).toFixed(4)) : 0;
+    const isSmallSample = entries.length < 4;
+
     return {
       archetype,
       colors,
       signatureCard,
       deckCount: entries.length,
       metaShare: totalEntries > 0 ? Number((entries.length / totalEntries).toFixed(4)) : 0,
+      topCutConversion,
+      isSmallSample,
       wins,
       losses,
       draws,
@@ -175,18 +261,21 @@ export async function getPowerRankings(
       adjustedWinRate,
       bestPlacement,
       sampleTournaments: Array.from(tournamentMap.entries()).map(([id, name]) => ({ id, name })),
+      tournamentPlacements,
     };
   });
 
   const maxShare = Math.max(...raw.map((r) => r.metaShare), 0.0001);
 
-  return raw
+  const rankings: PowerRankingEntry[] = raw
     .map((r) => ({
       archetype: r.archetype,
       colors: r.colors,
       signatureCard: r.signatureCard,
       deckCount: r.deckCount,
       metaShare: r.metaShare,
+      topCutConversion: r.topCutConversion,
+      isSmallSample: r.isSmallSample,
       wins: r.wins,
       losses: r.losses,
       draws: r.draws,
@@ -195,8 +284,381 @@ export async function getPowerRankings(
       powerRankingScore: Number((10 * (0.6 * r.adjustedWinRate + 0.4 * (r.metaShare / maxShare))).toFixed(1)),
       bestPlacement: r.bestPlacement,
       sampleTournaments: r.sampleTournaments,
+      tournamentPlacements: r.tournamentPlacements,
     }))
     .sort((a, b) => b.powerRankingScore - a.powerRankingScore || b.metaShare - a.metaShare);
+
+  // Proveniência global dos torneios que alimentam o Power Rankings
+  const globalTournaments = new Map<string, TournamentProvenanceItem>();
+  let earliestDate: Date | null = null;
+  let latestDate: Date | null = null;
+
+  for (const row of scoped) {
+    const t = row.tournament;
+    if (!t) continue;
+    if (t.dateStart) {
+      if (!earliestDate || t.dateStart.getTime() < earliestDate.getTime()) earliestDate = t.dateStart;
+      if (!latestDate || t.dateStart.getTime() > latestDate.getTime()) latestDate = t.dateStart;
+    }
+    const existing = globalTournaments.get(t.id);
+    if (existing) {
+      existing.deckCount += 1;
+    } else {
+      globalTournaments.set(t.id, {
+        id: t.id,
+        name: t.name,
+        date: t.dateStart ? t.dateStart.toISOString() : null,
+        organizer: t.organizer ?? null,
+        playerCount: t.participantCount ?? null,
+        tier: String(t.tier || "SMALL_OFFICIAL"),
+        sourceUrl: t.sourceUrl ?? null,
+        deckCount: 1,
+      });
+    }
+  }
+
+  const provenance: MetagameProvenance = {
+    totalDecks: totalEntries,
+    totalTournaments: globalTournaments.size,
+    startDate: earliestDate ? earliestDate.toISOString() : null,
+    endDate: latestDate ? latestDate.toISOString() : null,
+    tournaments: Array.from(globalTournaments.values()).sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da || b.deckCount - a.deckCount;
+    }),
+  };
+
+  return { rankings, provenance };
+}
+
+export async function getPowerRankings(
+  prisma: PrismaClient,
+  params: {
+    seasonId?: string | null;
+    setId?: string | null;
+    tier?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
+): Promise<PowerRankingEntry[]> {
+  const result = await getPowerRankingsWithProvenance(prisma, params);
+  return result.rankings;
+}
+
+export interface WeeklyArchetypeTrend {
+  name: string;
+  colors: string[];
+  lists: number;
+  share: number; // 0..1
+  winRate: number | null;
+  isSmallSample: boolean;
+}
+
+export interface WeeklyTrendPoint {
+  weekKey: string;
+  weekLabel: string;
+  startDate: string;
+  endDate: string;
+  totalLists: number;
+  totalEvents: number;
+  isSmallSample: boolean;
+  sampleWarning: string | null;
+  archetypes: WeeklyArchetypeTrend[];
+}
+
+export interface WeeklyTrendsResult {
+  seasonId: string | null;
+  tier: string | null;
+  weeks: WeeklyTrendPoint[];
+  topArchetypes: string[];
+  provenance: MetagameProvenance;
+  weightNote: string;
+}
+
+function getWeekKeyAndRange(d: Date): { weekKey: string; weekLabel: string; start: Date; end: Date } {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = date.getUTCDay();
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() + diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  sunday.setUTCHours(23, 59, 59, 999);
+
+  const target = new Date(monday.valueOf());
+  const dayNr = (monday.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay() + 7) % 7));
+  }
+  const weekNumber = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+  const year = monday.getUTCFullYear();
+  const weekKey = `${year}-W${String(weekNumber).padStart(2, "0")}`;
+
+  const formatD = (dt: Date) => `${String(dt.getUTCDate()).padStart(2, "0")}/${String(dt.getUTCMonth() + 1).padStart(2, "0")}`;
+  const weekLabel = `Semana ${weekNumber} (${formatD(monday)} a ${formatD(sunday)})`;
+
+  return { weekKey, weekLabel, start: monday, end: sunday };
+}
+
+/**
+ * Fase 3 -- Evolução Temporal Semanal e Sinalização de Amostra Pequena
+ * Agrupa os resultados competitivos reais por semana ISO e calcula a trajetória de Meta Share e Winrate.
+ */
+export async function getWeeklyTrends(
+  prisma: PrismaClient,
+  params: {
+    seasonId?: string | null;
+    tier?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
+): Promise<WeeklyTrendsResult> {
+  const whereTournament: any = { isActive: true };
+  if (params.seasonId) whereTournament.seasonId = params.seasonId;
+  if (params.tier && params.tier !== "ALL") whereTournament.tier = params.tier;
+  if (params.startDate || params.endDate) {
+    whereTournament.dateStart = {};
+    if (params.startDate) whereTournament.dateStart.gte = new Date(params.startDate);
+    if (params.endDate) whereTournament.dateStart.lte = new Date(params.endDate);
+  }
+
+  const rows = await prisma.tournamentEntry.findMany({
+    where: {
+      archetype: { not: null },
+      tournament: whereTournament,
+    },
+    select: {
+      archetype: true,
+      placement: true,
+      wins: true,
+      losses: true,
+      draws: true,
+      tournament: {
+        select: {
+          id: true,
+          name: true,
+          dateStart: true,
+          organizer: true,
+          participantCount: true,
+          tier: true,
+          sourceUrl: true,
+        },
+      },
+      deckSnapshot: {
+        select: {
+          items: {
+            select: {
+              card: {
+                select: {
+                  color: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Agrupamento por semana
+  type WeekBucket = {
+    weekKey: string;
+    weekLabel: string;
+    start: Date;
+    end: Date;
+    events: Map<string, {
+      id: string;
+      name: string;
+      date: string | null;
+      organizer: string | null;
+      playerCount: number | null;
+      tier: string;
+      sourceUrl: string | null;
+      deckCount: number;
+    }>;
+    entries: typeof rows;
+  };
+
+  const weekBuckets = new Map<string, WeekBucket>();
+  const allEventsMap = new Map<string, {
+    id: string;
+    name: string;
+    date: string | null;
+    organizer: string | null;
+    playerCount: number | null;
+    tier: string;
+    sourceUrl: string | null;
+    deckCount: number;
+  }>();
+
+  let earliestDate: Date | null = null;
+  let latestDate: Date | null = null;
+
+  for (const row of rows) {
+    const rawDate = row.tournament.dateStart ? new Date(row.tournament.dateStart) : new Date();
+    if (!earliestDate || rawDate.getTime() < earliestDate.getTime()) earliestDate = rawDate;
+    if (!latestDate || rawDate.getTime() > latestDate.getTime()) latestDate = rawDate;
+
+    // Registra evento global
+    const evId = row.tournament.id;
+    const existingEv = allEventsMap.get(evId);
+    if (existingEv) {
+      existingEv.deckCount += 1;
+    } else {
+      allEventsMap.set(evId, {
+        id: evId,
+        name: row.tournament.name,
+        date: row.tournament.dateStart ? row.tournament.dateStart.toISOString() : null,
+        organizer: row.tournament.organizer ?? null,
+        playerCount: row.tournament.participantCount ?? null,
+        tier: String(row.tournament.tier ?? "COMMUNITY"),
+        sourceUrl: row.tournament.sourceUrl ?? null,
+        deckCount: 1,
+      });
+    }
+
+    const { weekKey, weekLabel, start, end } = getWeekKeyAndRange(rawDate);
+    let bucket = weekBuckets.get(weekKey);
+    if (!bucket) {
+      bucket = {
+        weekKey,
+        weekLabel,
+        start,
+        end,
+        events: new Map(),
+        entries: [],
+      };
+      weekBuckets.set(weekKey, bucket);
+    }
+
+    bucket.entries.push(row);
+    const evInWeek = bucket.events.get(evId);
+    if (evInWeek) {
+      evInWeek.deckCount += 1;
+    } else {
+      bucket.events.set(evId, {
+        id: evId,
+        name: row.tournament.name,
+        date: row.tournament.dateStart ? row.tournament.dateStart.toISOString() : null,
+        organizer: row.tournament.organizer ?? null,
+        playerCount: row.tournament.participantCount ?? null,
+        tier: String(row.tournament.tier ?? "COMMUNITY"),
+        sourceUrl: row.tournament.sourceUrl ?? null,
+        deckCount: 1,
+      });
+    }
+  }
+
+  // Ordena semanas cronologicamente
+  const sortedWeeks = Array.from(weekBuckets.values()).sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  const globalArchetypeCounts = new Map<string, number>();
+
+  const weekPoints: WeeklyTrendPoint[] = sortedWeeks.map((bucket) => {
+    const totalLists = bucket.entries.length;
+    const isSmallSample = totalLists < 6;
+    const sampleWarning = isSmallSample
+      ? `Amostra semanal reduzida (${totalLists} listas) — flutuações podem ser pontuais.`
+      : null;
+
+    // Agrupa arquétipos da semana
+    const archMap = new Map<string, {
+      name: string;
+      colors: Set<string>;
+      lists: number;
+      wins: number;
+      losses: number;
+      draws: number;
+    }>();
+
+    for (const entry of bucket.entries) {
+      const archName = (entry.archetype || "Desconhecido").trim();
+      globalArchetypeCounts.set(archName, (globalArchetypeCounts.get(archName) || 0) + 1);
+
+      let archItem = archMap.get(archName);
+      if (!archItem) {
+        archItem = {
+          name: archName,
+          colors: new Set(),
+          lists: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+        };
+        archMap.set(archName, archItem);
+      }
+
+      archItem.lists += 1;
+      archItem.wins += entry.wins ?? 0;
+      archItem.losses += entry.losses ?? 0;
+      archItem.draws += entry.draws ?? 0;
+
+      for (const item of entry.deckSnapshot?.items || []) {
+        if (item.card?.color) archItem.colors.add(item.card.color);
+      }
+    }
+
+    const archetypes: WeeklyArchetypeTrend[] = Array.from(archMap.values())
+      .map((a) => {
+        const matches = a.wins + a.losses + a.draws;
+        const winRate = matches > 0 ? Number(((a.wins + 1) / (matches + 2)).toFixed(4)) : null;
+        return {
+          name: a.name,
+          colors: Array.from(a.colors).sort(),
+          lists: a.lists,
+          share: totalLists > 0 ? Number((a.lists / totalLists).toFixed(4)) : 0,
+          winRate,
+          isSmallSample: a.lists < 3,
+        };
+      })
+      .sort((a, b) => b.share - a.share || b.lists - a.lists);
+
+    return {
+      weekKey: bucket.weekKey,
+      weekLabel: bucket.weekLabel,
+      startDate: bucket.start.toISOString(),
+      endDate: bucket.end.toISOString(),
+      totalLists,
+      totalEvents: bucket.events.size,
+      isSmallSample,
+      sampleWarning,
+      archetypes,
+    };
+  });
+
+  const topArchetypes = Array.from(globalArchetypeCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map((e) => e[0]);
+
+  const allTournaments = Array.from(allEventsMap.values()).sort((a, b) => {
+    const da = a.date ? new Date(a.date).getTime() : 0;
+    const db = b.date ? new Date(b.date).getTime() : 0;
+    return db - da || b.deckCount - a.deckCount;
+  });
+
+  const provenance: MetagameProvenance = {
+    totalDecks: rows.length,
+    totalTournaments: allTournaments.length,
+    startDate: earliestDate ? earliestDate.toISOString() : null,
+    endDate: latestDate ? latestDate.toISOString() : null,
+    tournaments: allTournaments,
+  };
+
+  return {
+    seasonId: params.seasonId ?? null,
+    tier: params.tier ?? null,
+    weeks: weekPoints,
+    topArchetypes,
+    provenance,
+    weightNote: "Ponderação Amostral: Grandes Torneios e Regionais possuem peso amostral superior a torneios locais.",
+  };
 }
 
 export interface MatchupCell {

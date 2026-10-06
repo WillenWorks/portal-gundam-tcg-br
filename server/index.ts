@@ -64,9 +64,13 @@ import {
   touchPresence,
   submitSideboard,
   generateBugShortCode,
+  collectCardsInvolved,
   publicDeckKeys,
   type StoredMatch,
 } from "../src/modules/simulator/server/matchStore.ts";
+import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
+import { buildBattleLog } from "../src/modules/simulator/ui/battleLog.ts";
+import { saveBugReportToDisk } from "./services/bugReportDiskService.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
@@ -97,14 +101,16 @@ import {
 } from "../src/modules/simulator/server/matchStats.ts";
 import { attachSimulatorSocket } from "./simulatorSocket.ts";
 import { attachSimulatorArena4pSocket } from "./simulatorSocket4p.ts";
+import { cardStatusRouter } from "./routes/cardStatus.ts";
 import {
   getMetaArchetypes,
   getArchetypeBreakdown,
   getMetaRecommendations,
   fetchEligibleDecks,
 } from "./metaAnalyticsService.ts";
-import { getPowerRankings, getMatchupMatrix } from "./tournamentIntelligenceService.ts";
+import { getPowerRankingsWithProvenance, getMatchupMatrix, getWeeklyTrends } from "./tournamentIntelligenceService.ts";
 import { getMetagameStats } from "./metagameTrendsService.ts";
+import { getAvailableFormats, getFormatMetaBreakdown, getFormatsEvolution } from "./seasonFormatMetaService.ts";
 import { runZeroForesightSimulationCached } from "./services/zeroForesightService.ts";
 import { getRegionalMetagame } from "./services/regionalMetaService.ts";
 import { engineShaFromEnv } from "./engineSha.ts";
@@ -2446,10 +2452,48 @@ app.get("/api/stats/power-rankings", async (req, res) => {
   setPublicCache(res, 60, 300);
   const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
   const setId = typeof req.query.setId === "string" && req.query.setId ? req.query.setId : undefined;
+  const tier = typeof req.query.tier === "string" && req.query.tier ? req.query.tier : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? req.query.endDate : undefined;
   const resolved = await resolveSeasonFilter(seasonParam);
   if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
-  const rankings = await getPowerRankings(prisma, { seasonId: resolved.seasonId, setId });
-  res.json({ season: resolved.season, setId: setId ?? null, rankings });
+  const result = await getPowerRankingsWithProvenance(prisma, {
+    seasonId: resolved.seasonId,
+    setId,
+    tier,
+    startDate,
+    endDate,
+  });
+  res.json({
+    season: resolved.season,
+    setId: setId ?? null,
+    tier: tier ?? null,
+    startDate: startDate ?? null,
+    endDate: endDate ?? null,
+    rankings: result.rankings,
+    provenance: result.provenance,
+  });
+});
+
+// Fase 3 (Evolução Temporal Semanal dos Arquétipos e Sinalização de Amostra)
+app.get("/api/stats/weekly-trends", async (req, res) => {
+  setPublicCache(res, 60, 300);
+  const seasonParam = typeof req.query.seasonId === "string" ? req.query.seasonId : "current";
+  const tier = typeof req.query.tier === "string" && req.query.tier ? req.query.tier : undefined;
+  const startDate = typeof req.query.startDate === "string" && req.query.startDate ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === "string" && req.query.endDate ? req.query.endDate : undefined;
+  const resolved = await resolveSeasonFilter(seasonParam);
+  if (!resolved) return res.status(404).json({ error: "Temporada não encontrada." });
+  const result = await getWeeklyTrends(prisma, {
+    seasonId: resolved.seasonId,
+    tier,
+    startDate,
+    endDate,
+  });
+  res.json({
+    season: resolved.season,
+    ...result,
+  });
 });
 
 // Fase 3 (Matriz de Confrontos, SCAFFOLD -- ver §2.4). Sem UI de lançamento de
@@ -2465,6 +2509,29 @@ app.get("/api/stats/matchup-matrix", async (req, res) => {
   else if (windowParam === "90d") sinceDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const matrix = await getMatchupMatrix(prisma, { seasonId: resolved.seasonId, sinceDate });
   res.json({ season: resolved.season, window: windowParam, ...matrix });
+});
+
+// Fase 2 (Stats por temporada/formato GD01..GD05 e núcleo do arquétipo, ver prompt A6 §2)
+app.get("/api/stats/formats", (_req, res) => {
+  setPublicCache(res, 300, 1800);
+  const formats = getAvailableFormats();
+  res.json(formats);
+});
+
+app.get("/api/stats/formats/evolution", (_req, res) => {
+  setPublicCache(res, 300, 1800);
+  const evolution = getFormatsEvolution();
+  res.json(evolution);
+});
+
+app.get("/api/stats/formats/:format", async (req, res) => {
+  setPublicCache(res, 300, 1800);
+  const format = String(req.params.format);
+  const color = typeof req.query.color === "string" ? req.query.color : undefined;
+  const minLists = typeof req.query.minLists === "string" ? Number(req.query.minLists) : undefined;
+  const result = await getFormatMetaBreakdown(prisma, format, { color, minLists });
+  if (!result) return res.status(404).json({ error: `Formato ${format} não encontrado.` });
+  res.json(result);
 });
 
 // Terminal 3 (docs/54 §8.3, "Zero Local Intelligence") -- Painel de Metagame Regional
@@ -5221,16 +5288,49 @@ app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestW
     return res.status(403).json({ error: "Só jogadores logados podem reportar uma situação." });
   }
   const reporterId = user!.userId;
-  const note = typeof (req.body as { note?: unknown })?.note === "string" ? (req.body as { note: string }).note.slice(0, 2000) : undefined;
+  const body = req.body as {
+    note?: unknown;
+    screenshotBase64?: unknown;
+    snapshot?: unknown;
+  };
+  const note = typeof body?.note === "string" ? body.note.slice(0, 4000) : undefined;
+  const screenshotBase64 = typeof body?.screenshotBase64 === "string" ? body.screenshotBase64 : undefined;
+  const clientSnapshot = body?.snapshot && typeof body.snapshot === "object" ? (body.snapshot as Record<string, unknown>) : undefined;
 
   if (bugReportRateLimiter.isLimited(reporterId)) {
     return res.status(429).json({ error: "Você já enviou vários relatos na última hora. Tente novamente mais tarde." });
   }
 
   try {
-    await loadMatch(String(req.params.id));
+    const match = await loadMatch(String(req.params.id));
+    if (!match) {
+      return res.status(404).json({ error: "Partida não encontrada." });
+    }
     const result = await reportSituation(String(req.params.id), reporterId, note);
     bugReportRateLimiter.record(reporterId);
+
+    const seat = seatFor(match, reporterId) ?? "A";
+    const view = viewStateFor(match.state, seat);
+    const battleLog = buildBattleLog(view);
+    const cardsInvolved = collectCardsInvolved(match.state);
+
+    // Salva o relatório de bug no disco com Markdown, print e dados completos para agentes de IA
+    void saveBugReportToDisk({
+      shortCode: result.shortCode,
+      matchId: String(req.params.id),
+      reporterId,
+      seat,
+      note,
+      engineVersion: match.state.engineVersion ?? "dev",
+      gameState: match.state,
+      battleLog,
+      cardsInvolved,
+      screenshotBase64,
+      clientSnapshot: clientSnapshot as any,
+    }).catch((diskErr) => {
+      console.warn(`[SIMULADOR][BUG-REPORT ${result.shortCode}] Falha ao salvar no disco:`, diskErr);
+    });
+
     res.json(result);
   } catch (err) {
     if (err instanceof MatchError) return res.status(err.status).json({ error: err.message });
@@ -5270,6 +5370,9 @@ app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([Use
   if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
   res.json(row);
 });
+
+// Status de cartas para o simulador ("apta" / "em revisão" / "fora do simulador")
+app.use(cardStatusRouter);
 
 // Telemetria e estatísticas analíticas de metagame geradas a partir das partidas do Simulador
 app.get("/api/simulator/stats/meta", async (req, res) => {

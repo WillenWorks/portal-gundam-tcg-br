@@ -77,6 +77,8 @@ interface BattleSlotProps {
   /** já escolhida como alvo da decisão de habilidade em andamento — glow por
    *  cima da carta inteira, distinto de `selected` (que é do targeting geral). */
   abilitySelected?: boolean;
+  /** Fonte ativa disparando ou ativando efeito/habilidade. */
+  isAbilitySource?: boolean;
 }
 
 /** `transform` inline não responde a `motion-reduce:` do Tailwind — precisa do
@@ -128,6 +130,7 @@ export function BattleSlot({
   emptySlotActive,
   abilityTargetPool,
   abilitySelected,
+  isAbilitySource,
 }: BattleSlotProps) {
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
@@ -216,11 +219,17 @@ export function BattleSlot({
   );
   const isToken = Boolean(unit.def.isToken);
 
-  const showAttack = Boolean(actions?.onAttack) && !unit.rested;
+  const currentTurn = state?.turnNumber ?? 1;
+  const isCannotAttack = Boolean(unit.cannotAttackUntilTurn && unit.cannotAttackUntilTurn >= currentTurn);
+  const isCannotActivate = Boolean(unit.cannotActivateUntilTurn && unit.cannotActivateUntilTurn >= currentTurn);
+  const cannotTargetPlayer = Boolean(unit.def.attackTargetRules?.cannotTargetPlayer);
+  const isAttackTargetRelax = Boolean(unit.attackTargetRelaxUntilTurn && unit.attackTargetRelaxUntilTurn.turn >= currentTurn);
+
+  const showAttack = Boolean(actions?.onAttack) && !unit.rested && !isCannotAttack;
   // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
   // decisão mais crítica do Block Step, precisa se destacar das outras ações.
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
-  const showActivate = Boolean(actions?.onActivate);
+  const showActivate = Boolean(actions?.onActivate) && !isCannotActivate;
 
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
@@ -253,6 +262,7 @@ export function BattleSlot({
         "hover:z-30 focus-within:z-30",
         isAttacker && "z-20 -translate-y-1.5 rotate-[-2deg] motion-reduce:transform-none",
         isBlocking && "z-20 -translate-y-1.5 rotate-[2deg] motion-reduce:transform-none",
+        isAbilitySource && "z-25 ring-2 ring-amber-400 border-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.85)] animate-pulse",
         legalTarget
           ? "z-20 border-emerald-400 ring-2 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.85)] animate-pulse scale-[1.02]"
           : abilitySelected
@@ -273,6 +283,12 @@ export function BattleSlot({
                     : "border-primary/20",
       )}
     >
+      {isAbilitySource ? (
+        <div className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 rounded-full border border-amber-300 bg-amber-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.8)]">
+          <Zap className="size-2 text-amber-300 animate-pulse" />
+          <span>Ativando</span>
+        </div>
+      ) : null}
       {/* corpo da carta: só é clicável quando é ALVO LEGAL de uma seleção
           (pareamento / mira de efeito). Inspecionar é sempre pelo botão "Ver"
           no canto — remove o conflito "clicar em Atacar abre a imagem".
@@ -475,6 +491,38 @@ export function BattleSlot({
                 title="Proteção: O primeiro dano sofrido a cada turno é anulado"
               >
                 GUARD
+              </span>
+            ) : null}
+            {isCannotAttack ? (
+              <span
+                className="rounded-r-xs bg-rose-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-rose-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não pode atacar neste turno"
+              >
+                NO ATK
+              </span>
+            ) : null}
+            {isCannotActivate ? (
+              <span
+                className="rounded-r-xs bg-sky-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-sky-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não ativa na próxima start phase"
+              >
+                FREEZE
+              </span>
+            ) : null}
+            {cannotTargetPlayer ? (
+              <span
+                className="rounded-r-xs bg-amber-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-amber-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Não pode escolher o jogador como alvo de ataque"
+              >
+                NO FACE
+              </span>
+            ) : null}
+            {isAttackTargetRelax ? (
+              <span
+                className="rounded-r-xs bg-emerald-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-emerald-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+                title="Alvo de ataque relaxado: pode escolher alvos protegidos"
+              >
+                RELAX
               </span>
             ) : null}
           </div>

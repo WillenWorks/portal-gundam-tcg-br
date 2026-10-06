@@ -297,4 +297,44 @@ describe("BattleSlot", () => {
     fireEvent.mouseLeave(slot);
     expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
+
+  it("exibe microchips de restrição: NO ATK, FREEZE, NO FACE, RELAX e desabilita ações", () => {
+    const onAttack = vi.fn();
+    const onActivate = vi.fn();
+    const actions = { onAttack, onActivate };
+
+    const restrictedUnit = unit(
+      { attackTargetRules: { cannotTargetPlayer: true, mayTargetActiveEnemyUnit: { maxLevel: 3 } } },
+      {
+        cannotAttackUntilTurn: 2,
+        cannotActivateUntilTurn: 2,
+        attackTargetRelaxUntilTurn: { turn: 2 },
+      },
+    );
+
+    const mockState = {
+      turnNumber: 2,
+      activePlayer: "A",
+      players: { A: { battleArea: [restrictedUnit], baseSection: [] }, B: { battleArea: [], baseSection: [] } },
+    } as unknown as GameState;
+
+    render(
+      <BattleSlot
+        unit={restrictedUnit}
+        pilot={null}
+        art={{}}
+        state={mockState}
+        actions={actions}
+      />,
+    );
+
+    expect(screen.getByText("NO ATK")).toBeInTheDocument();
+    expect(screen.getByText("FREEZE")).toBeInTheDocument();
+    expect(screen.getByText("NO FACE")).toBeInTheDocument();
+    expect(screen.getByText("RELAX")).toBeInTheDocument();
+
+    // Botões de atacar e ativar não devem aparecer quando restritos
+    expect(screen.queryByRole("button", { name: /atacar/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /ativar habilidade/i })).toBeNull();
+  });
 });

@@ -14,6 +14,8 @@ import type { CardInstance, GameState } from "@/modules/simulator/engine/types";
 import { isGenericArtCard, type ArtLookup } from "./cardArt";
 import { CardEffectText, inspectorStats, staticAbilityKeywordLabels } from "./CardInspectorModal";
 import { CardFace } from "./CardFace";
+import { KeywordTooltip } from "@/i18n/KeywordTooltip";
+import { CardInspectorPlayabilityBadge } from "./CardInspectorPlayabilityBadge";
 
 interface CardInspectorPanelProps {
   card: CardInstance | null;
@@ -150,12 +152,15 @@ function PanelBody({
           ser aumentadas ainda" no widescreen (a asa em si cresceu, 22rem →
           28rem). Um degrau pra cima em cada texto (nome, código/tipo, stats,
           traits/link, badges) — mantém a hierarquia relativa entre eles. */}
-      <div>
-        <p className="font-heading text-base font-bold leading-tight text-soft">{def?.nameEn}</p>
-        <p className="text-xs text-muted-portal">
-          {def?.code} · {def?.cardType}
-          {def?.color ? ` · ${def.color}` : ""}
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-heading text-base font-bold leading-tight text-soft">{def?.nameEn}</p>
+          <p className="text-xs text-muted-portal">
+            {def?.code} · {def?.cardType}
+            {def?.color ? ` · ${def.color}` : ""}
+          </p>
+        </div>
+        <CardInspectorPlayabilityBadge code={def?.code} />
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 text-xs">
@@ -183,9 +188,7 @@ function PanelBody({
       {keywords.length ? (
         <div className="flex flex-wrap gap-1">
           {keywords.map((k) => (
-            <span key={k} className="border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
-              {k}
-            </span>
+            <KeywordTooltip key={k} keyword={k} />
           ))}
         </div>
       ) : null}
@@ -200,11 +203,26 @@ function PanelBody({
         <div className="border-t border-white/10 pt-2">
           <p className="mb-1 text-[10px] uppercase tracking-wide text-emerald-500/80">Ativo agora</p>
           <div className="flex flex-wrap gap-1">
-            {[...activeBuffs, ...grantedKeywords].map((b) => (
+            {activeBuffs.map((b) => (
               <span key={b} className="border border-emerald-400/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-300">
                 {b}
               </span>
             ))}
+            {grantedKeywords.map((k) => (
+              <KeywordTooltip key={k} keyword={k} className="border-emerald-400/40 bg-emerald-500/10 text-emerald-300" />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {inPlay && ((card as any).cannotAttack || (card as any).preventActivationNextTurn || (card as any).cannotTargetPlayer || (card as any).grantAttackTargetRelax) ? (
+        <div className="border-t border-white/10 pt-2">
+          <p className="mb-1 text-[10px] uppercase tracking-wide text-amber-500/90">Restrições</p>
+          <div className="flex flex-wrap gap-1">
+            {(card as any).cannotAttack ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não pode atacar neste turno</span> : null}
+            {(card as any).preventActivationNextTurn ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não desvira no próximo turno</span> : null}
+            {(card as any).cannotTargetPlayer ? <span className="border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-300">Não pode atacar jogador</span> : null}
+            {(card as any).grantAttackTargetRelax ? <span className="border border-cyan-400/40 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] font-medium text-cyan-300">Pode mirar Unidade ativa</span> : null}
           </div>
         </div>
       ) : null}

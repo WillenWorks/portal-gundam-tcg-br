@@ -26,7 +26,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
 
       <AppTopNav />
 
-      <main id="topo" className="relative mx-auto w-full max-w-[1760px] flex-1 px-4 py-8 sm:px-6 xl:px-8 2xl:px-10 lg:py-10">
+      <main id="topo" className="relative mx-auto w-full max-w-[2400px] flex-1 px-4 py-8 sm:px-6 xl:px-8 2xl:px-10 3xl:px-12 lg:py-10">
         <div className="space-y-6">
           <Breadcrumb>
             <BreadcrumbList>
@@ -74,7 +74,7 @@ export function PublicShell({ children, breadcrumbs, title, description, heroBan
       </main>
 
       <footer className="border-t border-white/10 bg-slate-950/88 dark:border-white/10 dark:bg-slate-950/88 light:border-slate-300/80 light:bg-white/82">
-        <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-6 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-10 dark:text-slate-400 light:text-slate-600">
+        <div className="mx-auto flex w-full max-w-[2400px] flex-col gap-6 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between xl:px-8 2xl:px-10 3xl:px-12 dark:text-slate-400 light:text-slate-600">
           <div>
             <p className="font-heading text-xl uppercase tracking-[0.16em] text-white dark:text-white light:text-slate-900">Anaheim Hub</p>
             <p className="mt-2 max-w-2xl leading-7">Laboratório Tático & Engenharia de Combate para Gundam Card Game no Brasil. Base de conhecimento aberta, Hangar OZ, Sistema VEDA e Arena Asticassia para a comunidade de pilotos.</p>

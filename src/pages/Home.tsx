@@ -123,7 +123,7 @@ export default function Home({ targetSection }: HomeProps) {
       <main id="topo">
         {/* ── HERO SECTION: PORTAL RESUMO (CARROSSEL + LINKS RÁPIDOS) ───── */}
         <section className="relative isolate overflow-hidden border-b border-white/10 py-6 sm:py-8 lg:py-10">
-          <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8">
+          <div className="container-ultrawide">
             <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_0.95fr] xl:grid-cols-[1.45fr_0.95fr] gap-6 lg:gap-8 items-stretch">
               {/* LADO ESQUERDO: CARROSSEL DE NOTÍCIAS COM MAIOR VISIBILIDADE */}
               <div
@@ -442,7 +442,7 @@ export default function Home({ targetSection }: HomeProps) {
 
       {/* ── FOOTER INSTITUCIONAL ──────────────────────────────────────── */}
       <footer className="border-t border-white/10 bg-slate-950/80 py-10 text-xs text-slate-400">
-        <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+        <div className="container-ultrawide flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
           <div>
             <p className="font-heading text-2xl uppercase tracking-wider text-white">Anaheim Hub</p>
             <p className="mt-1 text-slate-400">

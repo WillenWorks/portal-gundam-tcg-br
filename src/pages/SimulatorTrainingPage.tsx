@@ -90,7 +90,7 @@ export default function SimulatorTrainingPage() {
 
   return (
     <PublicShell breadcrumbs={[{ label: "Simulador", href: "/simulador" }, { label: "Simulação de Treinamento" }]}>
-      <div className="relative mx-auto w-full max-w-[1720px] overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
+      <div className="relative mx-auto w-full container-ultrawide overflow-hidden rounded-2xl border border-primary/30 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.25)]">
         {/* Imagem de Fundo Cockpit de Treino com Instrumentos de Medição em alta visibilidade */}
         <div className="pointer-events-none absolute inset-0">
           <img

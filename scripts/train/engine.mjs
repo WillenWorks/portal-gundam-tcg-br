@@ -5,7 +5,9 @@
  */
 
 import { register } from "tsx/esm/api";
+import { execSync } from "node:child_process";
 import path from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 
 register();
@@ -14,6 +16,16 @@ const ROOT = path.resolve(import.meta.dirname, "..", "..");
 const sim = (p) => pathToFileURL(path.join(ROOT, "src/modules/simulator", p)).href;
 
 export const ENGINE_ROOT = ROOT;
+
+export function getEngineSha() {
+  if (process.env.ENGINE_SHA) return process.env.ENGINE_SHA;
+  if (process.env.RENDER_GIT_COMMIT) return process.env.RENDER_GIT_COMMIT.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { cwd: ROOT, encoding: "utf8" }).trim();
+  } catch {
+    return "dev-local";
+  }
+}
 
 const selfPlay = await import(sim("engine/selfPlay.ts"));
 const legalActions = await import(sim("engine/legalActions.ts"));
@@ -24,6 +36,7 @@ const rng = await import(sim("engine/rng.ts"));
 const features = await import(sim("engine/bot/features.ts"));
 const heuristic = await import(sim("engine/bot/heuristicPolicy.ts"));
 const neural = await import(sim("engine/bot/neuralPolicy.ts"));
+const ladder = await import(sim("engine/bot/ladder.ts"));
 const content = await import(sim("content/index.ts"));
 
 /** `mctsPolicy` da Lane 4A — import opcional, `null` se ainda não mergeou. */
@@ -52,6 +65,7 @@ export const ACTION_SPACE = features.ACTION_SPACE;
 
 export const heuristicPolicy = heuristic.heuristicPolicy;
 export const neuralPolicy = neural.neuralPolicy;
+export const wilsonInterval = ladder.wilsonInterval;
 
 export const ALL_EFFECT_SPECS = content.ALL_EFFECT_SPECS;
 export const defaultPredicateResolver = content.defaultPredicateResolver;

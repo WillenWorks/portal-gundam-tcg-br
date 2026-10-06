@@ -364,7 +364,7 @@ export function GundamSeriesShowcase() {
 
   return (
     <section id="conheca-gundam" className="border-t border-white/10 bg-slate-950/80 py-12 sm:py-18">
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="container-ultrawide space-y-8">
         {/* Cabeçalho da Seção */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-white/10 pb-6">
           <div>
@@ -438,7 +438,7 @@ export function GundamSeriesShowcase() {
         </div>
 
         {/* Grade de Séries com Acordeão Interativo */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5">
           {displayedSeries.map((series) => {
             const isOpen = selectedSeries === series.id;
 

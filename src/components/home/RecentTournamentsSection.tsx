@@ -208,7 +208,7 @@ export function RecentTournamentsSection() {
   return (
     <section id="ultimos-eventos" className="relative border-t border-red-950/50 bg-slate-950/80 py-12 sm:py-16 overflow-hidden">
       {/* Camada 1: Conteúdo Original dos Torneios (visível sob o filtro, mas desabilitado) */}
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-6 select-none pointer-events-none opacity-30 grayscale-[50%] blur-[0.6px]">
+      <div className="container-ultrawide space-y-6 select-none pointer-events-none opacity-30 grayscale-[50%] blur-[0.6px]">
         {/* Cabeçalho da Seção */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-5">
           <div>
@@ -234,7 +234,7 @@ export function RecentTournamentsSection() {
         </div>
 
         {/* Grid com os Torneios */}
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
           {tournaments.map((tournament) => (
             <Card
               key={tournament.id}

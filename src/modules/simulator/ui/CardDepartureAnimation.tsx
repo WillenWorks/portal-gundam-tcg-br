@@ -27,8 +27,8 @@ export interface DepartingCard {
   dest: DepartureDest | null;
   /** largura da carta na origem (px) — mantém o clone no tamanho real. */
   cardW: number;
-  /** "destroyed" = Unit morta em combate/efeito (some com explosão); "discarded" = descarte comum (desliza liso). */
-  kind: "destroyed" | "discarded";
+  /** "destroyed" = Unit morta em combate/efeito (some com explosão); "discarded" = descarte comum (desliza liso); "exiled" = carta exilada (brilho púrpura). */
+  kind: "destroyed" | "discarded" | "exiled";
   code?: string;
   nameEn?: string;
   cardType?: string;
@@ -112,7 +112,9 @@ function DepartureGhost({
         "overflow-hidden rounded-arena border-2 bg-slate-950 shadow-[0_6px_18px_rgba(0,0,0,0.7)]",
         card.kind === "destroyed"
           ? "border-red-500/80 sim-anim-depart-destroy"
-          : "border-slate-400/60 sim-anim-depart",
+          : card.kind === "exiled"
+            ? "border-purple-400/90 sim-anim-depart shadow-[0_0_20px_rgba(168,85,247,0.7)]"
+            : "border-slate-400/60 sim-anim-depart",
       )}
       title={card.nameEn}
     >

@@ -77,7 +77,7 @@ export function LatestCollectionsSection() {
 
   return (
     <section id="ultimas-colecoes" className="border-t border-white/10 bg-slate-950/60 py-12 sm:py-16">
-      <div className="mx-auto max-w-[1760px] px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="container-ultrawide space-y-6">
         {/* Cabeçalho da Seção */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-5">
           <div>
