@@ -292,7 +292,7 @@ function ShieldStation({
   // forma de injetar o `compact` calculado aqui é clonar o elemento com a
   // prop extra. Guard `isValidElement` por segurança (`ArenaSide.shields` é
   // tipado como `ReactNode` genérico).
-  const shields = isValidElement(side.shields) ? cloneElement(side.shields as ReactElement<{ compact?: boolean }>, { compact }) : side.shields;
+  const shields = isValidElement(side.shields) ? cloneElement(side.shields as ReactElement<{ compact?: boolean }>, { compact: compact ? true : undefined }) : side.shields;
   return (
     <div ref={stationRef} className={cn("flex shrink-0 flex-col items-center gap-1 py-1", STATION_WIDTH)}>
       {mirrored ? (

@@ -2917,7 +2917,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             // separados pra o toggle de idioma aparecer aqui, não só no modal.
             effectPt={hoveredCard ? cardText[hoveredCard.def.code]?.pt : undefined}
             effectEn={hoveredCard ? cardText[hoveredCard.def.code]?.en : undefined}
-            className="min-w-0 max-w-[28rem] flex-1 max-h-full overflow-hidden"
+            className="min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1 max-h-full overflow-hidden"
           />
         ) : null}
         {/* V6.2 (docs/33): `shrink-0` fazia esta caixa ignorar o espaço
@@ -2999,7 +2999,7 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
             lateral e as informações textuais podem ser aumentadas ainda"),
             espelho em sincronia com o `max-w` do `CardInspectorPanel` acima
             pra arena continuar centrada. */}
-        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[28rem] flex-1" aria-hidden /> : null}
+        {isWide && !boardExpanded ? <div className="min-w-0 max-w-[19rem] 2xl:max-w-[22rem] 3xl:max-w-[26rem] 4xl:max-w-[28rem] flex-1" aria-hidden /> : null}
       </div>
 
       {/* Linha de mira + badge de combate (docs/19, Sessão 3) — overlay `fixed`, FORA do

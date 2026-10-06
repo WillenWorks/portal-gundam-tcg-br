@@ -5,6 +5,7 @@
  * não aparecem no feed. */
 import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
+import { describeEventI18n, type CardLanguage } from "@/i18n";
 
 export type BattleLogKind = "turn" | "phase" | "play" | "combat" | "damage" | "effect" | "system";
 
@@ -164,12 +165,12 @@ export function describeEvent(event: GameEvent, seq: number, nameOf: (id: string
   }
 }
 
-/** Converte o `eventLog` inteiro da visão numa lista de linhas legíveis (já sem os `null`). */
-export function buildBattleLog(view: ViewGameState): BattleLogEntry[] {
+/** Converte o `eventLog` inteiro da visão numa lista de linhas legíveis (já sem os `null`), com suporte a i18n (PT_BR / EN). */
+export function buildBattleLog(view: ViewGameState, lang: CardLanguage = "PT_BR"): BattleLogEntry[] {
   const nameOf = makeNameResolver(view);
   const out: BattleLogEntry[] = [];
   view.eventLog.forEach((event, i) => {
-    const entry = describeEvent(event, i, nameOf);
+    const entry = describeEventI18n(event, i, nameOf, lang) ?? describeEvent(event, i, nameOf);
     if (entry) out.push(entry);
   });
   return out;
