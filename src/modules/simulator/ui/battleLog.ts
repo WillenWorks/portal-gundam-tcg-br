@@ -5,7 +5,8 @@
  * não aparecem no feed. */
 import type { GameEvent, PlayerId } from "@/modules/simulator/engine/types";
 import type { ViewGameState, ViewCardInstance } from "@/modules/simulator/engine/viewState";
-import { describeEventI18n, type CardLanguage } from "@/i18n";
+import { describeEventI18n } from "@/i18n/battleLogI18n";
+import type { CardLanguage } from "@/i18n/types";
 
 export type BattleLogKind = "turn" | "phase" | "play" | "combat" | "damage" | "effect" | "system";
 
