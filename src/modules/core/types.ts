@@ -9,6 +9,7 @@ export interface CardRecord {
   code: string;
   name: string;
   namePt?: string;
+  nameEn?: string;
   color: CardColor;
   type: CardType;
   cost: number;
@@ -20,6 +21,8 @@ export interface CardRecord {
   keywords: string[];
   triggerKeywords: string[];
   effect: string;
+  effectPt?: string | null;
+  effectEn?: string | null;
   /** Link Condition impressa da Unit ("[Amuro Ray]", "(OZ) Trait", ...) — de CardModel.linkText. */
   linkText?: string | null;
   /** Nome do Piloto que uma carta Command/Pilot pode parear (modo Pilot) — de CardModel.pilotName. */

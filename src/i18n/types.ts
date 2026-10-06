@@ -69,14 +69,20 @@ export interface CardTextResult {
 
 export interface CardTextInput {
   code?: string;
+  name?: string;
+  namePt?: string;
+  nameEn?: string;
+  effect?: string | null;
   effectPt?: string | null;
   effectEn?: string | null;
+  burstEffect?: string | null;
   burstEffectPt?: string | null;
   burstEffectEn?: string | null;
   textSectionsJson?: unknown;
   textSections?: Array<{
     kind?: string;
     label?: string;
+    trigger?: string;
     textPt?: string;
     textEn?: string;
   }>;
@@ -86,5 +92,4 @@ export interface CardTextInput {
     sourceText?: string;
     [key: string]: unknown;
   };
-  [key: string]: unknown;
 }

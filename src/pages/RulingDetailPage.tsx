@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { translateRuleTitle } from "@/lib/ruleLabels";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
+import { KeywordTooltip } from "@/i18n/KeywordTooltip";
 
 const sourceLabels: Record<string, string> = {
   OFFICIAL_RULES: "Official Rules",
@@ -16,6 +18,7 @@ const sourceLabels: Record<string, string> = {
 
 export default function RulingDetailPage() {
   const [, params] = useRoute<{ id: string }>("/rules/:id");
+  const { isPt } = useCardLanguage();
   const [rule, setRule] = useState<any | null>(null);
   const [moreRules, setMoreRules] = useState<any[]>([]);
   const [error, setError] = useState("");
@@ -56,10 +59,13 @@ export default function RulingDetailPage() {
   const breadcrumbs = useMemo<Array<{ label: string; href?: string }>>(() => {
     if (!rule) return [{ label: "Regras", href: "/rules" }, { label: params?.id || "Detalhe" }];
     const trail: Array<{ label: string; href?: string }> = [{ label: "Regras", href: "/rules" }];
-    if (rule.card) trail.push({ label: rule.card.code || rule.card.namePt || rule.card.nameEn, href: `/cards/${rule.card.id}` });
+    if (rule.card) {
+      const cardName = isPt ? (rule.card.namePt || rule.card.nameEn) : (rule.card.nameEn || rule.card.namePt);
+      trail.push({ label: rule.card.code || cardName, href: `/cards/${rule.card.id}` });
+    }
     trail.push({ label: translateRuleTitle(rule.title) || "Regra" });
     return trail;
-  }, [rule, params?.id]);
+  }, [rule, params?.id, isPt]);
 
   return (
     <PublicShell breadcrumbs={breadcrumbs}>
@@ -79,9 +85,11 @@ export default function RulingDetailPage() {
                 <div className="flex flex-col gap-2">
                   <Badge className="rounded-none border border-primary/40 bg-primary/10 text-primary">{sourceLabels[rule.sourceType] || rule.sourceType}</Badge>
                   {rule.relatedKeyword ? (
-                    <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} title={`Ver todas as regras de ${rule.relatedKeyword}`}>
-                      <Badge className="cursor-pointer rounded-none border border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{rule.relatedKeyword}</Badge>
-                    </Link>
+                    <KeywordTooltip keyword={rule.relatedKeyword} showLink={false}>
+                      <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} title={`Ver todas as regras de ${rule.relatedKeyword}`}>
+                        <Badge className="cursor-pointer rounded-none border border-accent/40 bg-accent/10 text-accent transition hover:border-accent hover:bg-accent/20">{rule.relatedKeyword}</Badge>
+                      </Link>
+                    </KeywordTooltip>
                   ) : null}
                 </div>
               </div>
@@ -94,8 +102,8 @@ export default function RulingDetailPage() {
             <div className="flex flex-wrap gap-3">
               <Link href="/rules" className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Voltar para regras</Link>
               {rule.card ? <Link href={`/cards/${rule.card.id}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ir para a carta</Link> : null}
-              {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir trilha da keyword</Link> : <Link href={`/rules?title=${encodeURIComponent(rule.title)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver mais desta categoria</Link>}
-              {rule.card?.namePt || rule.card?.nameEn ? <Link href={`/rules?q=${encodeURIComponent(rule.card.namePt || rule.card.nameEn)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Buscar pelo nome da carta</Link> : null}
+              {rule.relatedKeyword ? <Link href={`/rules?relatedKeyword=${encodeURIComponent(rule.relatedKeyword)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Abrir no Glossário de Regras</Link> : <Link href={`/rules?title=${encodeURIComponent(rule.title)}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Ver mais desta categoria</Link>}
+              {rule.card?.namePt || rule.card?.nameEn ? <Link href={`/rules?q=${encodeURIComponent(isPt ? (rule.card.namePt || rule.card.nameEn) : (rule.card.nameEn || rule.card.namePt))}`} className="inline-flex items-center rounded-none border border-white/15 bg-white/5 px-4 py-2 text-sm uppercase tracking-[0.18em] text-white nav-hover-soft light:border-slate-400/90 light:bg-white light:text-slate-950">Buscar pelo nome da carta</Link> : null}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
