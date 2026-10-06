@@ -44,6 +44,9 @@ export default defineConfig({
               name(id) {
                 if (!id.includes("node_modules")) return null;
                 if (id.includes("recharts")) return "charts";
+                if (id.includes("react") || id.includes("wouter")) return "vendor-framework";
+                if (id.includes("lucide-react")) return "vendor-icons";
+                if (id.includes("@radix-ui")) return "vendor-ui";
                 return "vendor";
               },
             },
