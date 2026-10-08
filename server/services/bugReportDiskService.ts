@@ -157,48 +157,38 @@ export function generateBugReportMarkdown(data: BugReportDiskData, hasScreenshot
   lines.push("1. O estado de jogo serializado está salvo em [`./gameState.json`](./gameState.json).");
   lines.push("2. Verifique se o erro decorre de uma interação de efeito, cálculo de custo ou ação de bot.");
   lines.push("3. Crie um caso de teste reproduzindo a jogada em `src/modules/simulator/engine/`.");
+  lines.push(`4. Depois que a correção entrar em \`dev\`, apague este relato: \`pnpm bug-report:resolve ${data.shortCode}\`.`);
   lines.push("");
 
   return lines.join("\n");
 }
 
-/**
- * Salva o relatório de bug no disco em uma pasta organizada por data e hora.
- * Grava na pasta "bug report" e "bug-reports" na raiz do projeto.
- */
+/** Pasta única dos relatos em disco. Cada relato fica nela até o bug ser corrigido; aí é apagado (`removeBugReportFromDisk`). */
+export const BUG_REPORTS_DIR_NAME = "bug-reports";
+
+export function defaultBugReportsDir(): string {
+  return path.resolve(process.cwd(), BUG_REPORTS_DIR_NAME);
+}
+
+// O shortCode vira parte do nome da pasta; só o formato gerado pelo servidor passa (evita path traversal).
+const SHORT_CODE_PATTERN = /^BUG-[A-Z0-9]{4,12}$/;
+
+/** Salva o relatório em `bug-reports/<AAAA-MM-DD_HH-mm-ss>_<shortCode>/` (report.md, gameState.json e screenshot.png). */
 export async function saveBugReportToDisk(
   data: BugReportDiskData,
-  customRootDirs?: string[],
-): Promise<{ primaryDir: string; mdPath: string; screenshotPath?: string }> {
-  const timestampPart = formatTimestampForDir();
-  const folderName = `${timestampPart}_${data.shortCode}`;
+  rootDir: string = defaultBugReportsDir(),
+): Promise<{ dir: string; mdPath: string; screenshotPath?: string }> {
+  if (!SHORT_CODE_PATTERN.test(data.shortCode)) {
+    throw new Error(`shortCode inválido para gravar em disco: ${data.shortCode}`);
+  }
+  const targetDir = path.join(rootDir, `${formatTimestampForDir()}_${data.shortCode}`);
 
-  // Se não passar diretórios customizados (ex: testes), salva nas duas pastas solicitadas
-  const rootDirs = customRootDirs && customRootDirs.length > 0
-    ? customRootDirs
-    : [
-        path.resolve(process.cwd(), "bug report"),
-        path.resolve(process.cwd(), "bug-reports"),
-      ];
-
-  let primaryDir = "";
-  let primaryMdPath = "";
-  let primaryScreenshotPath: string | undefined;
-
-  let hasScreenshot = false;
   let screenshotBuffer: Buffer | null = null;
-
   if (data.screenshotBase64) {
-    try {
-      const base64Data = data.screenshotBase64.replace(/^data:image\/\w+;base64,/, "");
-      screenshotBuffer = Buffer.from(base64Data, "base64");
-      hasScreenshot = screenshotBuffer.length > 0;
-    } catch (err) {
-      console.warn(`[BugReportDisk] Erro ao decodificar screenshot do bug ${data.shortCode}:`, err);
-    }
+    const buffer = Buffer.from(data.screenshotBase64.replace(/^data:image\/\w+;base64,/, ""), "base64");
+    if (buffer.length > 0) screenshotBuffer = buffer;
   }
 
-  const markdownContent = generateBugReportMarkdown(data, hasScreenshot);
   const jsonContent = JSON.stringify(
     {
       shortCode: data.shortCode,
@@ -216,40 +206,38 @@ export async function saveBugReportToDisk(
     2,
   );
 
-  for (let i = 0; i < rootDirs.length; i++) {
-    const rootDir = rootDirs[i];
-    const targetDir = path.join(rootDir, folderName);
+  await fs.mkdir(targetDir, { recursive: true });
+  const mdPath = path.join(targetDir, "report.md");
+  await fs.writeFile(mdPath, generateBugReportMarkdown(data, screenshotBuffer !== null), "utf-8");
+  await fs.writeFile(path.join(targetDir, "gameState.json"), jsonContent, "utf-8");
 
-    try {
-      await fs.mkdir(targetDir, { recursive: true });
-
-      const mdPath = path.join(targetDir, "report.md");
-      const readmePath = path.join(targetDir, "README.md");
-      const jsonPath = path.join(targetDir, "gameState.json");
-
-      await fs.writeFile(mdPath, markdownContent, "utf-8");
-      await fs.writeFile(readmePath, markdownContent, "utf-8");
-      await fs.writeFile(jsonPath, jsonContent, "utf-8");
-
-      let screenshotPath: string | undefined;
-      if (screenshotBuffer) {
-        screenshotPath = path.join(targetDir, "screenshot.png");
-        await fs.writeFile(screenshotPath, screenshotBuffer);
-      }
-
-      if (i === 0) {
-        primaryDir = targetDir;
-        primaryMdPath = mdPath;
-        primaryScreenshotPath = screenshotPath;
-      }
-    } catch (err) {
-      console.error(`[BugReportDisk] Falha ao gravar bug report em ${targetDir}:`, err);
-    }
+  let screenshotPath: string | undefined;
+  if (screenshotBuffer) {
+    screenshotPath = path.join(targetDir, "screenshot.png");
+    await fs.writeFile(screenshotPath, screenshotBuffer);
   }
 
-  return {
-    primaryDir,
-    mdPath: primaryMdPath,
-    screenshotPath: primaryScreenshotPath,
-  };
+  return { dir: targetDir, mdPath, screenshotPath };
+}
+
+/** Apaga do disco a(s) pasta(s) do relato `shortCode` (bug corrigido). Devolve quantas pastas removeu. */
+export async function removeBugReportFromDisk(
+  shortCode: string,
+  rootDir: string = defaultBugReportsDir(),
+): Promise<number> {
+  if (!SHORT_CODE_PATTERN.test(shortCode)) {
+    throw new Error(`shortCode inválido: ${shortCode}`);
+  }
+  let entries: string[];
+  try {
+    entries = await fs.readdir(rootDir);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw err;
+  }
+  const matches = entries.filter((name) => name.endsWith(`_${shortCode}`));
+  for (const name of matches) {
+    await fs.rm(path.join(rootDir, name), { recursive: true, force: true });
+  }
+  return matches.length;
 }

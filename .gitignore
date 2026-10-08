@@ -102,3 +102,7 @@ docs/bot/pool-db-*.json
 /scripts/iniciar-*.ps1
 /services/*/README.md
 /src/modules/simulator/repro/README.md
+
+# Relatos de bug do simulador gravados pelo servidor (gameState e reporterId): só locais, apagados após a correção
+/bug-reports/
+/bug report/

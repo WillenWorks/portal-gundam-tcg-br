@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import {
   saveBugReportToDisk,
+  removeBugReportFromDisk,
   generateBugReportMarkdown,
   formatTimestampForDir,
   type BugReportDiskData,
@@ -14,9 +15,7 @@ describe("bugReportDiskService", () => {
 
   afterEach(async () => {
     for (const d of tempDirs) {
-      try {
-        await fs.rm(d, { recursive: true, force: true });
-      } catch {}
+      await fs.rm(d, { recursive: true, force: true });
     }
     tempDirs = [];
   });
@@ -68,6 +67,7 @@ describe("bugReportDiskService", () => {
     expect(md).toContain("Jogador A baixou Gundam");
     expect(md).toContain("`ST01-001`");
     expect(md).toContain("1920x1080");
+    expect(md).toContain("pnpm bug-report:resolve BUG-TEST01");
   });
 
   it("salva arquivos de bug report (report.md, gameState.json e screenshot.png) no disco", async () => {
@@ -89,20 +89,49 @@ describe("bugReportDiskService", () => {
       battleLog: [{ text: "Evento teste", kind: "system" }],
     };
 
-    const res = await saveBugReportToDisk(data, [tempDir]);
-    expect(res.primaryDir).toBeDefined();
-    expect(res.mdPath).toBeDefined();
+    const res = await saveBugReportToDisk(data, tempDir);
+    expect(path.dirname(res.dir)).toBe(tempDir);
+    expect(path.basename(res.dir)).toMatch(/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_BUG-SAVE01$/);
+    expect((await fs.readdir(tempDir)).length).toBe(1);
+    expect((await fs.readdir(res.dir)).sort()).toEqual(["gameState.json", "report.md", "screenshot.png"]);
 
     const mdContent = await fs.readFile(res.mdPath, "utf-8");
     expect(mdContent).toContain("Teste de gravação em disco");
 
-    const jsonPath = path.join(res.primaryDir, "gameState.json");
+    const jsonPath = path.join(res.dir, "gameState.json");
     const jsonExists = await fs.stat(jsonPath);
     expect(jsonExists.isFile()).toBe(true);
 
-    const screenshotPath = path.join(res.primaryDir, "screenshot.png");
+    const screenshotPath = path.join(res.dir, "screenshot.png");
     const ssExists = await fs.stat(screenshotPath);
     expect(ssExists.isFile()).toBe(true);
     expect(ssExists.size).toBeGreaterThan(0);
+  });
+
+  it("apaga do disco o relato corrigido e mantém os outros", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bug-report-test-"));
+    tempDirs.push(tempDir);
+    const base = { matchId: "m", reporterId: "u", seat: "A", engineVersion: "dev" };
+    await saveBugReportToDisk({ ...base, shortCode: "BUG-AAAAA1" }, tempDir);
+    await saveBugReportToDisk({ ...base, shortCode: "BUG-BBBBB2" }, tempDir);
+
+    expect(await removeBugReportFromDisk("BUG-AAAAA1", tempDir)).toBe(1);
+    const left = await fs.readdir(tempDir);
+    expect(left).toHaveLength(1);
+    expect(left[0]).toMatch(/_BUG-BBBBB2$/);
+    expect(await removeBugReportFromDisk("BUG-AAAAA1", tempDir)).toBe(0);
+  });
+
+  it("devolve 0 quando a pasta de relatos ainda não existe", async () => {
+    expect(await removeBugReportFromDisk("BUG-CCCCC3", path.join(os.tmpdir(), "nao-existe-bug-reports-xyz"))).toBe(0);
+  });
+
+  it("recusa shortCode fora do formato (evita sair da pasta)", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "bug-report-test-"));
+    tempDirs.push(tempDir);
+    await expect(removeBugReportFromDisk("../etc", tempDir)).rejects.toThrow("shortCode inválido");
+    await expect(
+      saveBugReportToDisk({ shortCode: "BUG-../x", matchId: "m", reporterId: "u", seat: "A", engineVersion: "dev" }, tempDir),
+    ).rejects.toThrow("shortCode inválido");
   });
 });
