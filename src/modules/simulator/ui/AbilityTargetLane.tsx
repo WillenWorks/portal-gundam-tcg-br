@@ -3,14 +3,15 @@ import { cn } from "@/lib/utils";
 
 export interface TargetLanePoint {
   id: string;
-  rect: DOMRect | null;
   pool?: "ally" | "enemy" | "secondary" | null;
-  label?: string;
 }
 
 interface AbilityTargetLaneProps {
-  sourceRect: DOMRect | null;
+  /** `instanceId` da carta cuja habilidade está sendo resolvida. */
+  sourceId: string;
   targets: TargetLanePoint[];
+  /** `board.rectOf` — medido a cada render/remedida, então a linha acompanha resize e scroll. */
+  rectOf: (key: string) => DOMRect | null;
   className?: string;
 }
 
@@ -22,31 +23,34 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-export function AbilityTargetLane({ sourceRect, targets, className }: AbilityTargetLaneProps) {
+export function AbilityTargetLane({ sourceId, targets, rectOf, className }: AbilityTargetLaneProps) {
   const [, remeasure] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
-    let scheduled = false;
+    let frame: number | null = null;
     const on = () => {
-      if (scheduled) return;
-      scheduled = true;
-      requestAnimationFrame(() => {
-        scheduled = false;
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
         remeasure();
       });
     };
     window.addEventListener("resize", on);
     window.addEventListener("scroll", on, true);
-    on();
+    // a mesa ainda pode estar assentando (layout/escala) no 1º frame
     const t = setTimeout(on, 120);
     return () => {
       window.removeEventListener("resize", on);
       window.removeEventListener("scroll", on, true);
       clearTimeout(t);
+      if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [sourceRect, targets]);
+  }, []);
 
-  const validTargets = targets.filter((t): t is TargetLanePoint & { rect: DOMRect } => Boolean(t.rect));
+  const sourceRect = rectOf(sourceId);
+  const validTargets = targets
+    .map((t) => ({ ...t, rect: rectOf(t.id) }))
+    .filter((t): t is TargetLanePoint & { rect: DOMRect } => Boolean(t.rect));
   if (!sourceRect || validTargets.length === 0) return null;
 
   const reducedMotion = prefersReducedMotion();

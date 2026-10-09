@@ -20,6 +20,7 @@ import { CardCornerActions, type CornerAction } from "./CardCornerActions";
 import { CardFace } from "./CardFace";
 import { DockedPilot } from "./DockedPilot";
 import { sfx } from "../audio/soundEffects";
+import { useCardLanguage } from "@/i18n/useCardLanguage";
 
 export interface BattleSlotActions {
   onAttack?: (unit: CardInstance) => void;
@@ -134,6 +135,7 @@ export function BattleSlot({
 }: BattleSlotProps) {
   // Hooks precisam rodar em toda renderização, mesmo quando o slot está vazio
   // (early return abaixo) — Rules of Hooks.
+  const { isPt } = useCardLanguage();
   useEffect(() => {
     if (justDeployed === "light") {
       sfx.playThrusterBoost();
@@ -220,8 +222,11 @@ export function BattleSlot({
   const isToken = Boolean(unit.def.isToken);
 
   const currentTurn = state?.turnNumber ?? 1;
-  const isCannotAttack = Boolean(unit.cannotAttackUntilTurn && unit.cannotAttackUntilTurn >= currentTurn);
-  const isCannotActivate = Boolean(unit.cannotActivateUntilTurn && unit.cannotActivateUntilTurn >= currentTurn);
+  // Espelha o `declareAttack`, que barra só enquanto `cannotAttackUntilTurn === turnNumber`.
+  const isCannotAttack = unit.cannotAttackUntilTurn === currentTurn;
+  // ST08-009: "won't be set as active during the start phase" — é sobre DESVIRAR, não sobre ativar habilidade.
+  // Só um selo informativo; não esconde nenhuma ação (o que é legal vem de `actions`, calculado com o motor).
+  const staysRestedNextStart = Boolean(unit.cannotActivateUntilTurn && unit.cannotActivateUntilTurn >= currentTurn);
   const cannotTargetPlayer = Boolean(unit.def.attackTargetRules?.cannotTargetPlayer);
   const isAttackTargetRelax = Boolean(unit.attackTargetRelaxUntilTurn && unit.attackTargetRelaxUntilTurn.turn >= currentTurn);
 
@@ -229,7 +234,7 @@ export function BattleSlot({
   // docs/55 tarefa 3 — botão "Blocker" VERDE (era "sky"/azul) e saliente: é a
   // decisão mais crítica do Block Step, precisa se destacar das outras ações.
   const showBlocker = Boolean(actions?.onBlocker) && !unit.rested && isBlocker;
-  const showActivate = Boolean(actions?.onActivate) && !isCannotActivate;
+  const showActivate = Boolean(actions?.onActivate);
 
   const cornerActions: CornerAction[] = [];
   if (showAttack) cornerActions.push({ key: "attack", icon: Swords, label: "Atacar", tone: "primary", disabled: busy, onClick: () => actions!.onAttack!(unit) });
@@ -496,33 +501,33 @@ export function BattleSlot({
             {isCannotAttack ? (
               <span
                 className="rounded-r-xs bg-rose-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-rose-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Não pode atacar neste turno"
+                title={isPt ? "Não pode atacar neste turno" : "Can't attack this turn"}
               >
-                NO ATK
+                {isPt ? "SEM ATAQUE" : "NO ATTACK"}
               </span>
             ) : null}
-            {isCannotActivate ? (
+            {staysRestedNextStart ? (
               <span
                 className="rounded-r-xs bg-sky-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-sky-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Não ativa na próxima start phase"
+                title={isPt ? "Não volta a ficar ativa no próximo start phase" : "Won't be set as active during the next start phase"}
               >
-                FREEZE
+                {isPt ? "FICA EM REST" : "STAYS RESTED"}
               </span>
             ) : null}
             {cannotTargetPlayer ? (
               <span
                 className="rounded-r-xs bg-amber-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-amber-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Não pode escolher o jogador como alvo de ataque"
+                title={isPt ? "Não pode escolher o jogador inimigo como alvo de ataque" : "Can't choose the enemy player as its attack target"}
               >
-                NO FACE
+                {isPt ? "SEM JOGADOR" : "NO PLAYER"}
               </span>
             ) : null}
             {isAttackTargetRelax ? (
               <span
                 className="rounded-r-xs bg-emerald-700/95 px-1 py-0.2 text-[clamp(0.45rem,calc(var(--card-w-std,2.17rem)*0.11),0.65rem)] font-black uppercase tracking-wider text-emerald-100 shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                title="Alvo de ataque relaxado: pode escolher alvos protegidos"
+                title={isPt ? "Pode escolher uma Unidade inimiga ativa como alvo de ataque neste turno" : "May choose an active enemy Unit as its attack target this turn"}
               >
-                RELAX
+                {isPt ? "ALVO ATIVO" : "ACTIVE TARGET"}
               </span>
             ) : null}
           </div>

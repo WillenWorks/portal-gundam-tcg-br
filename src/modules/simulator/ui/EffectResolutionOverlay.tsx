@@ -61,6 +61,27 @@ function prefersReducedMotion(): boolean {
 
 let cueCounter = 0;
 
+const MAX_CUES_PER_BATCH = 10;
+const ANCHOR_SIZE = 3;
+
+/**
+ * Eventos de `next` que não estavam em `prev`. O servidor manda só a janela dos últimos 150 eventos
+ * (`EVENT_LOG_WINDOW` em `viewState.ts`), então depois que a janela enche o TAMANHO do log fica constante e
+ * comparar comprimentos esconde tudo. Aqui o fim de `prev` (âncora de até 3 eventos) é procurado em `next`
+ * e o que vem depois dele é o novo. Âncora fora da janela (salto grande) = só os últimos eventos.
+ */
+export function newEventsSince(prev: GameEvent[], next: GameEvent[]): GameEvent[] {
+  if (next.length === 0) return [];
+  if (prev.length === 0) return next.slice(-MAX_CUES_PER_BATCH);
+  const key = (e: GameEvent) => JSON.stringify(e);
+  const anchorLen = Math.min(ANCHOR_SIZE, prev.length);
+  const anchor = prev.slice(-anchorLen).map(key);
+  for (let start = next.length - anchorLen; start >= 0; start--) {
+    if (anchor.every((k, i) => key(next[start + i]) === k)) return next.slice(start + anchorLen);
+  }
+  return next.slice(-MAX_CUES_PER_BATCH);
+}
+
 export function EffectResolutionOverlay({
   eventLog,
   rectOf,
@@ -68,7 +89,7 @@ export function EffectResolutionOverlay({
   className,
 }: EffectResolutionOverlayProps) {
   const [cues, setCues] = useState<EffectResolutionCue[]>([]);
-  const processedLogLenRef = useRef<number>(eventLog.length);
+  const processedLogRef = useRef<GameEvent[]>(eventLog);
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
   useEffect(() => {
@@ -79,17 +100,13 @@ export function EffectResolutionOverlay({
   }, []);
 
   useEffect(() => {
-    const prevLen = processedLogLenRef.current;
-    processedLogLenRef.current = eventLog.length;
+    const prevLog = processedLogRef.current;
+    if (prevLog === eventLog) return;
+    processedLogRef.current = eventLog;
 
-    // Se o eventLog foi reiniciado ou é a primeira carga
-    if (eventLog.length <= prevLen) {
-      return;
-    }
-
-    const newEvents = eventLog.slice(prevLen);
-    // Limitar o lote de eventos novos a 10 para evitar sobrecarga de animações simultâneas
-    const batch = newEvents.slice(-10);
+    // Limitar o lote de eventos novos para evitar sobrecarga de animações simultâneas
+    const batch = newEventsSince(prevLog, eventLog).slice(-MAX_CUES_PER_BATCH);
+    if (batch.length === 0) return;
 
     const newCues: EffectResolutionCue[] = [];
     const reduced = prefersReducedMotion();
@@ -175,14 +192,15 @@ export function EffectResolutionOverlay({
           targetKey = ev.instanceId;
           type = "lock";
           label = "Não Pode Atacar";
-          sublabel = "LOCK";
+          sublabel = "NESTE TURNO";
           break;
 
         case "SET_CANNOT_ACTIVATE":
           targetKey = ev.instanceId;
           type = "freeze";
-          label = "Não Ativa";
-          sublabel = "FREEZE";
+          // ST08-009: "won't be set as active during the start phase" — não volta a ficar ativa (não é "não ativa habilidade").
+          label = "Fica em Rest";
+          sublabel = "PRÓX. START";
           break;
 
         case "MARK_COMMAND_PAYMENT":
@@ -197,8 +215,9 @@ export function EffectResolutionOverlay({
         case "DRAW_CARD":
           targetKey = playerAreaKey(ev.player);
           type = "draw";
-          label = "+1 Carta";
-          sublabel = ev.from === "resourceDeck" ? "EX REC" : "COMPRA";
+          // Compra do resource deck é o recurso normal da Fase de Recurso, não EX Resource.
+          label = ev.from === "resourceDeck" ? "+1 Recurso" : "+1 Carta";
+          sublabel = ev.from === "resourceDeck" ? "RECURSO" : "COMPRA";
           break;
 
         case "MODIFY_STAT": {
