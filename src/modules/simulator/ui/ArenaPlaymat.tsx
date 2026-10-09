@@ -162,8 +162,10 @@ export function ArenaPlaymat({ opponent, self, hand, overlay, className, expande
         // as peças). `--card-w-std`, derivada 1 vez aqui, é a ÚNICA fonte —
         // todo mundo (incluindo Battle Row/Mão agora) referencia ela, nunca
         // mais reescreve `*0.62` cada um por conta própria.
-        // Redesenho Widescreen — proporção visual equilibrada de cartas e estações
-        "[--card-w-std:clamp(2.6rem,calc(var(--card-w)*0.78),5.4rem)]",
+        // Proporção linear e SEM clamp: o `useArenaScale` mede o grupo de peças, que cresce com `--card-w-std`, e
+        // deriva o `--card-w` disso. Um teto fixo (5.4rem, PR #75) travava as cartas em ~86 px em qualquer monitor
+        // e a mesa virava uma ilha no meio do ultrawide (BUG-0C8TM1). Mínimo e máximo já vêm do `useArenaScale`.
+        "[--card-w-std:calc(var(--card-w)*0.78)]",
         // Em telas desktop ou quando expanded, aproveita todo o container flex sem pillarboxing forçado
         expanded ? "h-full w-full" : "aspect-[16/9] lg:aspect-auto h-full w-full max-h-full max-w-full",
         "panel-cut hero-surface border",
