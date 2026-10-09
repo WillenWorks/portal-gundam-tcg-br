@@ -70,7 +70,7 @@ import {
 } from "../src/modules/simulator/server/matchStore.ts";
 import { viewStateFor } from "../src/modules/simulator/engine/viewState.ts";
 import { buildBattleLog } from "../src/modules/simulator/ui/battleLog.ts";
-import { saveBugReportToDisk } from "./services/bugReportDiskService.ts";
+import { removeBugReportFromDisk, saveBugReportToDisk } from "./services/bugReportDiskService.ts";
 import { hydrateMatch } from "../src/modules/simulator/server/hydrateMatch.ts";
 import {
   createTrainingMatch,
@@ -5314,7 +5314,7 @@ app.post("/api/simulator/matches/:id/report", authRequired, async (req: RequestW
     const battleLog = buildBattleLog(view);
     const cardsInvolved = collectCardsInvolved(match.state);
 
-    // Salva o relatório de bug no disco com Markdown, print e dados completos para agentes de IA
+    // Grava o relato em `bug-reports/` (pasta única) até o bug ser corrigido; ver `POST /api/simulator/bug-reports/:shortCode/resolve`.
     void saveBugReportToDisk({
       shortCode: result.shortCode,
       matchId: String(req.params.id),
@@ -5369,6 +5369,16 @@ app.get("/api/simulator/bug-reports/:shortCode", authRequired, roleRequired([Use
   const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode: String(req.params.shortCode) } });
   if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
   res.json(row);
+});
+
+// Bug corrigido: marca `status = "fixed"` e apaga a pasta do relato em `bug-reports/` (o registro no banco fica para histórico).
+app.post("/api/simulator/bug-reports/:shortCode/resolve", authRequired, roleRequired([UserRole.ADMIN]), async (req, res) => {
+  const shortCode = String(req.params.shortCode).toUpperCase();
+  const row = await prisma.simulatorBugReport.findUnique({ where: { shortCode }, select: { id: true } });
+  if (!row) return res.status(404).json({ error: "Bug report não encontrado." });
+  await prisma.simulatorBugReport.update({ where: { shortCode }, data: { status: "fixed" } });
+  const removedFromDisk = await removeBugReportFromDisk(shortCode);
+  res.json({ shortCode, status: "fixed", removedFromDisk });
 });
 
 // Status de cartas para o simulador ("apta" / "em revisão" / "fora do simulador")
