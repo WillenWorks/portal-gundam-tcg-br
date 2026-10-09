@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { EffectResolutionOverlay } from "./EffectResolutionOverlay";
+import { EffectResolutionOverlay, newEventsSince } from "./EffectResolutionOverlay";
 import type { GameEvent } from "@/modules/simulator/engine/types";
 
 afterEach(cleanup);
@@ -123,9 +123,9 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     rerender(<EffectResolutionOverlay eventLog={events} rectOf={rectOf} viewerSeat="A" />);
 
     expect(screen.getByText("Não Pode Atacar")).toBeInTheDocument();
-    expect(screen.getByText("LOCK")).toBeInTheDocument();
-    expect(screen.getByText("Não Ativa")).toBeInTheDocument();
-    expect(screen.getByText("FREEZE")).toBeInTheDocument();
+    expect(screen.getByText("NESTE TURNO")).toBeInTheDocument();
+    expect(screen.getByText("Fica em Rest")).toBeInTheDocument();
+    expect(screen.getByText("PRÓX. START")).toBeInTheDocument();
   });
 
   it("renderiza pagamento com EX e compra de carta", () => {
@@ -133,6 +133,7 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     const events: GameEvent[] = [
       { type: "MARK_COMMAND_PAYMENT", instanceId: "cmd-1", withEx: true, turn: 2 },
       { type: "DRAW_CARD", player: "A", from: "deck", instanceId: "c-draw" },
+      { type: "DRAW_CARD", player: "A", from: "resourceDeck", instanceId: "r-draw" },
     ];
 
     const { rerender } = render(
@@ -143,6 +144,9 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
 
     expect(screen.getByText("Pago c/ EX")).toBeInTheDocument();
     expect(screen.getByText("+1 Carta")).toBeInTheDocument();
+    // recurso da Fase de Recurso não é EX Resource
+    expect(screen.getByText("+1 Recurso")).toBeInTheDocument();
+    expect(screen.queryByText("EX REC")).toBeNull();
   });
 
   it("auto-limpa os cues após o tempo da animação", () => {
@@ -163,5 +167,25 @@ describe("EffectResolutionOverlay (Fase 3)", () => {
     });
 
     expect(screen.queryByText("-2")).not.toBeInTheDocument();
+  });
+});
+
+describe("newEventsSince (janela de 150 eventos do servidor)", () => {
+  const ev = (n: number) => ({ type: "DRAW_CARD", player: "A", from: "deck", instanceId: `A-${n}` }) as GameEvent;
+  const range = (a: number, b: number) => Array.from({ length: b - a }, (_, i) => ev(a + i));
+
+  it("acha os eventos novos mesmo com o log do mesmo tamanho (janela cheia)", () => {
+    const prev = range(0, 150);
+    const next = range(3, 153);
+    expect(newEventsSince(prev, next)).toEqual(range(150, 153));
+  });
+
+  it("nada novo quando a view repete o mesmo log", () => {
+    const log = range(0, 150);
+    expect(newEventsSince(log, [...log])).toEqual([]);
+  });
+
+  it("salto maior que a janela devolve só os últimos eventos", () => {
+    expect(newEventsSince(range(0, 150), range(400, 550))).toHaveLength(10);
   });
 });

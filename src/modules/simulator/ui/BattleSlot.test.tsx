@@ -298,7 +298,7 @@ describe("BattleSlot", () => {
     expect(onHoverCard).toHaveBeenLastCalledWith(null);
   });
 
-  it("exibe microchips de restrição: NO ATK, FREEZE, NO FACE, RELAX e desabilita ações", () => {
+  it("exibe os selos de restrição em pt-BR sem esconder a habilidade ativável (ST08-009 é sobre desvirar)", () => {
     const onAttack = vi.fn();
     const onActivate = vi.fn();
     const actions = { onAttack, onActivate };
@@ -328,13 +328,27 @@ describe("BattleSlot", () => {
       />,
     );
 
-    expect(screen.getByText("NO ATK")).toBeInTheDocument();
-    expect(screen.getByText("FREEZE")).toBeInTheDocument();
-    expect(screen.getByText("NO FACE")).toBeInTheDocument();
-    expect(screen.getByText("RELAX")).toBeInTheDocument();
+    expect(screen.getByText("SEM ATAQUE")).toBeInTheDocument();
+    expect(screen.getByText("FICA EM REST")).toBeInTheDocument();
+    expect(screen.getByText("SEM JOGADOR")).toBeInTheDocument();
+    expect(screen.getByText("ALVO ATIVO")).toBeInTheDocument();
 
-    // Botões de atacar e ativar não devem aparecer quando restritos
+    // "não pode atacar neste turno" tira o botão de ataque (o motor recusaria)...
     expect(screen.queryByRole("button", { name: /atacar/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /ativar habilidade/i })).toBeNull();
+    // ...mas "não volta a ficar ativa no start phase" NÃO impede usar 【Activate･Main】.
+    expect(screen.getByRole("button", { name: /ativar habilidade/i })).toBeInTheDocument();
+  });
+
+  it("restrição de ataque de um turno anterior não esconde o botão de ataque", () => {
+    const onAttack = vi.fn();
+    const u = unit({}, { cannotAttackUntilTurn: 1 });
+    const mockState = {
+      turnNumber: 2,
+      activePlayer: "A",
+      players: { A: { battleArea: [u], baseSection: [] }, B: { battleArea: [], baseSection: [] } },
+    } as unknown as GameState;
+    render(<BattleSlot unit={u} pilot={null} art={{}} state={mockState} actions={{ onAttack }} />);
+    expect(screen.queryByText("SEM ATAQUE")).toBeNull();
+    expect(screen.getByRole("button", { name: /atacar/i })).toBeInTheDocument();
   });
 });
