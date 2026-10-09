@@ -1,6 +1,6 @@
 /**
  * Traduções pt-BR dos efeitos de carta (GERADO por `node scripts/gen-translated-cards-data.mjs` a partir de
- * data/translations-*.json — não editar à mão). 1072 cartas, 936 com texto em pt-BR.
+ * data/translations-*.json — não editar à mão). 1129 cartas, 993 com texto em pt-BR.
  * Importado sob demanda (`import()`) pelo simulador: não entra no carregamento inicial do site.
  */
 export const PRECOMPILED_CARD_TRANSLATIONS: Record<string, { pt?: string; en?: string }> = {
@@ -4067,6 +4067,230 @@ export const PRECOMPILED_CARD_TRANSLATIONS: Record<string, { pt?: string; en?: s
     "pt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, todas as Unidades (G Generation) aliadas recuperam 1 de HP.",
     "en": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, all friendly (G Generation) Units recover 1 HP."
   },
+  "ST11-001": {
+    "pt": "【During Pair】Enquanto 2 ou mais outras Unidades (Marine) aliadas estiverem em jogo, Unidades inimigas não podem escolher esta Unidade como alvo de ataque.\n【Deploy】Se outra Unidade (Marine) aliada estiver em jogo, escolha 1 Unidade inimiga de Lv.2 ou menor. Coloque-a no fundo do deck do dono.",
+    "en": "【During Pair】While 2 or more other friendly (Marine) Units are in play, enemy Units can't choose this Unit as their attack target.\n【Deploy】If another friendly (Marine) Unit is in play, choose 1 enemy Unit that is Lv.2 or lower. Return it to the bottom of its owner's deck."
+  },
+  "ST11-002": {
+    "pt": "Durante o turno do seu oponente, enquanto esta Unidade estiver descansada, Unidades (Marine) aliadas com HP 2 ou menos não podem receber dano de efeito inimigo.",
+    "en": "During your opponent's turn, while this Unit is rested, friendly (Marine) Units with 2 or less HP can't receive enemy effect damage."
+  },
+  "ST11-003": {
+    "pt": "Enquanto outra Unidade (Marine) aliada estiver em jogo, esta Unidade ganha <Blocker>.\n\n(Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "en": "While another friendly (Marine) Unit is in play, this Unit gains <Blocker>.\n\n(Rest this Unit to change the attack target to it.)"
+  },
+  "ST11-004": {
+    "pt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [GOOhN]((ZAFT) (Marine)･AP1･HP1) descansada.",
+    "en": "【Deploy】Deploy 1 rested [GOOhN]((ZAFT) (Marine)･AP1･HP1) Unit token."
+  },
+  "ST11-005": {
+    "pt": "<Repair 2> (No fim do seu turno, esta Unidade recupera a quantidade especificada de HP.)",
+    "en": "<Repair 2> (At the end of your turn, this Unit recovers the specified number of HP.)"
+  },
+  "ST11-006": {
+    "pt": "Se outra Unidade (Marine) aliada estiver em jogo no início do turno do seu oponente, durante esse turno, quando uma carta da área de escudo aliada receber dano de efeito inimigo, reduza-o em 5.\n【Deploy】Escolha 1 carta de Unidade (Marine) do seu lixo. Adicione-a à sua mão.",
+    "en": "If another friendly (Marine) Unit is in play at the start of your opponent's turn, during this turn, when a friendly shield area card receives enemy effect damage, reduce it by 5.\n【Deploy】Choose 1 (Marine) Unit card from your trash. Add it to your hand."
+  },
+  "ST11-009": {
+    "pt": "【Destroyed】Se for o turno do seu oponente e uma Unidade (Marine) aliada estiver em jogo, compre 1 carta.",
+    "en": "【Destroyed】If it is your opponent's turn and a friendly (Marine) Unit is in play, draw 1."
+  },
+  "ST11-010": {
+    "pt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "en": "<Blocker> (Rest this Unit to change the attack target to it.)"
+  },
+  "ST11-011": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Todas as Unidades (Marine) aliadas recebem AP+1 durante este turno.",
+    "en": "【Burst】Add this card to your hand.\n【When Paired】All friendly (Marine) Units get AP+1 during this turn."
+  },
+  "ST11-012": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade (Marine) aliada. Durante este turno, quando ela receber dano de batalha de uma Unidade inimiga, reduza-o em 2.",
+    "en": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly (Marine) Unit. During this turn, when it receives battle damage from an enemy Unit, reduce it by 2."
+  },
+  "ST11-013": {
+    "pt": "【Burst】Escolha 1 Unidade inimiga descansada com HP 3 ou menos. Devolva-a à mão do dono.\n【Main】/【Action】Escolha 1 Unidade inimiga descansada com HP 3 ou menos. Devolva-a à mão do dono. Se fizer isso, compre 1 carta.",
+    "en": "【Burst】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand.\n【Main】/【Action】Choose 1 rested enemy Unit with 3 or less HP. Return it to its owner's hand. If you do, draw 1."
+  },
+  "ST11-014": {
+    "pt": "【Action】Escolha 1 Unidade (Marine) aliada. Unidades inimigas não podem escolhê-la como alvo de ataque neste turno.\n【Pilot】[Marco Morassim]",
+    "en": "【Action】Choose 1 friendly (Marine) Unit. Enemy Units can't choose it as their attack target this turn.\n【Pilot】[Marco Morassim]"
+  },
+  "ST11-015": {
+    "pt": "【Main】Escolha 1 carta de Unidade (Marine) de Lv.4 ou menor do seu lixo. Faça o Deploy dela descansada.",
+    "en": "【Main】Choose 1 (Marine) Unit card that is Lv.4 or lower from your trash. Deploy it rested."
+  },
+  "ST11-016": {
+    "pt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, se 4 ou mais Unidades inimigas estiverem em jogo, escolha 1 Unidade inimiga descansada. Cause 2 de dano a ela.",
+    "en": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, if 4 or more enemy Units are in play, choose 1 rested enemy Unit. Deal 2 damage to it."
+  },
+  "ST12-001": {
+    "pt": "【During Pair･Lv.5 or Higher Pilot】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano, cause 2 de dano a todas as Unidades inimigas com AP 5 ou menos.\n【Deploy】Escolha 1 Base inimiga. Cause 5 de dano a ela.",
+    "en": "【During Pair･Lv.5 or Higher Pilot】During your turn, when this Unit destroys an enemy Unit with damage, deal 2 damage to all enemy Units with 5 or less AP.\n【Deploy】Choose 1 enemy Base. Deal 5 damage to it."
+  },
+  "ST12-002": {
+    "pt": "【Deploy】Escolha 1 Unidade aliada com AP 5 ou mais. Ela recebe <Breach 3> durante este turno.\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "en": "【Deploy】Choose 1 friendly Unit with 5 or more AP. It gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)"
+  },
+  "ST12-003": {
+    "pt": "【Once per Turn】Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano, cause 1 de dano a todas as Unidades inimigas com AP 3 ou menos.",
+    "en": "【Once per Turn】During your turn, when this Unit destroys an enemy Unit with damage, deal 1 damage to all enemy Units with 3 or less AP."
+  },
+  "ST12-004": {
+    "pt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "en": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)"
+  },
+  "ST12-005": {
+    "pt": "【Attack】Você pode descartar 1 carta. Se fizer isso, compre 1 carta.",
+    "en": "【Attack】You may discard 1. If you do, draw 1."
+  },
+  "ST12-006": {
+    "pt": "【During Pair】【Activate･Main】Exile do jogo 4 cartas do seu lixo：Esta Unidade recebe <First Strike> durante este turno.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)\n【Activate･Action】Exile do jogo 4 cartas do seu lixo：Esta Unidade recebe <Suppression> durante esta batalha.\n\n(O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)",
+    "en": "【During Pair】【Activate･Main】Exile 4 cards in your trash from the game：This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)\n【Activate･Action】Exile 4 cards in your trash from the game：This Unit gains <Suppression> during this battle.\n\n(Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)"
+  },
+  "ST12-007": {
+    "pt": "【When Linked】Esta Unidade recebe <First Strike> durante este turno.\n\n(Enquanto esta Unidade estiver atacando, ela causa dano antes da Unidade inimiga.)",
+    "en": "【When Linked】This Unit gains <First Strike> during this turn.\n\n(While this Unit is attacking, it deals damage before the enemy Unit.)"
+  },
+  "ST12-009": {
+    "pt": "【Destroyed】Se houver um jogador com 3 ou menos escudos, escolha 1 carta de Unidade de Lv.6 ou maior do seu lixo. Adicione-a à sua mão. Se fizer isso, descarte 1 carta.",
+    "en": "【Destroyed】If there is a player with 3 or less Shields, choose 1 Unit card that is Lv.6 or higher from your trash. Add it to your hand. If you do, discard 1."
+  },
+  "ST12-011": {
+    "pt": "O nome desta carta também é tratado como [Zechs Merquise].\n\n【Burst】Adicione esta carta à sua mão.\n【Activate･Action】【Once per Turn】Escolha 1 Unidade inimiga danificada que esteja batalhando com esta Unidade. Cause 2 de dano a ela.",
+    "en": "This card's name is also treated as [Zechs Merquise].\n\n【Burst】Add this card to your hand.\n【Activate･Action】【Once per Turn】Choose 1 damaged enemy Unit battling this Unit. Deal 2 damage to it."
+  },
+  "ST12-012": {
+    "pt": "O nome desta carta também é tratado como [Marida Cruz].\n\n【Burst】Adicione esta carta à sua mão.\n【When Linked】Olhe as 2 cartas do topo do seu deck e devolva 1 ao topo. Coloque a carta restante no seu lixo. Se houver um jogador com 3 ou menos escudos, adicione a carta à sua mão em vez de devolvê-la ao deck.",
+    "en": "This card's name is also treated as [Marida Cruz].\n\n【Burst】Add this card to your hand.\n【When Linked】Look at the top 2 cards of your deck and return 1 to the top. Place the remaining card into your trash. If there is a player with 3 or less Shields, add the card to your hand instead of returning it to your deck."
+  },
+  "ST12-013": {
+    "pt": "【Burst】Escolha 1 Unidade inimiga. Cause 1 de dano a ela.\n【Main】Escolha 1 jogador inimigo. Você e esse jogador escolhem, cada um, 1 das próprias Unidades. Inicie uma batalha entre elas e realize apenas o passo de dano.\n\n(Você escolhe primeiro e depois o seu oponente.)",
+    "en": "【Burst】Choose 1 enemy Unit. Deal 1 damage to it.\n【Main】Choose 1 enemy player. You and that player each choose 1 of your own Units. Begin a battle between them and only perform the damage step.\n\n(You choose first, then your opponent.)"
+  },
+  "ST12-014": {
+    "pt": "【Action】Escolha 1 Unidade aliada. Ela recebe o efeito a seguir durante esta batalha：\n\n■Quando esta Unidade destruir uma Unidade inimiga com dano de batalha, escolha 1 Unidade inimiga com AP 2 ou menos. Destrua-a.\n【Pilot】[M'Quve]",
+    "en": "【Action】Choose 1 friendly Unit. It gains the following effect during this battle：\n\n■When this Unit destroys an enemy Unit with battle damage, choose 1 enemy Unit with 2 or less AP. Destroy it.\n【Pilot】[M'Quve]"
+  },
+  "ST12-015": {
+    "pt": "【Action】Ao jogar esta carta, escolha 1 dos efeitos a seguir e ative-o：\n\n■Escolha 1 Unidade inimiga de Lv.2 ou menor. Destrua-a.\n\n■Escolha 1 Unidade aliada e 1 Unidade inimiga de Lv.5 ou maior. Cause 2 de dano a elas.",
+    "en": "【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 enemy Unit that is Lv.2 or lower. Destroy it.\n\n■Choose 1 friendly Unit and 1 enemy Unit that is Lv.5 or higher. Deal 2 damage to them."
+  },
+  "ST12-016": {
+    "pt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Activate･Main】Coloque esta Base em Rest：Se uma Unidade aliada pareada com um Piloto tiver destruído uma Unidade inimiga com dano de batalha neste turno, escolha 1 Unidade inimiga de Lv.4 ou menor. Cause 1 de dano a ela.",
+    "en": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Activate･Main】Rest this Base：If a friendly Unit paired with a Pilot has destroyed an enemy Unit with battle damage this turn, choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+  },
+  "ST13-001": {
+    "pt": "【Once per Turn】Durante o seu turno, quando você parear um Piloto com uma das suas Unidades, faça o Deploy de 1 a 2 fichas de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).\n【Activate･Main】【Once per Turn】①：Escolha 1 das suas fichas de Unidade e 1 Unidade inimiga. Inicie uma batalha entre elas e realize apenas o passo de dano.",
+    "en": "【Once per Turn】During your turn, when you pair a Pilot with one of your Units, deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Activate･Main】【Once per Turn】①：Choose 1 of your Unit tokens and 1 enemy Unit. Begin a battle between them and only perform the damage step."
+  },
+  "ST13-002": {
+    "pt": "【Deploy】Faça o Deploy de 1 ficha de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).",
+    "en": "【Deploy】Deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token."
+  },
+  "ST13-004": {
+    "pt": "【Deploy】Olhe a carta do topo do seu deck. Devolva-a ao topo ou ao fundo do seu deck.",
+    "en": "【Deploy】Look at the top card of your deck. Return it to the top or bottom of your deck."
+  },
+  "ST13-005": {
+    "pt": "【Deploy】Se 4 ou mais Unidades inimigas estiverem em jogo, olhe as 5 cartas do topo do seu deck. Você pode revelar 1 carta de Piloto entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "en": "【Deploy】If 4 or more enemy Units are in play, look at the top 5 cards of your deck. You may reveal 1 Pilot card among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  "ST13-006": {
+    "pt": "【During Pair】【Attack】Se você estiver atacando o jogador inimigo, escolha 1 Unidade inimiga. Cause 2 de dano a ela.\n【Activate･Action】【Once per Turn】Coloque 1 Unidade aliada em Rest：Escolha 1 Unidade inimiga de Lv.4 ou menor. Cause 1 de dano a ela.",
+    "en": "【During Pair】【Attack】If you are attacking the enemy player, choose 1 enemy Unit. Deal 2 damage to it.\n【Activate･Action】【Once per Turn】Rest 1 friendly Unit：Choose 1 enemy Unit that is Lv.4 or lower. Deal 1 damage to it."
+  },
+  "ST13-007": {
+    "pt": "【Activate･Main】<Support 1> (Coloque esta Unidade em Rest. 1 outra Unidade aliada recebe AP+(quantidade especificada) durante este turno.)",
+    "en": "【Activate･Main】<Support 1> (Rest this Unit. 1 other friendly Unit gets AP+(specified amount) during this turn.)"
+  },
+  "ST13-009": {
+    "pt": "【Attack】Escolha 1 jogador inimigo. Esse jogador escolhe 2 cartas de Unidade do lixo dele. Exile-as do jogo.",
+    "en": "【Attack】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game."
+  },
+  "ST13-010": {
+    "pt": "【Activate･Main】【Once per Turn】Destrua 1 ficha de Unidade aliada：Esta Unidade recebe <Breach 3> durante este turno.\n\n(Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "en": "【Activate･Main】【Once per Turn】Destroy 1 friendly Unit token：This Unit gains <Breach 3> during this turn.\n\n(During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)"
+  },
+  "ST13-011": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Olhe as 5 cartas do topo do seu deck. Você pode revelar 1 carta de Piloto de Lv. igual ou menor que o desta Unidade entre elas e adicioná-la à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "en": "【Burst】Add this card to your hand.\n【When Paired】Look at the top 5 cards of your deck. You may reveal 1 Pilot card whose Lv. is equal to or lower than this Unit among them and add it to your hand. Return the remaining cards randomly to the bottom of your deck."
+  },
+  "ST13-012": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【Once per Turn】Quando uma Unidade inimiga for destruída com dano de efeito enquanto esta Unidade estiver atacando, compre 1 carta.",
+    "en": "【Burst】Add this card to your hand.\n【Once per Turn】When an enemy Unit is destroyed with effect damage while this Unit is attacking, draw 1."
+  },
+  "ST13-013": {
+    "pt": "【Main】Faça o Deploy de 1 a 2 fichas de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).\n【Pilot】[Carris Nautilus]",
+    "en": "【Main】Deploy 1 to 2 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit tokens.\n【Pilot】[Carris Nautilus]"
+  },
+  "ST13-014": {
+    "pt": "【Main】Escolha 1 das suas Unidades. Destrua-a. Se fizer isso, olhe as 4 cartas do topo do seu deck. Você pode fazer o Deploy de 1 carta de Unidade de Lv.4 ou menor entre elas. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.",
+    "en": "【Main】Choose 1 of your Units. Destroy it. If you do, look at the top 4 cards of your deck. You may deploy 1 Unit card that is Lv.4 or lower among them. Return the remaining cards randomly to the bottom of your deck."
+  },
+  "ST13-015": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【Main】/【Action】Escolha 3 cartas de Unidade do seu lixo. Exile-as do jogo. Se fizer isso, escolha 1 Unidade inimiga. Cause 3 de dano a ela.",
+    "en": "【Burst】Add this card to your hand.\n【Main】/【Action】Choose 3 Unit cards from your trash. Exile them from the game. If you do, choose 1 enemy Unit. Deal 3 damage to it."
+  },
+  "ST13-016": {
+    "pt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão. Então, faça o Deploy de 1 ficha de Unidade [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack).",
+    "en": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand. Then, deploy 1 [Bit / Funnel]((Long-Range Weapon)･AP2･HP2･This Unit can't be paired with a Pilot or attack) Unit token."
+  },
+  "ST14-001": {
+    "pt": "<Suppression> (O dano de um ataque aos escudos é causado às 2 primeiras cartas ao mesmo tempo.)\nAs Unidades descansadas de menor Lv. de cada jogador inimigo não voltam a ficar ativas na fase inicial do turno dele.",
+    "en": "<Suppression> (Damage to Shields by an attack is dealt to the first 2 cards simultaneously.)\nEach enemy player's rested Units with the lowest Lv. won't be set as active during the start phase of their turn."
+  },
+  "ST14-002": {
+    "pt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)",
+    "en": "<Blocker> (Rest this Unit to change the attack target to it.)"
+  },
+  "ST14-003": {
+    "pt": "【Deploy】Escolha 1 jogador inimigo. Esse jogador escolhe 2 cartas de Unidade do lixo dele. Exile-as do jogo.",
+    "en": "【Deploy】Choose 1 enemy player. That player chooses 2 Unit cards from their trash. Exile them from the game."
+  },
+  "ST14-004": {
+    "pt": "<Blocker> (Coloque esta Unidade em Rest para mudar o alvo do ataque para ela.)\nEsta Unidade não pode escolher o jogador inimigo como alvo de ataque.",
+    "en": "<Blocker> (Rest this Unit to change the attack target to it.)\nThis Unit can't choose the enemy player as its attack target."
+  },
+  "ST14-005": {
+    "pt": "【Deploy】Escolha 1 Unidade inimiga de Lv.6 ou menor. Coloque-a em Rest. Então, se houver 7 ou mais cartas no seu lixo, ela recebe AP-2 durante este turno.",
+    "en": "【Deploy】Choose 1 enemy Unit that is Lv.6 or lower. Rest it. Then, if there are 7 or more cards in your trash, it gets AP-2 during this turn."
+  },
+  "ST14-006": {
+    "pt": "【Deploy】Olhe as 3 cartas do topo do seu deck. Você pode revelar uma quantidade de cartas igual ao número de jogadores inimigos entre elas e adicioná-las à sua mão. Coloque as cartas restantes no fundo do seu deck em ordem aleatória.\n【During Pair】【Once per Turn】Quando esta Unidade fosse receber dano de batalha de uma Unidade inimiga com AP igual ou menor que o dela, ela não recebe esse dano.",
+    "en": "【Deploy】Look at the top 3 cards of your deck. You may reveal a number of cards equal to the number of enemy players among them and add them to your hand. Return the remaining cards randomly to the bottom of your deck.\n【During Pair】【Once per Turn】When this Unit would receive battle damage from an enemy Unit with AP equal to or less than it, it doesn't receive that damage."
+  },
+  "ST14-007": {
+    "pt": "<Breach 3> (Durante o seu turno, quando esta Unidade destruir uma Unidade inimiga com dano de batalha, cause a quantidade especificada de dano à primeira carta na área de escudo daquele oponente.)",
+    "en": "<Breach 3> (During your turn, when this Unit destroys an enemy Unit with battle damage, deal the specified amount of damage to the first card in that opponent's shield area.)"
+  },
+  "ST14-009": {
+    "pt": "【Destroyed】Coloque 1 EX Resource.",
+    "en": "【Destroyed】Place 1 EX Resource."
+  },
+  "ST14-011": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【Attack】Escolha 1 Unidade inimiga. Reduza o AP dela durante esta batalha em uma quantidade igual ao número de Unidades inimigas descansadas.",
+    "en": "【Burst】Add this card to your hand.\n【Attack】Choose 1 enemy Unit. Reduce its AP during this battle by an amount equal to the number of rested enemy Units."
+  },
+  "ST14-012": {
+    "pt": "【Burst】Adicione esta carta à sua mão.\n【When Paired】Escolha 1 Unidade aliada de Lv.5 ou maior. Durante este turno, ela pode escolher uma Unidade inimiga ativa com AP 5 ou menos como alvo de ataque.",
+    "en": "【Burst】Add this card to your hand.\n【When Paired】Choose 1 friendly Unit that is Lv.5 or higher. During this turn, it may choose an active enemy Unit with 5 or less AP as its attack target."
+  },
+  "ST14-013": {
+    "pt": "【Burst】Escolha 1 Unidade inimiga. Ela recebe AP-3 durante este turno.\n【Main】/【Action】Ao jogar esta carta, escolha 1 dos efeitos a seguir e ative-o：\n\n■Escolha de 1 a 2 Unidades inimigas com HP 3 ou menos. Coloque-as em Rest.\n\n■Escolha 1 Unidade inimiga. Ela recebe AP-3 durante este turno.",
+    "en": "【Burst】Choose 1 enemy Unit. It gets AP-3 during this turn.\n【Main】/【Action】When playing this card, choose 1 of the following effects and activate it：\n\n■Choose 1 to 2 enemy Units with 3 or less HP. Rest them.\n\n■Choose 1 enemy Unit. It gets AP-3 during this turn."
+  },
+  "ST14-014": {
+    "pt": "【Main】/【Action】Escolha 1 Unidade inimiga de Lv.5 ou menor. Ela recebe AP-3 durante este turno. Se houver 4 ou mais cartas de Comando no seu lixo, escolha 1 Unidade inimiga em vez disso.\n\n(Esta carta que está sendo ativada não é contada.)\n【Pilot】[Garrod Ran & Tiffa Adill]",
+    "en": "【Main】/【Action】Choose 1 enemy Unit that is Lv.5 or lower. It gets AP-3 during this turn. If there are 4 or more Command cards in your trash, choose 1 enemy Unit instead.\n\n(This card that is being activated is not counted.)\n【Pilot】[Garrod Ran & Tiffa Adill]"
+  },
+  "ST14-015": {
+    "pt": "【Burst】Coloque 1 EX Resource.\n【Main】Coloque 1 Resource descansado. Então, se você não tiver colocado nenhum dos seus Resources como ativo com um efeito neste turno, escolha uma quantidade dos seus Resources igual ao número de jogadores inimigos. Coloque-os como ativos.",
+    "en": "【Burst】Place 1 EX Resource.\n【Main】Place 1 rested Resource. Then, if you have not set one of your Resources as active with an effect this turn, choose a number of your Resources equal to the number of enemy players. Set them as active."
+  },
+  "ST14-016": {
+    "pt": "【Burst】Faça o Deploy desta carta.\n【Deploy】Adicione 1 dos seus escudos à sua mão.\n\n【Once per Turn】Durante o seu turno, quando uma Unidade aliada formar Link, escolha 1 Unidade inimiga de Lv.5 ou menor. Ela recebe AP-1 durante este turno.",
+    "en": "【Burst】Deploy this card.\n【Deploy】Add 1 of your Shields to your hand.\n\n【Once per Turn】During your turn, when a friendly Unit links, choose 1 enemy Unit that is Lv.5 or lower. It gets AP-1 during this turn."
+  },
   "T-001": {
     "en": "-"
   },
@@ -4155,5 +4379,9 @@ export const PRECOMPILED_CARD_TRANSLATIONS: Record<string, { pt?: string; en?: s
   },
   "T-027": {
     "en": "-"
+  },
+  "T-029": {
+    "pt": "Esta Unidade não pode ser pareada com um Piloto nem atacar.",
+    "en": "This Unit can't be paired with a Pilot or attack."
   }
 };
