@@ -19,6 +19,9 @@
  *   --decks=ST01,ST02      Decks específicos
  *   --seed=N               Seed base
  *   --out=<path>           Caminho customizado para o relatório JSON final em docs/bot/
+ *   --zero                 Fase 4: também gera a matriz de confrontos (pool all) para o counter do Zero System e o
+ *                          relatório de diferença contra a matriz em uso (não troca a matriz do produto)
+ *   --zeroGames=N          Partidas por par da matriz do Zero System (padrão 10; 2 com --rapido)
  */
 
 import { spawnSync } from "node:child_process";
@@ -47,6 +50,8 @@ export function parseArgs(argv) {
     decks: null,
     seed: 1,
     out: null,
+    zero: false,
+    zeroGames: null,
   };
 
   for (const a of argv) {
@@ -66,6 +71,10 @@ export function parseArgs(argv) {
       args.clean = true;
       continue;
     }
+    if (a === "--zero") {
+      args.zero = true;
+      continue;
+    }
     const m = a.match(/^--([^=]+)=(.*)$/);
     if (!m) continue;
     const [, k, v] = m;
@@ -81,6 +90,7 @@ export function parseArgs(argv) {
     else if (k === "decks") args.decks = v.split(",").map((s) => s.trim().toUpperCase());
     else if (k === "seed") args.seed = Number(v);
     else if (k === "out") args.out = v;
+    else if (k === "zeroGames") args.zeroGames = Number(v);
   }
 
   return args;
@@ -135,6 +145,8 @@ export function resolveConfig(cliArgs) {
     decks,
     seed: cliArgs.seed ?? 1,
     out: cliArgs.out,
+    zero: Boolean(cliArgs.zero),
+    zeroGames: cliArgs.zeroGames ?? (rapido ? 2 : 10),
   };
 }
 
@@ -361,6 +373,19 @@ export async function main() {
     }
   }
 
+  // ETAPA 3b (opcional, --zero): matriz de confrontos para o counter do Zero System + diferença contra a em uso.
+  let zeroSystem = null;
+  if (config.zero) {
+    const zeroStart = Date.now();
+    const matrixOut = path.join("docs/bot", `matchups-${dateStr}-${runHash}.json`);
+    const matchupArgs = ["--pool=all", `--games=${config.zeroGames}`, `--workers=${config.workers}`, `--out=${matrixOut}`];
+    if (config.nice) matchupArgs.push("--nice");
+    runStage("zero-matrix", "scripts/gundam-bot-matchups.mjs", matchupArgs);
+    const zeroReport = path.join("docs/bot", `zero-matrix-${dateStr}-${runHash}.md`);
+    runStage("zero-report", "scripts/train/zeroMatrix.mjs", [`--matrix=${matrixOut}`, `--out=${zeroReport}`]);
+    zeroSystem = { matrix: matrixOut, report: zeroReport, gamesPerPair: config.zeroGames, durationMs: Date.now() - zeroStart };
+  }
+
   const totalTimeMs = Date.now() - startTime;
 
   // ETAPA 4: RELATÓRIO FINAL
@@ -404,6 +429,7 @@ export async function main() {
       promotionThreshold: evalResults?.promotionThreshold ?? 0.55,
       approved: Boolean(evalResults?.approved),
     },
+    zeroSystem,
     totalDurationSeconds: Number((totalTimeMs / 1000).toFixed(1)),
   };
 
