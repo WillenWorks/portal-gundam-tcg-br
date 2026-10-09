@@ -48,6 +48,7 @@
     "train:eval": "node scripts/train/eval.mjs",
     "train:pipeline": "node scripts/train/pipeline.mjs",
     "train:promote": "node scripts/train/promote.mjs",
+    "train:zero-matrix": "node scripts/train/zeroMatrix.mjs",
     "gundam:index": "node scripts/gundam-index.mjs",
     "gundam:triage": "node scripts/gundam-triage.mjs",
     "gundam:fix": "node scripts/gundam-fix.mjs",
