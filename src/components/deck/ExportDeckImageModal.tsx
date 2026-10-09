@@ -344,7 +344,7 @@ export function ExportDeckImageModal({
               </p>
             </div>
           ) : currentPreviewUrl ? (
-            <img
+            <img loading="lazy" decoding="async"
               src={currentPreviewUrl}
               alt="Pré-visualização"
               className="max-w-full h-auto object-contain border border-white/10 shadow-2xl"

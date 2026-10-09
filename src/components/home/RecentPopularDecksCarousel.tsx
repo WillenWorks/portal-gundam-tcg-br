@@ -181,7 +181,7 @@ export function RecentPopularDecksCarousel() {
               <div className="relative overflow-hidden rounded-xl border border-white/15 bg-slate-950 shadow-2xl transition-all duration-300 hover:border-cyan-500/50">
                 {/* Banner de Fundo (Arte Gundam / Capa do Deck) */}
                 <div className="relative h-56 sm:h-64 md:h-72 w-full overflow-hidden bg-slate-950">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={currentDeck.coverImage || FALLBACK_DECK_BANNER}
                     alt={currentDeck.name}
                     className="h-full w-full object-cover object-center filter brightness-[0.7] contrast-125 transition-transform duration-700 hover:scale-105"
@@ -210,7 +210,7 @@ export function RecentPopularDecksCarousel() {
                         title={card.name}
                       >
                         {card.imageUrl ? (
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={card.imageUrl}
                             alt={card.name}
                             className="h-full w-full object-cover"
@@ -242,7 +242,7 @@ export function RecentPopularDecksCarousel() {
                     {/* Badge de Nível (Ref: círculo 7 dourado) */}
                     <div className="relative">
                       <div className="size-10 sm:size-12 overflow-hidden rounded-lg border border-white/20 bg-slate-800 shadow-md">
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={currentDeck.user?.avatarUrl || FALLBACK_PILOT_AVATAR}
                           alt={currentDeck.user?.displayName || "Piloto"}
                           className="h-full w-full object-cover"

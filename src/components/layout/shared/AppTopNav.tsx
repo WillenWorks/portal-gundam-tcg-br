@@ -290,7 +290,7 @@ export function AppTopNav() {
             className="flex shrink-0 items-center gap-2.5 sm:gap-3 text-white transition-opacity hover:opacity-95"
             aria-label="Anaheim Hub - Página Inicial"
           >
-            <img
+            <img loading="lazy" decoding="async"
               src={anaheimLogo}
               alt="Anaheim Hub - Gundam Card Game"
               className="h-10 sm:h-11 xl:h-12 w-auto object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.25)]"

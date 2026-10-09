@@ -51,7 +51,7 @@ export default function CollectionsPage() {
               <CardContent className="space-y-4 p-4">
                 <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/8] dark:bg-slate-950/60 light:bg-slate-100">
                   {set.coverImage ? (
-                    <img src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" />
+                    <img loading="lazy" decoding="async" src={set.coverImage} alt={set.namePt || set.nameEn} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
                       <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa local</span>

@@ -113,10 +113,10 @@ export function OpeningHandModal({ open, onClose, cards }: OpeningHandModalProps
                       style={{ transformStyle: "preserve-3d" }}
                     >
                       <div className="absolute inset-0 overflow-hidden rounded-md border border-primary/30 bg-slate-900" style={{ backfaceVisibility: "hidden" }}>
-                        <img src={gundamCardBack} alt="" className="h-full w-full object-cover" />
+                        <img loading="lazy" decoding="async" src={gundamCardBack} alt="" className="h-full w-full object-cover" />
                       </div>
                       <div className="absolute inset-0 overflow-hidden rounded-md border border-white/15 bg-slate-950/80" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
-                        {image ? <img src={image} alt={card.namePt || card.name || "Carta"} className="h-full w-full object-cover" /> : null}
+                        {image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.name || "Carta"} className="h-full w-full object-cover" /> : null}
                         <span
                           className={`absolute left-1 top-1 rounded-none border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-[0.08em] ${
                             isEarlyBoardCard ? "border-emerald-400/60 bg-emerald-950/80 text-emerald-300" : "border-white/20 bg-slate-950/80 text-slate-400"

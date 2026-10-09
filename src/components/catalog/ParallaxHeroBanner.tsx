@@ -70,7 +70,7 @@ export function ParallaxHeroBanner({
           transform: `translate3d(0, ${offsetY}px, 0) scale(1.05)`,
         }}
       >
-        <img
+        <img loading="lazy" decoding="async"
           src={finalImage}
           alt={imageAlt}
           className="h-full w-full object-cover object-center opacity-90 brightness-[0.95] contrast-[1.05]"

@@ -39,17 +39,14 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         codeSplitting: {
+          // Grupos fixos só para o que TODA página usa; o resto (recharts, markdown, simulador…) o Rolldown divide
+          // sozinho junto das páginas lazy que o usam. Não criar grupo "vendor"/"charts" genérico: cada grupo captura
+          // também as dependências dos seus módulos, e um grupo de gráficos chegou a levar o React e o `clsx` junto,
+          // pondo ~1,1 MB de vendor + recharts no carregamento inicial de toda página (1.756 kB → 706 kB de JS inicial).
           groups: [
-            {
-              name(id) {
-                if (!id.includes("node_modules")) return null;
-                if (id.includes("recharts")) return "charts";
-                if (id.includes("react") || id.includes("wouter")) return "vendor-framework";
-                if (id.includes("lucide-react")) return "vendor-icons";
-                if (id.includes("@radix-ui")) return "vendor-ui";
-                return "vendor";
-              },
-            },
+            { name: "vendor-framework", test: /node_modules[\\/](react|react-dom|scheduler|wouter)[\\/]/, priority: 40 },
+            { name: "vendor-ui", test: /node_modules[\\/]@radix-ui[\\/]/, priority: 30 },
+            { name: "vendor-icons", test: /node_modules[\\/]lucide-react[\\/]/, priority: 30 },
           ],
         },
       },

@@ -193,7 +193,7 @@ export function PowerRankingsPanel({ seasonId, setId, onExploreArchetype }: { se
                 <div className="flex size-10 shrink-0 items-center justify-center panel-cut border border-primary/40 bg-primary/10 font-heading text-lg text-primary">#{index + 1}</div>
 
                 {entry.signatureCard?.imageMediumUrl ? (
-                  <img src={entry.signatureCard.imageMediumUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
+                  <img loading="lazy" decoding="async" src={entry.signatureCard.imageMediumUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover" />
                 ) : (
                   <div className="h-14 w-10 shrink-0 rounded bg-white/5" />
                 )}

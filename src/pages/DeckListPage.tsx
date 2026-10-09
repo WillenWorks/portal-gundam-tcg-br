@@ -88,7 +88,7 @@ export default function DeckListPage() {
                     toda deixava a capa enorme. Altura fixa fica igual não importa quantas
                     colunas cabem na tela. */}
                 <button type="button" onClick={() => navigate(`/deckbuilder/${deck.id}`)} className="group relative block h-64 w-full overflow-hidden border-b border-white/10 bg-slate-950/80 text-left light:border-slate-300/70">
-                  {deck.coverImage ? <img src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <FeaturedCoverImage cards={deck.featuredCards} className="transition duration-300 group-hover:scale-105" />}
+                  {deck.coverImage ? <img loading="lazy" decoding="async" src={deck.coverImage} alt={deck.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <FeaturedCoverImage cards={deck.featuredCards} className="transition duration-300 group-hover:scale-105" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
                 </button>
                 <CardContent className="space-y-3 p-5">

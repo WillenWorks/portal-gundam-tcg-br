@@ -124,7 +124,7 @@ export function BuildCoreDeckModal({
                 >
                   <div className="h-14 w-10 shrink-0 overflow-hidden border border-white/10 bg-slate-950">
                     {image ? (
-                      <img src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
+                      <img loading="lazy" decoding="async" src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full flex items-center justify-center text-[8px] text-slate-600 font-mono">N/A</div>
                     )}
@@ -169,7 +169,7 @@ export function BuildCoreDeckModal({
                   >
                     <div className="h-12 w-9 shrink-0 overflow-hidden border border-white/10 bg-slate-950">
                       {image ? (
-                        <img src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
+                        <img loading="lazy" decoding="async" src={image} alt={c.namePt || c.name} className="h-full w-full object-cover" />
                       ) : null}
                     </div>
                     <div className="min-w-0 flex-1">

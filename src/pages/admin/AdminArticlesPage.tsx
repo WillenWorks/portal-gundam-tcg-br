@@ -142,7 +142,7 @@ function CoverPromptGenerator({ title, postType, coverImage, onApplyImage }: { t
                 const active = coverImage === image;
                 return (
                   <button key={card.id} type="button" title={card.namePt || card.nameEn} onClick={() => image && onApplyImage(image)} className={`aspect-[3/4] overflow-hidden border transition ${active ? "border-primary" : "border-white/10 hover:border-white/30"}`}>
-                    {image ? <img src={image} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : null}
+                    {image ? <img loading="lazy" decoding="async" src={image} alt={card.namePt || card.nameEn} className="h-full w-full object-cover" /> : null}
                   </button>
                 );
               })}
@@ -337,7 +337,7 @@ export default function AdminArticlesPage() {
                         <input ref={uploadInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
                         <Button type="button" variant="outline" className="shrink-0 rounded-none" disabled={saving} onClick={() => uploadInputRef.current?.click()}><Upload className="mr-2 size-4" />Enviar</Button>
                       </div>
-                      {editing.coverImage ? <div className="mt-2 aspect-[16/9] w-full max-w-sm overflow-hidden border border-white/10"><img src={editing.coverImage} alt="Capa" className="h-full w-full object-cover" /></div> : null}
+                      {editing.coverImage ? <div className="mt-2 aspect-[16/9] w-full max-w-sm overflow-hidden border border-white/10"><img loading="lazy" decoding="async" src={editing.coverImage} alt="Capa" className="h-full w-full object-cover" /></div> : null}
                     </div>
                     <div>
                       <label className="text-xs uppercase tracking-[0.2em] text-slate-500">Conteúdo (Markdown — use [[GD01-001]] ou [[Nome da Carta]] pra citar uma carta com hovercard)</label>

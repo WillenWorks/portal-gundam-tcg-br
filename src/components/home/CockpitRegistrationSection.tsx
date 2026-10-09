@@ -167,7 +167,7 @@ export function CockpitRegistrationSection() {
           <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] xl:grid-cols-[1.2fr_0.8fr]">
             {/* LADO ESQUERDO: IMAGEM CINEMATOGRÁFICA DA CABINE DO GUNDAM */}
             <div className="relative min-h-[380px] sm:min-h-[460px] lg:min-h-full overflow-hidden bg-slate-950 group">
-              <img
+              <img loading="lazy" decoding="async"
                 src={cockpitImg}
                 alt="Cabine vazia de Mobile Suit Gundam esperando por piloto"
                 className="size-full object-cover object-center transition-transform duration-1000 group-hover:scale-105"

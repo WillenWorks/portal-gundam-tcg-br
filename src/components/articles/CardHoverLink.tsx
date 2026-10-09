@@ -73,7 +73,7 @@ export function CardHoverLink({ query, label }: { query: string; label: string }
       <HoverCardContent className="w-72 rounded-none border-white/10 bg-slate-950/98 p-3 text-white">
         <div className="flex gap-3">
           <div className="aspect-[3/4] w-20 shrink-0 overflow-hidden border border-white/10 bg-slate-950/60">
-            {image ? <img src={image} alt={displayName} className="h-full w-full object-cover" /> : null}
+            {image ? <img loading="lazy" decoding="async" src={image} alt={displayName} className="h-full w-full object-cover" /> : null}
           </div>
           <div className="min-w-0 space-y-1.5">
             <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">{card.code}</p>

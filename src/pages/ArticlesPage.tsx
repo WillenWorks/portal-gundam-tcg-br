@@ -69,7 +69,7 @@ export default function ArticlesPage() {
                   <CardContent className="space-y-4 p-4">
                     <div className="overflow-hidden border border-white/10 bg-slate-950/60 aspect-[16/9] dark:bg-slate-950/60 light:bg-slate-100">
                       {post.coverImage ? (
-                        <img src={post.coverImage} alt={post.title} className="h-full w-full object-cover" />
+                        <img loading="lazy" decoding="async" src={post.coverImage} alt={post.title} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 text-center px-4">
                           <span className="text-[10px] uppercase tracking-[0.28em] text-slate-500">Sem capa</span>
