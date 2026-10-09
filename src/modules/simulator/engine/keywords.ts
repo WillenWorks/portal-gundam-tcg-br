@@ -1,6 +1,7 @@
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types";
-import { effectivePilotDef, hasKeyword, hasTrait, keywordValue, satisfiesLinkCondition } from "./types";
+import { effectiveHp, effectivePilotDef, hasKeyword, hasTrait, keywordValue, otherPlayer, satisfiesLinkCondition } from "./types";
 import { applyEvents, findCard } from "./events";
+import { incomingDamage } from "./damageLayer";
 
 /**
  * Keywords oficiais que não fazem parte da sequência de combate (essas
@@ -103,10 +104,37 @@ export function selfHealReactionEvents(card: CardInstance, state: GameState): Ga
   const usageMarker = "onSelfHeal";
   if (reaction.oncePerTurn && card.usedKeywordsThisTurn.includes(usageMarker)) return [];
   const events: GameEvent[] = [];
+  if (reaction.damageRestedEnemy) {
+    // W11 — EB01-004 "choose 1 rested enemy Unit. Deal 1 damage to it." — sem alvo, a habilidade não se gasta
+    const target = pickRestedEnemyForDamage(card, state, reaction.damageRestedEnemy);
+    if (!target) return [];
+    if (reaction.oncePerTurn) events.push({ type: "MARK_KEYWORD_USED", instanceId: card.instanceId, keyword: usageMarker });
+    const pilot = card.pairedPilotId ? findCard(state, card.pairedPilotId) : undefined;
+    const sourceId = card.def.onSelfHeal ? card.instanceId : (pilot?.instanceId ?? card.instanceId);
+    const hit = incomingDamage(state, target, reaction.damageRestedEnemy, { kind: "effect", controller: card.owner, sourceId });
+    events.push({ type: "DAMAGE_UNIT", instanceId: target.instanceId, amount: hit.amount, consume: hit.consume });
+    return events;
+  }
   if (reaction.oncePerTurn) events.push({ type: "MARK_KEYWORD_USED", instanceId: card.instanceId, keyword: usageMarker });
   const deck = state.players[card.owner].deck;
   events.push({ type: "DRAW_CARD", player: card.owner, from: "deck", instanceId: deck[0]?.instanceId ?? null });
   return events;
+}
+
+/**
+ * Alvo de "choose 1 rested enemy Unit. Deal N damage to it." disparado no meio do Repair (fim de turno, sem pausa
+ * possível): a que o dano destrói, a de maior Lv., depois a de menos HP restante.
+ */
+function pickRestedEnemyForDamage(card: CardInstance, state: GameState, amount: number): CardInstance | undefined {
+  const remaining = (u: CardInstance) => effectiveHp(u, state) - u.damage;
+  return state.players[otherPlayer(card.owner)].battleArea
+    .filter((u) => u.def.cardType === "UNIT" && u.rested)
+    .sort(
+      (a, b) =>
+        Number(remaining(b) <= amount) - Number(remaining(a) <= amount) ||
+        (b.def.level ?? 0) - (a.def.level ?? 0) ||
+        remaining(a) - remaining(b),
+    )[0];
 }
 
 export function runRepairStep(state: GameState, player: PlayerId): GameState {

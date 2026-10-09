@@ -56,7 +56,17 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    staticAbilities: [
+      {
+        condition: "duringPair",
+        scope: "pairedUnit",
+        keyword: "Repair",
+        keywordValue: 2,
+        boardCondition: { kind: "otherRestedUnitCountAtLeast", n: 2 },
+        sourceText: "If there are 2 or more other rested Units in play, this Unit gains <Repair 2>.",
+      },
+    ],
   },
   "EB01-064": {
     "code": "EB01-064",
@@ -74,7 +84,17 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    staticAbilities: [
+      {
+        condition: "duringPair",
+        scope: "pairedUnit",
+        keyword: "Breach",
+        keywordValue: 1,
+        targetCondition: { kind: "hasKeyword", keyword: "Repair" },
+        sourceText: "While this Unit has <Repair>, it gains <Breach 1>.",
+      },
+    ],
   },
   "EB01-065": {
     "code": "EB01-065",
@@ -206,7 +226,8 @@ export const PILOTS: Record<string, CardDef> = {
     "triggerKeywords": [
       "Burst"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    staticAbilities: [{ condition: "duringLink", scope: "pairedUnit", stat: "ap", amount: 1, sourceText: "【During Link】This Unit gets AP+1." }],
   },
   "EB01-072": {
     "code": "EB01-072",

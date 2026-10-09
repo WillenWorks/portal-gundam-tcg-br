@@ -6,6 +6,7 @@ import { GD04_TEST_DECKS } from "../src/modules/simulator/fixtures/gd04Decks.ts"
 import { ST09_DECKS } from "../src/modules/simulator/fixtures/st09Decks.ts";
 import { GD05_DECKS } from "../src/modules/simulator/fixtures/gd05Decks.ts";
 import { ST10_TEST_DECKS } from "../src/modules/simulator/fixtures/st10Decks.ts";
+import { EB01_TEST_DECKS } from "../src/modules/simulator/fixtures/eb01Decks.ts";
 import { GD01_CARD_DEFS } from "../src/modules/simulator/content/gd01/index.ts";
 import { GD02_CARD_DEFS } from "../src/modules/simulator/content/gd02/index.ts";
 import { GD03_CARD_DEFS } from "../src/modules/simulator/content/gd03/index.ts";
@@ -37,8 +38,8 @@ describe("deckCoverageGate — decks válidos (90 cartas GD01)", () => {
     }
   });
 
-  it("aprova os decks do GD03, do GD04, do ST09, do GD05 e do ST10 (presets da Fila Online/Convite/Treino)", () => {
-    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS, ...ST09_DECKS, ...GD05_DECKS, ...ST10_TEST_DECKS })) {
+  it("aprova os decks do GD03, do GD04, do ST09, do GD05, do ST10 e do EB01 (presets da Fila Online/Convite/Treino)", () => {
+    for (const [key, deck] of Object.entries({ ...GD03_TEST_DECKS, ...GD04_TEST_DECKS, ...ST09_DECKS, ...GD05_DECKS, ...ST10_TEST_DECKS, ...EB01_TEST_DECKS })) {
       const validation = validateDeckPayload(deck.build());
       expect(validation.valid, `${key}: ${JSON.stringify(validation.unplayableCards)}`).toBe(true);
       expect(validation.unplayableCards).toEqual([]);
@@ -109,9 +110,10 @@ describe("deckCoverageGate — mesmo critério do script de cobertura (content/c
     expect(isCardPlayable(GD01_CARD_DEFS["GD01-046"])).toBe(true);
   });
 
-  it("carta com efeito e sem implementação é bloqueada (EB01, ainda fora do motor)", () => {
-    const eb01 = { ...GD03_CARD_DEFS["GD03-079"], code: "EB01-003" };
-    expect(isCardPlayable(eb01)).toBe(false);
+  it("carta com efeito e sem implementação é bloqueada (T-021 forjado sem a regra de alvo)", () => {
+    // W11 — todo o catálogo real está no motor: o exemplo é um def forjado sem o texto da carta
+    const forged = { ...GD03_CARD_DEFS["GD03-079"], code: "T-021" };
+    expect(isCardPlayable(forged)).toBe(false);
   });
 
   it("GD03-079 destravada na W8.5 (substituição da Base) é jogável", () => {

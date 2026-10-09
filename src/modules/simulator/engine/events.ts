@@ -620,6 +620,7 @@ export function applyEvent(prev: GameState, event: GameEvent): GameState {
         apAtMostSelf: event.apAtMostSelf,
         unpairedOnly: event.unpairedOnly,
         damagedOnly: event.damagedOnly,
+        keyword: event.keyword,
         turn: event.turn,
       };
       return state;

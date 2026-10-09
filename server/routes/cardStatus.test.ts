@@ -28,13 +28,11 @@ describe("cardStatus — lógica de playability", () => {
     expect(gd01.motivo).toBeUndefined();
   });
 
-  it("uma carta de EB01 que falta é revisão (EB01-003)", () => {
-    const eb01Missing = getCardStatus("EB01-003");
-    expect(eb01Missing.status).toBe("revisao");
-    expect(eb01Missing.set).toBe("EB01");
-    expect(eb01Missing.motivo).toMatch(/revisão|cláusula/i);
-    expect(eb01Missing.missingClauses).toBeDefined();
-    expect(eb01Missing.missingClauses!.length).toBeGreaterThan(0);
+  it("W11 — a última carta de EB01 que faltava é apta (EB01-003); nenhuma carta do catálogo fica em revisão", () => {
+    const eb01 = getCardStatus("EB01-003");
+    expect(eb01.status).toBe("apta");
+    expect(eb01.set).toBe("EB01");
+    expect(getAllCardStatuses().summary.revisao).toBe(0);
   });
 
   it("uma carta de EB01 implementada é apta (EB01-001)", () => {
@@ -76,10 +74,10 @@ describe("cardStatus — lógica de playability", () => {
     const response = getAllCardStatuses();
     const sets = response.sets;
 
-    // Sets fechados (ST01..ST10, GD01..GD05) têm 100% aptas
+    // Sets fechados (ST01..ST10, GD01..GD05, EB01 desde a W11) têm 100% aptas
     const closedSets = [
-      "ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08",
-      "GD01", "GD02", "GD03", "GD04", "GD05",
+      "ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10",
+      "GD01", "GD02", "GD03", "GD04", "GD05", "EB01",
     ];
 
     for (const set of closedSets) {
@@ -90,11 +88,11 @@ describe("cardStatus — lógica de playability", () => {
       expect(setSummary.percentAptas, `Set ${set} deve estar 100% apto`).toBe(100);
     }
 
-    // EB01: exatamente 59 cartas prontas e 31 em revisão
+    // EB01: as 90 cartas prontas
     const eb01Summary = sets["EB01"];
     expect(eb01Summary).toBeDefined();
-    expect(eb01Summary.aptas).toBe(59);
-    expect(eb01Summary.revisao).toBe(31);
+    expect(eb01Summary.aptas).toBe(90);
+    expect(eb01Summary.revisao).toBe(0);
   });
 
   it("cache em memória reutiliza o mesmo objeto sem reprocessar", () => {
@@ -142,7 +140,7 @@ describe("cardStatus — rotas HTTP", () => {
     expect(body.sets).toBeDefined();
     expect(body.summary).toBeDefined();
     expect(body.cards["ST01-001"].status).toBe("apta");
-    expect(body.cards["EB01-003"].status).toBe("revisao");
+    expect(body.cards["EB01-003"].status).toBe("apta");
 
     // Compatibilidade no nível raiz: res.body[code]
     expect(body["ST01-001"].status).toBe("apta");
@@ -162,11 +160,10 @@ describe("cardStatus — rotas HTTP", () => {
     const bodyApta = (await resApta.json()) as any;
     expect(bodyApta.status).toBe("apta");
 
-    const resRevisao = await fetch(`${baseUrl}/api/simulator/card-status/EB01-003`);
-    expect(resRevisao.status).toBe(200);
-    const bodyRevisao = (await resRevisao.json()) as any;
-    expect(bodyRevisao.status).toBe("revisao");
-    expect(bodyRevisao.missingClauses).toBeDefined();
+    const resEb01 = await fetch(`${baseUrl}/api/simulator/card-status/EB01-003`);
+    expect(resEb01.status).toBe(200);
+    const bodyEb01 = (await resEb01.json()) as any;
+    expect(bodyEb01.status).toBe("apta");
 
     const resFora = await fetch(`${baseUrl}/api/simulator/card-status/FORGED-999`);
     expect(resFora.status).toBe(200);

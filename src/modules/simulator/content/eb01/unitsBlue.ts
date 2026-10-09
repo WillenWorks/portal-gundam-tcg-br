@@ -95,7 +95,11 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     ],
     "keywordTags": [
       "Repair 2"
-    ]
+    ],
+    onSelfHeal: { oncePerTurn: true, damageRestedEnemy: 1 },
+    structuredSourceText: {
+      onSelfHeal: "【Once per Turn】During your turn, when this Unit recovers HP, choose 1 rested enemy Unit. Deal 1 damage to it.",
+    },
   },
   "EB01-005": {
     "code": "EB01-005",
@@ -282,7 +286,17 @@ export const UNITS_BLUE: Record<string, CardDef> = {
     "hp": 3,
     "traits": [
       "G Generation"
-    ]
+    ],
+    damageReductions: [
+      {
+        immune: true,
+        kind: "effect",
+        duringOpponentTurnOnly: true,
+        sourceUnitOnly: true,
+        sourceMaxLevel: 5,
+        sourceText: "During your opponent's turn, this Unit can't receive effect damage from enemy Units that are Lv.5 or lower.",
+      },
+    ],
   },
   "EB01-015": {
     "code": "EB01-015",

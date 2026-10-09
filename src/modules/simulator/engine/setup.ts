@@ -1,4 +1,4 @@
-import type { CardDef, CardInstance, GameState, PlayerId, PlayerState } from "./types";
+import { TOKEN_EX_RESOURCE_CODE, type CardDef, type CardInstance, type GameState, type PlayerId, type PlayerState } from "./types";
 import { createRng, shuffleInPlace, type Rng } from "./rng";
 
 /**
@@ -55,7 +55,7 @@ export const EX_BASE_TOKEN: CardDef = {
 };
 
 /** Exportado pra costs.ts poder reconhecer o token na hora de pagar custo — ver payResourceCostEvents(). */
-export const TOKEN_EX_RESOURCE_CODE = "TOKEN-EX-RESOURCE";
+export { TOKEN_EX_RESOURCE_CODE };
 
 /** Exportado pra content/st02.ts poder instanciar 1 via `spawnToken` (ST02-002 Wing Gundam Bird Mode — "Place 1 EX Resource"). */
 export const EX_RESOURCE_TOKEN: CardDef = {

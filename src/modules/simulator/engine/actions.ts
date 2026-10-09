@@ -812,7 +812,9 @@ function applyPlayerActionInner(
       if (decision.queuedTriggers?.length && !next.gameOver) {
         if (next.pendingDecision.A || next.pendingDecision.B) return attachQueuedTriggers(next, decision.queuedTriggers);
         next = drainQueuedTriggers(next, decision.queuedTriggers, specs, { predicateResolver, targetFilterResolver });
-        if (next.pendingDecision.A || next.pendingDecision.B) return next;
+        // W11 — continuação que esperava na fila (EB01-023: a do oponente atrás da do controlador) herda a origem,
+        // senão a retomada do fluxo (Block Step…) nunca acontece quando ela resolver
+        if (next.pendingDecision.A || next.pendingDecision.B) return inheritFlowTrigger(next, flowTrigger);
       }
       // W8 — continuação de 【Burst】 resolvida: segue a fila de 【Burst】, depois os 【Destroyed】 e o Battle End
       if (decision.burstContinuation && !next.gameOver && !next.pendingDecision.A && !next.pendingDecision.B) {
@@ -905,6 +907,18 @@ function applyPlayerActionInner(
  * a escolha. Único ponto de checagem — nem `deployCard` nem o primitive
  * `spawnToken` precisam saber desta regra.
  */
+/** a continuação (`Then:`/`Mode:`) pendente sem origem passa a lembrar `flowTrigger` (ver `parentTrigger`) */
+function inheritFlowTrigger(state: GameState, flowTrigger: string): GameState {
+  if (isFollowUpTrigger(flowTrigger)) return state;
+  let next = state;
+  for (const p of ["A", "B"] as PlayerId[]) {
+    const d = next.pendingDecision[p];
+    if (d?.kind !== "abilityResolution" || !isFollowUpTrigger(d.trigger) || d.parentTrigger) continue;
+    next = applyEvent(next, { type: "SET_PENDING_DECISION", player: p, decision: { ...d, parentTrigger: flowTrigger } });
+  }
+  return next;
+}
+
 function enforceZoneLimits(state: GameState): GameState {
   let next = state;
   for (const player of ["A", "B"] as PlayerId[]) {

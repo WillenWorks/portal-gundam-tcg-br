@@ -47,7 +47,10 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     },
     "triggerKeywords": [
       "Attack"
-    ]
+    ],
+    staticAbilities: [
+      { condition: "always", scope: "allUnits", keyword: "Blocker", boardCondition: { kind: "selfRested" }, sourceText: "While this Unit is rested, all Units gain <Blocker>." },
+    ],
   },
   "EB01-043": {
     "code": "EB01-043",
@@ -198,7 +201,16 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     "hp": 4,
     "traits": [
       "G Generation"
-    ]
+    ],
+    staticAbilities: [
+      {
+        condition: "always",
+        scope: "self",
+        keyword: "Suppression",
+        boardCondition: { kind: "friendlyUnitWithTraitAndKeyword", trait: "G Generation", keyword: "Blocker" },
+        sourceText: "While a friendly (G Generation) Unit with <Blocker> is in play, this Unit gains <Suppression>.",
+      },
+    ],
   },
   "EB01-050": {
     "code": "EB01-050",
@@ -291,7 +303,12 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     "hp": 3,
     "traits": [
       "G Generation"
-    ]
+    ],
+    // 1v1: só 1 jogador inimigo — a guarda nunca liga
+    protectsShieldsWhileRested: { boardCondition: { kind: "enemyPlayerCountAtLeast", n: 2 } },
+    structuredSourceText: {
+      protectsShieldsWhileRested: "If there are 2 or more enemy players and this Unit is rested, friendly Shields can't receive battle damage from enemy Units.",
+    },
   },
   "EB01-056": {
     "code": "EB01-056",
@@ -333,7 +350,17 @@ export const UNITS_WHITE: Record<string, CardDef> = {
     "hp": 4,
     "traits": [
       "G Generation"
-    ]
+    ],
+    // 1v1: só 1 jogador inimigo — nunca ganha <Blocker>
+    staticAbilities: [
+      {
+        condition: "always",
+        scope: "self",
+        keyword: "Blocker",
+        boardCondition: { kind: "enemyPlayerCountAtLeast", n: 2 },
+        sourceText: "If there are 2 or more enemy players, this Unit gains <Blocker>.",
+      },
+    ],
   },
   "EB01-059": {
     "code": "EB01-059",

@@ -76,7 +76,18 @@ export const BASES: Record<string, CardDef> = {
       "Burst",
       "Deploy"
     ],
-    "hasBurst": true
+    "hasBurst": true,
+    staticAbilities: [
+      {
+        condition: "always",
+        scope: "allFriendlyUnits",
+        duringOpponentTurnOnly: true,
+        stat: "ap",
+        amount: 1,
+        targetCondition: { kind: "allOf", conditions: [{ kind: "traitIs", trait: "G Generation" }, { kind: "levelIs", n: 3 }] },
+        sourceText: "All friendly (G Generation) Units that are Lv.3 get AP+1 during your opponent's turn.",
+      },
+    ],
   },
   "EB01-089": {
     "code": "EB01-089",
