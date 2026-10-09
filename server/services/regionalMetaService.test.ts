@@ -180,3 +180,22 @@ describe("getRegionalMetagame", () => {
     expect(result.alerts).toEqual([]);
   });
 });
+
+describe("buildRegionalProvenance (origem das listas do recorte em foco)", () => {
+  it("agrupa por torneio, conta listas e pega o período", async () => {
+    const { buildRegionalProvenance } = await import("./regionalMetaService.ts");
+    const ev = (id: string, date: string) => ({ id, name: `Evento ${id}`, date: new Date(date), organizer: "Loja X", playerCount: 16, tier: "SMALL_OFFICIAL", sourceUrl: null });
+    const map = new Map([
+      ["s1", ev("t1", "2026-09-01T00:00:00Z")],
+      ["s2", ev("t1", "2026-09-01T00:00:00Z")],
+      ["s3", ev("t2", "2026-09-20T00:00:00Z")],
+    ]);
+    const p = buildRegionalProvenance(["s1", "s2", "s3", "sem-evento"], map);
+    expect(p.totalDecks).toBe(4);
+    expect(p.totalTournaments).toBe(2);
+    expect(p.tournaments.map((t) => [t.id, t.deckCount])).toEqual([["t2", 1], ["t1", 2]]);
+    expect(p.startDate).toBe("2026-09-01T00:00:00.000Z");
+    expect(p.endDate).toBe("2026-09-20T00:00:00.000Z");
+    expect(buildRegionalProvenance([], map).totalTournaments).toBe(0);
+  });
+});

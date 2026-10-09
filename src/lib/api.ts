@@ -446,6 +446,8 @@ export interface RegionalMetaResponse {
   season: { id: string; code: string; name: string } | null;
   setId: string | null;
   totalDecks: number;
+  /** de quais torneios vieram as listas do recorte em foco */
+  provenance?: MetagameProvenance;
   national: RegionGroupStats;
   states: RegionGroupStats[];
   cities: RegionGroupStats[];

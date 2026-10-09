@@ -103,6 +103,15 @@ export function TournamentDetailDialog({
                 {event.dateStart ? new Date(event.dateStart).toLocaleDateString("pt-BR") : "Data a confirmar"}
                 {event.organizerLabel ? ` · ${event.organizerLabel}` : ""}
                 {event.locationLabel ? ` · ${event.locationLabel}` : ""}
+                {event.playerCount ? ` · ${event.playerCount} jogadores` : ""}
+                {event.sourceUrl ? (
+                  <>
+                    {" · "}
+                    <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">
+                      fonte oficial do evento
+                    </a>
+                  </>
+                ) : null}
               </p>
             </div>
             <div className="flex items-center gap-2">
