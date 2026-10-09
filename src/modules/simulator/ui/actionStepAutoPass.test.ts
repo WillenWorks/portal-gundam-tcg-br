@@ -4,7 +4,7 @@ import { createGame } from "../engine/setup";
 import type { CardInstance, GameState } from "../engine/types";
 import { viewStateFor } from "../engine/viewState";
 import { buildSt01DeckList } from "../fixtures/st01Deck";
-import { actionStepAutoPass } from "./actionStepAutoPass";
+import { actionStepAutoPass, isDecisionResponse } from "./actionStepAutoPass";
 
 function endPhaseWithPriority(priority: "A" | "B"): GameState {
   const state = createGame(buildSt01DeckList(), buildSt01DeckList(), { seed: 7, firstPlayer: "A" });
@@ -54,5 +54,15 @@ describe("actionStepAutoPass (BUG-88RVW1)", () => {
     state.endPhaseAction = null;
     state.phase = "main";
     expect(actionStepAutoPass(viewStateFor(state, "A"), "A", ALL_EFFECT_SPECS)).toBeNull();
+  });
+});
+
+describe("isDecisionResponse (BUG-HGGAG0)", () => {
+  it("respostas de decisão ficam limitadas a uma por versão; jogadas comuns não", () => {
+    expect(isDecisionResponse({ kind: "resolveAbility", resolutions: [] })).toBe(true);
+    expect(isDecisionResponse({ kind: "resolveZoneOverflow", instanceId: "x" })).toBe(true);
+    expect(isDecisionResponse({ kind: "resolveMulligan", keep: true })).toBe(true);
+    expect(isDecisionResponse({ kind: "passAction" })).toBe(false);
+    expect(isDecisionResponse({ kind: "finishTurn" })).toBe(false);
   });
 });

@@ -111,7 +111,7 @@ import { attackTargetError } from "@/modules/simulator/engine/combat";
 import { otherPlayer, hasKeyword, effectiveAp, effectiveHp, effectiveCost, effectiveDeployCost, effectiveLevel, effectivePilotDef, satisfiesLinkCondition, type AttackTarget, type CardDef, type CardInstance, type GameState, type PlayerId, type CombatState } from "@/modules/simulator/engine/types";
 import type { PlayerAction } from "@/modules/simulator/engine/actions";
 import { playerHasActionStepPlay } from "@/modules/simulator/engine/actions";
-import { actionStepAutoPass } from "@/modules/simulator/ui/actionStepAutoPass";
+import { actionStepAutoPass, isDecisionResponse } from "@/modules/simulator/ui/actionStepAutoPass";
 import { useCardLanguage } from "@/i18n/useCardLanguage";
 import type { HiddenCard, ViewCardInstance, ViewGameState, ViewPlayerState } from "@/modules/simulator/engine/viewState";
 import { pairingNeedsExtraTarget, resolveDeploySelection } from "@/modules/simulator/ui/deployIntent";
@@ -1108,8 +1108,15 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
     };
   }, []);
 
+  // BUG-HGGAG0 (P-2): depois de uma resposta aceita, a view seguinte pode ficar alguns instantes na fila (saída das
+  // cartas exiladas, banners) e o modal antigo segue clicável. Um 2º clique reenviava a mesma resposta para uma decisão
+  // que o servidor já tinha trocado (passo 2 do Development) e voltava erro. Uma resposta de decisão por versão.
+  const decisionSentForVersionRef = useRef<number | null>(null);
   const runAction = useCallback(
     async (action: PlayerAction) => {
+      const resolvesDecision = isDecisionResponse(action);
+      if (resolvesDecision && matchView && decisionSentForVersionRef.current === matchView.version) return;
+      if (resolvesDecision && matchView) decisionSentForVersionRef.current = matchView.version;
       setBusy(true);
       try {
         // Áudio e feedback sensorial Gundam com micro-delays antes do despacho
@@ -1165,6 +1172,8 @@ export default function SimulatorMatchPage({ matchId }: { matchId: string }) {
         // jogada recusada pelo motor (ex.: atacar com Unit rested) — faixa
         // própria no topo, não `toast` no canto (que tapava o log — Feedback.pdf §5).
         showActionError(errorMessage(err, "Ação inválida."));
+        // recusada: a mesma decisão continua pendente e pode ser respondida de novo
+        if (resolvesDecision) decisionSentForVersionRef.current = null;
       } finally {
         setBusy(false);
       }

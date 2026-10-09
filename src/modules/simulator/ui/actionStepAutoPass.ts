@@ -1,4 +1,5 @@
 import { playerHasActionStepPlay } from "../engine/actions";
+import type { PlayerAction } from "../engine/actions";
 import type { EffectSpec } from "../engine/effectSpec";
 import type { PlayerId } from "../engine/types";
 import type { ViewGameState } from "../engine/viewState";
@@ -20,4 +21,17 @@ export function actionStepAutoPass(view: ViewGameState, seat: PlayerId, specs: E
   if (!inCombatActionStep && !inEndPhaseActionStep) return null;
   if (playerHasActionStepPlay(view, seat, specs)) return null;
   return inCombatActionStep ? { kind: "passAction" } : { kind: "passEndPhaseAction" };
+}
+
+const DECISION_RESPONSES = new Set<PlayerAction["kind"]>([
+  "resolveAbility",
+  "resolveBurstDecision",
+  "resolveTriggerOrder",
+  "resolveMulligan",
+  "resolveZoneOverflow",
+]);
+
+/** Ação que responde a uma `pendingDecision` — vale uma só por versão da partida (ver `runAction`). */
+export function isDecisionResponse(action: PlayerAction): boolean {
+  return DECISION_RESPONSES.has(action.kind);
 }
